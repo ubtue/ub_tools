@@ -17,7 +17,7 @@ function Usage() {
 
 function main(argv) {
     var last_slash_index = argv[1].lastIndexOf("/");
-    if (last_slash_index == -1)
+    if (last_slash_index === -1)
 	progname = argv[1];
     else
 	progname = argv[1].substring(last_slash_index + 1);
@@ -28,12 +28,12 @@ function main(argv) {
     var book_code = "01";
     var start_end = {};
     if (!ParseBibleReference(argv[2], book_code, start_end)) {
-	if (argv.length == 3)
+	if (argv.length === 3)
             console.log("Bad bible reference: " + argv[2]);
 	process.exit(1);
     }
 
-    if (argv.length == 3)
+    if (argv.length === 3)
 	process.exit(0);
 
     var matched_count = 0;
@@ -43,7 +43,7 @@ function main(argv) {
 	++matched_count;
     }
 
-    process.exit(matched_count == Object.keys(start_end).length ? 0 : 1);
+    process.exit(matched_count === Object.keys(start_end).length ? 0 : 1);
 }
 
 
