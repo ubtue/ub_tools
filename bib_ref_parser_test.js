@@ -20,7 +20,7 @@ function main(argv) {
     if (last_slash_index === -1)
 	progname = argv[1];
     else
-	progname = argv[1].substring(last_slash_index + 1);
+	progname = argv[1].substr(last_slash_index + 1);
 
     if (argv.length < 3)
 	Usage();

@@ -12,7 +12,7 @@ function PadLeadingZeroes(string, max_length) {
     if (string.length > max_length)
 	return string;
     else
-	return "000".substring(0, max_length - string.length) + string;
+	return "000".substr(0, max_length - string.length) + string;
 }
 
 
@@ -31,11 +31,11 @@ function ParseRefWithDot(bib_ref_candidate, book_code, start_end) {
     if (comma_pos === -1) // We must have a comma!
 	return false;
 
-    var chapter = PadLeadingZeroes(bib_ref_candidate.substring(0, comma_pos), 3);
+    var chapter = PadLeadingZeroes(bib_ref_candidate.substr(0, comma_pos), 3);
     if (chapter.length !== 3)
 	return false;
 
-    var rest = bib_ref_candidate.substring(comma_pos + 1);
+    var rest = bib_ref_candidate.substr(comma_pos + 1);
     var in_verse1 = true;
     var verse1 = "", verse2 = "";
     for (var i = 0; i < rest.length; ++i) {
@@ -159,7 +159,7 @@ function ParseBibleReference(bib_ref_candidate, book_code, start_end) {
 		accumulator = "";
 
 		// We need to differentiate between a verse vs. a chapter-hyphen:
-		var remainder = bib_ref_candidate.substring(i + 1);
+		var remainder = bib_ref_candidate.substr(i + 1);
 		if (remainder.indexOf(",") === -1) // => We have a verse hyphen!
 		    state = State.VERSE2;
 		else
