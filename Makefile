@@ -12,8 +12,7 @@ all: $(PROGS)
 marc_grep2: marc_grep2.o MarcGrepTokenizer.o MarcQueryParser.o libmarc.a
 	$(CCC) -o $@ $< MarcGrepTokenizer.o MarcQueryParser.o -L. -lmarc -lpcre -lcrypto
 
-marc_grep2.o: marc_grep2.cc Leader.h MarcQueryParser.h MarcUtil.h RegexMatcher.h Subfields.h util.h Compiler.h \
-              DirectoryEntry.h StringUtil.h
+marc_grep2.o: marc_grep2.cc Leader.h MarcQueryParser.h MarcUtil.h RegexMatcher.h Subfields.h util.h
 	$(CCC) $(CCOPTS) $<
 
 marc_grep_tokenizer_test: marc_grep_tokenizer_test.o MarcGrepTokenizer.o libmarc.a
@@ -142,5 +141,5 @@ clean:
 	rm -f *~ $(PROGS) *.o *.a
 
 backup:
-	cp *.cc *.h *.sh *.js Makefile COPYING stopwords.??? /mnt/krimdok/source/marc_filter/
-	cp *.cc *.h *.sh *.js Makefile COPYING stopwords.??? ~/Google\ Drive/marc_grep/
+	cp *.cc *.h *.sh *.js Makefile LICENSE COPYING stopwords.??? /mnt/krimdok/source/marc_filter/
+	cp *.cc *.h *.sh *.js Makefile LICENSE COPYING stopwords.??? ~/Google\ Drive/marc_grep/
