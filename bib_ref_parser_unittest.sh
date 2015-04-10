@@ -52,6 +52,7 @@ expect_success_cpp "17,3.6-8" "0101703:0101703" "0101706:0101708" # A verse and 
 expect_failure_cpp "17,3.8-6" "0101703:0101703" "0101708:0101706" # A verse and a verse range.
 expect_success_cpp "2,1-3.5" "0100201:0100203" "0100205:0100205" # A verse range followed by a single verse.
 expect_success_cpp "2,1-3.5-7" "0100201:0100203" "0100205:0100207" # Two separate verse ranges.
+expect_success_cpp "1,2a-3b" "0100102:0100103" # A single chapter and two partial verses.
 
 
 expect_success_js "22" "0102200:0102200"         # A single chapter.
@@ -74,3 +75,4 @@ expect_success_js "17,3.6-8" "0101703:0101703" "0101706:0101708" # A verse and a
 expect_failure_js "17,3.8-6" "0101703:0101703" "0101708:0101706" # A verse and a verse range.
 expect_success_js "2,1-3.5" "0100201:0100203" "0100205:0100205" # A verse range followed by a single verse.
 expect_success_js "2,1-3.5-7" "0100201:0100203" "0100205:0100207" # Two separate verse ranges.
+expect_success_js "1,2a-3b" "0100102:0100103" # A single chapter and two partial verses.
