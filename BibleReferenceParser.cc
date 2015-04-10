@@ -5,9 +5,23 @@
 
 
 namespace {
+    
 
+// Checks whether the new reference comes strictly after already existing references.
+bool NewReferenceIsCompatibleWithExistingReferences(
+	const std::pair<std::string, std::string> &new_ref,
+	const std::set<std::pair<std::string, std::string>> &existing_refs)
+{
+    if (existing_refs.empty())
+	return true;
 
-enum State { INITIAL, CHAPTER1, CHAPTER2, VERSE1, VERSE2 };
+    for (const auto existing_ref : existing_refs) {
+	if (new_ref.first <= existing_ref.second)
+	    return false;
+    }
+
+    return true;
+}
 	
 
 bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &book_code,
@@ -40,7 +54,11 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
 		if (verse1.empty())
 		    return false;
 		verse1 = StringUtil::PadLeading(verse1, 2, '0');
-		start_end->insert(std::make_pair(book_code + chapter + verse1, book_code + chapter + verse1));
+		const std::pair<std::string, std::string> new_reference(
+		    std::make_pair(book_code + chapter + verse1, book_code + chapter + verse1));
+		if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, *start_end))
+		    return false;
+		start_end->insert(new_reference);
 		verse1.clear();
 	    } else {
 		if (verse2.empty())
@@ -48,7 +66,11 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
 		verse2 = StringUtil::PadLeading(verse2, 2, '0');
 		if (verse2 <= verse1)
 		    return false;
-		start_end->insert(std::make_pair(book_code + chapter + verse1, book_code + chapter + verse2));
+		const std::pair<std::string, std::string> new_reference(
+                    std::make_pair(book_code + chapter + verse1, book_code + chapter + verse2));
+		if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, *start_end))
+		    return false;
+		start_end->insert(new_reference);
 		verse1.clear();
 		verse2.clear();
 		in_verse1 = true;
@@ -76,18 +98,29 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
 	if (verse1.empty())
 	    return false;
 	verse1 = StringUtil::PadLeading(verse1, 2, '0');
-	start_end->insert(std::make_pair(book_code + chapter + verse1, book_code + chapter + verse1));
+	const std::pair<std::string, std::string> new_reference(
+            std::make_pair(book_code + chapter + verse1, book_code + chapter + verse1));
+	if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, *start_end))
+	    return false;
+	start_end->insert(new_reference);
     } else {
 	if (verse2.empty())
 	    return false;
 	verse2 = StringUtil::PadLeading(verse2, 2, '0');
 	if (verse2 <= verse1)
 	    return false;
-	start_end->insert(std::make_pair(book_code + chapter + verse1, book_code + chapter + verse2));
+	const std::pair<std::string, std::string> new_reference(
+            std::make_pair(book_code + chapter + verse1, book_code + chapter + verse2));
+	if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, *start_end))
+	    return false;
+	start_end->insert(new_reference);
     }
 
     return true;
 }
+
+
+enum State { INITIAL, CHAPTER1, CHAPTER2, VERSE1, VERSE2 };
     
 
 } // unnamed namespace

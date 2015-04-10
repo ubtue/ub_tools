@@ -15,6 +15,22 @@ function IsDigit(digit_candidate) {
 function IsLower(ch) {
     return /[a-z]/.test(ch);
 }
+    
+
+// Checks whether the new reference comes strictly after already existing references.
+function NewReferenceIsCompatibleWithExistingReferences(new_ref, existing_refs) {
+    var new_first = new_ref.substr(0, new_ref.indexOf(":"));
+    for (var key in existing_refs) {
+	if (!existing_refs.hasOwnProperty(key))
+	    continue;
+
+	var existing_second = key.substr(key.indexOf(":") + 1);
+	if (new_first <= existing_second)
+	    return false;
+    }
+
+    return true;
+}
 	
 
 function ParseRefWithDot(bib_ref_candidate, book_code, start_end) {
@@ -46,7 +62,10 @@ function ParseRefWithDot(bib_ref_candidate, book_code, start_end) {
 		if (verse1.length === 0)
 		    return false;
 		verse1 = PadWithLeadingZeroes(verse1, 2);
-		start_end[book_code + chapter + verse1 + ":" + book_code + chapter + verse1] = true;
+		var new_reference = book_code + chapter + verse1 + ":" + book_code + chapter + verse1;
+		if (!NewReferenceIsCompatibleWithExistingReferences(new_reference, start_end))
+		    return false;
+		start_end[new_reference] = true;
 		verse1 = "";
 	    } else {
 		if (verse2.length === 0)
@@ -54,7 +73,10 @@ function ParseRefWithDot(bib_ref_candidate, book_code, start_end) {
 		verse2 = PadWithLeadingZeroes(verse2, 2);
 		if (verse2 <= verse1)
 		    return false;
-		start_end[book_code + chapter + verse1 + ":" + book_code + chapter + verse2] = true;
+		var new_reference = book_code + chapter + verse1 + ":" + book_code + chapter + verse2;
+		if (!NewReferenceIsCompatibleWithExistingReferences(new_reference, start_end))
+		    return false;
+		start_end[new_reference] = true;
 		verse1 = "";
 		verse2 = "";
 		in_verse1 = true;
@@ -82,14 +104,20 @@ function ParseRefWithDot(bib_ref_candidate, book_code, start_end) {
 	if (verse1.length === 0)
 	    return false;
 	verse1 = PadWithLeadingZeroes(verse1, 2);
-	start_end[book_code + chapter + verse1 + ":" + book_code + chapter + verse1] = true;
+	var new_reference = book_code + chapter + verse1 + ":" + book_code + chapter + verse1;
+	if (!NewReferenceIsCompatibleWithExistingReferences(new_reference, start_end))
+	    return false;
+	start_end[new_reference] = true;
     } else {
 	if (verse2.length === 0)
 	    return false;
 	verse2 = PadWithLeadingZeroes(verse2, 2);
 	if (verse2 <= verse1)
 	    return false;
-	start_end[book_code + chapter + verse1 + ":" + book_code + chapter + verse2] = true;
+	var new_reference = book_code + chapter + verse1 + ":" + book_code + chapter + verse2;
+	if (!NewReferenceIsCompatibleWithExistingReferences(new_reference, start_end))
+	    return false;
+	start_end[new_reference] = true;
     }
 
     return true;

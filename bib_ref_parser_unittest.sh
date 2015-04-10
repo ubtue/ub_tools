@@ -46,7 +46,8 @@ expect_success_cpp "1,2-5,17c" "0100102:0100517"  # chapter1/verse1 - chapter2/v
 expect_success_cpp "1,2b-5,17c" "0100102:0100517" # chapter1/verse1 - chapter2/verse2.
 expect_failure_cpp "6,2-5,17" "0100602:0100517"   # chapter1/verse1 - chapter2/verse2 but chapter2 < chapter1.
 expect_success_cpp "17,3.6" "0101703:0101703" "0101706:0101706" # A single chapter and two nonconsecutive single verses.
-expect_success_cpp "17,6.3" "0101706:0101706" "0101703:0101703" # A single chapter and two nonconsecutive single verses.
+expect_failure_cpp "17,6.3" "0101706:0101706" "0101703:0101703" # A single chapter and two nonconsecutive single verses.
+expect_failure_cpp "17,3-6.4-7" "0101706:0101706" "0101703:0101703" # A single chapter and two overlapping verse ranges.
 expect_success_cpp "17,3.6-8" "0101703:0101703" "0101706:0101708" # A verse and a verse range.
 expect_failure_cpp "17,3.8-6" "0101703:0101703" "0101708:0101706" # A verse and a verse range.
 expect_success_cpp "2,1-3.5" "0100201:0100203" "0100205:0100205" # A verse range followed by a single verse.
@@ -67,7 +68,8 @@ expect_success_js "1,2-5,17c" "0100102:0100517"  # chapter1/verse1 - chapter2/ve
 expect_success_js "1,2b-5,17c" "0100102:0100517" # chapter1/verse1 - chapter2/verse2.
 expect_failure_js "6,2-5,17" "0100602:0100517"   # chapter1/verse1 - chapter2/verse2 but chapter2 < chapter1.
 expect_success_js "17,3.6" "0101703:0101703" "0101706:0101706" # A single chapter and two nonconsecutive single verses.
-expect_success_js "17,6.3" "0101706:0101706" "0101703:0101703" # A single chapter and two nonconsecutive single verses.
+expect_failure_js "17,6.3" "0101706:0101706" "0101703:0101703" # A single chapter and two nonconsecutive single verses.
+expect_failure_cpp "17,3-6.4-7" "0101706:0101706" "0101703:0101703" # A single chapter and two overlapping verse ranges.
 expect_success_js "17,3.6-8" "0101703:0101703" "0101706:0101708" # A verse and a verse range.
 expect_failure_js "17,3.8-6" "0101703:0101703" "0101708:0101706" # A verse and a verse range.
 expect_success_js "2,1-3.5" "0100201:0100203" "0100205:0100205" # A verse range followed by a single verse.
