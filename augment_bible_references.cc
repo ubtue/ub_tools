@@ -188,10 +188,11 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
     if (verbose)
 	std::cerr << "Starting loading of norm data.\n";
 
-    const std::string bible_book_map_filename("books_of_the_bible_to_code.map");
+    const std::string bible_book_map_filename("books_of_the_bible_to_code_map.js");
     std::ofstream bible_book_map(bible_book_map_filename, std::ofstream::out | std::ofstream::trunc);
     if (bible_book_map.fail())
 	Error("Failed to open \"" + bible_book_map_filename + "\" for writing!");
+    bible_book_map << "var book_name_to_code_map = {};\n\n";
 
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
@@ -321,7 +322,8 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 		++bible_book_code;
 		current_book_code = StringUtil::PadLeading(std::to_string(bible_book_code), 2, '0');
 		bible_book_to_code_map[book_candidate] = current_book_code;
-		bible_book_map << book_candidate << " = " << current_book_code << '\n';
+		bible_book_map << "book_name_to_code_map[\"" << StringUtil::ToLower(book_candidate)
+			       << "\"] = \"" << current_book_code << "\";\n";
 	    }
 	} else {
 	    for (const auto ordinal : book_ordinals) {
@@ -333,7 +335,8 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 		    ++bible_book_code;
 		    current_book_code = StringUtil::PadLeading(std::to_string(bible_book_code), 2, '0');
 		    bible_book_to_code_map[augmented_book_name] = current_book_code;
-		    bible_book_map << augmented_book_name << " = " << current_book_code << '\n';
+		    bible_book_map << "book_name_to_code_map[\"" << StringUtil::ToLower(augmented_book_name)
+				   << "\"] = \"" << current_book_code << "\";\n";
 		}
 	    }
 	}
