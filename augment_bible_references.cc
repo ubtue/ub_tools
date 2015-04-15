@@ -60,8 +60,8 @@ const std::unordered_set<std::string> books_of_the_bible { // Found in 130$a
     "Rut", // $9g:Buch
     "Samuel", // $9g:Buch, 2 records "I." and "II." in $n
     "Könige", // $9g:Buch, 2 records "I." and "II." in $n
-    "Chronik", // $9g:Buch, 2 records "I." and "II." in $n
-    "Esra", // $9g:Buch, $9g:gBuch, III., $9g:gBuch, IV. und $9g:gBuch, IV. 1-2
+    "Chronik", // 2 records "I." and "II." in $n
+    "Esra", // $9g:Buch
     "Nehemia", // $9g:Buch
     "Tobit", // $9g:Buch
     "Judit", // $9g:Buch
@@ -98,7 +98,7 @@ const std::unordered_set<std::string> books_of_the_bible { // Found in 130$a
 
 // Books of the bible that are flagged as "g:Buch.*" in 530$9:
 const std::unordered_set<std::string> explicit_books {
-    "Josua", "Richter", "Rut", "Samuel", "Könige", "Chronik", "Esra", "Nehemia", "Tobit", "Judit", "Ester",
+    "Josua", "Richter", "Rut", "Samuel", "Könige", "Esra", "Nehemia", "Tobit", "Judit", "Ester",
     "Makkabäer", "Ijob", "Weisheit", "Sirach", "Jesaja", "Jeremia", "Baruch", "Ezechiel", "Daniel", "Hosea", "Joel",
     "Amos", "Obadja", "Jona", "Micha", "Nahum", "Habakuk", "Zefanja", "Haggai", "Sacharja", "Maleachi"
 };
@@ -107,7 +107,7 @@ const std::unordered_set<std::string> explicit_books {
 // Books of the bible that have ordinal Roman numerals in $530$n:
 const std::unordered_set<std::string> books_with_ordinals {
     "Korintherbrief", "Thessalonicherbrief", "Timotheusbrief", "Petrusbrief", "Johannesbrief", "Samuel", "Könige",
-    "Chronik", "Esra", "Makkabäer"
+    "Chronik", "Makkabäer"
 };
 
 
@@ -321,9 +321,10 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	    else {
 		++bible_book_code;
 		current_book_code = StringUtil::PadLeading(std::to_string(bible_book_code), 2, '0');
-		bible_book_to_code_map[book_candidate] = current_book_code;
-		bible_book_map << "book_name_to_code_map[\"" << StringUtil::ToLower(book_candidate)
-			       << "\"] = \"" << current_book_code << "\";\n";
+		bible_book_to_code_map[book_candidate] =
+                    StringUtil::ToLower(StringUtil::RemoveChars(" ", &current_book_code));
+		bible_book_map << "book_name_to_code_map[\"" << book_candidate << "\"] = \""
+			       << current_book_code << "\";\n";
 	    }
 	} else {
 	    for (const auto ordinal : book_ordinals) {
@@ -334,9 +335,10 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 		else {
 		    ++bible_book_code;
 		    current_book_code = StringUtil::PadLeading(std::to_string(bible_book_code), 2, '0');
-		    bible_book_to_code_map[augmented_book_name] = current_book_code;
-		    bible_book_map << "book_name_to_code_map[\"" << StringUtil::ToLower(augmented_book_name)
-				   << "\"] = \"" << current_book_code << "\";\n";
+		    bible_book_to_code_map[augmented_book_name] =
+			StringUtil::ToLower(StringUtil::RemoveChars(" ", &current_book_code));
+		    bible_book_map << "book_name_to_code_map[\"" << augmented_book_name << "\"] = \""
+				   << current_book_code << "\";\n";
 		}
 	    }
 	}
