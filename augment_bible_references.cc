@@ -321,8 +321,8 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	    else {
 		++bible_book_code;
 		current_book_code = StringUtil::PadLeading(std::to_string(bible_book_code), 2, '0');
-		bible_book_to_code_map[book_candidate] =
-                    StringUtil::ToLower(StringUtil::RemoveChars(" ", &current_book_code));
+		bible_book_to_code_map[book_candidate] = current_book_code;
+		book_candidate = StringUtil::ToLower(StringUtil::RemoveChars(" ", &book_candidate));
 		bible_book_map << "book_name_to_code_map[\"" << book_candidate << "\"] = \""
 			       << current_book_code << "\";\n";
 	    }
@@ -335,8 +335,8 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 		else {
 		    ++bible_book_code;
 		    current_book_code = StringUtil::PadLeading(std::to_string(bible_book_code), 2, '0');
-		    bible_book_to_code_map[augmented_book_name] =
-			StringUtil::ToLower(StringUtil::RemoveChars(" ", &current_book_code));
+		    bible_book_to_code_map[augmented_book_name] = current_book_code;
+		    augmented_book_name = StringUtil::ToLower(StringUtil::RemoveChars(" ", &augmented_book_name));
 		    bible_book_map << "book_name_to_code_map[\"" << augmented_book_name << "\"] = \""
 				   << current_book_code << "\";\n";
 		}
