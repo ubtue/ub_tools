@@ -12,9 +12,6 @@ bool NewReferenceIsCompatibleWithExistingReferences(
 	const std::pair<std::string, std::string> &new_ref,
 	const std::set<std::pair<std::string, std::string>> &existing_refs)
 {
-    if (existing_refs.empty())
-	return true;
-
     for (const auto existing_ref : existing_refs) {
 	if (new_ref.first <= existing_ref.second)
 	    return false;
@@ -131,7 +128,7 @@ bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string
 {
     start_end->clear();
     if (bib_ref_candidate.empty()) {
-	start_end->insert(std::make_pair(book_code + "00000", book_code + "00000"));
+	start_end->insert(std::make_pair(book_code + "00000", book_code + "99999"));
 	return true;
     }
 
@@ -223,13 +220,13 @@ bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string
     }
 
     if (state == CHAPTER1) {
-	chapter1 = book_code + StringUtil::PadLeading(accumulator, 3, '0') + "00";
-	start_end->insert(std::make_pair(chapter1, chapter1));
+	chapter1 = book_code + StringUtil::PadLeading(accumulator, 3, '0');
+	start_end->insert(std::make_pair(chapter1 + "00", chapter1 + "99"));
     } else if (state == CHAPTER2) {
 	if (accumulator.empty())
 	    return false;
 	verse1 = StringUtil::PadLeading(verse1, 2, '0');
-	verse2 = StringUtil::PadLeading(verse2, 2, '0');
+	verse2 = verse2.empty() ? "99" : StringUtil::PadLeading(verse2, 2, '0');
 	const std::string chapter1_verse1(chapter1 + verse1);
 	const std::string chapter2_verse2(StringUtil::PadLeading(accumulator, 3, '0') + verse2);
 	if (chapter2_verse2 <= chapter1_verse1)

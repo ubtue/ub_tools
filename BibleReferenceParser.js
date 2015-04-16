@@ -15,7 +15,7 @@ function IsDigit(digit_candidate) {
 function IsLower(ch) {
     return /[a-z]/.test(ch);
 }
-    
+
 
 // Checks whether the new reference comes strictly after already existing references.
 function NewReferenceIsCompatibleWithExistingReferences(new_ref, existing_refs) {
@@ -31,7 +31,7 @@ function NewReferenceIsCompatibleWithExistingReferences(new_ref, existing_refs) 
 
     return true;
 }
-	
+
 
 function ParseRefWithDot(bib_ref_candidate, book_code, start_end) {
     var comma_pos = bib_ref_candidate.indexOf(",");
@@ -135,7 +135,7 @@ var State = {
 
 function ParseBibleReference(bib_ref_candidate, book_code, start_end) {
     if (bib_ref_candidate.length === 0) {
-        start_end[book_code + "00000:" + book_code + "00000"] = true;
+        start_end[book_code + "00000:" + book_code + "99999"] = true;
 	return true;
     }
 
@@ -226,13 +226,13 @@ function ParseBibleReference(bib_ref_candidate, book_code, start_end) {
     }
 
     if (state === State.CHAPTER1) {
-	chapter1 = book_code + PadWithLeadingZeroes(accumulator, 3) + "00";
-	start_end[chapter1 + ":" + chapter1] = true;
+	chapter1 = book_code + PadWithLeadingZeroes(accumulator, 3);
+	start_end[chapter1 + "00:" + chapter1 + "99"] = true;
     } else if (state === State.CHAPTER2) {
 	if (accumulator.length === 0)
 	    return false;
 	verse1 = PadWithLeadingZeroes(verse1, 2);
-	verse2 = PadWithLeadingZeroes(verse2, 2);
+	verse2 = (verse2.length == 0) ? "99" : PadWithLeadingZeroes(verse2, 2);
 	var chapter1_verse1 = chapter1 + verse1;
 	var chapter2_verse2 = PadWithLeadingZeroes(accumulator, 3) + verse2;
 	if (chapter2_verse2 <= chapter1_verse1)

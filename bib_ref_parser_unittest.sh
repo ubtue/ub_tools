@@ -32,11 +32,11 @@ function expect_failure_js() {
     fi
 }
 
-expect_success_cpp "22" "0102200:0102200"         # A single chapter.
+expect_success_cpp "22" "0102200:0102299"         # A single chapter.
 expect_success_cpp "1,2" "0100102:0100102"        # A single chapter with a single verse.
 expect_success_cpp "1,2b" "0100102:0100102"       # A single chapter with a single verse.
-expect_success_cpp "1-3" "0100100:0100300"        # A chapter range w/o verses.
-expect_failure_cpp "3-1" "0100300:0100100"        # An inverted chapter range w/o verses.
+expect_success_cpp "1-3" "0100100:0100399"        # A chapter range w/o verses.
+expect_failure_cpp "3-1" "0100399:0100100"        # An inverted chapter range w/o verses.
 expect_success_cpp "1,2-3" "0100102:0100103"      # One chapter, verse range.
 expect_success_cpp "1,2a-3" "0100102:0100103"     # One chapter, verse range.
 expect_failure_cpp "1,3-2" "0100103:0100102"      # One chapter, inverted verse range.
@@ -55,11 +55,11 @@ expect_success_cpp "2,1-3.5-7" "0100201:0100203" "0100205:0100207" # Two separat
 expect_success_cpp "1,2a-3b" "0100102:0100103" # A single chapter and two partial verses.
 
 
-expect_success_js "22" "0102200:0102200"         # A single chapter.
+expect_success_js "22" "0102200:0102299"         # A single chapter.
 expect_success_js "1,2" "0100102:0100102"        # A single chapter with a single verse.
 expect_success_js "1,2b" "0100102:0100102"       # A single chapter with a single verse.
-expect_success_js "1-3" "0100100:0100300"        # A chapter range w/o verses.
-expect_failure_js "3-1" "0100300:0100100"        # An inverted chapter range w/o verses.
+expect_success_js "1-3" "0100100:0100399"        # A chapter range w/o verses.
+expect_failure_js "3-1" "0100399:0100100"        # An inverted chapter range w/o verses.
 expect_success_js "1,2-3" "0100102:0100103"      # One chapter, verse range.
 expect_success_js "1,2a-3" "0100102:0100103"     # One chapter, verse range.
 expect_failure_js "1,3-2" "0100103:0100102"      # One chapter, inverted verse range.
