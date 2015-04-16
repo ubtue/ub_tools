@@ -200,7 +200,9 @@ std::string StripRomanNumerals(const std::string &field_contents) {
 
 
 void LoadNormData(const bool verbose, FILE * const norm_input,
-		  std::unordered_map<std::string, std::string> * const gnd_codes_to_bible_ref_codes_map) {
+		  std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
+		      gnd_codes_to_bible_ref_codes_map)
+{
     gnd_codes_to_bible_ref_codes_map->clear();
     if (verbose)
 	std::cerr << "Starting loading of norm data.\n";
@@ -383,14 +385,15 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	}
 	book_field_n = StripRomanNumerals(book_field_n);
 
-	if (not book_field_9.empty())
-	    book_field_9 = " " + book_field + "|" + book_field_9;
-	if (not book_field_n.empty())
-	    book_field_n = " " + book_field + "$n|" + book_field_n;
-	if (not _065n_field.empty())
-	    _065n_field = " 065$n|" + _065n_field;
+	std::set<std::pair<std::string, std::string>> ranges;
+	if (book_field_n.empty())
+	    ranges.insert(std::make_pair(current_book_code + "00000", current_book_code + "99999"));
+	else if (not ParseBibleReference(book_field_n, current_book_code, &ranges)) {
+	    std::cerr << "Bad ranges: " << control_number << ": " << book_field << "$n " << book_field_n << '\n';
+	    continue;
+	}
+	(*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
 
-	std::cout << control_number << '\n';
 	++bible_ref_count;
     }
 
@@ -500,7 +503,7 @@ int main(int argc, char **argv) {
     if (unlikely(norm_input_filename == title_output_filename))
 	Error("Norm data input file name equals title output file name!");
 
-    std::unordered_map<std::string, std::string> gnd_codes_to_bible_ref_codes_map;
+    std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_codes_to_bible_ref_codes_map;
     LoadNormData(verbose, norm_input, &gnd_codes_to_bible_ref_codes_map);
 //    AugmentBibleRefs(verbose, title_input, title_output, gnd_codes);
 
