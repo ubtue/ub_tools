@@ -14,7 +14,6 @@
 #include "DirectoryEntry.h"
 #include "Leader.h"
 #include "MarcUtil.h"
-#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "TextUtil.h"
@@ -28,7 +27,7 @@ void Usage() {
 }
 
 
-const std::unordered_set<std::string> books_of_the_bible { // Found in 130$a
+const std::unordered_set<std::string> books_of_the_bible { // Found in 130$a:100$t
     "Matthäusevangelium", // -- start New Testament --
     "Markusevangelium",
     "Lukasevangelium",
@@ -96,7 +95,7 @@ const std::unordered_set<std::string> books_of_the_bible { // Found in 130$a
 };
 
 
-// Books of the bible that are flagged as "g:Buch.*" in 530$9:
+// Books of the bible that are flagged as "g:Buch.*" in 130$9:
 const std::unordered_set<std::string> explicit_books {
     "Josua", "Richter", "Rut", "Samuel", "Könige", "Esra", "Nehemia", "Tobit", "Judit", "Ester",
     "Makkabäer", "Ijob", "Weisheit", "Sirach", "Jesaja", "Jeremia", "Baruch", "Ezechiel", "Daniel", "Hosea", "Joel",
@@ -104,7 +103,7 @@ const std::unordered_set<std::string> explicit_books {
 };
 
 
-// Books of the bible that have ordinal Roman numerals in $530$n:
+// Books of the bible that have ordinal Roman numerals in $130$n:
 const std::unordered_set<std::string> books_with_ordinals {
     "Korintherbrief", "Thessalonicherbrief", "Timotheusbrief", "Petrusbrief", "Johannesbrief", "Samuel", "Könige",
     "Chronik", "Makkabäer"
@@ -182,6 +181,24 @@ bool findBibleBookInField(const std::string &fields_and_subfields, const std::ve
 }
 
 
+// Expects that 'components' are separated by semicolons.
+std::string StripRomanNumerals(const std::string &field_contents) {
+    std::vector<std::string> components;
+    StringUtil::Split(field_contents, ';', &components);
+
+    std::string filtered_field_contents;
+    for (const auto component : components) {
+	if (not StartsWithSmallRomanOrdinal(component)) {
+	    if (not filtered_field_contents.empty())
+		filtered_field_contents += ';';
+	    filtered_field_contents += component;
+	}
+    }
+
+    return filtered_field_contents;
+}
+
+
 void LoadNormData(const bool verbose, FILE * const norm_input,
 		  std::unordered_map<std::string, std::string> * const gnd_codes_to_bible_ref_codes_map) {
     gnd_codes_to_bible_ref_codes_map->clear();
@@ -230,7 +247,7 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	    continue;
 
 	std::string book_candidate, book_field;
-	if (not findBibleBookInField("430a:130a:100a:100t", dir_entries, field_data, &book_candidate, &book_field))
+	if (not findBibleBookInField("130a:100t", dir_entries, field_data, &book_candidate, &book_field))
 	    continue;
 
 	// Ensure that we have a GND-Code in 035$a:
@@ -264,15 +281,15 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	    }
 	}
 
-	// Filter records that looks like bible books but would have to have a 530$9 subfield starting
+	// Filter records that looks like bible books but would have to have a 130$9 subfield starting
 	// with "g:Buch" in order to qualify:
 	if (explicit_books.find(book_candidate) != explicit_books.end()) {
-	    const auto _530_begin_end(DirectoryEntry::FindFields("530", dir_entries));
+	    const auto _130_begin_end(DirectoryEntry::FindFields("130", dir_entries));
 	    bool found_at_least_one(false);
-	    for (auto _530_iter(_530_begin_end.first); _530_iter != _530_begin_end.second; ++_530_iter) {
-		const Subfields _530_subfields(field_data[_530_iter - dir_entries.begin()]);
-		const auto _530a_begin_end(_530_subfields.getIterators('9'));
-		for (auto code_and_value(_530a_begin_end.first); code_and_value != _530a_begin_end.second;
+	    for (auto _130_iter(_130_begin_end.first); _130_iter != _130_begin_end.second; ++_130_iter) {
+		const Subfields _130_subfields(field_data[_130_iter - dir_entries.begin()]);
+		const auto _130a_begin_end(_130_subfields.getIterators('9'));
+		for (auto code_and_value(_130a_begin_end.first); code_and_value != _130a_begin_end.second;
 		     ++code_and_value)
 		{
 		    if (StringUtil::StartsWith(code_and_value->second, "g:Buch")) {
@@ -364,9 +381,7 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 		book_field_n += code_and_value->second;
 	    }
 	}
-
-//	if (_065n_field != book_field_n)
-//	    std::cerr << "_065n_field(" << _065n_field << ") and book_field_n(" << book_field_n << ") differ!\n";
+	book_field_n = StripRomanNumerals(book_field_n);
 
 	if (not book_field_9.empty())
 	    book_field_9 = " " + book_field + "|" + book_field_9;
@@ -375,8 +390,7 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	if (not _065n_field.empty())
 	    _065n_field = " 065$n|" + _065n_field;
 
-	std::cout << control_number << "| " << book_candidate << ' ' << book_field_9 << book_field_n
-		  << _065n_field << '\n';
+	std::cout << control_number << '\n';
 	++bible_ref_count;
     }
 
