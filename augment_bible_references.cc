@@ -28,85 +28,85 @@ void Usage() {
 
 
 const std::unordered_set<std::string> books_of_the_bible { // Found in 130$a:100$t
-    "Matthäusevangelium", // -- start New Testament --
-    "Markusevangelium",
-    "Lukasevangelium",
-    "Johannesevangelium",
-    "Apostelgeschichte",
-    "Römerbrief",
-    "Korintherbrief", // 2 records "I." and "II." in $n
-    "Galaterbrief",
-    "Epheserbrief",
-    "Philipperbrief",
-    "Kolosserbrief",
-    "Thessalonicherbrief", // 2 records "I." and "II." in $n
-    "Timotheusbrief", // 2 records "I." and "II." in $n
-    "Titusbrief",
-    "Philemonbrief",
-    "Hebräerbrief",
-    "Jakobusbrief",
-    "Petrusbrief", // 2 records "I." and "II." in $n
-    "Johannesbrief", // 3 records "I.", "II." and "III." in $n
-    "Judasbrief",
-    "Johannes-Apokalypse", // a.k.a. "Offenbarung des Johannes"
-    "Genesis", // -- start Old Testament --
-    "Exodus",
-    "Leviticus",
-    "Numeri",
-    "Deuteronomium",
-    "Josua", // $9g:Buch
-    "Richter", // $9g:Buch
-    "Rut", // $9g:Buch
-    "Samuel", // $9g:Buch, 2 records "I." and "II." in $n
-    "Könige", // $9g:Buch, 2 records "I." and "II." in $n
-    "Chronik", // 2 records "I." and "II." in $n
-    "Esra", // $9g:Buch
-    "Nehemia", // $9g:Buch
-    "Tobit", // $9g:Buch
-    "Judit", // $9g:Buch
-    "Ester", // $9g:Buch
-    "Makkabäer", // $9g:Buch, 4 records "I.", "II.", "III." and "IV." in $n
-    "Ijob", // $9g:Buch
-    "Psalmen",
-    "Sprichwörter", // $9g:Bibel
-    "Kohelet",
-    "Hoheslied",
-    "Weisheit", // $9g:Buch
-    "Sirach", // $9g:Buch
-    "Jesaja", // $9g:Buch
-    "Jeremia", // $9g:Buch
-    "Klagelieder Jeremias", // a.k.a. "Klagelieder"
-    "Baruch", // $9g:Buch
-    "Jeremiabrief", // a.k.a. "Epistola Jeremiae"
-    "Ezechiel", // $9g:Buch
-    "Daniel", // $9g:Buch
-    "Hosea", // $9g:Buch
-    "Joel", // $9g:Buch
-    "Amos", // $9g:Buch
-    "Obadja", // $9g:Buch
-    "Jona", // $9g:Buch
-    "Micha", // $9g:Buch
-    "Nahum", // $9g:Buch
-    "Habakuk", // $9g:Buch
-    "Zefanja", // $9g:Buch
-    "Haggai", // $9g:Buch
-    "Sacharja", // $9g:Buch
-    "Maleachi", // $9g:Buch
+    "matthäusevangelium", // -- start New Testament --
+    "markusevangelium",
+    "lukasevangelium",
+    "johannesevangelium",
+    "apostelgeschichte",
+    "römerbrief",
+    "korintherbrief", // 2 records "I." and "II." in $n
+    "galaterbrief",
+    "epheserbrief",
+    "philipperbrief",
+    "kolosserbrief",
+    "thessalonicherbrief", // 2 records "I." and "II." in $n
+    "timotheusbrief", // 2 records "I." and "II." in $n
+    "titusbrief",
+    "philemonbrief",
+    "hebräerbrief",
+    "jakobusbrief",
+    "petrusbrief", // 2 records "I." and "II." in $n
+    "johannesbrief", // 3 records "I.", "II." and "III." in $n
+    "judasbrief",
+    "johannes-apokalypse", // a.k.a. "Offenbarung des Johannes"
+    "genesis", // -- start Old Testament --
+    "exodus",
+    "leviticus",
+    "numeri",
+    "deuteronomium",
+    "josua", // $9g:Buch
+    "richter", // $9g:Buch
+    "rut", // $9g:Buch
+    "samuel", // $9g:Buch, 2 records "I." and "II." in $n
+    "könige", // $9g:Buch, 2 records "I." and "II." in $n
+    "chronik", // 2 records "I." and "II." in $n
+    "esra", // $9g:Buch
+    "nehemia", // $9g:Buch
+    "tobit", // $9g:Buch
+    "judit", // $9g:Buch
+    "ester", // $9g:Buch
+    "makkabäer", // $9g:Buch, 4 records "I.", "II.", "III." and "IV." in $n
+    "ijob", // $9g:Buch
+    "psalmen",
+    "sprichwörter", // $9g:Bibel
+    "kohelet",
+    "hoheslied",
+    "weisheit", // $9g:Buch
+    "sirach", // $9g:Buch
+    "jesaja", // $9g:Buch
+    "jeremia", // $9g:Buch
+    "klagelieder jeremias", // a.k.a. "Klagelieder"
+    "baruch", // $9g:Buch
+    "jeremiabrief", // a.k.a. "Epistola Jeremiae"
+    "ezechiel", // $9g:Buch
+    "daniel", // $9g:Buch
+    "hosea", // $9g:Buch
+    "joel", // $9g:Buch
+    "amos", // $9g:Buch
+    "obadja", // $9g:Buch
+    "jona", // $9g:Buch
+    "micha", // $9g:Buch
+    "nahum", // $9g:Buch
+    "habakuk", // $9g:Buch
+    "zefanja", // $9g:Buch
+    "haggai", // $9g:Buch
+    "sacharja", // $9g:Buch
+    "maleachi", // $9g:Buch
 };
 
 
 // Books of the bible that are flagged as "g:Buch.*" in 130$9:
 const std::unordered_set<std::string> explicit_books {
-    "Josua", "Richter", "Rut", "Samuel", "Könige", "Esra", "Nehemia", "Tobit", "Judit", "Ester",
-    "Makkabäer", "Ijob", "Weisheit", "Sirach", "Jesaja", "Jeremia", "Baruch", "Ezechiel", "Daniel", "Hosea", "Joel",
-    "Amos", "Obadja", "Jona", "Micha", "Nahum", "Habakuk", "Zefanja", "Haggai", "Sacharja", "Maleachi"
+    "josua", "richter", "rut", "samuel", "könige", "esra", "nehemia", "tobit", "judit", "ester",
+    "makkabäer", "ijob", "weisheit", "sirach", "jesaja", "jeremia", "baruch", "ezechiel", "daniel", "hosea", "joel",
+    "amos", "obadja", "jona", "micha", "nahum", "habakuk", "zefanja", "haggai", "sacharja", "maleachi"
 };
 
 
 // Books of the bible that have ordinal Roman numerals in $130$n:
 const std::unordered_set<std::string> books_with_ordinals {
-    "Korintherbrief", "Thessalonicherbrief", "Timotheusbrief", "Petrusbrief", "Johannesbrief", "Samuel", "Könige",
-    "Chronik", "Makkabäer"
+    "korintherbrief", "thessalonicherbrief", "timotheusbrief", "petrusbrief", "johannesbrief", "samuel", "könige",
+    "chronik", "makkabäer"
 };
 
 
@@ -114,12 +114,13 @@ bool StartsWithSmallRomanOrdinal(const std::string &roman_ordinal_candidate) {
     return StringUtil::StartsWith(roman_ordinal_candidate, "I.")
 	   or StringUtil::StartsWith(roman_ordinal_candidate, "II.")
 	   or StringUtil::StartsWith(roman_ordinal_candidate, "III.")
-	   or StringUtil::StartsWith(roman_ordinal_candidate, "IV.");
+	   or StringUtil::StartsWith(roman_ordinal_candidate, "IV.")
+	   or StringUtil::StartsWith(roman_ordinal_candidate, "VI.");
 }
 
 
-// Extracts the Roman ordinals and converts them cardinal numbers.
-void ExtractRomanOrdinals(const std::string &ordinals, std::set<unsigned> * extracted_set) {
+// Extracts the Roman ordinals and converts them to cardinal numbers.
+bool ExtractRomanOrdinals(const std::string &ordinals, std::set<unsigned> * extracted_set) {
     std::string scanned_text;
     for (auto ch : ordinals) {
 	switch (ch) {
@@ -136,12 +137,16 @@ void ExtractRomanOrdinals(const std::string &ordinals, std::set<unsigned> * extr
 		extracted_set->insert(3);
 	    else if (scanned_text == "IV")
 		extracted_set->insert(4);
+	    else if (scanned_text == "VI")
+		extracted_set->insert(6);
 	    scanned_text.clear();
 	    break;
 	default:
 	    scanned_text.clear();
 	}
     }
+
+    return not extracted_set->empty();
 }
 
 
@@ -160,7 +165,7 @@ bool EndsWithLowercaseChar(const std::string &s) {
  *                               the bible was found.
  *  \return True if a book of the bible was found in one of the subfields, else false.
  */
-bool findBibleBookInField(const std::string &fields_and_subfields, const std::vector<DirectoryEntry> &dir_entries,
+bool FindBibleBookInField(const std::string &fields_and_subfields, const std::vector<DirectoryEntry> &dir_entries,
 			  const std::vector<std::string> &field_data, std::string * const book_candidate,
 			  std::string * const field)
 {
@@ -199,6 +204,228 @@ std::string StripRomanNumerals(const std::string &field_contents) {
 }
 
 
+/** \brief True if a GND code was found in 035$a else false. */
+bool GetGNDCode(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
+		std::string * const gnd_code)
+{
+    gnd_code->clear();
+
+    const auto _035_iter(DirectoryEntry::FindField("035", dir_entries));
+    if (_035_iter == dir_entries.end())
+	return false;
+    const Subfields _035_subfields(field_data[_035_iter - dir_entries.begin()]);
+    const std::string _035a_field(_035_subfields.getFirstSubfieldValue('a'));
+    if (not StringUtil::StartsWith(_035a_field, "(DE-588)"))
+	return false;
+    *gnd_code = _035a_field.substr(8);
+    return not gnd_code->empty();
+}
+
+
+/** Returns true if subfield "n" of "field" is empty or contains a valid chapter/verse reference, else false. */
+bool GetChapterAndVerse(const std::string &field, std::string * const chapters_and_verses) {
+    chapters_and_verses->clear();
+
+    const Subfields subfields(field);
+    *chapters_and_verses = subfields.getFirstSubfieldValue('n');
+    if (chapters_and_verses->empty())
+	return true;
+
+    return CanParseBibleReference(*chapters_and_verses);
+}
+
+
+// Splits numeric references from $n and $9 subfields into an optional roman numeral part and an optional
+// chapter/verse part.
+void SplitNumericReferences(const Subfields &subfields, std::vector<std::string> * const roman_refs,
+			    std::vector<std::string> * const rest)
+{
+    roman_refs->clear(), rest->clear();
+    
+    std::pair<Subfields::ConstIterator, Subfields::ConstIterator> begin_end(subfields.getIterators('n'));
+    for (auto code_and_value(begin_end.first); code_and_value != begin_end.second; ++code_and_value) {
+	if (StartsWithSmallRomanOrdinal(code_and_value->second))
+	    roman_refs->push_back(code_and_value->second);
+	else if (not code_and_value->second.empty())
+	    rest->push_back(code_and_value->second);
+    }
+
+    begin_end = subfields.getIterators('9');
+    for (auto code_and_value(begin_end.first); code_and_value != begin_end.second; ++code_and_value) {
+	std::string candidate;
+	if (StringUtil::StartsWith(code_and_value->second, "g:Buch, "))
+	    candidate = code_and_value->second.substr(8);
+	else if (StringUtil::StartsWith(code_and_value->second, "g:Buch "))
+	    candidate = code_and_value->second.substr(7);
+	else if (StringUtil::StartsWith(code_and_value->second, "g:"))
+	    candidate = code_and_value->second.substr(2);
+	if (candidate.empty())
+	    continue;
+
+	if (StartsWithSmallRomanOrdinal(candidate)) {
+	    std::string roman_numeral, remainder;
+	    bool in_roman_numeral(true), in_remainder;
+	    for (const auto ch : candidate) {
+		if (in_roman_numeral) {
+		    if (ch == 'I' or ch == 'V')
+			roman_numeral += ch;
+		    else if (ch == '.') {
+			roman_numeral += ch;
+			in_roman_numeral = false;
+		    }
+		} else if (in_remainder) {
+		    if (ch != ' ')
+			remainder += ch;
+		} else {
+		    if (ch != ',' and ch != ' ') {
+			remainder += ch;
+			in_remainder = true;
+		    }
+		}
+	    }
+	    roman_refs->push_back(roman_numeral);
+	    if (not remainder.empty())
+		rest->push_back(remainder);
+	} else if (isdigit(candidate[0]))
+	    rest->push_back(StringUtil::RightTrim(&candidate));
+    }
+}
+
+
+bool ExtractBibleReference(const bool verbose, const std::string &control_number, const std::string &field,
+			   const char subfield_code, const std::string &gnd_code, std::string * const book_name,
+			   std::unordered_map<std::string, std::string> * const bible_book_to_code_map,
+			   unsigned * const next_bible_book_code, std::ofstream * const bible_book_map,
+			   std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
+			       gnd_codes_to_bible_ref_codes_map)
+{
+    const Subfields subfields(field);
+    *book_name = StringUtil::ToLower(subfields.getFirstSubfieldValue(subfield_code));
+    if (book_name->empty() or books_of_the_bible.find(*book_name) == books_of_the_bible.end())
+	    return false;
+
+    // Filter records that look like bible books but would have to have a $9 subfield starting
+    // with "g:Buch" in order to qualify:
+    if (explicit_books.find(*book_name) != explicit_books.end()) {
+	if (not StringUtil::StartsWith(subfields.getFirstSubfieldValue('9'), "g:Buch"))
+	    return false;
+    }
+
+    std::vector<std::string> roman_refs, other_refs;
+    SplitNumericReferences(subfields, &roman_refs, &other_refs);
+
+    // Filter records that looks like bible books but would have to have a $n or $9 subfield
+    // containing a roman ordinal number in order to qualify:
+    std::set<unsigned> book_ordinals;
+    if (books_with_ordinals.find(*book_name) != books_with_ordinals.end()) {
+	if (roman_refs.empty()) {
+	    if (verbose)
+		std::cerr << "Warning: roman numerals missing for PPN " << control_number << ".\n";
+	    return false;
+	} else if (roman_refs.size() > 1) {
+	    if (verbose)
+		std::cerr << "Warning: multiple roman numerals for PPN " << control_number << ".\n";
+	}
+
+	if (not ExtractRomanOrdinals(roman_refs.front(), &book_ordinals)) {
+	    if (verbose)
+		std::cerr << "Warning: failed to extract roman numerals from \"" << roman_refs.front()
+			  << "\", PPN is " << control_number << ".\n";
+	    return false;
+	}
+    }
+
+    // Deal with chapters and verses:
+    if (other_refs.size() > 1)
+	return false;
+    else if (other_refs.size() == 1) {
+	if (not CanParseBibleReference(other_refs.front()))
+	    return false;
+    }
+
+    // Generate the mapping from books of the bible to numeric codes:
+    std::string current_book_code;
+    if (book_ordinals.empty()) {
+	const auto book_and_code(bible_book_to_code_map->find(*book_name));
+	if (book_and_code != bible_book_to_code_map->end())
+	    current_book_code = book_and_code->second;
+	else {
+	    ++*next_bible_book_code;
+	    current_book_code = StringUtil::PadLeading(std::to_string(*next_bible_book_code), 2, '0');
+	    (*bible_book_to_code_map)[*book_name] = current_book_code;
+	    *book_name = StringUtil::RemoveChars(" ", book_name);
+	    (*bible_book_map) << "book_name_to_code_map[\"" << (*book_name) << "\"] = \""
+			      << current_book_code << "\";\n";
+	}
+    } else {
+	for (const auto ordinal : book_ordinals) {
+	    std::string augmented_book_name(std::to_string(ordinal) + *book_name);
+	    const auto book_and_code(bible_book_to_code_map->find(augmented_book_name));
+	    if (book_and_code != bible_book_to_code_map->end())
+		current_book_code = book_and_code->second;
+	    else {
+		++*next_bible_book_code;
+		current_book_code = StringUtil::PadLeading(std::to_string(*next_bible_book_code), 2, '0');
+		(*bible_book_to_code_map)[augmented_book_name] = current_book_code;
+		augmented_book_name = StringUtil::RemoveChars(" ", &augmented_book_name);
+		(*bible_book_map) << "book_name_to_code_map[\"" << augmented_book_name << "\"] = \""
+				  << current_book_code << "\";\n";
+	    }
+	}
+    }
+
+    // Generate numeric codes:
+    std::set<std::pair<std::string, std::string>> ranges;
+    if (other_refs.empty())
+	ranges.insert(std::make_pair(current_book_code + "00000", current_book_code + "99999"));
+    else if (not ParseBibleReference(other_refs.front(), current_book_code, &ranges)) {
+	std::cerr << "Bad ranges: " << control_number << ": " << other_refs.front() << '\n';
+	return false;
+    }
+    if (gnd_codes_to_bible_ref_codes_map->find(gnd_code) == gnd_codes_to_bible_ref_codes_map->end())
+	(*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
+    else { // Add the new ranges to the ones we already have.
+	auto &set_ref((*gnd_codes_to_bible_ref_codes_map)[gnd_code]);
+	std::set_union(ranges.begin(), ranges.end(), set_ref.begin(), set_ref.end(),
+		       std::inserter(set_ref, set_ref.begin()));
+    }
+
+    return true;
+}
+
+
+bool FindPericopes(const std::string &pericope_field, const std::string &book_name,
+		   const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
+		   std::vector<std::string> * const pericopes)
+{
+    pericopes->clear();
+    auto field_iter(DirectoryEntry::FindField(pericope_field, dir_entries));
+    while (field_iter != dir_entries.end() and field_iter->getTag() == pericope_field) {
+	const Subfields subfields(field_data[field_iter - dir_entries.begin()]);
+	std::string a_subfield(subfields.getFirstSubfieldValue('a'));
+	StringUtil::ToLower(&a_subfield);
+	if (a_subfield != book_name)
+	    pericopes->push_back(a_subfield);
+	++field_iter;
+    }
+
+    return not pericopes->empty();
+}
+
+
+void EmitPericopeMap(const std::vector<std::string> &pericopes,
+		     const std::set<std::pair<std::string, std::string>> &codes_ranges,
+		     std::ofstream * const pericope_map)
+{
+    for (const auto &pericope : pericopes) {
+	(*pericope_map) << "pericopes_to_codes_map[\"" << pericope << "\"] = [\n";
+	for (const auto &range : codes_ranges)
+	    (*pericope_map) << "    \"" << range.first << ':' << range.second << "\",\n";
+	(*pericope_map) << "],\n";
+    }
+}
+
+
 void LoadNormData(const bool verbose, FILE * const norm_input,
 		  std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
 		      gnd_codes_to_bible_ref_codes_map)
@@ -213,10 +440,16 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	Error("Failed to open \"" + bible_book_map_filename + "\" for writing!");
     bible_book_map << "var book_name_to_code_map = {};\n\n";
 
+    const std::string pericope_map_filename("pericopes_to_codes_map.js");
+    std::ofstream pericope_map(pericope_map_filename, std::ofstream::out | std::ofstream::trunc);
+    if (pericope_map.fail())
+	Error("Failed to open \"" + pericope_map_filename + "\" for writing!");
+    pericope_map << "var pericopes_to_codes_map = {};\n\n";
+
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
-    unsigned count(0), bible_ref_count(0);
+    unsigned count(0), bible_ref_count(0), _130a_count(0), _100t_count(0), _430a_count(0);
     std::string err_msg;
     unsigned bible_book_code(0);
     std::unordered_map<std::string, std::string> bible_book_to_code_map;
@@ -248,151 +481,58 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	if (_079_subfields.getFirstSubfieldValue('v') != "wit")
 	    continue;
 
-	std::string book_candidate, book_field;
-	if (not findBibleBookInField("130a:100t", dir_entries, field_data, &book_candidate, &book_field))
+	std::string gnd_code;
+	if (not GetGNDCode(dir_entries, field_data, &gnd_code))
 	    continue;
 
-	// Ensure that we have a GND-Code in 035$a:
-	const auto _035_iter(DirectoryEntry::FindField("035", dir_entries));
-        if (_035_iter == dir_entries.end())
-            continue;
-	const Subfields _035_subfields(field_data[_035_iter - dir_entries.begin()]);
-	const std::string _035a_field(_035_subfields.getFirstSubfieldValue('a'));
-	if (not StringUtil::StartsWith(_035a_field, "(DE-588)")) {
-	    if (verbose)
-		std::cerr << "Missing GND code for control number " << control_number << ".\n";
-	    continue;
-	}
-	const std::string gnd_code(_035a_field.substr(8));
-	if (gnd_code.empty()) {
-	    if (verbose)
-		std::cerr << "Empty GND code for control number " << control_number << ".\n";
-	    continue;
-	}
-
-	std::string _065n_field;
-	const auto _065_iter(DirectoryEntry::FindField("065", dir_entries));
-	if (_065_iter != dir_entries.end()) {
-	    const Subfields _065_subfields(field_data[_065_iter - dir_entries.begin()]);
-	    _065n_field = _065_subfields.getFirstSubfieldValue('n');
-	    if (not _065n_field.empty()) {
-		if (not CanParseBibleReference(_065n_field))
-		    std::cerr << "Bad bible chapter/verse ref? " << _065n_field << ", PPN: "
-			      << control_number << ", GND: " << gnd_code << ", book candidate: "
-			      << book_candidate << '\n';
-	    }
-	}
-
-	// Filter records that looks like bible books but would have to have a 130$9 subfield starting
-	// with "g:Buch" in order to qualify:
-	if (explicit_books.find(book_candidate) != explicit_books.end()) {
-	    const auto _130_begin_end(DirectoryEntry::FindFields("130", dir_entries));
-	    bool found_at_least_one(false);
-	    for (auto _130_iter(_130_begin_end.first); _130_iter != _130_begin_end.second; ++_130_iter) {
-		const Subfields _130_subfields(field_data[_130_iter - dir_entries.begin()]);
-		const auto _130a_begin_end(_130_subfields.getIterators('9'));
-		for (auto code_and_value(_130a_begin_end.first); code_and_value != _130a_begin_end.second;
-		     ++code_and_value)
-		{
-		    if (StringUtil::StartsWith(code_and_value->second, "g:Buch")) {
-			found_at_least_one = true;
-			break;
-		    }
-		}
-		if (found_at_least_one)
-		    break;
-	    }
-
-	    if (not found_at_least_one)
-		continue;
-	}
-
-	// Filter records that looks like bible books but would have to have a $n subfield containing
-	// a roman ordinal number in order to qualify:
-	std::set<unsigned> book_ordinals;
-	if (books_with_ordinals.find(book_candidate) != books_with_ordinals.end()) {
-	    const auto book_field_begin_end(DirectoryEntry::FindFields(book_field, dir_entries));
-	    for (auto book_field_iter(book_field_begin_end.first); book_field_iter != book_field_begin_end.second;
-		 ++book_field_iter)
-        {
-		const Subfields book_field_subfields(field_data[book_field_iter - dir_entries.begin()]);
-		const auto book_field_n_begin_end(book_field_subfields.getIterators('n'));
-		for (auto code_and_contents(book_field_n_begin_end.first);
-		     code_and_contents != book_field_n_begin_end.second; ++code_and_contents)
-		{
-		    ExtractRomanOrdinals(code_and_contents->second, &book_ordinals);
-		    if (not book_ordinals.empty())
-			break;
-		}
-		if (not book_ordinals.empty())
-		    break;
-	    }
-	    if (book_ordinals.empty())
-		continue;
-	}
-
-	// Generate the mapping from books of the bible to numeric codes:
-	std::string current_book_code;
-	if (book_ordinals.empty()) {
-	    const auto book_and_code(bible_book_to_code_map.find(book_candidate));
-	    if (book_and_code != bible_book_to_code_map.end())
-		current_book_code = book_and_code->second;
-	    else {
-		++bible_book_code;
-		current_book_code = StringUtil::PadLeading(std::to_string(bible_book_code), 2, '0');
-		bible_book_to_code_map[book_candidate] = current_book_code;
-		book_candidate = StringUtil::ToLower(StringUtil::RemoveChars(" ", &book_candidate));
-		bible_book_map << "book_name_to_code_map[\"" << book_candidate << "\"] = \""
-			       << current_book_code << "\";\n";
-	    }
-	} else {
-	    for (const auto ordinal : book_ordinals) {
-		std::string augmented_book_name(std::to_string(ordinal) + book_candidate);
-		const auto book_and_code(bible_book_to_code_map.find(augmented_book_name));
-		if (book_and_code != bible_book_to_code_map.end())
-		    current_book_code = book_and_code->second;
-		else {
-		    ++bible_book_code;
-		    current_book_code = StringUtil::PadLeading(std::to_string(bible_book_code), 2, '0');
-		    bible_book_to_code_map[augmented_book_name] = current_book_code;
-		    augmented_book_name = StringUtil::ToLower(StringUtil::RemoveChars(" ", &augmented_book_name));
-		    bible_book_map << "book_name_to_code_map[\"" << augmented_book_name << "\"] = \""
-				   << current_book_code << "\";\n";
-		}
-	    }
-	}
-
-	std::string book_field_9, book_field_n;
-	const auto book_field_begin_end(DirectoryEntry::FindFields(book_field, dir_entries));
-	for (auto book_field_iter(book_field_begin_end.first); book_field_iter != book_field_begin_end.second;
-	     ++book_field_iter)
-        {
-	    const Subfields book_field_subfields(field_data[book_field_iter - dir_entries.begin()]);
-
-	    const auto _9_begin_end(book_field_subfields.getIterators('9'));
-	    for (auto code_and_value(_9_begin_end.first); code_and_value != _9_begin_end.second; ++code_and_value) {
-		if (not book_field_9.empty())
-		    book_field_9 += ';';
-		book_field_9 += code_and_value->second;
-	    }
-
-	    const auto _n_begin_end(book_field_subfields.getIterators('n'));
-	    for (auto code_and_value(_n_begin_end.first); code_and_value != _n_begin_end.second; ++code_and_value) {
-		if (not book_field_n.empty())
-		    book_field_n += ';';
-		book_field_n += code_and_value->second;
-	    }
-	}
-	book_field_n = StripRomanNumerals(book_field_n);
-
+	// Look for bible book references in 130$a, 100$t, and 430$a:
+	bool found_ref(false);
+	std::string book_name;
 	std::set<std::pair<std::string, std::string>> ranges;
-	if (book_field_n.empty())
-	    ranges.insert(std::make_pair(current_book_code + "00000", current_book_code + "99999"));
-	else if (not ParseBibleReference(book_field_n, current_book_code, &ranges)) {
-	    std::cerr << "Bad ranges: " << control_number << ": " << book_field << "$n " << book_field_n << '\n';
-	    continue;
+	const auto _130_iter(DirectoryEntry::FindField("130", dir_entries));
+	if (_130_iter != dir_entries.end()
+	    and ExtractBibleReference(verbose, control_number, field_data[_130_iter - dir_entries.begin()], 'a',
+				      gnd_code, &book_name, &bible_book_to_code_map, &bible_book_code,
+				      &bible_book_map, gnd_codes_to_bible_ref_codes_map))
+	{
+	    ++_130a_count;
+	    found_ref = true;
+
+	    std::vector<std::string> pericopes;
+	    if (FindPericopes("430", book_name, dir_entries, field_data, &pericopes))
+		EmitPericopeMap(pericopes, (*gnd_codes_to_bible_ref_codes_map)[gnd_code], &pericope_map);
 	}
-	(*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
+	if (not found_ref) {
+	    const auto _100_iter(DirectoryEntry::FindField("100", dir_entries));
+	    if (_100_iter != dir_entries.end()
+		and ExtractBibleReference(verbose, control_number, field_data[_100_iter - dir_entries.begin()],
+					  't', gnd_code, &book_name, &bible_book_to_code_map, &bible_book_code,
+					  &bible_book_map, gnd_codes_to_bible_ref_codes_map))
+	    {
+		found_ref = true;
+		++_100t_count;
+	    }
+	}
+	if (not found_ref) {
+	    for (auto _430_iter(DirectoryEntry::FindField("430", dir_entries));
+		 _430_iter != dir_entries.end() and _430_iter->getTag() == "430"; ++_430_iter)
+	    {
+		if (ExtractBibleReference(verbose, control_number, field_data[_430_iter - dir_entries.begin()], 'a',
+					  gnd_code, &book_name, &bible_book_to_code_map, &bible_book_code,
+					  &bible_book_map, gnd_codes_to_bible_ref_codes_map))
+		    found_ref = true;
+	    }
+	    if (found_ref) {
+		++_430a_count;
+
+		std::vector<std::string> pericopes;
+		if (FindPericopes("130", book_name, dir_entries, field_data, &pericopes))
+		    EmitPericopeMap(pericopes, (*gnd_codes_to_bible_ref_codes_map)[gnd_code], &pericope_map);
+	    }
+	}
+
+	if (not found_ref)
+	    continue;
 
 	++bible_ref_count;
     }
@@ -403,6 +543,9 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
     if (verbose) {
 	std::cerr << "Read " << count << " norm data records.\n";
 	std::cerr << "Found " << bible_ref_count << " reference records.\n";
+	std::cerr << "Found " << _130a_count << " 130$a reference records.\n";
+	std::cerr << "Found " << _100t_count << " 100$t reference records.\n";
+	std::cerr << "Found " << _430a_count << " 430$a reference records.\n";
     }
 }
 
