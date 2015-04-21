@@ -293,12 +293,13 @@ void SplitNumericReferences(const Subfields &subfields, std::vector<std::string>
 
 
 bool ExtractBibleReference(const bool verbose, const std::string &control_number, const std::string &field,
-			   const char subfield_code, const std::string &gnd_code, std::string * const book_name,
+			   const char subfield_code, std::string * const book_name,
 			   std::unordered_map<std::string, std::string> * const bible_book_to_code_map,
 			   unsigned * const next_bible_book_code, std::ofstream * const bible_book_map,
-			   std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
-			       gnd_codes_to_bible_ref_codes_map)
+			   std::set<std::pair<std::string, std::string>> * const ranges)
 {
+    ranges->clear();
+
     const Subfields subfields(field);
     *book_name = StringUtil::ToLower(subfields.getFirstSubfieldValue(subfield_code));
     if (book_name->empty() or books_of_the_bible.find(*book_name) == books_of_the_bible.end())
@@ -375,53 +376,59 @@ bool ExtractBibleReference(const bool verbose, const std::string &control_number
     }
 
     // Generate numeric codes:
-    std::set<std::pair<std::string, std::string>> ranges;
     if (other_refs.empty())
-	ranges.insert(std::make_pair(current_book_code + "00000", current_book_code + "99999"));
-    else if (not ParseBibleReference(other_refs.front(), current_book_code, &ranges)) {
+	ranges->insert(std::make_pair(current_book_code + "00000", current_book_code + "99999"));
+    else if (not ParseBibleReference(other_refs.front(), current_book_code, ranges)) {
 	std::cerr << "Bad ranges: " << control_number << ": " << other_refs.front() << '\n';
 	return false;
-    }
-    if (gnd_codes_to_bible_ref_codes_map->find(gnd_code) == gnd_codes_to_bible_ref_codes_map->end())
-	(*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
-    else { // Add the new ranges to the ones we already have.
-	auto &set_ref((*gnd_codes_to_bible_ref_codes_map)[gnd_code]);
-	std::set_union(ranges.begin(), ranges.end(), set_ref.begin(), set_ref.end(),
-		       std::inserter(set_ref, set_ref.begin()));
     }
 
     return true;
 }
 
 
-bool FindPericopes(const std::string &pericope_field, const std::string &book_name,
+void FindPericopes(const std::string &pericope_field, const std::string &book_name,
 		   const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
-		   std::vector<std::string> * const pericopes)
+		   const std::set<std::pair<std::string, std::string>> &ranges,
+		   std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
+		       pericopes_to_ranges_map)
 {
-    pericopes->clear();
+    std::vector<std::string> pericopes;
     auto field_iter(DirectoryEntry::FindField(pericope_field, dir_entries));
     while (field_iter != dir_entries.end() and field_iter->getTag() == pericope_field) {
 	const Subfields subfields(field_data[field_iter - dir_entries.begin()]);
 	std::string a_subfield(subfields.getFirstSubfieldValue('a'));
 	StringUtil::ToLower(&a_subfield);
 	if (a_subfield != book_name)
-	    pericopes->push_back(a_subfield);
+	    pericopes.push_back(a_subfield);
 	++field_iter;
     }
 
-    return not pericopes->empty();
+    if (not pericopes.empty()) {
+	for (const auto &pericope : pericopes) {
+	    if (pericopes_to_ranges_map->find(pericope) == pericopes_to_ranges_map->end())
+		(*pericopes_to_ranges_map)[pericope] = ranges;
+	    else
+		(*pericopes_to_ranges_map)[pericope].insert(ranges.begin(), ranges.end());
+	}
+    }
 }
 
 
-void EmitPericopeMap(const std::vector<std::string> &pericopes,
-		     const std::set<std::pair<std::string, std::string>> &codes_ranges,
-		     std::ofstream * const pericope_map)
+void EmitPericopeMap(
+    const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &pericopes_to_ranges_map)
 {
-    for (const auto &pericope : pericopes) {
-	(*pericope_map) << "pericopes_to_codes_map[\"" << pericope << "\"] = [\n";
-	for (const auto &range : codes_ranges)
-	    (*pericope_map) << "    \"" << range.first << ':' << range.second << "\",\n";
-	(*pericope_map) << "],\n";
+    const std::string pericope_map_filename("pericopes_to_codes_map.js");
+    std::ofstream pericope_map(pericope_map_filename, std::ofstream::out | std::ofstream::trunc);
+    if (pericope_map.fail())
+	Error("Failed to open \"" + pericope_map_filename + "\" for writing!");
+    pericope_map << "var pericopes_to_codes_map = {};\n\n";
+
+    for (const auto &pericope_and_ranges : pericopes_to_ranges_map) {
+	pericope_map << "pericopes_to_codes_map[\"" << pericope_and_ranges.first << "\"] = [\n";
+	for (const auto &range : pericope_and_ranges.second)
+	    pericope_map << "    \"" << range.first << ':' << range.second << "\",\n";
+	pericope_map << "],\n";
     }
 }
 
@@ -440,12 +447,6 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	Error("Failed to open \"" + bible_book_map_filename + "\" for writing!");
     bible_book_map << "var book_name_to_code_map = {};\n\n";
 
-    const std::string pericope_map_filename("pericopes_to_codes_map.js");
-    std::ofstream pericope_map(pericope_map_filename, std::ofstream::out | std::ofstream::trunc);
-    if (pericope_map.fail())
-	Error("Failed to open \"" + pericope_map_filename + "\" for writing!");
-    pericope_map << "var pericopes_to_codes_map = {};\n\n";
-
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
@@ -453,6 +454,7 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
     std::string err_msg;
     unsigned bible_book_code(0);
     std::unordered_map<std::string, std::string> bible_book_to_code_map;
+    std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> pericopes_to_ranges_map;
     while (MarcUtil::ReadNextRecord(norm_input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
 	++count;
 
@@ -492,23 +494,28 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	const auto _130_iter(DirectoryEntry::FindField("130", dir_entries));
 	if (_130_iter != dir_entries.end()
 	    and ExtractBibleReference(verbose, control_number, field_data[_130_iter - dir_entries.begin()], 'a',
-				      gnd_code, &book_name, &bible_book_to_code_map, &bible_book_code,
-				      &bible_book_map, gnd_codes_to_bible_ref_codes_map))
+				      &book_name, &bible_book_to_code_map, &bible_book_code,
+				      &bible_book_map, &ranges))
 	{
-	    ++_130a_count;
+	    if (gnd_codes_to_bible_ref_codes_map->find(gnd_code) == gnd_codes_to_bible_ref_codes_map->end())
+		(*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
+	    else
+		(*gnd_codes_to_bible_ref_codes_map)[gnd_code].insert(ranges.begin(), ranges.end());
 	    found_ref = true;
-
-	    std::vector<std::string> pericopes;
-	    if (FindPericopes("430", book_name, dir_entries, field_data, &pericopes))
-		EmitPericopeMap(pericopes, (*gnd_codes_to_bible_ref_codes_map)[gnd_code], &pericope_map);
+	    FindPericopes("430", book_name, dir_entries, field_data, ranges, &pericopes_to_ranges_map);
+	    ++_130a_count;
 	}
 	if (not found_ref) {
 	    const auto _100_iter(DirectoryEntry::FindField("100", dir_entries));
 	    if (_100_iter != dir_entries.end()
 		and ExtractBibleReference(verbose, control_number, field_data[_100_iter - dir_entries.begin()],
-					  't', gnd_code, &book_name, &bible_book_to_code_map, &bible_book_code,
-					  &bible_book_map, gnd_codes_to_bible_ref_codes_map))
+					  't', &book_name, &bible_book_to_code_map, &bible_book_code,
+					  &bible_book_map, &ranges))
 	    {
+		if (gnd_codes_to_bible_ref_codes_map->find(gnd_code) == gnd_codes_to_bible_ref_codes_map->end())
+		    (*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
+		else
+		    (*gnd_codes_to_bible_ref_codes_map)[gnd_code].insert(ranges.begin(), ranges.end());
 		found_ref = true;
 		++_100t_count;
 	    }
@@ -518,17 +525,19 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 		 _430_iter != dir_entries.end() and _430_iter->getTag() == "430"; ++_430_iter)
 	    {
 		if (ExtractBibleReference(verbose, control_number, field_data[_430_iter - dir_entries.begin()], 'a',
-					  gnd_code, &book_name, &bible_book_to_code_map, &bible_book_code,
-					  &bible_book_map, gnd_codes_to_bible_ref_codes_map))
+					  &book_name, &bible_book_to_code_map, &bible_book_code,
+					  &bible_book_map, &ranges))
+		{
+		    if (gnd_codes_to_bible_ref_codes_map->find(gnd_code) == gnd_codes_to_bible_ref_codes_map->end())
+			(*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
+		    else
+			(*gnd_codes_to_bible_ref_codes_map)[gnd_code].insert(ranges.begin(), ranges.end());
+		    FindPericopes("130", book_name, dir_entries, field_data, ranges, &pericopes_to_ranges_map);
 		    found_ref = true;
+		}
 	    }
-	    if (found_ref) {
+	    if (found_ref)
 		++_430a_count;
-
-		std::vector<std::string> pericopes;
-		if (FindPericopes("130", book_name, dir_entries, field_data, &pericopes))
-		    EmitPericopeMap(pericopes, (*gnd_codes_to_bible_ref_codes_map)[gnd_code], &pericope_map);
-	    }
 	}
 
 	if (not found_ref)
@@ -539,6 +548,8 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 
     if (not err_msg.empty())
 	Error("Read error while trying to read the norm data file: " + err_msg);
+
+    EmitPericopeMap(pericopes_to_ranges_map);
 
     if (verbose) {
 	std::cerr << "Read " << count << " norm data records.\n";
