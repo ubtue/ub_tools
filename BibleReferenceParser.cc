@@ -2,6 +2,7 @@
 #include <cctype>
 #include "Locale.h"
 #include "StringUtil.h"
+#include <iostream> //XXX
 
 
 namespace {
@@ -21,6 +22,16 @@ bool NewReferenceIsCompatibleWithExistingReferences(
 }
 	
 
+bool IsNumericString(const std::string &s) {
+    for (const char ch : s) {
+	if (not isdigit(ch))
+	    return false;
+    }
+
+    return true;
+}
+
+
 bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &book_code,
 		     std::set<std::pair<std::string, std::string>> * const start_end)
 {
@@ -29,7 +40,7 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
 	return false;
 
     const std::string chapter(StringUtil::PadLeading(bib_ref_candidate.substr(0, comma_pos), 3, '0'));
-    if (chapter.length() != 3)
+    if (chapter.length() != 3 or not IsNumericString(chapter))
 	return false;
 
     const std::string rest(bib_ref_candidate.substr(comma_pos + 1));

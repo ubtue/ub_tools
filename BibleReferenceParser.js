@@ -17,6 +17,11 @@ function IsLower(ch) {
 }
 
 
+function IsNumericString(s) {
+    return /\d+/.test(s);
+}
+
+
 // Checks whether the new reference comes strictly after already existing references.
 function NewReferenceIsCompatibleWithExistingReferences(new_ref, existing_refs) {
     var new_first = new_ref.substr(0, new_ref.indexOf(":"));
@@ -39,7 +44,7 @@ function ParseRefWithDot(bib_ref_candidate, book_code, start_end) {
 	return false;
 
     var chapter = PadWithLeadingZeroes(bib_ref_candidate.substr(0, comma_pos), 3);
-    if (chapter.length !== 3)
+    if (chapter.length !== 3 || !IsNumericString(chapter))
 	return false;
 
     var rest = bib_ref_candidate.substr(comma_pos + 1);
