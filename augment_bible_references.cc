@@ -539,8 +539,51 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 }
 
 
-void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const output,
-		      const std::unordered_set<std::string> &gnd_codes)
+bool FindGndCodes(const std::string &fields, const std::vector<DirectoryEntry> &dir_entries,
+		  const std::vector<std::string> &field_data,
+		  const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
+		  &gnd_codes_to_bible_ref_codes_map, std::set<std::string> * const ranges)
+{
+    ranges->clear();
+
+    std::vector<std::string> tags;
+    StringUtil::Split(fields, ':', &tags);
+
+    bool found_at_least_one(false);
+    for (const auto &tag : tags) {
+	const ssize_t first_index(MarcUtil::GetFieldIndex(dir_entries, tag));
+	if (first_index == -1)
+	    continue;
+
+	for (size_t index(first_index); index < dir_entries.size() and dir_entries[index].getTag() == tag; ++index) {
+	    const Subfields subfields(field_data[index]);
+	    const std::string subfield2(subfields.getFirstSubfieldValue('2'));
+	    if (subfield2.empty() or subfield2 != "gnd")
+		continue;
+
+	    const auto begin_end(subfields.getIterators('0'));
+	    for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
+		if (not StringUtil::StartsWith(subfield0->second, "(DE-588)"))
+		    continue;
+
+		const std::string gnd_code(subfield0->second.substr(8));
+		const auto gnd_code_and_ranges(gnd_codes_to_bible_ref_codes_map.find(gnd_code));
+		if (gnd_code_and_ranges != gnd_codes_to_bible_ref_codes_map.end()) {
+		    found_at_least_one = true;
+		    for (const auto &range : gnd_code_and_ranges->second)
+			ranges->insert(range.first + ":" + range.second);
+		}
+	    }
+	}
+    }
+
+    return found_at_least_one;
+}
+
+
+void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const /*output*/,
+		      const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
+		          &gnd_codes_to_bible_ref_codes_map)
 {
     if (verbose)
 	std::cerr << "Starting augmentation of title records.\n";
@@ -554,12 +597,12 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
 	++total_count;
 	std::unique_ptr<Leader> leader(raw_leader);
 
-	const auto entry_iterator(DirectoryEntry::FindField("689", dir_entries));
-	if (entry_iterator == dir_entries.end()) {
-	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+	std::set<std::string> ranges;
+	if (not FindGndCodes("600:610:611:630:648:651:655", dir_entries, field_data,
+			     gnd_codes_to_bible_ref_codes_map, &ranges))
 	    continue;
-	}
 
+	/*
 	const size_t keyword_index(entry_iterator - dir_entries.begin());
 	Subfields subfields(field_data[keyword_index]);
 	if (not subfields.hasSubfield('0')) {
@@ -590,6 +633,7 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
 	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
 	    continue;
 	}
+	*/
 
 	++augment_count;
     }
@@ -637,7 +681,7 @@ int main(int argc, char **argv) {
 
     std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_codes_to_bible_ref_codes_map;
     LoadNormData(verbose, norm_input, &gnd_codes_to_bible_ref_codes_map);
-//    AugmentBibleRefs(verbose, title_input, title_output, gnd_codes);
+    AugmentBibleRefs(verbose, title_input, title_output, gnd_codes_to_bible_ref_codes_map);
 
     std::fclose(title_input);
     std::fclose(norm_input);
