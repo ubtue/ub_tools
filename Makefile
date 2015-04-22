@@ -49,16 +49,19 @@ add_child_refs: add_child_refs.o libmarc.a
 	$(CCC) -o $@ $< -L. -lmarc -lpcre -lcrypto
 
 augment_bible_references.o: augment_bible_references.cc MarcUtil.h DirectoryEntry.h Leader.h util.h StringUtil.h \
-                            TextUtil.h BibleReferenceParser.h
+                            TextUtil.h BibleReferenceParser.h MapIO.h
 	$(CCC) $(CCOPTS) $<
 
 augment_bible_references: augment_bible_references.o  BibleReferenceParser.o libmarc.a
 	$(CCC) -o $@ augment_bible_references.o  BibleReferenceParser.o -L. -lmarc -lpcre -lcrypto
 
 libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o MarcUtil.o util.o HtmlParser.o \
-           StringUtil.o TextUtil.o Locale.o OCR.o SimpleDB.o MediaTypeUtil.o
+           StringUtil.o TextUtil.o Locale.o OCR.o SimpleDB.o MediaTypeUtil.o MapIO.o
 	@echo "Linking $@..."
 	@ar cqs $@ $^
+
+MapIO.o: MapIO.cc MapIO.h util.h
+	$(CCC) $(CCOPTS) $<
 
 MediaTypeUtil.o: MediaTypeUtil.cc MediaTypeUtil.h
 	$(CCC) $(CCOPTS) $<
@@ -118,7 +121,7 @@ bib_ref_parser_test.o: bib_ref_parser_test.cc BibleReferenceParser.h util.h
 bib_ref_parser_test: bib_ref_parser_test.o BibleReferenceParser.o
 	$(CCC) -o $@ $^ -L. -lmarc -lpcre -lcrypto -ltokyocabinet -lmagic
 
-bib_ref_to_codes_tool.o: bib_ref_to_codes_tool.cc BibleReferenceParser.h StringUtil.h util.h
+bib_ref_to_codes_tool.o: bib_ref_to_codes_tool.cc BibleReferenceParser.h StringUtil.h util.h MapIO.h
 	$(CCC) $(CCOPTS) $<
 
 bib_ref_to_codes_tool: bib_ref_to_codes_tool.o BibleReferenceParser.o

@@ -6,80 +6,9 @@
 #include <cstdlib>
 #include <cstring>
 #include "BibleReferenceParser.h"
+#include "MapIO.h"
 #include "StringUtil.h"
 #include "util.h"
-
-
-// Expects an input file with lines of the form XXX=YYY.  All embedded spaces are significant.
-void LoadMapFromFile(const std::string &input_filename,
-		     std::unordered_map<std::string, std::string> * const map)
-{
-    map->clear();
-
-    std::ifstream input(input_filename, std::ofstream::in);
-    if (input.fail())
-	Error("Failed to open \"" + input_filename + "\" for reading!");
-
-    unsigned line_no(0);
-    for (std::string line; std::getline(input, line); /* Intentionally empty! */) {
-	++line_no;
-	const size_t equal_pos(line.find('='));
-	if (equal_pos == std::string::npos)
-	    Error("Missing equal-sign in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
-	const std::string book_name(line.substr(0, equal_pos));
-	const std::string code(line.substr(equal_pos + 1));
-	if (book_name.empty() or code.empty())
-	    Error("Bad input in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
-	(*map)[book_name] = code;
-    }
-}
-	
-
-// Expects an input file with lines of the form XXX=AAA;BBB;CCC.  All embedded spaces are significant.
-// Embedded slashes, equal-signs, and semicolons are expected to be escaped with a leading slash.
-void LoadMultimapFromFile(const std::string &input_filename,
-			  std::unordered_multimap<std::string, std::string> * const multimap)
-{
-    multimap->clear();
-
-    std::ifstream input(input_filename, std::ofstream::in);
-    if (input.fail())
-	Error("Failed to open \"" + input_filename + "\" for reading!");
-
-    unsigned line_no(0);
-    for (std::string line; std::getline(input, line); /* Intentionally empty! */) {
-	++line_no;
-
-	std::string key, value;
-	bool in_key(true), escaped(false);
-	for (const char ch : line) {
-	    if (escaped) {
-		escaped = false;
-		if (in_key)
-		    key += ch;
-		else
-		    value += ch;
-	    } else if (ch == '\\')
-		escaped = true;
-	    else if (ch == '=') {
-		if (key.empty())
-		    Error("Missing key in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
-		in_key = false;
-	    } else if (in_key)
-		  key += ch;
-	    else if (ch == ';') {
-		if (value.empty())
-		    Error("Ilegal empty value in \"" + input_filename + "\" on line " + std::to_string(line_no)
-			  + "!");
-		multimap->emplace(key, value);
-		value.clear();
-	    } else
-		value += ch;
-	}
-	if (key.empty() or value.empty())
-	    Error("Bad input in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
-    }
-}
 
 
 void SplitIntoBookAndChaptersAndVerses(const std::string &bib_ref_candidate, std::string * const book_candidate,
@@ -133,7 +62,7 @@ int main(int argc, char **argv) {
     //
 
     std::unordered_multimap<std::string, std::string> pericopes_to_codes_map;
-    LoadMultimapFromFile(argv[4], &pericopes_to_codes_map);
+    MapIO::DeserialiseMap(argv[4], &pericopes_to_codes_map);
 
     std::string bib_ref_candidate(StringUtil::Trim(StringUtil::ToLower(argv[1])));
     StringUtil::CollapseWhitespace(&bib_ref_candidate);
@@ -160,7 +89,7 @@ int main(int argc, char **argv) {
 
     // Map from noncanonical bible book forms to the canonical ones:
     std::unordered_map<std::string, std::string> books_of_the_bible_to_canonical_form_map;
-    LoadMapFromFile(argv[3], &books_of_the_bible_to_canonical_form_map);
+    MapIO::DeserialiseMap(argv[3], &books_of_the_bible_to_canonical_form_map);
     const auto non_canonical_form_and_canonical_form(books_of_the_bible_to_canonical_form_map.find(book_candidate));
     if (non_canonical_form_and_canonical_form != books_of_the_bible_to_canonical_form_map.end()) {
 	if (verbose)
@@ -170,7 +99,7 @@ int main(int argc, char **argv) {
     }
 
     std::unordered_map<std::string, std::string> bible_books_to_codes_map;
-    LoadMapFromFile(argv[2], &bible_books_to_codes_map);
+    MapIO::DeserialiseMap(argv[2], &bible_books_to_codes_map);
     const auto bible_book_and_code(bible_books_to_codes_map.find(book_candidate));
     if (bible_book_and_code == bible_books_to_codes_map.end()) {
 	if (verbose)
