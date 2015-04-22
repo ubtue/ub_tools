@@ -1,5 +1,6 @@
 PROGS=marc_grep2 jop_grep download_test add_issn_to_articles marc_grep_tokenizer_test db_lookup \
-      create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test
+      create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
+      bib_ref_to_codes_tool
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -O3 -c
 
@@ -48,7 +49,7 @@ add_child_refs: add_child_refs.o libmarc.a
 	$(CCC) -o $@ $< -L. -lmarc -lpcre -lcrypto
 
 augment_bible_references.o: augment_bible_references.cc MarcUtil.h DirectoryEntry.h Leader.h util.h StringUtil.h \
-                            TextUtil.h RegexMatcher.h BibleReferenceParser.h
+                            TextUtil.h BibleReferenceParser.h
 	$(CCC) $(CCOPTS) $<
 
 augment_bible_references: augment_bible_references.o  BibleReferenceParser.o libmarc.a
@@ -115,6 +116,12 @@ bib_ref_parser_test.o: bib_ref_parser_test.cc BibleReferenceParser.h util.h
 	$(CCC) $(CCOPTS) $<
 
 bib_ref_parser_test: bib_ref_parser_test.o BibleReferenceParser.o
+	$(CCC) -o $@ $^ -L. -lmarc -lpcre -lcrypto -ltokyocabinet -lmagic
+
+bib_ref_to_codes_tool.o: bib_ref_to_codes_tool.cc BibleReferenceParser.h StringUtil.h util.h
+	$(CCC) $(CCOPTS) $<
+
+bib_ref_to_codes_tool: bib_ref_to_codes_tool.o BibleReferenceParser.o
 	$(CCC) -o $@ $^ -L. -lmarc -lpcre -lcrypto -ltokyocabinet -lmagic
 
 download_test.o: download_test.cc Downloader.h RegexMatcher.h StringUtil.h TextUtil.h util.h MediaTypeUtil.h \
