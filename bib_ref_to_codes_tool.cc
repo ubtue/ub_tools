@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     if (verbose)
 	std::cerr << "book code = \"" << book_code << "\"\n";
     if (chapters_and_verses_candidate.empty()) {
-	std::cout << book_code << "00000:" << book_code << "99999";
+	std::cout << book_code << "00000:" << book_code << "99999" << '\n';
 	return EXIT_SUCCESS;
     }
 
