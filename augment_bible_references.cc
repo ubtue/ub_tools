@@ -607,7 +607,7 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const /*out
 	std::unique_ptr<Leader> leader(raw_leader);
 
 	std::set<std::string> ranges;
-	if (not FindGndCodes("600:610:611:630:648:651:655", dir_entries, field_data,
+	if (not FindGndCodes("600:610:611:630:648:651:655:689", dir_entries, field_data,
 			     gnd_codes_to_bible_ref_codes_map, &ranges))
 	    continue;
 
