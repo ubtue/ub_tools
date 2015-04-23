@@ -84,13 +84,8 @@ bool ReadNextRecord(FILE * const input, Leader ** const leader, std::vector<Dire
 
     char leader_buf[Leader::LEADER_LENGTH];
     ssize_t read_count;
-    if ((read_count = std::fread(leader_buf, 1, sizeof leader_buf, input))
-	!= static_cast<ssize_t>(Leader::LEADER_LENGTH))
-    {
-	if (read_count != 0)
-	    *err_msg = "Short read for a leader or premature EOF!";
+    if ((read_count = std::fread(leader_buf, sizeof leader_buf, 1, input)) != 1)
 	return false;
-    }
 
     if (not Leader::ParseLeader(std::string(leader_buf, Leader::LEADER_LENGTH), leader, err_msg)) {
 	delete *leader;
