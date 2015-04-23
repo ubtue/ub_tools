@@ -299,8 +299,6 @@ bool ExtractBibleReference(const bool verbose, const std::string &control_number
 			   unsigned * const next_bible_book_code, std::ofstream * const bible_book_map,
 			   std::set<std::pair<std::string, std::string>> * const ranges)
 {
-    ranges->clear();
-
     const Subfields subfields(field);
     *book_name = StringUtil::ToLower(subfields.getFirstSubfieldValue(subfield_code));
     if (book_name->empty() or books_of_the_bible.find(*book_name) == books_of_the_bible.end())
@@ -499,6 +497,7 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	    }
 	}
 	if (not found_ref) {
+	    std::vector<std::string> pericopes;
 	    for (auto _430_iter(DirectoryEntry::FindField("430", dir_entries));
 		 _430_iter != dir_entries.end() and _430_iter->getTag() == "430"; ++_430_iter)
 	    {
@@ -510,12 +509,22 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 			(*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
 		    else
 			(*gnd_codes_to_bible_ref_codes_map)[gnd_code].insert(ranges.begin(), ranges.end());
-		    FindPericopes("130", book_name, dir_entries, field_data, ranges, &pericopes_to_ranges_map);
 		    found_ref = true;
+		} else { // Possible pericope.
+		    const Subfields subfields(field_data[_430_iter - dir_entries.begin()]);
+		    const std::string subfield_a(subfields.getFirstSubfieldValue('a'));
+		    if (not subfield_a.empty())
+			pericopes.push_back(StringUtil::ToLower(subfield_a));
 		}
 	    }
-	    if (found_ref)
+	    if (found_ref) {
 		++_430a_count;
+		FindPericopes("130", book_name, dir_entries, field_data, ranges, &pericopes_to_ranges_map);
+		for (const auto &pericope : pericopes) {
+		    for (const auto &range : ranges)
+			pericopes_to_ranges_map.emplace(pericope, range.first + ":" + range.second);
+		}
+	    }
 	}
 
 	if (not found_ref)

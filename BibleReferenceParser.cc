@@ -137,7 +137,6 @@ enum State { INITIAL, CHAPTER1, CHAPTER2, VERSE1, VERSE2 };
 bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string &book_code,
 			 std::set<std::pair<std::string, std::string>> * const start_end)
 {
-    start_end->clear();
     if (bib_ref_candidate.empty()) {
 	start_end->insert(std::make_pair(book_code + "00000", book_code + "99999"));
 	return true;
