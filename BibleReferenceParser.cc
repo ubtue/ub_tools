@@ -2,7 +2,6 @@
 #include <cctype>
 #include "Locale.h"
 #include "StringUtil.h"
-#include <iostream> //XXX
 
 
 namespace {
@@ -35,6 +34,8 @@ bool IsNumericString(const std::string &s) {
 bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &book_code,
 		     std::set<std::pair<std::string, std::string>> * const start_end)
 {
+    std::set<std::pair<std::string, std::string>> new_start_end;
+
     const size_t comma_pos(bib_ref_candidate.find(','));
     if (comma_pos == std::string::npos) // We must have a comma!
 	return false;
@@ -64,9 +65,9 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
 		verse1 = StringUtil::PadLeading(verse1, 2, '0');
 		const std::pair<std::string, std::string> new_reference(
 		    std::make_pair(book_code + chapter + verse1, book_code + chapter + verse1));
-		if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, *start_end))
+		if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, new_start_end))
 		    return false;
-		start_end->insert(new_reference);
+		new_start_end.insert(new_reference);
 		verse1.clear();
 	    } else {
 		if (verse2.empty())
@@ -76,9 +77,9 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
 		    return false;
 		const std::pair<std::string, std::string> new_reference(
                     std::make_pair(book_code + chapter + verse1, book_code + chapter + verse2));
-		if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, *start_end))
+		if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, new_start_end))
 		    return false;
-		start_end->insert(new_reference);
+		new_start_end.insert(new_reference);
 		verse1.clear();
 		verse2.clear();
 		in_verse1 = true;
@@ -108,9 +109,9 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
 	verse1 = StringUtil::PadLeading(verse1, 2, '0');
 	const std::pair<std::string, std::string> new_reference(
             std::make_pair(book_code + chapter + verse1, book_code + chapter + verse1));
-	if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, *start_end))
+	if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, new_start_end))
 	    return false;
-	start_end->insert(new_reference);
+	new_start_end.insert(new_reference);
     } else {
 	if (verse2.empty())
 	    return false;
@@ -119,11 +120,12 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
 	    return false;
 	const std::pair<std::string, std::string> new_reference(
             std::make_pair(book_code + chapter + verse1, book_code + chapter + verse2));
-	if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, *start_end))
+	if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, new_start_end))
 	    return false;
-	start_end->insert(new_reference);
+	new_start_end.insert(new_reference);
     }
 
+    start_end->insert(new_start_end.cbegin(), new_start_end.cend());
     return true;
 }
 
