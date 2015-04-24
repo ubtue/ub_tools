@@ -4,9 +4,10 @@
 #include <iterator>
 #include <memory>
 #include <stdexcept>
+#include <cstddef>
 #include "Subfields.h"
 #include "util.h"
-    
+
 namespace MarcUtil {
 
 
@@ -57,11 +58,11 @@ public:
     explicit MatchTag(const std::string &tag_to_match): tag_to_match_(tag_to_match) { }
     bool operator()(const DirectoryEntry &dir_entry) const { return dir_entry.getTag() == tag_to_match_; }
 };
-    
+
 
 } // unnamed namespace
 
-    
+
 ssize_t GetFieldIndex(const std::vector<DirectoryEntry> &dir_entries, const std::string &field_tag)
 {
     const auto iter(std::find_if(dir_entries.begin(), dir_entries.end(), MatchTag(field_tag)));
@@ -114,16 +115,37 @@ bool ReadNextRecord(FILE * const input, Leader ** const leader, std::vector<Dire
     char raw_field_data[field_data_size];
     if ((read_count = std::fread(raw_field_data, 1, field_data_size, input))
 	!= static_cast<ssize_t>(field_data_size))
-	{
-	    *err_msg = "Short read for field data or premature EOF! (Expected "
-		+ std::to_string(field_data_size) + " bytes, got "+ std::to_string(read_count) +" bytes.)";
-	    return false;
-	}
+    {
+	*err_msg = "Short read for field data or premature EOF! (Expected "
+	    + std::to_string(field_data_size) + " bytes, got "+ std::to_string(read_count) +" bytes.)";
+	return false;
+    }
 
     if (not ReadFields(std::string(raw_field_data, field_data_size), *dir_entries, field_data, err_msg))
 	return false;
 
     return true;
+}
+
+
+void InsertField(const std::string &new_contents, const std::string &new_tag, Leader * const leader,
+		 std::vector<DirectoryEntry> * const dir_entries, std::vector<std::string> * const fields)
+{
+    leader->setRecordLength(leader->getRecordLength() + new_contents.length()
+			    + DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
+
+    // Find the insertion location:
+    auto dir_entry(dir_entries->begin());
+    while (dir_entry != dir_entries->end() and new_tag > dir_entry->getTag())
+	++dir_entry;
+
+    // Correct the offsets for old fields and then insert the new fields:
+    const ptrdiff_t new_index(dir_entry - dir_entries->begin());
+    for (dir_entry = dir_entries->begin() + new_index; dir_entry != dir_entries->end(); ++dir_entry)
+	dir_entry->setFieldOffset(dir_entry->getFieldOffset() + new_contents.length());
+    dir_entries->emplace(dir_entry, new_tag, new_contents.length(), (dir_entry - 1)->getFieldOffset());
+    const auto field(fields->begin() + new_index);
+    fields->emplace(field, new_contents);
 }
 
 
@@ -180,7 +202,7 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
 	*err_msg = "record length (" + std::to_string(record.length())
                    + ") exceeds maxium legal record length (99999)!";
 	return false;
-    } 
+    }
 
     if (leader->getBaseAddressOfData() <= Leader::LEADER_LENGTH) {
 	*err_msg = "impossible base address of data!";
@@ -203,7 +225,7 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
 	*err_msg = "record is not terminated with a record terminator!";
         return false;
     }
-    
+
     return true;
 }
 
@@ -215,11 +237,11 @@ void ComposeAndWriteRecord(FILE * const output, const std::vector<DirectoryEntry
     const std::string record(MarcUtil::ComposeRecord(dir_entries, field_data, leader));
     if (not MarcUtil::RecordSeemsCorrect(record, &err_msg))
 	Error("Bad record! (" + err_msg + ")");
-	
+
     const size_t write_count = std::fwrite(record.data(), 1, record.size(), output);
     if (write_count != record.size())
 	Error("Failed to write " + std::to_string(record.size()) + " bytes to MARC output!");
-    
+
 }
 
 
@@ -232,7 +254,7 @@ void UpdateField(const size_t field_index, const std::string &new_field_contents
 
     leader->setRecordLength(leader->getRecordLength() + new_field_contents.length()
 			    - (*field_data)[field_index].length());
-    (*dir_entries)[field_index].setFieldLength(new_field_contents.length() + 1 /* field terminator */);	
+    (*dir_entries)[field_index].setFieldLength(new_field_contents.length() + 1 /* field terminator */);
     (*field_data)[field_index] = new_field_contents;
 
 }

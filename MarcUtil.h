@@ -46,6 +46,13 @@ bool ReadNextRecord(FILE * const input, Leader ** const leader, std::vector<Dire
 		    std::vector<std::string> * const field_data, std::string * const err_msg);
 
 
+// Inserts the new field with contents "new_contents" and tag "new_tag" in "*leader", "*dir_entries" and
+// "*fields". N.B., only insertions into non-empty records, i.e. those w/ existing fields and a control number (001)
+// field are supported!
+void InsertField(const std::string &new_contents, const std::string &new_tag, Leader * const leader,
+		 std::vector<DirectoryEntry> * const dir_entries, std::vector<std::string> * const fields);
+
+
 // Creates a binary, a.k.a. "raw" representation of a MARC21 record.
 std::string ComposeRecord(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &fields,
 			  Leader * const leader);
