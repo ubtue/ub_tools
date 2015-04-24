@@ -4,7 +4,6 @@
 #include <iterator>
 #include <memory>
 #include <stdexcept>
-#include <cstddef>
 #include "Subfields.h"
 #include "util.h"
 
@@ -140,7 +139,7 @@ void InsertField(const std::string &new_contents, const std::string &new_tag, Le
 	++dir_entry;
 
     // Correct the offsets for old fields and then insert the new fields:
-    const ptrdiff_t new_index(dir_entry - dir_entries->begin());
+    const std::vector<DirectoryEntry>::difference_type new_index(dir_entry - dir_entries->begin());
     for (dir_entry = dir_entries->begin() + new_index; dir_entry != dir_entries->end(); ++dir_entry)
 	dir_entry->setFieldOffset(dir_entry->getFieldOffset() + new_contents.length());
     dir_entries->emplace(dir_entry, new_tag, new_contents.length(), (dir_entry - 1)->getFieldOffset());
