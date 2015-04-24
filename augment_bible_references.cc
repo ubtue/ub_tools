@@ -111,6 +111,9 @@ const std::unordered_set<std::string> books_with_ordinals {
 };
 
 
+const std::string BIB_REF_RANGE_TAG("800");
+
+
 bool StartsWithSmallRomanOrdinal(const std::string &roman_ordinal_candidate) {
     return StringUtil::StartsWith(roman_ordinal_candidate, "I.")
 	   or StringUtil::StartsWith(roman_ordinal_candidate, "II.")
@@ -439,6 +442,12 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	    continue;
 	const std::string &control_number(field_data[_001_iter - dir_entries.begin()]);
 
+	// Make sure that we don't use a bible reference tag that is already in use for another
+	// purpose:
+	const auto bib_ref_begin_end(DirectoryEntry::FindFields(BIB_REF_RANGE_TAG, dir_entries));
+	if (bib_ref_begin_end.first != bib_ref_begin_end.second)
+	    Error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
+
 	const auto _065_begin_end(DirectoryEntry::FindFields("065", dir_entries));
 	bool found_a_bible_indicator(false);
 	for (auto _065_iter(_065_begin_end.first); _065_iter != _065_begin_end.second; ++_065_iter) {
@@ -590,7 +599,7 @@ bool FindGndCodes(const std::string &fields, const std::vector<DirectoryEntry> &
 }
 
 
-void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const /*output*/,
+void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const output,
 		      const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
 		          &gnd_codes_to_bible_ref_codes_map)
 {
@@ -607,44 +616,15 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const /*out
 	std::unique_ptr<Leader> leader(raw_leader);
 
 	std::set<std::string> ranges;
-	if (not FindGndCodes("600:610:611:630:648:651:655:689", dir_entries, field_data,
-			     gnd_codes_to_bible_ref_codes_map, &ranges))
-	    continue;
-
-	/*
-	const size_t keyword_index(entry_iterator - dir_entries.begin());
-	Subfields subfields(field_data[keyword_index]);
-	if (not subfields.hasSubfield('0')) {
-	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    continue;
+	if (FindGndCodes("600:610:611:630:648:651:655:689", dir_entries, field_data,
+			 gnd_codes_to_bible_ref_codes_map, &ranges))
+        {
+	    ++augment_count;
+	    for (const auto &range : ranges)
+		MarcUtil::InsertField(range, BIB_REF_RANGE_TAG, leader.get(), &dir_entries, &field_data);
 	}
 
-	if (not subfields.hasSubfield('t') or not subfields.hasSubfield('9')) {
-	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    continue;
-	}
-
-	const auto begin_end = subfields.getIterators('0');
-	bool found_a_matching_reference(false);
-	for (auto norm_ref(begin_end.first); norm_ref != begin_end.second; ++norm_ref) {
-	    if (not StringUtil::StartsWith(norm_ref->second, "(DE-588)"))
-		continue;
-
-	    if (gnd_codes.find(norm_ref->second) != gnd_codes.end()) {
-		found_a_matching_reference = true;
-		std::cerr << subfields.getFirstSubfieldValue('t') << ' ' << subfields.getFirstSubfieldValue('9')
-			  << '\n';
-	    }
-	}
-
-	if (not found_a_matching_reference) {
-	    std::cout << "Norm data ref missing\n";
-	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    continue;
-	}
-	*/
-
-	++augment_count;
+	MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
     }
 
     if (verbose)
