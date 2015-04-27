@@ -131,7 +131,8 @@ void InsertField(const std::string &new_contents, const std::string &new_tag, Le
 		 std::vector<DirectoryEntry> * const dir_entries, std::vector<std::string> * const fields)
 {
     leader->setRecordLength(leader->getRecordLength() + new_contents.length()
-			    + DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
+			    + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1 /* For new field separator. */);
+    leader->setBaseAddressOfData(leader->getBaseAddressOfData() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
 
     // Find the insertion location:
     auto dir_entry(dir_entries->begin());
@@ -141,8 +142,8 @@ void InsertField(const std::string &new_contents, const std::string &new_tag, Le
     // Correct the offsets for old fields and then insert the new fields:
     const std::vector<DirectoryEntry>::difference_type new_index(dir_entry - dir_entries->begin());
     for (dir_entry = dir_entries->begin() + new_index; dir_entry != dir_entries->end(); ++dir_entry)
-	dir_entry->setFieldOffset(dir_entry->getFieldOffset() + new_contents.length());
-    dir_entries->emplace(dir_entry, new_tag, new_contents.length(), (dir_entry - 1)->getFieldOffset());
+	dir_entry->setFieldOffset(dir_entry->getFieldOffset() + new_contents.length() + 1);
+    dir_entries->emplace(dir_entry, new_tag, new_contents.length() + 1, (dir_entry - 1)->getFieldOffset());
     const auto field(fields->begin() + new_index);
     fields->emplace(field, new_contents);
 }
