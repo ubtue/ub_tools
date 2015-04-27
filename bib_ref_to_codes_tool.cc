@@ -35,9 +35,27 @@ void SplitIntoBookAndChaptersAndVerses(const std::string &bib_ref_candidate, std
 }
 
 
+std::string GenerateQuery(const std::string &lower, const std::string &upper) {
+    std::string query;
+    for (unsigned index(1); index < 10; ++index) {
+	if (not query.empty())
+	    query += " OR ";
+	const std::string start("bib_ref_start" + std::to_string(index));
+	const std::string end("bib_ref_end" + std::to_string(index));
+	query += "(" + start + ":[0000000 TO " + lower + "]" + " AND " + end + ":[" + upper + " TO 9999999])";
+    }
+
+    return query;
+}
+
+
 void Usage() {
-    std::cerr << "usage: " << progname << " [--debug] bible_reference_candidate books_of_the_bible_to_code_map\n";
+    std::cerr << "usage: " << progname << " [--debug|--query] bible_reference_candidate\n";
+    std::cerr << "          books_of_the_bible_to_code_map\n";
     std::cerr << "          books_of_the_bible_to_canonical_form_map pericopes_to_codes_map\n";
+    std::cerr << '\n';
+    std::cerr << "          When --debug has been specified additional tracing output will be generated.\n";
+    std::cerr << "          When --query has been specified SOLR search queries will be output.\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -45,12 +63,15 @@ void Usage() {
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    bool verbose(false);
+    bool verbose(false), generate_solr_query(false);
 
     if (argc == 6) {
-	if (std::strcmp(argv[1], "--debug") != 0)
+	if (std::strcmp(argv[1], "--debug") == 0)
+	    verbose = true;
+	else if (std::strcmp(argv[1], "--query") == 0)
+	    generate_solr_query = true;
+	else
 	    Usage();
-	verbose = true;
 	++argv, --argc;
     }
 
@@ -71,8 +92,19 @@ int main(int argc, char **argv) {
     if (begin_end.first != begin_end.second) {
 	if (verbose)
 	    std::cerr << "Found a pericope to codes mapping.\n";
-	for (auto pair(begin_end.first); pair != begin_end.second; ++pair)
-	    std::cout << pair->second << '\n';
+	std::string query;
+	for (auto pair(begin_end.first); pair != begin_end.second; ++pair) {
+	    if (generate_solr_query) {
+		if (not query.empty())
+		    query += " OR ";
+		const size_t colon_pos(pair->second.find(':'));
+		query += GenerateQuery(pair->second.substr(0, colon_pos), pair->second.substr(colon_pos + 1));
+	    } else
+		std::cout << pair->second << '\n';
+	}
+	if (generate_solr_query)
+	    std::cout << query << '\n';
+
 	return EXIT_SUCCESS;
     }
 
@@ -104,6 +136,7 @@ int main(int argc, char **argv) {
     if (bible_book_and_code == bible_books_to_codes_map.end()) {
 	if (verbose)
 	    std::cerr << "No mapping from \"" << book_candidate << "\" to a book code was found!\n";
+
 	return EXIT_FAILURE; // Unknown bible book!
     }
 
@@ -111,7 +144,11 @@ int main(int argc, char **argv) {
     if (verbose)
 	std::cerr << "book code = \"" << book_code << "\"\n";
     if (chapters_and_verses_candidate.empty()) {
-	std::cout << book_code << "00000:" << book_code << "99999" << '\n';
+	if (generate_solr_query)
+	    std::cout << GenerateQuery(book_code + "00000", book_code + "99999") << '\n';
+	else
+	    std::cout << book_code << "00000:" << book_code << "99999" << '\n';
+
 	return EXIT_SUCCESS;
     }
 
@@ -123,6 +160,15 @@ int main(int argc, char **argv) {
 	return EXIT_FAILURE;
     }
 
-    for (const auto &pair : start_end)
-	std::cout << pair.first << ':' << pair.second << '\n';
+    std::string query;
+    for (const auto &pair : start_end) {
+	if (generate_solr_query) {
+	    if (not query.empty())
+		query += " OR ";
+	    query += GenerateQuery(pair.first, pair.second);
+	} else
+	    std::cout << pair.first << ':' << pair.second << '\n';
+    }
+    if (generate_solr_query)
+	std::cout << query << '\n';
 }
