@@ -627,6 +627,8 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
 		range_string += range;
 	    }
 
+	    // Put the data into the $a subfield:
+	    range_string = "  ""\x1F""a" + range_string;
 	    MarcUtil::InsertField(range_string, BIB_REF_RANGE_TAG, leader.get(), &dir_entries, &field_data);
 	}
 
@@ -634,7 +636,8 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
     }
 
     if (verbose)
-	std::cerr << "Augmented " << augment_count << " records of " << total_count << ".\n";
+	std::cerr << "Augmented the " << BIB_REF_RANGE_TAG << "$a field of " << augment_count
+		  << " records of a total of " << total_count << " records.\n";
 }
 
 
