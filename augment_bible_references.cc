@@ -111,7 +111,7 @@ const std::unordered_set<std::string> books_with_ordinals {
 };
 
 
-const std::string BIB_REF_RANGE_TAG("800");
+const std::string BIB_REF_RANGE_TAG("801");
 
 
 bool StartsWithSmallRomanOrdinal(const std::string &roman_ordinal_candidate) {
@@ -442,12 +442,6 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
 	    continue;
 	const std::string &control_number(field_data[_001_iter - dir_entries.begin()]);
 
-	// Make sure that we don't use a bible reference tag that is already in use for another
-	// purpose:
-	const auto bib_ref_begin_end(DirectoryEntry::FindFields(BIB_REF_RANGE_TAG, dir_entries));
-	if (bib_ref_begin_end.first != bib_ref_begin_end.second)
-	    Error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
-
 	const auto _065_begin_end(DirectoryEntry::FindFields("065", dir_entries));
 	bool found_a_bible_indicator(false);
 	for (auto _065_iter(_065_begin_end.first); _065_iter != _065_begin_end.second; ++_065_iter) {
@@ -615,13 +609,25 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
 	++total_count;
 	std::unique_ptr<Leader> leader(raw_leader);
 
+	// Make sure that we don't use a bible reference tag that is already in use for another
+	// purpose:
+	const auto bib_ref_begin_end(DirectoryEntry::FindFields(BIB_REF_RANGE_TAG, dir_entries));
+	if (bib_ref_begin_end.first != bib_ref_begin_end.second)
+	    Error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
+
 	std::set<std::string> ranges;
 	if (FindGndCodes("600:610:611:630:648:651:655:689", dir_entries, field_data,
 			 gnd_codes_to_bible_ref_codes_map, &ranges))
         {
 	    ++augment_count;
-	    for (const auto &range : ranges)
-		MarcUtil::InsertField(range, BIB_REF_RANGE_TAG, leader.get(), &dir_entries, &field_data);
+	    std::string range_string;
+	    for (const auto &range : ranges) {
+		if (not range_string.empty())
+		    range_string += ',';
+		range_string += range;
+	    }
+
+	    MarcUtil::InsertField(range_string, BIB_REF_RANGE_TAG, leader.get(), &dir_entries, &field_data);
 	}
 
 	MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
