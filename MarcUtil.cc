@@ -138,12 +138,14 @@ void InsertField(const std::string &new_contents, const std::string &new_tag, Le
     auto dir_entry(dir_entries->begin());
     while (dir_entry != dir_entries->end() and new_tag > dir_entry->getTag())
 	++dir_entry;
+    const auto insertion_location(dir_entry);
 
     // Correct the offsets for old fields and then insert the new fields:
     const std::vector<DirectoryEntry>::difference_type new_index(dir_entry - dir_entries->begin());
     for (dir_entry = dir_entries->begin() + new_index; dir_entry != dir_entries->end(); ++dir_entry)
 	dir_entry->setFieldOffset(dir_entry->getFieldOffset() + new_contents.length() + 1);
-    dir_entries->emplace(dir_entry, new_tag, new_contents.length() + 1, (dir_entry - 1)->getFieldOffset());
+    dir_entries->emplace(insertion_location, new_tag, new_contents.length() + 1,
+			 (insertion_location - 1)->getFieldOffset());
     const auto field(fields->begin() + new_index);
     fields->emplace(field, new_contents);
 }
