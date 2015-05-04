@@ -621,10 +621,10 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
         {
 	    ++augment_count;
 	    std::string range_string;
-	    for (const auto &range : ranges) {
+	    for (auto &range : ranges) {
 		if (not range_string.empty())
 		    range_string += ',';
-		range_string += range;
+		range_string += StringUtil::Map(range, ':', '_');
 	    }
 
 	    // Put the data into the $a subfield:

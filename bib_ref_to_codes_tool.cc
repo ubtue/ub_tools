@@ -35,20 +35,6 @@ void SplitIntoBookAndChaptersAndVerses(const std::string &bib_ref_candidate, std
 }
 
 
-std::string GenerateQuery(const std::string &lower, const std::string &upper) {
-    std::string query;
-    for (unsigned index(1); index < 10; ++index) {
-	if (not query.empty())
-	    query += " OR ";
-	const std::string start("bib_ref_start" + std::to_string(index));
-	const std::string end("bib_ref_end" + std::to_string(index));
-	query += "(" + start + ":[0000000 TO " + lower + "]" + " AND " + end + ":[" + upper + " TO 9999999])";
-    }
-
-    return query;
-}
-
-
 void Usage() {
     std::cerr << "usage: " << progname << " [--debug|--query] bible_reference_candidate\n";
     std::cerr << "          books_of_the_bible_to_code_map\n";
@@ -96,9 +82,8 @@ int main(int argc, char **argv) {
 	for (auto pair(begin_end.first); pair != begin_end.second; ++pair) {
 	    if (generate_solr_query) {
 		if (not query.empty())
-		    query += " OR ";
-		const size_t colon_pos(pair->second.find(':'));
-		query += GenerateQuery(pair->second.substr(0, colon_pos), pair->second.substr(colon_pos + 1));
+		    query += ' ';
+		query += pair->first + "_" + pair->second;
 	    } else
 		std::cout << pair->second << '\n';
 	}
@@ -145,7 +130,7 @@ int main(int argc, char **argv) {
 	std::cerr << "book code = \"" << book_code << "\"\n";
     if (chapters_and_verses_candidate.empty()) {
 	if (generate_solr_query)
-	    std::cout << GenerateQuery(book_code + "00000", book_code + "99999") << '\n';
+	    std::cout << (book_code + "00000") << '_' << (book_code + "99999") << '\n';
 	else
 	    std::cout << book_code << "00000:" << book_code << "99999" << '\n';
 
@@ -164,8 +149,8 @@ int main(int argc, char **argv) {
     for (const auto &pair : start_end) {
 	if (generate_solr_query) {
 	    if (not query.empty())
-		query += " OR ";
-	    query += GenerateQuery(pair.first, pair.second);
+		query += ' ';
+	    query += pair.first + "_" + pair.second;
 	} else
 	    std::cout << pair.first << ':' << pair.second << '\n';
     }
