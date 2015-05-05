@@ -2,6 +2,7 @@
 #include <cctype>
 #include "Locale.h"
 #include "StringUtil.h"
+#include "util.h"
 
 
 namespace {
@@ -24,6 +25,32 @@ bool NewReferenceIsCompatibleWithExistingReferences(
 bool IsNumericString(const std::string &s) {
     for (const char ch : s) {
 	if (not isdigit(ch))
+	    return false;
+    }
+
+    return true;
+}
+
+
+bool ReferenceIsWellFormed(const std::string &bib_ref_candidate) {
+    if (bib_ref_candidate.length() != 7 + 1 + 7)
+	return false;
+
+    for (unsigned i(0); i < (7 + 1 + 7); ++i) {
+	if (i == 7) { // The colon position.
+	    if (bib_ref_candidate[i] != ':')
+		return false;
+	} else if (not std::isdigit(bib_ref_candidate[i]))
+	    return false;
+    }
+
+    return true;
+}
+
+
+bool RangesAreWellFormed(const std::set<std::pair<std::string, std::string>> &ranges) {
+    for (const auto &range : ranges) {
+	if (not ReferenceIsWellFormed(range.first) or not ReferenceIsWellFormed(range.second))
 	    return false;
     }
 
@@ -146,8 +173,12 @@ bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string
 
     const Locale c_locale("C", LC_ALL); // We don't want islower() to accept characters w/ diacritical marks!
 
-    if (bib_ref_candidate.find('.') != std::string::npos)
-	return ParseRefWithDot(bib_ref_candidate, book_code, start_end);
+    if (bib_ref_candidate.find('.') != std::string::npos) {
+	const bool parse_succeeded(ParseRefWithDot(bib_ref_candidate, book_code, start_end));
+	if (parse_succeeded and not RangesAreWellFormed(*start_end))
+	    Error("Bad ranges were generated in ParseBibleReference! (1)");
+	return parse_succeeded;
+    }
 
     State state(INITIAL);
     std::string accumulator, chapter1, verse1, chapter2, verse2;
@@ -260,6 +291,8 @@ bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string
 	start_end->insert(std::make_pair(start, end));
     }
 
+    if (not RangesAreWellFormed(*start_end))
+	Error("Bad ranges were generated in ParseBibleReference! (2)");
     return true;
 }
 
