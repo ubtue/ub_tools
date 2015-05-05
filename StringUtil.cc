@@ -30,6 +30,7 @@
  */
 
 #include "StringUtil.h"
+#include <algorithm>
 #include <set>
 #include <cassert>
 #include <cctype>
@@ -2959,5 +2960,17 @@ std::string PadLeading(const std::string &s, const std::string::size_type min_le
     return std::string(min_length - length, pad_char) + s;
 }
     
+
+static inline bool CaseInsensitiveEqual(const char ch1, const char ch2) {
+    return std::toupper(ch1) == std::toupper(ch2);
+}
+
+
+size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle) {
+    const auto iter(std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
+				CaseInsensitiveEqual));
+    return iter == haystack.end() ? std::string::npos : iter - haystack.begin();
+}
+
 
 } // namespace StringUtil

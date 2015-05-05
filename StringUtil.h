@@ -2453,6 +2453,10 @@ bool ContainsAtLeastOneLowercaseLetter(const std::string &s);
 std::string PadLeading(const std::string &s, const std::string::size_type min_length, const char pad_char = ' ');
 
 
+/** \return If "needle" was found in "haystack", the starting position in "haystack" else std::string::npos. */
+size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle);
+
+
 } // Namespace StringUtil
 
 
