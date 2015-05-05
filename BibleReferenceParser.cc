@@ -33,14 +33,11 @@ bool IsNumericString(const std::string &s) {
 
 
 bool ReferenceIsWellFormed(const std::string &bib_ref_candidate) {
-    if (bib_ref_candidate.length() != 7 + 1 + 7)
+    if (bib_ref_candidate.length() != 7)
 	return false;
 
-    for (unsigned i(0); i < (7 + 1 + 7); ++i) {
-	if (i == 7) { // The colon position.
-	    if (bib_ref_candidate[i] != ':')
-		return false;
-	} else if (not std::isdigit(bib_ref_candidate[i]))
+    for (const char ch : bib_ref_candidate) {
+	if (not std::isdigit(ch))
 	    return false;
     }
 
@@ -55,6 +52,18 @@ bool RangesAreWellFormed(const std::set<std::pair<std::string, std::string>> &ra
     }
 
     return true;
+}
+
+
+std::string RangesToString(const std::set<std::pair<std::string, std::string>> &ranges) {
+    std::string ranges_as_string;
+    for (const auto &range : ranges) {
+	if (not ranges_as_string.empty())
+	    ranges_as_string += ", ";
+	ranges_as_string += range.first + ":" + range.second;
+    }
+
+    return ranges_as_string;
 }
 
 
@@ -176,7 +185,7 @@ bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string
     if (bib_ref_candidate.find('.') != std::string::npos) {
 	const bool parse_succeeded(ParseRefWithDot(bib_ref_candidate, book_code, start_end));
 	if (parse_succeeded and not RangesAreWellFormed(*start_end))
-	    Error("Bad ranges were generated in ParseBibleReference! (1)");
+	    Error("Bad ranges (" + RangesToString(*start_end) + ") were generated in ParseBibleReference! (1)");
 	return parse_succeeded;
     }
 
@@ -292,7 +301,7 @@ bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string
     }
 
     if (not RangesAreWellFormed(*start_end))
-	Error("Bad ranges were generated in ParseBibleReference! (2)");
+	Error("Bad ranges (" + RangesToString(*start_end) + ") were generated in ParseBibleReference! (2)");
     return true;
 }
 
