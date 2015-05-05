@@ -23,7 +23,7 @@ bool CompileRegex(const std::string &pattern, const bool enable_utf8, ::pcre **p
 	return false;
     }
 
-    *pcre_extra = ::pcre_study(*pcre, PCRE_STUDY_JIT_COMPILE, &errptr);
+    *pcre_extra = ::pcre_study(*pcre, 0, &errptr); // Can't use PCRE_STUDY_JIT_COMPILE because it's not thread safe.
     if (*pcre_extra == NULL and errptr != NULL) {
 	::pcre_free(*pcre);
 	*pcre = NULL;
