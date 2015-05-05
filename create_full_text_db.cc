@@ -8,7 +8,7 @@
     772 http://d-nb.info                          PDF's (Images => Need to OCR this?)
     520 http://www.ulb.tu-darmstadt.de            (Frau Gwinner arbeitet daran?)
     236 http://media.obvsg.at                     HTML
-    167 http://www.loc.gov
+    167 http://www.loc.gov                        Done!
     133 http://deposit.ddb.de
     127 http://www.bibliothek.uni-regensburg.de
      57 http://nbn-resolving.de
@@ -124,7 +124,7 @@ std::string GetLastWordAfterSpace(const std::string &text) {
 
 bool SmartDownload(std::string url, MatcherAndStats * const bsz_matcher, MatcherAndStats * const idb_matcher,
 		   MatcherAndStats * const bvbr_matcher, MatcherAndStats * const bsz21_matcher,
-		   std::string * const document)
+		   MatcherAndStats * const loc_gov_matcher, std::string * const document)
 {
     document->clear();
 
@@ -189,26 +189,46 @@ bool SmartDownload(std::string url, MatcherAndStats * const bsz_matcher, Matcher
 	const std::string start_string("<body onload=window.location=\"");
 	size_t start_pos(html.find(start_string));
 	if (start_pos == std::string::npos)
-	    return -2;
+	    return false;
 	start_pos += start_string.size();
 	const size_t end_pos(html.find('"', start_pos + 1));
 	if (end_pos == std::string::npos)
-            return -3;
+            return false;
 	url = "http://bvbr.bib-bvb.de:8991" + html.substr(start_pos, end_pos - start_pos);
     } else if (bsz21_matcher->matched(url)) {
 	std::string html;
 	const int retcode = Download(url, TIMEOUT_IN_SECS, &html);
 	if (retcode != 0)
-	    return retcode;
+	    return false;
 	const std::string start_string("<meta content=\"https://publikationen.uni-tuebingen.de/xmlui/bitstream/");
 	size_t start_pos(html.find(start_string));
 	if (start_pos == std::string::npos)
-	    return -2;
+	    return false;
 	start_pos += start_string.size() - 55;
 	const size_t end_pos(html.find('"', start_pos + 1));
 	if (end_pos == std::string::npos)
-            return -3;
+            return false;
 	url = html.substr(start_pos, end_pos - start_pos);
+    } else if (loc_gov_matcher->matched(url)) {
+	if (url.length() < 11)
+	    return false;
+	url = "http://catdir" + url.substr(10);
+	std::string html;
+	const int retcode = Download(url, TIMEOUT_IN_SECS, &html);
+
+	if (retcode != 0)
+	    return false;
+	size_t toc_start_pos(StringUtil::FindCaseInsensitive(html, "<TITLE>Table of contents"));
+	if (toc_start_pos == std::string::npos)
+	    return false;
+	const size_t pre_start_pos(StringUtil::FindCaseInsensitive(html, "<pre>"));
+	if (pre_start_pos == std::string::npos)
+            return false;
+	const size_t pre_end_pos(StringUtil::FindCaseInsensitive(html, "</pre>"));
+	if (pre_end_pos == std::string::npos)
+            return false;
+	*document = html.substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5);
+	return true;
     }
 
     return Download(url, TIMEOUT_IN_SECS, document) == 0;
@@ -220,6 +240,7 @@ void ProcessRecords(FILE * const input, FILE * const output, SimpleDB * const db
     MatcherAndStats idb_matcher("http://idb.ub.uni-tuebingen.de/diglit/.+");
     MatcherAndStats bvbr_matcher("http://bvbr.bib-bvb.de:8991/.+");
     MatcherAndStats bsz21_matcher("http://nbn-resolving.de/urn:nbn:de:bsz:21.+");
+    MatcherAndStats loc_gov_matcher("http://www.loc.gov/catdir/.+");
 
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
@@ -260,7 +281,7 @@ void ProcessRecords(FILE * const input, FILE * const output, SimpleDB * const db
 
 	std::string document;
 	if (not SmartDownload(u_begin_end.first->second, &bsz_matcher, &idb_matcher, &bvbr_matcher,
-			      &bsz21_matcher, &document)) {
+			      &bsz21_matcher, &loc_gov_matcher, &document)) {
 	    ++failed_count;
 	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
 	    continue;
