@@ -251,6 +251,7 @@ bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string
     } else if (state == VERSE2) {
 	if (accumulator.empty())
 	    return false;
+	verse1 = StringUtil::PadLeading(verse1, 2, '0');
 	verse2 = StringUtil::PadLeading(accumulator, 2, '0');
 	const std::string start(book_code + chapter1 + verse1);
 	const std::string end(book_code + (chapter2.empty() ? chapter1 : chapter2) + verse2);
