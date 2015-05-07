@@ -38,7 +38,9 @@
 #include <set>
 #include <string>
 #include <list>
+#include <stdexcept>
 #include <cctype>
+#include <cerrno>
 #include <cstdarg>
 #include <cstring>
 #include <inttypes.h>
