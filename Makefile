@@ -1,6 +1,6 @@
 PROGS=marc_grep2 jop_grep download_test add_issn_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
-      bib_ref_to_codes_tool
+      bib_ref_to_codes_tool producer_consumer_test
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -O3 -c
 LDOPTS=-O3
@@ -113,6 +113,9 @@ OCR.o: OCR.cc OCR.h
 SimpleDB.o: SimpleDB.cc SimpleDB.h
 	$(CCC) $(CCOPTS) $<
 
+SmartDownloader.o: SmartDownloader.cc SmartDownloader.h RegexMatcher.h Downloader.h util.h StringUtil.h
+	$(CCC) $(CCOPTS) $<
+
 BibleReferenceParser.o: BibleReferenceParser.cc BibleReferenceParser.h StringUtil.h Locale.h util.h
 	$(CCC) $(CCOPTS) $<
 
@@ -135,11 +138,17 @@ download_test.o: download_test.cc Downloader.h RegexMatcher.h StringUtil.h TextU
 download_test: download_test.o Downloader.o libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -ltokyocabinet -lmagic
 
-create_full_text_db.o: create_full_text_db.cc Downloader.h RegexMatcher.h StringUtil.h TextUtil.h util.h \
-                       MediaTypeUtil.h SimpleDB.h MarcUtil.h Subfields.h
+producer_consumer_test.o: producer_consumer_test.cc
 	$(CCC) $(CCOPTS) $<
 
-create_full_text_db: create_full_text_db.o Downloader.o libmarc.a
+producer_consumer_test: producer_consumer_test.o
+	$(CCC) $(LDFLAGS) -o $@ $^ -pthread
+
+create_full_text_db.o: create_full_text_db.cc Downloader.h RegexMatcher.h StringUtil.h TextUtil.h util.h \
+                       MediaTypeUtil.h SimpleDB.h MarcUtil.h Subfields.h SharedBuffer.h SmartDownloader.h
+	$(CCC) $(CCOPTS) $<
+
+create_full_text_db: create_full_text_db.o Downloader.o libmarc.a SmartDownloader.o
 	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -ltokyocabinet -lmagic
 
 db_lookup.o: db_lookup.cc SimpleDB.h util.h
