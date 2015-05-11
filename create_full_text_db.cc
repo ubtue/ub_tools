@@ -42,13 +42,13 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include <kchashdb.h>
 #include <strings.h>
 #include "Downloader.h"
 #include "MarcUtil.h"
 #include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "SharedBuffer.h"
-#include "SimpleDB.h"
 #include "SmartDownloader.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -92,7 +92,7 @@ bool SmartDownload(const std::string &url, std::vector<SmartDownloader *> &smart
 {
     document->clear();
 
-    const unsigned TIMEOUT_IN_SECS(5); // Don't wait any longer than this.
+    const unsigned TIMEOUT_IN_SECS(10); // Don't wait any longer than this.
     for (auto &smart_downloader : smart_downloaders) {
 	if (smart_downloader->canHandleThis(url))
 	    return smart_downloader->downloadDoc(url, TIMEOUT_IN_SECS, document);
@@ -106,27 +106,27 @@ void ThreadSafeComposeAndWriteRecord(FILE * const output, const std::vector<Dire
 				     const std::vector<std::string> &field_data, Leader * const leader)
 {
     static std::mutex marc_writer_mutex;
-    std::unique_lock<std::mutex> mutex_locker(marc_writer_mutex); 
+    std::unique_lock<std::mutex> mutex_locker(marc_writer_mutex);
     MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
 }
 
 
 /** Writes "media_type" and "document" to "db" and returns the unique key that was generated for the write. */
 std::string ThreadSafeWriteDocumentWithMediaType(const std::string &media_type, const std::string &document,
-						 SimpleDB * const db)
+						 kyotocabinet::HashDB * const db)
 {
     static std::mutex simple_db_writer_mutex;
     std::unique_lock<std::mutex> mutex_locker(simple_db_writer_mutex);
     static unsigned key;
     ++key;
     const std::string key_as_string(std::to_string(key));
-    db->binaryPutData(key_as_string, "Content-type: " + media_type + "\r\n\r\n" + document);
+    db->add(key_as_string, "Content-type: " + media_type + "\r\n\r\n" + document);
     return key_as_string;
 }
 
 
 void ProcessRecords(const unsigned long max_record_count, FILE * const input, FILE * const output,
-		    SimpleDB * const db) {
+		    kyotocabinet::HashDB * const db) {
     std::vector<SmartDownloader *> smart_downloaders{
 	new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }),
 	new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }),
@@ -236,8 +236,14 @@ int main(int argc, char *argv[]) {
     if (marc_output == NULL)
 	Error("can't open \"" + marc_output_filename + "\" for writing!");
 
+    kyotocabinet::HashDB db;
+    if (not db.open(argv[3],
+		    kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
+		    | kyotocabinet::HashDB::OTRUNCATE))
+	Error("Failed to open database \"" + std::string(argv[1]) + "\" for writing ("
+	      + std::string(db.error().message()) + ")!");
+
     try {
-	SimpleDB db(argv[3], SimpleDB::OPEN_CREATE_READ_WRITE);
 	ProcessRecords(max_record_count, marc_input, marc_output, &db);
     } catch (const std::exception &e) {
 	Error("Caught exception: " + std::string(e.what()));

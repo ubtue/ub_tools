@@ -1,7 +1,6 @@
 #include <iostream>
-#include <cstdio>
 #include <cstdlib>
-#include "SimpleDB.h"
+#include <kchashdb.h>
 #include "util.h"
 
 
@@ -17,17 +16,16 @@ int main(int argc, char *argv[]) {
     if (argc != 3)
 	Usage();
 
-    try {
-	const SimpleDB db(argv[1], SimpleDB::OPEN_RDONLY);
+    kyotocabinet::HashDB db;
+    if (not db.open(argv[1], kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::ONOLOCK))
+	Error("Failed to open database \"" + std::string(argv[1]) + "\" for reading ("
+	      + std::string(db.error().message()) + ")!");
 
-	size_t data_size;
-	const void * const data(db.binaryGetData(argv[2], &data_size));
-	if (data == NULL)
-	    return EXIT_FAILURE;
+    std::string data;
+    if (not db.get(argv[2], &data))
+	Error("Lookup failed: " + std::string(db.error().message()));
 
-	if (std::fwrite(data, 1, data_size, stdout) != data_size)
-	    return EXIT_FAILURE;
-    } catch (const std::exception &e) {
-	Error(std::string("caught exception: ") + e.what());
-    }
+    std::cout << data;
+
+    db.close();
 }
