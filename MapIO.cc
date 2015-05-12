@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "MapIO.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -59,6 +60,14 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
     unsigned line_no(0);
     for (std::string line; std::getline(input, line); /* Intentionally empty! */) {
 	++line_no;
+
+	// Deal w/ comments, leading and trailing spaces and empty lines:
+	const size_t last_hash_pos(line.find_last_of('#'));
+	if (last_hash_pos != std::string::npos)
+	    line = line.substr(0, last_hash_pos);
+	StringUtil::Trim(&line);
+	if (line.empty())
+	    continue;
 
 	std::string key, value;
 	bool in_key(true), escaped(false);
@@ -114,6 +123,14 @@ void DeserialiseMap(const std::string &input_filename,
     unsigned line_no(0);
     for (std::string line; std::getline(input, line); /* Intentionally empty! */) {
 	++line_no;
+
+	// Deal w/ comments, leading and trailing spaces and empty lines:
+	const size_t last_hash_pos(line.find_last_of('#'));
+	if (last_hash_pos != std::string::npos)
+	    line = line.substr(0, last_hash_pos);
+	StringUtil::Trim(&line);
+	if (line.empty())
+	    continue;
 
 	std::string key, value;
 	bool in_key(true), escaped(false);

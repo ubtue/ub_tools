@@ -61,7 +61,7 @@ libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o Mar
 	@echo "Linking $@..."
 	@ar cqs $@ $^
 
-MapIO.o: MapIO.cc MapIO.h util.h
+MapIO.o: MapIO.cc MapIO.h StringUtil.h util.h
 	$(CCC) $(CCOPTS) $<
 
 MediaTypeUtil.o: MediaTypeUtil.cc MediaTypeUtil.h
