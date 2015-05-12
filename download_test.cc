@@ -41,11 +41,11 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include <kchashdb.h>
 #include <strings.h>
 #include "Downloader.h"
 #include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
-#include "SimpleDB.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
@@ -125,8 +125,10 @@ int Output(const std::string &output_or_db_filename, const std::string &db_key, 
 	const std::string content_type(
 	    "Content-type: " + MediaTypeUtil::GetMediaType(document, /* auto_simplify = */ false) + "\r\n\r\n");
 
-	SimpleDB db(output_or_db_filename, SimpleDB::OPEN_CREATE_READ_WRITE);
-	db.binaryPutData(db_key, content_type + document);
+	kyotocabinet::HashDB db;
+	db.open(output_or_db_filename,
+		kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE | kyotocabinet::HashDB::OTRUNCATE);
+	db.add(db_key, content_type + document);
 	return 0;
     } else
 	return WriteString(document, output_or_db_filename) ? 0 : -1;
