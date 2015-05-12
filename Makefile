@@ -123,20 +123,20 @@ bib_ref_parser_test.o: bib_ref_parser_test.cc BibleReferenceParser.h util.h
 	$(CCC) $(CCOPTS) $<
 
 bib_ref_parser_test: bib_ref_parser_test.o BibleReferenceParser.o
-	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -ltokyocabinet -lmagic
+	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
 bib_ref_to_codes_tool.o: bib_ref_to_codes_tool.cc BibleReferenceParser.h StringUtil.h util.h MapIO.h
 	$(CCC) $(CCOPTS) $<
 
 bib_ref_to_codes_tool: bib_ref_to_codes_tool.o BibleReferenceParser.o
-	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -ltokyocabinet -lmagic
+	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
 download_test.o: download_test.cc Downloader.h RegexMatcher.h StringUtil.h TextUtil.h util.h MediaTypeUtil.h \
                  SimpleDB.h
 	$(CCC) $(CCOPTS) $<
 
 download_test: download_test.o Downloader.o libmarc.a
-	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -ltokyocabinet -lmagic
+	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
 producer_consumer_test.o: producer_consumer_test.cc
 	$(CCC) $(CCOPTS) $<
@@ -149,13 +149,13 @@ create_full_text_db.o: create_full_text_db.cc Downloader.h RegexMatcher.h String
 	$(CCC) $(CCOPTS) $<
 
 create_full_text_db: create_full_text_db.o Downloader.o libmarc.a SmartDownloader.o
-	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -ltokyocabinet -lmagic
+	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
 db_lookup.o: db_lookup.cc SimpleDB.h util.h
 	$(CCC) $(CCOPTS) $<
 
 db_lookup: db_lookup.o libmarc.a
-	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -ltokyocabinet
+	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -lkyotocabinet
 
 clean:
 	rm -f *~ $(PROGS) *.o *.a
