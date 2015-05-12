@@ -57,7 +57,7 @@ augment_bible_references: augment_bible_references.o  BibleReferenceParser.o lib
 	$(CCC) $(LDFLAGS) -o $@ augment_bible_references.o  BibleReferenceParser.o -L. -lmarc -lpcre -lcrypto
 
 libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o MarcUtil.o util.o HtmlParser.o \
-           StringUtil.o TextUtil.o Locale.o OCR.o SimpleDB.o MediaTypeUtil.o MapIO.o
+           StringUtil.o TextUtil.o Locale.o OCR.o MediaTypeUtil.o MapIO.o
 	@echo "Linking $@..."
 	@ar cqs $@ $^
 
@@ -110,9 +110,6 @@ MarcQueryParser.o: MarcQueryParser.cc DirectoryEntry.h Leader.h MarcQueryParser.
 OCR.o: OCR.cc OCR.h
 	$(CCC) $(CCOPTS) $<
 
-SimpleDB.o: SimpleDB.cc SimpleDB.h
-	$(CCC) $(CCOPTS) $<
-
 SmartDownloader.o: SmartDownloader.cc SmartDownloader.h RegexMatcher.h Downloader.h util.h StringUtil.h
 	$(CCC) $(CCOPTS) $<
 
@@ -131,21 +128,20 @@ bib_ref_to_codes_tool.o: bib_ref_to_codes_tool.cc BibleReferenceParser.h StringU
 bib_ref_to_codes_tool: bib_ref_to_codes_tool.o BibleReferenceParser.o
 	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
-download_test.o: download_test.cc Downloader.h RegexMatcher.h StringUtil.h TextUtil.h util.h MediaTypeUtil.h \
-                 SimpleDB.h
+download_test.o: download_test.cc Downloader.h RegexMatcher.h StringUtil.h TextUtil.h util.h MediaTypeUtil.h
 	$(CCC) $(CCOPTS) $<
 
 download_test: download_test.o Downloader.o libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
 create_full_text_db.o: create_full_text_db.cc Downloader.h RegexMatcher.h StringUtil.h TextUtil.h util.h \
-                       MediaTypeUtil.h SimpleDB.h MarcUtil.h Subfields.h SharedBuffer.h SmartDownloader.h
+                       MediaTypeUtil.h MarcUtil.h Subfields.h SharedBuffer.h SmartDownloader.h
 	$(CCC) $(CCOPTS) $<
 
 create_full_text_db: create_full_text_db.o Downloader.o libmarc.a SmartDownloader.o
 	$(CCC) $(LDFLAGS) -o $@ $^ -L. -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
-db_lookup.o: db_lookup.cc SimpleDB.h util.h
+db_lookup.o: db_lookup.cc util.h
 	$(CCC) $(CCOPTS) $<
 
 db_lookup: db_lookup.o libmarc.a
