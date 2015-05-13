@@ -22,8 +22,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles "
-	      << "bible_norm\n";
+    std::cerr << "Usage: " << progname << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -303,9 +302,20 @@ bool ExtractBibleReference(const bool verbose, const std::string &control_number
 			   std::set<std::pair<std::string, std::string>> * const ranges)
 {
     const Subfields subfields(field);
+
     *book_name = StringUtil::ToLower(subfields.getFirstSubfieldValue(subfield_code));
+
+    const size_t last_space_pos(book_name->find_last_of(' '));
+    std::string chapters_and_verses;
+    if (last_space_pos != std::string::npos and last_space_pos > 2
+	and CanParseBibleReference(book_name->substr(last_space_pos + 1))) // Old format.
+    {
+	chapters_and_verses = book_name->substr(last_space_pos + 1);
+	*book_name = StringUtil::ToLower(StringUtil::RightTrim(book_name->substr(0, last_space_pos)));
+    }
+
     if (book_name->empty() or books_of_the_bible.find(*book_name) == books_of_the_bible.end())
-	    return false;
+	return false;
 
     // Filter records that look like bible books but would have to have a $9 subfield starting
     // with "g:Buch" in order to qualify:
@@ -316,6 +326,8 @@ bool ExtractBibleReference(const bool verbose, const std::string &control_number
 
     std::vector<std::string> roman_refs, other_refs;
     SplitNumericReferences(subfields, &roman_refs, &other_refs);
+    if (other_refs.empty() and not chapters_and_verses.empty())
+	other_refs.push_back(chapters_and_verses);
 
     // Filter records that looks like bible books but would have to have a $n or $9 subfield
     // containing a roman ordinal number in order to qualify:
@@ -644,11 +656,11 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc < 5)
+    if (argc < 4)
 	Usage();
 
     const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
-    if (verbose ? (argc != 6) : (argc != 5))
+    if (verbose ? (argc != 5) : (argc != 4))
 	Usage();
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
@@ -666,11 +678,6 @@ int main(int argc, char **argv) {
     if (title_output == NULL)
 	Error("can't open \"" + title_output_filename + "\" for writing!");
 
-    const std::string bible_norm_output_filename(argv[verbose ? 5 : 6]);
-    FILE *bible_norm_output = std::fopen(bible_norm_output_filename.c_str(), "wb");
-    if (bible_norm_output == NULL)
-	Error("can't open \"" + bible_norm_output_filename + "\" for writing!");
-
     if (unlikely(title_input_filename == title_output_filename))
 	Error("Title input file name equals title output file name!");
 
@@ -684,5 +691,4 @@ int main(int argc, char **argv) {
     std::fclose(title_input);
     std::fclose(norm_input);
     std::fclose(title_output);
-    std::fclose(bible_norm_output);
 }
