@@ -11,10 +11,11 @@ LDOPTS=-O3
 libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o MarcUtil.o util.o HtmlParser.o \
            StringUtil.o TextUtil.o Locale.o OCR.o MediaTypeUtil.o MapIO.o MediaTypeUtil.o HtmlParser.o \
            Downloader.o MarcGrepTokenizer.o MarcQueryParser.o SmartDownloader.o BibleReferenceParser.o \
-           ExecUtil.o
+           ExecUtil.o PdfUtil.o
 	@echo "Linking $@..."
 	@ar cqs $@ $^
 
+PdfUtil.o: PdfUtil.h ExecUtil.h util.h
 ExecUtil.o: ExecUtil.h util.h
 MapIO.o: MapIO.cc MapIO.h StringUtil.h util.h
 MediaTypeUtil.o: MediaTypeUtil.cc MediaTypeUtil.h
