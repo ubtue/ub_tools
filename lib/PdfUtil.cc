@@ -41,6 +41,6 @@ bool PdfDocContainsNoText(const std::string &path) {
     }
     ::unlink(output_filename.c_str());
 
-    return retval != 0;
+    return retval == 0;
 }
 
