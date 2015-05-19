@@ -5,13 +5,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fcntl.h>
 #include <signal.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include "util.h"
 
 
-int Exec(const std::string &command, const std::vector<std::string> &args) {
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout) {
     if (::access(command.c_str(), X_OK) != 0)
 	throw std::runtime_error("in Exec: can't execute \"" + command + "\"!");
 
@@ -23,11 +26,22 @@ int Exec(const std::string &command, const std::vector<std::string> &args) {
 
     // The child process:
     else if (pid == 0) {
+	if (not new_stdout.empty()) {
+	    const int new_stdout_fd(::open(new_stdout.c_str(), O_WRONLY | O_CREAT, 0644));
+	    if (new_stdout_fd == -1)
+		::_exit(-1);
+	    if (::dup2(new_stdout_fd, STDOUT_FILENO) == -1)
+		::_exit(-1);
+	    ::close(new_stdout_fd);
+	}
+
 	// Build the argument list for execve(2):
-	char *argv[args.size() + 1];
-	argv[0] = ::strdup(command.c_str());
-	for (unsigned arg_no(0); arg_no < args.size(); ++arg_no)
-	    argv[arg_no + 1] = ::strdup(args[arg_no].c_str());
+	char *argv[1 + args.size() + 1];
+	unsigned arg_no(0);
+	argv[arg_no++] = ::strdup(command.c_str());
+	for (const auto &arg : args)
+	    argv[arg_no++] = ::strdup(arg.c_str());
+	argv[arg_no] = NULL;
 	::execv(command.c_str(), argv);
 
 	::_exit(EXECVE_FAILURE); // We typically never get here.

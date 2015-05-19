@@ -34,11 +34,12 @@
 
 
 /** \brief  Run a subcommand.
- *  \param  command  The path to the command that should be executed.
- *  \param  args
+ *  \param  command     The path to the command that should be executed.
+ *  \param  args        The arguments for the command, not including the command itself.
+ *  \param  new_stdout  An optional replacement file path for the stdout.
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
-int Exec(const std::string &command, const std::vector<std::string> &args);
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout = "");
 
 
 #endif // ifndef EXEC_UTIL_H
