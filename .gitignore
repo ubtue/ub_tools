@@ -1,2 +1,14 @@
 *.o
 *.a
+add_child_refs
+add_issn_to_articles
+add_title_keywords
+augment_bible_references
+bib_ref_parser_test
+bib_ref_to_codes_tool
+create_full_text_db
+db_lookup
+download_test
+jop_grep
+marc_grep2
+marc_grep_tokenizer_test
