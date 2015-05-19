@@ -34,12 +34,15 @@
 
 
 /** \brief  Run a subcommand.
- *  \param  command     The path to the command that should be executed.
- *  \param  args        The arguments for the command, not including the command itself.
- *  \param  new_stdout  An optional replacement file path for the stdout.
+ *  \param  command             The path to the command that should be executed.
+ *  \param  args                The arguments for the command, not including the command itself.
+ *  \param  new_stdout          An optional replacement file path for the stdout.
+ *  \param  timeout_in_seconds  If not zero, the subprocess will be killed if the timeout expires before
+ *                              the process terminates.  SIGKILL will be used.
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
-int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout = "");
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout = "",
+	 unsigned timeout_in_seconds = 0);
 
 
 #endif // ifndef EXEC_UTIL_H

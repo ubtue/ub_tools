@@ -14,7 +14,29 @@
 #include "util.h"
 
 
-int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout) {
+namespace {
+
+
+// The following variables are set in Execute.
+static bool alarm_went_off;
+pid_t child_pid;
+
+
+// SigAlarmHandler -- Used by Execute.
+//
+void SigAlarmHandler(int /* sig_no */)
+{
+	alarm_went_off = true;
+	::kill(-child_pid, SIGKILL);
+}
+
+
+} // unnamed namespace
+
+
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
+	 unsigned timeout_in_seconds)
+{
     if (::access(command.c_str(), X_OK) != 0)
 	throw std::runtime_error("in Exec: can't execute \"" + command + "\"!");
 
@@ -49,10 +71,40 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
     // The parent of the fork:
     else {
+	void (*old_alarm_handler)(int) = NULL;
+
+	if (timeout_in_seconds > 0) {
+	    // Install new alarm handler...
+	    alarm_went_off = false;
+	    child_pid = pid;
+	    old_alarm_handler = ::signal(SIGALRM, SigAlarmHandler);
+
+	    // ...and wind the clock:
+	    ::alarm(timeout_in_seconds);
+	}
+
 	int child_exit_status;
 	errno = 0;
 	int wait_retval = ::wait4(pid, &child_exit_status, 0, NULL);
 	assert(wait_retval == pid or errno == EINTR);
+
+	if (timeout_in_seconds > 0) {
+	    // Cancel any outstanding alarm:
+	    ::alarm(0);
+
+	    // Restore the old alarm handler:
+	    ::signal(SIGALRM, old_alarm_handler);
+
+	    // Check to see whether the test timed out or not:
+	    if (alarm_went_off) {
+		// Snuff out all of our offspring.
+		::kill(-pid, SIGKILL);
+		while (::wait4(-pid, &child_exit_status, 0, NULL) != -1)
+		    /* Intentionally empty! */;
+
+		return -1;
+	    }
+	}
 
 	// Now process the child's various exit status values:
 	if (WIFEXITED(child_exit_status)) {
