@@ -33,7 +33,7 @@ Downloader.o: Downloader.cc Downloader.h util.h
 MarcGrepTokenizer.o: MarcGrepTokenizer.cc MarcGrepTokenizer.h StringUtil.h
 MarcQueryParser.o: MarcQueryParser.cc DirectoryEntry.h Leader.h MarcQueryParser.h MarcGrepTokenizer.h \
                    RegexMatcher.h StringUtil.h util.h
-OCR.o: OCR.cc OCR.h
+OCR.o: OCR.cc OCR.h ExecUtil.h
 SmartDownloader.o: SmartDownloader.cc SmartDownloader.h RegexMatcher.h Downloader.h util.h StringUtil.h
 BibleReferenceParser.o: BibleReferenceParser.cc BibleReferenceParser.h StringUtil.h Locale.h util.h
 
