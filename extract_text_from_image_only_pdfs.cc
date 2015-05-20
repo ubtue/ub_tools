@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 	if (not PdfDocContainsNoText(input_filename))
 	    Error("input file \"" + input_filename + "\" contains text!");
 
-	char output_filename[] = "ORC_OUT_XXXXXX";
+	char output_filename[] = "OCR_OUT_XXXXXX";
 	const int output_fd(::mkstemp(output_filename));
 	if (output_fd == -1)
 	    Error("failed to create a temporary file!");
