@@ -3,7 +3,7 @@
 *~
 *.o
 *.a
-\#Makefile\#
+\#*\#
 add_child_refs
 add_issn_to_articles
 add_title_keywords

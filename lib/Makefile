@@ -13,7 +13,7 @@ libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o Mar
            Downloader.o MarcGrepTokenizer.o MarcQueryParser.o SmartDownloader.o BibleReferenceParser.o \
            ExecUtil.o PdfUtil.o
 	@echo "Linking $@..."
-	@ar cqs $@ $^
+	@ar crs $@ $^
 
 PdfUtil.o: PdfUtil.h ExecUtil.h util.h
 ExecUtil.o: ExecUtil.h util.h
