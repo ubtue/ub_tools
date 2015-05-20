@@ -1,6 +1,9 @@
+*.mrc
+*.db
 *~
 *.o
 *.a
+\#Makefile\#
 add_child_refs
 add_issn_to_articles
 add_title_keywords
@@ -13,3 +16,4 @@ download_test
 jop_grep
 marc_grep2
 marc_grep_tokenizer_test
+extract_text_from_image_only_pdfs

@@ -1,6 +1,6 @@
 PROGS=marc_grep2 jop_grep download_test add_issn_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
-      bib_ref_to_codes_tool
+      bib_ref_to_codes_tool extract_text_from_image_only_pdfs
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -c
 LDOPTS=-O3
@@ -21,6 +21,12 @@ marc_grep2: marc_grep2.o lib/libmarc.a
 marc_grep2.o: marc_grep2.cc lib/Leader.h lib/MarcQueryParser.h lib/MarcUtil.h lib/RegexMatcher.h lib/Subfields.h \
               lib/util.h
 	$(CCC) $(CCOPTS) $<
+
+extract_text_from_image_only_pdfs.o: extract_text_from_image_only_pdfs.cc lib/PdfUtil.h
+	$(CCC) $(CCOPTS) $<
+
+extract_text_from_image_only_pdfs: extract_text_from_image_only_pdfs.o lib/libmarc.a
+	$(CCC) $(LDFLAGS) -o $@ $< -Llib -lmarc -lpcre -lcrypto
 
 marc_grep_tokenizer_test: marc_grep_tokenizer_test.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $< -Llib -lmarc -lpcre -lcrypto

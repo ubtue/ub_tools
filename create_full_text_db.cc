@@ -195,7 +195,7 @@ void ProcessRecords(const unsigned long max_record_count, FILE * const input, FI
 	// Write the key/value-pair to our simple keyed data store:
 	const std::string key(ThreadSafeWriteDocumentWithMediaType(media_type, document, db));
 
-	subfields.addSubfield('e', "http://localhost/cgi-bin/db_lookup?id=" + key);
+	subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
 	const std::string new_856_field(subfields.toString());
 	MarcUtil::UpdateField(_856_index, new_856_field, leader.get(), &dir_entries, &field_data);
 	ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
