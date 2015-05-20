@@ -22,7 +22,7 @@ marc_grep2.o: marc_grep2.cc lib/Leader.h lib/MarcQueryParser.h lib/MarcUtil.h li
               lib/util.h
 	$(CCC) $(CCOPTS) $<
 
-extract_text_from_image_only_pdfs.o: extract_text_from_image_only_pdfs.cc lib/PdfUtil.h
+extract_text_from_image_only_pdfs.o: extract_text_from_image_only_pdfs.cc lib/PdfUtil.h lib/ExecUtil.h
 	$(CCC) $(CCOPTS) $<
 
 extract_text_from_image_only_pdfs: extract_text_from_image_only_pdfs.o lib/libmarc.a
