@@ -1,4 +1,5 @@
 #include "OCR.h"
+#include <fstream>
 #include <stdexcept>
 #include <cassert>
 #include <cerrno>
@@ -42,6 +43,25 @@ int OCR(const std::string &input_document_path, const std::string &language_code
 	}
     }
     ::unlink(output_filename.c_str());
+
+    return retval;
+}
+
+
+int OCR(const std::string &input_document, std::string * const output, const std::string &language_codes) {
+    char filename_template[] = "/tmp/ORCXXXXXX";
+    const std::string input_filename(::mktemp(filename_template));
+    std::ofstream ocr_input(input_filename);
+    if (ocr_input.fail())
+	return -1;
+    ocr_input.write(input_document.data(), input_document.size());
+    if (ocr_input.fail()) {
+	::unlink(input_filename.c_str());
+	return -1;
+    }
+
+    const int retval = OCR(input_filename, output, language_codes);
+    ::unlink(input_filename.c_str());
 
     return retval;
 }
