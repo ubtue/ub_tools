@@ -1,5 +1,5 @@
-/** \file   PdfUtil.h
- *  \brief  Functions relating to PDF documents.
+/** \file   FileUtil.h
+ *  \brief  File related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
@@ -17,25 +17,26 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef PDF_UTIL_H
-#define PDF_UTIL_H
+#ifndef FILE_UTIL_H
+#define FILE_UTIL_H
 
 
 #include <string>
+#include <unistd.h>
 
 
-/** \brief Returns whether a document contains text or not.
- *
- *  If this returns false it is likely that the document contains only images.
+/** \class AutoDeleteFile
+ *  \brief Deletes the file, specified by the path that was given in the constructor, when going out of scope.
  */
-bool PdfFileContainsNoText(const std::string &path);
+class AutoDeleteFile {
+    std::string path_;
+public:
+    explicit AutoDeleteFile(const std::string &path): path_(path) { }
+    ~AutoDeleteFile() { ::unlink(path_.c_str()); }
+};
 
 
-/** \brief Returns whether a document contains text or not.
- *
- *  If this returns false it is likely that the document contains only images.
- */
-bool PdfDocContainsNoText(const std::string &document);
+bool WriteString(const std::string &filename, const std::string &data);
 
 
-#endif // ifndef PDF_UTIL_H
+#endif // ifndef FILE_UTIL_H

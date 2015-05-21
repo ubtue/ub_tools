@@ -4,6 +4,7 @@
 #include <libgen.h>
 #include <unistd.h>
 #include "ExecUtil.h"
+#include "FileUtil.h"
 #include "PdfUtil.h"
 #include "util.h"
 
@@ -30,13 +31,18 @@ int main(int argc, char *argv[]) {
 	if (::access(input_filename.c_str(), R_OK) != 0)
 	    Error("can't read \"" + input_filename + "\"!");
 
-	if (not PdfDocContainsNoText(input_filename))
+	std::string pdf;
+	if (not ReadFile(input_filename, &pdf))
+	    Error("failed to read document from \"" + input_filename + "\"!");
+
+	if (not PdfDocContainsNoText(pdf))
 	    Error("input file \"" + input_filename + "\" contains text!");
 
 	char output_filename[] = "OCR_OUT_XXXXXX";
 	const int output_fd(::mkstemp(output_filename));
 	if (output_fd == -1)
 	    Error("failed to create a temporary file!");
+	const AutoDeleteFile auto_deleter(output_filename);
 
 	char path[std::strlen(argv[0]) + 1];
 	std::strcpy(argv[0], path);
@@ -44,17 +50,11 @@ int main(int argc, char *argv[]) {
 
 	if (Exec(dir_path + "/" + BASH_HELPER, { input_filename, output_filename, language_codes },
 		 "", 20 /* seconds */) != 0)
-	    {
-		::unlink(output_filename);
 		Error("failed to execute conversion script!");
-	    }
 
 	std::string extracted_text;
-	if (not ReadFile(output_filename, &extracted_text)) {
-	    ::unlink(output_filename);
+	if (not ReadFile(output_filename, &extracted_text))
 	    Error("failed to read contents of \"" + std::string(output_filename) + "\"!");
-	}
-	::unlink(output_filename);
 
 	if (extracted_text.empty())
 	    Error("No text was extracted from \"" + input_filename + "\"!");
