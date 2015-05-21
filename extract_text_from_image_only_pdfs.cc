@@ -25,7 +25,6 @@ int main(int argc, char *argv[]) {
     try {
 	if (argc != 2 and argc != 3)
 	    Usage();
-	const std::string language_codes(argc == 2 ? "deu" : argv[2]);
 	const std::string input_filename(argv[1]);
 
 	if (::access(input_filename.c_str(), R_OK) != 0)
@@ -45,11 +44,14 @@ int main(int argc, char *argv[]) {
 	const AutoDeleteFile auto_deleter(output_filename);
 
 	char path[std::strlen(argv[0]) + 1];
-	std::strcpy(argv[0], path);
+	std::strcpy(path, argv[0]);
 	const std::string dir_path(::dirname(path));
 
-	if (Exec(dir_path + "/" + BASH_HELPER, { input_filename, output_filename, language_codes },
-		 "", 20 /* seconds */) != 0)
+	std::vector<std::string> args { input_filename, output_filename };
+	if (argc == 3)
+	    args.emplace_back(argv[2]);
+
+	if (Exec(dir_path + "/" + BASH_HELPER, args, "", 20 /* seconds */) != 0)
 		Error("failed to execute conversion script!");
 
 	std::string extracted_text;
