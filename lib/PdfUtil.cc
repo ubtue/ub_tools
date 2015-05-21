@@ -18,7 +18,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "PdfUtil.h"
-#include <unistd.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "util.h"
@@ -28,9 +27,8 @@ const std::string PDFFONTS("/usr/bin/pdffonts");
 
 
 bool PdfFileContainsNoText(const std::string &path) {
-    char filename_template[] = "/tmp/PdfFileContainsNoTextXXXXXX";
-    const std::string output_filename(::mktemp(filename_template));
-    const AutoDeleteFile auto_delete(output_filename);
+    const AutoTempFile auto_temp_file;
+    const std::string &output_filename(auto_temp_file.getFilePath());
     std::vector<std::string> args{ path };
     const int retval = Exec(PDFFONTS, args, output_filename);
     if (retval == 0) {
@@ -45,8 +43,8 @@ bool PdfFileContainsNoText(const std::string &path) {
 
 
 bool PdfDocContainsNoText(const std::string &document) {
-    char filename_template[] = "/tmp/PdfDocContainsNoTextXXXXXX";
-    const std::string output_filename(::mktemp(filename_template));
+    const AutoTempFile auto_temp_file;
+    const std::string &output_filename(auto_temp_file.getFilePath());
     const AutoDeleteFile auto_delete(output_filename);
     if (not WriteString(output_filename, document))
 	return false;

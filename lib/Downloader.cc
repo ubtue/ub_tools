@@ -1,6 +1,6 @@
 #include "Downloader.h"
-#include <unistd.h>
 #include "ExecUtil.h"
+#include "FileUtil.h"
 #include "util.h"
 
 
@@ -22,16 +22,13 @@ int Download(const std::string &url, const std::string &output_filename, const u
 
 
 int Download(const std::string &url, const unsigned timeout, std::string * const output) {
-    char filename_template[] = "/tmp/DownloadXXXXXX";
-    const std::string output_filename(::mktemp(filename_template));
+    const AutoTempFile auto_temp_file;
+    const std::string &output_filename(auto_temp_file.getFilePath());
     const int retval = Download(url, output_filename, timeout);
     if (retval == 0) {
-	if (not ReadFile(output_filename, output)) {
-	    ::unlink(output_filename.c_str());
+	if (not ReadFile(output_filename, output))
 	    return -1;
-	}
     }
-    ::unlink(output_filename.c_str());
 
     return retval;
 }

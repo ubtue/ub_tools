@@ -36,6 +36,19 @@ public:
 };
 
 
+/** \class AutoTempFile
+ *  \brief Creates a temp file and removes it when going out of scope.
+ */
+class AutoTempFile {
+    std::string path_;
+public:
+    explicit AutoTempFile(const std::string &path_prefix = "/tmp/AutoTempFile");
+    ~AutoTempFile() { if (not path_.empty()) ::unlink(path_.c_str()); }
+
+    const std::string &getFilePath() const { return path_; }
+};
+    
+
 bool WriteString(const std::string &filename, const std::string &data);
 
 

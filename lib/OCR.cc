@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "ExecUtil.h"
+#include "FileUtil.h"
 #include "util.h"
 
 
@@ -33,35 +34,27 @@ int OCR(const std::string &input_document_path, const std::string &output_docume
 
 
 int OCR(const std::string &input_document_path, const std::string &language_codes, std::string * const output) {
-    char filename_template[] = "/tmp/ORCXXXXXX";
-    const std::string output_filename(::mktemp(filename_template));
+    const AutoTempFile auto_temp_file;
+    const std::string &output_filename(auto_temp_file.getFilePath());
     const int retval = OCR(input_document_path, output_filename, language_codes);
     if (retval == 0) {
-	if (not ReadFile(output_filename, output)) {
-	    ::unlink(output_filename.c_str());
+	if (not ReadFile(output_filename, output))
 	    return -1;
-	}
     }
-    ::unlink(output_filename.c_str());
 
     return retval;
 }
 
 
 int OCR(const std::string &input_document, std::string * const output, const std::string &language_codes) {
-    char filename_template[] = "/tmp/ORCXXXXXX";
-    const std::string input_filename(::mktemp(filename_template));
+    const AutoTempFile auto_temp_file;
+    const std::string input_filename(auto_temp_file.getFilePath());
     std::ofstream ocr_input(input_filename);
     if (ocr_input.fail())
 	return -1;
     ocr_input.write(input_document.data(), input_document.size());
-    if (ocr_input.fail()) {
-	::unlink(input_filename.c_str());
+    if (ocr_input.fail())
 	return -1;
-    }
 
-    const int retval = OCR(input_filename, output, language_codes);
-    ::unlink(input_filename.c_str());
-
-    return retval;
+    return OCR(input_filename, output, language_codes);
 }

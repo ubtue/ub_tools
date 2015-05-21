@@ -19,6 +19,19 @@
  */
 #include "FileUtil.h"
 #include <fstream>
+#include <stdexcept>
+#include <cstdlib>
+#include <cstring>
+
+
+AutoTempFile::AutoTempFile(const std::string &path_prefix) {
+    char * const path_template(strdupa((path_prefix + "XXXXXX").c_str()));
+    const int fd(::mkstemp(path_template));
+    if (fd == -1)
+	throw std::runtime_error("in AutoTempFile::AutoTempFile: mkstemp(3) failed!");
+    ::close(fd);
+    path_ = path_template;
+}
 
 
 bool WriteString(const std::string &path, const std::string &data) {

@@ -30,10 +30,10 @@ RegexMatcher.o: RegexMatcher.h util.h
 Leader.o: Leader.h StringUtil.h
 DirectoryEntry.o: DirectoryEntry.h StringUtil.h util.h
 MarcUtil.o: MarcUtil.h DirectoryEntry.h Leader.h util.h Compiler.h Subfields.h
-Downloader.o: Downloader.h util.h
+Downloader.o: Downloader.h util.h FileUtil.h
 MarcGrepTokenizer.o: MarcGrepTokenizer.h StringUtil.h
 MarcQueryParser.o: DirectoryEntry.h Leader.h MarcQueryParser.h MarcGrepTokenizer.h RegexMatcher.h StringUtil.h util.h
-OCR.o: OCR.h ExecUtil.h
+OCR.o: OCR.h ExecUtil.h FileUtil.h
 SmartDownloader.o: SmartDownloader.h RegexMatcher.h Downloader.h util.h StringUtil.h
 BibleReferenceParser.o: BibleReferenceParser.h StringUtil.h Locale.h util.h
 
