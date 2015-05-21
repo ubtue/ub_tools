@@ -52,7 +52,7 @@ int OCR(const std::string &input_document_path, const std::string &language_code
  *  \param language_codes  A list of one or more 3-character ISO 639-2 language codes separated by plus signs.
  *  \return Exit code of the child process.  0 upon success.
  */
-int OCR(const std::string &input_document, std::string * const output, const std::string &language_codes = "deu");
+int OCR(const std::string &input_document, std::string * const output, const std::string &language_codes = "");
 
 
 #endif // ifndef OCR_H

@@ -24,10 +24,14 @@ int OCR(const std::string &input_document_path, const std::string &output_docume
     if (::access(TESSERACT.c_str(), X_OK) != 0)
 	throw std::runtime_error("in OCR: can't execute \"" + TESSERACT + "\"!");
 
-    if (language_codes.length() < 3)
-	throw std::runtime_error("in OCR: missing or incorrect language code \"" + language_codes + "\"!");
+    if (not language_codes.empty() and language_codes.length() < 3)
+	throw std::runtime_error("in OCR: incorrect language code \"" + language_codes + "\"!");
 
-    std::vector<std::string> args{ TESSERACT, input_document_path, "stdout", "-l", language_codes };
+    std::vector<std::string> args{ TESSERACT, input_document_path, "stdout" };
+    if (not language_codes.empty()) {
+	args.emplace_back("-l");
+	args.emplace_back(language_codes);
+    }
 
     return Exec(TESSERACT, args, output_document_path, TIMEOUT) == 0;
 }
