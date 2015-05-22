@@ -82,7 +82,7 @@ bib_ref_to_codes_tool: bib_ref_to_codes_tool.o
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lmagic
 
 download_test.o: download_test.cc lib/Downloader.h lib/RegexMatcher.h lib/StringUtil.h lib/TextUtil.h \
-                 lib/util.h lib/MediaTypeUtil.h
+                 lib/util.h lib/MediaTypeUtil.h lib/FileUtil.h
 	$(CCC) $(CCOPTS) $<
 
 download_test: download_test.o lib/libmarc.a
@@ -90,7 +90,7 @@ download_test: download_test.o lib/libmarc.a
 
 create_full_text_db.o: create_full_text_db.cc lib/Downloader.h lib/RegexMatcher.h lib/StringUtil.h \
                        lib/TextUtil.h lib/util.h lib/MediaTypeUtil.h lib/MarcUtil.h lib/Subfields.h \
-                       lib/SharedBuffer.h lib/SmartDownloader.h
+                       lib/SharedBuffer.h lib/SmartDownloader.h lib/PdfUtil.h lib/ExecUtil.h lib/FileUtil.h
 	$(CCC) $(CCOPTS) $<
 
 create_full_text_db: create_full_text_db.o lib/libmarc.a
