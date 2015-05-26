@@ -18,29 +18,35 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "PdfUtil.h"
-#include <unistd.h>
 #include "ExecUtil.h"
+#include "FileUtil.h"
 #include "util.h"
 
 
 const std::string PDFFONTS("/usr/bin/pdffonts");
 
 
-bool PdfDocContainsNoText(const std::string &path) {
-    char filename_template[] = "/tmp/PdfDocContainsNoTextXXXXXX";
-    const std::string output_filename(::mktemp(filename_template));
+bool PdfFileContainsNoText(const std::string &path) {
+    const AutoTempFile auto_temp_file;
+    const std::string &output_filename(auto_temp_file.getFilePath());
     std::vector<std::string> args{ path };
     const int retval = Exec(PDFFONTS, args, output_filename);
     if (retval == 0) {
 	std::string output;
-	if (not ReadFile(output_filename, &output)) {
-	    ::unlink(output_filename.c_str());
+	if (not ReadFile(output_filename, &output))
 	    return false;
-	}
 	return output.length() == 188; // Header only?
     }
-    ::unlink(output_filename.c_str());
 
     return retval == 0;
 }
 
+
+bool PdfDocContainsNoText(const std::string &document) {
+    const AutoTempFile auto_temp_file;
+    const std::string &output_filename(auto_temp_file.getFilePath());
+    const AutoDeleteFile auto_delete(output_filename);
+    if (not WriteString(output_filename, document))
+	return false;
+    return PdfFileContainsNoText(output_filename);
+}

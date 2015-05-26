@@ -44,6 +44,7 @@
 #include <kchashdb.h>
 #include <strings.h>
 #include "Downloader.h"
+#include "FileUtil.h"
 #include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -92,20 +93,6 @@ bool MatcherAndStats::matched(const std::string &url) {
     }
 
     return false;
-}
-
-
-bool WriteString(const std::string &contents, const std::string &output_filename) {
-    FILE *output = std::fopen(output_filename.c_str(), "wb");
-    if (output == NULL)
-	return false;
-
-    if (std::fwrite(contents.data(), 1, contents.size(), output) != contents.size())
-	return false;
-
-    std::fclose(output);
-
-    return true;
 }
 
 

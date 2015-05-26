@@ -11,31 +11,31 @@ LDOPTS=-O3
 libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o MarcUtil.o util.o HtmlParser.o \
            StringUtil.o TextUtil.o Locale.o OCR.o MediaTypeUtil.o MapIO.o MediaTypeUtil.o HtmlParser.o \
            Downloader.o MarcGrepTokenizer.o MarcQueryParser.o SmartDownloader.o BibleReferenceParser.o \
-           ExecUtil.o PdfUtil.o
+           ExecUtil.o PdfUtil.o FileUtil.o
 	@echo "Linking $@..."
 	@ar crs $@ $^
 
-PdfUtil.o: PdfUtil.h ExecUtil.h util.h
+FileUtil.o: FileUtil.h
+PdfUtil.o: PdfUtil.h ExecUtil.h util.h FileUtil.h
 ExecUtil.o: ExecUtil.h util.h
-MapIO.o: MapIO.cc MapIO.h StringUtil.h util.h
+MapIO.o: MapIO.h StringUtil.h util.h
 MediaTypeUtil.o: MediaTypeUtil.cc MediaTypeUtil.h
-Locale.o: Locale.cc Locale.h
-util.o: util.cc util.h
-HtmlParser.o: HtmlParser.cc HtmlParser.h Compiler.h StringUtil.h util.h
-StringUtil.o: StringUtil.cc StringUtil.h Compiler.h
-TextUtil.o: TextUtil.cc TextUtil.h Locale.h StringUtil.h Compiler.h HtmlParser.h RegexMatcher.h
-Subfields.o: Subfields.cc Subfields.h util.h
-RegexMatcher.o: RegexMatcher.cc RegexMatcher.h util.h
-Leader.o: Leader.cc Leader.h StringUtil.h
-DirectoryEntry.o: DirectoryEntry.cc DirectoryEntry.h StringUtil.h util.h
-MarcUtil.o: MarcUtil.cc MarcUtil.h DirectoryEntry.h Leader.h util.h Compiler.h Subfields.h
-Downloader.o: Downloader.cc Downloader.h util.h
-MarcGrepTokenizer.o: MarcGrepTokenizer.cc MarcGrepTokenizer.h StringUtil.h
-MarcQueryParser.o: MarcQueryParser.cc DirectoryEntry.h Leader.h MarcQueryParser.h MarcGrepTokenizer.h \
-                   RegexMatcher.h StringUtil.h util.h
-OCR.o: OCR.cc OCR.h ExecUtil.h
-SmartDownloader.o: SmartDownloader.cc SmartDownloader.h RegexMatcher.h Downloader.h util.h StringUtil.h
-BibleReferenceParser.o: BibleReferenceParser.cc BibleReferenceParser.h StringUtil.h Locale.h util.h
+Locale.o: Locale.h
+util.o: util.h
+HtmlParser.o: HtmlParser.h Compiler.h StringUtil.h util.h
+StringUtil.o: StringUtil.h Compiler.h
+TextUtil.o: TextUtil.h Locale.h StringUtil.h Compiler.h HtmlParser.h RegexMatcher.h
+Subfields.o: Subfields.h util.h
+RegexMatcher.o: RegexMatcher.h util.h
+Leader.o: Leader.h StringUtil.h
+DirectoryEntry.o: DirectoryEntry.h StringUtil.h util.h
+MarcUtil.o: MarcUtil.h DirectoryEntry.h Leader.h util.h Compiler.h Subfields.h
+Downloader.o: Downloader.h util.h FileUtil.h
+MarcGrepTokenizer.o: MarcGrepTokenizer.h StringUtil.h
+MarcQueryParser.o: DirectoryEntry.h Leader.h MarcQueryParser.h MarcGrepTokenizer.h RegexMatcher.h StringUtil.h util.h
+OCR.o: OCR.h ExecUtil.h FileUtil.h
+SmartDownloader.o: SmartDownloader.h RegexMatcher.h Downloader.h util.h StringUtil.h
+BibleReferenceParser.o: BibleReferenceParser.h StringUtil.h Locale.h util.h
 
 clean:
 	rm -f *~ $(PROGS) *.o *.a

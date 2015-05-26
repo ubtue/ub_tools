@@ -277,4 +277,17 @@ std::string GetLanguage(const std::vector<DirectoryEntry> &dir_entries, const st
 }
 
 
+std::string GetLanguageCode(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &fields) {
+    const ssize_t _008_index(MarcUtil::GetFieldIndex(dir_entries, "008"));
+    if (_008_index == -1)
+	return "";
+
+    // Language codes start at offset 35 and have a length of 3.
+    if (fields[_008_index].length() < 38)
+	return "";
+
+    return fields[_008_index].substr(35, 3);
+}
+    
+
 } // namespace MarcUtil

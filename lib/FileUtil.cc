@@ -1,5 +1,5 @@
-/** \file   PdfUtil.h
- *  \brief  Functions relating to PDF documents.
+/** \file   FileUtil.cc
+ *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
@@ -17,25 +17,29 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef PDF_UTIL_H
-#define PDF_UTIL_H
+#include "FileUtil.h"
+#include <fstream>
+#include <stdexcept>
+#include <cstdlib>
+#include <cstring>
 
 
-#include <string>
+AutoTempFile::AutoTempFile(const std::string &path_prefix) {
+    char * const path_template(strdupa((path_prefix + "XXXXXX").c_str()));
+    const int fd(::mkstemp(path_template));
+    if (fd == -1)
+	throw std::runtime_error("in AutoTempFile::AutoTempFile: mkstemp(3) failed!");
+    ::close(fd);
+    path_ = path_template;
+}
 
 
-/** \brief Returns whether a document contains text or not.
- *
- *  If this returns false it is likely that the document contains only images.
- */
-bool PdfFileContainsNoText(const std::string &path);
+bool WriteString(const std::string &path, const std::string &data) {
+    std::ofstream output(path, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
+    if (output.fail())
+	return false;
 
+    output.write(data.data(), data.size());
+    return not output.bad();
+}
 
-/** \brief Returns whether a document contains text or not.
- *
- *  If this returns false it is likely that the document contains only images.
- */
-bool PdfDocContainsNoText(const std::string &document);
-
-
-#endif // ifndef PDF_UTIL_H

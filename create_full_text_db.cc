@@ -36,6 +36,7 @@
 
 */
 #include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -43,10 +44,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include <kchashdb.h>
+#include <libgen.h>
 #include <strings.h>
 #include "Downloader.h"
+#include "ExecUtil.h"
+#include "FileUtil.h"
 #include "MarcUtil.h"
 #include "MediaTypeUtil.h"
+#include "PdfUtil.h"
 #include "RegexMatcher.h"
 #include "SharedBuffer.h"
 #include "SmartDownloader.h"
@@ -59,20 +64,6 @@
 void Usage() {
     std::cerr << "Usage: " << progname << "[--max-record-count count] marc_input marc_output full_text_db\n";
     std::exit(EXIT_FAILURE);
-}
-
-
-bool WriteString(const std::string &contents, const std::string &output_filename) {
-    FILE *output = std::fopen(output_filename.c_str(), "wb");
-    if (output == NULL)
-	return false;
-
-    if (std::fwrite(contents.data(), 1, contents.size(), output) != contents.size())
-	return false;
-
-    std::fclose(output);
-
-    return true;
 }
 
 
@@ -125,8 +116,38 @@ std::string ThreadSafeWriteDocumentWithMediaType(const std::string &media_type, 
 }
 
 
-void ProcessRecords(const unsigned long max_record_count, FILE * const input, FILE * const output,
-		    kyotocabinet::HashDB * const db) {
+static std::map<std::string, std::string> marc_to_tesseract_language_codes_map {
+    { "fre", "fra" },
+    { "eng", "eng" },
+    { "ger", "deu" },
+    { "ita", "ita" },
+    { "dut", "nld" },
+    { "swe", "swe" },
+    { "dan", "dan" },
+    { "nor", "nor" },
+    { "rus", "rus" },
+    { "fin", "fin" },
+    { "por", "por" },
+    { "pol", "pol" },
+    { "slv", "slv" },
+    { "hun", "hun" },
+    { "cze", "ces" },
+    { "bul", "bul" },
+};
+
+
+std::string GetTesseractLanguageCode(const std::vector<DirectoryEntry> &dir_entries,
+                                     const std::vector<std::string> &field_data)
+{
+    const auto map_iter(marc_to_tesseract_language_codes_map.find(
+        MarcUtil::GetLanguageCode(dir_entries, field_data)));
+    return (map_iter == marc_to_tesseract_language_codes_map.cend()) ? "" : map_iter->second;
+}
+
+
+void ProcessRecords(const unsigned long max_record_count, const std::string &pdf_images_script,
+		    FILE * const input, FILE * const output, kyotocabinet::HashDB * const db)
+{
     std::vector<SmartDownloader *> smart_downloaders{
 	new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }),
 	new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }),
@@ -192,8 +213,41 @@ void ProcessRecords(const unsigned long max_record_count, FILE * const input, FI
 	    continue;
 	}
 
-	// Write the key/value-pair to our simple keyed data store:
-	const std::string key(ThreadSafeWriteDocumentWithMediaType(media_type, document, db));
+	std::string key;
+	if (StringUtil::StartsWith(media_type, "application/pdf") and PdfDocContainsNoText(document)) {
+	    std::cerr << "Found a PDF w/ no text.\n";
+
+	    const AutoTempFile auto_temp_file;
+	    const std::string &input_filename(auto_temp_file.getFilePath());
+	    if (not WriteString(input_filename, document))
+		Error("failed to write the PDF to a temp file!");
+
+	    const AutoTempFile auto_temp_file2;
+	    const std::string &output_filename(auto_temp_file2.getFilePath());
+	    const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
+	    const unsigned TIMEOUT(20); // in seconds
+	    if (Exec(pdf_images_script, { input_filename, output_filename, language_code }, "",
+		     TIMEOUT) != 0)
+	    {
+		Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
+			+ std::to_string(TIMEOUT) + " seconds !");
+		continue;
+	    }
+
+	    std::string plain_text;
+	    if (not ReadFile(output_filename, &plain_text))
+		Error("failed to read OCR output!");
+
+	    if (plain_text.empty()) {
+		std::cerr << "Warning: OCR output is empty!\n";
+		continue;
+	    }
+
+	    std::cerr << "Whoohoo, got OCR'ed text.\n";
+
+	    key = ThreadSafeWriteDocumentWithMediaType("text/plain", plain_text, db);
+	} else
+	    key = ThreadSafeWriteDocumentWithMediaType(media_type, document, db);
 
 	subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
 	const std::string new_856_field(subfields.toString());
@@ -211,12 +265,26 @@ void ProcessRecords(const unsigned long max_record_count, FILE * const input, FI
 }
 
 
+const std::string BASH_HELPER("pdf_images_to_text.sh");
+
+
+std::string GetPathToPdfImagesScript(const char * const argv0) {
+    char path[std::strlen(argv0) + 1];
+    std::strcpy(path, argv0);
+    const std::string pdf_images_script_path(std::string(::dirname(path)) + "/" + BASH_HELPER);
+    if (::access(pdf_images_script_path.c_str(), X_OK) != 0)
+	Error("can't execute \"" + pdf_images_script_path + "\"!");
+    return pdf_images_script_path;
+}
+
+
 int main(int argc, char *argv[]) {
     progname = argv[0];
 
     if (argc != 4 and argc != 6)
 	Usage();
 
+    
     unsigned long max_record_count(ULONG_MAX);
     if (argc == 6) {
 	if (std::strcmp(argv[1], "--max-record-count") != 0)
@@ -244,7 +312,7 @@ int main(int argc, char *argv[]) {
 	      + std::string(db.error().message()) + ")!");
 
     try {
-	ProcessRecords(max_record_count, marc_input, marc_output, &db);
+	ProcessRecords(max_record_count, GetPathToPdfImagesScript(argv[0]), marc_input, marc_output, &db);
     } catch (const std::exception &e) {
 	Error("Caught exception: " + std::string(e.what()));
     }
