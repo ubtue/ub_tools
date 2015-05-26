@@ -139,15 +139,8 @@ static std::map<std::string, std::string> marc_to_tesseract_language_codes_map {
 std::string GetTesseractLanguageCode(const std::vector<DirectoryEntry> &dir_entries,
                                      const std::vector<std::string> &field_data)
 {
-    const ssize_t _008_index(MarcUtil::GetFieldIndex(dir_entries, "008"));
-    if (_008_index == -1)
-	return "";
-
-    if (field_data[_008_index].length() < 38)
-	return "";
-
-    const std::string marc_language_codes(field_data[_008_index].substr(35, 3));
-    const auto map_iter(marc_to_tesseract_language_codes_map.find(marc_language_codes));
+    const auto map_iter(marc_to_tesseract_language_codes_map.find(
+        MarcUtil::GetLanguageCode(dir_entries, field_data)));
     return (map_iter == marc_to_tesseract_language_codes_map.cend()) ? "" : map_iter->second;
 }
 

@@ -79,6 +79,12 @@ std::string GetLanguage(const std::vector<DirectoryEntry> &dir_entries, const st
 			const std::string &default_language_code = "ger");
 
 
+/** \brief Extracts the optional language code from field 008.
+ *  \return The extracted language code or the empty string if no language code was found.
+ */
+std::string GetLanguageCode(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &fields);
+
+
 } // namespace MarcUtil
 
 

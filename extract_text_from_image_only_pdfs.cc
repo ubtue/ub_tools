@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
 	    args.emplace_back(argv[2]);
 
 	if (Exec(dir_path + "/" + BASH_HELPER, args, "", 20 /* seconds */) != 0)
-		Error("failed to execute conversion script!");
+	    Error("failed to execute conversion script!");
 
 	std::string extracted_text;
 	if (not ReadFile(output_filename, &extracted_text))
