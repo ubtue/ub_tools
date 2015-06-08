@@ -162,10 +162,8 @@ bool IsProbablyAReview(const Subfields &subfields) {
 }
 
 
-void ProcessRecords(const unsigned long max_record_count, const std::string &pdf_images_script,
-		    FILE * const input, FILE * const output, kyotocabinet::HashDB * const db)
-{
-    std::vector<SmartDownloader *> smart_downloaders{
+bool GetDocumentAndMediaType(const std::string &url, std::string * const document, std::string * const media_type) {
+    static std::vector<SmartDownloader *> smart_downloaders{
 	new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }),
 	new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }),
 	new DigiToolSmartDownloader(),
@@ -176,6 +174,62 @@ void ProcessRecords(const unsigned long max_record_count, const std::string &pdf
 	new LocGovSmartDownloader()
     };
 
+    if (not SmartDownload(url, smart_downloaders, document)) {
+	std::cerr << "Failed to download the document for " << url << "\n";
+	return false;
+    }
+
+    *media_type = MediaTypeUtil::GetMediaType(*document, /* auto_simplify = */ false);
+    if (media_type->empty())
+	return false;
+
+    return true;
+}
+
+
+bool GetTextFromImagePDF(const std::string &document, const std::string &media_type,
+			 const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
+			 const std::string &pdf_images_script, std::string * const extracted_text)
+{
+    if (not StringUtil::StartsWith(media_type, "application/pdf") or not PdfDocContainsNoText(document))
+	return false;
+
+    extracted_text->clear();
+    std::cerr << "Found a PDF w/ no text.\n";
+
+    const AutoTempFile auto_temp_file;
+    const std::string &input_filename(auto_temp_file.getFilePath());
+    if (not WriteString(input_filename, document))
+	Error("failed to write the PDF to a temp file!");
+
+    const AutoTempFile auto_temp_file2;
+    const std::string &output_filename(auto_temp_file2.getFilePath());
+    const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
+    const unsigned TIMEOUT(20); // in seconds
+    if (Exec(pdf_images_script, { input_filename, output_filename, language_code }, "",
+	     TIMEOUT) != 0)
+    {
+	Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
+		+ std::to_string(TIMEOUT) + " seconds !");
+	return true;
+    }
+
+    std::string plain_text;
+    if (not ReadFile(output_filename, extracted_text))
+	Error("failed to read OCR output!");
+
+    if (extracted_text->empty())
+	std::cerr << "Warning: OCR output is empty!\n";
+
+    std::cerr << "Whoohoo, got OCR'ed text.\n";
+
+    return true;
+}
+
+
+void ProcessRecords(const unsigned long max_record_count, const std::string &pdf_images_script,
+		    FILE * const input, FILE * const output, kyotocabinet::HashDB * const db)
+{
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
@@ -212,53 +266,17 @@ void ProcessRecords(const unsigned long max_record_count, const std::string &pdf
 	    // If we get here, we have an 856u subfield that is not a review.
 	    found_at_least_one = true;
 
-	    std::string document;
-	    if (not SmartDownload(u_begin_end.first->second, smart_downloaders, &document)) {
-		std::cerr << "Failed to download the document for " << u_begin_end.first->second << "\n";
+	    std::string document, media_type;
+	    if (not GetDocumentAndMediaType(u_begin_end.first->second, &document, &media_type)) {
 		++failed_count;
 		continue;
 	    }
 
-	    const std::string media_type(MediaTypeUtil::GetMediaType(document, /* auto_simplify = */ false));
-	    if (media_type.empty()) {
-		++failed_count;
-		continue;
-	    }
-
-	    std::string key;
-	    if (StringUtil::StartsWith(media_type, "application/pdf") and PdfDocContainsNoText(document)) {
-		std::cerr << "Found a PDF w/ no text.\n";
-
-		const AutoTempFile auto_temp_file;
-		const std::string &input_filename(auto_temp_file.getFilePath());
-		if (not WriteString(input_filename, document))
-		    Error("failed to write the PDF to a temp file!");
-
-		const AutoTempFile auto_temp_file2;
-		const std::string &output_filename(auto_temp_file2.getFilePath());
-		const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
-		const unsigned TIMEOUT(20); // in seconds
-		if (Exec(pdf_images_script, { input_filename, output_filename, language_code }, "",
-			 TIMEOUT) != 0)
-		{
-		    Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
-			    + std::to_string(TIMEOUT) + " seconds !");
-		    continue;
-		}
-
-		std::string plain_text;
-		if (not ReadFile(output_filename, &plain_text))
-		    Error("failed to read OCR output!");
-
-		if (plain_text.empty()) {
-		    std::cerr << "Warning: OCR output is empty!\n";
-		    continue;
-		}
-
-		std::cerr << "Whoohoo, got OCR'ed text.\n";
-
-		key = ThreadSafeWriteDocumentWithMediaType("text/plain", plain_text, db);
-	    } else
+	    std::string extracted_text, key;
+	    if (GetTextFromImagePDF(document, media_type, dir_entries, field_data, pdf_images_script,
+				    &extracted_text))
+		key = ThreadSafeWriteDocumentWithMediaType("text/plain", extracted_text, db);
+	    else
 		key = ThreadSafeWriteDocumentWithMediaType(media_type, document, db);
 
 	    subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
