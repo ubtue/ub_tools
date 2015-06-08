@@ -15,12 +15,24 @@ then you have to setup your mysql-database with a user named `vufind` and the pa
 Install
 -------
 
-There are two install scripts for ixTheo and KrimDok. After executing a script there will be a ixTheo or KrimDoc dictionary with all configurations.
+There are two install scripts for ixTheo and KrimDok:
+
+>     install-ixTheo.sh
+
+>     install-krimDok.sh 
+
+ After executing a script there will be a ixTheo or KrimDoc dictionary with all configurations.
 
 Update
 ------
 
-There are two update scripts for ixTheo and KrimDok. After executing a script the configurations of ixTheo/KrimDoc are overridden.
+There are two update scripts for ixTheo and KrimDok. 
+
+>     update-ixTheo.sh
+
+>     update-krimDok.sh 
+
+After executing a script the configurations of ixTheo/KrimDoc are overridden.
 
 Start
 -----
