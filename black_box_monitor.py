@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8
 #
 #    @brief  A very simple black box tester for web sites.
 #    @author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
@@ -72,7 +73,7 @@ def RunTest(test_name, url, timeout, expected):
         timeout = DEFAULT_TIMEOUT
     try:
         request = urllib2.Request(url, headers={"Accept-Language" : "de"})
-        response = urllib2.urlopen(request, timeout=float(timeout))
+        response = urllib2.urlopen(request, timeout=timeout)
         page_content = response.read()
         if expected is None:
             return True
@@ -101,7 +102,7 @@ def Main():
             expected = config.get(section, "expected")
         timeout = None
         if config.has_option(section, "timeout"):
-            timeout = config.get(section, "timeout")
+            timeout = config.getfloat(section, "timeout")
         if not RunTest(section, url, timeout, expected):
             SendEmail("Test " + section + " failed!\n\n--Your friendly black box monitor", "Black Box Test Failed!",
                       "no_reply@uni-tuebingen.de", notification_email_addr, smtp_server, email_server_user,
