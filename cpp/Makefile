@@ -81,8 +81,7 @@ bib_ref_to_codes_tool.o: bib_ref_to_codes_tool.cc lib/BibleReferenceParser.h lib
 bib_ref_to_codes_tool: bib_ref_to_codes_tool.o
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lmagic
 
-download_test.o: download_test.cc lib/Downloader.h lib/RegexMatcher.h lib/StringUtil.h lib/TextUtil.h \
-                 lib/util.h lib/MediaTypeUtil.h lib/FileUtil.h
+download_test.o: download_test.cc lib/SmartDownloader.h lib/util.h lib/FileUtil.h
 	$(CCC) $(CCOPTS) $<
 
 download_test: download_test.o lib/libmarc.a

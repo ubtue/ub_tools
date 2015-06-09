@@ -78,21 +78,6 @@ std::string GetLastWordAfterSpace(const std::string &text) {
 }
 
 
-bool SmartDownload(const std::string &url, std::vector<SmartDownloader *> &smart_downloaders,
-		   std::string * const document)
-{
-    document->clear();
-
-    const unsigned TIMEOUT_IN_SECS(10); // Don't wait any longer than this.
-    for (auto &smart_downloader : smart_downloaders) {
-	if (smart_downloader->canHandleThis(url))
-	    return smart_downloader->downloadDoc(url, TIMEOUT_IN_SECS, document);
-    }
-
-    return false;
-}
-
-
 void ThreadSafeComposeAndWriteRecord(FILE * const output, const std::vector<DirectoryEntry> &dir_entries,
 				     const std::vector<std::string> &field_data, Leader * const leader)
 {
@@ -163,18 +148,7 @@ bool IsProbablyAReview(const Subfields &subfields) {
 
 
 bool GetDocumentAndMediaType(const std::string &url, std::string * const document, std::string * const media_type) {
-    static std::vector<SmartDownloader *> smart_downloaders{
-	new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }),
-	new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }),
-	new DigiToolSmartDownloader(),
-	new IdbSmartDownloader(),
-	new BszSmartDownloader(),
-	new BvbrSmartDownloader(),
-	new Bsz21SmartDownloader(),
-	new LocGovSmartDownloader()
-    };
-
-    if (not SmartDownload(url, smart_downloaders, document)) {
+    if (not SmartDownload(url, document)) {
 	std::cerr << "Failed to download the document for " << url << "\n";
 	return false;
     }
@@ -234,14 +208,15 @@ void ProcessRecords(const unsigned long max_record_count, const std::string &pdf
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
-    unsigned long count(0), matched_count(0), failed_count(0);
+    unsigned long total_record_count(0), records_with_relevant_links_count(0), relevant_links_count(0),
+	          failed_count(0);
 
     while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
-	if (count == max_record_count)
+	if (total_record_count == max_record_count)
 	    break;
-	++count;
+	++total_record_count;
 
-	std::cout << "Processing record #" << count << ".\n";
+	std::cout << "Processing record #" << total_record_count << ".\n";
 	std::unique_ptr<Leader> leader(raw_leader);
 
 	ssize_t _856_index(MarcUtil::GetFieldIndex(dir_entries, "856"));
@@ -264,7 +239,11 @@ void ProcessRecords(const unsigned long max_record_count, const std::string &pdf
 		continue;
 
 	    // If we get here, we have an 856u subfield that is not a review.
-	    found_at_least_one = true;
+	    ++relevant_links_count;
+	    if (not found_at_least_one) {
+		++records_with_relevant_links_count;
+		found_at_least_one = true;
+	    }
 
 	    std::string document, media_type;
 	    if (not GetDocumentAndMediaType(u_begin_end.first->second, &document, &media_type)) {
@@ -284,17 +263,15 @@ void ProcessRecords(const unsigned long max_record_count, const std::string &pdf
 	    MarcUtil::UpdateField(_856_index, new_856_field, leader.get(), &dir_entries, &field_data);
 	}
 
-	if (found_at_least_one)
-	    ++matched_count;
-
 	ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
     }
 
     if (not err_msg.empty())
 	Error(err_msg);
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << "Matched " << matched_count << " records w/ relevant 856u fields.\n";
-    std::cerr << failed_count << " failed downloads or media type determinations.\n";
+    std::cerr << "Read " << total_record_count << " records.\n";
+    std::cerr << "Found " << records_with_relevant_links_count << " records w/ relevant 856u fields.\n";
+    std::cerr << failed_count << " failed downloads, media type determinations or text extractions.\n";
+    std::cerr << (100.0 * (relevant_links_count - failed_count) / double(relevant_links_count)) << "% successes.\n";
 
     std::fclose(input);
 }
