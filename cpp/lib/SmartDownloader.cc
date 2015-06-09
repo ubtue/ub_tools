@@ -188,10 +188,21 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const unsign
 }
 
 
-bool SmartDownload(const std::string &url, std::vector<SmartDownloader *> &smart_downloaders,
-		   std::string * const document)
-{
+bool SmartDownload(const std::string &url, std::string * const document) {
     document->clear();
+
+    static std::vector<SmartDownloader *> smart_downloaders{
+	new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }),
+	new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }),
+	new SimplePrefixDownloader({ "http://deposit.d-nb.de/cgi-bin/dokserv?" }),
+	new SimplePrefixDownloader({ "http://media.obvsg.at/" }),
+	new DigiToolSmartDownloader(),
+	new IdbSmartDownloader(),
+	new BszSmartDownloader(),
+	new BvbrSmartDownloader(),
+	new Bsz21SmartDownloader(),
+	new LocGovSmartDownloader()
+    };
 
     const unsigned TIMEOUT_IN_SECS(10); // Don't wait any longer than this.
     for (auto &smart_downloader : smart_downloaders) {

@@ -57,21 +57,8 @@ int main(int argc, char *argv[]) {
 	Usage();
 
     try {
-	static std::vector<SmartDownloader *> smart_downloaders{
-	    new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }),
-	    new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }),
-	    new SimplePrefixDownloader({ "http://deposit.d-nb.de/cgi-bin/dokserv?" }),
-	    new SimplePrefixDownloader({ "http://media.obvsg.at/" }),
-	    new DigiToolSmartDownloader(),
-	    new IdbSmartDownloader(),
-	    new BszSmartDownloader(),
-	    new BvbrSmartDownloader(),
-	    new Bsz21SmartDownloader(),
-	    new LocGovSmartDownloader()
-	};
-
 	std::string document;
-	if (not SmartDownload(argv[1], smart_downloaders, &document)) {
+	if (not SmartDownload(argv[1], &document)) {
 	    std::cerr << progname << ": Download failed!\n";
 	    std::exit(EXIT_FAILURE);
 	}

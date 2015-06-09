@@ -148,19 +148,7 @@ bool IsProbablyAReview(const Subfields &subfields) {
 
 
 bool GetDocumentAndMediaType(const std::string &url, std::string * const document, std::string * const media_type) {
-    static std::vector<SmartDownloader *> smart_downloaders{
-	new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }),
-	new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }),
-	new SimplePrefixDownloader({ "http://deposit.d-nb.de/cgi-bin/dokserv?" }),
-	new DigiToolSmartDownloader(),
-	new IdbSmartDownloader(),
-	new BszSmartDownloader(),
-	new BvbrSmartDownloader(),
-	new Bsz21SmartDownloader(),
-	new LocGovSmartDownloader()
-    };
-
-    if (not SmartDownload(url, smart_downloaders, document)) {
+    if (not SmartDownload(url, document)) {
 	std::cerr << "Failed to download the document for " << url << "\n";
 	return false;
     }

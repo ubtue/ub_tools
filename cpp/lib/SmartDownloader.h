@@ -142,9 +142,8 @@ protected:
 };
 
 
-/** \brief Tries all "smart_downloaders" to download "url".  Returns if the download succeeded or nnot. */
-bool SmartDownload(const std::string &url, std::vector<SmartDownloader *> &smart_downloaders,
-		   std::string * const document);
+/** \brief Tries to download "document" from "url".  Returns if the download succeeded or not. */
+bool SmartDownload(const std::string &url, std::string * const document);
 
 
 #endif // ifndef SMART_DOWNLOADER_H
