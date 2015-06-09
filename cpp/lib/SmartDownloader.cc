@@ -145,15 +145,20 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const unsigne
     const int retcode = Download(url, timeout, &html);
     if (retcode != 0)
 	return false;
-    const std::string start_string("<meta content=\"https://publikationen.uni-tuebingen.de/xmlui/bitstream/");
+    const std::string start_string("Persistente URL: <a id=\"pers_url\" href=\"");
     size_t start_pos(html.find(start_string));
     if (start_pos == std::string::npos)
 	return false;
-    start_pos += start_string.size() - 55;
+    start_pos += start_string.size();
     const size_t end_pos(html.find('"', start_pos + 1));
     if (end_pos == std::string::npos)
 	return false;
-    const std::string doc_url(html.substr(start_pos, end_pos - start_pos));
+    const std::string pers_url(html.substr(start_pos, end_pos - start_pos));
+    const size_t last_slash_pos(pers_url.rfind('/'));
+    if (last_slash_pos == std::string::npos or last_slash_pos == pers_url.size() - 1)
+	return false;
+    const std::string doc_url("http://idb.ub.uni-tuebingen.de/cgi-bin/digi-downloadPdf.fcgi?projectname="
+			      + pers_url.substr(last_slash_pos + 1));
     return Download(doc_url, timeout, document) == 0;
 }
 
@@ -180,4 +185,20 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const unsign
 	return false;
     *document = html.substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5);
     return true;
+}
+
+
+bool SmartDownload(const std::string &url, std::vector<SmartDownloader *> &smart_downloaders,
+		   std::string * const document)
+{
+    document->clear();
+
+    const unsigned TIMEOUT_IN_SECS(10); // Don't wait any longer than this.
+    for (auto &smart_downloader : smart_downloaders) {
+	if (smart_downloader->canHandleThis(url))
+	    return smart_downloader->downloadDoc(
+                url, smart_downloader->getName() == "DigiToolSmartDownloader" ? 60 : TIMEOUT_IN_SECS, document);
+    }
+
+    return false;
 }
