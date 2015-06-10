@@ -62,7 +62,8 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << "[--max-record-count count] marc_input marc_output full_text_db\n";
+    std::cerr << "Usage: " << progname << "[(--max-record-count | --skip-count) count] marc_input marc_output "
+	      << "full_text_db\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -201,20 +202,21 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 }
 
 
-void ProcessRecords(const unsigned long max_record_count, const std::string &pdf_images_script,
+void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, const std::string &pdf_images_script,
 		    FILE * const input, FILE * const output, kyotocabinet::HashDB * const db)
 {
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
-    unsigned long total_record_count(0), records_with_relevant_links_count(0), relevant_links_count(0),
-	          failed_count(0);
+    unsigned total_record_count(0), records_with_relevant_links_count(0), relevant_links_count(0), failed_count(0);
 
     while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
 	if (total_record_count == max_record_count)
 	    break;
 	++total_record_count;
+	if (total_record_count < skip_count)
+	    continue;
 
 	std::cout << "Processing record #" << total_record_count << ".\n";
 	std::unique_ptr<Leader> leader(raw_leader);
@@ -296,13 +298,17 @@ int main(int argc, char *argv[]) {
     if (argc != 4 and argc != 6)
 	Usage();
 
-    
-    unsigned long max_record_count(ULONG_MAX);
+    unsigned max_record_count(UINT_MAX), skip_count(0);
     if (argc == 6) {
-	if (std::strcmp(argv[1], "--max-record-count") != 0)
+	if (std::strcmp(argv[1], "--max-record-count") != 0 and std::strcmp(argv[1], "--skip-count") != 0)
 	    Usage();
-	if (not StringUtil::ToUnsignedLong(argv[2], &max_record_count))
-	    Error(std::string(argv[2]) + " is not a valid max. record count!");
+	if (std::strcmp(argv[1], "--max-record-count") == 0) {
+	    if (not StringUtil::ToUnsigned(argv[2], &max_record_count))
+		Error(std::string(argv[2]) + " is not a valid max. record count!");
+	} else {
+	    if (not StringUtil::ToUnsigned(argv[2], &skip_count))
+		Error(std::string(argv[2]) + " is not a valid skip count!");
+	}
 	argc -= 2, argv += 2;
     }
 
@@ -324,7 +330,7 @@ int main(int argc, char *argv[]) {
 	      + std::string(db.error().message()) + ")!");
 
     try {
-	ProcessRecords(max_record_count, GetPathToPdfImagesScript(argv[0]), marc_input, marc_output, &db);
+	ProcessRecords(max_record_count, skip_count, GetPathToPdfImagesScript(argv[0]), marc_input, marc_output, &db);
     } catch (const std::exception &e) {
 	Error("Caught exception: " + std::string(e.what()));
     }

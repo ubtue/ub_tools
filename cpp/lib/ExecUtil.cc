@@ -24,10 +24,9 @@ pid_t child_pid;
 
 // SigAlarmHandler -- Used by Execute.
 //
-void SigAlarmHandler(int /* sig_no */)
-{
-	alarm_went_off = true;
-	::kill(-child_pid, SIGKILL);
+void SigAlarmHandler(int /* sig_no */) {
+    alarm_went_off = true;
+    ::kill(-child_pid, SIGKILL);
 }
 
 
@@ -48,6 +47,10 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
     // The child process:
     else if (pid == 0) {
+	// Make us the leader of a new process group:
+	if (::setsid() == static_cast<pid_t>(-1))
+	    Error("in Exec(): child failed to become a new session leader!");
+
 	if (not new_stdout.empty()) {
 	    const int new_stdout_fd(::open(new_stdout.c_str(), O_WRONLY | O_CREAT, 0644));
 	    if (new_stdout_fd == -1)
