@@ -38,7 +38,7 @@ int OCR(const std::string &input_document_path, const std::string &output_docume
 
 
 int OCR(const std::string &input_document_path, const std::string &language_codes, std::string * const output) {
-    const AutoTempFile auto_temp_file;
+    const FileUtil::AutoTempFile auto_temp_file;
     const std::string &output_filename(auto_temp_file.getFilePath());
     const int retval = OCR(input_document_path, output_filename, language_codes);
     if (retval == 0) {
@@ -51,7 +51,7 @@ int OCR(const std::string &input_document_path, const std::string &language_code
 
 
 int OCR(const std::string &input_document, std::string * const output, const std::string &language_codes) {
-    const AutoTempFile auto_temp_file;
+    const FileUtil::AutoTempFile auto_temp_file;
     const std::string input_filename(auto_temp_file.getFilePath());
     std::ofstream ocr_input(input_filename);
     if (ocr_input.fail())

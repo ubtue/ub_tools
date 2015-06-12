@@ -145,20 +145,35 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const unsigne
     const int retcode = Download(url, timeout, &html);
     if (retcode != 0)
 	return false;
-    const std::string start_string("Persistente URL: <a id=\"pers_url\" href=\"");
+    std::string start_string("Persistente URL: <a id=\"pers_url\" href=\"");
     size_t start_pos(html.find(start_string));
-    if (start_pos == std::string::npos)
-	return false;
-    start_pos += start_string.size();
-    const size_t end_pos(html.find('"', start_pos + 1));
-    if (end_pos == std::string::npos)
-	return false;
-    const std::string pers_url(html.substr(start_pos, end_pos - start_pos));
-    const size_t last_slash_pos(pers_url.rfind('/'));
-    if (last_slash_pos == std::string::npos or last_slash_pos == pers_url.size() - 1)
-	return false;
-    const std::string doc_url("http://idb.ub.uni-tuebingen.de/cgi-bin/digi-downloadPdf.fcgi?projectname="
-			      + pers_url.substr(last_slash_pos + 1));
+    std::string doc_url;
+    if (start_pos != std::string::npos) {
+	start_pos += start_string.size();
+	const size_t end_pos(html.find('"', start_pos + 1));
+	if (end_pos == std::string::npos)
+	    return false;
+	const std::string pers_url(html.substr(start_pos, end_pos - start_pos));
+	const size_t last_slash_pos(pers_url.rfind('/'));
+	if (last_slash_pos == std::string::npos or last_slash_pos == pers_url.size() - 1)
+	    return false;
+	doc_url = "http://idb.ub.uni-tuebingen.de/cgi-bin/digi-downloadPdf.fcgi?projectname="
+	          + pers_url.substr(last_slash_pos + 1);
+    } else {
+	start_pos = html.find("name=\"citation_pdf_url\"");
+	if (start_pos == std::string::npos)
+	    return true;
+	start_string = "meta content=\"";
+	start_pos = html.rfind(start_string);
+	if (start_pos == std::string::npos)
+	    return false;
+	start_pos += start_string.size();
+	const size_t end_pos(html.find('"', start_pos + 1));
+        if (end_pos == std::string::npos)
+            return false;
+	doc_url = html.substr(start_pos, end_pos - start_pos);
+    }
+
     return Download(doc_url, timeout, document) == 0;
 }
 
@@ -196,6 +211,7 @@ bool SmartDownload(const std::string &url, std::string * const document) {
 	new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }),
 	new SimplePrefixDownloader({ "http://deposit.d-nb.de/cgi-bin/dokserv?" }),
 	new SimplePrefixDownloader({ "http://media.obvsg.at/" }),
+	new SimplePrefixDownloader({ "http://d-nb.info/" }),
 	new DigiToolSmartDownloader(),
 	new IdbSmartDownloader(),
 	new BszSmartDownloader(),

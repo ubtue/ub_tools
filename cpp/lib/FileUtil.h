@@ -1,21 +1,30 @@
-/** \file   FileUtil.h
- *  \brief  File related utility classes and functions.
- *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+/** \file    FileUtil.h
+ *  \brief   Declaration of file-related utility functions.
+ *  \author  Dr. Gordon W. Paynter
+ *  \author  Dr. Johannes Ruscheinski
+ *  \author  Artur Kedzierski
+ */
+
+/*
+ *  Copyright 2002-2008 Project iVia.
+ *  Copyright 2002-2008 The Regents of The University of California.
+ *  Copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  This file is part of the libiViaCore package.
  *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Affero General Public License as
- *  published by the Free Software Foundation, either version 3 of the
- *  License, or (at your option) any later version.
+ *  The libiViaCore package is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public License as
+ *  published by the Free Software Foundation; either version 2 of the License,
+ *  or (at your option) any later version.
  *
- *  This program is distributed in the hope that it will be useful,
+ *  libiViaCore is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Affero General Public License for more details.
+ *  GNU Lesser General Public License for more details.
  *
- *  You should have received a copy of the GNU Affero General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
+ *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #ifndef FILE_UTIL_H
 #define FILE_UTIL_H
@@ -23,6 +32,9 @@
 
 #include <string>
 #include <unistd.h>
+
+
+namespace FileUtil {
 
 
 /** \class AutoDeleteFile
@@ -50,6 +62,35 @@ public:
     
 
 bool WriteString(const std::string &filename, const std::string &data);
+
+
+/** \brief  Does the named file (or directory) exist?.
+ *  \param  path           The path of the file.
+ *  \param  error_message  Where to store an error message if an error occurred.
+ */
+bool Exists(const std::string &path, std::string * const error_message = NULL);
+
+
+/** \brief  Makes a relative path absolute using an absolute reference path.
+ *  \param  reference_path  An absolute path to use as the reference path for "relative_path".
+ *  \param  relative_path   The path to make absolute (unless it already starts with a slash).
+ *  \note   Unless "reference_path" path ends in a slash the last component is stripped off unconditionally.
+ *          So if you plan to use all of "reference_path" as the path prefix for "relative_path" you must
+ *          ensure that it ends in a slash!
+ *  \return The absolute path equivalent of "relative_path".
+ */
+std::string MakeAbsolutePath(const std::string &reference_path, const std::string &relative_path);
+
+
+/** Makes "relative_path" absolute using the current working directory as the reference path. */
+std::string MakeAbsolutePath(const std::string &relative_path);
+
+
+inline std::string MakeAbsolutePath(const char * const relative_path)
+{ return MakeAbsolutePath(std::string(relative_path)); }
+
+
+} // namespace FileUtil
 
 
 #endif // ifndef FILE_UTIL_H

@@ -22,7 +22,7 @@ int Download(const std::string &url, const std::string &output_filename, const u
 
 
 int Download(const std::string &url, const unsigned timeout, std::string * const output) {
-    const AutoTempFile auto_temp_file;
+    const FileUtil::AutoTempFile auto_temp_file;
     const std::string &output_filename(auto_temp_file.getFilePath());
     const int retval = Download(url, output_filename, timeout);
     if (retval == 0) {
