@@ -19,9 +19,17 @@
  */
 #include "FileUtil.h"
 #include <fstream>
+#include <list>
 #include <stdexcept>
+#include <cassert>
+#include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <unistd.h>
+#include "Compiler.h"
+
+
+namespace FileUtil {
 
 
 AutoTempFile::AutoTempFile(const std::string &path_prefix) {
@@ -43,3 +51,183 @@ bool WriteString(const std::string &path, const std::string &data) {
     return not output.bad();
 }
 
+
+// DirnameAndBasename -- Split a path into a directory name part and filename part.
+//
+void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename) {
+    if (unlikely(path.length() == 0)) {
+	*dirname = *basename = "";
+	return;
+    }
+
+    std::string::size_type last_slash_pos = path.rfind('/');
+    if (last_slash_pos == std::string::npos) {
+	*dirname  = "";
+	*basename = path;
+    }
+    else {
+	*dirname  = path.substr(0, last_slash_pos);
+	*basename = path.substr(last_slash_pos + 1);
+    }
+}
+
+
+// AccessErrnoToString -- Converts an errno set by access(2) to a string.
+//                        The string values were copied and pasted from a Linux man page.
+//
+std::string AccessErrnoToString(int errno_to_convert, const std::string &pathname, const std::string &mode) {
+    switch (errno_to_convert) {
+    case 0: // Just in case...
+	return "OK";
+    case EACCES:
+	return "The requested access would be denied to the file or search"
+	    " permission is denied to one of the directories in '" + pathname + "'";
+    case EROFS:
+	return "Write  permission  was  requested  for  a  file  on  a read-only filesystem.";
+    case EFAULT:
+	return "'" + pathname + "' points outside your accessible address space.";
+    case EINVAL:
+	return mode + " was incorrectly specified.";
+    case ENAMETOOLONG:
+	return "'" + pathname + "' is too long.";
+    case ENOENT:
+	return "A directory component in '" + pathname + "' would have been accessible but"
+	    " does not exist or was a dangling symbolic link.";
+    case ENOTDIR:
+	return "A component used as a directory in '" + pathname + "' is not, in fact, a directory.";
+    case ENOMEM:
+	return "Insufficient kernel memory was available.";
+    case ELOOP:
+	return "Too many symbolic links were encountered in resolving '" + pathname + "'.";
+    case EIO:
+	return "An I/O error occurred.";
+    }
+
+    throw std::runtime_error("Unknown errno code in FileUtil::AccessErrnoToString");
+}
+
+
+// Exists -- test whether a file exists
+//
+bool Exists(const std::string &path, std::string * const error_message) {
+    errno = 0;
+    int access_status = ::access(path.c_str(), F_OK);
+    if (error_message != NULL)
+	*error_message = AccessErrnoToString(errno, path, "F_OK");
+
+    return (access_status == 0);
+}
+
+
+namespace {
+
+
+void MakeCanonicalPathList(const char * const path, std::list<std::string> * const canonical_path_list) {
+    canonical_path_list->clear();
+
+    const char *cp = path;
+    if (*cp == '/') {
+	canonical_path_list->push_back("/");
+	++cp;
+    }
+
+    while (*cp != '\0') {
+	std::string directory;
+	while (*cp != '\0' and *cp != '/')
+	    directory += *cp++;
+	if (*cp == '/')
+	    ++cp;
+
+	if (directory.empty() or directory == ".")
+	    continue;
+
+	if (directory == ".." and not canonical_path_list->empty()) {
+	    if (canonical_path_list->size() != 1 or canonical_path_list->front() != "/")
+		canonical_path_list->pop_back();
+	}
+	else
+	    canonical_path_list->push_back(directory);
+    }
+}
+
+
+std::string ErrnoToString(const int error_code) {
+    char buf[1024];
+    return ::strerror_r(error_code, buf, sizeof buf); // GNU version of strerror_r.
+}
+
+
+} // unnamed namespace
+
+
+std::string CanonisePath(const std::string &path)
+{
+    std::list<std::string> canonical_path_list;
+    MakeCanonicalPathList(path.c_str(), &canonical_path_list);
+
+    std::string canonised_path;
+    for (std::list<std::string>::const_iterator path_component(canonical_path_list.begin());
+	 path_component != canonical_path_list.end(); ++path_component)
+	{
+	    if (not canonised_path.empty() and canonised_path != "/")
+		canonised_path += '/';
+	    canonised_path += *path_component;
+	}
+
+    return canonised_path;
+}
+
+
+std::string MakeAbsolutePath(const std::string &reference_path, const std::string &relative_path) {
+    assert(not reference_path.empty() and reference_path[0] == '/');
+
+    if (relative_path[0] == '/')
+	return relative_path;
+
+    std::string reference_dirname, reference_basename;
+    DirnameAndBasename(reference_path, &reference_dirname, &reference_basename);
+
+    std::list<std::string> resultant_dirname_components;
+    MakeCanonicalPathList(reference_dirname.c_str(), &resultant_dirname_components);
+
+    std::string relative_dirname, relative_basename;
+    DirnameAndBasename(relative_path, &relative_dirname, &relative_basename);
+    std::list<std::string> relative_dirname_components;
+    MakeCanonicalPathList(relative_dirname.c_str(), &relative_dirname_components);
+
+    // Now merge the two canonical path lists.
+    for (std::list<std::string>::const_iterator component(relative_dirname_components.begin());
+	 component != relative_dirname_components.end(); ++component)
+    {
+	if (*component == ".." and (resultant_dirname_components.size() > 1 or
+				    resultant_dirname_components.front() != "/"))
+	    resultant_dirname_components.pop_back();
+	else
+	    resultant_dirname_components.push_back(*component);
+    }
+
+    // Build the final path:
+    std::string canonized_path;
+    std::list<std::string>::const_iterator dir(resultant_dirname_components.begin());
+    if (dir != resultant_dirname_components.end() and *dir == "/") {
+	canonized_path = "/";
+	++dir;
+    }
+    for (/* empty */; dir != resultant_dirname_components.end(); ++dir)
+	canonized_path += *dir + "/";
+    canonized_path += relative_basename;
+
+    return canonized_path;
+}
+
+
+std::string MakeAbsolutePath(const std::string &relative_path) {
+    char buf[PATH_MAX];
+    const char * const current_working_dir(::getcwd(buf, sizeof buf));
+    if (unlikely(current_working_dir == NULL))
+	throw std::runtime_error("in FileUtil::MakeAbsolutePath: getcwd(3) failed (" + ErrnoToString(errno) + ")!");
+    return MakeAbsolutePath(std::string(current_working_dir) + "/", relative_path);
+}
+
+
+} // namespace FileUtil

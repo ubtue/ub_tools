@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 	    std::exit(EXIT_FAILURE);
 	}
 
-	if (not WriteString(argv[2], document)) {
+	if (not FileUtil::WriteString(argv[2], document)) {
 	    std::cerr << progname << ": failed to write downloaded document to \"" + std::string(argv[2]) + "\"!\n";
 	    std::exit(EXIT_FAILURE);
 	}

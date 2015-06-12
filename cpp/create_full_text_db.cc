@@ -172,12 +172,12 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
     extracted_text->clear();
     std::cerr << "Found a PDF w/ no text.\n";
 
-    const AutoTempFile auto_temp_file;
+    const FileUtil::AutoTempFile auto_temp_file;
     const std::string &input_filename(auto_temp_file.getFilePath());
-    if (not WriteString(input_filename, document))
+    if (not FileUtil::WriteString(input_filename, document))
 	Error("failed to write the PDF to a temp file!");
 
-    const AutoTempFile auto_temp_file2;
+    const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
     const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
     const unsigned TIMEOUT(20); // in seconds
