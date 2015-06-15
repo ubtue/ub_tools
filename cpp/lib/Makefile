@@ -11,7 +11,7 @@ LDOPTS=-O3
 libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o MarcUtil.o util.o HtmlParser.o \
            StringUtil.o TextUtil.o Locale.o OCR.o MediaTypeUtil.o MapIO.o MediaTypeUtil.o HtmlParser.o \
            Downloader.o MarcGrepTokenizer.o MarcQueryParser.o SmartDownloader.o BibleReferenceParser.o \
-           ExecUtil.o PdfUtil.o FileUtil.o IniFile.o
+           ExecUtil.o PdfUtil.o FileUtil.o IniFile.o TimeLimit.o TimerUtil.o
 	@echo "Linking $@..."
 	@ar crs $@ $^
 
@@ -37,6 +37,8 @@ OCR.o: OCR.h ExecUtil.h FileUtil.h
 SmartDownloader.o: SmartDownloader.h RegexMatcher.h Downloader.h util.h StringUtil.h MediaTypeUtil.h FileUtil.h
 BibleReferenceParser.o: BibleReferenceParser.h StringUtil.h Locale.h util.h
 IniFile.o: IniFile.h util.h FileUtil.h
+TimeLimit.o: TimeLimit.h TimerUtil.h
+TimerUtil.o: TimerUtil.h Compiler.h
 
 clean:
 	rm -f *~ $(PROGS) *.o *.a
