@@ -39,7 +39,7 @@
  *  The TimeLimit class is used to keep track of a time limit placed on some opertion. A time limit is specified (in
  *  milliseconds) when the object is created.  From that point on, the limitExceeded() function can be used to test
  *  whether the time limit has been reached, and the getRemainingTime() function to measure the time left before the
- *  limit.
+ *  limit has been reached.
  */
 class TimeLimit {
 	timeval expire_time_;
