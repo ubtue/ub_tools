@@ -20,6 +20,7 @@
 #include "SmartDownloader.h"
 #include <iostream>
 #include "Downloader.h"
+#include "MediaTypeUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -141,19 +142,41 @@ bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const unsigned
 bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const unsigned timeout,
 					   std::string * const document)
 {
-    std::string html;
-    const int retcode = Download(url, timeout, &html);
+    const int retcode = Download(url, timeout, document);
     if (retcode != 0)
 	return false;
-    const std::string start_string("<meta content=\"https://publikationen.uni-tuebingen.de/xmlui/bitstream/");
-    size_t start_pos(html.find(start_string));
-    if (start_pos == std::string::npos)
-	return false;
-    start_pos += start_string.size() - 55;
-    const size_t end_pos(html.find('"', start_pos + 1));
-    if (end_pos == std::string::npos)
-	return false;
-    const std::string doc_url(html.substr(start_pos, end_pos - start_pos));
+    if (MediaTypeUtil::GetMediaType(*document) == "application/pdf")
+	return true;
+
+    std::string start_string("Persistente URL: <a id=\"pers_url\" href=\"");
+    size_t start_pos(document->find(start_string));
+    std::string doc_url;
+    if (start_pos != std::string::npos) {
+	start_pos += start_string.size();
+	const size_t end_pos(document->find('"', start_pos + 1));
+	if (end_pos == std::string::npos)
+	    return false;
+	const std::string pers_url(document->substr(start_pos, end_pos - start_pos));
+	const size_t last_slash_pos(pers_url.rfind('/'));
+	if (last_slash_pos == std::string::npos or last_slash_pos == pers_url.size() - 1)
+	    return false;
+	doc_url = "http://idb.ub.uni-tuebingen.de/cgi-bin/digi-downloadPdf.fcgi?projectname="
+	          + pers_url.substr(last_slash_pos + 1);
+    } else {
+	start_pos = document->find("name=\"citation_pdf_url\"");
+	if (start_pos == std::string::npos)
+	    return true;
+	start_string = "meta content=\"";
+	start_pos = document->rfind(start_string, start_pos);
+	if (start_pos == std::string::npos)
+	    return false;
+	start_pos += start_string.size();
+	const size_t end_pos(document->find('"', start_pos + 1));
+        if (end_pos == std::string::npos)
+            return false;
+	doc_url = document->substr(start_pos, end_pos - start_pos);
+    }
+
     return Download(doc_url, timeout, document) == 0;
 }
 
@@ -180,4 +203,32 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const unsign
 	return false;
     *document = html.substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5);
     return true;
+}
+
+
+bool SmartDownload(const std::string &url, std::string * const document) {
+    document->clear();
+
+    static std::vector<SmartDownloader *> smart_downloaders{
+	new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }),
+	new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }),
+	new SimplePrefixDownloader({ "http://deposit.d-nb.de/cgi-bin/dokserv?" }),
+	new SimplePrefixDownloader({ "http://media.obvsg.at/" }),
+	new SimplePrefixDownloader({ "http://d-nb.info/" }),
+	new DigiToolSmartDownloader(),
+	new IdbSmartDownloader(),
+	new BszSmartDownloader(),
+	new BvbrSmartDownloader(),
+	new Bsz21SmartDownloader(),
+	new LocGovSmartDownloader()
+    };
+
+    const unsigned TIMEOUT_IN_SECS(10); // Don't wait any longer than this.
+    for (auto &smart_downloader : smart_downloaders) {
+	if (smart_downloader->canHandleThis(url))
+	    return smart_downloader->downloadDoc(
+                url, smart_downloader->getName() == "DigiToolSmartDownloader" ? 60 : TIMEOUT_IN_SECS, document);
+    }
+
+    return false;
 }

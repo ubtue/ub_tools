@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
 	const int output_fd(::mkstemp(output_filename));
 	if (output_fd == -1)
 	    Error("failed to create a temporary file!");
-	const AutoDeleteFile auto_deleter(output_filename);
+	const FileUtil::AutoDeleteFile auto_deleter(output_filename);
 
 	char path[std::strlen(argv[0]) + 1];
 	std::strcpy(path, argv[0]);

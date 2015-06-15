@@ -27,7 +27,7 @@ const std::string PDFFONTS("/usr/bin/pdffonts");
 
 
 bool PdfFileContainsNoText(const std::string &path) {
-    const AutoTempFile auto_temp_file;
+    const FileUtil::AutoTempFile auto_temp_file;
     const std::string &output_filename(auto_temp_file.getFilePath());
     std::vector<std::string> args{ path };
     const int retval = Exec(PDFFONTS, args, output_filename);
@@ -43,10 +43,10 @@ bool PdfFileContainsNoText(const std::string &path) {
 
 
 bool PdfDocContainsNoText(const std::string &document) {
-    const AutoTempFile auto_temp_file;
+    const FileUtil::AutoTempFile auto_temp_file;
     const std::string &output_filename(auto_temp_file.getFilePath());
-    const AutoDeleteFile auto_delete(output_filename);
-    if (not WriteString(output_filename, document))
+    const FileUtil::AutoDeleteFile auto_delete(output_filename);
+    if (not FileUtil::WriteString(output_filename, document))
 	return false;
     return PdfFileContainsNoText(output_filename);
 }

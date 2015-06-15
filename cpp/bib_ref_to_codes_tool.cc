@@ -28,8 +28,34 @@
 #include <cstring>
 #include "BibleReferenceParser.h"
 #include "MapIO.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
+
+
+// Squeezes out spaces after a leading number, e.g. "1. mos" => "1.mos" or "1 mos" => "1mos".
+std::string CanoniseLeadingNumber(const std::string &bib_ref_candidate) {
+    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\d\\.?\\s+\\S+"));
+    std::string err_msg;
+    if (not matcher->matched(bib_ref_candidate, &err_msg)) {
+	if (not err_msg.empty())
+	    Error("unexpected reg ex error: " + err_msg);
+	return bib_ref_candidate;
+    }
+
+    std::string ordinal_string;
+    ordinal_string = bib_ref_candidate[0];
+    size_t rest_start(1);
+    if (bib_ref_candidate[1] == '.') {
+	ordinal_string += '.';
+	++rest_start;
+    }
+
+    while (isspace(bib_ref_candidate[rest_start]))
+	++rest_start;
+
+    return ordinal_string + bib_ref_candidate.substr(rest_start);
+}
 
 
 void SplitIntoBookAndChaptersAndVerses(const std::string &bib_ref_candidate, std::string * const book_candidate,
@@ -92,7 +118,7 @@ int main(int argc, char **argv) {
     std::unordered_multimap<std::string, std::string> pericopes_to_codes_map;
     MapIO::DeserialiseMap(argv[4], &pericopes_to_codes_map);
 
-    std::string bib_ref_candidate(StringUtil::Trim(StringUtil::ToLower(argv[1])));
+    std::string bib_ref_candidate(CanoniseLeadingNumber(StringUtil::Trim(StringUtil::ToLower(argv[1]))));
     StringUtil::CollapseWhitespace(&bib_ref_candidate);
 
     const auto begin_end(pericopes_to_codes_map.equal_range(bib_ref_candidate));

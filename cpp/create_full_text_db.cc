@@ -62,7 +62,8 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << "[--max-record-count count] marc_input marc_output full_text_db\n";
+    std::cerr << "Usage: " << progname << "[(--max-record-count | --skip-count) count] marc_input marc_output "
+	      << "full_text_db\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -75,21 +76,6 @@ std::string GetLastWordAfterSpace(const std::string &text) {
 
     const std::string last_word(text.substr(last_space_pos + 1));
     return last_word;
-}
-
-
-bool SmartDownload(const std::string &url, std::vector<SmartDownloader *> &smart_downloaders,
-		   std::string * const document)
-{
-    document->clear();
-
-    const unsigned TIMEOUT_IN_SECS(10); // Don't wait any longer than this.
-    for (auto &smart_downloader : smart_downloaders) {
-	if (smart_downloader->canHandleThis(url))
-	    return smart_downloader->downloadDoc(url, TIMEOUT_IN_SECS, document);
-    }
-
-    return false;
 }
 
 
@@ -145,121 +131,149 @@ std::string GetTesseractLanguageCode(const std::vector<DirectoryEntry> &dir_entr
 }
 
 
-void ProcessRecords(const unsigned long max_record_count, const std::string &pdf_images_script,
+// Checks subfields "3" and "z" to see if they start w/ "Rezension".
+bool IsProbablyAReview(const Subfields &subfields) {
+    const auto _3_begin_end(subfields.getIterators('3'));
+    if (_3_begin_end.first != _3_begin_end.second) {
+	if (StringUtil::StartsWith(_3_begin_end.first->second, "Rezension"))
+	    return true;
+    } else {
+	const auto z_begin_end(subfields.getIterators('z'));
+	if (z_begin_end.first != z_begin_end.second
+	    and StringUtil::StartsWith(z_begin_end.first->second, "Rezension"))
+	    return true;
+    }
+
+    return false;
+}
+
+
+bool GetDocumentAndMediaType(const std::string &url, std::string * const document, std::string * const media_type) {
+    if (not SmartDownload(url, document)) {
+	std::cerr << "Failed to download the document for " << url << "\n";
+	return false;
+    }
+
+    *media_type = MediaTypeUtil::GetMediaType(*document, /* auto_simplify = */ false);
+    if (media_type->empty())
+	return false;
+
+    return true;
+}
+
+
+bool GetTextFromImagePDF(const std::string &document, const std::string &media_type,
+			 const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
+			 const std::string &pdf_images_script, std::string * const extracted_text)
+{
+    if (not StringUtil::StartsWith(media_type, "application/pdf") or not PdfDocContainsNoText(document))
+	return false;
+
+    extracted_text->clear();
+    std::cerr << "Found a PDF w/ no text.\n";
+
+    const FileUtil::AutoTempFile auto_temp_file;
+    const std::string &input_filename(auto_temp_file.getFilePath());
+    if (not FileUtil::WriteString(input_filename, document))
+	Error("failed to write the PDF to a temp file!");
+
+    const FileUtil::AutoTempFile auto_temp_file2;
+    const std::string &output_filename(auto_temp_file2.getFilePath());
+    const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
+    const unsigned TIMEOUT(20); // in seconds
+    if (Exec(pdf_images_script, { input_filename, output_filename, language_code }, "",
+	     TIMEOUT) != 0)
+    {
+	Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
+		+ std::to_string(TIMEOUT) + " seconds !");
+	return true;
+    }
+
+    std::string plain_text;
+    if (not ReadFile(output_filename, extracted_text))
+	Error("failed to read OCR output!");
+
+    if (extracted_text->empty())
+	std::cerr << "Warning: OCR output is empty!\n";
+
+    std::cerr << "Whoohoo, got OCR'ed text.\n";
+
+    return true;
+}
+
+
+void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, const std::string &pdf_images_script,
 		    FILE * const input, FILE * const output, kyotocabinet::HashDB * const db)
 {
-    std::vector<SmartDownloader *> smart_downloaders{
-	new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }),
-	new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }),
-	new DigiToolSmartDownloader(),
-	new IdbSmartDownloader(),
-	new BszSmartDownloader(),
-	new BvbrSmartDownloader(),
-	new Bsz21SmartDownloader(),
-	new LocGovSmartDownloader()
-    };
-
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
-    unsigned long count(0), matched_count(0), failed_count(0);
+    unsigned total_record_count(0), records_with_relevant_links_count(0), relevant_links_count(0), failed_count(0);
 
     while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
-	if (count == max_record_count)
+	if (total_record_count == max_record_count)
 	    break;
-	++count;
+	++total_record_count;
+	if (total_record_count < skip_count)
+	    continue;
 
-	std::cout << "Processing record #" << count << ".\n";
+	std::cout << "Processing record #" << total_record_count << ".\n";
 	std::unique_ptr<Leader> leader(raw_leader);
 
-	const ssize_t _856_index(MarcUtil::GetFieldIndex(dir_entries, "856"));
+	ssize_t _856_index(MarcUtil::GetFieldIndex(dir_entries, "856"));
 	if (_856_index == -1) {
 	    ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
 	    continue;
 	}
 
-	Subfields subfields(field_data[_856_index]);
-	const auto u_begin_end(subfields.getIterators('u'));
-	if (u_begin_end.first == u_begin_end.second) { // No subfield 'u'.
-	    ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    continue;
-	}
-
-	// Skip 8563 subfields starting with "Rezension":
-	const auto _3_begin_end(subfields.getIterators('3'));
-	if (_3_begin_end.first != _3_begin_end.second
-	    and StringUtil::StartsWith(_3_begin_end.first->second, "Rezension"))
+	bool found_at_least_one(false);
+	for (/* Empty! */;
+	     static_cast<size_t>(_856_index) < dir_entries.size() and dir_entries[_856_index].getTag() == "856";
+	     ++_856_index)
 	{
-	    ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    continue;
-	}
+	    Subfields subfields(field_data[_856_index]);
+	    const auto u_begin_end(subfields.getIterators('u'));
+	    if (u_begin_end.first == u_begin_end.second) // No subfield 'u'.
+		continue;
 
-	// If we get here, we have an 856u subfield that is not a review.
-	++matched_count;
+	    if (IsProbablyAReview(subfields))
+		continue;
 
-	std::string document;
-	if (not SmartDownload(u_begin_end.first->second, smart_downloaders, &document)) {
-	    std::cerr << "Failed to download the document for " << u_begin_end.first->second << "\n";
-	    ++failed_count;
-	    ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    continue;
-	}
+	    // If we get here, we have an 856u subfield that is not a review.
+	    ++relevant_links_count;
+	    if (not found_at_least_one) {
+		++records_with_relevant_links_count;
+		found_at_least_one = true;
+	    }
 
-	const std::string media_type(MediaTypeUtil::GetMediaType(document, /* auto_simplify = */ false));
-	if (media_type.empty()) {
-	    ++failed_count;
-	    ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    continue;
-	}
-
-	std::string key;
-	if (StringUtil::StartsWith(media_type, "application/pdf") and PdfDocContainsNoText(document)) {
-	    std::cerr << "Found a PDF w/ no text.\n";
-
-	    const AutoTempFile auto_temp_file;
-	    const std::string &input_filename(auto_temp_file.getFilePath());
-	    if (not WriteString(input_filename, document))
-		Error("failed to write the PDF to a temp file!");
-
-	    const AutoTempFile auto_temp_file2;
-	    const std::string &output_filename(auto_temp_file2.getFilePath());
-	    const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
-	    const unsigned TIMEOUT(20); // in seconds
-	    if (Exec(pdf_images_script, { input_filename, output_filename, language_code }, "",
-		     TIMEOUT) != 0)
-	    {
-		Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
-			+ std::to_string(TIMEOUT) + " seconds !");
+	    std::string document, media_type;
+	    if (not GetDocumentAndMediaType(u_begin_end.first->second, &document, &media_type)) {
+		++failed_count;
 		continue;
 	    }
 
-	    std::string plain_text;
-	    if (not ReadFile(output_filename, &plain_text))
-		Error("failed to read OCR output!");
+	    std::string extracted_text, key;
+	    if (GetTextFromImagePDF(document, media_type, dir_entries, field_data, pdf_images_script,
+				    &extracted_text))
+		key = ThreadSafeWriteDocumentWithMediaType("text/plain", extracted_text, db);
+	    else
+		key = ThreadSafeWriteDocumentWithMediaType(media_type, document, db);
 
-	    if (plain_text.empty()) {
-		std::cerr << "Warning: OCR output is empty!\n";
-		continue;
-	    }
+	    subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
+	    const std::string new_856_field(subfields.toString());
+	    MarcUtil::UpdateField(_856_index, new_856_field, leader.get(), &dir_entries, &field_data);
+	}
 
-	    std::cerr << "Whoohoo, got OCR'ed text.\n";
-
-	    key = ThreadSafeWriteDocumentWithMediaType("text/plain", plain_text, db);
-	} else
-	    key = ThreadSafeWriteDocumentWithMediaType(media_type, document, db);
-
-	subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
-	const std::string new_856_field(subfields.toString());
-	MarcUtil::UpdateField(_856_index, new_856_field, leader.get(), &dir_entries, &field_data);
 	ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
     }
 
     if (not err_msg.empty())
 	Error(err_msg);
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << "Matched " << matched_count << " records w/ relevant 856u fields.\n";
-    std::cerr << failed_count << " failed downloads.\n";
+    std::cerr << "Read " << total_record_count << " records.\n";
+    std::cerr << "Found " << records_with_relevant_links_count << " records w/ relevant 856u fields.\n";
+    std::cerr << failed_count << " failed downloads, media type determinations or text extractions.\n";
+    std::cerr << (100.0 * (relevant_links_count - failed_count) / double(relevant_links_count)) << "% successes.\n";
 
     std::fclose(input);
 }
@@ -284,13 +298,17 @@ int main(int argc, char *argv[]) {
     if (argc != 4 and argc != 6)
 	Usage();
 
-    
-    unsigned long max_record_count(ULONG_MAX);
+    unsigned max_record_count(UINT_MAX), skip_count(0);
     if (argc == 6) {
-	if (std::strcmp(argv[1], "--max-record-count") != 0)
+	if (std::strcmp(argv[1], "--max-record-count") != 0 and std::strcmp(argv[1], "--skip-count") != 0)
 	    Usage();
-	if (not StringUtil::ToUnsignedLong(argv[2], &max_record_count))
-	    Error(std::string(argv[2]) + " is not a valid max. record count!");
+	if (std::strcmp(argv[1], "--max-record-count") == 0) {
+	    if (not StringUtil::ToUnsigned(argv[2], &max_record_count))
+		Error(std::string(argv[2]) + " is not a valid max. record count!");
+	} else {
+	    if (not StringUtil::ToUnsigned(argv[2], &skip_count))
+		Error(std::string(argv[2]) + " is not a valid skip count!");
+	}
 	argc -= 2, argv += 2;
     }
 
@@ -312,7 +330,7 @@ int main(int argc, char *argv[]) {
 	      + std::string(db.error().message()) + ")!");
 
     try {
-	ProcessRecords(max_record_count, GetPathToPdfImagesScript(argv[0]), marc_input, marc_output, &db);
+	ProcessRecords(max_record_count, skip_count, GetPathToPdfImagesScript(argv[0]), marc_input, marc_output, &db);
     } catch (const std::exception &e) {
 	Error("Caught exception: " + std::string(e.what()));
     }
