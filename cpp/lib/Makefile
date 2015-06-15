@@ -34,7 +34,8 @@ Downloader.o: Downloader.h util.h FileUtil.h
 MarcGrepTokenizer.o: MarcGrepTokenizer.h StringUtil.h
 MarcQueryParser.o: DirectoryEntry.h Leader.h MarcQueryParser.h MarcGrepTokenizer.h RegexMatcher.h StringUtil.h util.h
 OCR.o: OCR.h ExecUtil.h FileUtil.h
-SmartDownloader.o: SmartDownloader.h RegexMatcher.h Downloader.h util.h StringUtil.h MediaTypeUtil.h FileUtil.h
+SmartDownloader.o: SmartDownloader.h RegexMatcher.h Downloader.h util.h StringUtil.h MediaTypeUtil.h FileUtil.h \
+                   TimeLimit.h
 BibleReferenceParser.o: BibleReferenceParser.h StringUtil.h Locale.h util.h
 IniFile.o: IniFile.h util.h FileUtil.h
 TimeLimit.o: TimeLimit.h TimerUtil.h

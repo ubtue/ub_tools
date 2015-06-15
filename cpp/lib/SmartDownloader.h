@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 #include "RegexMatcher.h"
+#include "TimeLimit.h"
 
 
 class SmartDownloader {
@@ -40,18 +41,19 @@ public:
     virtual bool canHandleThis(const std::string &url) const;
 
     /** \brief Attempt to download a document from "url".
-     *  \param url       Where to get our document or at least a landing page that will hopefully lead us
-     *                   to the document.
-     *  \param timeout   How long we aree maximally willing to wait for each download phase, in seconds.
-     *  \param document  Where to return the downloaded document.
+     *  \param url         Where to get our document or at least a landing page that will hopefully lead us
+     *                     to the document.
+     *  \param time_limit  How long we are willing to wait for the complete download operation, in milliseconds.
+     *  \param document    Where to return the downloaded document.
      *  \return True if we succeeded in downloading the document, else false.
      */
-    bool downloadDoc(const std::string &url, const unsigned timeout, std::string * const document);
+    bool downloadDoc(const std::string &url, const TimeLimit time_limit, std::string * const document);
 
     /** \return How often downloadDoc() returned true. */
     unsigned getSuccessCount() const { return success_count_; }
 protected:
-    virtual bool downloadDocImpl(const std::string &url, const unsigned timeout, std::string * const document) = 0;
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit,
+				 std::string * const document) = 0;
 };
 
 
@@ -67,7 +69,7 @@ public:
     virtual std::string getName() const { return "SimpleSuffixDownloader"; }
     virtual bool canHandleThis(const std::string &url) const;
 protected:
-    virtual bool downloadDocImpl(const std::string &url, const unsigned timeout, std::string * const document);
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
 };
 
 
@@ -83,7 +85,7 @@ public:
     virtual std::string getName() const { return "SimplePrefixDownloader"; }
     virtual bool canHandleThis(const std::string &url) const;
 protected:
-    virtual bool downloadDocImpl(const std::string &url, const unsigned timeout, std::string * const document);
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
 };
 
 
@@ -93,7 +95,7 @@ public:
 	: SmartDownloader("^http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager\\?.+pid=\\d+$") { }
     virtual std::string getName() const { return "DigiToolSmartDownloader"; }
 protected:
-    virtual bool downloadDocImpl(const std::string &url, const unsigned timeout, std::string * const document);
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
 };
 
 
@@ -102,7 +104,7 @@ public:
     IdbSmartDownloader(): SmartDownloader("http://idb.ub.uni-tuebingen.de/diglit/.+") { }
     virtual std::string getName() const { return "IdbSmartDownloader"; }
 protected:
-    virtual bool downloadDocImpl(const std::string &url, const unsigned timeout, std::string * const document);
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
 };
 
 
@@ -111,7 +113,7 @@ public:
     BszSmartDownloader(): SmartDownloader("http://swbplus.bsz-bw.de/bsz.*\\.htm") { }
     virtual std::string getName() const { return "BszSmartDownloader"; }
 protected:
-    virtual bool downloadDocImpl(const std::string &url, const unsigned timeout, std::string * const document);
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
 };
 
 
@@ -120,7 +122,7 @@ public:
     BvbrSmartDownloader(): SmartDownloader("http://bvbr.bib-bvb.de:8991/.+") { }
     virtual std::string getName() const { return "BvbrSmartDownloader"; }
 protected:
-    virtual bool downloadDocImpl(const std::string &url, const unsigned timeout, std::string * const document);
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
 };
 
 
@@ -129,7 +131,7 @@ public:
     Bsz21SmartDownloader(): SmartDownloader("http://nbn-resolving.de/urn:nbn:de:bsz:21.+") { }
     virtual std::string getName() const { return "Bsz21SmartDownloader"; }
 protected:
-    virtual bool downloadDocImpl(const std::string &url, const unsigned timeout, std::string * const document);
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
 };
 
 
@@ -138,7 +140,7 @@ public:
     LocGovSmartDownloader(): SmartDownloader("http://www.loc.gov/catdir/.+") { }
     virtual std::string getName() const { return "LocGovSmartDownloader"; }
 protected:
-    virtual bool downloadDocImpl(const std::string &url, const unsigned timeout, std::string * const document);
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
 };
 
 
