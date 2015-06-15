@@ -20,6 +20,7 @@
 #include "SmartDownloader.h"
 #include <iostream>
 #include "Downloader.h"
+#include "FileUtil.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -98,7 +99,46 @@ bool SimplePrefixDownloader::downloadDocImpl(const std::string &url, const unsig
 bool DigiToolSmartDownloader::downloadDocImpl(const std::string &url, const unsigned timeout,
 					      std::string * const document)
 {
-    return Download(url, timeout, document) == 0;
+    FileUtil::AutoTempFile temp_file;
+    if (Download(url, timeout, document, temp_file.getFilePath()) != 0)
+	return false;
+
+    std::string start_string("<FRAME SRC=\"");
+    size_t start_pos(document->find(start_string));
+    if (start_pos == std::string::npos)
+	return false;
+    start_pos += start_string.length();
+    
+    size_t end_pos(document->find('"', start_pos));
+    if (end_pos == std::string::npos)
+	return false;
+
+    if (Download("http://digitool.hbz-nrw.de:1801"
+		 + document->substr(start_pos, end_pos - start_pos), timeout, document, temp_file.getFilePath()) != 0)
+	return false;
+
+    start_pos = document->find("setLabelMetadataStream");
+    if (start_pos == std::string::npos)
+	return false;
+
+    end_pos = document->find("\");", start_pos);
+    if (end_pos == std::string::npos)
+	return false;
+
+    start_pos = document->rfind('"', end_pos - 1);
+    if (start_pos == std::string::npos)
+	return false;
+
+    if (Download(document->substr(start_pos + 1, end_pos - start_pos - 1), timeout, document,
+		 temp_file.getFilePath()) != 0)
+	return false;
+
+    static const std::string OCR_HEADER("ocr-text:\n");
+    if (not StringUtil::StartsWith(*document, OCR_HEADER))
+	return false;
+    *document = document->substr(OCR_HEADER.size());
+
+    return true;
 }
 
 

@@ -28,18 +28,22 @@
  *  \param url              The address.
  *  \param output_filename  Where to store the downloaded document.
  *  \param timeout          Max. amount of time to try to download a document.
+ *  \param cookie_file      Cookies will be read before the attenpted download and later stored here.
  *  \return Exit code of the child process.  0 upon success.
  */
-int Download(const std::string &url, const std::string &output_filename, const unsigned timeout);
+int Download(const std::string &url, const std::string &output_filename, const unsigned timeout,
+	     const std::string &cookie_file = "");
 
 
 /** \brief Downloads a Web document.
  *  \param url      The address.
  *  \param timeout  Max. amount of time to try to download a document.
  *  \param output   Where to store the downloaded document.
+ *  \param cookie_file      Cookies will be read before the attenpted download and later stored here.
  *  \return Exit code of the child process.  0 upon success.
  */
-int Download(const std::string &url, const unsigned timeout, std::string * const output);
+int Download(const std::string &url, const unsigned timeout, std::string * const output,
+	     const std::string &cookie_file = "");
 
 
 #endif // ifndef DOWNLOADER_H
