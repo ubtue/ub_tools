@@ -41,7 +41,7 @@
  *                              the process terminates.  SIGKILL will be used.
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
-int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout = "",
+int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdout = "",
 	 unsigned timeout_in_seconds = 0);
 
 
