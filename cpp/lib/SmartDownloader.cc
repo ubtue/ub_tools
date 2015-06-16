@@ -158,12 +158,21 @@ bool DigiToolSmartDownloader::downloadDocImpl(const std::string &url, const Time
 }
 
 
-bool IdbSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit time_limit,
-					 std::string * const document)
+bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit time_limit,
+					    std::string * const document)
 {
-    const size_t last_slash_pos(url.find_last_of('/'));
+    if (Download(url, ToNearestSecond(time_limit.getRemainingTime()), document) != 0)
+	return false;
+    const std::string start_string("<input type=\"hidden\" name=\"projectname\" value=\"");
+    size_t start_pos(document->find(start_string));
+    if  (start_pos == std::string::npos)
+	return false;
+    start_pos += start_string.length();
+    const size_t end_pos(document->find('"', start_pos));
+    if  (end_pos == std::string::npos)
+	return false;
     const std::string doc_url("http://idb.ub.uni-tuebingen.de/cgi-bin/digi-downloadPdf.fcgi?projectname="
-			      + url.substr(last_slash_pos + 1));
+			      + document->substr(start_pos, end_pos - start_pos));
     return Download(doc_url, ToNearestSecond(time_limit.getRemainingTime()), document) == 0;
 }
 
@@ -273,7 +282,7 @@ bool SmartDownload(const std::string &url, const unsigned max_download_time, std
 	new SimplePrefixDownloader({ "http://media.obvsg.at/" }),
 	new SimplePrefixDownloader({ "http://d-nb.info/" }),
 	new DigiToolSmartDownloader(),
-	new IdbSmartDownloader(),
+	new DiglitSmartDownloader(),
 	new BszSmartDownloader(),
 	new BvbrSmartDownloader(),
 	new Bsz21SmartDownloader(),

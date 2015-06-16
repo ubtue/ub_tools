@@ -99,10 +99,11 @@ protected:
 };
 
 
-class IdbSmartDownloader: public SmartDownloader {
+class DiglitSmartDownloader: public SmartDownloader {
 public:
-    IdbSmartDownloader(): SmartDownloader("http://idb.ub.uni-tuebingen.de/diglit/.+") { }
-    virtual std::string getName() const { return "IdbSmartDownloader"; }
+    DiglitSmartDownloader(): SmartDownloader("^http://idb.ub.uni-tuebingen.de/diglit/.+$"
+					     "|^http://nbn-resolving.de/urn:nbn:de:bsz:21-dt-\\d+$") { }
+    virtual std::string getName() const { return "DiglitSmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
 };
