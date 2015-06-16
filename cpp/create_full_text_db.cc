@@ -222,7 +222,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 	if (total_record_count == max_record_count)
 	    break;
 	++total_record_count;
-	if (total_record_count < skip_count)
+	if (total_record_count <= skip_count)
 	    continue;
 
 	std::cout << "Processing record #" << total_record_count << ".\n";
