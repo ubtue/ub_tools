@@ -106,7 +106,7 @@ db_lookup: db_lookup.o lib/libmarc.a
 shared_buffer_test: shared_buffer_test.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lpthread
 
-shared_buffer_test.o: shared_buffer_test.cc lib/SharedBuffer.h lib/util.h lib/StringUtil.h
+shared_buffer_test.o: shared_buffer_test.cc lib/SharedBuffer.h lib/ThreadManager.h lib/util.h lib/StringUtil.h
 	$(CCC) $(CCOPTS) $<
 
 clean:

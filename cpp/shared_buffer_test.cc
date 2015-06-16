@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include "SharedBuffer.h"
 #include "StringUtil.h"
+#include "ThreadManager.h"
 #include "util.h"
 
 
@@ -13,7 +14,8 @@ std::mutex io_mutex;
 
 
 void *Consumer(void *shared_data) {
-    if (::pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
+    int old_state;
+    if (::pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old_state) != 0)
 	Error("consumer thread failed to enable cancelability!");
 
     SharedBuffer<unsigned> * const shared_buffer(reinterpret_cast<SharedBuffer<unsigned> * const>(shared_data));
@@ -31,32 +33,6 @@ void Usage() {
     std::cerr << "usage: " << progname << " number_count consumer_thread_count\n";
     std::cerr << "       Generates \"number_count\" and uses \"consumer_thread_count\" thread to print them.\n";
     std::exit(EXIT_FAILURE);
-}
-
-
-class ThreadManager {
-    std::vector<pthread_t> thread_ids_;
-public:
-    ThreadManager(const unsigned no_of_threads, void *ThreadFunc(void *), void *thread_data = NULL);
-    ~ThreadManager();
-};
-
-
-ThreadManager::ThreadManager(const unsigned no_of_threads, void *ThreadFunc(void *), void *thread_data)
-    : thread_ids_(no_of_threads)
-{
-    for (unsigned thread_no(0); thread_no < no_of_threads; ++thread_no) {
-	if (::pthread_create(&thread_ids_[thread_no], NULL, ThreadFunc, thread_data) != 0)
-            Error("thread creation of thread #" + std::to_string(thread_no) + " failed!");
-    }
-}
-
-
-ThreadManager::~ThreadManager() {
-    for (const auto thread_id : thread_ids_) {
-	if (::pthread_cancel(thread_id) != 0)
-	    Error("failed to cancel thread with ID " + std::to_string(thread_id) + "!");
-    }
 }
 
 
