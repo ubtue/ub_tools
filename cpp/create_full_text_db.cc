@@ -61,21 +61,25 @@
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << progname << "[(--max-record-count | --skip-count) count] marc_input marc_output "
-	      << "full_text_db\n";
+
+static void Usage() __attribute__((noreturn));
+
+
+const unsigned DEFAULT_PER_DOCUMENT_TIMEOUT(20);
+
+
+static void Usage() {
+    std::cerr << "Usage: " << progname << "[--max-record-count count] [--skip-count count] "
+	      << "[--per-doc-timeout timeout]marc_input marc_output full_text_db\n\n"
+	      << "       --max-record-count  The maximum number of records that will be processed.\n"
+	      << "                           The default is " << UINT_MAX << ".\n"
+	      << "       --skip-count        The number of initial records that will be skipped.\n"
+	      << "                           The default is that no records will be skipped.\n"
+	      << "       --per-doc-timeout   The maximum amount of time that will be spent in downloading\n"
+	      << "                           a document in seconds.  This includes redirects.\n"
+	      << "                           The default is " << DEFAULT_PER_DOCUMENT_TIMEOUT << " seconds.\n";
+
     std::exit(EXIT_FAILURE);
-}
-
-
-// Here "word" simply means a sequence of characters not containing a space.
-std::string GetLastWordAfterSpace(const std::string &text) {
-    const size_t last_space_pos(text.rfind(' '));
-    if (last_space_pos == std::string::npos)
-	return "";
-
-    const std::string last_word(text.substr(last_space_pos + 1));
-    return last_word;
 }
 
 
@@ -148,8 +152,10 @@ bool IsProbablyAReview(const Subfields &subfields) {
 }
 
 
-bool GetDocumentAndMediaType(const std::string &url, std::string * const document, std::string * const media_type) {
-    if (not SmartDownload(url, document)) {
+bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout,
+			     std::string * const document, std::string * const media_type)
+{
+    if (not SmartDownload(url, timeout, document)) {
 	std::cerr << "Failed to download the document for " << url << "\n";
 	return false;
     }
@@ -162,7 +168,7 @@ bool GetDocumentAndMediaType(const std::string &url, std::string * const documen
 }
 
 
-bool GetTextFromImagePDF(const std::string &document, const std::string &media_type,
+bool GetTextFromImagePDF(const std::string &document, const std::string &media_type, const std::string &original_url,
 			 const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
 			 const std::string &pdf_images_script, std::string * const extracted_text)
 {
@@ -185,7 +191,7 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 	     TIMEOUT) != 0)
     {
 	Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
-		+ std::to_string(TIMEOUT) + " seconds !");
+		+ std::to_string(TIMEOUT) + " seconds ! (original Url: " + original_url + ")");
 	return true;
     }
 
@@ -202,8 +208,9 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 }
 
 
-void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, const std::string &pdf_images_script,
-		    FILE * const input, FILE * const output, kyotocabinet::HashDB * const db)
+void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, const unsigned per_doc_timeout,
+		    const std::string &pdf_images_script, FILE * const input,
+		    FILE * const output, kyotocabinet::HashDB * const db)
 {
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
@@ -248,14 +255,15 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 	    }
 
 	    std::string document, media_type;
-	    if (not GetDocumentAndMediaType(u_begin_end.first->second, &document, &media_type)) {
+	    const std::string url(u_begin_end.first->second);
+	    if (not GetDocumentAndMediaType(url, per_doc_timeout, &document, &media_type)) {
 		++failed_count;
 		continue;
 	    }
 
 	    std::string extracted_text, key;
-	    if (GetTextFromImagePDF(document, media_type, dir_entries, field_data, pdf_images_script,
-				    &extracted_text))
+	    if (GetTextFromImagePDF(document, media_type, url, dir_entries, field_data,
+				    pdf_images_script, &extracted_text))
 		key = ThreadSafeWriteDocumentWithMediaType("text/plain", extracted_text, db);
 	    else
 		key = ThreadSafeWriteDocumentWithMediaType(media_type, document, db);
@@ -273,7 +281,8 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Found " << records_with_relevant_links_count << " records w/ relevant 856u fields.\n";
     std::cerr << failed_count << " failed downloads, media type determinations or text extractions.\n";
-    std::cerr << (100.0 * (relevant_links_count - failed_count) / double(relevant_links_count)) << "% successes.\n";
+    std::cerr << (100.0 * (relevant_links_count - failed_count) / double(relevant_links_count))
+	      << "% successes.\n";
 
     std::fclose(input);
 }
@@ -292,45 +301,78 @@ std::string GetPathToPdfImagesScript(const char * const argv0) {
 }
 
 
-int main(int argc, char *argv[]) {
-    progname = argv[0];
-
-    if (argc != 4 and argc != 6)
+bool GetOptionalArg(const std::string &option_name, char * const *argv, unsigned * const value) {
+    if (*argv != option_name)
+	return false;
+    ++argv;
+    if (argv == NULL)
+	Error("missing value for " + option_name + "!");
+    if (not StringUtil::ToUnsigned(*argv, value))
+	Error("value for " + option_name + " must be an unsigned integer!");
+    if (*(argv + 1) == NULL)
 	Usage();
+    return true;
+}
 
-    unsigned max_record_count(UINT_MAX), skip_count(0);
-    if (argc == 6) {
-	if (std::strcmp(argv[1], "--max-record-count") != 0 and std::strcmp(argv[1], "--skip-count") != 0)
-	    Usage();
-	if (std::strcmp(argv[1], "--max-record-count") == 0) {
-	    if (not StringUtil::ToUnsigned(argv[2], &max_record_count))
-		Error(std::string(argv[2]) + " is not a valid max. record count!");
-	} else {
-	    if (not StringUtil::ToUnsigned(argv[2], &skip_count))
-		Error(std::string(argv[2]) + " is not a valid skip count!");
-	}
-	argc -= 2, argv += 2;
+
+char * const *ProcessOptionalArgs(char * const *argv, unsigned * const max_record_count,
+				  unsigned * const skip_count, unsigned * const timeout)
+{
+    *max_record_count = UINT_MAX;                     // Read all records.
+    *skip_count       = 0;                            // Don't skip any records.
+    *timeout          = DEFAULT_PER_DOCUMENT_TIMEOUT; // seconds
+
+    while (*argv) {
+	if (GetOptionalArg("--max-record-count", argv, max_record_count))
+	    argv += 2;
+	else if (GetOptionalArg("--skip-count", argv, skip_count))
+	    argv += 2;
+	else if (GetOptionalArg("--per-doc-timeout", argv, timeout))
+	    argv += 2;
+	else if (StringUtil::StartsWith(*argv, "--"))
+	    Error("unrecognised argument: " + std::string(*argv));
+	else
+	    return argv;
     }
 
-    const std::string marc_input_filename(argv[1]);
+    return argv;
+}
+
+
+int main(int /*argc*/, char *argv[]) {
+    progname = argv[0];
+
+    unsigned max_record_count, skip_count, timeout;
+    char * const * remaining_args(ProcessOptionalArgs(argv + 1, &max_record_count, &skip_count, &timeout));
+    if (remaining_args == NULL)
+	Usage();
+
+    const std::string marc_input_filename(*remaining_args++);
     FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rb");
     if (marc_input == NULL)
 	Error("can't open \"" + marc_input_filename + "\" for reading!");
+    if (remaining_args == NULL)
+	Usage();
 
-    const std::string marc_output_filename(argv[2]);
+    const std::string marc_output_filename(*remaining_args++);
     FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
     if (marc_output == NULL)
 	Error("can't open \"" + marc_output_filename + "\" for writing!");
+    if (remaining_args == NULL)
+	Usage();
 
     kyotocabinet::HashDB db;
-    if (not db.open(argv[3],
+    if (not db.open(*remaining_args++,
 		    kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
 		    | kyotocabinet::HashDB::OTRUNCATE))
 	Error("Failed to open database \"" + std::string(argv[1]) + "\" for writing ("
 	      + std::string(db.error().message()) + ")!");
+    if (*remaining_args != NULL)
+	Usage();
 
     try {
-	ProcessRecords(max_record_count, skip_count, GetPathToPdfImagesScript(argv[0]), marc_input, marc_output, &db);
+	ProcessRecords(max_record_count, skip_count, timeout, GetPathToPdfImagesScript(argv[0]), marc_input,
+		       marc_output, &db);
     } catch (const std::exception &e) {
 	Error("Caught exception: " + std::string(e.what()));
     }

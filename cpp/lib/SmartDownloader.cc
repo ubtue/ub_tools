@@ -263,7 +263,7 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
 }
 
 
-bool SmartDownload(const std::string &url, std::string * const document) {
+bool SmartDownload(const std::string &url, const unsigned max_download_time, std::string * const document) {
     document->clear();
 
     static std::vector<SmartDownloader *> smart_downloaders{
@@ -280,11 +280,12 @@ bool SmartDownload(const std::string &url, std::string * const document) {
 	new LocGovSmartDownloader()
     };
 
-    const unsigned TIMEOUT_IN_MILLISECS(10000); // Don't wait any longer than this.
+    const unsigned TIMEOUT_IN_MILLISECS(max_download_time * 1000); // Don't wait any longer than this.
     for (auto &smart_downloader : smart_downloaders) {
 	if (smart_downloader->canHandleThis(url))
 	    return smart_downloader->downloadDoc(
-                url, smart_downloader->getName() == "DigiToolSmartDownloader" ? 60000 : TIMEOUT_IN_MILLISECS,
+                url, smart_downloader->getName() == "DigiToolSmartDownloader" ? TIMEOUT_IN_MILLISECS * 3
+                                                                              : TIMEOUT_IN_MILLISECS,
 		document);
     }
 

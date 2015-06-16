@@ -145,7 +145,7 @@ protected:
 
 
 /** \brief Tries to download "document" from "url".  Returns if the download succeeded or not. */
-bool SmartDownload(const std::string &url, std::string * const document);
+bool SmartDownload(const std::string &url, const unsigned max_download_time, std::string * const document);
 
 
 #endif // ifndef SMART_DOWNLOADER_H
