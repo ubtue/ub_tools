@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 	Usage();
     
     unsigned consumer_thread_count;
-    if (not StringUtil::ToUnsigned(argv[1], &consumer_thread_count) or consumer_thread_count == 0)
+    if (not StringUtil::ToUnsigned(argv[2], &consumer_thread_count) or consumer_thread_count == 0)
 	Usage();
 
     SharedBuffer<unsigned> number_buffer(consumer_thread_count);
