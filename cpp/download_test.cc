@@ -39,13 +39,15 @@
 #include <stdexcept>
 #include <vector>
 #include <cstdlib>
+#include <cstring>
 #include "FileUtil.h"
 #include "SmartDownloader.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " url output_filename\n";
+    std::cerr << "Usage: " << progname << " [--timeout seconds] url output_filename\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -53,19 +55,32 @@ void Usage() {
 int main(int argc, char *argv[]) {
     progname = argv[0];
 
-    if (argc != 3)
+    if (argc != 5 and argc != 3)
 	Usage();
+    const std::string url(argv[argc == 5 ? 3 : 1]);
+    const std::string output_filename(argv[argc == 5 ? 4 : 2]);
 
-    const unsigned MAX_DOWNLOAD_TIME(30); // seconds
+    const unsigned DEFAULT_TIMEOUT(20); // seconds
+
+    unsigned timeout;
+    if (argc == 3)
+	timeout = DEFAULT_TIMEOUT;
+    else {
+	if (std::strcmp(argv[1], "--timeout") != 0)
+	    Usage();
+	if (not StringUtil::ToUnsigned(argv[2], &timeout))
+	    Error("bad timeout \"" + std::string(argv[2]) + "\"!");
+    }
+
     try {
 	std::string document;
-	if (not SmartDownload(argv[1], MAX_DOWNLOAD_TIME, &document)) {
+	if (not SmartDownload(url, timeout, &document)) {
 	    std::cerr << progname << ": Download failed!\n";
 	    std::exit(EXIT_FAILURE);
 	}
 
-	if (not FileUtil::WriteString(argv[2], document)) {
-	    std::cerr << progname << ": failed to write downloaded document to \"" + std::string(argv[2]) + "\"!\n";
+	if (not FileUtil::WriteString(output_filename, document)) {
+	    std::cerr << progname << ": failed to write downloaded document to \"" + output_filename + "\"!\n";
 	    std::exit(EXIT_FAILURE);
 	}
     } catch (const std::exception &e) {

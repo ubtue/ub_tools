@@ -21,6 +21,7 @@
 #include <iostream>
 #include "Downloader.h"
 #include "FileUtil.h"
+#include "IdbPager.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -171,9 +172,27 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
     const size_t end_pos(document->find('"', start_pos));
     if  (end_pos == std::string::npos)
 	return false;
-    const std::string doc_url("http://idb.ub.uni-tuebingen.de/cgi-bin/digi-downloadPdf.fcgi?projectname="
-			      + document->substr(start_pos, end_pos - start_pos));
-    return Download(doc_url, ToNearestSecond(time_limit.getRemainingTime()), document) == 0;
+    const std::string projectname(document->substr(start_pos, end_pos - start_pos));
+    document->clear();
+    std::string page;
+
+    RomanPageNumberGenerator roman_page_number_generator;
+    IdbPager roman_pager(projectname, &roman_page_number_generator);
+    while (roman_pager.getNextPage(time_limit, &page)) {
+	if (time_limit.limitExceeded())
+	    return false;
+	document->append(page);
+    }
+
+    ArabicPageNumberGenerator arabic_page_number_generator;
+    IdbPager arabic_pager(projectname, &arabic_page_number_generator);
+    while (arabic_pager.getNextPage(time_limit, &page)) {
+	if (time_limit.limitExceeded())
+	    return false;
+	document->append(page);
+    }
+
+    return not document->empty();
 }
 
 

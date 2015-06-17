@@ -81,7 +81,7 @@
 static void Usage() __attribute__((noreturn));
 
 
-const unsigned DEFAULT_PER_DOCUMENT_TIMEOUT(20);
+const unsigned DEFAULT_PER_DOCUMENT_TIMEOUT(40);
 
 
 static void Usage() {
