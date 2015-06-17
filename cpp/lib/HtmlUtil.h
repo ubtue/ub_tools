@@ -1,0 +1,68 @@
+/** \file    HtmlUtil.h
+ *  \brief   Declarations of HTML-related utility functions.
+ *  \author  Dr. Gordon W. Paynter
+ *  \author  Dr. Johannes Ruscheinski
+ *  \author  Artur Kedzierski
+ */
+
+/*
+ *  Copyright 2002-2008 Project iVia.
+ *  Copyright 2002-2008 The Regents of The University of California.
+ *
+ *  This file is part of the libiViaCore package.
+ *
+ *  The libiViaCore package is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public License as
+ *  published by the Free Software Foundation; either version 2 of the License,
+ *  or (at your option) any later version.
+ *
+ *  libiViaCore is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with libiViaCore; if not, write to the Free Software Foundation, Inc.,
+ *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#ifndef HTML_UTIL_H
+#define HTML_UTIL_H
+
+
+#include <string>
+
+
+namespace HtmlUtil {
+
+
+bool DecodeEntity(const char *entity_string, char * const ch);
+
+inline bool DecodeEntity(const std::string &entity_string, char * const ch)
+	{ return DecodeEntity(entity_string.c_str(), ch); }
+
+
+enum UnknownEntityMode { IGNORE_UNKNOWN_ENTITIES, REMOVE_UNKNOWN_ENTITIES };
+
+
+/** \brief  Replaces all HTML entities in "s" with the actual characters.
+ *  \param  s                    The string that may contain optional HTML entities.
+ *  \param  unknown_entity_mode  tells whether to remove unknown entities.
+ *  \note   It is probably a good idea to call RemoveTags before calling this function.
+ */
+std::string &ReplaceEntities(std::string * const s,
+			     const UnknownEntityMode unknown_entity_mode = REMOVE_UNKNOWN_ENTITIES);
+
+inline std::string ReplaceEntities(const std::string &s,
+				   const UnknownEntityMode unknown_entity_mode = REMOVE_UNKNOWN_ENTITIES)
+{
+	std::string temp_s(s);
+	ReplaceEntities(&temp_s, unknown_entity_mode);
+	return temp_s;
+}
+
+
+} // namespace HtmlUtil
+
+
+#endif // define HTML_UTIL_H
