@@ -25,8 +25,10 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <sys/stat.h>
 #include <unistd.h>
 #include "Compiler.h"
+#include "util.h"
 
 
 namespace FileUtil {
@@ -42,6 +44,15 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix) {
 }
 
 
+off_t GetFileSize(const std::string &path) {
+    struct stat stat_buf;
+    if (::stat(path.c_str(), &stat_buf) == -1)
+	Error("in FileUtil::GetFileSize: can't stat(2) \"" + path + "\"!");
+
+    return stat_buf.st_size;
+}
+
+
 bool WriteString(const std::string &path, const std::string &data) {
     std::ofstream output(path, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
     if (output.fail())
@@ -50,7 +61,20 @@ bool WriteString(const std::string &path, const std::string &data) {
     output.write(data.data(), data.size());
     return not output.bad();
 }
+    
 
+bool ReadString(const std::string &path, std::string * const data) {
+    std::ifstream input(path, std::ios_base::in | std::ios_base::binary);
+    if (input.fail())
+	return false;
+
+    const off_t file_size(GetFileSize(path));
+    data->resize(file_size);
+    input.read(const_cast<char *>(data->data()), file_size);
+    return not input.bad();
+
+}
+    
 
 // DirnameAndBasename -- Split a path into a directory name part and filename part.
 //
