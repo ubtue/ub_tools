@@ -31,6 +31,7 @@
 
 
 #include <string>
+#include <sys/types.h>
 #include <unistd.h>
 
 
@@ -48,6 +49,12 @@ public:
 };
 
 
+/** \return The size of the file named by "path".
+ *  \note   Exits with an error message if "path" does not exist or we don't have the rights to stat it.
+ */
+off_t GetFileSize(const std::string &path);
+    
+
 /** \class AutoTempFile
  *  \brief Creates a temp file and removes it when going out of scope.
  */
@@ -61,7 +68,8 @@ public:
 };
     
 
-bool WriteString(const std::string &filename, const std::string &data);
+bool WriteString(const std::string &path, const std::string &data);
+bool ReadString(const std::string &path, std::string * const data);
 
 
 /** \brief  Does the named file (or directory) exist?.
