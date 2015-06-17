@@ -1,6 +1,6 @@
 PROGS=marc_grep2 jop_grep download_test add_issn_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
-      bib_ref_to_codes_tool extract_text_from_image_only_pdfs
+      bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -c
 LDOPTS=-O3
@@ -82,7 +82,7 @@ bib_ref_to_codes_tool.o: bib_ref_to_codes_tool.cc lib/BibleReferenceParser.h lib
 bib_ref_to_codes_tool: bib_ref_to_codes_tool.o
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lmagic
 
-download_test.o: download_test.cc lib/SmartDownloader.h lib/util.h lib/FileUtil.h
+download_test.o: download_test.cc lib/SmartDownloader.h lib/util.h lib/FileUtil.h lib/TimeLimit.h
 	$(CCC) $(CCOPTS) $<
 
 download_test: download_test.o lib/libmarc.a
@@ -90,7 +90,8 @@ download_test: download_test.o lib/libmarc.a
 
 create_full_text_db.o: create_full_text_db.cc lib/Downloader.h lib/RegexMatcher.h lib/StringUtil.h \
                        lib/TextUtil.h lib/util.h lib/MediaTypeUtil.h lib/MarcUtil.h lib/Subfields.h \
-                       lib/SharedBuffer.h lib/SmartDownloader.h lib/PdfUtil.h lib/ExecUtil.h lib/FileUtil.h
+                       lib/SharedBuffer.h lib/SmartDownloader.h lib/PdfUtil.h lib/ExecUtil.h lib/FileUtil.h \
+	               lib/TimeLimit.h
 	$(CCC) $(CCOPTS) $<
 
 create_full_text_db: create_full_text_db.o lib/libmarc.a
@@ -101,6 +102,12 @@ db_lookup.o: db_lookup.cc lib/util.h
 
 db_lookup: db_lookup.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet
+
+shared_buffer_test: shared_buffer_test.o lib/libmarc.a
+	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lpthread
+
+shared_buffer_test.o: shared_buffer_test.cc lib/SharedBuffer.h lib/ThreadManager.h lib/util.h lib/StringUtil.h
+	$(CCC) $(CCOPTS) $<
 
 clean:
 	rm -f *~ $(PROGS) *.o

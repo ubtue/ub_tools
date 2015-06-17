@@ -56,9 +56,10 @@ int main(int argc, char *argv[]) {
     if (argc != 3)
 	Usage();
 
+    const unsigned MAX_DOWNLOAD_TIME(30); // seconds
     try {
 	std::string document;
-	if (not SmartDownload(argv[1], &document)) {
+	if (not SmartDownload(argv[1], MAX_DOWNLOAD_TIME, &document)) {
 	    std::cerr << progname << ": Download failed!\n";
 	    std::exit(EXIT_FAILURE);
 	}
