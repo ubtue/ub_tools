@@ -25,6 +25,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <sys/stat.h>
 #include <unistd.h>
 #include "Compiler.h"
 #include "util.h"
@@ -45,7 +46,7 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix) {
 
 off_t GetFileSize(const std::string &path) {
     struct stat stat_buf;
-    if (::stat(path, &stat_buf) == -1)
+    if (::stat(path.c_str(), &stat_buf) == -1)
 	Error("in FileUtil::GetFileSize: can't stat(2) \"" + path + "\"!");
 
     return stat_buf.st_size;
@@ -69,7 +70,7 @@ bool ReadString(const std::string &path, std::string * const data) {
 
     const off_t file_size(GetFileSize(path));
     data->resize(file_size);
-    input.read(data->data(), file_size);
+    input.read(const_cast<char *>(data->data()), file_size);
     return not input.bad();
 
 }
