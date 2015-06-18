@@ -12,7 +12,7 @@ LDOPTS=-O3
 
 all: $(PROGS)
 
-lib/libmarc.a:
+lib/libmarc.a: $(wildcard lib/*.cc) $(wildcard lib/*.h)
 	$(MAKE) -C lib
 
 marc_grep2: marc_grep2.o lib/libmarc.a
