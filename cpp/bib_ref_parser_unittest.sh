@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o errexit -o nounset
 
 function expect_success_cpp() {
     ./bib_ref_parser_test "$@"
