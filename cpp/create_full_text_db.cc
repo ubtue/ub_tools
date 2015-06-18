@@ -417,21 +417,21 @@ int main(int /*argc*/, char *argv[]) {
     unsigned worker_thread_count, max_record_count, skip_count, timeout;
     char * const * remaining_args(ProcessOptionalArgs(argv + 1, &worker_thread_count, &max_record_count,
 						      &skip_count, &timeout));
-    if (remaining_args == NULL)
+    if (*remaining_args == NULL)
 	Usage();
 
     const std::string marc_input_filename(*remaining_args++);
     FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rb");
     if (marc_input == NULL)
 	Error("can't open \"" + marc_input_filename + "\" for reading!");
-    if (remaining_args == NULL)
+    if (*remaining_args == NULL)
 	Usage();
 
     const std::string marc_output_filename(*remaining_args++);
     FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
     if (marc_output == NULL)
 	Error("can't open \"" + marc_output_filename + "\" for writing!");
-    if (remaining_args == NULL)
+    if (*remaining_args == NULL)
 	Usage();
 
     kyotocabinet::HashDB db;
