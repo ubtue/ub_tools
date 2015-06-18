@@ -92,11 +92,11 @@ download_test: download_test.o lib/libmarc.a
 create_full_text_db.o: create_full_text_db.cc lib/Downloader.h lib/RegexMatcher.h lib/StringUtil.h \
                        lib/TextUtil.h lib/util.h lib/MediaTypeUtil.h lib/MarcUtil.h lib/Subfields.h \
                        lib/SharedBuffer.h lib/SmartDownloader.h lib/PdfUtil.h lib/ExecUtil.h lib/FileUtil.h \
-	               lib/TimeLimit.h lib/util.h
+	               lib/TimeLimit.h lib/util.h lib/ThreadManager.h lib/ThreadSafeCounter.h
 	$(CCC) $(CCOPTS) $<
 
 create_full_text_db: create_full_text_db.o lib/libmarc.a
-	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
+	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic -lpthread
 
 delete_ids.o: delete_ids.cc lib/MarcUtil.h  lib/util.h
 	$(CCC) $(CCOPTS) $<

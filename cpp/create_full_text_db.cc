@@ -74,6 +74,8 @@
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "TextUtil.h"
+#include "ThreadManager.h"
+#include "ThreadSafeCounter.h"
 #include "util.h"
 
 
@@ -81,19 +83,23 @@
 static void Usage() __attribute__((noreturn));
 
 
-const unsigned DEFAULT_PER_DOCUMENT_TIMEOUT(40);
+const unsigned DEFAULT_PER_DOCUMENT_TIMEOUT(60);
+const unsigned DEFAULT_WORKER_THREAD_COUNT(20);
 
 
 static void Usage() {
-    std::cerr << "Usage: " << progname << "[--max-record-count count] [--skip-count count] "
-	      << "[--per-doc-timeout timeout]marc_input marc_output full_text_db\n\n"
-	      << "       --max-record-count  The maximum number of records that will be processed.\n"
-	      << "                           The default is " << UINT_MAX << ".\n"
-	      << "       --skip-count        The number of initial records that will be skipped.\n"
-	      << "                           The default is that no records will be skipped.\n"
-	      << "       --per-doc-timeout   The maximum amount of time that will be spent in downloading\n"
-	      << "                           a document in seconds.  This includes redirects.\n"
-	      << "                           The default is " << DEFAULT_PER_DOCUMENT_TIMEOUT << " seconds.\n";
+    std::cerr << "Usage: " << progname << "[--worker-thread-count count] [--max-record-count count]\n"
+	      << "                         [--skip-count count] [--per-doc-timeout timeout]\n"
+	      << "                         marc_input marc_output full_text_db\n\n"
+	      << "       --worker-thread-count  The number of worker threads used to process records.\n"
+	      << "                              The default is " << DEFAULT_WORKER_THREAD_COUNT << ".\n"
+	      << "       --max-record-count     The maximum number of records that will be processed.\n"
+	      << "                              The default is " << UINT_MAX << ".\n"
+	      << "       --skip-count           The number of initial records that will be skipped.\n"
+	      << "                              The default is that no records will be skipped.\n"
+	      << "       --per-doc-timeout      The maximum amount of time that will be spent in downloading\n"
+	      << "                              a document in seconds.  This includes redirects.\n"
+	      << "                              The default is " << DEFAULT_PER_DOCUMENT_TIMEOUT << " seconds.\n";
 
     std::exit(EXIT_FAILURE);
 }
@@ -224,17 +230,97 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 }
 
 
-void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, const unsigned per_doc_timeout,
-		    const std::string &pdf_images_script, FILE * const input,
+static ThreadSafeCounter<unsigned> relevant_links_count, failed_count, records_with_relevant_links_count;
+
+
+void ProcessRecord(ssize_t _856_index, Leader * const leader, std::vector<DirectoryEntry> &dir_entries,
+		   std::vector<std::string> &field_data, const unsigned per_doc_timeout,
+		   const std::string pdf_images_script, FILE * const output, kyotocabinet::HashDB * const db)
+{
+    bool found_at_least_one(false);
+    for (/* Empty! */;
+	static_cast<size_t>(_856_index) < dir_entries.size() and dir_entries[_856_index].getTag() == "856";
+	++_856_index)
+    {
+	Subfields subfields(field_data[_856_index]);
+	const auto u_begin_end(subfields.getIterators('u'));
+	if (u_begin_end.first == u_begin_end.second) // No subfield 'u'.
+	    continue;
+
+	if (IsProbablyAReview(subfields))
+	    continue;
+
+	// If we get here, we have an 856u subfield that is not a review.
+	++relevant_links_count;
+	if (not found_at_least_one) {
+	    ++records_with_relevant_links_count;
+	    found_at_least_one = true;
+	}
+
+	std::string document, media_type;
+	const std::string url(u_begin_end.first->second);
+	if (not GetDocumentAndMediaType(url, per_doc_timeout, &document, &media_type)) {
+	    ++failed_count;
+	    continue;
+	}
+
+	std::string extracted_text, key;
+	if (GetTextFromImagePDF(document, media_type, url, dir_entries, field_data,
+				pdf_images_script, &extracted_text))
+	    key = ThreadSafeWriteDocumentWithMediaType("text/plain", extracted_text, db);
+	else
+	    key = ThreadSafeWriteDocumentWithMediaType(media_type, document, db);
+
+	subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
+	const std::string new_856_field(subfields.toString());
+	MarcUtil::UpdateField(_856_index, new_856_field, leader, &dir_entries, &field_data);
+    }
+
+    ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader);
+    delete leader;
+}
+
+
+struct ThreadData {
+    ssize_t _856_index_;
+    Leader * const leader_;
+    std::vector<DirectoryEntry> dir_entries_;
+    std::vector<std::string> field_data_;
+    const unsigned per_doc_timeout_;
+    const std::string &pdf_images_script_;
+    FILE * const output_;
+    kyotocabinet::HashDB * const db_;
+};
+
+
+void *WorkerThread(void *thread_data) {
+    int old_state;
+    if (::pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old_state) != 0)
+	Error("consumer thread failed to enable cancelability!");
+
+    SharedBuffer<ThreadData> * const work_queue(reinterpret_cast<SharedBuffer<ThreadData> * const>(thread_data));
+    for (;;) {
+	ThreadData data(work_queue->pop_front());
+	ProcessRecord(data._856_index_, data.leader_, data.dir_entries_, data.field_data_, data.per_doc_timeout_,
+		      data.pdf_images_script_, data.output_, data.db_);
+    }
+}
+
+
+void ProcessRecords(const unsigned worker_thread_count, const unsigned max_record_count, const unsigned skip_count,
+		    const unsigned per_doc_timeout, const std::string &pdf_images_script, FILE * const input,
 		    FILE * const output, kyotocabinet::HashDB * const db)
 {
-    Leader *raw_leader;
+    Leader *leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
-    unsigned total_record_count(0), records_with_relevant_links_count(0), relevant_links_count(0), failed_count(0);
+    unsigned total_record_count(0);
 
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    SharedBuffer<ThreadData> work_queue(worker_thread_count);
+    ThreadManager thread_manager(worker_thread_count, WorkerThread, &work_queue);
+
+    while (MarcUtil::ReadNextRecord(input, &leader, &dir_entries, &field_data, &err_msg)) {
 	if (total_record_count == max_record_count)
 	    break;
 	++total_record_count;
@@ -242,65 +328,31 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 	    continue;
 
 	std::cout << "Processing record #" << total_record_count << ".\n";
-	std::unique_ptr<Leader> leader(raw_leader);
 
 	ssize_t _856_index(MarcUtil::GetFieldIndex(dir_entries, "856"));
 	if (_856_index == -1) {
-	    ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+	    ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader);
 	    continue;
 	}
 
-	bool found_at_least_one(false);
-	for (/* Empty! */;
-	     static_cast<size_t>(_856_index) < dir_entries.size() and dir_entries[_856_index].getTag() == "856";
-	     ++_856_index)
-	{
-	    Subfields subfields(field_data[_856_index]);
-	    const auto u_begin_end(subfields.getIterators('u'));
-	    if (u_begin_end.first == u_begin_end.second) // No subfield 'u'.
-		continue;
-
-	    if (IsProbablyAReview(subfields))
-		continue;
-
-	    // If we get here, we have an 856u subfield that is not a review.
-	    ++relevant_links_count;
-	    if (not found_at_least_one) {
-		++records_with_relevant_links_count;
-		found_at_least_one = true;
-	    }
-
-	    std::string document, media_type;
-	    const std::string url(u_begin_end.first->second);
-	    if (not GetDocumentAndMediaType(url, per_doc_timeout, &document, &media_type)) {
-		++failed_count;
-		continue;
-	    }
-
-	    std::string extracted_text, key;
-	    if (GetTextFromImagePDF(document, media_type, url, dir_entries, field_data,
-				    pdf_images_script, &extracted_text))
-		key = ThreadSafeWriteDocumentWithMediaType("text/plain", extracted_text, db);
-	    else
-		key = ThreadSafeWriteDocumentWithMediaType(media_type, document, db);
-
-	    subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
-	    const std::string new_856_field(subfields.toString());
-	    MarcUtil::UpdateField(_856_index, new_856_field, leader.get(), &dir_entries, &field_data);
-	}
-
-	ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+	ThreadData thread_data{ _856_index, leader, dir_entries, field_data, per_doc_timeout,
+	                        pdf_images_script, output, db };
+	work_queue.push_back(thread_data);
     }
+
+    while (not work_queue.empty())
+	::sleep(1);
 
     if (not err_msg.empty())
 	Error(err_msg);
     std::cerr << "Read " << total_record_count << " records.\n";
-    std::cerr << "Found " << records_with_relevant_links_count << " records w/ relevant 856u fields.\n";
-    std::cerr << failed_count << " failed downloads, media type determinations or text extractions.\n";
-    std::cerr << (100.0 * (relevant_links_count - failed_count) / double(relevant_links_count))
+    std::cerr << "Found " << records_with_relevant_links_count.get() << " records w/ relevant 856u fields.\n";
+    std::cerr << failed_count.get() << " failed downloads, media type determinations or text extractions.\n";
+    std::cerr << (100.0 * (relevant_links_count.get() - failed_count.get()) / double(relevant_links_count.get()))
 	      << "% successes.\n";
 
     std::fclose(input);
+    std::fclose(output);
 }
 
 
@@ -331,15 +383,19 @@ bool GetOptionalArg(const std::string &option_name, char * const *argv, unsigned
 }
 
 
-char * const *ProcessOptionalArgs(char * const *argv, unsigned * const max_record_count,
-				  unsigned * const skip_count, unsigned * const timeout)
+char * const *ProcessOptionalArgs(char * const *argv, unsigned * const worker_thread_count,
+				  unsigned * const max_record_count, unsigned * const skip_count,
+				  unsigned * const timeout)
 {
+    *worker_thread_count = DEFAULT_WORKER_THREAD_COUNT;
     *max_record_count = UINT_MAX;                     // Read all records.
     *skip_count       = 0;                            // Don't skip any records.
     *timeout          = DEFAULT_PER_DOCUMENT_TIMEOUT; // seconds
 
     while (*argv) {
-	if (GetOptionalArg("--max-record-count", argv, max_record_count))
+	if (GetOptionalArg("--worker-thread-count", argv, worker_thread_count))
+	    argv += 2;
+	else if (GetOptionalArg("--max-record-count", argv, max_record_count))
 	    argv += 2;
 	else if (GetOptionalArg("--skip-count", argv, skip_count))
 	    argv += 2;
@@ -358,8 +414,9 @@ char * const *ProcessOptionalArgs(char * const *argv, unsigned * const max_recor
 int main(int /*argc*/, char *argv[]) {
     progname = argv[0];
 
-    unsigned max_record_count, skip_count, timeout;
-    char * const * remaining_args(ProcessOptionalArgs(argv + 1, &max_record_count, &skip_count, &timeout));
+    unsigned worker_thread_count, max_record_count, skip_count, timeout;
+    char * const * remaining_args(ProcessOptionalArgs(argv + 1, &worker_thread_count, &max_record_count,
+						      &skip_count, &timeout));
     if (remaining_args == NULL)
 	Usage();
 
@@ -387,8 +444,8 @@ int main(int /*argc*/, char *argv[]) {
 	Usage();
 
     try {
-	ProcessRecords(max_record_count, skip_count, timeout, GetPathToPdfImagesScript(argv[0]), marc_input,
-		       marc_output, &db);
+	ProcessRecords(worker_thread_count, max_record_count, skip_count, timeout,
+		       GetPathToPdfImagesScript(argv[0]), marc_input, marc_output, &db);
     } catch (const std::exception &e) {
 	Error("Caught exception: " + std::string(e.what()));
     }
