@@ -79,7 +79,6 @@
 #include "util.h"
 
 
-
 static void Usage() __attribute__((noreturn));
 
 
@@ -174,10 +173,14 @@ bool IsProbablyAReview(const Subfields &subfields) {
 }
 
 
+static std::mutex console_io_mutex;
+
+
 bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout,
 			     std::string * const document, std::string * const media_type)
 {
     if (not SmartDownload(url, timeout, document)) {
+	std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
 	std::cerr << "Failed to download the document for " << url << "\n";
 	return false;
     }
@@ -194,11 +197,15 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 			 const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
 			 const std::string &pdf_images_script, std::string * const extracted_text)
 {
+    extracted_text->clear();
+
     if (not StringUtil::StartsWith(media_type, "application/pdf") or not PdfDocContainsNoText(document))
 	return false;
 
-    extracted_text->clear();
-    std::cerr << "Found a PDF w/ no text.\n";
+    {
+	std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
+	std::cerr << "Found a PDF w/ no text.\n";
+    }
 
     const FileUtil::AutoTempFile auto_temp_file;
     const std::string &input_filename(auto_temp_file.getFilePath());
@@ -221,10 +228,11 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
     if (not ReadFile(output_filename, extracted_text))
 	Error("failed to read OCR output!");
 
+    std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
     if (extracted_text->empty())
 	std::cerr << "Warning: OCR output is empty!\n";
-
-    std::cerr << "Whoohoo, got OCR'ed text.\n";
+    else
+	std::cerr << "Whoohoo, got OCR'ed text.\n";
 
     return true;
 }
@@ -327,7 +335,10 @@ void ProcessRecords(const unsigned worker_thread_count, const unsigned max_recor
 	if (total_record_count <= skip_count)
 	    continue;
 
-	std::cout << "Processing record #" << total_record_count << ".\n";
+	{
+	    std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
+	    std::cout << "Processing record #" << total_record_count << ".\n";
+	}
 
 	ssize_t _856_index(MarcUtil::GetFieldIndex(dir_entries, "856"));
 	if (_856_index == -1) {
