@@ -1,6 +1,6 @@
 PROGS=marc_grep2 jop_grep download_test add_issn_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
-      bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test
+      bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -c
 LDOPTS=-O3
@@ -92,11 +92,17 @@ download_test: download_test.o lib/libmarc.a
 create_full_text_db.o: create_full_text_db.cc lib/Downloader.h lib/RegexMatcher.h lib/StringUtil.h \
                        lib/TextUtil.h lib/util.h lib/MediaTypeUtil.h lib/MarcUtil.h lib/Subfields.h \
                        lib/SharedBuffer.h lib/SmartDownloader.h lib/PdfUtil.h lib/ExecUtil.h lib/FileUtil.h \
-	               lib/TimeLimit.h
+	               lib/TimeLimit.h lib/util.h
 	$(CCC) $(CCOPTS) $<
 
 create_full_text_db: create_full_text_db.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
+
+delete_ids.o: delete_ids.cc lib/MarcUtil.h  lib/util.h
+	$(CCC) $(CCOPTS) $<
+
+delete_ids: delete_ids.o lib/libmarc.a
+	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lmagic
 
 db_lookup.o: db_lookup.cc lib/util.h
 	$(CCC) $(CCOPTS) $<
