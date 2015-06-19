@@ -111,7 +111,7 @@ RegexMatcher::RegexMatcher(RegexMatcher &&that)
 
 
 bool RegexMatcher::matched(const std::string &s, std::string * const err_msg,
-			   std::string::size_type * const start_pos) const
+			   size_t * const start_pos, size_t * const end_pos) const
 {
     err_msg->clear();
 
@@ -121,7 +121,9 @@ bool RegexMatcher::matched(const std::string &s, std::string * const err_msg,
 				    substr_vector, substr_vector_size);
     if (retcode > 0) {
 	if (start_pos != NULL)
-	    *start_pos = retcode;
+	    *start_pos = substr_vector[0];
+	if (end_pos != NULL)
+	    *end_pos = substr_vector[1];
 	return true;
     }
 

@@ -181,7 +181,7 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout,
 {
     if (not SmartDownload(url, timeout, document)) {
 	std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
-	std::cerr << "Failed to download the document for " << url << "\n";
+	std::cerr << "Failed to download the document for " << url << " (timeout: " << timeout << " sec)\n";
 	return false;
     }
 
@@ -215,7 +215,7 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
     const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
-    const unsigned TIMEOUT(20); // in seconds
+    const unsigned TIMEOUT(60); // in seconds
     if (Exec(pdf_images_script, { input_filename, output_filename, language_code }, "",
 	     TIMEOUT) != 0)
     {

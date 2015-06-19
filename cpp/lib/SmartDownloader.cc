@@ -23,6 +23,7 @@
 #include "FileUtil.h"
 #include "IdbPager.h"
 #include "MediaTypeUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -113,47 +114,25 @@ bool SimplePrefixDownloader::downloadDocImpl(const std::string &url, const TimeL
 bool DigiToolSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit time_limit,
 					      std::string * const document)
 {
+    static RegexMatcher * const matcher(
+        RegexMatcher::RegexMatcherFactory("http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager\\?pid=\\d+"));
+
+    std::string err_msg;
+    size_t start_pos, end_pos;
+    if (not matcher->matched(url, &err_msg, &start_pos, &end_pos))
+	Error("in DigiToolSmartDownloader::downloadDocImpl: match failed: " + err_msg);
+
+    const std::string normalised_url(url.substr(start_pos, end_pos - start_pos));
     FileUtil::AutoTempFile temp_file;
-    if (Download(url, ToNearestSecond(time_limit.getRemainingTime()), document, temp_file.getFilePath()) != 0
+    if (Download(normalised_url, ToNearestSecond(time_limit.getRemainingTime()), document,
+		 temp_file.getFilePath()) != 0
 	or time_limit.limitExceeded())
 	return false;
 
-    std::string start_string("<FRAME SRC=\"");
-    size_t start_pos(document->find(start_string));
-    if (start_pos == std::string::npos)
-	return false;
-    start_pos += start_string.length();
-    
-    size_t end_pos(document->find('"', start_pos));
-    if (end_pos == std::string::npos)
-	return false;
-
-    if (Download("http://digitool.hbz-nrw.de:1801"
-		 + document->substr(start_pos, end_pos - start_pos),
-		 ToNearestSecond(time_limit.getRemainingTime()), document, temp_file.getFilePath()) != 0
-	or time_limit.limitExceeded())
-	return false;
-
-    start_pos = document->find("setLabelMetadataStream");
-    if (start_pos == std::string::npos)
-	return false;
-
-    end_pos = document->find("\");", start_pos);
-    if (end_pos == std::string::npos)
-	return false;
-
-    start_pos = document->rfind('"', end_pos - 1);
-    if (start_pos == std::string::npos)
-	return false;
-
-    if (Download(document->substr(start_pos + 1, end_pos - start_pos - 1),
-		 ToNearestSecond(time_limit.getRemainingTime()), document, temp_file.getFilePath()) != 0)
-	return false;
-
-    static const std::string OCR_HEADER("ocr-text:\n");
-    if (not StringUtil::StartsWith(*document, OCR_HEADER))
-	return false;
-    *document = document->substr(OCR_HEADER.size());
+    static const std::string ocr_text("ocr-text:\n");
+    if (MediaTypeUtil::GetMediaType(*document) == "text/plain"
+	and StringUtil::StartsWith(*document, ocr_text))
+	*document = StringUtil::ISO8859_15ToUTF8(document->substr(ocr_text.length()));
 
     return true;
 }

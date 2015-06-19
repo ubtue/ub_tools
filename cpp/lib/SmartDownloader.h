@@ -92,7 +92,7 @@ protected:
 class DigiToolSmartDownloader: public SmartDownloader {
 public:
     DigiToolSmartDownloader()
-	: SmartDownloader("^http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager\\?.+pid=\\d+$") { }
+	: SmartDownloader("^http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager\\?pid=\\d+.*$") { }
     virtual std::string getName() const { return "DigiToolSmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);

@@ -58,9 +58,11 @@ public:
 
     /** Returns true if "s" was matched, false, if an error occurred or no match was found. In the case of an
      *  error "err_msg" will be set to a non-empty string, otherwise "err_msg" will be cleared.
+     *  In the case of a successful match, "start_pos" and "end_pos" will point to the first and last+1
+     *  character of the matched part of "s" respectively.
      */
     bool matched(const std::string &s, std::string * const err_msg,
-		 std::string::size_type * const start_pos = NULL) const;
+		 size_t * const start_pos = NULL, size_t * const end_pos = NULL) const;
 
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return utf8_enabled_; }
