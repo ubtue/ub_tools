@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o errexit -o nounset
 
 if [ $# != 2 -a $# != 3 ]; then
     echo "usage: $0 image_pdf_filename output_text_filename [tesseract_language_code(s)]"

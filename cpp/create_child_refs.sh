@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o errexit -o nounset
 
 # Creates an inverted index from parent IDs to child IDs.  The original records have "uplinks" to parent IDs in
 # fields 800w 810w 830w.  These uplinks are extracted and processed to create a file, named "child_refs",
