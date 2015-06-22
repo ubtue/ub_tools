@@ -42,6 +42,14 @@ public:
     /** Constructs a DirectoryEntry from the binary representation of a MARC-21 directory entry. */
     explicit DirectoryEntry(const std::string &raw_entry);
 
+    /** Copy constructor. */
+    DirectoryEntry(const DirectoryEntry &other)
+	: tag_(other.tag_), field_length_(other.field_length_), field_offset_(other.field_offset_) { }
+
+    /** Move constructor. */
+    DirectoryEntry(DirectoryEntry &&other)
+	: tag_(std::move(other.tag_)), field_length_(other.field_length_), field_offset_(other.field_offset_) { }
+
     /** \brief Constructs a DirectoryEntry from its component parts.
      *
      *  \param tag           A field tag.  Must have a length of 3.
@@ -50,6 +58,13 @@ public:
      */
     DirectoryEntry(const std::string &tag, const unsigned field_length, const unsigned field_offset)
 	: tag_(tag), field_length_(field_length), field_offset_(field_offset) {}
+
+    inline DirectoryEntry &operator=(DirectoryEntry &&other) {
+	tag_ = std::move(other.tag_);
+	field_length_ = other.field_length_;
+	field_offset_ = other.field_offset_;
+	return *this;
+    }
 
     const std::string &getTag() const { return tag_; }
 

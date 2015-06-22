@@ -82,7 +82,7 @@
 static void Usage() __attribute__((noreturn));
 
 
-const unsigned DEFAULT_PER_DOCUMENT_TIMEOUT(60);
+const unsigned DEFAULT_PER_DOCUMENT_TIMEOUT(300);
 const unsigned DEFAULT_WORKER_THREAD_COUNT(20);
 
 
@@ -298,6 +298,12 @@ struct ThreadData {
     const std::string &pdf_images_script_;
     FILE * const output_;
     kyotocabinet::HashDB * const db_;
+public:
+    ThreadData(const ssize_t _856_index, Leader * const leader, std::vector<DirectoryEntry> &&dir_entries,
+	       std::vector<std::string> &&field_data, const unsigned per_doc_timeout,
+	       const std::string &pdf_images_script, FILE * const output, kyotocabinet::HashDB * const db)
+	: _856_index_(_856_index), leader_(leader), dir_entries_(dir_entries), field_data_(field_data),
+	  per_doc_timeout_(per_doc_timeout), pdf_images_script_(pdf_images_script), output_(output), db_(db) { }
 };
 
 
@@ -346,9 +352,9 @@ void ProcessRecords(const unsigned worker_thread_count, const unsigned max_recor
 	    continue;
 	}
 
-	ThreadData thread_data{ _856_index, leader, dir_entries, field_data, per_doc_timeout,
-	                        pdf_images_script, output, db };
-	work_queue.push_back(thread_data);
+	ThreadData thread_data(_856_index, leader, std::move(dir_entries), std::move(field_data), per_doc_timeout,
+			       pdf_images_script, output, db);
+	work_queue.push_back(std::move(thread_data));
     }
 
     while (not work_queue.empty())
