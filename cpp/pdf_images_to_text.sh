@@ -7,7 +7,7 @@ if [ $# != 2 -a $# != 3 ]; then
 fi
 
 temp_dir_name=$(mktemp -d)
-trap 'rm -rf "${temp_dir_name}"' EXIT
+trap 'rm -rf "${temp_dir_name}"' SIGTERM
 
 rm -f "$2"
 pdfimages "$1" "${temp_dir_name}/out"
@@ -18,5 +18,7 @@ for image in "${temp_dir_name}/out"*; do
 	tesseract "$image" stdout -l "$3" >> "$2"
     fi
 done
+
+rm -rf "${temp_dir_name}"
 
 exit 0
