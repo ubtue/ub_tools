@@ -20,3 +20,4 @@ extract_text_from_image_only_pdfs
 shared_buffer_test
 delete_ids
 marc_filter
+krimdok_filter
