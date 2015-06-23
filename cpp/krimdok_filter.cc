@@ -32,36 +32,6 @@
 #include "Subfields.h"
 #include "util.h"
 
-
-void Usage() {
-    std::cerr << "Usage: " << progname << "[(--bibliotheks-sigel-filtern|-f) input_filename output_filename]\n";
-    std::cerr << "\t[(--normalise-urls|-n) input_filename output_filename]\n";
-
-    std::exit(EXIT_FAILURE);
-}
-
-
-const struct option longopts[] = {
-    {
-	.name    = "bibliotheks-sigel-filtern",
-	.has_arg = no_argument,
-	.flag    = nullptr,
-	.val     = 'f'
-    },
-    {
-	.name    = "normalise-urls",
-	.has_arg = no_argument,
-	.flag    = nullptr,
-	.val     = 'n'
-    },
-    {
-	.name    = nullptr,
-	.has_arg = 0,
-	.flag    = nullptr,
-	.val     = '\0'
-    },
-};
-
 		    
 class CompiledPattern {
     std::string tag_;
@@ -333,12 +303,13 @@ void DeleteMatched(const std::string &tags_list, const std::vector<std::string> 
 		if (compiled_pattern.tagMatched(dir_entries[i].getTag())) {
 		    if (compiled_pattern.fieldMatched(field_data[i])) {
 			matched = true;
-			goto found;
+			goto found_match;
 		    }
 		}
 	    }
 	}
-    found:
+
+found_match:
 	if (invert)
 	    matched = not matched;
 	if (matched) {
@@ -418,8 +389,7 @@ void SelectNonHttpAndHttpsLinkEntries(const std::vector<Record856uEntry> &entrie
 }
 
 
-void NormaliseURLs(FILE * const input, FILE * const output, const std::string &output_filename)
-{
+void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output, const std::string &output_filename) {
     Leader *leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
@@ -473,6 +443,9 @@ void NormaliseURLs(FILE * const input, FILE * const output, const std::string &o
 			new_http_url = "https://nbn-resolving.org/" + non_http_link_entry.link_;
 		    else // Ever the optimist.
 			new_http_url = "http://" + non_http_link_entry.link_;
+		    if (verbose)
+			std::cout << "Replacing \"" << non_http_link_entry.link_ << "\" with \""
+				  << new_http_url << "\".\n";
 		    subfields.replace('u', non_http_link_entry.link_, new_http_url);
 
 		    const size_t orig_length = field_data[non_http_link_entry.index_].size();
@@ -510,13 +483,50 @@ void NormaliseURLs(FILE * const input, FILE * const output, const std::string &o
 }
 
 
+void Usage() {
+    std::cerr << "Usage: " << progname << "[(--verbose|-v)]"
+	      << "[(--bibliotheks-sigel-filtern|-f) input_filename output_filename]\n"
+	      << "\t[(--normalise-urls|-n) input_filename output_filename]\n";
+
+    std::exit(EXIT_FAILURE);
+}
+
+
+const struct option longopts[] = {
+    {
+	.name    = "bibliotheks-sigel-filtern",
+	.has_arg = no_argument,
+	.flag    = nullptr,
+	.val     = 'f'
+    },
+    {
+	.name    = "verbose",
+	.has_arg = no_argument,
+	.flag    = nullptr,
+	.val     = 'v'
+    },
+    {
+	.name    = "normalise-urls",
+	.has_arg = no_argument,
+	.flag    = nullptr,
+	.val     = 'n'
+    },
+    {
+	.name    = nullptr,
+	.has_arg = 0,
+	.flag    = nullptr,
+	.val     = '\0'
+    },
+};
+
+
 int main(int argc, char **argv) {
     progname = argv[0];
 
     int opt;
     bool bibliotheks_sigel_filtern(false), normalise_urls(false), verbose(false);
     int option_index(0);
-    while ((opt = getopt_long(argc, argv, "fn", longopts, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "vfn", longopts, &option_index)) != -1) {
 	switch (opt) {
 	case 'f':
 	    bibliotheks_sigel_filtern = true;
@@ -534,8 +544,6 @@ int main(int argc, char **argv) {
     }
     argc -= optind;
     argv += optind;
-
-    (void)verbose;
 
     if (argc < 1) {
 	std::cerr<< progname << ": missing input filename!\n";
@@ -560,7 +568,7 @@ int main(int argc, char **argv) {
 	std::vector<std::string> patterns = { "LOK:^.*[a]DE-21 *$|^.*[a]DE-21-24 *$|^.*[a]DE-21-110 *$" };
 	DeleteMatched("LOK", patterns, /* invert = */ true, input, output, output_filename);
     } else if (normalise_urls)
-	NormaliseURLs(input, output, output_filename);
+	NormaliseURLs(verbose, input, output, output_filename);
     else
 	Usage();
 
