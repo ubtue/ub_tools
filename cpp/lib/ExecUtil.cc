@@ -26,6 +26,8 @@ pid_t child_pid;
 //
 void SigAlarmHandler(int /* sig_no */) {
     alarm_went_off = true;
+    ::kill(-child_pid, SIGTERM);
+    ::sleep(2);
     ::kill(-child_pid, SIGKILL);
 }
 

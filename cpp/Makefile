@@ -1,6 +1,7 @@
 PROGS=marc_grep2 jop_grep download_test add_issn_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
-      bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter
+      bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
+      exec_test
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -c
 LDOPTS=-O3
@@ -121,6 +122,12 @@ marc_filter: marc_filter.o lib/libmarc.a
 
 marc_filter.o: marc_filter.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h lib/RegexMatcher.h \
                lib/StringUtil.h lib/util.h
+	$(CCC) $(CCOPTS) $<
+
+exec_test: exec_test.o  lib/libmarc.a
+	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
+
+exec_test.o: exec_test.cc lib/ExecUtil.h lib/util.h lib/StringUtil.h
 	$(CCC) $(CCOPTS) $<
 
 clean:
