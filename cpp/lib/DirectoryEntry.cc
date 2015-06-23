@@ -56,14 +56,14 @@ bool DirectoryEntry::ParseDirEntries(const std::string &entries_string, std::vec
 				     std::string * const err_msg) {
     entries->clear();
     if ((entries_string.length() % DIRECTORY_ENTRY_LENGTH) != 1) {
-	if (err_msg != NULL)
+	if (err_msg != nullptr)
 	    *err_msg = "Raw directory entries string must be a multiple of " + std::to_string(DIRECTORY_ENTRY_LENGTH)
 		+ " in length!";
 	return false;
     }
 
     if (entries_string[entries_string.length() - 1] != '\x1E') {
-	if (err_msg != NULL)
+	if (err_msg != nullptr)
 	    *err_msg = "Missing field terminator at end of directory!";
 	return false;
     }
