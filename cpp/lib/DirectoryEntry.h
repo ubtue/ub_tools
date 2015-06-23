@@ -47,8 +47,7 @@ public:
 	: tag_(other.tag_), field_length_(other.field_length_), field_offset_(other.field_offset_) { }
 
     /** Move constructor. */
-    DirectoryEntry(DirectoryEntry &&other)
-	: tag_(std::move(other.tag_)), field_length_(other.field_length_), field_offset_(other.field_offset_) { }
+    DirectoryEntry(DirectoryEntry &&other) = default;
 
     /** \brief Constructs a DirectoryEntry from its component parts.
      *
@@ -89,12 +88,12 @@ public:
      *
      *  \param entries_string A binary blob that represents the directory of a MARC-21 record.
      *  \param entries        Return value containing the parsed DirectoryEntry's.
-     *  \param err_msg        If not NULL, error messages will be returned here.
+     *  \param err_msg        If not nullptr, error messages will be returned here.
      *
      *  \return True if no parse errors occurred, else false.
      */
     static bool ParseDirEntries(const std::string &entries_string, std::vector<DirectoryEntry> * const entries,
-				std::string * const err_msg = NULL);
+				std::string * const err_msg = nullptr);
 
     /** \brief Locate the first occurrence of a field tag in a vector of DirectoryEntry's.
      *
