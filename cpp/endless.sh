@@ -1,4 +1,5 @@
 #!/bin/bash
+# Test script used w/ exec_test.
 
 trap 'echo Exiting; exit -1' SIGTERM
 
