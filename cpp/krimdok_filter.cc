@@ -419,7 +419,7 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output, 
 	}
 
 	bool modified_record(false);
-	if (not _856u_entries.empty() and not All856uLinksAreHttpOrHttpsLinks(_856u_entries)) {
+	if (not All856uLinksAreHttpOrHttpsLinks(_856u_entries)) {
 	    std::unordered_set<std::string> http_urls;
 	    SelectHttpAndHttpsURLs(_856u_entries, &http_urls);
 	    std::vector<Record856uEntry> non_http_link_entries;
@@ -429,6 +429,10 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output, 
 		for (const auto &http_url : http_urls) {
 		    if (StringUtil::EndsWith(http_url, non_http_link_entry.link_)) {
 			is_suffix = true;
+			if (verbose)
+			    std::cout << "Deleting tag " << dir_entries[non_http_link_entry.index_].getTag()
+				      << " with link \"" << field_data[non_http_link_entry.index_]
+				      << "\" because it is probably a duplicate of \"" << http_url << "\".\n";
 			dir_entries.erase(dir_entries.begin() + non_http_link_entry.index_);
 			field_data.erase(field_data.begin() + non_http_link_entry.index_);
 			modified_record = true;
@@ -521,12 +525,12 @@ const struct option longopts[] = {
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     int opt;
     bool bibliotheks_sigel_filtern(false), normalise_urls(false), verbose(false);
     int option_index(0);
-    while ((opt = getopt_long(argc, argv, "vfn", longopts, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "fvn", longopts, &option_index)) != -1) {
 	switch (opt) {
 	case 'f':
 	    bibliotheks_sigel_filtern = true;
@@ -538,7 +542,7 @@ int main(int argc, char **argv) {
 	    verbose = true;
 	    break;
 	default:
-	    std::cerr << progname << ": unknown command-line option!\n";
+	    std::cerr << ::progname << ": unknown command-line option!\n";
 	    Usage();
 	}
     }
@@ -546,11 +550,11 @@ int main(int argc, char **argv) {
     argv += optind;
 
     if (argc < 1) {
-	std::cerr<< progname << ": missing input filename!\n";
+	std::cerr<< ::progname << ": missing input filename!\n";
 	Usage();
     }
     if (argc < 2) {
-	std::cerr<< progname << ": missing input filename!\n";
+	std::cerr<< ::progname << ": missing input filename!\n";
 	Usage();
     }
 

@@ -7,16 +7,17 @@ set -o errexit -o nounset
 # add_child_refs tool.  A second pass generates a map from child IDs to child titles which is stored in
 # "child_titles".  This too will be used by the add_child_refs tool.
 
-# The following is an optional prefix that will be prepended to all child IDs:
-ID_PREFIX="BSZ"
+if [ $# -ne 2 ]; then
+    echo "usage: $0 TitelUndLokaldaten-normalised.mrc ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised.mrc"
+    exit 1
+fi
 
 rm -f parent_refs child_titles
-for f in KrimDokTitelUndLokaldaten-normalised.mrc ÜbergeordneteTitelundLokaldaten-filtered2.mrc; do
+for f in "$1" "$2"; do
     for s in 800w 810w 830w 773w; do
-	marc_grep2 $f '"'$s'"' \
-            | sed -r 's/^([^:]+)[^)]+[)](.+)$/\2:'"${ID_PREFIX}"'\1/' >> parent_refs
+	marc_grep2 $f '"'$s'"' | sed -r 's/^([^:]+)[^)]+[)](.+)$/\2:\1/' >> parent_refs
     done
-    marc_grep2 $f '"245a"' | awk '{print "'"${ID_PREFIX}"'" $0}' >> child_titles
+    marc_grep2 $f '"245a"' >> child_titles
 done
 sort parent_refs \
 | uniq \
