@@ -17,7 +17,8 @@ jop_grep
 marc_grep2
 marc_grep_tokenizer_test
 extract_text_from_image_only_pdfs
-shared_buffer_test
 delete_ids
 marc_filter
 krimdok_filter
+full_text_lookup
+shared_buffer_test
