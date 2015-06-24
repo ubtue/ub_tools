@@ -1,0 +1,72 @@
+#!/bin/bash
+# Runs through the phases of the KrimDok MARC-21 pipeline.
+set -o errexit -o nounset
+
+if [ $# != 2 ]; then
+    echo "usage: $0 TitelUndLokaldaten-DDMMYY.mrc ÜbergeordneteTitelUndLokaldaten-DDMMYY.mrc"
+    exit 1
+fi
+
+if [[ ! "$1" =~ TitelUndLokaldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
+    echo 'Die Titeldatendatei entspicht nicht dem Muster TitelUndLokaldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc!'
+    exit 1
+fi
+
+# Extract date:
+date=$(echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1)
+
+if [[ ! "$2" =~ ÜbergeordneteTitelUndLokaldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
+    echo 'Die Übergeordnetedatendatei entspicht nicht dem Muster ÜbergeordneteTitelUndLokaldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc!'
+    exit 1
+fi
+
+date2=$(echo $(echo "$2" | cut -d- -f 2) | cut -d. -f1)
+if [[ "$date" != "$date2" ]]; then
+    echo "Datum im Titeldatendateinamen muss identisch zum Datum im Dateinamen der übergeordneten Daten."
+    exit 1
+fi
+
+log=krimdok_marc_pipeline.log
+rm -f "${log}"
+
+# Phase 1:
+echo "*** Phase 1 ***"
+echo "*** Phase 1 ***" >> "${log}"
+krimdok_filter --bibliotheks-sigel-filtern "$2" ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc >> "${log}"
+
+# Phase 2:
+echo "*** Phase 2 ***"
+echo "*** Phase 2 ***" >> "${log}"
+krimdok_filter --normalise-urls "$1" TitelUndLokaldaten-normalised-"${date}".mrc >> "${log}"
+krimdok_filter --normalise-urls ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc \
+               ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc >> "${log}"
+
+# Phase 3:
+echo "*** Phase 3 ***"
+echo "*** Phase 3 ***" >> "${log}"
+create_child_refs.sh TitelUndLokaldaten-normalised-"${date}".mrc \
+                     ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc >> "${log}"
+add_child_refs ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc \
+               ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
+               child_refs child_titles >> "${log}"
+
+# Phase 4:
+echo "*** Phase 4 ***"
+echo "*** Phase 4 ***" >> "${log}"
+add_issn_to_articles TitelUndLokaldaten-normalised-"${date}".mrc \
+                     ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
+                     TitelUndLokaldaten-normalised-with-issns-"${date}".mrc >> "${log}"
+
+# Phase 5:
+echo "*** Phase 5 ***"
+echo "*** Phase 5 ***" >> "${log}"
+create_full_text_db TitelUndLokaldaten-normalised-with-issns-"${date}".mrc \
+                    TitelUndLokaldaten-normalised-with-issns-and-full-text-links-"${date}".mrc \
+                    full_text.db >> "${log}"
+
+# Cleanup of intermediate files:
+rm -f ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc
+rm -f TitelUndLokaldaten-normalised-"${date}".mrc
+rm -f ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc
+rm -f TitelUndLokaldaten-normalised-with-issns-"${date}".mrc
+rm -f child_refs child_titles parent_refs
