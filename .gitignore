@@ -18,3 +18,4 @@ marc_grep2
 marc_grep_tokenizer_test
 extract_text_from_image_only_pdfs
 full_text_lookup
+shared_buffer_test
