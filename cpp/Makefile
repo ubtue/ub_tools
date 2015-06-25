@@ -88,7 +88,7 @@ create_full_text_db.o: create_full_text_db.cc lib/Downloader.h lib/RegexMatcher.
 create_full_text_db: create_full_text_db.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic -lpthread
 
-delete_ids.o: delete_ids.cc lib/MarcUtil.h  lib/util.h
+delete_ids.o: delete_ids.cc lib/MarcUtil.h lib/StringUtil.h lib/Subfields.h lib/util.h
 
 delete_ids: delete_ids.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lmagic
