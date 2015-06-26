@@ -41,14 +41,24 @@ static void Usage() {
 void ExtractDeletionIds(FILE * const deletion_list, std::unordered_set<std::string> * const title_deletion_ids,
 			std::unordered_set<std::string> * const local_deletion_ids)
 {
+    unsigned line_no(0);
     char line[100];
     while (std::fgets(line, sizeof(line), deletion_list) != NULL) {
-	if (std::strlen(line) < 13)
+	++line_no;
+	size_t line_length(std::strlen(line));
+	if (line_length < 13)
 	    Error("short line in deletion list file: \"" + std::string(line) + "\"!");
+	if (line[line_length - 1] == '\n') {
+	    line[line_length - 1] = '\0';
+	    --line_length;
+	}
 	if (line[11] == 'A')
-	    title_deletion_ids->insert(line + 12);
-	else if (line[11] == '9')
-	    local_deletion_ids->insert(line + 12);
+	    title_deletion_ids->insert(line + 12); // extract PPN
+	else if (line[11] == '9') {
+	    if (line_length != 25)
+		Error("unexpected line length for local entry on line " + std::to_string(line_no) + "!");
+	    local_deletion_ids->insert(std::string(line).substr(12, 9)); // extract ELN
+	}
     }
 
     std::fclose(deletion_list);
@@ -104,6 +114,9 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
 
 	ssize_t start_local_match;
 	if (title_deletion_ids.find(field_data[0]) != title_deletion_ids.end()) {
+	    ++deleted_record_count;
+	    std::cout << "Deleted record with ID " << field_data[0] << '\n';
+	} else { // Look for local data sets that may need to be deleted.
 	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, raw_leader);
 	
 	    bool modified(false);
@@ -114,8 +127,9 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
 		    Error("weird data structure (1)!");
 		const Subfields subfields(field_data[start_local_match]);
 		if (not subfields.hasSubfield('0')
-		    or StringUtil::StartsWith(subfields.getFirstSubfieldValue('0'), "000 "))
-		    Error("missing or empty local field \"000\"!");
+		    or not StringUtil::StartsWith(subfields.getFirstSubfieldValue('0'), "000 "))
+		    Error("missing or empty local field \"000\"! (EPN: "
+			  + field_data[start_local_match + 1].substr(8) + ", PPN: " + field_data[0] + ")");
 
 		// Now we need to find the index one past the end of the local record.  This would
 		// be either the "000" field of the next local record or one past the end of the overall
@@ -153,9 +167,6 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
 		    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, raw_leader);
 		}
 	    }
-	} else {
-	    ++deleted_record_count;
-	    std::cout << "Deleted record with ID " << field_data[0] << '\n';
 	}
     }
 
