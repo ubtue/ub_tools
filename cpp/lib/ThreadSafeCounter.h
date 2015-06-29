@@ -28,21 +28,21 @@ template<typename NumericType> class ThreadSafeCounter {
     std::mutex mutex_;
 public:
     explicit ThreadSafeCounter(const NumericType initial_counter_value = 0)
-	: counter_(initial_counter_value) { }
+        : counter_(initial_counter_value) { }
 
     void operator++() {
-	std::unique_lock<std::mutex> mutex_locker(mutex_);
-	++counter_;
+        std::unique_lock<std::mutex> mutex_locker(mutex_);
+        ++counter_;
     }
 
     void operator++(int) {
-	std::unique_lock<std::mutex> mutex_locker(mutex_);
-	++counter_;
+        std::unique_lock<std::mutex> mutex_locker(mutex_);
+        ++counter_;
     }
 
     NumericType get() {
-	std::unique_lock<std::mutex> mutex_locker(mutex_);
-	return counter_;
+        std::unique_lock<std::mutex> mutex_locker(mutex_);
+        return counter_;
     }
 };
 

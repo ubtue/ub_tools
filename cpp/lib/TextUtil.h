@@ -42,7 +42,7 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
  *  \return True if there were no character conversion problems, else false.
  */
 bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * const words,
-		   const unsigned min_word_length = 1);
+                   const unsigned min_word_length = 1);
 
 
 } // namespace TextUtil

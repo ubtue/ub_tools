@@ -42,7 +42,7 @@
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
 int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdout = "",
-	 unsigned timeout_in_seconds = 0);
+         unsigned timeout_in_seconds = 0);
 
 
 #endif // ifndef EXEC_UTIL_H

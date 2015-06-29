@@ -42,33 +42,33 @@
  *  limit has been reached.
  */
 class TimeLimit {
-	timeval expire_time_;
+        timeval expire_time_;
 public:
-	/** \brief  Construct a TimeLimit by specifying the limit.
-	 *  \param  time_limit  The time until expiration, in milliseconds.
-	 *  \note   This constructor is deliberately not explicit, so that unsigned values can be used in place of
-	 *          TimeLimit objects in function calls.
-	 */
-	TimeLimit(const unsigned time_limit);
+        /** \brief  Construct a TimeLimit by specifying the limit.
+         *  \param  time_limit  The time until expiration, in milliseconds.
+         *  \note   This constructor is deliberately not explicit, so that unsigned values can be used in place of
+         *          TimeLimit objects in function calls.
+         */
+        TimeLimit(const unsigned time_limit);
 
-	/** TimeLimit Copy Constructor. */
-	TimeLimit(const TimeLimit &rhs): expire_time_(rhs.expire_time_) { }
+        /** TimeLimit Copy Constructor. */
+        TimeLimit(const TimeLimit &rhs): expire_time_(rhs.expire_time_) { }
 
-	/** TimeLimit equality operator. */
-	const TimeLimit operator=(const TimeLimit &rhs) { expire_time_ = rhs.expire_time_; return *this; }
+        /** TimeLimit equality operator. */
+        const TimeLimit operator=(const TimeLimit &rhs) { expire_time_ = rhs.expire_time_; return *this; }
 
-	/** \brief  Test whether the time limit has been exceeded.
-	 *  \return  True if the time limit has been exceeded, otherwise false.
-	 */
-	bool limitExceeded() const;
+        /** \brief  Test whether the time limit has been exceeded.
+         *  \return  True if the time limit has been exceeded, otherwise false.
+         */
+        bool limitExceeded() const;
 
-	/** \brief   Get the time remaining before the limit is exceeded.
-	 *  \return  The time remaining until the limit is exceeded (in milliseconds) or 0 if the limit is already
-	 *           exceeded.
-	 */
-	unsigned getRemainingTime() const;
+        /** \brief   Get the time remaining before the limit is exceeded.
+         *  \return  The time remaining until the limit is exceeded (in milliseconds) or 0 if the limit is already
+         *           exceeded.
+         */
+        unsigned getRemainingTime() const;
 
-	bool operator!=(const TimeLimit &rhs);
+        bool operator!=(const TimeLimit &rhs);
 };
 
 

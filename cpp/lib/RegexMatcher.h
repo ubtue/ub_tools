@@ -43,8 +43,8 @@ public:
 
     /** Destrcutor. */
     virtual ~RegexMatcher() {
-	::pcre_free_study(pcre_extra_);
-	::pcre_free(pcre_);
+        ::pcre_free_study(pcre_extra_);
+        ::pcre_free(pcre_);
     }
 
     /** \brief Creates a RegexMatcher.
@@ -54,7 +54,7 @@ public:
      *  \return NULL if "pattern" failed to compile and then also sets "err_msg".
      */
     static RegexMatcher *RegexMatcherFactory(const std::string &pattern, std::string * const err_msg = NULL,
-					     const bool enable_utf8 = false);
+                                             const bool enable_utf8 = false);
 
     /** Returns true if "s" was matched, false, if an error occurred or no match was found. In the case of an
      *  error "err_msg" will be set to a non-empty string, otherwise "err_msg" will be cleared.
@@ -62,14 +62,14 @@ public:
      *  character of the matched part of "s" respectively.
      */
     bool matched(const std::string &s, std::string * const err_msg,
-		 size_t * const start_pos = NULL, size_t * const end_pos = NULL) const;
+                 size_t * const start_pos = NULL, size_t * const end_pos = NULL) const;
 
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return utf8_enabled_; }
 private:
     RegexMatcher(const std::string &pattern, const bool utf8_enabled, pcre * const pcre,
-		 pcre_extra * const pcre_extra)
-	: pattern_(pattern), utf8_enabled_(utf8_enabled), pcre_(pcre), pcre_extra_(pcre_extra) {}
+                 pcre_extra * const pcre_extra)
+        : pattern_(pattern), utf8_enabled_(utf8_enabled), pcre_(pcre), pcre_extra_(pcre_extra) {}
 };
 
 

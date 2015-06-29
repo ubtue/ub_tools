@@ -39,7 +39,7 @@ namespace HtmlUtil {
 bool DecodeEntity(const char *entity_string, char * const ch);
 
 inline bool DecodeEntity(const std::string &entity_string, char * const ch)
-	{ return DecodeEntity(entity_string.c_str(), ch); }
+        { return DecodeEntity(entity_string.c_str(), ch); }
 
 
 enum UnknownEntityMode { IGNORE_UNKNOWN_ENTITIES, REMOVE_UNKNOWN_ENTITIES };
@@ -51,14 +51,14 @@ enum UnknownEntityMode { IGNORE_UNKNOWN_ENTITIES, REMOVE_UNKNOWN_ENTITIES };
  *  \note   It is probably a good idea to call RemoveTags before calling this function.
  */
 std::string &ReplaceEntities(std::string * const s,
-			     const UnknownEntityMode unknown_entity_mode = REMOVE_UNKNOWN_ENTITIES);
+                             const UnknownEntityMode unknown_entity_mode = REMOVE_UNKNOWN_ENTITIES);
 
 inline std::string ReplaceEntities(const std::string &s,
-				   const UnknownEntityMode unknown_entity_mode = REMOVE_UNKNOWN_ENTITIES)
+                                   const UnknownEntityMode unknown_entity_mode = REMOVE_UNKNOWN_ENTITIES)
 {
-	std::string temp_s(s);
-	ReplaceEntities(&temp_s, unknown_entity_mode);
-	return temp_s;
+        std::string temp_s(s);
+        ReplaceEntities(&temp_s, unknown_entity_mode);
+        return temp_s;
 }
 
 

@@ -32,7 +32,7 @@
  *  \return Exit code of the child process.  0 upon success.
  */
 int Download(const std::string &url, const std::string &output_filename, const unsigned timeout,
-	     const std::string &cookie_file = "");
+             const std::string &cookie_file = "");
 
 
 /** \brief Downloads a Web document.
@@ -43,7 +43,7 @@ int Download(const std::string &url, const std::string &output_filename, const u
  *  \return Exit code of the child process.  0 upon success.
  */
 int Download(const std::string &url, const unsigned timeout, std::string * const output,
-	     const std::string &cookie_file = "");
+             const std::string &cookie_file = "");
 
 
 #endif // ifndef DOWNLOADER_H

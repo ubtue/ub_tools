@@ -32,7 +32,7 @@
  *  \return Exit code of the child process.  0 upon success.
  */
 int OCR(const std::string &input_document_path, const std::string &output_document_path,
-	const std::string &language_codes = "deu");
+        const std::string &language_codes = "deu");
 
 
 /** \brief OCR the input document, assumed to be in language or languages "language_codes".
