@@ -42,7 +42,7 @@ class Tokenizer {
     unsigned last_unsigned_constant_;
 public:
     explicit Tokenizer(const std::string input)
-	: input_(input), ch_(input_.begin()), end_(input_.end()), token_has_been_pushed_back_(false) { }
+        : input_(input), ch_(input_.begin()), end_(input_.end()), token_has_been_pushed_back_(false) { }
     TokenType getToken();
     void ungetToken();
     std::string getLastStringConstant() const { return last_string_constant_; }

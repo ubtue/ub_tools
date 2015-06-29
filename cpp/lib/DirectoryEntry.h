@@ -44,7 +44,7 @@ public:
 
     /** Copy constructor. */
     DirectoryEntry(const DirectoryEntry &other)
-	: tag_(other.tag_), field_length_(other.field_length_), field_offset_(other.field_offset_) { }
+        : tag_(other.tag_), field_length_(other.field_length_), field_offset_(other.field_offset_) { }
 
     /** Move constructor. */
     DirectoryEntry(DirectoryEntry &&other) = default;
@@ -56,13 +56,13 @@ public:
      *  \param field_offset  Must be less than 10,000.
      */
     DirectoryEntry(const std::string &tag, const unsigned field_length, const unsigned field_offset)
-	: tag_(tag), field_length_(field_length), field_offset_(field_offset) {}
+        : tag_(tag), field_length_(field_length), field_offset_(field_offset) {}
 
     inline DirectoryEntry &operator=(DirectoryEntry &&other) {
-	tag_ = std::move(other.tag_);
-	field_length_ = other.field_length_;
-	field_offset_ = other.field_offset_;
-	return *this;
+        tag_ = std::move(other.tag_);
+        field_length_ = other.field_length_;
+        field_offset_ = other.field_offset_;
+        return *this;
     }
 
     const std::string &getTag() const { return tag_; }
@@ -93,7 +93,7 @@ public:
      *  \return True if no parse errors occurred, else false.
      */
     static bool ParseDirEntries(const std::string &entries_string, std::vector<DirectoryEntry> * const entries,
-				std::string * const err_msg = nullptr);
+                                std::string * const err_msg = nullptr);
 
     /** \brief Locate the first occurrence of a field tag in a vector of DirectoryEntry's.
      *
@@ -104,7 +104,7 @@ public:
      *          field_entries.end() if there were no n occurrences of the tag in "field_entries".
      */
     static std::vector<DirectoryEntry>::const_iterator FindField(const std::string &tag,
-								 const std::vector<DirectoryEntry> &field_entries);
+                                                                 const std::vector<DirectoryEntry> &field_entries);
 
     /** \brief Locate all occurrences of a field tag in a vector of DirectoryEntry's.
      *

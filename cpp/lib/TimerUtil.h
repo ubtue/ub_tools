@@ -39,13 +39,13 @@
 //
 inline bool operator<(const struct timeval &tv1, const struct timeval &tv2)
 {
-	if (tv1.tv_sec < tv2.tv_sec)
-		return true;
-	if (tv1.tv_sec > tv2.tv_sec)
-		return false;
+        if (tv1.tv_sec < tv2.tv_sec)
+                return true;
+        if (tv1.tv_sec > tv2.tv_sec)
+                return false;
 
-	// At this point tv1.tv_sec == tv2.tv_sec
-	return tv1.tv_usec < tv2.tv_usec;
+        // At this point tv1.tv_sec == tv2.tv_sec
+        return tv1.tv_usec < tv2.tv_usec;
 }
 
 
@@ -53,86 +53,86 @@ inline bool operator<(const struct timeval &tv1, const struct timeval &tv2)
 //
 inline bool operator>(const struct timeval &tv1, const struct timeval &tv2)
 {
-	if (tv1.tv_sec > tv2.tv_sec)
-		return true;
-	if (tv1.tv_sec < tv2.tv_sec)
-		return false;
+        if (tv1.tv_sec > tv2.tv_sec)
+                return true;
+        if (tv1.tv_sec < tv2.tv_sec)
+                return false;
 
-	// At this point tv1.tv_sec == tv2.tv_sec
-	return tv1.tv_usec > tv2.tv_usec;
+        // At this point tv1.tv_sec == tv2.tv_sec
+        return tv1.tv_usec > tv2.tv_usec;
 }
 
 
 /** Returns the equivalent time in milliseconds for "tv", rounded to the nearest millisecond. */
 inline long TimeValToMilliseconds(const struct timeval &tv)
 {
-	return 1000 * tv.tv_sec + (tv.tv_usec + 500) / 1000;
+        return 1000 * tv.tv_sec + (tv.tv_usec + 500) / 1000;
 }
 
 
 /** Returns the equivalent time in microseconds for "tv". */
 inline long TimeValToMicroseconds(const struct timeval &tv)
 {
-	return 1000000 * tv.tv_sec + tv.tv_usec;
+        return 1000000 * tv.tv_sec + tv.tv_usec;
 }
 
 
 /** Converts milliseconds "ms" to a struct timeval "tv". */
 inline void MillisecondsToTimeVal(const int ms, struct timeval * const tv)
 {
-	tv->tv_sec  = ms / 1000;
-	tv->tv_usec = (ms % 1000) * 1000;
+        tv->tv_sec  = ms / 1000;
+        tv->tv_usec = (ms % 1000) * 1000;
 }
 
 
 /** Converts milliseconds "ms" to a struct timespec "ts". */
 inline void MillisecondsToTimeSpec(const int ms, struct timespec * const ts)
 {
-	ts->tv_sec  = ms / 1000;
-	ts->tv_nsec = (ms % 1000) * 1000000L;
+        ts->tv_sec  = ms / 1000;
+        ts->tv_nsec = (ms % 1000) * 1000000L;
 }
 
 
 inline double TimevalToDouble(const struct timeval &tv)
 {
-	return static_cast<double>(tv.tv_sec) + static_cast<double>(tv.tv_usec) * 1.0e-6;
+        return static_cast<double>(tv.tv_sec) + static_cast<double>(tv.tv_usec) * 1.0e-6;
 }
 
 
 inline double TimespecToDouble(const struct timespec &ts)
 {
-	return static_cast<double>(ts.tv_sec) + static_cast<double>(ts.tv_nsec) * 1.0e-9;
+        return static_cast<double>(ts.tv_sec) + static_cast<double>(ts.tv_nsec) * 1.0e-9;
 }
 
 
 inline timeval &operator+=(timeval &lhs, const unsigned milliseconds)
 {
-	// Are we adding less than 1 second?
-	if (milliseconds < 1000) // Yes!
-		lhs.tv_usec += milliseconds * static_cast<suseconds_t>(1000);
-	else { // No, more than 1 second.
-		const time_t additional_seconds(milliseconds / 1000);
-		lhs.tv_sec += additional_seconds;
-		lhs.tv_usec += (milliseconds - additional_seconds * 1000)  * static_cast<suseconds_t>(1000);
-	}
+        // Are we adding less than 1 second?
+        if (milliseconds < 1000) // Yes!
+                lhs.tv_usec += milliseconds * static_cast<suseconds_t>(1000);
+        else { // No, more than 1 second.
+                const time_t additional_seconds(milliseconds / 1000);
+                lhs.tv_sec += additional_seconds;
+                lhs.tv_usec += (milliseconds - additional_seconds * 1000)  * static_cast<suseconds_t>(1000);
+        }
 
-	// Make sure "lhs" is in normalised form:
-	if (lhs.tv_usec > 1000000) {
-		lhs.tv_usec -= 1000000;
-		++lhs.tv_sec;
-	}
+        // Make sure "lhs" is in normalised form:
+        if (lhs.tv_usec > 1000000) {
+                lhs.tv_usec -= 1000000;
+                ++lhs.tv_sec;
+        }
 
-	return lhs;
+        return lhs;
 }
 
 
 /** Subtract one "struct timeval" from another.  Returns the difference in microseconds.  Does not check for overflow! */
 inline long operator-(const timeval &lhs, const timeval &rhs)
 {
-	const long lhs_usec(lhs.tv_sec * 1000000 + lhs.tv_usec);
-	const long rhs_usec(rhs.tv_sec * 1000000 + rhs.tv_usec);
+        const long lhs_usec(lhs.tv_sec * 1000000 + lhs.tv_usec);
+        const long rhs_usec(rhs.tv_sec * 1000000 + rhs.tv_usec);
 
-	return lhs_usec - rhs_usec;
+        return lhs_usec - rhs_usec;
 }
 
 
@@ -140,8 +140,8 @@ inline long operator-(const timeval &lhs, const timeval &rhs)
     Does not check for overflow! */
 inline long operator-(const long &lhs_usec, const timeval &rhs)
 {
-	const long rhs_usec(rhs.tv_sec * 1000000 + rhs.tv_usec);
-	return lhs_usec - rhs_usec;
+        const long rhs_usec(rhs.tv_sec * 1000000 + rhs.tv_usec);
+        return lhs_usec - rhs_usec;
 }
 
 
@@ -149,8 +149,8 @@ inline long operator-(const long &lhs_usec, const timeval &rhs)
     Does not check for overflow! */
 inline long operator-(const timeval &lhs, const long &rhs_usec)
 {
-	const long lhs_usec(lhs.tv_sec * 1000000 + lhs.tv_usec);
-	return lhs_usec - rhs_usec;
+        const long lhs_usec(lhs.tv_sec * 1000000 + lhs.tv_usec);
+        return lhs_usec - rhs_usec;
 }
 
 
@@ -165,24 +165,24 @@ inline long operator-(const timeval &lhs, const long &rhs_usec)
  *          member functions!
  */
 template<class SomeTimer> class TimerStartStopper {
-	SomeTimer &some_timer_;
-	bool is_stopped_;
+        SomeTimer &some_timer_;
+        bool is_stopped_;
 public:
-	explicit TimerStartStopper(SomeTimer * const some_timer)
-		: some_timer_(*some_timer), is_stopped_(false)
-		{ some_timer_.start(); }
+        explicit TimerStartStopper(SomeTimer * const some_timer)
+                : some_timer_(*some_timer), is_stopped_(false)
+                { some_timer_.start(); }
 
-	/** Use this in tandem with the "restart()" member function. */
-	void stop() { some_timer_.stop(); is_stopped_ = true; }
+        /** Use this in tandem with the "restart()" member function. */
+        void stop() { some_timer_.stop(); is_stopped_ = true; }
 
-	/** Use this in tandem with the "stop()" member function. */
-	void restart() { some_timer_.start(); is_stopped_ = false; }
+        /** Use this in tandem with the "stop()" member function. */
+        void restart() { some_timer_.start(); is_stopped_ = false; }
 
-	~TimerStartStopper()
-		{ if (not is_stopped_) some_timer_.stop(); }
+        ~TimerStartStopper()
+                { if (not is_stopped_) some_timer_.stop(); }
 private:
-	TimerStartStopper(const TimerStartStopper &rhs); // Intentionally unimplemented!
-	const TimerStartStopper &operator=(const TimerStartStopper &rhs); // Intentionally unimplemented!
+        TimerStartStopper(const TimerStartStopper &rhs); // Intentionally unimplemented!
+        const TimerStartStopper &operator=(const TimerStartStopper &rhs); // Intentionally unimplemented!
 };
 
 
@@ -193,18 +193,18 @@ namespace TimerUtil {
  *          any pending real time itimer and signal handlers associated with SIGALRM.
  */
 class SaveAndRestorePendingTimer {
-	itimerval saved_itimerval_;      // Saved settings of a potentially active itimer.
-	timeval start_time_;       	 // Systime at object construction.
-	struct sigaction old_sigaction_; // The old options and signal handler for SIGALARM.
+        itimerval saved_itimerval_;      // Saved settings of a potentially active itimer.
+        timeval start_time_;             // Systime at object construction.
+        struct sigaction old_sigaction_; // The old options and signal handler for SIGALARM.
 public:
-	SaveAndRestorePendingTimer();
-	~SaveAndRestorePendingTimer();
+        SaveAndRestorePendingTimer();
+        ~SaveAndRestorePendingTimer();
 
-	/** Returns the remaining time in microseconds on a pending timer if any or ULONG_MAX. */
-	unsigned long getRemainingTimeOnPendingTimer() const;
+        /** Returns the remaining time in microseconds on a pending timer if any or ULONG_MAX. */
+        unsigned long getRemainingTimeOnPendingTimer() const;
 private:
-	SaveAndRestorePendingTimer(const SaveAndRestorePendingTimer &rhs); 		   // Intentionally unimplemented!
-	const SaveAndRestorePendingTimer operator=(const SaveAndRestorePendingTimer &rhs); // Intentionally unimplemented!
+        SaveAndRestorePendingTimer(const SaveAndRestorePendingTimer &rhs);                 // Intentionally unimplemented!
+        const SaveAndRestorePendingTimer operator=(const SaveAndRestorePendingTimer &rhs); // Intentionally unimplemented!
 };
 
 
@@ -226,14 +226,14 @@ unsigned LeftOverTime(const struct timeval &start_time, const struct timeval &en
  *          "*timeout"!
  */
 void SubtractLeftOverTime(const struct timeval &start_time, const struct timeval &end_time,
-			  unsigned * const timeout);
+                          unsigned * const timeout);
 
 
 /** \brief  Millisecond resolution alarm function.
  *  \param  milliseconds  Timeout in milliseconds.
  *  \note   If "milliseconds" is 0, no new timer will be started and a potentially already running timer will be
- *  	    cancelled.  Caution: this function interacts and interferes with the standard Linux alarm(2) function
- *  	    in that both use the ITIMER_REAL itimer.
+ *          cancelled.  Caution: this function interacts and interferes with the standard Linux alarm(2) function
+ *          in that both use the ITIMER_REAL itimer.
  *  \return The remaining time on an already existing timer in milliseconds, or -1 on error.
  */
 unsigned malarm(const unsigned milliseconds);
