@@ -149,9 +149,9 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
 def Main():
     config = LoadConfigFile(sys.argv[0][:-2] + "conf")
     try:
-        ftp_host         = config["FTP"]["host"]
-        ftp_user         = config["FTP"]["username"]
-        ftp_passwd       = config["FTP"]["password"]
+        ftp_host   = config["FTP"]["host"]
+        ftp_user   = config["FTP"]["username"]
+        ftp_passwd = config["FTP"]["password"]
     except Exception as e:
         Error("failed to read config file! ("+ str(e) + ")")
 
