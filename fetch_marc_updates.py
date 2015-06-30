@@ -13,8 +13,13 @@ server_address  = smtpserv.uni-tuebingen.de
 server_user     = XXXXXX
 server_password = XXXXXX
 
-[Misc]
+[Kompletter Abzug]
 filename_pattern = WA-MARC-krimdok-(\d\d\d\d\d\d).tar.gz
+directory_on_ftp_server = /001
+
+[Loeschlisten]
+filename_pattern = LOEPPN-(\d\d\d\d\d\d)
+directory_on_ftp_server = /sekkor
 """
 
 
@@ -104,7 +109,7 @@ def GetMostRecentLocalFile(filename_regex):
 
 def GetMostRecentRemoteFile(ftp, filename_regex, directory):
     try:
-        ftp.cwd(directory) # UB Tübingen
+        ftp.cwd(directory)
     except Exception as e:
         Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
 
