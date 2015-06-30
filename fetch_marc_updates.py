@@ -13,8 +13,13 @@ server_address  = smtpserv.uni-tuebingen.de
 server_user     = XXXXXX
 server_password = XXXXXX
 
-[Misc]
+[Kompletter Abzug]
 filename_pattern = WA-MARC-krimdok-(\d\d\d\d\d\d).tar.gz
+directory_on_ftp_server = /001
+
+[Loeschlisten]
+filename_pattern = LOEPPN-(\d\d\d\d\d\d)
+directory_on_ftp_server = /sekkor
 """
 
 
@@ -27,7 +32,8 @@ import smtplib
 import sys
 
 
-def SendEmail(subject, msg, sender="fetch_marc_updates.py", recipient="johannes.ruscheinski@uni-tuebingen.de"):
+def SendEmail(subject, msg, sender="fetch_marc_updates@ub.uni-tuebingen.de",
+              recipient="johannes.ruscheinski@uni-tuebingen.de"):
     config = LoadConfigFile(sys.argv[0][:-2] + "conf")
     try:
         server_address  = config["SMTPServer"]["server_address"]
@@ -48,7 +54,8 @@ def SendEmail(subject, msg, sender="fetch_marc_updates.py", recipient="johannes.
         server.login(server_user, server_password)
         server.sendmail(sender, [recipient], message.as_string())
     except Exception as e:
-        Warning("Failed to send your email: " + str(e))
+        print("Failed to send your email: " + str(e), file=sys.stderr)
+        sys.exit(-1)
     server.quit()
 
 
@@ -82,61 +89,61 @@ def LoadConfigFile(path):
         Error("failed to load the config file from \"" + path + "\"! (" + str(e) + ")")
 
 
-def GetMostRecentTarball(filename_regex, filename_generator):
+def GetMostRecentFile(filename_regex, filename_generator):
     most_recent_date = "000000"
-    most_recent_tarball = None
+    most_recent_file = None
     for filename in filename_generator:
          match = filename_regex.match(filename)
          if match and match.group(1) > most_recent_date:
              most_recent_date = match.group(1)
-             most_recent_tarball = filename
-    return most_recent_tarball
+             most_recent_file = filename
+    return most_recent_file
 
 
-def GetMostRecentLocalTarball(filename_regex):
+def GetMostRecentLocalFile(filename_regex):
     def LocalFilenameGenerator():
         return os.listdir(".")
 
-    return GetMostRecentTarball(filename_regex, LocalFilenameGenerator())
+    return GetMostRecentFile(filename_regex, LocalFilenameGenerator())
 
 
-def GetMostRecentRemoteTarball(ftp, filename_regex):
+def GetMostRecentRemoteFile(ftp, filename_regex, directory):
     try:
-        ftp.cwd("001") # UB Tübingen
+        ftp.cwd(directory)
     except Exception as e:
-        Error("can't change directory to \"001\"! (" + str(e) + ")")
+        Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
 
-    return GetMostRecentTarball(filename_regex, ftp.nlst())
+    return GetMostRecentFile(filename_regex, ftp.nlst())
 
 
 # Compares remote and local filenames against pattern and, if the remote filename
 # is more recent than the local one, downloads it.
-def DownloadMoreRecentTarball(ftp, filename_regex):
-    most_recent_remote_tarball = GetMostRecentRemoteTarball(ftp, filename_regex)
-    if most_recent_remote_tarball is None:
+def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
+    most_recent_remote_file = GetMostRecentRemoteFile(ftp, filename_regex, remote_directory)
+    if most_recent_remote_file is None:
         Error("No filename matched \"" + filename_pattern + "\"!")
-    print("Found recent remote tarball:", most_recent_remote_tarball)
-    most_recent_local_tarball = GetMostRecentLocalTarball(filename_regex)
-    if most_recent_local_tarball is not None:
-        print("Found recent local tarball:", most_recent_local_tarball)
-    if (most_recent_local_tarball is None) or (most_recent_remote_tarball > most_recent_local_tarball):
+    print("Found recent remote file:", most_recent_remote_file)
+    most_recent_local_file = GetMostRecentLocalFile(filename_regex)
+    if most_recent_local_file is not None:
+        print("Found recent local file:", most_recent_local_file)
+    if (most_recent_local_file is None) or (most_recent_remote_file > most_recent_local_file):
         try:
-            output = open(most_recent_remote_tarball, "wb")
+            output = open(most_recent_remote_file, "wb")
         except Exception as e:
-            Error("local open of \"" + most_recent_remote_tarball + "\" failed! (" + str(e) + ")") 
+            Error("local open of \"" + most_recent_remote_file + "\" failed! (" + str(e) + ")") 
         try:
             def RetrbinaryCallback(chunk):
                 try:
                     output.write(chunk)
                 except Exception as e:
-                    Error("failed to write a data chunk to local file \"" + most_recent_remote_tarball + "\"! ("
+                    Error("failed to write a data chunk to local file \"" + most_recent_remote_file + "\"! ("
                           + str(e) + ")")
-            ftp.retrbinary("RETR " + most_recent_remote_tarball, RetrbinaryCallback)
+            ftp.retrbinary("RETR " + most_recent_remote_file, RetrbinaryCallback)
         except Exception as e:
             Error("File download failed! (" + str(e) + ")")
-        SendEmail("BSZ Tarball Update", "Successfully downloaded \"" + most_recent_remote_tarball + "\"!")
+        return most_recent_remote_file
     else:
-        SendEmail("No new BSZ Tarball", "Most recent remote file is no more recent than most recent local file!")
+        return None
 
 
 def Main():
@@ -145,17 +152,37 @@ def Main():
         ftp_host         = config["FTP"]["host"]
         ftp_user         =  config["FTP"]["username"]
         ftp_passwd       = config["FTP"]["password"]
-        filename_pattern = config["Misc"]["filename_pattern"]
     except Exception as e:
         Error("failed to read config file! ("+ str(e) + ")")
 
-    try:
-        filename_regex = re.compile(filename_pattern)
-    except Exception as e:
-        Error("File name pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
-
     ftp = Login(ftp_host, ftp_user, ftp_passwd)
-    DownloadMoreRecentTarball(ftp, filename_regex)
+    msg = ""
+    for section in config.sections():
+        if section == "FTP" or section == "SMTPServer":
+            continue
+
+        print("Processing section " + section)
+        try:
+            filename_pattern = config[section]["filename_pattern"]
+            directory_on_ftp_server = config[section]["directory_on_ftp_server"]
+        except Exception as e:
+            Error("Invalid section \"" + section + "\" in config file! (" + str(e) + ")")
+
+        try:
+            filename_regex = re.compile(filename_pattern)
+        except Exception as e:
+            Error("File name pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
+
+        downloaded_file = DownloadMoreRecentFile(ftp, filename_regex, directory_on_ftp_server)
+        if downloaded_file is None:
+            msg += "No more recent file for pattern \"" + filename_pattern + "\"!"
+        else:
+            msg += "Successfully downloaded \"" + downloaded_file + "\"."
+    print("About to send email...")
+    SendEmail("BSZ File Update", msg)
 
 
-Main()
+try:
+    Main()
+except Exception as e:
+    SendEmail("BSZ File Update", "An unexpected error occurred: " + str(e))
