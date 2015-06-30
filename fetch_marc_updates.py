@@ -40,7 +40,7 @@ def SendEmail(subject, msg, sender="fetch_marc_updates@ub.uni-tuebingen.de",
         server_user     = config["SMTPServer"]["server_user"]
         server_password = config["SMTPServer"]["server_password"]
     except Exception as e:
-        print("failed to read config file! ("+ str(e) + ")", file=sys.stderr)
+        print("failed to read config file! (" + str(e) + ")", file=sys.stderr)
         sys.exit(-1)
 
     message = MIMEText(msg)
@@ -150,7 +150,7 @@ def Main():
     config = LoadConfigFile(sys.argv[0][:-2] + "conf")
     try:
         ftp_host         = config["FTP"]["host"]
-        ftp_user         =  config["FTP"]["username"]
+        ftp_user         = config["FTP"]["username"]
         ftp_passwd       = config["FTP"]["password"]
     except Exception as e:
         Error("failed to read config file! ("+ str(e) + ")")
