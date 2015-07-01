@@ -32,6 +32,12 @@ import smtplib
 import sys
 
 
+def Error(msg):
+    print(sys.argv[0] + ": " + msg, file=sys.stderr)
+    SendEmail("SWB FTP Failed!", msg)
+    sys.exit(1)
+
+
 def SendEmail(subject, msg, sender="fetch_marc_updates@ub.uni-tuebingen.de",
               recipient="johannes.ruscheinski@uni-tuebingen.de"):
     config = LoadConfigFile(sys.argv[0][:-2] + "conf")
@@ -59,10 +65,20 @@ def SendEmail(subject, msg, sender="fetch_marc_updates@ub.uni-tuebingen.de",
     server.quit()
 
 
-def Error(msg):
-    print(sys.argv[0] + ": " + msg, file=sys.stderr)
-    SendEmail("SWB FTP Failed!", msg)
-    sys.exit(1)
+# Fails if "source" does not exist or if "link_name" exists and is not a symlink.
+# Calls Error() upon failure and aborts the program.
+def SafeSymlink(source, link_name):
+    try:
+        os.lstat(source) # Throws an exception if "source" does not exist.
+        if os.access(link_name, os.F_OK) != 0:
+            if os.path.islink(link_name):
+                os.unlink(link_name)
+            else:
+                Error("in SafeSymlink: trying to create a symlink to \"" + link_name
+                      + "\" which is an existing non-symlink file!")
+        os.symlink(source, link_name)
+    except Exception as e:
+        Error("os.symlink() failed: " + str(e))
 
 
 def Login(ftp_host, ftp_user, ftp_passwd):
@@ -141,6 +157,7 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
             ftp.retrbinary("RETR " + most_recent_remote_file, RetrbinaryCallback)
         except Exception as e:
             Error("File download failed! (" + str(e) + ")")
+        SafeSymlink(most_recent_remote_file, re.sub("\\d\\d\\d\\d\\d\\d", "current", most_recent_remote_file))
         return most_recent_remote_file
     else:
         return None
@@ -175,10 +192,9 @@ def Main():
 
         downloaded_file = DownloadMoreRecentFile(ftp, filename_regex, directory_on_ftp_server)
         if downloaded_file is None:
-            msg += "No more recent file for pattern \"" + filename_pattern + "\"!"
+            msg += "No more recent file for pattern \"" + filename_pattern + "\"!\n"
         else:
-            msg += "Successfully downloaded \"" + downloaded_file + "\"."
-    print("About to send email...")
+            msg += "Successfully downloaded \"" + downloaded_file + "\".\n"
     SendEmail("BSZ File Update", msg)
 
 
