@@ -23,62 +23,11 @@ directory_on_ftp_server = /sekkor
 """
 
 
-from email.mime.text import MIMEText
 from ftplib import FTP
-import configparser
 import os
 import re
-import smtplib
 import sys
-
-
-def Error(msg):
-    print(sys.argv[0] + ": " + msg, file=sys.stderr)
-    SendEmail("SWB FTP Failed!", msg)
-    sys.exit(1)
-
-
-def SendEmail(subject, msg, sender="fetch_marc_updates@ub.uni-tuebingen.de",
-              recipient="johannes.ruscheinski@uni-tuebingen.de"):
-    config = LoadConfigFile(sys.argv[0][:-2] + "conf")
-    try:
-        server_address  = config["SMTPServer"]["server_address"]
-        server_user     = config["SMTPServer"]["server_user"]
-        server_password = config["SMTPServer"]["server_password"]
-    except Exception as e:
-        print("failed to read config file! (" + str(e) + ")", file=sys.stderr)
-        sys.exit(-1)
-
-    message = MIMEText(msg)
-    message["Subject"] = subject
-    message["From"] = sender
-    message["To"] = recipient
-    server = smtplib.SMTP(server_address)
-    try:
-        server.ehlo()
-        server.starttls()
-        server.login(server_user, server_password)
-        server.sendmail(sender, [recipient], message.as_string())
-    except Exception as e:
-        print("Failed to send your email: " + str(e), file=sys.stderr)
-        sys.exit(-1)
-    server.quit()
-
-
-# Fails if "source" does not exist or if "link_name" exists and is not a symlink.
-# Calls Error() upon failure and aborts the program.
-def SafeSymlink(source, link_name):
-    try:
-        os.lstat(source) # Throws an exception if "source" does not exist.
-        if os.access(link_name, os.F_OK) != 0:
-            if os.path.islink(link_name):
-                os.unlink(link_name)
-            else:
-                Error("in SafeSymlink: trying to create a symlink to \"" + link_name
-                      + "\" which is an existing non-symlink file!")
-        os.symlink(source, link_name)
-    except Exception as e:
-        Error("os.symlink() failed: " + str(e))
+import util
 
 
 def Login(ftp_host, ftp_user, ftp_passwd):
@@ -92,17 +41,6 @@ def Login(ftp_host, ftp_user, ftp_passwd):
     except Exception as e:
         Error("failed to login to FTP server! (" + str(e) + ")")
     return ftp
-
-
-def LoadConfigFile(path):
-    try:
-        if not os.access(path, os.R_OK):
-            Error("can't open \"" + path + "\" for reading!")
-        config = configparser.ConfigParser()
-        config.read(path)
-        return config
-    except Exception as e:
-        Error("failed to load the config file from \"" + path + "\"! (" + str(e) + ")")
 
 
 def GetMostRecentFile(filename_regex, filename_generator):
@@ -137,7 +75,7 @@ def GetMostRecentRemoteFile(ftp, filename_regex, directory):
 def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
     most_recent_remote_file = GetMostRecentRemoteFile(ftp, filename_regex, remote_directory)
     if most_recent_remote_file is None:
-        Error("No filename matched \"" + filename_pattern + "\"!")
+        util.Error("No filename matched \"" + filename_pattern + "\"!")
     print("Found recent remote file:", most_recent_remote_file)
     most_recent_local_file = GetMostRecentLocalFile(filename_regex)
     if most_recent_local_file is not None:
@@ -146,18 +84,18 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
         try:
             output = open(most_recent_remote_file, "wb")
         except Exception as e:
-            Error("local open of \"" + most_recent_remote_file + "\" failed! (" + str(e) + ")") 
+            util.Error("local open of \"" + most_recent_remote_file + "\" failed! (" + str(e) + ")") 
         try:
             def RetrbinaryCallback(chunk):
                 try:
                     output.write(chunk)
                 except Exception as e:
-                    Error("failed to write a data chunk to local file \"" + most_recent_remote_file + "\"! ("
-                          + str(e) + ")")
+                    util.Error("failed to write a data chunk to local file \"" + most_recent_remote_file + "\"! ("
+                               + str(e) + ")")
             ftp.retrbinary("RETR " + most_recent_remote_file, RetrbinaryCallback)
         except Exception as e:
-            Error("File download failed! (" + str(e) + ")")
-        SafeSymlink(most_recent_remote_file, re.sub("\\d\\d\\d\\d\\d\\d", "current", most_recent_remote_file))
+            util.Error("File download failed! (" + str(e) + ")")
+        util.SafeSymlink(most_recent_remote_file, re.sub("\\d\\d\\d\\d\\d\\d", "current", most_recent_remote_file))
         return most_recent_remote_file
     else:
         return None
@@ -183,22 +121,22 @@ def Main():
             filename_pattern = config[section]["filename_pattern"]
             directory_on_ftp_server = config[section]["directory_on_ftp_server"]
         except Exception as e:
-            Error("Invalid section \"" + section + "\" in config file! (" + str(e) + ")")
+            util.Error("Invalid section \"" + section + "\" in config file! (" + str(e) + ")")
 
         try:
             filename_regex = re.compile(filename_pattern)
         except Exception as e:
-            Error("File name pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
+            util.Error("File name pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
 
         downloaded_file = DownloadMoreRecentFile(ftp, filename_regex, directory_on_ftp_server)
         if downloaded_file is None:
             msg += "No more recent file for pattern \"" + filename_pattern + "\"!\n"
         else:
             msg += "Successfully downloaded \"" + downloaded_file + "\".\n"
-    SendEmail("BSZ File Update", msg)
+    util.SendEmail("BSZ File Update", msg)
 
 
 try:
     Main()
 except Exception as e:
-    SendEmail("BSZ File Update", "An unexpected error occurred: " + str(e))
+    util.SendEmail("BSZ File Update", "An unexpected error occurred: " + str(e))
