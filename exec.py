@@ -98,4 +98,5 @@ if __name__ == '__main__':
         print(str(e))
     print("hello.sh returned " + str(Exec("./cpp/hello.sh")))
     print("fail.sh returned " + str(Exec("./fail.sh")))
-    print( "more_than_5_seconds.sh returned " + str(Exec("./more_than_5_seconds.sh", timeout=5)))
+    print("more_than_5_seconds.sh returned " + str(Exec("./more_than_5_seconds.sh", timeout=5)))
+    print("\"echo_args.sh a b c\" returned " + str(Exec("./echo_args.sh", ['a', 'b', 'c'])))
