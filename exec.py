@@ -43,7 +43,6 @@ def Exec(cmd_path, args = None, timeout = 0, env = None):
     child_pid = os.fork()
     if child_pid != 0: # We're the parent.
         if timeout != 0:
-            _caught_sigalrm = False
             old_handler = signal.getsignal(signal.SIGALRM)
             signal.signal(signal.SIGALRM, _SigAlarmHandler)
             signal.alarm(timeout)
