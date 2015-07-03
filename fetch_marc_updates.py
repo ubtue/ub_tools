@@ -102,6 +102,7 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
 
 
 def Main():
+    default_email_sender = "fetch_marc_updates@ub.uni-tuebingen.de"
     config = LoadConfigFile(sys.argv[0][:-2] + "conf")
     try:
         ftp_host   = config["FTP"]["host"]
