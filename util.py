@@ -5,11 +5,16 @@ from email.mime.text import MIMEText
 import configparser
 import os
 import smtplib
+import struct
 import sys
 
 
-def SendEmail(subject, msg, sender="fetch_marc_updates@ub.uni-tuebingen.de",
-              recipient="johannes.ruscheinski@uni-tuebingen.de"):
+default_email_sender = "unset_email_sender@ub.uni-tuebingen.de"
+
+
+def SendEmail(subject, msg, sender=None, recipient="johannes.ruscheinski@uni-tuebingen.de"):
+    if sender is None:
+        sender = default_email_sender
     config = LoadConfigFile(sys.argv[0][:-2] + "conf")
     try:
         server_address  = config["SMTPServer"]["server_address"]
@@ -66,3 +71,32 @@ def LoadConfigFile(path):
         return config
     except Exception as e:
         Error("failed to load the config file from \"" + path + "\"! (" + str(e) + ")")
+
+
+# This function looks for symlinks named "XXX-current-YYY" where "YYY" may be the empty string.  If found,
+# it reads the creation time of the link target.  Next it looks for a file named "XXX-YYY.timestamp".  If
+# the timestamp file does not exist, it assumes it found a new file and creates a new timestamp file with
+# the creation time of the original link target and returns True.  If, on the other hand, a timestamp file
+# was found, it reads a second timestamp from the timestamp file and compares it against the first
+# timestamp.  If the timestamp from the timestamp file is older than the first timestamp, it updates the
+# timestamp file with the newer timestamp and returns True, otherwise it returns False.
+def FoundNewBSZDataFile(link_filename):
+    try:
+        statinfo = os.stat(link_filename)
+    except FileNotFoundError as e:
+        util.Error("Symlink \"" + link_filename + "\" is missing or dangling!")
+    new_timestamp = statinfo.st_ctime
+    timestamp_filename = sys.argv[0][:-2] + "timestamp"
+    if not os.path.exists(timestamp_filename):
+        with open(timestamp_filename, "wb") as timestamp_file:
+            timestamp_file.write(struct.pack('d', new_timestamp))
+        return True
+    else:
+        with open(timestamp_filename, "rb") as timestamp_file:
+            (old_timestamp, ) = struct.unpack('d', timestamp_file.read())
+        if (old_timestamp < new_timestamp):
+            with open(timestamp_filename, "wb") as timestamp_file:
+                timestamp_file.write(struct.pack('f', new_timestamp))
+            return True
+        else:
+            return False
