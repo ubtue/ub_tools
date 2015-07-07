@@ -7,16 +7,20 @@ from email.mime.text import MIMEText
 import ConfigParser
 import os
 import smtplib
+import socket
 import struct
 import sys
 
 
 default_email_sender = "unset_email_sender@ub.uni-tuebingen.de"
+default_email_recipient = "johannes.ruscheinski@ub.uni-tuebingen.de"
 
 
-def SendEmail(subject, msg, sender=None, recipient="johannes.ruscheinski@uni-tuebingen.de"):
+def SendEmail(subject, msg, sender=None, recipient=None):
     if sender is None:
         sender = default_email_sender
+    if recipient is None:
+        recipient = default_email_recipient
     config = LoadConfigFile(sys.argv[0][:-2] + "conf")
     try:
         server_address  = config.get("SMTPServer", "server_address")
@@ -44,8 +48,12 @@ def SendEmail(subject, msg, sender=None, recipient="johannes.ruscheinski@uni-tue
 
 def Error(msg):
     print(sys.argv[0] + ": " + msg, file=sys.stderr)
-    SendEmail("SWB FTP Failed!", msg)
+    SendEmail("Script error (" + os.path.basename(sys.argv[0]) + " on " + socket.gethostname() + ")!", msg)
     sys.exit(1)
+
+
+def Warning(msg):
+    print(sys.argv[0] + ": " + msg, file=sys.stderr)
 
 
 # Fails if "source" does not exist or if "link_name" exists and is not a symlink.
