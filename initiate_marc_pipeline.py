@@ -1,7 +1,9 @@
-#!/usr/bin/python3
+#!/bin/python2
+# -*- coding: utf-8 -*-
 
 
-import exec
+from __future__ import print_function
+import process_util
 import os
 import struct
 import sys
@@ -9,7 +11,7 @@ import util
 
 
 def StartPipeline(pipeline_script_name):
-    if exec.Exec(pipeline_script_name, timeout=60*60) == 0:
+    if process_util.Exec(pipeline_script_name, timeout=60*60) == 0:
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.")
     else:
         util.SendEmail("MARC-21 Pipeline", "Pipeline failed.")
@@ -28,14 +30,14 @@ def Main():
          sys.exit(-1)
     util.default_email_sender = "initiate_marc_pipeline@ub.uni-tuebingen.de"
     conf = util.LoadConfigFile(sys.argv[0][:-2] + "conf")
-    link_name = conf["Misc"]["link_name"]
+    link_name = conf.get("Misc", "link_name")
     if util.FoundNewBSZDataFile(link_name):
         StartPipeline(pipeline_script_name)
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.")
 
 
-try:
-    Main()
-except Exception as e:
-    util.SendEmail("MARC-21 Pipeline Kick-Off", "An unexpected error occurred: " + str(e))
+#try:
+Main()
+#except Exception as e:
+#    util.SendEmail("MARC-21 Pipeline Kick-Off", "An unexpected error occurred: " + str(e))

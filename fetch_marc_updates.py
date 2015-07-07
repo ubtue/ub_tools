@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/bin/python2
 #
 # A tool for the automation of tarball downloads from the BSZ.
 # Config files for this tool look like this:
@@ -23,6 +23,7 @@ directory_on_ftp_server = /sekkor
 """
 
 
+from __future__ import print_function
 from ftplib import FTP
 import os
 import re
@@ -102,12 +103,12 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
 
 
 def Main():
-    default_email_sender = "fetch_marc_updates@ub.uni-tuebingen.de"
-    config = LoadConfigFile(sys.argv[0][:-2] + "conf")
+    util.default_email_sender = "fetch_marc_updates@ub.uni-tuebingen.de"
+    config = util.LoadConfigFile("fetch_marc_updates.conf")
     try:
-        ftp_host   = config["FTP"]["host"]
-        ftp_user   = config["FTP"]["username"]
-        ftp_passwd = config["FTP"]["password"]
+        ftp_host   = config.get("FTP", "host")
+        ftp_user   = config.get("FTP", "username")
+        ftp_passwd = config.get("FTP", "password")
     except Exception as e:
         Error("failed to read config file! ("+ str(e) + ")")
 
@@ -119,8 +120,8 @@ def Main():
 
         print("Processing section " + section)
         try:
-            filename_pattern = config[section]["filename_pattern"]
-            directory_on_ftp_server = config[section]["directory_on_ftp_server"]
+            filename_pattern = config.get(section, "filename_pattern")
+            directory_on_ftp_server = config.get(section, "directory_on_ftp_server")
         except Exception as e:
             util.Error("Invalid section \"" + section + "\" in config file! (" + str(e) + ")")
 

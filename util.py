@@ -1,8 +1,10 @@
-# Python 3 module
+# Python 2 module
+# -*- coding: utf-8 -*-
 
 
+from __future__ import print_function
 from email.mime.text import MIMEText
-import configparser
+import ConfigParser
 import os
 import smtplib
 import struct
@@ -17,9 +19,9 @@ def SendEmail(subject, msg, sender=None, recipient="johannes.ruscheinski@uni-tue
         sender = default_email_sender
     config = LoadConfigFile(sys.argv[0][:-2] + "conf")
     try:
-        server_address  = config["SMTPServer"]["server_address"]
-        server_user     = config["SMTPServer"]["server_user"]
-        server_password = config["SMTPServer"]["server_password"]
+        server_address  = config.get("SMTPServer", "server_address")
+        server_user     = config.get("SMTPServer", "server_user")
+        server_password = config.get("SMTPServer", "server_password")
     except Exception as e:
         print("failed to read config file! (" + str(e) + ")", file=sys.stderr)
         sys.exit(-1)
@@ -66,7 +68,7 @@ def LoadConfigFile(path):
     try:
         if not os.access(path, os.R_OK):
             Error("can't open \"" + path + "\" for reading!")
-        config = configparser.ConfigParser()
+        config = ConfigParser.ConfigParser()
         config.read(path)
         return config
     except Exception as e:

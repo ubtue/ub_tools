@@ -1,4 +1,5 @@
-#!/usr/bin/python3
+#!/bin/python2
+# -*- coding: utf-8 -*-
 
 """
 @author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
@@ -20,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
+from __future__ import print_function
 import errno
 import os
 import signal
@@ -50,7 +52,7 @@ def Exec(cmd_path, args = None, timeout = 0, env = None):
         interrupted = False
         try:
             (pid, exit_code, _) = os.wait4(child_pid, 0)
-        except InterruptedError:
+        except OSError:
             interrupted = True
 
         if timeout != 0:
