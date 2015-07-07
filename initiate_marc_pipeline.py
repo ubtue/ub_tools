@@ -18,18 +18,18 @@ def StartPipeline(pipeline_script_name):
 
 
 def Main():
-    default_email_sender = "initiate_marc_pipeline@ub.uni-tuebingen.de"
-    if len(sys.argv) != 2:
+    util.default_email_sender = "initiate_marc_pipeline@ub.uni-tuebingen.de"
+    if len(sys.argv) != 3:
          util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)",
                         "This script needs to be called with a single argument,\n"
                         + "the name of the MARC-21 pipeline script to be executed.\n")
          sys.exit(-1)
-    pipeline_script_name = sys.argv[1]
+    util.default_email_recipient = sys.argv[1]
+    pipeline_script_name = sys.argv[2]
     if not os.access(pipeline_script_name, os.X_OK):
          util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)", "Pipeline script not found or not executable!\n")
          sys.exit(-1)
-    util.default_email_sender = "initiate_marc_pipeline@ub.uni-tuebingen.de"
-    conf = util.LoadConfigFile(sys.argv[0][:-2] + "conf")
+    conf = util.LoadConfigFile("initiate_marc_pipeline.conf")
     link_name = conf.get("Misc", "link_name")
     if util.FoundNewBSZDataFile(link_name):
         StartPipeline(pipeline_script_name)
@@ -37,7 +37,7 @@ def Main():
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.")
 
 
-#try:
-Main()
-#except Exception as e:
-#    util.SendEmail("MARC-21 Pipeline Kick-Off", "An unexpected error occurred: " + str(e))
+try:
+    Main()
+except Exception as e:
+    util.SendEmail("MARC-21 Pipeline Kick-Off", "An unexpected error occurred: " + str(e))
