@@ -47,7 +47,11 @@ public:
         : tag_(other.tag_), field_length_(other.field_length_), field_offset_(other.field_offset_) { }
 
     /** Move constructor. */
-    DirectoryEntry(DirectoryEntry &&other) = default;
+    DirectoryEntry(DirectoryEntry &&other)
+	: field_length_(other.field_length_), field_offset_(other.field_offset_)
+    {
+	tag_.swap(other.tag_);
+    }
 
     /** \brief Constructs a DirectoryEntry from its component parts.
      *
