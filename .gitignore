@@ -4,6 +4,8 @@
 *~
 *.o
 *.a
+*.pyc
+*.tar.gz
 \#*\#
 add_child_refs
 add_issn_to_articles
