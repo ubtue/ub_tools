@@ -72,7 +72,7 @@ bool DirectoryEntry::ParseDirEntries(const std::string &entries_string, std::vec
     entries->reserve(count);
     size_t offset(0);
     for (unsigned i(0); i < count; ++i) {
-        entries->push_back(DirectoryEntry(entries_string.substr(offset, DIRECTORY_ENTRY_LENGTH)));
+        entries->emplace_back(DirectoryEntry(entries_string.substr(offset, DIRECTORY_ENTRY_LENGTH)));
         offset += DIRECTORY_ENTRY_LENGTH;
     }
 
