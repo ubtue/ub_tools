@@ -21,7 +21,7 @@ def SendEmail(subject, msg, sender=None, recipient=None):
         sender = default_email_sender
     if recipient is None:
         recipient = default_email_recipient
-    config = LoadConfigFile(sys.argv[0][:-2] + "conf")
+    config = LoadConfigFile(os.path.basename(sys.argv[0][:-2]) + "conf")
     try:
         server_address  = config.get("SMTPServer", "server_address")
         server_user     = config.get("SMTPServer", "server_user")

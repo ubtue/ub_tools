@@ -131,5 +131,8 @@ clean:
 cgi_install: $(CGI_PROGS)
 	cp full_text_lookup /var/www/cgi-bin/
 
+root_install: $(PROGS) *.sh
+	cp $(PROGS) *.sh /usr/local/bin/
+
 install: $(PROGS) *.sh
 	cp $(PROGS) *.sh ~/bin/
