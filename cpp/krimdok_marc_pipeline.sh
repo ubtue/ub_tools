@@ -2,8 +2,9 @@
 # Runs through the phases of the KrimDok MARC-21 pipeline.
 set -o errexit -o nounset
 
-if [ $# != 2 ]; then
-    echo "usage: $0 TitelUndLokaldaten-DDMMYY.mrc ÜbergeordneteTitelUndLokaldaten-DDMMYY.mrc"
+if [ $# != 3 ]; then
+    echo "usage: $0 TitelUndLokaldaten-DDMMYY.mrc ÜbergeordneteTitelUndLokaldaten-DDMMYY.mrc" \
+         "Normdaten-DDMMYY.mrc"
     exit 1
 fi
 

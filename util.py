@@ -13,7 +13,7 @@ import sys
 
 
 default_email_sender = "unset_email_sender@ub.uni-tuebingen.de"
-default_email_recipient = "johannes.ruscheinski@ub.uni-tuebingen.de"
+default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
 
 
 def SendEmail(subject, msg, sender=None, recipient=None):
@@ -70,6 +70,26 @@ def SafeSymlink(source, link_name):
         os.symlink(source, link_name)
     except Exception as e:
         Error("os.symlink() failed: " + str(e))
+
+
+# @return The absolute path of the file "link_name" points to.
+def ResolveSymlink(link_name):
+    resolved_path = os.readlink(link_name)
+    if resolved_path[0] == '/':  # Absolute path?
+        return resolved_path
+    dirname = os.path.dirname(link_name)
+    if not dirname:
+        dirname = os.getcwdu()
+    return os.path.join(dirname, resolved_path)
+
+
+# @return True if "path" has been successfully unlinked, else False.
+def Remove(path):
+    try:
+        os.unlink(path)
+        return True
+    except:
+        return False
 
 
 def LoadConfigFile(path):
