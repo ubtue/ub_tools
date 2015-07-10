@@ -35,7 +35,7 @@ def _SigAlarmHandler(signal_no, frame):
 
 # N.B., if provided, "args" must be a list, ditto for "env".  "timeout" is in seconds.
 # @return either the exit code of the child, or if there was a timeout then -1
-def Exec(cmd_path, args = None, timeout = 0, env = None):
+def Exec(cmd_path, args = None, timeout = 0, env = None, new_stdout = None):
     if args is None:
         args = []
 
@@ -82,6 +82,10 @@ def Exec(cmd_path, args = None, timeout = 0, env = None):
         if os.setsid() == -1:
             print("in exec.Exec: os.setsid() failed!", file=sys.stderr)
             sys.exit(-1)
+
+        if new_stdout is not None:
+            sys.stdout = open(new_stdout, "wb")
+            os.dup2(sys.stdout.fileno(), 1)
 
         errno.errno = 0
         args = [cmd_path] + args

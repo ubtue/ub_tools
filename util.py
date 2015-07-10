@@ -10,6 +10,7 @@ import smtplib
 import socket
 import struct
 import sys
+import time
 
 
 default_email_sender = "unset_email_sender@ub.uni-tuebingen.de"
@@ -21,7 +22,7 @@ def SendEmail(subject, msg, sender=None, recipient=None):
         sender = default_email_sender
     if recipient is None:
         recipient = default_email_recipient
-    config = LoadConfigFile(os.path.basename(sys.argv[0][:-2]) + "conf")
+    config = LoadConfigFile()
     try:
         server_address  = config.get("SMTPServer", "server_address")
         server_user     = config.get("SMTPServer", "server_user")
@@ -54,6 +55,11 @@ def Error(msg):
 
 def Warning(msg):
     print(sys.argv[0] + ": " + msg, file=sys.stderr)
+
+
+# @brief Copy the contents, in order, of "files" into "target".
+def ConcatenateFiles(files, target):
+    process_util.Exec("/bin/cat", files, new_stdout=target)
 
 
 # Fails if "source" does not exist or if "link_name" exists and is not a symlink.
@@ -92,7 +98,33 @@ def Remove(path):
         return False
 
 
-def LoadConfigFile(path):
+# @brief  Looks for "prefix.timestamp", and if found reads the timestamp stored in it.
+# @note   Timestamps are in seconds since the UNIX epoch.
+# @return Either the value found in the timestamp file or the UNIX epoch, that is 0.
+def ReadTimestamp(prefix):
+    timestamp_filename = prefix + ".timestamp"
+    if not os.access(timestamp_filename, os.R_OK):
+        return 0
+    with open(timestamp_filename, "rb") as timestamp_file:
+        (timestamp, ) = struct.unpack('d', timestamp_file.read())
+        return timestamp
+
+
+# @param prefix     This combined with ".timestamp" will be the name of the file that will be written.
+# @param timestamp  A value in seconds since the UNIX epoch or None, in which case the current time
+#                   will be used
+def WriteTimestamp(prefix, timestamp=None):
+    if timestamp is None:
+        timestamp = time.gmtime()
+    timestamp_filename = prefix + ".timestamp"
+    Remove(timestamp_filename)
+    with open(timestamp_filename, "wb") as timestamp_file:
+        timestamp_file.write(struct.pack('d', timestamp))
+
+
+def LoadConfigFile(path=None):
+    if path is None: # Take script name w/ "py" extension replaced by "conf" and current working directory.
+        path = os.path.basename(sys.argv[0])[:-2] + "conf"
     try:
         if not os.access(path, os.R_OK):
             Error("can't open \"" + path + "\" for reading!")
@@ -116,7 +148,7 @@ def FoundNewBSZDataFile(link_filename):
     except FileNotFoundError as e:
         util.Error("Symlink \"" + link_filename + "\" is missing or dangling!")
     new_timestamp = statinfo.st_ctime
-    timestamp_filename = sys.argv[0][:-2] + "timestamp"
+    timestamp_filename = os.path.basename(sys.argv[0][:-2]) + "timestamp"
     if not os.path.exists(timestamp_filename):
         with open(timestamp_filename, "wb") as timestamp_file:
             timestamp_file.write(struct.pack('d', new_timestamp))
