@@ -31,7 +31,7 @@ def SendEmail(subject, msg, sender=None, recipient=None):
         print("failed to read config file! (" + str(e) + ")", file=sys.stderr)
         sys.exit(-1)
 
-    message = MIMEText(msg)
+    message = MIMEText(msg, 'plain', 'utf-8')
     message["Subject"] = subject
     message["From"] = sender
     message["To"] = recipient
