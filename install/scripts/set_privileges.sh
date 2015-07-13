@@ -8,14 +8,14 @@
 set -o errexit -o nounset
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-OWNER="www-data:www-data"
+OWNER="vufind:vufind"
 
 #sudo chown $OWNER $VUFIND_HOME
 sudo chmod +xr $VUFIND_HOME
 sudo chmod +xr $VUFIND_LOCAL_DIR
-sudo chown $OWNER $VUFIND_LOCAL_DIR/cache
-sudo chown $OWNER $VUFIND_LOCAL_DIR/config
-sudo chown $OWNER $VUFIND_LOCAL_DIR/logs/
+sudo chown -R $OWNER $VUFIND_LOCAL_DIR/cache
+# sudo chown $OWNER $VUFIND_LOCAL_DIR/config
+sudo chown -R $OWNER $VUFIND_LOCAL_DIR/logs/
 sudo touch $VUFIND_LOCAL_DIR/logs/record.xml
 sudo touch $VUFIND_LOCAL_DIR/logs/search.xml
 sudo chown $OWNER $VUFIND_HOME/local/logs/record.xml

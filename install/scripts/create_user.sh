@@ -7,7 +7,7 @@
 set -o errexit -o nounset
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-username="www-data"
+username="vufind"
 if [[ $(cut -d: -f1 /etc/passwd | grep ^vufind$) == 'vufind' ]] ; then
 	echo "" > /dev/null # do nothing
 else
@@ -15,6 +15,7 @@ else
 	sudo useradd --no-create-home --group "$username" --shell /bin/false "$username"
 fi
 
+# Apache should run with the new user.
 if [[ -e "/etc/apache2/envvars" ]] ; then
 	ENVVARS_PATH=/etc/apache2/envvars
     OUTPUT=$(cat $ENVVARS_PATH | sed --expression="s/export APACHE_RUN_USER=[a-zA-Z\-]*/export APACHE_RUN_USER=$username/g" \

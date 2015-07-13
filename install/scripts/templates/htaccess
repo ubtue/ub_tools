@@ -2,4 +2,3 @@ AuthType Basic
 AuthName "{{{NAME}}}"
 AuthUserFile {{{HTPASSWD}}}
 Require valid-user
-
