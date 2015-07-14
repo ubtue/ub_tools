@@ -28,6 +28,7 @@ from ftplib import FTP
 import os
 import re
 import sys
+import traceback
 import util
 
 
@@ -142,4 +143,5 @@ def Main():
 try:
     Main()
 except Exception as e:
-    util.SendEmail("BSZ File Update", "An unexpected error occurred: " + str(e))
+    util.SendEmail("BSZ File Update", "An unexpected error occurred: "
+                   + str(e) + "\n\n" + traceback.format_exc())
