@@ -105,13 +105,13 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
 def Main():
     util.default_email_sender = "fetch_marc_updates@ub.uni-tuebingen.de"
     util.default_email_recipient = sys.argv[1]
-    config = util.LoadConfigFile("fetch_marc_updates.conf")
+    config = util.LoadConfigFile()
     try:
         ftp_host   = config.get("FTP", "host")
         ftp_user   = config.get("FTP", "username")
         ftp_passwd = config.get("FTP", "password")
     except Exception as e:
-        Error("failed to read config file! ("+ str(e) + ")")
+        util.Error("failed to read config file! ("+ str(e) + ")")
 
     ftp = Login(ftp_host, ftp_user, ftp_passwd)
     msg = ""
