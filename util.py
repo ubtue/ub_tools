@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 import ConfigParser
 import datetime
 import os
+import process_util
 import smtplib
 import socket
 import struct
@@ -63,8 +64,9 @@ def Warning(msg):
 
 
 # @brief Copy the contents, in order, of "files" into "target".
+# @return True if we succeeded, else False.
 def ConcatenateFiles(files, target):
-    process_util.Exec("/bin/cat", files, new_stdout=target)
+    return process_util.Exec("/bin/cat", files, new_stdout=target) == 0
 
 
 # Fails if "source" does not exist or if "link_name" exists and is not a symlink.
