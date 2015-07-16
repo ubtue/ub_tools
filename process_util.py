@@ -35,7 +35,7 @@ def _SigAlarmHandler(signal_no, frame):
 
 # N.B., if provided, "args" must be a list, ditto for "env".  "timeout" is in seconds.
 # @return either the exit code of the child, or if there was a timeout then -1
-def Exec(cmd_path, args = None, timeout = 0, env = None, new_stdout = None):
+def Exec(cmd_path, args = None, timeout = 0, env = None, new_stdout = None, new_stderr = None):
     if args is None:
         args = []
 
@@ -86,6 +86,10 @@ def Exec(cmd_path, args = None, timeout = 0, env = None, new_stdout = None):
         if new_stdout is not None:
             sys.stdout = open(new_stdout, "wb")
             os.dup2(sys.stdout.fileno(), 1)
+
+        if new_stderr is not None:
+            sys.stderr = open(new_stderr, "wb")
+            os.dup2(sys.stderr.fileno(), 2)
 
         errno.errno = 0
         args = [cmd_path] + args
