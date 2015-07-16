@@ -208,16 +208,21 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
             name_prefix + "Normdaten-" + current_date_str + ".mrc"]
 
 
+def IsExecutableFile(executable_candidate):
+    return os.path.isfile(executable_candidate) and os.access(executable_candidate, os.X_OK)
+
+
 # @return the path to the executable "executable_candidate" if found, or else None
 def Which(executable_candidate):
+
     dirname, basename = os.path.split(executable_candidate)
     if dirname:
-        if os.access(executable_candidate, os.X_OK):
+        if IsExecutableFile(executable_candidate):
             return executable_candidate
     else:
         for path in os.environ["PATH"].split(":"):
             full_name = os.path.join(path, executable_candidate)
-            if os.access(full_name, os.X_OK):
+            if IsExecutableFile(full_name):
                 return full_name
 
     return None
