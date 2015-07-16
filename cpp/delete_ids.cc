@@ -111,11 +111,9 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
 
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
-std::cerr << "Control number is " << field_data[0] << ".\n";
 
         ssize_t start_local_match;
         if (title_deletion_ids.find(field_data[0]) != title_deletion_ids.end()) {
-std::cerr << "Deleting entire record.\n";
             ++deleted_record_count;
             std::cout << "Deleted record with ID " << field_data[0] << '\n';
         } else { // Look for local data sets that may need to be deleted.
@@ -150,13 +148,11 @@ std::cerr << "Deleting entire record.\n";
                 if (not found_next_000)
                     ++end_local_match;
 
-std::cerr << "Adjusting record size:\n";
 		// Update the record length field in the leader...
 		size_t deleted_size(0);
 		for (auto dir_entry(dir_entries.cbegin() + start_local_match);
 		     dir_entry != dir_entries.cbegin() + end_local_match; ++dir_entry)
 		    deleted_size += dir_entry->getFieldLength() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
-		std::cerr << "   Old size: " << raw_leader->getRecordLength() << ", new size: " << (raw_leader->getRecordLength() - deleted_size) << '\n';
 		raw_leader->setRecordLength(raw_leader->getRecordLength() + deleted_size);
 
                 // ... and throw away the matched local data set.
