@@ -122,14 +122,17 @@ def ReadTimestamp(prefix = None):
         return timestamp
 
 
+# @param timestamp  A float.
 # @param prefix     This combined with ".timestamp" will be the name of the file that will be written.
 # @param timestamp  A value in seconds since the UNIX epoch or None, in which case the current time
 #                   will be used
 def WriteTimestamp(prefix=None, timestamp=None):
     if prefix is None:
         prefix = os.path.basename(sys.argv[0])[:-3]
+    elif type(timestamp) is not float:
+        raise TypeError("timestamp argument of WriteTimestamp() must be of type \"float\"!")
     if timestamp is None:
-        timestamp = time.gmtime()
+        timestamp = time.time()
     timestamp_filename = prefix + ".timestamp"
     Remove(timestamp_filename)
     with open(timestamp_filename, "wb") as timestamp_file:
