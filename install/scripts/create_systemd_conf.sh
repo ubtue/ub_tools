@@ -17,6 +17,6 @@ if [ ! -d "$SYSTEMD_DIRECTORY" ] ; then
 fi
 sudo cp "$TPL" "$OUTPUT"
 
-systemctl enable httpd.service
-systemctl enable mariadb.service
-systemctl enable vufind.service
+sudo systemctl enable httpd.service
+sudo systemctl enable mariadb.service
+sudo systemctl enable vufind.service
