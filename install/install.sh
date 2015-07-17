@@ -184,7 +184,7 @@ if [[ "$VERBOSE" == true ]] ; then
 fi
 "$SCRIPT_DIR/set_privileges.sh"
 
-if [ -x "/bin/systemctl"] ; then
+if [ -x "/bin/systemctl" ] ; then
 	if [[ "$VERBOSE" == true ]] ; then
     echo ""
     echo ""
