@@ -1,0 +1,13 @@
+[Unit]
+Description=VuFind Starter
+After=network.target httpd.service mariadb.service
+
+[Service]
+Type=fork
+ExecStart=/bin/sh --login -c "/usr/local/vufind2/vufind.sh --no-background start"
+User=root
+ExecStop=/bin/sh --login -c "/usr/local/vufind2/vufind.sh stop"
+ExecReload=/bin/sh --login -c "/usr/local/vufind2/vufind.sh --no-background restart"
+
+[Install]
+WantedBy=multi-user.target

@@ -29,24 +29,24 @@ if [ "$#" -ne 4 ]; then
   exit 1
 fi
 
-SERVER_URL=$1
-NAME=$2
-EMAIL=$3
-VUFIND_PASSWORD=$4
+SERVER_URL="$1"
+NAME="$2"
+EMAIL="$3"
+VUFIND_PASSWORD="$4"
 LOCAL_OVERRIDES="$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
-SITE_CONFIG=$LOCAL_OVERRIDES/site.conf
-DATABASE_CONFIG=$LOCAL_OVERRIDES/database.conf
+SITE_CONFIG="$LOCAL_OVERRIDES/site.conf"
+DATABASE_CONFIG="$LOCAL_OVERRIDES/database.conf"
 
 if [ ! -d  "$LOCAL_OVERRIDES" ] ; then
-	mkdir $LOCAL_OVERRIDES
+	mkdir "$LOCAL_OVERRIDES"
 fi
 
 # Site configs
 sh -c "> $SITE_CONFIG"
-echo "url   = \"https://$SERVER_URL\"" >> $SITE_CONFIG
-echo "email = \"$EMAIL\""         >> $SITE_CONFIG
-echo "title = \"$NAME\""         >> $SITE_CONFIG
+echo "url   = \"https://$SERVER_URL\"" >> "$SITE_CONFIG"
+echo "email = \"$EMAIL\""         >> "$SITE_CONFIG"
+echo "title = \"$NAME\""         >> "$SITE_CONFIG"
 
 # Database configs
 sh -c "> $DATABASE_CONFIG"
-echo "database = \"mysql://vufind:$VUFIND_PASSWORD@localhost/vufind\"" >> $DATABASE_CONFIG
+echo "database = \"mysql://vufind:$VUFIND_PASSWORD@localhost/vufind\"" >> "$DATABASE_CONFIG"

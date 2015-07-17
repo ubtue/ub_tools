@@ -30,8 +30,8 @@ if [ "$#" -ne 2 ]; then
   exit 1
 fi
 
-NAME=$1
-HTPASSWD=$2
+NAME="$1"
+HTPASSWD="$2"
 
 TPL_CONTENT="$(cat $TPL)"
 
@@ -40,4 +40,4 @@ TMP=$(echo "$TPL_CONTENT" | sed -e "s|{{{VUFIND_HOME}}}|$VUFIND_HOME|g" \
                                 -e "s|{{{NAME}}}|$NAME|g" \
                                 -e "s|{{{HTPASSWD}}}|$HTPASSWD|g")
 
-echo "$TMP" > $OUTPUT
+echo "$TMP" > "$OUTPUT"

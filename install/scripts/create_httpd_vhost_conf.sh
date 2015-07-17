@@ -33,54 +33,54 @@ if [ "$#" -ne 2 ] && [ "$#" -ne 4 ] ; then
   exit 1
 fi
 
-SERVER_IP=$1
-SERVER_URL=$2
+SERVER_IP="$1"
+SERVER_URL="$2"
 
 USE_SSL=false
 SSL_CERT=""
 SSL_KEY=""
 SSL_CHAIN_FILE="" 
 
-if [ "$#" -eq 4 ] ; then
+if [ "$#" -eq 4 ] || [ "$#" -eq 5 ] ; then
   if [[ $3 ]] || [[ $4 ]]; then
     USE_SSL=true
   fi
-  SSL_CERT=$3
-  SSL_KEY=$4
+  SSL_CERT="$3"
+  SSL_KEY="$4"
 fi
 if [ "$#" -eq 5 ] ; then 
-  SSL_CHAIN_FILE = $5
+  SSL_CHAIN_FILE = "$5"
 fi
 
 TPL_CONTENT="$(cat $TPL)"
 
 # Include SSL
-PLACE=$(echo "$TPL_CONTENT" | awk 'match($0, /{{{if ssl [A-Za-z0-9\.\-]*[\s]*}}}/) { print $0 }')
+PLACE="$(echo "$TPL_CONTENT" | awk 'match($0, /{{{if ssl [A-Za-z0-9\.\-]*[\s]*}}}/) { print $0 }')"
 if [[ "$PLACE" ]] && [[ "$USE_SSL" = true ]]; then
-  INC_TPL=$TEMPLATE_DIR/$(echo $PLACE | sed 's/{{{if ssl \([A-Za-z0-9\.\-]*\)}}}/\1/g')
+  INC_TPL="$TEMPLATE_DIR/$(echo "$PLACE" | sed 's/{{{if ssl \([A-Za-z0-9\.\-]*\)}}}/\1/g')"
 	INC_TPL_CONTENT="$(cat $INC_TPL)"
-	TPL_CONTENT=$(echo "$TPL_CONTENT" | awk -v r="$INC_TPL_CONTENT" "{gsub(/$PLACE/,r)}1")
+	TPL_CONTENT="$(echo "$TPL_CONTENT" | awk -v r="$INC_TPL_CONTENT" "{gsub(/$PLACE/,r)}1")"
 elif [[ "$PLACE" ]] ; then
-	TPL_CONTENT=$(echo "$TPL_CONTENT" | sed "s|$PLACE| |g")
+	TPL_CONTENT="$(echo "$TPL_CONTENT" | sed "s|$PLACE| |g")"
 fi
 
 # Include SSL_CHAIN_FILE
-PLACE=$(echo "$TPL_CONTENT" | awk 'match($0, /{{{if sslChainFile [A-Za-z0-9\.\-]*[\s]*}}}/) { print $0 }')
+PLACE="$(echo "$TPL_CONTENT" | awk 'match($0, /{{{if sslChainFile [A-Za-z0-9\.\-]*[\s]*}}}/) { print $0 }')"
 if [[ "$PLACE" ]] && [[ "$SSL_CHAIN_FILE" ]]; then
-  INC_TPL=$TEMPLATE_DIR/$(echo $PLACE | sed 's/{{{if sslChainFile \([A-Za-z0-9\.\-]*\)}}}/\1/g')
+  INC_TPL="$TEMPLATE_DIR/$(echo $PLACE | sed 's/{{{if sslChainFile \([A-Za-z0-9\.\-]*\)}}}/\1/g')"
   INC_TPL_CONTENT="$(cat $INC_TPL)"
-  TPL_CONTENT=$(echo "$TPL_CONTENT" | awk -v r="$INC_TPL_CONTENT" "{gsub(/$PLACE/,r)}1")
+  TPL_CONTENT="$(echo "$TPL_CONTENT" | awk -v r="$INC_TPL_CONTENT" "{gsub(/$PLACE/,r)}1")"
 elif [[ "$PLACE" ]] ; then
-  TPL_CONTENT=$(echo "$TPL_CONTENT" | sed "s|$PLACE| |g")
+  TPL_CONTENT="$(echo "$TPL_CONTENT" | sed "s|$PLACE| |g")"
 fi
 
 
-TMP=$(echo "$TPL_CONTENT" | sed -e "s|{{{VUFIND_HOME}}}|$VUFIND_HOME|g" \
-                                -e "s|{{{VUFIND_LOCAL_DIR}}}|$VUFIND_LOCAL_DIR|g" \
-                                -e "s|{{{IP}}}|$SERVER_IP|g" \
-                                -e "s|{{{SERVER_URL}}}|$SERVER_URL|g" \
-                                -e "s|{{{SSL_CERT}}}|$SSL_CERT|g" \
-                                -e "s|{{{SSL_KEY}}}|$SSL_KEY|g" \
-                                -e "s|{{{SSL_CHAIN_FILE}}}|$SSL_CHAIN_FILE|g")
+TMP="$(echo "$TPL_CONTENT" | sed -e "s|{{{VUFIND_HOME}}}|$VUFIND_HOME|g" \
+                                 -e "s|{{{VUFIND_LOCAL_DIR}}}|$VUFIND_LOCAL_DIR|g" \
+                                 -e "s|{{{IP}}}|$SERVER_IP|g" \
+                                 -e "s|{{{SERVER_URL}}}|$SERVER_URL|g" \
+                                 -e "s|{{{SSL_CERT}}}|$SSL_CERT|g" \
+                                 -e "s|{{{SSL_KEY}}}|$SSL_KEY|g" \
+                                 -e "s|{{{SSL_CHAIN_FILE}}}|$SSL_CHAIN_FILE|g")"
 
 echo "$TMP" > $OUTPUT

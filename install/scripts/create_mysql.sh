@@ -26,15 +26,15 @@ if [ "$#" -ne 2 ] && [ "$#" -ne 4 ] ; then
   exit 1
 fi
 
-ROOT_PASSWORD=$1
-VUFIND_PASSWORD=$2
+ROOT_PASSWORD="$1"
+VUFIND_PASSWORD="$2"
 
 # There is no 'DROP USER IF EXISTS' in MySQL. That's why we have to check it manually...
-userExists=$(mysql -D "mysql" -u root -p$ROOT_PASSWORD -e "SELECT 1 FROM user WHERE User = 'vufind';")
+userExists=$(mysql -D "mysql" --user=root --password="$ROOT_PASSWORD" --execute="SELECT 1 FROM user WHERE User = 'vufind';")
 if [ "$userExists" ] ; then
-	mysql -u root -p$ROOT_PASSWORD -e "DROP USER 'vufind'@'localhost';"
+	mysql --user=root --password="$ROOT_PASSWORD" --execute="DROP USER 'vufind'@'localhost';"
 fi
 
-mysql -u root -p$ROOT_PASSWORD -e "DROP DATABASE IF EXISTS vufind;"
-mysql -u root -p$ROOT_PASSWORD < $SCRIPT_DIR/create_mysql_database.sql 
-mysql -u root -p$ROOT_PASSWORD -e "GRANT SELECT,INSERT,UPDATE,DELETE ON vufind.* TO 'vufind'@'localhost' IDENTIFIED BY '$VUFIND_PASSWORD' WITH GRANT OPTION; FLUSH PRIVILEGES;"
+mysql --user=root --password="$ROOT_PASSWORD" --execute="DROP DATABASE IF EXISTS vufind;"
+mysql --user=root --password="$ROOT_PASSWORD" < "$SCRIPT_DIR/create_mysql_database.sql"
+mysql --user=root --password="$ROOT_PASSWORD" --execute="GRANT SELECT,INSERT,UPDATE,DELETE ON vufind.* TO 'vufind'@'localhost' IDENTIFIED BY '$VUFIND_PASSWORD' WITH GRANT OPTION; FLUSH PRIVILEGES;"

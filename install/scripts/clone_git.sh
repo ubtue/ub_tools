@@ -27,7 +27,7 @@ if [ "$#" -ne 2 ]; then
   exit 1
 fi
 
-if [[ $1 != git@* ]]; then
+if [[ "$1" != git@* ]]; then
 	echo "${0##*/} - If you want to change the repository, use a git URL instead of httpds!"
 fi
 

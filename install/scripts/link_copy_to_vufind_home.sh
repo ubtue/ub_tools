@@ -27,6 +27,6 @@ if [ "$#" -ne 1 ]; then
   exit 1
 fi
 
-LOCAL_COPY_DIRECTORY=$1
+LOCAL_COPY_DIRECTORY="$1"
 
-sudo ln -sfT $LOCAL_COPY_DIRECTORY $VUFIND_HOME
+sudo ln --force --symbolic --no-target-directory "$LOCAL_COPY_DIRECTORY" "$VUFIND_HOME"

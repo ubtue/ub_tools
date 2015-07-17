@@ -6,6 +6,8 @@
 #
 set -o errexit -o nounset
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+TEMPLATE_DIR=$SCRIPT_DIR/templates
+TPL=$TEMPLATE_DIR/start-vufind.sh
 
 
 show_help() {
@@ -16,7 +18,6 @@ USAGE: ${0##*/} CLONE_DIRECTORY_PATH
 
 CLONE_DIRECTORY_PATH     The path to the directory of the
                          specific VuFind clone.
-
 EOF
 }
 
@@ -28,21 +29,20 @@ if [ "$#" -ne 1 ]; then
   exit 1
 fi
 
-LOCAL_COPY_DIRECTORY=$1
-START_SCRIPT="$LOCAL_COPY_DIRECTORY/start_vufind.sh"
+LOCAL_COPY_DIRECTORY="$1"
+TPL_CONTENT="$(cat $TPL)"
+OUTPUT="$LOCAL_COPY_DIRECTORY/start_vufind.sh"
 
-sh -c "> $START_SCRIPT"
-# paths
-sh -c "echo export JAVA_HOME=\"/usr/lib/jvm/default-java\"        >> $START_SCRIPT"
-sh -c "echo export VUFIND_HOME=\"$VUFIND_HOME\"                   >> $START_SCRIPT"
-sh -c "echo export VUFIND_LOCAL_DIR=\"$VUFIND_LOCAL_DIR\"         >> $START_SCRIPT"
-# stop server
-sh -c "echo '/usr/local/vufind2/vufind.sh stop'                   >> $START_SCRIPT"
-sh -c "echo 'sudo apache2ctl stop'                                >> $START_SCRIPT"
-sh -c "echo 'sleep 2'                                             >> $START_SCRIPT"
-# link default location
-sh -c "echo sudo ln -sfT $LOCAL_COPY_DIRECTORY /usr/local/vufind2 >> $START_SCRIPT"
-# start server
-sh -c "echo 'sudo apache2ctl start'                               >> $START_SCRIPT"
-sh -c "echo '/usr/local/vufind2/vufind.sh start'                  >> $START_SCRIPT"
-sudo chmod ug+x $START_SCRIPT
+if [ -d "/etc/apache2" ] ; then
+	WEBSERVER_NAME="apache2"
+else
+	WEBSERVER_NAME="httpd"
+fi
+
+TMP=$(echo "$TPL_CONTENT" | sed -e "s|{{{VUFIND_HOME}}}|$VUFIND_HOME|g" \
+                                -e "s|{{{VUFIND_LOCAL_DIR}}}|$VUFIND_LOCAL_DIR|g" \
+                                -e "s|{{{CLONE_DIRECTORY_PATH}}}|$CLONE_DIRECTORY_PATH|g" \
+                                -e "s|{{{WEBSERVER_NAME}}}|$WEBSERVER_NAME|g")
+
+echo "$TMP" > "$OUTPUT"
+sudo chmod ug+x "$OUTPUT"
