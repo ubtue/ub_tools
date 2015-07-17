@@ -212,9 +212,15 @@ fi
 ##############################################################################
 # RESTART SERVER
 ##############################################################################
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "Start Server!"
+  echo "$CLONE_DIRECTORY/start-vufind.sh"
+fi
 
 "$CLONE_DIRECTORY/start-vufind.sh"
 
-  echo ""
-  echo "DONE"
+echo ""
+echo "DONE"
   
