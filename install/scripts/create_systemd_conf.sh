@@ -9,8 +9,12 @@ set -o errexit -o nounset
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 TEMPLATE_DIR=$SCRIPT_DIR/templates
 TPL=$TEMPLATE_DIR/vufind.systemD
-OUTPUT="/usr/local/lib/systemd/system/vufind.service"
+SYSTEMD_DIRECTORY="/usr/local/lib/systemd/system"
+OUTPUT="$SYSTEMD_DIRECTORY/vufind.service"
 
+if [ ! -d "$SYSTEMD_DIRECTORY" ] ; then
+  sudo mkdir --parents "$SYSTEMD_DIRECTORY"
+fi
 sudo cp "$TPL" "$OUTPUT"
 
 systemctl enable httpd.service
