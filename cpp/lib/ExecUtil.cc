@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -32,7 +33,16 @@ void SigAlarmHandler(int /* sig_no */) {
 }
 
 
+bool IsExecutableFile(const std::string &path) {
+    struct stat statbuf;
+    return ::stat(path.c_str(), &statbuf) == 0 and (statbuf.st_mode & S_IXUSR);
+}
+
+
 } // unnamed namespace
+
+
+namespace ExecUtil {
 
 
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
@@ -129,3 +139,28 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
     return 0; // Keep the compiler happy!
 }
+
+
+std::string Which(const std::string &executable_candidate) {
+    const size_t last_slash_pos(executable_candidate.find_last_of('/'));
+    if (last_slash_pos != std::string::npos)
+	return IsExecutableFile(executable_candidate) ? executable_candidate : "";
+
+    const char * const PATH(::secure_getenv("PATH"));
+    if (PATH == NULL)
+	return "";
+
+    const std::string path_str(PATH);
+    std::vector<std::string> path_compoments;
+    StringUtil::Split(path_str, ':', &path_compoments);
+    for (const auto &path_compoment : path_compoments) {
+	const std::string full_path(path_compoment + "/" + executable_candidate);
+	if (IsExecutableFile(full_path))
+	    return full_path;
+    }
+
+    return "";
+}
+
+
+} // namespace ExecUtil

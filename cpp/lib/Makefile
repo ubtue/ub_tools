@@ -18,7 +18,7 @@ libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o Mar
 
 FileUtil.o: FileUtil.h Compiler.h
 PdfUtil.o: PdfUtil.h ExecUtil.h util.h FileUtil.h
-ExecUtil.o: ExecUtil.h util.h
+ExecUtil.o: ExecUtil.h StringUtil.h util.h
 MapIO.o: MapIO.h StringUtil.h util.h
 MediaTypeUtil.o: MediaTypeUtil.cc MediaTypeUtil.h
 Locale.o: Locale.h

@@ -33,7 +33,7 @@ int OCR(const std::string &input_document_path, const std::string &output_docume
         args.emplace_back(language_codes);
     }
 
-    return Exec(TESSERACT, args, output_document_path, TIMEOUT) == 0;
+    return ExecUtil::Exec(TESSERACT, args, output_document_path, TIMEOUT) == 0;
 }
 
 
