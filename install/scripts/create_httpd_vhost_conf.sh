@@ -49,7 +49,7 @@ if [ "$#" -eq 4 ] || [ "$#" -eq 5 ] ; then
   SSL_KEY="$4"
 fi
 if [ "$#" -eq 5 ] ; then 
-  SSL_CHAIN_FILE = "$5"
+  SSL_CHAIN_FILE="$5"
 fi
 
 TPL_CONTENT="$(cat $TPL)"
