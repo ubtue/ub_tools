@@ -26,7 +26,7 @@ SSL_KEY             Path to the key file of the ssl certificate
 EOF
 }
 
-if [ "$#" -ne 2 ] && [ "$#" -ne 4 ] ; then
+if [ "$#" -ne 2 ] && [ "$#" -ne 4 ] && [ "$#" -ne 5 ] ; then
   echo "ERROR: Illegal number of parameters!"
   echo "Parameters: $*"
   show_help
