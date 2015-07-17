@@ -153,7 +153,7 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
 		for (auto dir_entry(dir_entries.cbegin() + start_local_match);
 		     dir_entry != dir_entries.cbegin() + end_local_match; ++dir_entry)
 		    deleted_size += dir_entry->getFieldLength() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
-		raw_leader->setRecordLength(raw_leader->getRecordLength() + deleted_size);
+		raw_leader->setRecordLength(raw_leader->getRecordLength() - deleted_size);
 
                 // ... and throw away the matched local data set.
                 dir_entries.erase(dir_entries.begin() + start_local_match, dir_entries.begin() + end_local_match);\
