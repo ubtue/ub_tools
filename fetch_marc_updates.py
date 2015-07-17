@@ -28,6 +28,7 @@ from ftplib import FTP
 import os
 import re
 import sys
+import traceback
 import util
 
 
@@ -105,13 +106,13 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
 def Main():
     util.default_email_sender = "fetch_marc_updates@ub.uni-tuebingen.de"
     util.default_email_recipient = sys.argv[1]
-    config = util.LoadConfigFile("fetch_marc_updates.conf")
+    config = util.LoadConfigFile()
     try:
         ftp_host   = config.get("FTP", "host")
         ftp_user   = config.get("FTP", "username")
         ftp_passwd = config.get("FTP", "password")
     except Exception as e:
-        Error("failed to read config file! ("+ str(e) + ")")
+        util.Error("failed to read config file! ("+ str(e) + ")")
 
     ftp = Login(ftp_host, ftp_user, ftp_passwd)
     msg = ""
@@ -142,4 +143,5 @@ def Main():
 try:
     Main()
 except Exception as e:
-    util.SendEmail("BSZ File Update", "An unexpected error occurred: " + str(e))
+    util.SendEmail("BSZ File Update", "An unexpected error occurred: "
+                   + str(e) + "\n\n" + traceback.format_exc())

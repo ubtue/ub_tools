@@ -117,8 +117,6 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
             ++deleted_record_count;
             std::cout << "Deleted record with ID " << field_data[0] << '\n';
         } else { // Look for local data sets that may need to be deleted.
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, raw_leader);
-        
             bool modified(false);
             while ((start_local_match = MatchLocalID(local_deletion_ids, dir_entries, field_data)) != -1) {
                 // We now expect a field "000" before the current "001" field:
@@ -150,8 +148,16 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
                 if (not found_next_000)
                     ++end_local_match;
 
-                // Throw away the matched local data set:
-                dir_entries.erase(dir_entries.begin() + start_local_match, dir_entries.begin() + end_local_match);
+		// Update the record length field in the leader...
+		size_t deleted_size(0);
+		for (auto dir_entry(dir_entries.cbegin() + start_local_match);
+		     dir_entry != dir_entries.cbegin() + end_local_match; ++dir_entry)
+		    deleted_size += dir_entry->getFieldLength() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
+		raw_leader->setRecordLength(raw_leader->getRecordLength() - deleted_size);
+
+                // ... and throw away the matched local data set.
+                dir_entries.erase(dir_entries.begin() + start_local_match, dir_entries.begin() + end_local_match);\
+                field_data.erase(field_data.begin() + start_local_match, field_data.begin() + end_local_match);\
 
                 modified = true;
             }

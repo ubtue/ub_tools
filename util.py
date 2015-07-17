@@ -5,24 +5,30 @@
 from __future__ import print_function
 from email.mime.text import MIMEText
 import ConfigParser
+import datetime
 import os
+import process_util
 import smtplib
 import socket
 import struct
 import sys
+import tarfile
 import time
 
 
 default_email_sender = "unset_email_sender@ub.uni-tuebingen.de"
 default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
+default_config_file_path = None
 
 
-def SendEmail(subject, msg, sender=None, recipient=None):
+def SendEmail(subject, msg, sender=None, recipient=None, config_file_path=None):
     if sender is None:
         sender = default_email_sender
     if recipient is None:
         recipient = default_email_recipient
-    config = LoadConfigFile()
+    if config_file_path is None:
+        config_file_path = default_config_file_path
+    config = LoadConfigFile(config_file_path)
     try:
         server_address  = config.get("SMTPServer", "server_address")
         server_user     = config.get("SMTPServer", "server_user")
@@ -31,7 +37,7 @@ def SendEmail(subject, msg, sender=None, recipient=None):
         print("failed to read config file! (" + str(e) + ")", file=sys.stderr)
         sys.exit(-1)
 
-    message = MIMEText(msg)
+    message = MIMEText(msg, 'plain', 'utf-8')
     message["Subject"] = subject
     message["From"] = sender
     message["To"] = recipient
@@ -58,8 +64,9 @@ def Warning(msg):
 
 
 # @brief Copy the contents, in order, of "files" into "target".
+# @return True if we succeeded, else False.
 def ConcatenateFiles(files, target):
-    process_util.Exec("/bin/cat", files, new_stdout=target)
+    return process_util.Exec("/bin/cat", files, new_stdout=target) == 0
 
 
 # Fails if "source" does not exist or if "link_name" exists and is not a symlink.
@@ -99,9 +106,14 @@ def Remove(path):
 
 
 # @brief  Looks for "prefix.timestamp", and if found reads the timestamp stored in it.
+# @param  prefix  This followed by ".timestamp" will be used as the name of the timestamp file.
+#                 If this is None, the name of the Python executable minus the last three characters
+#                 (hopefully ".py") will be used.
 # @note   Timestamps are in seconds since the UNIX epoch.
 # @return Either the value found in the timestamp file or the UNIX epoch, that is 0.
-def ReadTimestamp(prefix):
+def ReadTimestamp(prefix = None):
+    if prefix is None:
+        prefix = os.path.basename(sys.argv[0])[:-3]
     timestamp_filename = prefix + ".timestamp"
     if not os.access(timestamp_filename, os.R_OK):
         return 0
@@ -110,12 +122,17 @@ def ReadTimestamp(prefix):
         return timestamp
 
 
+# @param timestamp  A float.
 # @param prefix     This combined with ".timestamp" will be the name of the file that will be written.
 # @param timestamp  A value in seconds since the UNIX epoch or None, in which case the current time
 #                   will be used
-def WriteTimestamp(prefix, timestamp=None):
+def WriteTimestamp(prefix=None, timestamp=None):
+    if prefix is None:
+        prefix = os.path.basename(sys.argv[0])[:-3]
+    elif type(timestamp) is not float:
+        raise TypeError("timestamp argument of WriteTimestamp() must be of type \"float\"!")
     if timestamp is None:
-        timestamp = time.gmtime()
+        timestamp = time.time()
     timestamp_filename = prefix + ".timestamp"
     Remove(timestamp_filename)
     with open(timestamp_filename, "wb") as timestamp_file:
@@ -146,7 +163,7 @@ def FoundNewBSZDataFile(link_filename):
     try:
         statinfo = os.stat(link_filename)
     except FileNotFoundError as e:
-        util.Error("Symlink \"" + link_filename + "\" is missing or dangling!")
+        Error("Symlink \"" + link_filename + "\" is missing or dangling!")
     new_timestamp = statinfo.st_ctime
     timestamp_filename = os.path.basename(sys.argv[0][:-2]) + "timestamp"
     if not os.path.exists(timestamp_filename):
@@ -162,3 +179,53 @@ def FoundNewBSZDataFile(link_filename):
             return True
         else:
             return False
+
+
+# Extracts the typical 3 files from a gizipped tar archive.
+# @param name_prefix  If not None, this will be prepended to the names of the extracted files
+# @return The list of names of the extracted files in the order: title data, superior data, norm data
+def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
+    def ExtractAndRenameMember(tar_file, member, new_name):
+        Remove(member)
+        tar_file.extract(member)
+        Remove(new_name)
+        os.rename(member, new_name)
+
+    if name_prefix is None:
+        name_prefix = ""
+    tar_file = tarfile.open(gzipped_tar_archive, "r:gz")
+    members = tar_file.getnames()
+    current_date_str = datetime.datetime.now().strftime("%d%m%y")
+    for member in members:
+        if member.endswith("a001.raw"):
+            ExtractAndRenameMember(tar_file, member, name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc")
+        elif member.endswith("b001.raw"):
+            ExtractAndRenameMember(tar_file, member,
+                                   name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc")
+        elif member.endswith("c001.raw"):
+            ExtractAndRenameMember(tar_file, member, name_prefix + "Normdaten-" + current_date_str + ".mrc")
+        else:
+            Error("Unknown member \"" + member + "\" in archive \"" + gzipped_tar_archive + "\"!")
+    return [name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc",
+            name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc",
+            name_prefix + "Normdaten-" + current_date_str + ".mrc"]
+
+
+def IsExecutableFile(executable_candidate):
+    return os.path.isfile(executable_candidate) and os.access(executable_candidate, os.X_OK)
+
+
+# @return the path to the executable "executable_candidate" if found, or else None
+def Which(executable_candidate):
+
+    dirname, basename = os.path.split(executable_candidate)
+    if dirname:
+        if IsExecutableFile(executable_candidate):
+            return executable_candidate
+    else:
+        for path in os.environ["PATH"].split(":"):
+            full_name = os.path.join(path, executable_candidate)
+            if IsExecutableFile(full_name):
+                return full_name
+
+    return None

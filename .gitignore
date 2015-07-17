@@ -6,6 +6,8 @@
 *.a
 *.pyc
 *.tar.gz
+*.timestamp
+LOEPPN-*
 \#*\#
 add_child_refs
 add_issn_to_articles
