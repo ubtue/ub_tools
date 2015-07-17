@@ -29,9 +29,9 @@ if [ "$#" -ne 1 ]; then
   exit 1
 fi
 
-LOCAL_COPY_DIRECTORY="$1"
+CLONE_DIRECTORY_PATH="$1"
 TPL_CONTENT="$(cat $TPL)"
-OUTPUT="$LOCAL_COPY_DIRECTORY/start_vufind.sh"
+OUTPUT="$CLONE_DIRECTORY_PATH/start_vufind.sh"
 
 if [ -d "/etc/apache2" ] ; then
 	WEBSERVER_NAME="apache2"
