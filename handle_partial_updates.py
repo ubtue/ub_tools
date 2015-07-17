@@ -81,7 +81,7 @@ def RenameOrDie(old_name, new_name):
 # differential updates as well as deletions.  Should this function finish
 # successfully, the three files "Normdaten-DDMMYY.mrc", "TitelUndLokaldaten-DDMMYY.mrc",
 # and "ÜbergeordneteTitelUndLokaldaten-DDMMYY.mrc" will be left in our data
-# directory.  Here DDMMYY is the current date.
+# directory.  Here DDMMYY is the current date.  Also changes into the parent directory.
 def UpdateAllMarcFiles(orig_deletion_list):
     # Create a deletion list that consists of the original list from the
     # BSZ as well as all the ID's from the files starting w/ "Diff":
@@ -125,6 +125,13 @@ def UpdateAllMarcFiles(orig_deletion_list):
     current_date_str = datetime.datetime.now().strftime("%d%m%y")
     for marc_file_name in glob.glob("*.mrc"):
         RenameOrDie(marc_file_name, "../" + marc_file_name[:-4] + "-" + current_date_str + ".mrc")
+    os.chdir("..")
+    print("Reamed and moved files.")
+
+    # Create symlinks with "current" instead of "MMDDYY" in the orginal files:
+    for marc_file_name in glob.glob("*-[0-9][0-9][0-9][0-9][0-9][0-9].mrc"):
+        util.SafeSymlink(marc_file_name, re.sub("\\d\\d\\d\\d\\d\\d", "current", marc_file_name))
+    print("Symlinked files.")
 
 
 def Main():
@@ -159,12 +166,12 @@ def Main():
         util.SendEmail("Nichts zu tun!", "Keine neue Löschliste oder kein neuer Differenzabzug.\n")
         sys.exit(0)
 
-    data_dir = PrepareDataDirectory() # After this we're in the data directory.
+    data_dir = PrepareDataDirectory() # After this we're in the data directory...
 
     util.ExtractAndRenameBSZFiles("../" + complete_data)
     util.ExtractAndRenameBSZFiles("../" + differential_data, "Diff")
-    UpdateAllMarcFiles("../" + deletion_list)
-    os.chdir("..")
+    UpdateAllMarcFiles("../" + deletion_list) # ...and we're back in the original directory.
+
     util.WriteTimestamp()
     print("Successfully created updated MARC files.")
 
