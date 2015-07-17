@@ -31,7 +31,7 @@ fi
 
 CLONE_DIRECTORY_PATH="$1"
 TPL_CONTENT="$(cat $TPL)"
-OUTPUT="$CLONE_DIRECTORY_PATH/start_vufind.sh"
+OUTPUT="$CLONE_DIRECTORY_PATH/start-vufind.sh"
 
 if [ -d "/etc/apache2" ] ; then
 	WEBSERVER_NAME="apache2"
