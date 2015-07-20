@@ -26,7 +26,7 @@ int Download(const std::string &url, const std::string &output_filename, const u
         args.push_back("--keep-session-cookies");
     }
 
-    return Exec(WGET, args);
+    return ExecUtil::Exec(WGET, args);
 }
 
 

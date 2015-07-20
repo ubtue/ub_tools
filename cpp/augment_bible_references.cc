@@ -691,7 +691,7 @@ int main(int argc, char **argv) {
     const std::string norm_input_filename(argv[verbose ? 3 : 2]);
     FILE *norm_input = std::fopen(norm_input_filename.c_str(), "rbm");
     if (norm_input == NULL)
-        Error("can't open \"" + norm_input_filename + "\" for writing!");
+        Error("can't open \"" + norm_input_filename + "\" for reading!");
 
     const std::string title_output_filename(argv[verbose ? 4 : 3]);
     FILE *title_output = std::fopen(title_output_filename.c_str(), "wb");

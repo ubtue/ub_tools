@@ -1,7 +1,7 @@
 PROGS=marc_grep2 jop_grep download_test add_issn_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
       bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
-      exec_test krimdok_filter
+      exec_test krimdok_filter resolve_in_path_test
 CGI_PROGS=full_text_lookup
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -c
@@ -118,6 +118,11 @@ exec_test: exec_test.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
 
 exec_test.o: exec_test.cc lib/ExecUtil.h lib/util.h lib/StringUtil.h
+
+resolve_in_path_test: resolve_in_path_test.o lib/libmarc.a
+	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
+
+resolve_in_path_test.o: resolve_in_path_test.cc lib/ExecUtil.h
 
 krimdok_filter: krimdok_filter.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
