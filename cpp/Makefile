@@ -1,7 +1,7 @@
 PROGS=marc_grep2 jop_grep download_test add_issn_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
       bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
-      exec_test krimdok_filter resolve_in_path_test
+      exec_test krimdok_filter resolve_in_path_test enrich_ddcs
 CGI_PROGS=full_text_lookup
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -c
@@ -129,6 +129,11 @@ krimdok_filter: krimdok_filter.o lib/libmarc.a
 
 krimdok_filter.o: krimdok_filter.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h lib/RegexMatcher.h \
                   lib/StringUtil.h lib/util.h
+
+enrich_ddcs.o: enrich_ddcs.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h lib/Subfields.h lib/util.h
+
+enrich_ddcs: enrich_ddcs.o lib/libmarc.a
+	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
 
 clean:
 	rm -f *~ $(PROGS) *.o
