@@ -28,3 +28,5 @@ marc_grep2
 marc_grep_tokenizer_test
 marc_filter
 shared_buffer_test
+
+bsz_daten
