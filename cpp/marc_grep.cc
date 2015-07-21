@@ -19,9 +19,11 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <algorithm>
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <queue>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
@@ -125,8 +127,49 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
 }
 
 
-bool EmitSubfields(const std::string &control_number, const std::string &tag, const char subfield_code,
-                   const std::string &contents, const OutputLabel output_format)
+class TagAndContents {
+    std::string tag_or_tag_plus_subfield_code_;
+    std::string contents_;
+public:
+    TagAndContents(const std::string &tag_or_tag_plus_subfield_code, const std::string &contents)
+	: tag_or_tag_plus_subfield_code_(tag_or_tag_plus_subfield_code), contents_(contents) { }
+
+    TagAndContents(TagAndContents &&other) {
+	std::swap(tag_or_tag_plus_subfield_code_, other.tag_or_tag_plus_subfield_code_);
+	std::swap(contents_, other.contents_);
+    }
+
+    TagAndContents &operator=(const TagAndContents &rhs) {
+	if (&rhs != this) {
+	    tag_or_tag_plus_subfield_code_ = rhs.tag_or_tag_plus_subfield_code_;
+	    contents_                      = rhs.contents_;
+	}
+
+	return *this;
+    }
+
+    const std::string &getTagOrTagPlusSubfieldCode() const { return tag_or_tag_plus_subfield_code_; }
+    const std::string &getContents() const { return contents_; }
+
+    bool operator<(const TagAndContents &rhs) const 
+        { return tag_or_tag_plus_subfield_code_ > rhs.tag_or_tag_plus_subfield_code_; }
+};
+
+
+void Emit(const std::string &control_number, const OutputLabel output_format,
+	  std::priority_queue<TagAndContents> * const tags_and_contents)
+{
+    while (not tags_and_contents->empty()) {
+	const TagAndContents &tag_and_contents(tags_and_contents->top());
+	Emit(control_number, tag_and_contents.getTagOrTagPlusSubfieldCode(), tag_and_contents.getContents(),
+	     output_format);
+	tags_and_contents->pop();
+    }
+}
+
+
+bool EnqueueSubfields(const std::string &tag, const char subfield_code, const std::string &contents,
+		      std::priority_queue<TagAndContents> * const tags_and_contents)
 {
     std::string tag_plus_subfield_code(tag);
     tag_plus_subfield_code += subfield_code;
@@ -134,7 +177,7 @@ bool EmitSubfields(const std::string &control_number, const std::string &tag, co
     const auto begin_end(subfields.getIterators(subfield_code));
     bool emitted_at_least_one(false);
     for (auto code_and_subfield(begin_end.first); code_and_subfield != begin_end.second; ++code_and_subfield) {
-        Emit(control_number, tag_plus_subfield_code, code_and_subfield->second, output_format);
+        tags_and_contents->push(TagAndContents(tag_plus_subfield_code, code_and_subfield->second));
         emitted_at_least_one = true;
     }
 
@@ -209,14 +252,8 @@ bool ProcessExistenceTest(const ConditionDescriptor &cond_desc,
 
 bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfieldDescriptor &field_or_subfield_desc,
                        const std::unordered_multimap<std::string, const std::string *> &field_to_content_map,
-                       const OutputLabel output_format)
+                       std::priority_queue<TagAndContents> * const tags_and_contents)
 {
-    // Determine the control number:
-    const auto &control_number_iter(field_to_content_map.find("001"));
-    if (unlikely(control_number_iter == field_to_content_map.end()))
-        Error("In ProcessConditions: record has no control number!");
-    const std::string control_number(*(control_number_iter->second));
-
     const std::string extraction_tag(field_or_subfield_desc.getTag());
     const auto begin_end(field_to_content_map.equal_range(extraction_tag));
     const bool extraction_tag_found(begin_end.first != begin_end.second or field_or_subfield_desc.isStar());
@@ -232,7 +269,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
     {
         if (field_or_subfield_desc.isStar()) {
             for (const auto &tag_and_content : field_to_content_map)
-                Emit(control_number, tag_and_content.first, *(tag_and_content.second), output_format);
+		tags_and_contents->push(TagAndContents(tag_and_content.first, *(tag_and_content.second)));
             return true;
         }
 
@@ -242,12 +279,12 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
              ++tag_and_field_contents)
         {
             if (subfield_codes.empty()) {
-                Emit(control_number, extraction_tag, *(tag_and_field_contents->second), output_format);
+                tags_and_contents->push(TagAndContents(extraction_tag, *(tag_and_field_contents->second)));
                 emitted_at_least_one = true;
             } else { // Looking for one or more subfields:
                 for (const auto &subfield_code : subfield_codes) {
-                    if (EmitSubfields(control_number, extraction_tag, subfield_code, *tag_and_field_contents->second,
-                                      output_format))
+                    if (EnqueueSubfields(extraction_tag, subfield_code, *tag_and_field_contents->second,
+					 tags_and_contents))
                         emitted_at_least_one = true;
                 }
             }
@@ -259,7 +296,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
     {
         if (field_or_subfield_desc.isStar()) {
             for (const auto &tag_and_content : field_to_content_map)
-                Emit(control_number, tag_and_content.first, *(tag_and_content.second), output_format);
+                tags_and_contents->push(TagAndContents(tag_and_content.first, *(tag_and_content.second)));
             return true;
         }
 
@@ -275,8 +312,8 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
 
             if (not subfields.hasSubfield(test_subfield_code)) {
                 if (comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL) {
-                    if (EmitSubfields(control_number, extraction_tag, extract_subfield_code,
-                                      *tag_and_field_contents->second, output_format))
+                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, *tag_and_field_contents->second,
+					 tags_and_contents))
                         emitted_at_least_one = true;
                 } else
                     return false;
@@ -297,8 +334,8 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
                 if ((matched_at_least_one and comp_type == ConditionDescriptor::SINGLE_FIELD_EQUAL)
                     or (not matched_at_least_one and comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL))
                 {
-                    if (EmitSubfields(control_number, extraction_tag, extract_subfield_code,
-                                      *tag_and_field_contents->second, output_format))
+                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, *tag_and_field_contents->second,
+					 tags_and_contents))
                         emitted_at_least_one = true;
                 }
             }
@@ -340,16 +377,26 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
             field_to_content_map.insert(std::make_pair(dir_entries[i].getTag(), &field_data[i]));
 
         bool matched(false);
+	std::priority_queue<TagAndContents> tags_and_contents;
 
         // Extract fields and subfields:
         for (const auto &cond_and_field_or_subfield : query_desc.getCondsAndFieldOrSubfieldDescs()) {
             if (ProcessConditions(cond_and_field_or_subfield.first, cond_and_field_or_subfield.second,
-                                  field_to_content_map, output_format))
+                                  field_to_content_map, &tags_and_contents))
                 matched = true;
         }
 
-        if (matched)
+        if (matched) {
             ++matched_count;
+
+	    // Determine the control number:
+	    const auto &control_number_iter(field_to_content_map.find("001"));
+	    if (unlikely(control_number_iter == field_to_content_map.end()))
+		Error("In FieldGrep: record has no control number!");
+	    const std::string control_number(*(control_number_iter->second));
+
+	    Emit(control_number, output_format, &tags_and_contents);
+	}
     }
 
     if (not err_msg.empty())
