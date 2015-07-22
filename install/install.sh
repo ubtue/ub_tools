@@ -97,12 +97,16 @@ if [[ "$VERBOSE" == true ]] ; then
 fi
 "$SCRIPT_DIR/create_user.sh"
 
+##############################################################################
+
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
   echo "create_mysql.sh PASSWORD PASSWORD"
 fi
 "$SCRIPT_DIR/create_mysql.sh" "$ROOT_PASSWORD" "$VUFIND_PASSWORD"
+
+##############################################################################
 
 if [[ -e "$CLONE_DIRECTORY" ]] ; then
   if [[ "$VERBOSE" == true ]] ; then
@@ -119,12 +123,25 @@ else
   "$SCRIPT_DIR/clone_git.sh" "$REPOSITORY" "$CLONE_DIRECTORY"
 fi
 
+##############################################################################
+
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
   echo "link_copy_to_vufind_home.sh $CLONE_DIRECTORY"
 fi
 "$SCRIPT_DIR/link_copy_to_vufind_home.sh" "$CLONE_DIRECTORY"
+
+##############################################################################
+
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "link_python2.sh"
+fi
+"$SCRIPT_DIR/link_python2.sh"
+
+##############################################################################
 
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
@@ -133,12 +150,16 @@ if [[ "$VERBOSE" == true ]] ; then
 fi
 "$SCRIPT_DIR/create_etc_profile.sh"
 
+##############################################################################
+
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
   echo "create_httpd_conf.sh $MODULES $FORCE_SSL"
 fi
 "$SCRIPT_DIR/create_httpd_conf.sh" "$MODULES" "$FORCE_SSL"
+
+##############################################################################
 
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
@@ -147,12 +168,16 @@ if [[ "$VERBOSE" == true ]] ; then
 fi
 "$SCRIPT_DIR/create_httpd_vhost_conf.sh" "$SERVER_IP" "$SERVER_URL" "$SSL_CERT" "$SSL_KEY" "$SSL_CHAIN_FILE"
 
+##############################################################################
+
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
   echo "link_httpd_config.sh"
 fi
 "$SCRIPT_DIR/link_httpd_config.sh"
+
+##############################################################################
 
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
@@ -161,6 +186,7 @@ if [[ "$VERBOSE" == true ]] ; then
 fi
 "$SCRIPT_DIR/create_private_server_config.sh" "$SERVER_IP" "$SERVER_URL" "$EMAIL" "$VUFIND_PASSWORD"
 
+##############################################################################
 
 if [[ "$VUFIND_HOME" != "$CLONE_DIRECTORY" ]] ; then
   if [[ "$VERBOSE" == true ]] ; then
@@ -177,12 +203,16 @@ else
   fi 
 fi
 
+##############################################################################
+
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
   echo "set_privileges.sh"
 fi
 "$SCRIPT_DIR/set_privileges.sh"
+
+##############################################################################
 
 if [ -x "/bin/systemctl" ] ; then
 	if [[ "$VERBOSE" == true ]] ; then
@@ -199,6 +229,8 @@ else
   fi
   "$SCRIPT_DIR/create_upstart_conf.sh"
 fi
+
+##############################################################################
 
 if [[ "$HTPASSWD" ]] ; then
   if [[ "$VERBOSE" == true ]] ; then

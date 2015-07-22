@@ -13,14 +13,14 @@ Clones a git repository to the current directory
 
 USAGE: ${0##*/} GIT_REPOSITORY DIRECTORY
 
-GIT_REPOSITORY      Url of the git repository
+GIT_REPOSITORY      URL of the git repository
 DIRECTORY           The name of the subdirectory for the cloned repository
 
 EOF
 }
 
 
-if [ "$#" -ne 2 ]; then
+if [[ "$#" -ne 2 ]]; then
   echo "ERROR: Illegal number of parameters!"
   echo "Parameters: $*"
   show_help
@@ -28,11 +28,12 @@ if [ "$#" -ne 2 ]; then
 fi
 
 if [[ "$1" != git@* ]]; then
-	echo "${0##*/} - If you want to change the repository, use a git URL instead of httpds!"
+	echo "${0##*/} - If you want to change the repository, use a git URL instead of https!"
 fi
 
-git clone "$1" "$2"
-if [ $? -ne 0 ]; then
+# Clone repository and its submodules
+git clone --recurse-submodules "$1" "$2"
+if [[ $? -ne 0 ]]; then
 	logger -s "${0##*/} - ERROR. Couldn't clone git repository '$1' to '$2'"
 	exit 1;
 fi

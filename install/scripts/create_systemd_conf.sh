@@ -22,8 +22,3 @@ sudo cp "$TPL" "$OUTPUT"
 sudo systemctl enable httpd.service
 sudo systemctl enable mariadb.service
 sudo systemctl enable vufind.service
-
-# SystemD needs a --no-background mode to run. So we have to override the original vufind.sh
-VUFIND_SH_TPL="$TEMPLATE_DIR/vufind.sh"
-VUFIND_SH="$VUFIND_HOME/vufind.sh"
-sudo cp "$VUFIND_SH_TPL" "$VUFIND_SH"

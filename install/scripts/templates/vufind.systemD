@@ -3,11 +3,14 @@ Description=VuFind Starter
 After=network.target httpd.service mariadb.service
 
 [Service]
-Type=fork
-ExecStart=/bin/sh --login -c "/usr/local/vufind2/vufind.sh --no-background start"
+Type=forking
+ExecStart=/bin/sh --login -c '/usr/local/vufind2/vufind.sh start'
+PIDFile=/var/run/vufind.pid
 User=root
 ExecStop=/bin/sh --login -c "/usr/local/vufind2/vufind.sh stop"
-ExecReload=/bin/sh --login -c "/usr/local/vufind2/vufind.sh --no-background restart"
+
+# Java responds to a SIGTERM by returning with exit code 143 which leads to "failed" exit in the systemd-Logs
+SuccessExitStatus=143
 
 [Install]
 WantedBy=multi-user.target
