@@ -25,8 +25,42 @@
 #include "DirectoryEntry.h"
 #include "Leader.h"
 #include "MarcUtil.h"
+#include "RegexMatcher.h"
 #include "Subfields.h"
 #include "util.h"
+
+
+bool IsPossibleDDC(const std::string &ddc_candidate) {
+    static const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory("^\\d\\d\\d"));
+    std::string err_msg;
+    if (not matcher->matched(ddc_candidate, &err_msg)) {
+	if (err_msg.empty())
+	    return false;
+	Error("unexpected regex error while trying to match \"" + ddc_candidate + "\": " + err_msg);
+    }
+
+    return true;
+}
+
+
+void ExtractFromField(const std::string &tag, const std::vector<DirectoryEntry> &dir_entries,
+		      const std::vector<std::string> &field_data, std::set<std::string> * const ddcs)
+{
+    const auto begin_end(DirectoryEntry::FindFields(tag, dir_entries));
+    for (auto iter(begin_end.first); iter != begin_end.second; ++iter) {
+	const Subfields subfields(field_data[iter - dir_entries.begin()]);
+	if (subfields.hasSubfield('z')) // Auxillary table number => not a regular DDC in $a!
+	    continue;
+
+	const auto subfield_a_begin_end(subfields.getIterators('a'));
+	for (auto ddc(subfield_a_begin_end.first); ddc != subfield_a_begin_end.second; ++ddc) {
+	    if (IsPossibleDDC(ddc->second))
+		ddcs->insert(ddc->second);
+	}
+    }
+
+    
+}
 
 
 void ExtractDDCsFromNormdata(const bool verbose, FILE * const norm_input,
@@ -49,22 +83,14 @@ void ExtractDDCsFromNormdata(const bool verbose, FILE * const norm_input,
             continue;
         const std::string &control_number(field_data[_001_iter - dir_entries.begin()]);
 
-	bool found_at_least_one(false);
 	std::set<std::string> ddcs;
-	const auto _083_begin_end(DirectoryEntry::FindFields("083", dir_entries));
-	for (auto _083_iter(_083_begin_end.first); _083_iter != _083_begin_end.second; ++_083_iter) {
-            const Subfields _083_subfields(field_data[_083_iter - dir_entries.begin()]);
-	    const auto subfield_a_begin_end(_083_subfields.getIterators('a'));
-	    for (auto ddc(subfield_a_begin_end.first); ddc != subfield_a_begin_end.second; ++ddc) {
-		found_at_least_one = true;
-		ddcs.insert(ddc->second);
-	    }
-	}
-	if (found_at_least_one)
-	    ++ddc_record_count;
+	ExtractFromField("083", dir_entries, field_data, &ddcs);
+	ExtractFromField("089", dir_entries, field_data, &ddcs);
 
-	if (not ddcs.empty())
+	if (not ddcs.empty()) {
+	    ++ddc_record_count;
 	    norm_ids_to_ddcs_map->insert(std::make_pair(control_number, ddcs));
+	}
     }
 
     if (not err_msg.empty())
@@ -136,7 +162,7 @@ void AugmentRecordsWithDDCs(const bool verbose, FILE * const title_input, FILE *
 	    ++already_had_ddcs;
 	
 	std::set<std::string> topic_ids; // = the IDs of the corresponding norm data records
-	ExtractTopicIDs("600:610:611:630:650:653:656", dir_entries, field_data, existing_ddcs, &topic_ids);
+	ExtractTopicIDs("600:610:611:630:650:653:656:689", dir_entries, field_data, existing_ddcs, &topic_ids);
 	if (topic_ids.empty()) {
 	    MarcUtil::ComposeAndWriteRecord(title_output, dir_entries, field_data, leader.get());
 	    continue;

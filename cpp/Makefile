@@ -130,7 +130,8 @@ krimdok_filter: krimdok_filter.o lib/libmarc.a
 krimdok_filter.o: krimdok_filter.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h lib/RegexMatcher.h \
                   lib/StringUtil.h lib/util.h
 
-enrich_ddcs.o: enrich_ddcs.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h lib/Subfields.h lib/util.h
+enrich_ddcs.o: enrich_ddcs.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h lib/RegexMatcher.h \
+               lib/Subfields.h lib/util.h
 
 enrich_ddcs: enrich_ddcs.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
