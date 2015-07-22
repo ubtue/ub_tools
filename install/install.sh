@@ -125,7 +125,6 @@ fi
 
 ##############################################################################
 
-
 if [[ "$VUFIND_HOME" != "$CLONE_DIRECTORY" ]] ; then
   if [[ "$VERBOSE" == true ]] ; then
     echo ""
