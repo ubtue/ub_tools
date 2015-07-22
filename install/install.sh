@@ -125,13 +125,21 @@ fi
 
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
-  echo ""
-  echo ""
-  echo "link_copy_to_vufind_home.sh $CLONE_DIRECTORY"
-fi
-"$SCRIPT_DIR/link_copy_to_vufind_home.sh" "$CLONE_DIRECTORY"
 
+if [[ "$VUFIND_HOME" != "$CLONE_DIRECTORY" ]] ; then
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "link_copy_to_vufind_home.sh $CLONE_DIRECTORY"
+  fi
+  "$SCRIPT_DIR/link_copy_to_vufind_home.sh" "$CLONE_DIRECTORY"
+else
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "No symbolic linking of copy directory to '$VUFIND_HOME'! This is a single copy installation. If you want multible copies, DO NOT use '$VUFIND_HOME' as cloning directory."
+  fi
+fi
 ##############################################################################
 
 if [[ "$VERBOSE" == true ]] ; then
