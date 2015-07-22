@@ -19,15 +19,13 @@ fi
 
 # Apache should run with the new user.
 if [[ -f "/etc/apache2/envvars" ]] ; then
-  ENVVARS_PATH=/etc/apache2/envvars
-  OUTPUT=$(cat "$ENVVARS_PATH" | sed --expression="s/export APACHE_RUN_USER=[a-zA-Z\-]*/export APACHE_RUN_USER=$username/g" \
-                                     --expression="s/export APACHE_RUN_GROUP=[a-zA-Z\-]*/export APACHE_RUN_GROUP=$username/g")
-  sudo su -c "echo \"$OUTPUT\" > \"$ENVVARS_PATH\""
+  sed --in-place=.bak --expression="s/export APACHE_RUN_USER=[a-zA-Z\-]*/export APACHE_RUN_USER=$username/g" \
+                      --expression="s/export APACHE_RUN_GROUP=[a-zA-Z\-]*/export APACHE_RUN_GROUP=$username/g" \
+                      "/etc/apache2/envvars"
 elif [[ -f "/etc/httpd/conf/httpd.conf" ]] ; then
-  CONFIG_PATH=/etc/httpd/conf/httpd.conf
-  OUTPUT=$(cat "$CONFIG_PATH" | sed --expression="s/User [a-zA-Z\-]*/User $username/g" \
-                                    --expression="s/Group [a-zA-Z\-]*/Group $username/g")
-  sudo su -c "echo \"$OUTPUT\" > \"$CONFIG_PATH\""
+  sed --in-place=.bak  --expression="s/User [a-zA-Z\-]*/User $username/g" \
+                       --expression="s/Group [a-zA-Z\-]*/Group $username/g" \
+                       "/etc/httpd/conf/httpd.conf"
 else
   logger -s "${0##*/} - ERROR: Apache directory wasn't found!"
   exit 1
