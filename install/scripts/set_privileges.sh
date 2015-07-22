@@ -29,12 +29,15 @@ sudo mkdir --parents "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 sudo chown "$OWNER" "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 sudo chmod +xr "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 
-# check for SELinux 
-if [ -e "/usr/bin/chcon" ]; then
-	sudo chcon --recursive unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_HOME"
-	sudo chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind.conf"
-	sudo chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind-vhosts.conf"
-	sudo chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/record.xml"
-	sudo chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/search.xml"
-	sudo chcon system_u:object_r:httpd_log_t:s0 /var/log/vufind.log
+if [[ -e "/usr/sbin/setsebool" ]]; then
+  sudo setsebool httpd_can_network_connect 1
+fi
+
+if [[ -e "/usr/bin/chcon" ]]; then
+  sudo chcon --recursive unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_HOME"
+  sudo chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind.conf"
+  sudo chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind-vhosts.conf"
+  sudo chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/record.xml"
+  sudo chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/search.xml"
+  sudo chcon system_u:object_r:httpd_log_t:s0 /var/log/vufind.log
 fi
