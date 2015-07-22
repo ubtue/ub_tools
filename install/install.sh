@@ -249,18 +249,7 @@ if [[ "$HTPASSWD" ]] ; then
   "$SCRIPT_DIR/create_htpasswd_protection.sh" "$NAME" "$HTPASSWD"
 fi
 
-##############################################################################
-# RESTART SERVER
-##############################################################################
-if [[ "$VERBOSE" == true ]] ; then
-  echo ""
-  echo ""
-  echo "Start Server!"
-  echo "$CLONE_DIRECTORY/start-vufind.sh"
-fi
-
-"$CLONE_DIRECTORY/start-vufind.sh"
-
 echo ""
 echo "DONE"
+echo "Please restart Apache- and $NAME-Server"
   
