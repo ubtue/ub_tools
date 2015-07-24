@@ -36,27 +36,27 @@ public:
     explicit SharedBuffer(const size_t max_size): max_size_(max_size) { }
 
     bool empty() {
-	std::unique_lock<std::mutex> mutex_locker(mutex_);
-	volatile const bool is_empty(buffer_.empty());
-	return is_empty;
+        std::unique_lock<std::mutex> mutex_locker(mutex_);
+        volatile const bool is_empty(buffer_.empty());
+        return is_empty;
     }
 
     void push_back(const ItemType new_item) {
-	std::unique_lock<std::mutex> mutex_locker(mutex_);
-	condition_.wait(mutex_locker, [this](){ return buffer_.size() < max_size_; });
-	buffer_.emplace_back(new_item);
-	mutex_locker.unlock();
-	condition_.notify_all();
+        std::unique_lock<std::mutex> mutex_locker(mutex_);
+        condition_.wait(mutex_locker, [this](){ return buffer_.size() < max_size_; });
+        buffer_.emplace_back(new_item);
+        mutex_locker.unlock();
+        condition_.notify_all();
     }
 
     ItemType pop_front() {
-	std::unique_lock<std::mutex> mutex_locker(mutex_);
-	condition_.wait(mutex_locker, [this]() { return not buffer_.empty(); });
-	const ItemType item(buffer_.front());
-	buffer_.pop_front();
-	mutex_locker.unlock();
-	condition_.notify_all();
-	return item;
+        std::unique_lock<std::mutex> mutex_locker(mutex_);
+        condition_.wait(mutex_locker, [this]() { return not buffer_.empty(); });
+        const ItemType item(buffer_.front());
+        buffer_.pop_front();
+        mutex_locker.unlock();
+        condition_.notify_all();
+        return item;
     }
 };
     

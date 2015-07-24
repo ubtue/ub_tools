@@ -46,7 +46,7 @@ void Usage() {
 void JOP_Grep(const std::string &input_filename, const unsigned max_result_count) {
     FILE *input = std::fopen(input_filename.c_str(), "rb");
     if (input == NULL)
-	Error("can't open \"" + input_filename + "\" for reading!");
+        Error("can't open \"" + input_filename + "\" for reading!");
 
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
@@ -55,53 +55,53 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
     unsigned count(0), result_count(0);
 
     while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
-	++count;
-	std::unique_ptr<Leader> leader(raw_leader);
-	const bool is_article(leader->isArticle());
-	const bool is_serial(leader->isSerial());
-	if (not is_article and not is_serial)
-	    continue;
+        ++count;
+        std::unique_ptr<Leader> leader(raw_leader);
+        const bool is_article(leader->isArticle());
+        const bool is_serial(leader->isSerial());
+        if (not is_article and not is_serial)
+            continue;
 
-	std::string control_number, isbn, issn;
-	for (unsigned i(0); i < dir_entries.size(); ++i) {
-	    const std::string tag(dir_entries[i].getTag());
-	    if (tag == "001")
-		control_number = field_data[i];
-	    else if (tag == "020" or tag == "022") {
-		const Subfields subfields(field_data[i]);
-		auto begin_end = subfields.getIterators('a');
-		if (begin_end.first != begin_end.second) {
-		    if (tag == "020")
-			isbn = begin_end.first->second;
-		    else // Assume tag == "022".
-			issn = begin_end.first->second;
-		}
-	    } else if (is_article and tag == "773") {
-		const Subfields subfields(field_data[i]);
-		auto begin_end = subfields.getIterators('x'); // ISSN
-		if (begin_end.first != begin_end.second)
-		    issn = begin_end.first->second;
-		begin_end = subfields.getIterators('z'); // ISBN
-		if (begin_end.first != begin_end.second)
-		    isbn = begin_end.first->second;
-	    }
-	    
-	    if (not issn.empty() or not isbn.empty()) {
-		++result_count;
-		if (result_count > max_result_count)
-		    goto done;
-		break;
-	    }
-	}
+        std::string control_number, isbn, issn;
+        for (unsigned i(0); i < dir_entries.size(); ++i) {
+            const std::string tag(dir_entries[i].getTag());
+            if (tag == "001")
+                control_number = field_data[i];
+            else if (tag == "020" or tag == "022") {
+                const Subfields subfields(field_data[i]);
+                auto begin_end = subfields.getIterators('a');
+                if (begin_end.first != begin_end.second) {
+                    if (tag == "020")
+                        isbn = begin_end.first->second;
+                    else // Assume tag == "022".
+                        issn = begin_end.first->second;
+                }
+            } else if (is_article and tag == "773") {
+                const Subfields subfields(field_data[i]);
+                auto begin_end = subfields.getIterators('x'); // ISSN
+                if (begin_end.first != begin_end.second)
+                    issn = begin_end.first->second;
+                begin_end = subfields.getIterators('z'); // ISBN
+                if (begin_end.first != begin_end.second)
+                    isbn = begin_end.first->second;
+            }
+            
+            if (not issn.empty() or not isbn.empty()) {
+                ++result_count;
+                if (result_count > max_result_count)
+                    goto done;
+                break;
+            }
+        }
 
-	if (not issn.empty())
-	    std::cout << (is_serial ? "journal" : "article") << ", ISSN: " << issn << '\n';
-	else if (not isbn.empty())
-	    std::cout << (is_serial ? "journal" : "article") << ", ISBN: " << isbn << '\n';
+        if (not issn.empty())
+            std::cout << (is_serial ? "journal" : "article") << ", ISSN: " << issn << '\n';
+        else if (not isbn.empty())
+            std::cout << (is_serial ? "journal" : "article") << ", ISBN: " << isbn << '\n';
     }
 
     if (not err_msg.empty())
-	Error(err_msg);
+        Error(err_msg);
 
 done:
     std::cerr << "Matched " << result_count << " records of " << count << " overall records.\n";
@@ -114,12 +114,12 @@ int main(int argc, char **argv) {
     progname = argv[0];
 
     if (argc != 2 and argc != 3)
-	Usage();
+        Usage();
 
     unsigned max_result_count(UINT_MAX);
     if (argc == 3) {
-	if (not StringUtil::ToUnsigned(argv[2], &max_result_count) or max_result_count == 0)
-	    Usage();
+        if (not StringUtil::ToUnsigned(argv[2], &max_result_count) or max_result_count == 0)
+            Usage();
     }
 
     JOP_Grep(argv[1], max_result_count);

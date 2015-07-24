@@ -47,24 +47,24 @@ bool IsPossibleISSN(const std::string &issn_candidate) {
     static RegexMatcher *matcher(NULL);
     std::string err_msg;
     if (unlikely(matcher == NULL)) {
-	matcher = RegexMatcher::RegexMatcherFactory("\\d{4}\\-\\d{3}[\\dX]", &err_msg);
-	if (matcher == NULL)
-	    Error(err_msg);
+        matcher = RegexMatcher::RegexMatcherFactory("\\d{4}\\-\\d{3}[\\dX]", &err_msg);
+        if (matcher == NULL)
+            Error(err_msg);
     }
 
     const bool is_possible_issn(matcher->matched(issn_candidate, &err_msg));
     if (unlikely(not err_msg.empty()))
-	Error(err_msg);
+        Error(err_msg);
 
     return is_possible_issn;
 }
 
 
 void PopulateParentIdToISSNMap(const bool verbose, FILE * const input,
-			       std::unordered_map<std::string, std::string> * const parent_id_to_issn_map)
+                               std::unordered_map<std::string, std::string> * const parent_id_to_issn_map)
 {
     if (verbose)
-	std::cout << "Starting extraction of ISSNs.\n";
+        std::cout << "Starting extraction of ISSNs.\n";
 
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
@@ -72,43 +72,43 @@ void PopulateParentIdToISSNMap(const bool verbose, FILE * const input,
     unsigned count(0), extracted_issn_count(0);
     std::string err_msg;
     while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
-	++count;
+        ++count;
 
-	std::unique_ptr<Leader> leader(raw_leader);
-	if (not leader->isSerial())
-	    continue;
+        std::unique_ptr<Leader> leader(raw_leader);
+        if (not leader->isSerial())
+            continue;
 
-	if (dir_entries[0].getTag() != "001")
-	    Error("First field is not \"001\"!");
+        if (dir_entries[0].getTag() != "001")
+            Error("First field is not \"001\"!");
 
-	auto const entry_iterator(DirectoryEntry::FindField("022", dir_entries));
-	if (entry_iterator == dir_entries.end())
-	    continue;
+        auto const entry_iterator(DirectoryEntry::FindField("022", dir_entries));
+        if (entry_iterator == dir_entries.end())
+            continue;
 
-	const Subfields subfields(field_data[entry_iterator - dir_entries.begin()]);
-	auto begin_end = subfields.getIterators('a'); // ISSN
-	std::string issn;
-	if (begin_end.first != begin_end.second) {
-	    (*parent_id_to_issn_map)[field_data[0]] = begin_end.first->second;
-	    ++extracted_issn_count;
-	}
+        const Subfields subfields(field_data[entry_iterator - dir_entries.begin()]);
+        auto begin_end = subfields.getIterators('a'); // ISSN
+        std::string issn;
+        if (begin_end.first != begin_end.second) {
+            (*parent_id_to_issn_map)[field_data[0]] = begin_end.first->second;
+            ++extracted_issn_count;
+        }
     }
 
     if (not err_msg.empty())
-	Error(err_msg);
+        Error(err_msg);
 
     if (verbose) {
-	std::cerr << "Read " << count << " records.\n";
-	std::cerr << "Extracted " << extracted_issn_count << " ISSNs.\n";
+        std::cerr << "Read " << count << " records.\n";
+        std::cerr << "Extracted " << extracted_issn_count << " ISSNs.\n";
     }
 }
 
 
 void AddMissingISSNsToArticleEntries(const bool verbose, FILE * const input, FILE * const output,
-				     const std::unordered_map<std::string, std::string> &parent_id_to_issn_map)
+                                     const std::unordered_map<std::string, std::string> &parent_id_to_issn_map)
 {
     if (verbose)
-	std::cout << "Starting augmentation of article entries.\n";
+        std::cout << "Starting augmentation of article entries.\n";
 
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
@@ -116,73 +116,73 @@ void AddMissingISSNsToArticleEntries(const bool verbose, FILE * const input, FIL
     unsigned count(0), modified_count(0), missing_host_record_ctrl_num_count(0), missing_issn_count(0);
     std::string err_msg;
     while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
-	++count;
-	std::unique_ptr<Leader> leader(raw_leader);
-	if (not leader->isArticle()) {
-	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    continue;
-	}
+        ++count;
+        std::unique_ptr<Leader> leader(raw_leader);
+        if (not leader->isArticle()) {
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            continue;
+        }
 
-	if (dir_entries[0].getTag() != "001")
-	    Error("First field is not \"001\"!");
+        if (dir_entries[0].getTag() != "001")
+            Error("First field is not \"001\"!");
 
-	auto entry_iterator(DirectoryEntry::FindField("773", dir_entries));
-	if (entry_iterator == dir_entries.end()) {
-	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    continue;
-	}
+        auto entry_iterator(DirectoryEntry::FindField("773", dir_entries));
+        if (entry_iterator == dir_entries.end()) {
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            continue;
+        }
 
-	const size_t index_773(entry_iterator - dir_entries.begin());
-	Subfields subfields(field_data[index_773]);
-	if (subfields.hasSubfield('x')) {
-	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    continue;
-	}
+        const size_t index_773(entry_iterator - dir_entries.begin());
+        Subfields subfields(field_data[index_773]);
+        if (subfields.hasSubfield('x')) {
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            continue;
+        }
 
-	auto begin_end = subfields.getIterators('w'); // Record control number of Host Item Entry.
-	if (begin_end.first == begin_end.second) {
-	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    ++missing_host_record_ctrl_num_count;
-	    continue;
-	}
+        auto begin_end = subfields.getIterators('w'); // Record control number of Host Item Entry.
+        if (begin_end.first == begin_end.second) {
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            ++missing_host_record_ctrl_num_count;
+            continue;
+        }
 
-	std::string host_id(begin_end.first->second);
-	if (StringUtil::StartsWith(host_id, "(DE-576)"))
-	    host_id = host_id.substr(8);
-	auto const parent_issn_iter(parent_id_to_issn_map.find(host_id));
-	if (parent_issn_iter == parent_id_to_issn_map.end()) {
-	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	    ++missing_issn_count;
-	    continue;
-	}
+        std::string host_id(begin_end.first->second);
+        if (StringUtil::StartsWith(host_id, "(DE-576)"))
+            host_id = host_id.substr(8);
+        auto const parent_issn_iter(parent_id_to_issn_map.find(host_id));
+        if (parent_issn_iter == parent_id_to_issn_map.end()) {
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            ++missing_issn_count;
+            continue;
+        }
 
-	subfields.addSubfield('x', parent_issn_iter->second);
-	const size_t old_773_field_length(field_data[index_773].size());
-	field_data[index_773] = subfields.toString();
-	const size_t new_773_field_length(field_data[index_773].size());
+        subfields.addSubfield('x', parent_issn_iter->second);
+        const size_t old_773_field_length(field_data[index_773].size());
+        field_data[index_773] = subfields.toString();
+        const size_t new_773_field_length(field_data[index_773].size());
 
-	//
-	// Patch up all directory entries starting with the one with index "index_773".
-	//
+        //
+        // Patch up all directory entries starting with the one with index "index_773".
+        //
 
-	const size_t offset(new_773_field_length - old_773_field_length);
-	dir_entries[index_773].setFieldLength(dir_entries[index_773].getFieldLength() + offset);
-	for (auto dir_entry_iter(dir_entries.begin() + index_773); dir_entry_iter != dir_entries.end();
-	     ++dir_entry_iter)
-	    dir_entry_iter->setFieldOffset(dir_entry_iter->getFieldOffset() + offset);
+        const size_t offset(new_773_field_length - old_773_field_length);
+        dir_entries[index_773].setFieldLength(dir_entries[index_773].getFieldLength() + offset);
+        for (auto dir_entry_iter(dir_entries.begin() + index_773); dir_entry_iter != dir_entries.end();
+             ++dir_entry_iter)
+            dir_entry_iter->setFieldOffset(dir_entry_iter->getFieldOffset() + offset);
 
-	MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-	++modified_count;
+        MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+        ++modified_count;
     }
 
     if (not err_msg.empty())
-	Error(err_msg);
+        Error(err_msg);
 
     if (verbose) {
-	std::cerr << "Read " << count << " records.\n";
-	std::cerr << "Modified " << modified_count << " article record(s).\n";
-	std::cerr << missing_host_record_ctrl_num_count << " articles had missing host record control number(s).\n";
-	std::cerr << "For " << missing_issn_count << " articles no host ISSN was found.\n";
+        std::cerr << "Read " << count << " records.\n";
+        std::cerr << "Modified " << modified_count << " article record(s).\n";
+        std::cerr << missing_host_record_ctrl_num_count << " articles had missing host record control number(s).\n";
+        std::cerr << "For " << missing_issn_count << " articles no host ISSN was found.\n";
     }
 }
 
@@ -191,29 +191,29 @@ int main(int argc, char **argv) {
     progname = argv[0];
 
     if ((argc != 4 and argc != 5) or (argc == 5 and std::strcmp(argv[1], "--verbose") != 0))
-	Usage();
+        Usage();
     const bool verbose(argc == 5);
 
     const std::string marc_input_filename(argv[argc == 4 ? 1 : 2]);
     FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rm");
     if (marc_input == NULL)
-	Error("can't open \"" + marc_input_filename + "\" for reading!");
+        Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_aux_input_filename(argv[argc == 4 ? 2 : 3]);
     FILE *marc_aux_input = std::fopen(marc_aux_input_filename.c_str(), "rm");
     if (marc_input == NULL)
-	Error("can't open \"" + marc_input_filename + "\" for reading!");
+        Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[argc == 4 ? 3 : 4]);
     FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
     if (marc_output == NULL)
-	Error("can't open \"" + marc_output_filename + "\" for writing!");
+        Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     if (unlikely(marc_input_filename == marc_output_filename))
-	Error("Master input file name equals output file name!");
+        Error("Master input file name equals output file name!");
 
     if (unlikely(marc_aux_input_filename == marc_output_filename))
-	Error("Auxiallary input file name equals output file name!");
+        Error("Auxiallary input file name equals output file name!");
 
     std::unordered_map<std::string, std::string> parent_id_to_issn_map;
     PopulateParentIdToISSNMap(verbose, marc_input, &parent_id_to_issn_map);

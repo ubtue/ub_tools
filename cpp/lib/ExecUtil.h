@@ -33,6 +33,9 @@
 #include <vector>
 
 
+namespace ExecUtil {
+
+
 /** \brief  Run a subcommand.
  *  \param  command             The path to the command that should be executed.
  *  \param  args                The arguments for the command, not including the command itself.
@@ -42,7 +45,17 @@
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
 int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdout = "",
-	 unsigned timeout_in_seconds = 0);
+         unsigned timeout_in_seconds = 0);
+
+
+/** \brief Tries to find a path, with the help of the environment variable PATH, to "executable_candidate".
+ *  \return The path where the executable can be found or the empty string if no such path was found or if
+ *          "executable_candidate" is not executable.
+ */
+std::string Which(const std::string &executable_candidate);
+
+
+} // namespace ExecUtil
 
 
 #endif // ifndef EXEC_UTIL_H

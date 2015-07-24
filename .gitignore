@@ -1,8 +1,13 @@
+*.conf
 *.mrc
 *.db
 *~
 *.o
 *.a
+*.pyc
+*.tar.gz
+*.timestamp
+LOEPPN-*
 \#*\#
 add_child_refs
 add_issn_to_articles
@@ -23,3 +28,5 @@ marc_grep2
 marc_grep_tokenizer_test
 marc_filter
 shared_buffer_test
+
+bsz_daten

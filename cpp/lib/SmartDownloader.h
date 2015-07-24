@@ -53,7 +53,7 @@ public:
     unsigned getSuccessCount() const { return success_count_; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit,
-				 std::string * const document) = 0;
+                                 std::string * const document) = 0;
 };
 
 
@@ -64,7 +64,7 @@ class SimpleSuffixDownloader: public SmartDownloader {
     const std::vector<std::string> suffixes_;
 public:
     explicit SimpleSuffixDownloader(std::vector<std::string> &&suffixes)
-	: SmartDownloader(""), suffixes_(suffixes) { }
+        : SmartDownloader(""), suffixes_(suffixes) { }
 
     virtual std::string getName() const { return "SimpleSuffixDownloader"; }
     virtual bool canHandleThis(const std::string &url) const;
@@ -80,7 +80,7 @@ class SimplePrefixDownloader: public SmartDownloader {
     const std::vector<std::string> prefixes_;
 public:
     explicit SimplePrefixDownloader(std::vector<std::string> &&prefixes)
-	: SmartDownloader(""), prefixes_(prefixes) { }
+        : SmartDownloader(""), prefixes_(prefixes) { }
 
     virtual std::string getName() const { return "SimplePrefixDownloader"; }
     virtual bool canHandleThis(const std::string &url) const;
@@ -92,7 +92,7 @@ protected:
 class DigiToolSmartDownloader: public SmartDownloader {
 public:
     DigiToolSmartDownloader()
-	: SmartDownloader("^http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager\\?pid=\\d+.*$") { }
+        : SmartDownloader("^http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager\\?pid=\\d+.*$") { }
     virtual std::string getName() const { return "DigiToolSmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
@@ -102,7 +102,7 @@ protected:
 class DiglitSmartDownloader: public SmartDownloader {
 public:
     DiglitSmartDownloader(): SmartDownloader("^http://idb.ub.uni-tuebingen.de/diglit/.+$"
-					     "|^http://nbn-resolving.de/urn:nbn:de:bsz:21-dt-\\d+$") { }
+                                             "|^http://nbn-resolving.de/urn:nbn:de:bsz:21-dt-\\d+$") { }
     virtual std::string getName() const { return "DiglitSmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);

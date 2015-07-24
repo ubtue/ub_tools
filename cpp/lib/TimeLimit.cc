@@ -43,7 +43,7 @@ unsigned TimeLimit::getRemainingTime() const {
     timeval diff_time;
     timersub(&expire_time_, &now, &diff_time);
     if (diff_time.tv_sec < 0 or diff_time.tv_usec < 0)
-	return 0;
+        return 0;
 
     return TimeValToMilliseconds(diff_time);
 }

@@ -15,7 +15,7 @@
  *  \return If the parse succeded or not.
  */
 bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string &book_code,
-			 std::set<std::pair<std::string, std::string>> * const start_end);
+                         std::set<std::pair<std::string, std::string>> * const start_end);
 
 
 /** \brief Tests the validity of a possible chapter/verse reference. */

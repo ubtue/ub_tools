@@ -29,13 +29,13 @@ int ipow(int base, int exp) {
 
 std::string ToRoman(unsigned u) {
     if (u == 0 or u > 3999)
-	throw std::runtime_error("in ToRoman: number too large to convert!");
+        throw std::runtime_error("in ToRoman: number too large to convert!");
 
     std::string roman_numeral;
     for (int power(3); power >= 0; --power) {
         const unsigned base_multiple(ipow(10, power));
         const unsigned digit(u / base_multiple);
-	roman_numeral += roman_numerals[power][digit];
+        roman_numeral += roman_numerals[power][digit];
         u %= base_multiple;
     }
 
@@ -50,26 +50,26 @@ std::string RomanPageNumberGenerator::getNextPageNumber() {
 
 bool IdbPager::getNextPage(const TimeLimit time_limit, std::string * const ocr_text) {
     if (Download(base_url_ + number_generator_->getNextPageNumber() + "/ocr",
-		 (time_limit.getRemainingTime() + 500) / 1000, ocr_text) != 0)
-	return false;
+                 (time_limit.getRemainingTime() + 500) / 1000, ocr_text) != 0)
+        return false;
 
     const std::string page_no_start_string("Seite:&nbsp;");
     size_t page_no_start_pos(ocr_text->find(page_no_start_string));
     if (page_no_start_pos == std::string::npos)
-	return false;
+        return false;
     if (std::isspace((*ocr_text)[page_no_start_pos + page_no_start_string.length()]))
-	return false; // No page number => we've probably gone too far!
+        return false; // No page number => we've probably gone too far!
 
     const std::string start_text("<div class=\"viewbox\">");
     size_t start_pos(ocr_text->find(start_text));
     if (start_pos == std::string::npos)
-	return false;
+        return false;
     start_pos += start_text.length();
 
     const std::string end_text("</div>");
     size_t end_pos(ocr_text->find(end_text, start_pos));
     if (end_pos == std::string::npos)
-	return false;
+        return false;
 
     *ocr_text = StringUtil::ReplaceString("<br>", "\n", ocr_text->substr(start_pos, end_pos - start_pos));
     HtmlUtil::ReplaceEntities(ocr_text);

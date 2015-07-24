@@ -88,24 +88,24 @@ const unsigned DEFAULT_WORKER_THREAD_COUNT(20);
 
 static void Usage() {
     std::cerr << "Usage: " << progname << "[--worker-thread-count count] [--max-record-count count]\n"
-	      << "                         [--skip-count count] [--per-doc-timeout timeout]\n"
-	      << "                         marc_input marc_output full_text_db\n\n"
-	      << "       --worker-thread-count  The number of worker threads used to process records.\n"
-	      << "                              The default is " << DEFAULT_WORKER_THREAD_COUNT << ".\n"
-	      << "       --max-record-count     The maximum number of records that will be processed.\n"
-	      << "                              The default is " << UINT_MAX << ".\n"
-	      << "       --skip-count           The number of initial records that will be skipped.\n"
-	      << "                              The default is that no records will be skipped.\n"
-	      << "       --per-doc-timeout      The maximum amount of time that will be spent in downloading\n"
-	      << "                              a document in seconds.  This includes redirects.\n"
-	      << "                              The default is " << DEFAULT_PER_DOCUMENT_TIMEOUT << " seconds.\n";
+              << "                         [--skip-count count] [--per-doc-timeout timeout]\n"
+              << "                         marc_input marc_output full_text_db\n\n"
+              << "       --worker-thread-count  The number of worker threads used to process records.\n"
+              << "                              The default is " << DEFAULT_WORKER_THREAD_COUNT << ".\n"
+              << "       --max-record-count     The maximum number of records that will be processed.\n"
+              << "                              The default is " << UINT_MAX << ".\n"
+              << "       --skip-count           The number of initial records that will be skipped.\n"
+              << "                              The default is that no records will be skipped.\n"
+              << "       --per-doc-timeout      The maximum amount of time that will be spent in downloading\n"
+              << "                              a document in seconds.  This includes redirects.\n"
+              << "                              The default is " << DEFAULT_PER_DOCUMENT_TIMEOUT << " seconds.\n";
 
     std::exit(EXIT_FAILURE);
 }
 
 
 void ThreadSafeComposeAndWriteRecord(FILE * const output, const std::vector<DirectoryEntry> &dir_entries,
-				     const std::vector<std::string> &field_data, Leader * const leader)
+                                     const std::vector<std::string> &field_data, Leader * const leader)
 {
     static std::mutex marc_writer_mutex;
     std::unique_lock<std::mutex> mutex_locker(marc_writer_mutex);
@@ -115,7 +115,7 @@ void ThreadSafeComposeAndWriteRecord(FILE * const output, const std::vector<Dire
 
 /** Writes "media_type" and "document" to "db" and returns the unique key that was generated for the write. */
 std::string ThreadSafeWriteDocumentWithMediaType(const std::string &media_type, const std::string &document,
-						 kyotocabinet::HashDB * const db)
+                                                 kyotocabinet::HashDB * const db)
 {
     static std::mutex simple_db_writer_mutex;
     std::unique_lock<std::mutex> mutex_locker(simple_db_writer_mutex);
@@ -160,13 +160,13 @@ std::string GetTesseractLanguageCode(const std::vector<DirectoryEntry> &dir_entr
 bool IsProbablyAReview(const Subfields &subfields) {
     const auto _3_begin_end(subfields.getIterators('3'));
     if (_3_begin_end.first != _3_begin_end.second) {
-	if (StringUtil::StartsWith(_3_begin_end.first->second, "Rezension"))
-	    return true;
+        if (StringUtil::StartsWith(_3_begin_end.first->second, "Rezension"))
+            return true;
     } else {
-	const auto z_begin_end(subfields.getIterators('z'));
-	if (z_begin_end.first != z_begin_end.second
-	    and StringUtil::StartsWith(z_begin_end.first->second, "Rezension"))
-	    return true;
+        const auto z_begin_end(subfields.getIterators('z'));
+        if (z_begin_end.first != z_begin_end.second
+            and StringUtil::StartsWith(z_begin_end.first->second, "Rezension"))
+            return true;
     }
 
     return false;
@@ -177,62 +177,62 @@ static std::mutex console_io_mutex;
 
 
 bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout,
-			     std::string * const document, std::string * const media_type)
+                             std::string * const document, std::string * const media_type)
 {
     if (not SmartDownload(url, timeout, document)) {
-	std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
-	std::cerr << "Failed to download the document for " << url << " (timeout: " << timeout << " sec)\n";
-	return false;
+        std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
+        std::cerr << "Failed to download the document for " << url << " (timeout: " << timeout << " sec)\n";
+        return false;
     }
 
     *media_type = MediaTypeUtil::GetMediaType(*document, /* auto_simplify = */ false);
     if (media_type->empty())
-	return false;
+        return false;
 
     return true;
 }
 
 
 bool GetTextFromImagePDF(const std::string &document, const std::string &media_type, const std::string &original_url,
-			 const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
-			 const std::string &pdf_images_script, std::string * const extracted_text)
+                         const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
+                         const std::string &pdf_images_script, std::string * const extracted_text)
 {
     extracted_text->clear();
 
     if (not StringUtil::StartsWith(media_type, "application/pdf") or not PdfDocContainsNoText(document))
-	return false;
+        return false;
 
     {
-	std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
-	std::cerr << "Found a PDF w/ no text.\n";
+        std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
+        std::cerr << "Found a PDF w/ no text.\n";
     }
 
     const FileUtil::AutoTempFile auto_temp_file;
     const std::string &input_filename(auto_temp_file.getFilePath());
     if (not FileUtil::WriteString(input_filename, document))
-	Error("failed to write the PDF to a temp file!");
+        Error("failed to write the PDF to a temp file!");
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
     const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
     const unsigned TIMEOUT(60); // in seconds
-    if (Exec(pdf_images_script, { input_filename, output_filename, language_code }, "",
-	     TIMEOUT) != 0)
+    if (ExecUtil::Exec(pdf_images_script, { input_filename, output_filename, language_code }, "",
+		       TIMEOUT) != 0)
     {
-	Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
-		+ std::to_string(TIMEOUT) + " seconds ! (original Url: " + original_url + ")");
-	return true;
+        Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
+                + std::to_string(TIMEOUT) + " seconds ! (original Url: " + original_url + ")");
+        return true;
     }
 
     std::string plain_text;
     if (not ReadFile(output_filename, extracted_text))
-	Error("failed to read OCR output!");
+        Error("failed to read OCR output!");
 
     std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
     if (extracted_text->empty())
-	std::cerr << "Warning: OCR output is empty!\n";
+        std::cerr << "Warning: OCR output is empty!\n";
     else
-	std::cerr << "Whoohoo, got OCR'ed text.\n";
+        std::cerr << "Whoohoo, got OCR'ed text.\n";
 
     return true;
 }
@@ -242,46 +242,46 @@ static ThreadSafeCounter<unsigned> relevant_links_count, failed_count, records_w
 
 
 void ProcessRecord(ssize_t _856_index, Leader * const leader, std::vector<DirectoryEntry> &dir_entries,
-		   std::vector<std::string> &field_data, const unsigned per_doc_timeout,
-		   const std::string pdf_images_script, FILE * const output, kyotocabinet::HashDB * const db)
+                   std::vector<std::string> &field_data, const unsigned per_doc_timeout,
+                   const std::string pdf_images_script, FILE * const output, kyotocabinet::HashDB * const db)
 {
     bool found_at_least_one(false);
     for (/* Empty! */;
-	static_cast<size_t>(_856_index) < dir_entries.size() and dir_entries[_856_index].getTag() == "856";
-	++_856_index)
+        static_cast<size_t>(_856_index) < dir_entries.size() and dir_entries[_856_index].getTag() == "856";
+        ++_856_index)
     {
-	Subfields subfields(field_data[_856_index]);
-	const auto u_begin_end(subfields.getIterators('u'));
-	if (u_begin_end.first == u_begin_end.second) // No subfield 'u'.
-	    continue;
+        Subfields subfields(field_data[_856_index]);
+        const auto u_begin_end(subfields.getIterators('u'));
+        if (u_begin_end.first == u_begin_end.second) // No subfield 'u'.
+            continue;
 
-	if (IsProbablyAReview(subfields))
-	    continue;
+        if (IsProbablyAReview(subfields))
+            continue;
 
-	// If we get here, we have an 856u subfield that is not a review.
-	++relevant_links_count;
-	if (not found_at_least_one) {
-	    ++records_with_relevant_links_count;
-	    found_at_least_one = true;
-	}
+        // If we get here, we have an 856u subfield that is not a review.
+        ++relevant_links_count;
+        if (not found_at_least_one) {
+            ++records_with_relevant_links_count;
+            found_at_least_one = true;
+        }
 
-	std::string document, media_type;
-	const std::string url(u_begin_end.first->second);
-	if (not GetDocumentAndMediaType(url, per_doc_timeout, &document, &media_type)) {
-	    ++failed_count;
-	    continue;
-	}
+        std::string document, media_type;
+        const std::string url(u_begin_end.first->second);
+        if (not GetDocumentAndMediaType(url, per_doc_timeout, &document, &media_type)) {
+            ++failed_count;
+            continue;
+        }
 
-	std::string extracted_text, key;
-	if (GetTextFromImagePDF(document, media_type, url, dir_entries, field_data,
-				pdf_images_script, &extracted_text))
-	    key = ThreadSafeWriteDocumentWithMediaType("text/plain", extracted_text, db);
-	else
-	    key = ThreadSafeWriteDocumentWithMediaType(media_type, document, db);
+        std::string extracted_text, key;
+        if (GetTextFromImagePDF(document, media_type, url, dir_entries, field_data,
+                                pdf_images_script, &extracted_text))
+            key = ThreadSafeWriteDocumentWithMediaType("text/plain", extracted_text, db);
+        else
+            key = ThreadSafeWriteDocumentWithMediaType(media_type, document, db);
 
-	subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
-	const std::string new_856_field(subfields.toString());
-	MarcUtil::UpdateField(_856_index, new_856_field, leader, &dir_entries, &field_data);
+        subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
+        const std::string new_856_field(subfields.toString());
+        MarcUtil::UpdateField(_856_index, new_856_field, leader, &dir_entries, &field_data);
     }
 
     ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader);
@@ -300,30 +300,30 @@ struct ThreadData {
     kyotocabinet::HashDB * const db_;
 public:
     ThreadData(const ssize_t _856_index, Leader * const leader, std::vector<DirectoryEntry> &&dir_entries,
-	       std::vector<std::string> &&field_data, const unsigned per_doc_timeout,
-	       const std::string &pdf_images_script, FILE * const output, kyotocabinet::HashDB * const db)
-	: _856_index_(_856_index), leader_(leader), dir_entries_(dir_entries), field_data_(field_data),
-	  per_doc_timeout_(per_doc_timeout), pdf_images_script_(pdf_images_script), output_(output), db_(db) { }
+               std::vector<std::string> &&field_data, const unsigned per_doc_timeout,
+               const std::string &pdf_images_script, FILE * const output, kyotocabinet::HashDB * const db)
+        : _856_index_(_856_index), leader_(leader), dir_entries_(dir_entries), field_data_(field_data),
+          per_doc_timeout_(per_doc_timeout), pdf_images_script_(pdf_images_script), output_(output), db_(db) { }
 };
 
 
 void *WorkerThread(void *thread_data) {
     int old_state;
     if (::pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old_state) != 0)
-	Error("consumer thread failed to enable cancelability!");
+        Error("consumer thread failed to enable cancelability!");
 
     SharedBuffer<ThreadData> * const work_queue(reinterpret_cast<SharedBuffer<ThreadData> * const>(thread_data));
     for (;;) {
-	ThreadData data(work_queue->pop_front());
-	ProcessRecord(data._856_index_, data.leader_, data.dir_entries_, data.field_data_, data.per_doc_timeout_,
-		      data.pdf_images_script_, data.output_, data.db_);
+        ThreadData data(work_queue->pop_front());
+        ProcessRecord(data._856_index_, data.leader_, data.dir_entries_, data.field_data_, data.per_doc_timeout_,
+                      data.pdf_images_script_, data.output_, data.db_);
     }
 }
 
 
 void ProcessRecords(const unsigned worker_thread_count, const unsigned max_record_count, const unsigned skip_count,
-		    const unsigned per_doc_timeout, const std::string &pdf_images_script, FILE * const input,
-		    FILE * const output, kyotocabinet::HashDB * const db)
+                    const unsigned per_doc_timeout, const std::string &pdf_images_script, FILE * const input,
+                    FILE * const output, kyotocabinet::HashDB * const db)
 {
     Leader *leader;
     std::vector<DirectoryEntry> dir_entries;
@@ -335,38 +335,38 @@ void ProcessRecords(const unsigned worker_thread_count, const unsigned max_recor
     ThreadManager thread_manager(worker_thread_count, WorkerThread, &work_queue);
 
     while (MarcUtil::ReadNextRecord(input, &leader, &dir_entries, &field_data, &err_msg)) {
-	if (total_record_count == max_record_count)
-	    break;
-	++total_record_count;
-	if (total_record_count <= skip_count)
-	    continue;
+        if (total_record_count == max_record_count)
+            break;
+        ++total_record_count;
+        if (total_record_count <= skip_count)
+            continue;
 
-	{
-	    std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
-	    std::cout << "Processing record #" << total_record_count << ".\n";
-	}
+        {
+            std::unique_lock<std::mutex> mutex_locker(console_io_mutex);
+            std::cout << "Processing record #" << total_record_count << ".\n";
+        }
 
-	ssize_t _856_index(MarcUtil::GetFieldIndex(dir_entries, "856"));
-	if (_856_index == -1) {
-	    ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader);
-	    continue;
-	}
+        ssize_t _856_index(MarcUtil::GetFieldIndex(dir_entries, "856"));
+        if (_856_index == -1) {
+            ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader);
+            continue;
+        }
 
-	ThreadData thread_data(_856_index, leader, std::move(dir_entries), std::move(field_data), per_doc_timeout,
-			       pdf_images_script, output, db);
-	work_queue.push_back(std::move(thread_data));
+        ThreadData thread_data(_856_index, leader, std::move(dir_entries), std::move(field_data), per_doc_timeout,
+                               pdf_images_script, output, db);
+        work_queue.push_back(std::move(thread_data));
     }
 
     while (not work_queue.empty())
-	::sleep(1);
+        ::sleep(1);
 
     if (not err_msg.empty())
-	Error(err_msg);
+        Error(err_msg);
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Found " << records_with_relevant_links_count.get() << " records w/ relevant 856u fields.\n";
     std::cerr << failed_count.get() << " failed downloads, media type determinations or text extractions.\n";
     std::cerr << (100.0 * (relevant_links_count.get() - failed_count.get()) / double(relevant_links_count.get()))
-	      << "% successes.\n";
+              << "% successes.\n";
 
     std::fclose(input);
     std::fclose(output);
@@ -379,30 +379,30 @@ const std::string BASH_HELPER("pdf_images_to_text.sh");
 std::string GetPathToPdfImagesScript(const char * const argv0) {
     char path[std::strlen(argv0) + 1];
     std::strcpy(path, argv0);
-    const std::string pdf_images_script_path(std::string(::dirname(path)) + "/" + BASH_HELPER);
+    const std::string pdf_images_script_path(ExecUtil::Which(BASH_HELPER));
     if (::access(pdf_images_script_path.c_str(), X_OK) != 0)
-	Error("can't execute \"" + pdf_images_script_path + "\"!");
+        Error("can't execute \"" + pdf_images_script_path + "\"!");
     return pdf_images_script_path;
 }
 
 
 bool GetOptionalArg(const std::string &option_name, char * const *argv, unsigned * const value) {
     if (*argv != option_name)
-	return false;
+        return false;
     ++argv;
     if (argv == nullptr)
-	Error("missing value for " + option_name + "!");
+        Error("missing value for " + option_name + "!");
     if (not StringUtil::ToUnsigned(*argv, value))
-	Error("value for " + option_name + " must be an unsigned integer!");
+        Error("value for " + option_name + " must be an unsigned integer!");
     if (*(argv + 1) == nullptr)
-	Usage();
+        Usage();
     return true;
 }
 
 
 char * const *ProcessOptionalArgs(char * const *argv, unsigned * const worker_thread_count,
-				  unsigned * const max_record_count, unsigned * const skip_count,
-				  unsigned * const timeout)
+                                  unsigned * const max_record_count, unsigned * const skip_count,
+                                  unsigned * const timeout)
 {
     *worker_thread_count = DEFAULT_WORKER_THREAD_COUNT;
     *max_record_count = UINT_MAX;                     // Read all records.
@@ -410,18 +410,18 @@ char * const *ProcessOptionalArgs(char * const *argv, unsigned * const worker_th
     *timeout          = DEFAULT_PER_DOCUMENT_TIMEOUT; // seconds
 
     while (*argv) {
-	if (GetOptionalArg("--worker-thread-count", argv, worker_thread_count))
-	    argv += 2;
-	else if (GetOptionalArg("--max-record-count", argv, max_record_count))
-	    argv += 2;
-	else if (GetOptionalArg("--skip-count", argv, skip_count))
-	    argv += 2;
-	else if (GetOptionalArg("--per-doc-timeout", argv, timeout))
-	    argv += 2;
-	else if (StringUtil::StartsWith(*argv, "--"))
-	    Error("unrecognised argument: " + std::string(*argv));
-	else
-	    return argv;
+        if (GetOptionalArg("--worker-thread-count", argv, worker_thread_count))
+            argv += 2;
+        else if (GetOptionalArg("--max-record-count", argv, max_record_count))
+            argv += 2;
+        else if (GetOptionalArg("--skip-count", argv, skip_count))
+            argv += 2;
+        else if (GetOptionalArg("--per-doc-timeout", argv, timeout))
+            argv += 2;
+        else if (StringUtil::StartsWith(*argv, "--"))
+            Error("unrecognised argument: " + std::string(*argv));
+        else
+            return argv;
     }
 
     return argv;
@@ -433,37 +433,37 @@ int main(int /*argc*/, char *argv[]) {
 
     unsigned worker_thread_count, max_record_count, skip_count, timeout;
     char * const * remaining_args(ProcessOptionalArgs(argv + 1, &worker_thread_count, &max_record_count,
-						      &skip_count, &timeout));
+                                                      &skip_count, &timeout));
     if (*remaining_args == nullptr)
-	Usage();
+        Usage();
 
     const std::string marc_input_filename(*remaining_args++);
     FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rb");
     if (marc_input == nullptr)
-	Error("can't open \"" + marc_input_filename + "\" for reading!");
+        Error("can't open \"" + marc_input_filename + "\" for reading!");
     if (*remaining_args == nullptr)
-	Usage();
+        Usage();
 
     const std::string marc_output_filename(*remaining_args++);
     FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
     if (marc_output == nullptr)
-	Error("can't open \"" + marc_output_filename + "\" for writing!");
+        Error("can't open \"" + marc_output_filename + "\" for writing!");
     if (*remaining_args == nullptr)
-	Usage();
+        Usage();
 
     kyotocabinet::HashDB db;
     if (not db.open(*remaining_args++,
-		    kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
-		    | kyotocabinet::HashDB::OTRUNCATE))
-	Error("Failed to open database \"" + std::string(argv[1]) + "\" for writing ("
-	      + std::string(db.error().message()) + ")!");
+                    kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
+                    | kyotocabinet::HashDB::OTRUNCATE))
+        Error("Failed to open database \"" + std::string(argv[1]) + "\" for writing ("
+              + std::string(db.error().message()) + ")!");
     if (*remaining_args != nullptr)
-	Usage();
+        Usage();
 
     try {
-	ProcessRecords(worker_thread_count, max_record_count, skip_count, timeout,
-		       GetPathToPdfImagesScript(argv[0]), marc_input, marc_output, &db);
+        ProcessRecords(worker_thread_count, max_record_count, skip_count, timeout,
+                       GetPathToPdfImagesScript(argv[0]), marc_input, marc_output, &db);
     } catch (const std::exception &e) {
-	Error("Caught exception: " + std::string(e.what()));
+        Error("Caught exception: " + std::string(e.what()));
     }
 }

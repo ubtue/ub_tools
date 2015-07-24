@@ -28,15 +28,15 @@ const size_t DirectoryEntry::TAG_LENGTH(3);
 
 DirectoryEntry::DirectoryEntry(const std::string &raw_entry) {
     if (raw_entry.size() != DIRECTORY_ENTRY_LENGTH)
-	Error("incorrect raw directory entry size (" + std::to_string(raw_entry.size()) + ").  Must be 12!");
+        Error("incorrect raw directory entry size (" + std::to_string(raw_entry.size()) + ").  Must be 12!");
     tag_ = raw_entry.substr(0, TAG_LENGTH);
 
     if (std::sscanf(raw_entry.data() + TAG_LENGTH, "%4u", &field_length_) != 1)
-	Error("can't scan field length (" + raw_entry.substr(TAG_LENGTH, 4)
-	      + ") in directory entry! (Tag was " + tag_ + ")");
+        Error("can't scan field length (" + raw_entry.substr(TAG_LENGTH, 4)
+              + ") in directory entry! (Tag was " + tag_ + ")");
 
     if (std::sscanf(raw_entry.data() + 7, "%5u", &field_offset_) != 1)
-	Error("can't scan field oddset in directory entry!");
+        Error("can't scan field oddset in directory entry!");
 }
 
 
@@ -53,27 +53,27 @@ std::string DirectoryEntry::toString() const {
 
 
 bool DirectoryEntry::ParseDirEntries(const std::string &entries_string, std::vector<DirectoryEntry> * const entries,
-				     std::string * const err_msg) {
+                                     std::string * const err_msg) {
     entries->clear();
     if ((entries_string.length() % DIRECTORY_ENTRY_LENGTH) != 1) {
-	if (err_msg != nullptr)
-	    *err_msg = "Raw directory entries string must be a multiple of " + std::to_string(DIRECTORY_ENTRY_LENGTH)
-		+ " in length!";
-	return false;
+        if (err_msg != nullptr)
+            *err_msg = "Raw directory entries string must be a multiple of " + std::to_string(DIRECTORY_ENTRY_LENGTH)
+                + " in length!";
+        return false;
     }
 
     if (entries_string[entries_string.length() - 1] != '\x1E') {
-	if (err_msg != nullptr)
-	    *err_msg = "Missing field terminator at end of directory!";
-	return false;
+        if (err_msg != nullptr)
+            *err_msg = "Missing field terminator at end of directory!";
+        return false;
     }
 
     const unsigned count(entries_string.length() / DIRECTORY_ENTRY_LENGTH);
     entries->reserve(count);
     size_t offset(0);
     for (unsigned i(0); i < count; ++i) {
-	entries->push_back(DirectoryEntry(entries_string.substr(offset, DIRECTORY_ENTRY_LENGTH)));
-	offset += DIRECTORY_ENTRY_LENGTH;
+        entries->emplace_back(DirectoryEntry(entries_string.substr(offset, DIRECTORY_ENTRY_LENGTH)));
+        offset += DIRECTORY_ENTRY_LENGTH;
     }
 
     return true;
@@ -85,7 +85,7 @@ class MatchTag {
 public:
     explicit MatchTag(const std::string &tag_to_match): tag_to_match_(tag_to_match) { }
     inline bool operator()(const DirectoryEntry &entry_to_compare_against) const {
-	return entry_to_compare_against.getTag() == tag_to_match_;
+        return entry_to_compare_against.getTag() == tag_to_match_;
     }
 };
 
@@ -103,12 +103,12 @@ std::pair<std::vector<DirectoryEntry>::const_iterator, std::vector<DirectoryEntr
     std::pair<std::vector<DirectoryEntry>::const_iterator, std::vector<DirectoryEntry>::const_iterator> retval;
     retval.first = FindField(tag, field_entries);
     if (retval.first == field_entries.end())
-	retval.second = field_entries.end();
+        retval.second = field_entries.end();
     else {
-	retval.second = retval.first;
-	retval.second++;
-	while (retval.second != field_entries.end() and retval.second->getTag() == tag)
-	    ++retval.second;
+        retval.second = retval.first;
+        retval.second++;
+        while (retval.second != field_entries.end() and retval.second->getTag() == tag)
+            ++retval.second;
     }
 
     return retval;

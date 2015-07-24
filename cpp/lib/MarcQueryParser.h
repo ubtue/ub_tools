@@ -13,7 +13,7 @@ class LeaderCondition {
     std::string match_;
 public:
     LeaderCondition(const unsigned start_offset, const unsigned end_offset, const std::string &match)
-	: start_offset_(start_offset), end_offset_(end_offset), match_(match) { }
+        : start_offset_(start_offset), end_offset_(end_offset), match_(match) { }
     unsigned getStartOffset() const { return start_offset_; }
     unsigned getEndOffset() const { return end_offset_; }
     const std::string &getMatch() const { return match_; }
@@ -25,7 +25,7 @@ class FieldOrSubfieldDescriptor {
     const std::string field_or_subfield_;
 public:
     explicit FieldOrSubfieldDescriptor(const std::string &field_or_subfield)
-	: field_or_subfield_(field_or_subfield) { }
+        : field_or_subfield_(field_or_subfield) { }
     bool isStar() const { return field_or_subfield_ == "*"; }
     std::string getTag() const { return isStar() ? "*" : field_or_subfield_.substr(0, 3); }
     std::string getSubfieldCodes() const;
@@ -37,7 +37,7 @@ public:
 class ConditionDescriptor {
 public:
     enum CompType { NO_COMPARISION, EQUAL_EQUAL, NOT_EQUAL, SINGLE_FIELD_EQUAL, SINGLE_FIELD_NOT_EQUAL, EXISTS,
-		    IS_MISSING };
+                    IS_MISSING };
 private:
     CompType comp_type_;
     const std::string field_or_subfield_reference_;
@@ -51,7 +51,7 @@ public:
     // "comp_type" must be EQUAL_EQUAL, NOT_EQUAL, SINGLE_FIELD_EQUAL or SINGLE_FIELD_NOT_EQUAL.
     // Warning: "data_matcher" must be the address of a heap object!  ConditionDescriptor then takes the ownership.
     ConditionDescriptor(const std::string &field_or_subfield_reference, const CompType comp_type,
-			const RegexMatcher * const data_matcher);
+                        const RegexMatcher * const data_matcher);
 
     CompType getCompType() const { return comp_type_; }
     const std::string &getFieldOrSubfieldReference() const { return field_or_subfield_reference_; }
@@ -75,17 +75,17 @@ public:
     const LeaderCondition &getLeaderCondition() const { return *leader_cond_; }
 
     void addFieldOrSubfieldDescriptor(const FieldOrSubfieldDescriptor &field_or_subfield_desc) {
-	conds_and_field_or_subfield_descs_.push_back(std::make_pair(ConditionDescriptor(), field_or_subfield_desc));
+        conds_and_field_or_subfield_descs_.push_back(std::make_pair(ConditionDescriptor(), field_or_subfield_desc));
     }
 
     void addConditionalFieldOrSubfieldDescriptor(const ConditionDescriptor cond_desc,
-						 const FieldOrSubfieldDescriptor &field_or_subfield_desc)
+                                                 const FieldOrSubfieldDescriptor &field_or_subfield_desc)
     {
-	conds_and_field_or_subfield_descs_.push_back(std::make_pair(cond_desc, field_or_subfield_desc));
+        conds_and_field_or_subfield_descs_.push_back(std::make_pair(cond_desc, field_or_subfield_desc));
     }
 
     const std::vector<std::pair<ConditionDescriptor, FieldOrSubfieldDescriptor>> &getCondsAndFieldOrSubfieldDescs()
-	const { return conds_and_field_or_subfield_descs_; }
+        const { return conds_and_field_or_subfield_descs_; }
 
     std::string toString() const;
 };

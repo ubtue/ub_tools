@@ -31,9 +31,9 @@ std::string Escape(const std::string &s) {
     retval.reserve(s.length());
 
     for (const char ch : s) {
-	if (ch == '\\' or ch == '=' or ch == ';')
-	    retval += '\\';
-	retval += ch;
+        if (ch == '\\' or ch == '=' or ch == ';')
+            retval += '\\';
+        retval += ch;
     }
 
     return retval;
@@ -43,10 +43,10 @@ std::string Escape(const std::string &s) {
 void SerialiseMap(const std::string &output_filename, const std::unordered_map<std::string, std::string> &map) {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
     if (output.fail())
-	Error("Failed to open \"" + output_filename + "\" for writing!");
+        Error("Failed to open \"" + output_filename + "\" for writing!");
 
     for (const auto &key_and_value : map)
-	output << Escape(key_and_value.first) << '=' << Escape(key_and_value.second) << '\n';
+        output << Escape(key_and_value.first) << '=' << Escape(key_and_value.second) << '\n';
 }
 
 
@@ -55,109 +55,109 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
 
     std::ifstream input(input_filename, std::ofstream::in);
     if (input.fail())
-	Error("Failed to open \"" + input_filename + "\" for reading!");
+        Error("Failed to open \"" + input_filename + "\" for reading!");
 
     unsigned line_no(0);
     for (std::string line; std::getline(input, line); /* Intentionally empty! */) {
-	++line_no;
+        ++line_no;
 
-	// Deal w/ comments, leading and trailing spaces and empty lines:
-	const size_t last_hash_pos(line.find_last_of('#'));
-	if (last_hash_pos != std::string::npos)
-	    line = line.substr(0, last_hash_pos);
-	StringUtil::Trim(&line);
-	if (line.empty())
-	    continue;
+        // Deal w/ comments, leading and trailing spaces and empty lines:
+        const size_t last_hash_pos(line.find_last_of('#'));
+        if (last_hash_pos != std::string::npos)
+            line = line.substr(0, last_hash_pos);
+        StringUtil::Trim(&line);
+        if (line.empty())
+            continue;
 
-	std::string key, value;
-	bool in_key(true), escaped(false);
-	for (const char ch : line) {
-	    if (escaped) {
-		escaped = false;
-		if (in_key)
-		    key += ch;
-		else
-		    value += ch;
-	    } else if (ch == '\\')
-		escaped = true;
-	    else if (ch == '=') {
-		if (key.empty())
-		    Error("Missing key in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
-		else if (not in_key)
-		    Error("Unescaped equal-sign in \"" + input_filename + "\" on line " + std::to_string(line_no)
-			  + "!");
-		in_key = false;
-	    } else if (in_key)
-		  key += ch;
-	    else
-		value += ch;
-	}
-	if (key.empty() or value.empty())
-	    Error("Bad input in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
-	(*map)[key] = value;
+        std::string key, value;
+        bool in_key(true), escaped(false);
+        for (const char ch : line) {
+            if (escaped) {
+                escaped = false;
+                if (in_key)
+                    key += ch;
+                else
+                    value += ch;
+            } else if (ch == '\\')
+                escaped = true;
+            else if (ch == '=') {
+                if (key.empty())
+                    Error("Missing key in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
+                else if (not in_key)
+                    Error("Unescaped equal-sign in \"" + input_filename + "\" on line " + std::to_string(line_no)
+                          + "!");
+                in_key = false;
+            } else if (in_key)
+                  key += ch;
+            else
+                value += ch;
+        }
+        if (key.empty() or value.empty())
+            Error("Bad input in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
+        (*map)[key] = value;
     }
 }
 
 
 void SerialiseMap(const std::string &output_filename,
-		  const std::unordered_multimap<std::string, std::string> &multimap)
+                  const std::unordered_multimap<std::string, std::string> &multimap)
 {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
     if (output.fail())
-	Error("Failed to open \"" + output_filename + "\" for writing!");
+        Error("Failed to open \"" + output_filename + "\" for writing!");
 
     for (const auto &key_and_value : multimap)
-	output << Escape(key_and_value.first) << '=' << Escape(key_and_value.second) << '\n';
+        output << Escape(key_and_value.first) << '=' << Escape(key_and_value.second) << '\n';
 }
 
 
 void DeserialiseMap(const std::string &input_filename,
-		    std::unordered_multimap<std::string, std::string> * const multimap)
+                    std::unordered_multimap<std::string, std::string> * const multimap)
 {
     multimap->clear();
 
     std::ifstream input(input_filename, std::ofstream::in);
     if (input.fail())
-	Error("Failed to open \"" + input_filename + "\" for reading!");
+        Error("Failed to open \"" + input_filename + "\" for reading!");
 
     unsigned line_no(0);
     for (std::string line; std::getline(input, line); /* Intentionally empty! */) {
-	++line_no;
+        ++line_no;
 
-	// Deal w/ comments, leading and trailing spaces and empty lines:
-	const size_t last_hash_pos(line.find_last_of('#'));
-	if (last_hash_pos != std::string::npos)
-	    line = line.substr(0, last_hash_pos);
-	StringUtil::Trim(&line);
-	if (line.empty())
-	    continue;
+        // Deal w/ comments, leading and trailing spaces and empty lines:
+        const size_t last_hash_pos(line.find_last_of('#'));
+        if (last_hash_pos != std::string::npos)
+            line = line.substr(0, last_hash_pos);
+        StringUtil::Trim(&line);
+        if (line.empty())
+            continue;
 
-	std::string key, value;
-	bool in_key(true), escaped(false);
-	for (const char ch : line) {
-	    if (escaped) {
-		escaped = false;
-		if (in_key)
-		    key += ch;
-		else
-		    value += ch;
-	    } else if (ch == '\\')
-		escaped = true;
-	    else if (ch == '=') {
-		if (key.empty())
-		    Error("Missing key in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
-		else if (not in_key)
-		    Error("Unescaped equal-sign in \"" + input_filename + "\" on line " + std::to_string(line_no)
-			  + "!");
-		in_key = false;
-	    } else if (in_key)
-		  key += ch;
-	    else
-		value += ch;
-	}
-	if (key.empty() or value.empty())
-	    Error("Bad input in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
-	multimap->emplace(key, value);
+        std::string key, value;
+        bool in_key(true), escaped(false);
+        for (const char ch : line) {
+            if (escaped) {
+                escaped = false;
+                if (in_key)
+                    key += ch;
+                else
+                    value += ch;
+            } else if (ch == '\\')
+                escaped = true;
+            else if (ch == '=') {
+                if (key.empty())
+                    Error("Missing key in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
+                else if (not in_key)
+                    Error("Unescaped equal-sign in \"" + input_filename + "\" on line " + std::to_string(line_no)
+                          + "!");
+                in_key = false;
+            } else if (in_key)
+                  key += ch;
+            else
+                value += ch;
+        }
+        if (key.empty() or value.empty())
+            Error("Bad input in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
+        multimap->emplace(key, value);
     }
 }
 
