@@ -7,23 +7,29 @@
 set -o errexit -o nounset
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
+# Make sure only root can run our script
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
 username="vufind"
 # Check groups
 if [[ $(cut -d: -f1 /etc/group | grep ^$username$) != "$username" ]] ; then
-  sudo groupadd "$username"
+  groupadd "$username"
 fi
 # Check user
 if [[ $(cut -d: -f1 /etc/passwd | grep ^$username$) != "$username" ]] ; then
-  sudo useradd --no-create-home -g "$username" --shell /bin/false "$username"
+  useradd --no-create-home -g "$username" --shell /bin/false "$username"
 fi
 
 # Apache should run with the new user.
 if [[ -f "/etc/apache2/envvars" ]] ; then
-  sudo sed --in-place=.bak --expression="s/export APACHE_RUN_USER=[a-zA-Z\-]*/export APACHE_RUN_USER=$username/g" \
+  sed --in-place=.bak --expression="s/export APACHE_RUN_USER=[a-zA-Z\-]*/export APACHE_RUN_USER=$username/g" \
                            --expression="s/export APACHE_RUN_GROUP=[a-zA-Z\-]*/export APACHE_RUN_GROUP=$username/g" \
                            "/etc/apache2/envvars"
 elif [[ -f "/etc/httpd/conf/httpd.conf" ]] ; then
-  sudo sed --in-place=.bak  --expression="s/User [a-zA-Z\-]*/User $username/g" \
+  sed --in-place=.bak  --expression="s/User [a-zA-Z\-]*/User $username/g" \
                             --expression="s/Group [a-zA-Z\-]*/Group $username/g" \
                             "/etc/httpd/conf/httpd.conf"
 else

@@ -8,38 +8,44 @@
 set -o errexit -o nounset
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
+# Make sure only root can run our script
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
 OWNER="vufind:vufind"
 
-sudo chown -R "$OWNER" "$VUFIND_HOME"
-sudo chmod +xr "$VUFIND_HOME"
-sudo chmod +xr "$VUFIND_LOCAL_DIR"
-sudo chown -R "$OWNER" "$VUFIND_LOCAL_DIR/cache"
-# sudo chown "$OWNER" "$VUFIND_LOCAL_DIR/config"
-sudo chown -R "$OWNER" "$VUFIND_LOCAL_DIR/logs/"
-sudo touch "$VUFIND_LOCAL_DIR/logs/record.xml"
-sudo touch "$VUFIND_LOCAL_DIR/logs/search.xml"
-sudo chown "$OWNER" "$VUFIND_HOME/local/logs/record.xml"
-sudo chown "$OWNER" "$VUFIND_HOME/local/logs/search.xml"
+chown -R "$OWNER" "$VUFIND_HOME"
+chmod +xr "$VUFIND_HOME"
+chmod +xr "$VUFIND_LOCAL_DIR"
+chown -R "$OWNER" "$VUFIND_LOCAL_DIR/cache"
+# chown "$OWNER" "$VUFIND_LOCAL_DIR/config"
+chown -R "$OWNER" "$VUFIND_LOCAL_DIR/logs/"
+touch "$VUFIND_LOCAL_DIR/logs/record.xml"
+touch "$VUFIND_LOCAL_DIR/logs/search.xml"
+chown "$OWNER" "$VUFIND_HOME/local/logs/record.xml"
+chown "$OWNER" "$VUFIND_HOME/local/logs/search.xml"
 
-sudo touch "/var/log/vufind.log"
-sudo touch "$VUFIND_LOCAL_DIR/import/solrmarc.log"
-sudo chown "$OWNER" "$VUFIND_LOCAL_DIR/import/solrmarc.log"
-sudo chown "$OWNER" "/var/log/vufind.log"
-sudo mkdir --parents "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
-sudo chown "$OWNER" "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
-sudo chmod +xr "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
+touch "/var/log/vufind.log"
+touch "$VUFIND_LOCAL_DIR/import/solrmarc.log"
+chown "$OWNER" "$VUFIND_LOCAL_DIR/import/solrmarc.log"
+chown "$OWNER" "/var/log/vufind.log"
+mkdir --parents "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
+chown "$OWNER" "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
+chmod +xr "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 
 if [[ -e "/usr/sbin/setsebool" ]]; then
-  sudo setsebool -P httpd_can_network_connect=1 \
+  setsebool -P httpd_can_network_connect=1 \
                     httpd_can_network_connect_db=1 \
                     httpd_enable_cgi=1
 fi
 
 if [[ -e "/usr/bin/chcon" ]]; then
-  sudo chcon --recursive unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_HOME"
-  sudo chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind.conf"
-  sudo chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind-vhosts.conf"
-  sudo chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/record.xml"
-  sudo chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/search.xml"
-  sudo chcon system_u:object_r:httpd_log_t:s0 /var/log/vufind.log
+  chcon --recursive unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_HOME"
+  chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind.conf"
+  chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind-vhosts.conf"
+  chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/record.xml"
+  chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/search.xml"
+  chcon system_u:object_r:httpd_log_t:s0 /var/log/vufind.log
 fi

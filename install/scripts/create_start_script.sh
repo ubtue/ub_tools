@@ -9,6 +9,12 @@ SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 TEMPLATE_DIR=$SCRIPT_DIR/templates
 TPL=$TEMPLATE_DIR/start-vufind.sh
 
+# Make sure only root can run our script
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
 
 show_help() {
   cat << EOF
@@ -45,4 +51,4 @@ TMP=$(echo "$TPL_CONTENT" | sed -e "s|{{{VUFIND_HOME}}}|$VUFIND_HOME|g" \
                                 -e "s|{{{WEBSERVER_NAME}}}|$WEBSERVER_NAME|g")
 
 echo "$TMP" > "$OUTPUT"
-sudo chmod ug+x "$OUTPUT"
+chmod ug+x "$OUTPUT"

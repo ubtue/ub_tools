@@ -5,6 +5,11 @@ set -o errexit -o nounset
 BINARY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 SCRIPT_DIR=$BINARY_DIR/scripts
 
+# Make sure only root can run our script
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
 
 show_help() {
   cat << EOF
@@ -71,7 +76,7 @@ echo ""
 echo 'This script needs three passwords. We ask for them now, so the script is able to run in the background without interruption.'
 echo ""
 echo "First: if you aren't root, we need root rights to modify some configuration files of Apache, MySQL, to create and modify VUFIND_HOME and to create the VuFind user."
-sudo echo "Root rights granted"
+echo "Root rights granted"
 echo ""
 
 ##############################################################################
@@ -258,18 +263,18 @@ if [ -x "/bin/systemctl" ] ; then
     echo ""
     echo "Start server with SystemD"
   fi
-  sudo systemctl restart httpd.service
-  sudo systemctl restart mariadb.service
-  sudo systemctl start vufind.service
+  systemctl restart httpd.service
+  systemctl restart mariadb.service
+  systemctl start vufind.service
 else
   if [[ "$VERBOSE" == true ]] ; then
     echo ""
     echo ""
     echo "Start server with upstart"
   fi
-  sudo service apache2 start
-  sudo service mysql start
-  sudo service vufind start
+  service apache2 start
+  service mysql start
+  service vufind start
 fi
 
 

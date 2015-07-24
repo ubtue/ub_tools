@@ -11,6 +11,12 @@ TEMPLATE_DIR=$SCRIPT_DIR/templates
 TPL=$TEMPLATE_DIR/httpd-vufind-vhosts.conf
 OUTPUT=$VUFIND_LOCAL_DIR/httpd-vufind-vhosts.conf
 
+# Make sure only root can run our script
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
 show_help() {
   cat << EOF
 Substitutes placeholders of templates/httpd-vufind-vhosts.conf and copies the file to the right location.

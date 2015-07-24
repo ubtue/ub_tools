@@ -11,13 +11,19 @@ TEMPLATE_DIR=$SCRIPT_DIR/templates
 TPL=$TEMPLATE_DIR/vufind.upstart
 OUTPUT="/etc/init.d/vufind"
 
-sudo cp "$TPL" "$OUTPUT"
-sudo chmod 755 "$OUTPUT"
+# Make sure only root can run our script
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
 
-sudo update-rc.d mysql defaults 
-sudo update-rc.d apache2 defaults 
-sudo update-rc.d vufind defaults
+cp "$TPL" "$OUTPUT"
+chmod 755 "$OUTPUT"
+
+update-rc.d mysql defaults 
+update-rc.d apache2 defaults 
+update-rc.d vufind defaults
 
 # Start services (exept of VuFind)
-sudo service mysql start
-sudo service apache2 start
+service mysql start
+service apache2 start

@@ -12,17 +12,23 @@ TPL=$TEMPLATE_DIR/vufind.systemD
 SYSTEMD_DIRECTORY="/usr/local/lib/systemd/system"
 OUTPUT="$SYSTEMD_DIRECTORY/vufind.service"
 
+# Make sure only root can run our script
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
 # Create service
 if [ ! -d "$SYSTEMD_DIRECTORY" ] ; then
-  sudo mkdir --parents "$SYSTEMD_DIRECTORY"
+  mkdir --parents "$SYSTEMD_DIRECTORY"
 fi
-sudo cp "$TPL" "$OUTPUT"
+cp "$TPL" "$OUTPUT"
 
 # Activate services
-sudo systemctl enable httpd.service
-sudo systemctl enable mariadb.service
-sudo systemctl enable vufind.service
+systemctl enable httpd.service
+systemctl enable mariadb.service
+systemctl enable vufind.service
 
 # Start services (exept of VuFind)
-sudo systemctl start httpd.service
-sudo systemctl start mariadb.service
+systemctl start httpd.service
+systemctl start mariadb.service

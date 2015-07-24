@@ -11,6 +11,12 @@ TEMPLATE_DIR=$SCRIPT_DIR/templates
 TPL=$TEMPLATE_DIR/htpasswd
 OUTPUT=$VUFIND_HOME/public/.htpasswd
 
+# Make sure only root can run our script
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
 show_help() {
   cat << EOF
 Creates a .htaccess with a .htpasswd configuration to protect the access to the website.
