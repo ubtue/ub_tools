@@ -22,3 +22,7 @@ sudo cp "$TPL" "$OUTPUT"
 sudo systemctl enable httpd.service
 sudo systemctl enable mariadb.service
 sudo systemctl enable vufind.service
+
+# Start services (exept of VuFind)
+sudo systemctl start httpd.service
+sudo systemctl start mariadb.service

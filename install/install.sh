@@ -99,6 +99,24 @@ fi
 
 ##############################################################################
 
+if [ -x "/bin/systemctl" ] ; then
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "create_systemd_conf.sh"
+  fi
+  "$SCRIPT_DIR/create_systemd_conf.sh"
+else
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "create_upstart_conf.sh"
+  fi
+  "$SCRIPT_DIR/create_upstart_conf.sh"
+fi
+
+##############################################################################
+
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
@@ -218,24 +236,6 @@ if [[ "$VERBOSE" == true ]] ; then
   echo "set_privileges.sh"
 fi
 "$SCRIPT_DIR/set_privileges.sh"
-
-##############################################################################
-
-if [ -x "/bin/systemctl" ] ; then
-	if [[ "$VERBOSE" == true ]] ; then
-    echo ""
-    echo ""
-    echo "create_systemd_conf.sh"
-  fi
-  "$SCRIPT_DIR/create_systemd_conf.sh"
-else
-  if [[ "$VERBOSE" == true ]] ; then
-    echo ""
-    echo ""
-    echo "create_upstart_conf.sh"
-  fi
-  "$SCRIPT_DIR/create_upstart_conf.sh"
-fi
 
 ##############################################################################
 

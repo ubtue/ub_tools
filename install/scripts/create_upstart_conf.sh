@@ -16,4 +16,8 @@ sudo chmod 755 "$OUTPUT"
 
 sudo update-rc.d mysql defaults 
 sudo update-rc.d apache2 defaults 
-sudo update-rc.d vufind defaults 
+sudo update-rc.d vufind defaults
+
+# Start services (exept of VuFind)
+sudo service mysql start
+sudo service apache2 start

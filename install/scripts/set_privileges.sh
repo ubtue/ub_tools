@@ -30,9 +30,9 @@ sudo chown "$OWNER" "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 sudo chmod +xr "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 
 if [[ -e "/usr/sbin/setsebool" ]]; then
-  sudo setsebool -P httpd_can_network_connect 1
-  sudo setsebool -P httpd_can_network_connect_db 1
-  sudo setsebool -P httpd_enable_cgi 1
+  sudo setsebool -P httpd_can_network_connect=1 \
+                    httpd_can_network_connect_db=1 \
+                    httpd_enable_cgi=1
 fi
 
 if [[ -e "/usr/bin/chcon" ]]; then
