@@ -14,31 +14,46 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-OWNER="vufind:vufind"
+show_help() {
+  cat << EOF
+Creates all directories and the vufind user. Sets all file privileges of VuFind and all other needed files.
 
-chown -R "$OWNER" "$VUFIND_HOME"
+USAGE: ${0##*/} CLONE_DIRECTORY USER_NAME USER_GROUP
+
+CLONE_DIRECTORY  The name of the subdirectory for the cloned repository
+USER_NAME    The user name of the vufind user
+USER_GROUP   The user group of the vufind user
+EOF
+}
+
+if [ "$#" -ne 3 ] ; then
+  show_help
+  exit 1
+fi
+
+CLONE_DIRECTORY=$1
+USER_NAME=$2
+USER_GROUP=$3
+OWNER="$USER_NAME:$USER_GROUP"
+
 chmod +xr "$VUFIND_HOME"
 chmod +xr "$VUFIND_LOCAL_DIR"
-chown -R "$OWNER" "$VUFIND_LOCAL_DIR/cache"
-# chown "$OWNER" "$VUFIND_LOCAL_DIR/config"
-chown -R "$OWNER" "$VUFIND_LOCAL_DIR/logs/"
 touch "$VUFIND_LOCAL_DIR/logs/record.xml"
 touch "$VUFIND_LOCAL_DIR/logs/search.xml"
-chown "$OWNER" "$VUFIND_HOME/local/logs/record.xml"
-chown "$OWNER" "$VUFIND_HOME/local/logs/search.xml"
 
 touch "/var/log/vufind.log"
 touch "$VUFIND_LOCAL_DIR/import/solrmarc.log"
-chown "$OWNER" "$VUFIND_LOCAL_DIR/import/solrmarc.log"
-chown "$OWNER" "/var/log/vufind.log"
 mkdir --parents "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
-chown "$OWNER" "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 chmod +xr "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
+
+chown -R "$OWNER" "$VUFIND_HOME"
+chown -R "$OWNER" "$CLONE_DIRECTORY"
+chown -R "$OWNER" "/tmp/vufind_sessions/"
 
 if [[ -e "/usr/sbin/setsebool" ]]; then
   setsebool -P httpd_can_network_connect=1 \
-                    httpd_can_network_connect_db=1 \
-                    httpd_enable_cgi=1
+               httpd_can_network_connect_db=1 \
+               httpd_enable_cgi=1
 fi
 
 if [[ -e "/usr/bin/chcon" ]]; then

@@ -67,6 +67,8 @@ SSL_KEY=""
 SSL_CHAIN_FILE=""
 FORCE_SSL=false
 HTPASSWD=""
+USER_NAME="vufind"
+USER_GROUP="vufind"
 
 source "$CONFIG_FILE"
 
@@ -98,9 +100,9 @@ echo ""
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
-  echo "create_user.sh"
+  echo "create_user.sh $USER_NAME $USER_GROUP"
 fi
-"$SCRIPT_DIR/create_user.sh"
+"$SCRIPT_DIR/create_user.sh" "$USER_NAME" "$USER_GROUP"
 
 ##############################################################################
 
@@ -238,9 +240,9 @@ fi
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
-  echo "set_privileges.sh"
+  echo "set_privileges.sh $CLONE_DIRECTORY"
 fi
-"$SCRIPT_DIR/set_privileges.sh"
+"$SCRIPT_DIR/set_privileges.sh" "$CLONE_DIRECTORY" "$USER_NAME" "$USER_GROUP"
 
 ##############################################################################
 
@@ -272,8 +274,9 @@ else
     echo ""
     echo "Start server with upstart"
   fi
-  service apache2 start
-  service mysql start
+
+  service apache2 restart
+  service mysql restart
   service vufind start
 fi
 

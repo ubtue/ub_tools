@@ -20,10 +20,21 @@ fi
 cp "$TPL" "$OUTPUT"
 chmod 755 "$OUTPUT"
 
-update-rc.d mysql defaults 
-update-rc.d apache2 defaults 
-update-rc.d vufind defaults
+if [[ ! -f "/etc/init.d/mysql" ]] ; then
+	update-rc.d mysql defaults 
+fi
+if [[ ! -f "/etc/init.d/apache2" ]] ; then
+	update-rc.d apache2 defaults 
+fi
+if [[ ! -f "/etc/init.d/vufind" ]] ; then
+	update-rc.d vufind defaults
+fi
 
 # Start services (exept of VuFind)
-service mysql start
-service apache2 start
+if [[ ! -f "/run/mysqld/mysqld.pid" ]] ; then
+	service mysql start
+fi
+
+if [[ ! -f "/run/apache2/apache2.pid" ]] ; then
+	service apache2 start
+fi
