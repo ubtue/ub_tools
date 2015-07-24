@@ -248,6 +248,31 @@ if [[ "$HTPASSWD" ]] ; then
   "$SCRIPT_DIR/create_htpasswd_protection.sh" "$NAME" "$HTPASSWD"
 fi
 
+##############################################################################
+# start server
+##############################################################################
+
+if [ -x "/bin/systemctl" ] ; then
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "Start server with SystemD"
+  fi
+  sudo systemctl restart httpd.service
+  sudo systemctl restart mariadb.service
+  sudo systemctl start vufind.service
+else
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "Start server with upstart"
+  fi
+  sudo service apache2 start
+  sudo service mysql start
+  sudo service vufind start
+fi
+
+
 echo ""
 echo "DONE"
 echo "Please restart Apache- and $NAME-Server"
