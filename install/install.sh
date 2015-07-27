@@ -7,13 +7,14 @@ SCRIPT_DIR=$BINARY_DIR/scripts
 
 # Make sure only root can run our script
 if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root" 1>&2
+   echo "This script must be run as root to modify some configuration files of Apache, MySQL, to create and modify VUFIND_HOME and to create the VuFind user."  1>&2
    exit 1
 fi
 
 show_help() {
   cat << EOF
-Installs a 
+Installs a specialized copy of VuFind (like ixTheo or VuFind) using a
+configuration file 
 
 USAGE: ${0##*/} [-v] CONFIG_FILE
 
@@ -41,10 +42,10 @@ fi
 
 # Check if config exists and is readable
 if  [[ ! -f "$CONFIG_FILE" ]] || [[ ! -r "$CONFIG_FILE" ]] ; then
-  # if this is a relative path, make it absolute:
+  # Maybe it is a path relativ to the current working directory. Just try it...
   CONFIG_FILE="$(pwd)/$CONFIG_FILE"
   if  [[ ! -f "$CONFIG_FILE" ]] || [[ ! -r "$CONFIG_FILE" ]] ; then
-    echo "ERROR: configuration file dosn't exist or isn't readable!"
+    echo "ERROR: configuration file dosen't exist or isn't readable!"
     echo "Parameters: $*"
     show_help
     exit 1
@@ -72,24 +73,15 @@ USER_GROUP="vufind"
 
 source "$CONFIG_FILE"
 
-# Ask for root rights first. We need them later, but we ask for them now, so 
-# the dosn't have to pay attention.
-echo ""
-echo 'This script needs three passwords. We ask for them now, so the script is able to run in the background without interruption.'
-echo ""
-echo "First: if you aren't root, we need root rights to modify some configuration files of Apache, MySQL, to create and modify VUFIND_HOME and to create the VuFind user."
-echo "Root rights granted"
-echo ""
-
 ##############################################################################
 #  Ask for passwords
 ##############################################################################
 
-echo "Second: the password of the MySQL root user is needed to (re-)create the database of VuFind."
+echo "The password of the MySQL root user is needed to (re-)create the database of VuFind."
 read -s -p "Enter Password: " ROOT_PASSWORD
 echo ""
 
-echo "Third: the password of the MySQL VuFind user is needed to (re-)create the MySQL VuFind user."
+echo "The password of the MySQL VuFind user is needed to (re-)create the MySQL VuFind user."
 read -s -p "Enter Password: " VUFIND_PASSWORD
 echo ""
 
@@ -231,7 +223,7 @@ else
   if [[ "$VERBOSE" == true ]] ; then
     echo ""
     echo ""
-    echo "No start script! This is a single copy installation. If you want multible copies, DO NOT use '$VUFIND_HOME' as cloning directory."
+    echo "No start script! This is a single copy installation. If you want multiple copies, DO NOT use '$VUFIND_HOME' as cloning directory."
   fi 
 fi
 
