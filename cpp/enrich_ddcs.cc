@@ -43,8 +43,8 @@ bool IsPossibleDDC(const std::string &ddc_candidate) {
 }
 
 
-void ExtractFromField(const std::string &tag, const std::vector<DirectoryEntry> &dir_entries,
-		      const std::vector<std::string> &field_data, std::set<std::string> * const ddcs)
+void ExtractDDCsFromField(const std::string &tag, const std::vector<DirectoryEntry> &dir_entries,
+			  const std::vector<std::string> &field_data, std::set<std::string> * const ddcs)
 {
     const auto begin_end(DirectoryEntry::FindFields(tag, dir_entries));
     for (auto iter(begin_end.first); iter != begin_end.second; ++iter) {
@@ -84,8 +84,8 @@ void ExtractDDCsFromNormdata(const bool verbose, FILE * const norm_input,
         const std::string &control_number(field_data[_001_iter - dir_entries.begin()]);
 
 	std::set<std::string> ddcs;
-	ExtractFromField("083", dir_entries, field_data, &ddcs);
-	ExtractFromField("089", dir_entries, field_data, &ddcs);
+	ExtractDDCsFromField("083", dir_entries, field_data, &ddcs);
+	ExtractDDCsFromField("089", dir_entries, field_data, &ddcs);
 
 	if (not ddcs.empty()) {
 	    ++ddc_record_count;
@@ -150,14 +150,8 @@ void AugmentRecordsWithDDCs(const bool verbose, FILE * const title_input, FILE *
 
 	// Extract already existing DDCs:
 	std::set<std::string> existing_ddcs;
-        for (auto _082_iter(DirectoryEntry::FindField("082", dir_entries));
-	     _082_iter != dir_entries.end() and _082_iter->getTag() == "082"; ++_082_iter)
-	{
-	    const Subfields subfields(field_data[_082_iter - dir_entries.begin()]);
-	    const auto begin_end(subfields.getIterators('a'));
-	    for (auto subfield_a(begin_end.first); subfield_a != begin_end.second; ++subfield_a)
-		existing_ddcs.insert(subfield_a->second);
-	}
+	ExtractDDCsFromField("082", dir_entries, field_data, &existing_ddcs);
+	ExtractDDCsFromField("083", dir_entries, field_data, &existing_ddcs);
 	if (not existing_ddcs.empty())
 	    ++already_had_ddcs;
 	
