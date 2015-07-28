@@ -54,9 +54,9 @@ add_child_refs ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}
 # Phase 4:
 echo "*** Phase 4 ***"
 echo "*** Phase 4 ***" >> "${log}"
-add_issn_to_articles TitelUndLokaldaten-normalised-"${date}".mrc \
-                     ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
-                     TitelUndLokaldaten-normalised-with-issns-"${date}".mrc >> "${log}"
+add_isbns_or_issns_to_articles TitelUndLokaldaten-normalised-"${date}".mrc \
+                               ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
+                               TitelUndLokaldaten-normalised-with-issns-"${date}".mrc >> "${log}"
 
 # Phase 5:
 echo "*** Phase 5 ***"
