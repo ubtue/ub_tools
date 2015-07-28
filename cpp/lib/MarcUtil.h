@@ -85,6 +85,14 @@ std::string GetLanguage(const std::vector<DirectoryEntry> &dir_entries, const st
 std::string GetLanguageCode(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &fields);
 
 
+/** \brief Extracts the first occurrence of subfield "subfield_code" in field "tag".
+ *  \return The value of the extracted subfield or the empty string if the tag or subfield were not found.
+ */
+std::string ExtractFirstSubfield(const std::string &tag, const char subfield_code,
+				 const std::vector<DirectoryEntry> &dir_entries,
+				 const std::vector<std::string> &field_data);
+
+
 } // namespace MarcUtil
 
 

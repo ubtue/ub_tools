@@ -5,12 +5,13 @@
 *.o
 *.a
 *.pyc
+*.log
 *.tar.gz
 *.timestamp
 LOEPPN-*
 \#*\#
 add_child_refs
-add_issn_to_articles
+add_isbns_or_issns_to_articles
 add_title_keywords
 augment_bible_references
 bib_ref_parser_test
@@ -19,14 +20,16 @@ create_full_text_db
 delete_ids
 db_lookup
 download_test
+enrich_ddcs
 exec_test
 extract_text_from_image_only_pdfs
 full_text_lookup
 jop_grep
 krimdok_filter
-marc_grep2
+marc_grep
 marc_grep_tokenizer_test
 marc_filter
+resolve_in_path_test
 shared_buffer_test
 
 bsz_daten

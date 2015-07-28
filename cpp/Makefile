@@ -1,7 +1,7 @@
-PROGS=marc_grep jop_grep download_test add_issn_to_articles marc_grep_tokenizer_test db_lookup \
+PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
       bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
-      exec_test krimdok_filter resolve_in_path_test enrich_ddcs
+      exec_test krimdok_filter resolve_in_path_test enrich_ddcs identify_volume_and_issue
 CGI_PROGS=full_text_lookup
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -c
@@ -39,11 +39,11 @@ jop_grep: jop_grep.o lib/libmarc.a
 jop_grep.o: jop_grep.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Leader.h lib/RegexMatcher.h lib/util.h \
             lib/StringUtil.h
 
-add_issn_to_articles: add_issn_to_articles.o lib/libmarc.a
+add_isbns_or_issns_to_articles: add_isbns_or_issns_to_articles.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $< -Llib -lmarc -lpcre -lcrypto
 
-add_issn_to_articles.o: add_issn_to_articles.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Leader.h lib/RegexMatcher.h \
-                        lib/util.h lib/StringUtil.h
+add_isbns_or_issns_to_articles.o: add_isbns_or_issns_to_articles.cc lib/MarcUtil.h lib/DirectoryEntry.h \
+                                  lib/Leader.h lib/RegexMatcher.h lib/util.h lib/StringUtil.h
 
 add_title_keywords.o: add_title_keywords.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Leader.h lib/util.h \
                       lib/StringUtil.h lib/TextUtil.h
@@ -91,6 +91,12 @@ create_full_text_db: create_full_text_db.o lib/libmarc.a
 delete_ids.o: delete_ids.cc lib/MarcUtil.h lib/StringUtil.h lib/Subfields.h lib/util.h
 
 delete_ids: delete_ids.o lib/libmarc.a
+	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lmagic
+
+identify_volume_and_issue.o: identify_volume_and_issue.cc lib/MarcUtil.h lib/RegexMatcher.h \
+                             lib/StringUtil.h lib/Subfields.h lib/util.h
+
+identify_volume_and_issue: identify_volume_and_issue.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lmagic
 
 db_lookup.o: db_lookup.cc lib/util.h
