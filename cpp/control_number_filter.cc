@@ -34,7 +34,7 @@
 void Usage() {
     std::cerr << "Usage: " << progname << "(--keep|--delete)] pattern marc_input marc_output\n";
     std::cerr << "  Removes records whose control numbers match \"pattern\" if \"--delete\" has been specified\n";
-    std::cerr << "  or only keeps those records whose control numbers match \"pattern\" if \"keep\" has \n";
+    std::cerr << "  or only keeps those records whose control numbers match \"pattern\" if \"--keep\" has\n";
     std::cerr << "  been specified.  (\"pattern\" must be a PCRE.)\n";
     std::exit(EXIT_FAILURE);
 }
