@@ -54,10 +54,6 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, FILE *
     while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
         std::unique_ptr<Leader> leader(raw_leader);
-        if (not leader->isArticle()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
-            continue;
-        }
 
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
@@ -76,7 +72,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, FILE *
         Error(err_msg);
 
     std::cerr << "Read " << count << " records.\n";
-    std::cerr << (keep ? "Kept" : "Deleted") << kept_or_deleted_count << " record(s).\n";
+    std::cerr << (keep ? "Kept " : "Deleted ") << kept_or_deleted_count << " record(s).\n";
 }
 
 
