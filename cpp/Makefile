@@ -9,7 +9,7 @@ CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -march=native -c
 LDOPTS=-O3
 
-.PHONY: clean
+.PHONY: all clean cgi_install root_install install
 
 %.o: %.cc
 	$(CCC) $(CCOPTS) $<
