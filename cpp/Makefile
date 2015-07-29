@@ -5,7 +5,7 @@ PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
-CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -c
+CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -march=native -c
 LDOPTS=-O3
 
 .PHONY: clean
