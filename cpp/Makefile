@@ -1,7 +1,8 @@
 PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
       bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
-      exec_test krimdok_filter resolve_in_path_test enrich_ddcs identify_volume_and_issue
+      exec_test krimdok_filter resolve_in_path_test enrich_ddcs identify_volume_and_issue \
+      control_number_filter
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
@@ -141,6 +142,12 @@ enrich_ddcs.o: enrich_ddcs.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h l
                lib/Subfields.h lib/util.h
 
 enrich_ddcs: enrich_ddcs.o lib/libmarc.a
+	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
+
+control_number_filter.o: control_number_filter.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h \
+                         lib/RegexMatcher.h lib/util.h
+
+control_number_filter: control_number_filter.o lib/libmarc.a
 	$(CCC) $(LDFLAGS) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
 
 clean:
