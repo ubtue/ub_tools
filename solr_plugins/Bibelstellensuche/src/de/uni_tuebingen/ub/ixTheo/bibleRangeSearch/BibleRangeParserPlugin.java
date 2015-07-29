@@ -8,15 +8,14 @@ import org.apache.solr.search.QParserPlugin;
 
 public class BibleRangeParserPlugin extends QParserPlugin {
 
-	@Override
-	@SuppressWarnings("rawtypes")
-	public void init(NamedList args) {
-	}
+    @Override
+    @SuppressWarnings("rawtypes")
+    public void init(final NamedList args) {
+    }
 
-	@Override
-	public QParser createParser(String qstr, SolrParams localParams, SolrParams params,
-			SolrQueryRequest req) {
-		return new BibleRangeParser(qstr, localParams, params, req);
-	}
+    @Override
+    public QParser createParser(final String queryString, final SolrParams localParams, final SolrParams params, final SolrQueryRequest req) {
+        return new BibleRangeParser(queryString, localParams, params, req);
+    }
 
 }

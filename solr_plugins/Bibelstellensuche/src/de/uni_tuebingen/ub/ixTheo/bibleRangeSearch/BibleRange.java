@@ -6,7 +6,7 @@ public class BibleRange extends Range {
 		super(getLower(range), getUpper(range));
 	}
 
-	private static int getLower(String range) {
+	private static int getLower(final String range) {
 		if (range.length() == 15) {
 			return Integer.valueOf(range.substring(0, 7));
 		} else {
@@ -14,7 +14,7 @@ public class BibleRange extends Range {
 		}
 	}
 
-	private static int getUpper(String range) {
+	private static int getUpper(final String range) {
 		if (range.length() == 15) {
 			return Integer.valueOf(range.substring(9, 15));
 		} else {
@@ -22,16 +22,16 @@ public class BibleRange extends Range {
 		}
 	}
 
-	public static Range[] getRanges(String[] ranges) {
-		final Range[] query_ranges = new Range[ranges.length];
-		for (int i = 0; i < query_ranges.length; i++) {
-			query_ranges[i] = new BibleRange(ranges[i]);
+	public static Range[] getRanges(final String[] ranges) {
+		final Range[] queryRanges = new Range[ranges.length];
+		for (int i = 0; i < queryRanges.length; i++) {
+			queryRanges[i] = new BibleRange(ranges[i]);
 		}
-		return query_ranges;
+		return queryRanges;
 	}
 
-	public static Range[] getRanges(String input, String seperator) {
-		final String[] fields = input.split(seperator);
+	public static Range[] getRanges(final String input, String separator) {
+		final String[] fields = input.split(separator);
 		return getRanges(fields);
 	}
 }

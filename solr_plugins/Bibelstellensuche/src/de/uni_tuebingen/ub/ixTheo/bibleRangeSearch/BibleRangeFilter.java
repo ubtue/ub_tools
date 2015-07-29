@@ -13,44 +13,40 @@ import org.apache.lucene.util.BytesRef;
 
 public class BibleRangeFilter extends Filter {
 
-	private String field = "bible_ranges";
-	private final Range[] ranges;
+    private final static String FIELD = "bible_ranges";
+    private final Range[] ranges;
 
-	public BibleRangeFilter(Range[] ranges) {
-		this.ranges = ranges;
-	}
+    public BibleRangeFilter(final Range[] ranges) {
+        this.ranges = ranges;
+    }
 
-	public FieldCache getFieldCache() {
-		return FieldCache.DEFAULT;
-	}
+    @Override
+    public DocIdSet getDocIdSet(final AtomicReaderContext context, final Bits acceptDocs)
+            throws IOException {
+        final BinaryDocValues values = FieldCache.DEFAULT.getTerms(context.reader(), FIELD);
+        return new FastDocIdSet(context.reader().maxDoc(), acceptDocs, values);
+    }
 
-	@Override
-	public DocIdSet getDocIdSet(AtomicReaderContext context, Bits acceptDocs)
-			throws IOException {
-		final BinaryDocValues values = FieldCache.DEFAULT.getTerms(context.reader(), field);
-		return new FastDocIdSet(context.reader().maxDoc(), acceptDocs, values);
-	}
-	
-	class FastDocIdSet extends FieldCacheDocIdSet {
-		private final BinaryDocValues values;
-		public FastDocIdSet(int maxDoc, Bits acceptDocs, BinaryDocValues values) {
-			super(maxDoc, acceptDocs);
-			this.values = values;
-		}
-		
-		@Override
-		protected final boolean matchDoc(int doc_id) {
-			BytesRef ref = new BytesRef();
-			values.get(doc_id, ref);
-			
-			final String db_field = ref.utf8ToString();
-			if (db_field == null || db_field.isEmpty()) {
-				return false;
-			}
-			final Range[] field_ranges = BibleRangeParser
-					.getRangesFromDatabaseField(db_field);
-			return Range.doAllSourceRangesIntersectsSomeTargetRanges(
-					ranges, field_ranges);
-		}
-	}
+    class FastDocIdSet extends FieldCacheDocIdSet {
+        private final BinaryDocValues values;
+
+        public FastDocIdSet(final int maxDoc, final Bits acceptDocs, final BinaryDocValues values) {
+            super(maxDoc, acceptDocs);
+            this.values = values;
+        }
+
+        @Override
+        protected final boolean matchDoc(final int docId) {
+            final BytesRef ref = new BytesRef();
+            values.get(docId, ref);
+
+            final String dbField = ref.utf8ToString();
+            if (dbField.isEmpty()) {
+                return false;
+            }
+            final Range[] fieldRanges = BibleRangeParser.getRangesFromDatabaseField(dbField);
+            return Range.doAllSourceRangesIntersectsSomeTargetRanges(
+                    ranges, fieldRanges);
+        }
+    }
 }
