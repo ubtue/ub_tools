@@ -1,6 +1,7 @@
 # Locate directories
 PROJECT_NAME=keywordChainSearch
 JAR_FILE=KeywordChainParser-0.0.1.jar
+SOLR_JAR_FILE=$(VUFIND_HOME)/solr/lib/KeywordChainParser.jar
 BIN=bin
 SRC=src
 PACKAGE_DIRECOTRY=de/uni_tuebingen/ub/ixTheo/$(PROJECT_NAME)
@@ -20,7 +21,7 @@ compile:
 	$(JAR) $(JAR_FILE) $(JAR_FLAGS) $(PACKAGE_DIRECOTRY)
 
 install: compile
-	cp -f $(JAR_FILE) $(VUFIND_HOME)/solr/lib/$(JAR_FILE)
+	cp -f $(JAR_FILE) $(SOLR_JAR_FILE)
 
 clean:
 	rm -f $(JAR_FILE)

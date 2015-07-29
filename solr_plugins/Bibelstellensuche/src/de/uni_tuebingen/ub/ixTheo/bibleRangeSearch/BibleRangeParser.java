@@ -30,6 +30,9 @@ public class BibleRangeParser extends QParser {
      * Then creates a query string by concatenating the book index with '*'.
      * If no book index is found, only '*' will be returned.
      *
+     * The first to digits of range number are the book index. 
+     * See /var/lib/tuelib/books_of_the_bible_to_code.map
+     *
      * @param queryString The search string from user
      * @return e.g. "12*" or "*"
      */
