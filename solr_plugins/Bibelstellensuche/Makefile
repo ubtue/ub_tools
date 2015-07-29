@@ -1,0 +1,27 @@
+# Locate directories
+PROJECT_NAME=bibleRangeSearch
+JAR_FILE=BibleRangeParser-0.0.1.jar
+BIN=bin
+SRC=src
+PACKAGE_DIRECOTRY=de/uni_tuebingen/ub/ixTheo/$(PROJECT_NAME)
+LIB_DIRECTORY=../lib/*
+
+# Compiler
+JAVAC=javac
+JAVAFLAGS=-g -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC)
+COMPILE = $(JAVAC) $(JAVAFLAGS)
+
+JAR=jar cvf 
+JAR_FLAGS=-C $(BIN)
+
+compile: 
+	test -d bin || mkdir bin
+	$(COMPILE) $(SRC)/$(PACKAGE_DIRECOTRY)/*.java
+	$(JAR) $(JAR_FILE) $(JAR_FLAGS) $(PACKAGE_DIRECOTRY)
+
+install: compile
+	cp -f $(JAR_FILE) $(VUFIND_HOME)/solr/lib/$(JAR_FILE)
+
+clean:
+	rm -f $(JAR_FILE)
+	rm -rf $(BIN)
