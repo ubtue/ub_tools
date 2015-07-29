@@ -13,24 +13,22 @@ public class BibleRangeScoreProvider extends CustomScoreProvider {
 
 	private final Range[] ranges;
 
-	public BibleRangeScoreProvider(final Range[] ranges,
-			final AtomicReaderContext context) {
+	public BibleRangeScoreProvider(final Range[] ranges, final AtomicReaderContext context) {
 		super(context);
 		this.ranges = ranges;
 	}
 
 	@Override
-	public float customScore(final int doc_id, float subQueryScore,
-			float valSrcScores[]) throws IOException {
-		final IndexReader index_reader = this.context.reader();
-		final Document doc = index_reader.document(doc_id);
-		final String db_field = doc.get("bible_ranges");
+	public float customScore(final int docId, final float subQueryScore, final float valSrcScores[]) throws IOException {
+		final IndexReader indexReader = this.context.reader();
+		final Document doc = indexReader.document(docId);
+		final String dbField = doc.get("bible_ranges");
 
-		if (db_field == null || db_field.isEmpty()) {
+		if (dbField == null || dbField.isEmpty()) {
 			return NOT_RELEVANT;
 		}
 
-		final Range[] field_ranges = BibleRangeParser.getRangesFromDatabaseField(db_field);
+		final Range[] field_ranges = BibleRangeParser.getRangesFromDatabaseField(dbField);
 		final int distance = Range.getDistance(field_ranges, ranges);
 		return (distance == 0) ? BEST_SCORE : (1.0f / (float) distance);
 	}

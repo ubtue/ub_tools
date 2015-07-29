@@ -10,14 +10,13 @@ import org.apache.lucene.search.Query;
 public class BibleRangeQuery extends CustomScoreQuery {
 	private final Range[] ranges;
 
-	public BibleRangeQuery(Query subQuery, Range[] ranges) {
+	public BibleRangeQuery(final Query subQuery, final Range[] ranges) {
 		super(subQuery);
 		this.ranges = ranges;
 	}
 
 	@Override
-	protected CustomScoreProvider getCustomScoreProvider(
-			AtomicReaderContext context) throws IOException {
+	protected CustomScoreProvider getCustomScoreProvider(final AtomicReaderContext context) throws IOException {
 		return new BibleRangeScoreProvider(ranges, context);
 	}
 	

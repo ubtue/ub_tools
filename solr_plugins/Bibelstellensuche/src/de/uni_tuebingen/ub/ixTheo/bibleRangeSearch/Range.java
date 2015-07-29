@@ -7,25 +7,23 @@ class Range {
 	private final int lower;
 	private final int upper;
 
-	public static int getDistance(final Range[] field_ranges,
-			Range[] query_ranges) {
+	public static int getDistance(final Range[] fieldRanges, final Range[] queryRanges) {
 		int distance = 0;
-		for (final Range query_range : query_ranges) {
-			int query_distance = query_range.getMinimumDistance(field_ranges);
-			if (query_distance == OUT_OF_RANGE) {
+		for (final Range queryRange : queryRanges) {
+			final int queryDistance = queryRange.getMinimumDistance(fieldRanges);
+			if (queryDistance == OUT_OF_RANGE) {
 				return OUT_OF_RANGE;
 			}
-			distance += query_distance;
+			distance += queryDistance;
 		}
 
 		return distance;
 	}
 
-	public static boolean doAllSourceRangesIntersectsSomeTargetRanges(
-			final Range[] source_ranges, final Range[] target_ranges) {
-		loop: for (final Range source_range : source_ranges) {
-			for (final Range target_range : target_ranges) {
-				if (source_range.intersects(target_range)) {
+	public static boolean doAllSourceRangesIntersectsSomeTargetRanges(final Range[] sourceRanges, final Range[] targetRanges) {
+		loop: for (final Range sourceRange : sourceRanges) {
+			for (final Range targetRange : targetRanges) {
+				if (sourceRange.intersects(targetRange)) {
 					continue loop;
 				}
 			}
@@ -59,11 +57,10 @@ class Range {
 	}
 
 	public int getMinimumDistance(Range[] targets) {
-		int query_distance = OUT_OF_RANGE;
+		int queryDistance = OUT_OF_RANGE;
 		for (final Range target : targets) {
-			query_distance = Math.min(getDistance(target), query_distance);
+			queryDistance = Math.min(getDistance(target), queryDistance);
 		}
-		return query_distance;
+		return queryDistance;
 	}
-
 }
