@@ -13,15 +13,34 @@ public class BibleRangeParser extends QParser {
 
     private Query innerQuery;
 
-    public BibleRangeParser(final String queryString, final SolrParams localParams, final SolrParams params, final SolrQueryRequest request) {
-        super(queryString, localParams, params, request);
+    public BibleRangeParser(final String searchString, final SolrParams localParams, final SolrParams params, final SolrQueryRequest request) {
+        super(searchString, localParams, params, request);
         try {
-            final QParser parser = getParser("+bible_ranges:*", "lucene", getReq());
+            final String queryString = "+bible_ranges:" + getBookPrefixQueryString(searchString);
+            final QParser parser = getParser(queryString, "lucene", getReq());
             final Range[] ranges = getRangesFromQuery();
             this.innerQuery = new FilteredQuery(new BibleRangeQuery(parser.parse(), ranges), new BibleRangeFilter(ranges));
         } catch (SyntaxError ex) {
             throw new RuntimeException("error parsing query", ex);
         }
+    }
+
+    /**
+     * Tries to extract the book index of a search query.
+     * Then creates a query string by concatenating the book index with '*'.
+     * If no book index is found, only '*' will be returned.
+     *
+     * The first to digits of range number are the book index. 
+     * See /var/lib/tuelib/books_of_the_bible_to_code.map
+     *
+     * @param queryString The search string from user
+     * @return e.g. "12*" or "*"
+     */
+    private String getBookPrefixQueryString(final String queryString) {
+        if (queryString == null || queryString.length() < 2) {
+            return "*";
+        }
+        return queryString.substring(0, 2) + "*";
     }
 
     @Override
