@@ -2,8 +2,7 @@ PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
       bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
       exec_test krimdok_filter resolve_in_path_test enrich_ddcs identify_volume_and_issue
-INSTALL_PROGS=$(filter-out download_test marc_grep_tokenizer_test bib_ref_parser_test shared_buffer_test \
-                resolve_in_path_test,$(PROGS))
+INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -c
