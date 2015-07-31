@@ -30,3 +30,5 @@ marc_filter
 shared_buffer_test
 
 bsz_daten
+KeywordChainParser-*.jar
+BibleRangeParser-*.jar
