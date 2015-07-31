@@ -16,6 +16,7 @@ add_title_keywords
 augment_bible_references
 bib_ref_parser_test
 bib_ref_to_codes_tool
+control_number_filter
 create_full_text_db
 delete_ids
 db_lookup
