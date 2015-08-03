@@ -288,6 +288,19 @@ std::string GetLanguageCode(const std::vector<DirectoryEntry> &dir_entries, cons
 
     return fields[_008_index].substr(35, 3);
 }
+
+
+std::string ExtractFirstSubfield(const std::string &tag, const char subfield_code,
+				 const std::vector<DirectoryEntry> &dir_entries,
+				 const std::vector<std::string> &field_data)
+{
+    auto const entry_iterator(DirectoryEntry::FindField(tag, dir_entries));
+    if (entry_iterator == dir_entries.end())
+	return "";
+
+    const Subfields subfields(field_data[entry_iterator - dir_entries.begin()]);
+    return subfields.getFirstSubfieldValue(subfield_code);
+}
     
 
 } // namespace MarcUtil
