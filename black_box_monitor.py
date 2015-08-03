@@ -1,5 +1,5 @@
 #!/bin/python2
-# -*- coding: utf-8
+# -*- coding: utf-8 -*-
 #
 #    @brief  A very simple black box tester for web sites.
 #    @author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
