@@ -59,8 +59,9 @@ def Main():
         if config.has_option(section, "timeout"):
             timeout = config.getfloat(section, "timeout")
         if not RunTest(section, url, timeout, expected):
-            util.SendEmail("Test " + section + " failed!\n\n--Your friendly black box monitor",
-                           "Black Box Test Failed!", "no_reply@uni-tuebingen.de")
+            util.SendEmail("Black Box Test Failed!",
+                           "Test " + section + " failed!\n\n--Your friendly black box monitor",
+                           "no_reply@uni-tuebingen.de")
 
 
 try:
