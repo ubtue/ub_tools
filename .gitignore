@@ -34,3 +34,5 @@ resolve_in_path_test
 shared_buffer_test
 
 bsz_daten
+KeywordChainParser-*.jar
+BibleRangeParser-*.jar
