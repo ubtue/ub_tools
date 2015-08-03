@@ -144,6 +144,7 @@ control_number_filter: control_number_filter.o lib/libmarc.a
 
 clean:
 	rm -f *~ $(PROGS) *.o
+	cd lib && make clean
 
 cgi_install: $(CGI_PROGS)
 	cp full_text_lookup /var/www/cgi-bin/
