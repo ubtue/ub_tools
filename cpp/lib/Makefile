@@ -1,5 +1,5 @@
 CCC=g++
-CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -O3 -c
+CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -O3 -march=native -c
 LDOPTS=-O3
 
 .PHONY: clean
