@@ -70,6 +70,7 @@ FORCE_SSL=false
 HTPASSWD=""
 USER_NAME="vufind"
 USER_GROUP="vufind"
+CRONJOBS=""
 
 source "$CONFIG_FILE"
 
@@ -232,9 +233,18 @@ fi
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
-  echo "set_privileges.sh $CLONE_DIRECTORY"
+  echo "set_privileges.sh $CLONE_DIRECTORY $USER_NAME $USER_GROUP"
 fi
 "$SCRIPT_DIR/set_privileges.sh" "$CLONE_DIRECTORY" "$USER_NAME" "$USER_GROUP"
+
+##############################################################################
+
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "create_cronjobs.sh $CRONJOBS"
+fi
+"$SCRIPT_DIR/create_cronjobs.sh" "$CRONJOBS"
 
 ##############################################################################
 
