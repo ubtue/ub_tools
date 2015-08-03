@@ -1,4 +1,5 @@
 #!/bin/python2
+# -*- coding: utf-8 -*-
 #
 # A tool for the automation of tarball downloads from the BSZ.
 # Config files for this tool look like this:
