@@ -147,6 +147,7 @@ clean:
 	cd lib && make clean
 
 cgi_install: $(CGI_PROGS)
+	mkdir --parents /var/www/cgi-bin
 	cp full_text_lookup /var/www/cgi-bin/
 
 root_install: $(INSTALL_PROGS) *.sh
