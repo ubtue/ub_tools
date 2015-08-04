@@ -48,6 +48,7 @@ chmod +xr "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 
 chown -R "$OWNER" "$VUFIND_HOME"
 chown -R "$OWNER" "$CLONE_DIRECTORY"
+mkdir --parents "/tmp/vufind_sessions/"
 chown -R "$OWNER" "/tmp/vufind_sessions/"
 
 if [[ -e "/usr/sbin/setsebool" ]]; then

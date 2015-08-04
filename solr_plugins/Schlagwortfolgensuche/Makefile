@@ -15,6 +15,8 @@ COMPILE = $(JAVAC) $(JAVAFLAGS)
 JAR=jar cvf 
 JAR_FLAGS=-C $(BIN)
 
+all:
+
 compile: 
 	test -d bin || mkdir bin
 	$(COMPILE) $(SRC)/$(PACKAGE_DIRECOTRY)/*.java
