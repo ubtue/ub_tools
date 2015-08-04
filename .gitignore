@@ -36,3 +36,5 @@ shared_buffer_test
 bsz_daten
 KeywordChainParser-*.jar
 BibleRangeParser-*.jar
+solr_plugins/Bibelstellensuche/bin/
+solr_plugins/Schlagwortfolgensuche/bin/
