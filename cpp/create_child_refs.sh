@@ -15,9 +15,9 @@ fi
 rm -f parent_refs child_titles
 for f in "$1" "$2"; do
     for s in 800w 810w 830w 773w; do
-	marc_grep2 $f '"'$s'"' | sed -r 's/^([^:]+)[^)]+[)](.+)$/\2:\1/' >> parent_refs
+	marc_grep $f '"'$s'"' | sed -r 's/^([^:]+)[^)]+[)](.+)$/\2:\1/' >> parent_refs
     done
-    marc_grep2 $f '"245a"' >> child_titles
+    marc_grep $f '"245a"' >> child_titles
 done
 sort parent_refs \
 | uniq \

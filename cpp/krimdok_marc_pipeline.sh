@@ -33,37 +33,38 @@ rm -f "${log}"
 # Phase 1:
 echo "*** Phase 1 ***"
 echo "*** Phase 1 ***" >> "${log}"
-krimdok_filter --bibliotheks-sigel-filtern "$2" ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc >> "${log}"
+krimdok_filter --bibliotheks-sigel-filtern "$2" ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc \
+               >> "${log}" 2>&1
 
 # Phase 2:
 echo "*** Phase 2 ***"
 echo "*** Phase 2 ***" >> "${log}"
-krimdok_filter --normalise-urls "$1" TitelUndLokaldaten-normalised-"${date}".mrc >> "${log}"
+krimdok_filter --normalise-urls "$1" TitelUndLokaldaten-normalised-"${date}".mrc >> "${log}" 2>&1
 krimdok_filter --normalise-urls ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc \
-               ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc >> "${log}"
+               ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc >> "${log}" 2>&1
 
 # Phase 3:
 echo "*** Phase 3 ***"
 echo "*** Phase 3 ***" >> "${log}"
 create_child_refs.sh TitelUndLokaldaten-normalised-"${date}".mrc \
-                     ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc >> "${log}"
+                     ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc >> "${log}" 2>&1
 add_child_refs ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc \
                ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
-               child_refs child_titles >> "${log}"
+               child_refs child_titles >> "${log}" 2>&1
 
 # Phase 4:
 echo "*** Phase 4 ***"
 echo "*** Phase 4 ***" >> "${log}"
 add_isbns_or_issns_to_articles TitelUndLokaldaten-normalised-"${date}".mrc \
                                ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
-                               TitelUndLokaldaten-normalised-with-issns-"${date}".mrc >> "${log}"
+                               TitelUndLokaldaten-normalised-with-issns-"${date}".mrc >> "${log}" 2>&1
 
 # Phase 5:
 echo "*** Phase 5 ***"
 echo "*** Phase 5 ***" >> "${log}"
 create_full_text_db TitelUndLokaldaten-normalised-with-issns-"${date}".mrc \
                     TitelUndLokaldaten-normalised-with-issns-and-full-text-links-"${date}".mrc \
-                    full_text.db >> "${log}"
+                    full_text.db >> "${log}" 2>&1
 
 # Cleanup of intermediate files:
 rm -f ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc

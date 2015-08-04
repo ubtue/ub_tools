@@ -10,7 +10,7 @@ if [ $# != 2 ]; then
 fi
 
 now=$(date +%y%j%H%M%S)
-marc_grep2 "$1" '"001"' no_label 2>/dev/null | \
+marc_grep "$1" '"001"' no_label 2>/dev/null | \
 while read ID; do
     echo "${now}A${ID}" >> "$2"
 done
