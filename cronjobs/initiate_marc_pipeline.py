@@ -8,6 +8,7 @@ import process_util
 import os
 import struct
 import sys
+import traceback
 import util
 
 
@@ -47,4 +48,5 @@ def Main():
 try:
     Main()
 except Exception as e:
-    util.SendEmail("MARC-21 Pipeline Kick-Off", "An unexpected error occurred: " + str(e))
+    util.SendEmail("MARC-21 Pipeline Kick-Off", "An unexpected error occurred: " + str(e)
+                   + "\n\n" + traceback.format_exc())
