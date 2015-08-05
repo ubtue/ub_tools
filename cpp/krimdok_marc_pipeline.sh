@@ -65,6 +65,7 @@ echo "*** Phase 5 ***" >> "${log}"
 create_full_text_db TitelUndLokaldaten-normalised-with-issns-"${date}".mrc \
                     TitelUndLokaldaten-normalised-with-issns-and-full-text-links-"${date}".mrc \
                     full_text.db >> "${log}" 2>&1
+cp full_text.db /var/lib/tuelib/
 
 # Cleanup of intermediate files:
 rm -f ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc
