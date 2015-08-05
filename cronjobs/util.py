@@ -229,3 +229,16 @@ def Which(executable_candidate):
                 return full_name
 
     return None
+
+
+# Strips the path and an optional extension from "reference_file_name" and appends ".log"
+# and prepends "log_directory".
+# @return The complete path for the log file name.
+def MakeLogFileName(reference_file_name, log_directory):
+    if not log_directory.endswith("/"):
+        log_directory += "/"
+    last_dot_pos = reference_file_name.rfind(".")
+    if last_dot_pos == -1:
+        log_file_name = log_directory + os.path.basename(reference_file_name) + ".log"
+    else:
+        log_file_name = log_directory + os.path.basename(reference_file_name[:last_dot_pos]) + "log"
