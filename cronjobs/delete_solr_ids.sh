@@ -14,7 +14,21 @@ INPUT_FILE="$2"
 DELETION_LOG="/tmp/deletion.log"
 
 > "$DELETION_LOG"
-while read id; do
+while read line; do
+    if [[ ${#line} < 13 ]]; then
+	echo "Weird short line: $line"
+	continue
+    fi
+
+    record_type=${line:11:1}
+    if [[ $record_type == 'A']]; then
+        id=${line:12}
+    elif [[ $record_type == '9' ]]; then
+        id=${line:12:9}
+    else
+	continue
+    fi
+
     result=$(curl "http://localhost:8080/solr/biblio/update?commit=true" \
              --data "<delete><query>$id</query></delete>" \
              --header 'Content-type:text/xml; charset=utf-8')
