@@ -175,7 +175,7 @@ def FoundNewBSZDataFile(link_filename):
             (old_timestamp, ) = struct.unpack('d', timestamp_file.read())
         if (old_timestamp < new_timestamp):
             with open(timestamp_filename, "wb") as timestamp_file:
-                timestamp_file.write(struct.pack('f', new_timestamp))
+                timestamp_file.write(struct.pack('d', new_timestamp))
             return True
         else:
             return False
