@@ -17,14 +17,15 @@ MAX_IDS_PER_CALL=10
 
 
 function ExecCurl() {
+    id_list="$1"
     result=$(curl "http://localhost:8080/solr/biblio/update?commit=true" \
              --silent --show-error \
-             --data "<delete><query>id:($id)</query></delete>" \
+             --data "<delete><query>id:($id_list)</query></delete>" \
              --header 'Content-type:text/xml; charset=utf-8')
     if $(echo "$result" | grep -q '<int name="status">0</int>'); then
-	echo "Called SOLR with ID's: $1"
+	echo "Called SOLR with ID's: $id_list"
     else
-	echo "Failed to call SOLR! (id_list = $1)" >> "$DELETION_LOG"
+	echo "Failed to call SOLR! (id_list = $id_list)" >> "$DELETION_LOG"
 	exit 1
     fi
 }
@@ -40,16 +41,16 @@ while read line; do
     fi
 
     record_type=${line:11:1}
-    if [[ $record_type == 'A' ]]; then
+    if [[ "$record_type" == "A" ]]; then
         id=${line:12}
-    elif [[ $record_type == '9' ]]; then
+    elif [[ "$record_type" == "9" ]]; then
         id=${line:12:9}
     else
 	continue
     fi
 
     if [[ $counter -eq $MAX_IDS_PER_CALL ]]; then
-        ExecCurl id_list
+        ExecCurl "$id_list"
 	counter=0
 	id_list=""
     elif [[ $counter == 0 ]]; then
@@ -62,7 +63,7 @@ while read line; do
 done < "$INPUT_FILE"
 
 if [[ "$id_list" != "" ]]; then
-    ExecCurl id_list
+    ExecCurl "$id_list"
 fi
 
 mailx -s "Import Deletion Log" "$1" < "$DELETION_LOG"
