@@ -179,6 +179,5 @@ def Main():
 try:
     Main()
 except Exception as e:
-    print(traceback.format_exc())
     util.SendEmail("Incremental File Update", "An unexpected error occurred: "
-                   + str(e) + "\n\n" + traceback.format_exc())
+                   + str(e) + "\n\n" + traceback.format_exc(20))

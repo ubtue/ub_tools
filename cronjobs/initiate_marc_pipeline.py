@@ -50,4 +50,4 @@ try:
     Main()
 except Exception as e:
     util.SendEmail("MARC-21 Pipeline Kick-Off", "An unexpected error occurred: " + str(e)
-                   + "\n\n" + traceback.format_exc())
+                   + "\n\n" + traceback.format_exc(20))
