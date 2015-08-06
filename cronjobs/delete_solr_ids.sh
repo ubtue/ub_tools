@@ -10,6 +10,7 @@ if [[ $# != 2 ]]; then
     exit 1
 fi
 
+
 EMAIL_ADDRESS="$1"
 INPUT_FILE="$2"
 DELETION_LOG="/tmp/deletion.log"
@@ -17,16 +18,13 @@ MAX_IDS_PER_CALL=10
 
 
 function ExecCurl() {
-    id_list="$1"
+    local id_list="$1"
     result=$(curl "http://localhost:8080/solr/biblio/update?commit=true" \
              --silent --show-error \
              --data "<delete><query>id:($id_list)</query></delete>" \
              --header 'Content-type:text/xml; charset=utf-8')
-    if $(echo "$result" | grep -q '<int name="status">0</int>'); then
-	echo "Called SOLR with ID's: $id_list"
-    else
+    if ! $(echo "$result" | grep -q '<int name="status">0</int>'); then
 	echo "Failed to call SOLR! (id_list = $id_list)" >> "$DELETION_LOG"
-	exit 1
     fi
 }
 
@@ -57,7 +55,7 @@ while read line; do
 	id_list="$id"
 	((++counter))
     else
-	id_list="$id_list OR $id"
+	id_list+=" OR $id"
 	((++counter))
     fi	  
 done < "$INPUT_FILE"
@@ -66,4 +64,7 @@ if [[ "$id_list" != "" ]]; then
     ExecCurl "$id_list"
 fi
 
-mailx -s "Import Deletion Log" "$1" < "$DELETION_LOG"
+# Only mail the log if an error occurred:
+if [[ -s "$DELETION_LOG" ]]; then 
+    mailx -s "Import Deletion Log (Errors)" "$1" < "$DELETION_LOG"
+fi
