@@ -1,6 +1,5 @@
 #!/bin/bash
 set -o errexit -o nounset
-set -x
 
 if [[ $# != 2 ]]; then
     echo "usage: $0 email_address $0 file_with_ids_to_delete"
@@ -49,7 +48,7 @@ while read line; do
 	continue
     fi
 
-    if [[ $counter == $MAX_IDS_PER_CALL ]]; then
+    if [[ $counter -eq $MAX_IDS_PER_CALL ]]; then
         ExecCurl id_list
 	counter=0
 	id_list=""
