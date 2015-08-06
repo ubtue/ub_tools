@@ -1,4 +1,6 @@
 #!/bin/bash
+set -o errexit -o nounset
+set -x
 
 if [[ $# != 2 ]]; then
     echo "usage: $0 email_address $0 file_with_ids_to_delete"
@@ -12,8 +14,26 @@ fi
 EMAIL_ADDRESS="$1"
 INPUT_FILE="$2"
 DELETION_LOG="/tmp/deletion.log"
+MAX_IDS_PER_CALL=10
+
+
+function ExecCurl() {
+    result=$(curl "http://localhost:8080/solr/biblio/update?commit=true" \
+             --silent --show-error \
+             --data "<delete><query>id:($id)</query></delete>" \
+             --header 'Content-type:text/xml; charset=utf-8')
+    if $(echo "$result" | grep -q '<int name="status">0</int>'); then
+	echo "Called SOLR with ID's: $1"
+    else
+	echo "Failed to call SOLR! (id_list = $1)" >> "$DELETION_LOG"
+	exit 1
+    fi
+}
+
 
 > "$DELETION_LOG"
+counter=0
+id_list=""
 while read line; do
     if [[ ${#line} < 13 ]]; then
 	echo "Weird short line: $line"
@@ -21,7 +41,7 @@ while read line; do
     fi
 
     record_type=${line:11:1}
-    if [[ $record_type == 'A']]; then
+    if [[ $record_type == 'A' ]]; then
         id=${line:12}
     elif [[ $record_type == '9' ]]; then
         id=${line:12:9}
@@ -29,14 +49,21 @@ while read line; do
 	continue
     fi
 
-    result=$(curl "http://localhost:8080/solr/biblio/update?commit=true" \
-             --data "<delete><query>$id</query></delete>" \
-             --header 'Content-type:text/xml; charset=utf-8')
-    if $(echo "$result" | grep -q '<int name="status">0</int>'); then
-	echo "Successfully deleted control number $id" >> "$DELETION_LOG"
+    if [[ $counter == $MAX_IDS_PER_CALL ]]; then
+        ExecCurl id_list
+	counter=0
+	id_list=""
+    elif [[ $counter == 0 ]]; then
+	id_list="$id"
+	((++counter))
     else
-	echo "Failed to delete control number $id" >> "$DELETION_LOG"
-    fi
+	id_list="$id_list OR $id"
+	((++counter))
+    fi	  
 done < "$INPUT_FILE"
+
+if [[ "$id_list" != "" ]]; then
+    ExecCurl id_list
+fi
 
 mailx -s "Import Deletion Log" "$1" < "$DELETION_LOG"
