@@ -70,7 +70,7 @@ def Main():
     try:
         os.chdir(sys.argv[2])
     except:
-        util.SendEmail("File Purge Failed", "Can't change directory into \"" + sys.argv[2] + "\"!")
+        util.Error("Can't change directory into \"" + sys.argv[2] + "\"!")
 
     all_timestamped_files = glob.glob("*[0-9][0-9][0-9][0-9][0-9][0-9]*")
     if not all_timestamped_files:
