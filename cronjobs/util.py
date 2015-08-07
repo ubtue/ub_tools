@@ -139,7 +139,7 @@ def WriteTimestamp(prefix=None, timestamp=None):
 
 def LoadConfigFile(path=None):
     if path is None: # Take script name w/ "py" extension replaced by "conf".
-        path = default_config_file_path + os.path.basename(sys.argv[0])[:-2] + "conf"
+        path = default_config_file_dir + os.path.basename(sys.argv[0])[:-2] + "conf"
     try:
         if not os.access(path, os.R_OK):
             Error("can't open \"" + path + "\" for reading!")
