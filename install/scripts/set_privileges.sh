@@ -51,6 +51,10 @@ chown -R "$OWNER" "$CLONE_DIRECTORY"
 mkdir --parents "/tmp/vufind_sessions/"
 chown -R "$OWNER" "/tmp/vufind_sessions/"
 
+mkdir --parents "/var/lib/tuelib/cronjobs"
+mkdir --parents "/var/lib/tuelib/bibleRef"
+chown -R "$OWNER" "/var/lib/tuelib"
+
 if [[ -e "/usr/sbin/setsebool" ]]; then
   setsebool -P httpd_can_network_connect=1 \
                httpd_can_network_connect_db=1 \
