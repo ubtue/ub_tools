@@ -39,6 +39,8 @@ while read line; do
 	continue
     fi
 
+    # Record types are documented here: https://wiki.bsz-bw.de/doku.php?id=v-team:daten:datendienste:sekkor
+    # 'A' are title records and '9' are local data records.
     record_type=${line:11:1}
     if [[ "$record_type" == "A" ]]; then
         id=${line:12}
