@@ -139,7 +139,6 @@ def Main():
     if len(sys.argv) != 2:
         util.Error("This script expects one argument: default_email_recipient")
     util.default_email_recipient = sys.argv[1]
-    util.default_config_file_path = os.path.abspath(sys.argv[0][:-2] + "conf")
     config = util.LoadConfigFile()
     try:
         deletion_list     = config.get("Files", "loesch_liste")

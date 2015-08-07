@@ -57,7 +57,6 @@ def Main():
     if len(sys.argv) != 3:
         util.Error("This script expects two arguments: default_email_recipient data_directory")
     util.default_email_recipient = sys.argv[1]
-    util.default_config_file_path = os.path.abspath(sys.argv[0][:-2] + "conf")
     config = util.LoadConfigFile()
 
     try:

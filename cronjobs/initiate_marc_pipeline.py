@@ -32,7 +32,7 @@ def Main():
     if not os.access(pipeline_script_name, os.X_OK):
          util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)", "Pipeline script not found or not executable!\n")
          sys.exit(-1)
-    conf = util.LoadConfigFile("initiate_marc_pipeline.conf")
+    conf = util.LoadConfigFile()
     link_name = conf.get("Misc", "link_name")
     if util.FoundNewBSZDataFile(link_name):
         bsz_data = util.ResolveSymlink(link_name)

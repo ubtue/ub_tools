@@ -18,16 +18,14 @@ import time
 
 default_email_sender = "unset_email_sender@ub.uni-tuebingen.de"
 default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
-default_config_file_path = None
+default_config_file_dir = "/var/lib/tuelib/cronjobs/"
 
 
-def SendEmail(subject, msg, sender=None, recipient=None, config_file_path=None):
+def SendEmail(subject, msg, sender=None, recipient=None):
     if sender is None:
         sender = default_email_sender
     if recipient is None:
         recipient = default_email_recipient
-    if config_file_path is None:
-        config_file_path = default_config_file_path
     config = LoadConfigFile(config_file_path)
     try:
         server_address  = config.get("SMTPServer", "server_address")
@@ -140,8 +138,8 @@ def WriteTimestamp(prefix=None, timestamp=None):
 
 
 def LoadConfigFile(path=None):
-    if path is None: # Take script name w/ "py" extension replaced by "conf" and current working directory.
-        path = os.path.basename(sys.argv[0])[:-2] + "conf"
+    if path is None: # Take script name w/ "py" extension replaced by "conf".
+        path = default_config_file_path + os.path.basename(sys.argv[0])[:-2] + "conf"
     try:
         if not os.access(path, os.R_OK):
             Error("can't open \"" + path + "\" for reading!")
