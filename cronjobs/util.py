@@ -28,8 +28,8 @@ def SendEmail(subject, msg, sender=None, recipient=None, config_file_path=None):
         recipient = default_email_recipient
     if config_file_path is None:
         config_file_path = default_config_file_path
-    config = LoadConfigFile(config_file_path)
     try:
+        config = LoadConfigFile(config_file_path)
         server_address  = config.get("SMTPServer", "server_address")
         server_user     = config.get("SMTPServer", "server_user")
         server_password = config.get("SMTPServer", "server_password")
