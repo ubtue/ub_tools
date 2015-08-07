@@ -2,7 +2,7 @@
 set -o errexit -o nounset
 
 if [[ $# != 2 ]]; then
-    echo "usage: $0 email_address $0 file_with_ids_to_delete"
+    echo "usage: $0 email_address file_with_ids_to_delete"
     echo "       \"email_address\" is where the report about successful deletions"
     echo "       and deletion failures will be  sent."
     echo "       \"file_with_ids_to_delete\" should contain the control numbers of"
@@ -18,7 +18,8 @@ MAX_IDS_PER_CALL=10
 
 
 function ExecCurl() {
-    local id_list="$1"
+    local id_list
+    id_list="$1"
     result=$(curl "http://localhost:8080/solr/biblio/update?commit=true" \
              --silent --show-error \
              --data "<delete><query>id:($id_list)</query></delete>" \
