@@ -41,7 +41,7 @@ public class BibleRangeParser extends QParser {
         if (queryString == null || queryString.length() < 2) {
             return "*";
         }
-	    return "/.*" + queryString.substring(0, 2) + "[0-9]{5}.*/";
+        return "/.*" + queryString.substring(0, 2) + "[0-9]{5}.*/";
     }
 
     @Override
