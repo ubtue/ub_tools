@@ -148,8 +148,7 @@ def Main():
         util.Error("failed to read config file! ("+ str(e) + ")")
     if (not os.access(deletion_list, os.R_OK) or not os.access(complete_data, os.R_OK)
         or not os.access(differential_data, os.R_OK)):
-        util.SendEmail("Fehlende Daten vom BSZ?",
-                       "Fehlende Löschliste, Komplettabzug oder Differenzabzug oder fehlende Zugriffsrechte.\n")
+        util.Error("Fehlende Löschliste, Komplettabzug oder Differenzabzug oder fehlende Zugriffsrechte.")
 
     # Bail out if the most recent complete data set is at least as recent as the deletion list or the differential
     # data:
