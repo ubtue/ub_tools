@@ -19,7 +19,7 @@ def ExecOrDie(cmd_name, args, log_file_name):
         sys.exit(-1)
 
     
-def StartPipeline(pipeline_script_name, data_files):
+def StartPipeline(pipeline_script_name, data_files, conf):
     log_file_name = util.MakeLogFileName(pipeline_script_name)
     ExecOrDie(pipeline_script_name, data_files, log_file_name)
 
@@ -30,12 +30,10 @@ def StartPipeline(pipeline_script_name, data_files):
     delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
     ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
 
-    args = [
-        "ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-[0-9][0-9][0-9][0-9][0-9][0-9].mrc"]
+    args = [ config.get("FileNames", "superior_marc_data") ]
     ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
 
-    args = [
-        "TitelUndLokaldaten-normalised-with-issns-and-full-text-links-[0-9][0-9][0-9][0-9][0-9][0-9].mrc"]
+    args = [ config.get("FileNames", "title_marc_data") ]
     ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
 
 
@@ -60,7 +58,7 @@ def Main():
             util.Error("BSZ data file must end in .tar.gz!")
         file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
         
-        StartPipeline(pipeline_script_name, file_name_list)
+        StartPipeline(pipeline_script_name, file_name_list, conf)
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.")
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.")
