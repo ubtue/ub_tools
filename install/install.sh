@@ -221,6 +221,15 @@ fi
 
 ##############################################################################
 
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "make_install_ub_tools.sh"
+fi
+"$SCRIPT_DIR/make_install_ub_tools.sh"
+
+##############################################################################
+
 if [ -x "/bin/systemctl" ] ; then
   if [[ "$VERBOSE" == true ]] ; then
     echo ""
