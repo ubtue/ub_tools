@@ -139,6 +139,9 @@ else
     echo "No symbolic linking of copy directory to '$VUFIND_HOME'! This is a single copy installation. If you want multible copies, DO NOT use '$VUFIND_HOME' as cloning directory."
   fi
 fi
+
+cd $CLONE_DIRECTORY && git submodule update 
+
 ##############################################################################
 
 if [[ "$VERBOSE" == true ]] ; then
@@ -278,7 +281,7 @@ if [ -x "/bin/systemctl" ] ; then
   fi
   systemctl restart httpd.service
   systemctl restart mariadb.service
-  systemctl start vufind.service
+  systemctl restart vufind.service
 else
   if [[ "$VERBOSE" == true ]] ; then
     echo ""
@@ -288,7 +291,7 @@ else
 
   service apache2 restart
   service mysql restart
-  service vufind start
+  service vufind restart
 fi
 
 
