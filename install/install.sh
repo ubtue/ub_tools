@@ -63,7 +63,7 @@ SERVER_URL=""
 SERVER_IP=""
 EMAIL=""
 MODULES=""
-CONFIG_DIRETORY=""
+CONFIGS_DIRETORY=""
 SSL_CERT=""
 SSL_KEY=""
 SSL_CHAIN_FILE=""
@@ -193,9 +193,9 @@ fi
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
-  echo "link_configs.sh"
+  echo "link_configs.sh $CONFIGS_DIRETORY"
 fi
-"$SCRIPT_DIR/link_configs.sh" "$CONFIG_DIRETORY"
+"$SCRIPT_DIR/link_configs.sh" "$CONFIGS_DIRETORY"
 
 ##############################################################################
 
