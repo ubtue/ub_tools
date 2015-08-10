@@ -67,5 +67,4 @@ def Main():
 try:
     Main()
 except Exception as e:
-    util.SendEmail("Black Box Monitor", "An unexpected error occurred: "
-                   + str(e) + "\n\n" + traceback.format_exc(20))
+    print traceback.format_exc()
