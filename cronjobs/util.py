@@ -6,6 +6,7 @@ from __future__ import print_function
 from email.mime.text import MIMEText
 import ConfigParser
 import datetime
+import glob
 import os
 import process_util
 import smtplib
@@ -240,3 +241,19 @@ def MakeLogFileName(reference_file_name, log_directory):
         log_file_name = log_directory + os.path.basename(reference_file_name) + ".log"
     else:
         log_file_name = log_directory + os.path.basename(reference_file_name[:last_dot_pos]) + "log"
+
+
+# @return the most recent file matching "file_name_glob" or None if there were no matching files.
+def getMostRecentFileMatchingGlob(file_name_glob):
+    most_recent_matching_name = None
+    most_recent_mtime = None
+    for name in glob.glob(file_name_glob):
+        if not most_recent_matching_name:
+            most_recent_matching_name = name
+        else:
+            stat_buf = os.stat(name)
+            if most_recent_mtime is None or stat_buf.st_mtime > most_recent_mtime:
+                most_recent_matching_name = name
+                most_recent_mtime = stat_buf.st_mtime
+
+    return most_recent_matching_name
