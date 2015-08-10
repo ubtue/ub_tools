@@ -140,7 +140,7 @@ else
   fi
 fi
 
-cd $CLONE_DIRECTORY && git 
+cd $CLONE_DIRECTORY && git submodule update 
 
 ##############################################################################
 
