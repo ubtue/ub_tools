@@ -18,10 +18,10 @@ import time
 
 default_email_sender = "unset_email_sender@ub.uni-tuebingen.de"
 default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
-default_config_file_path = None
+default_config_file_dir = "/var/lib/tuelib/cronjobs/"
 
 
-def SendEmail(subject, msg, sender=None, recipient=None, config_file_path=None):
+def SendEmail(subject, msg, sender=None, recipient=None):
     if sender is None:
         sender = default_email_sender
     if recipient is None:
@@ -140,8 +140,8 @@ def WriteTimestamp(prefix=None, timestamp=None):
 
 
 def LoadConfigFile(path=None):
-    if path is None: # Take script name w/ "py" extension replaced by "conf" and current working directory.
-        path = os.path.basename(sys.argv[0])[:-2] + "conf"
+    if path is None: # Take script name w/ "py" extension replaced by "conf".
+        path = default_config_file_dir + os.path.basename(sys.argv[0])[:-2] + "conf"
     try:
         if not os.access(path, os.R_OK):
             Error("can't open \"" + path + "\" for reading!")
@@ -175,7 +175,7 @@ def FoundNewBSZDataFile(link_filename):
             (old_timestamp, ) = struct.unpack('d', timestamp_file.read())
         if (old_timestamp < new_timestamp):
             with open(timestamp_filename, "wb") as timestamp_file:
-                timestamp_file.write(struct.pack('f', new_timestamp))
+                timestamp_file.write(struct.pack('d', new_timestamp))
             return True
         else:
             return False
@@ -229,3 +229,16 @@ def Which(executable_candidate):
                 return full_name
 
     return None
+
+
+# Strips the path and an optional extension from "reference_file_name" and appends ".log"
+# and prepends "log_directory".
+# @return The complete path for the log file name.
+def MakeLogFileName(reference_file_name, log_directory):
+    if not log_directory.endswith("/"):
+        log_directory += "/"
+    last_dot_pos = reference_file_name.rfind(".")
+    if last_dot_pos == -1:
+        log_file_name = log_directory + os.path.basename(reference_file_name) + ".log"
+    else:
+        log_file_name = log_directory + os.path.basename(reference_file_name[:last_dot_pos]) + "log"

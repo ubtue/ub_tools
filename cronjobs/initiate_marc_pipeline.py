@@ -11,12 +11,12 @@ import sys
 import traceback
 import util
 
-
+    
 def StartPipeline(pipeline_script_name, data_files):
-    if process_util.Exec(cmd_path=pipeline_script_name, args=data_files, timeout=60*60) == 0:
-        util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.")
-    else:
-        util.SendEmail("MARC-21 Pipeline", "Pipeline failed.")
+    log_file_name = util.MakeLogFileName(pipeline_script_name)
+    if not process_util.Exec(cmd_path=pipeline_script_name, args=data_files, timeout=60*60,
+                             new_stdout=log_file_name, new_stderr=log_file_name) == 0:
+        util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logs in /tmp for the reason.")
 
 
 def Main():
@@ -32,7 +32,7 @@ def Main():
     if not os.access(pipeline_script_name, os.X_OK):
          util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)", "Pipeline script not found or not executable!\n")
          sys.exit(-1)
-    conf = util.LoadConfigFile("initiate_marc_pipeline.conf")
+    conf = util.LoadConfigFile()
     link_name = conf.get("Misc", "link_name")
     if util.FoundNewBSZDataFile(link_name):
         bsz_data = util.ResolveSymlink(link_name)
@@ -41,6 +41,7 @@ def Main():
         file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
         
         StartPipeline(pipeline_script_name, file_name_list)
+        util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.")
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.")
 
@@ -49,4 +50,4 @@ try:
     Main()
 except Exception as e:
     util.SendEmail("MARC-21 Pipeline Kick-Off", "An unexpected error occurred: " + str(e)
-                   + "\n\n" + traceback.format_exc())
+                   + "\n\n" + traceback.format_exc(20))

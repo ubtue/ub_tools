@@ -139,7 +139,6 @@ def Main():
     if len(sys.argv) != 2:
         util.Error("This script expects one argument: default_email_recipient")
     util.default_email_recipient = sys.argv[1]
-    util.default_config_file_path = os.path.abspath(sys.argv[0][:-2] + "conf")
     config = util.LoadConfigFile()
     try:
         deletion_list     = config.get("Files", "loesch_liste")
@@ -149,8 +148,7 @@ def Main():
         util.Error("failed to read config file! ("+ str(e) + ")")
     if (not os.access(deletion_list, os.R_OK) or not os.access(complete_data, os.R_OK)
         or not os.access(differential_data, os.R_OK)):
-        util.SendEmail("Fehlende Daten vom BSZ?",
-                       "Fehlende Löschliste, Komplettabzug oder Differenzabzug oder fehlende Zugriffsrechte.\n")
+        util.Error("Fehlende Löschliste, Komplettabzug oder Differenzabzug oder fehlende Zugriffsrechte.")
 
     # Bail out if the most recent complete data set is at least as recent as the deletion list or the differential
     # data:
@@ -179,6 +177,5 @@ def Main():
 try:
     Main()
 except Exception as e:
-    print(traceback.format_exc())
     util.SendEmail("Incremental File Update", "An unexpected error occurred: "
-                   + str(e) + "\n\n" + traceback.format_exc())
+                   + str(e) + "\n\n" + traceback.format_exc(20))

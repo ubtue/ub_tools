@@ -46,7 +46,7 @@ def RunTest(test_name, url, timeout, expected):
 def Main():
     util.default_email_sender = "black_box_monitor@ub.uni-tuebingen.de"
     util.default_email_recipient = sys.argv[1]
-    config = util.LoadConfigFile("black_box_monitor.conf")
+    config = util.LoadConfigFile()
 
     for section in config.sections():
         if section == "SMTPServer":
@@ -68,4 +68,4 @@ try:
     Main()
 except Exception as e:
     util.SendEmail("Black Box Monitor", "An unexpected error occurred: "
-                   + str(e) + "\n\n" + traceback.format_exc())
+                   + str(e) + "\n\n" + traceback.format_exc(20))
