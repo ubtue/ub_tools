@@ -49,7 +49,7 @@ chown -R "$OWNER" "$VUFIND_HOME"
 chown -R "$OWNER" "$CLONE_DIRECTORY"
 
 touch "/var/log/vufind.log"
-chown -R "$OWNER" "/var/log/vufind.log"
+chown "$OWNER" "/var/log/vufind.log"
 
 mkdir --parents "/tmp/vufind_sessions/"
 chown -R "$OWNER" "/tmp/vufind_sessions/"
