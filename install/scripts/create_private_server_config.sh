@@ -41,6 +41,7 @@ VUFIND_PASSWORD="$4"
 LOCAL_OVERRIDES="$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 SITE_CONFIG="$LOCAL_OVERRIDES/site.conf"
 DATABASE_CONFIG="$LOCAL_OVERRIDES/database.conf"
+HTTP_CONFIG="$LOCAL_OVERRIDES/http.conf"
 
 if [ ! -d  "$LOCAL_OVERRIDES" ] ; then
 	mkdir "$LOCAL_OVERRIDES"
@@ -55,3 +56,10 @@ echo "title = \"$NAME\""         >> "$SITE_CONFIG"
 # Database configs
 sh -c "> $DATABASE_CONFIG"
 echo "database = \"mysql://vufind:$VUFIND_PASSWORD@localhost/vufind\"" >> "$DATABASE_CONFIG"
+
+# Http configs
+if [[ -r /etc/pki/tls/cert.pem ]] ; then
+	echo "sslcafile = \"/etc/pki/tls/cert.pem\"" > "$HTTP_CONFIG"
+else
+	echo "sslcapath = \"/etc/ssl/certs\"" > "$HTTP_CONFIG"
+fi
