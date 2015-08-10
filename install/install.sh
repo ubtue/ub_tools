@@ -141,7 +141,7 @@ else
   fi
 fi
 
-cd $CLONE_DIRECTORY && git submodule update 
+cd $CLONE_DIRECTORY && git submodule update --init --recursive
 
 ##############################################################################
 
