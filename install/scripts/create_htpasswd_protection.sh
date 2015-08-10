@@ -9,7 +9,7 @@ set -o errexit -o nounset
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 TEMPLATE_DIR=$SCRIPT_DIR/templates
 TPL=$TEMPLATE_DIR/htaccess
-OUTPUT=$VUFIND_HOME/public/.htpasswd
+OUTPUT=$VUFIND_HOME/public/.htaccess
 
 # Make sure only root can run our script
 if [[ $EUID -ne 0 ]]; then
