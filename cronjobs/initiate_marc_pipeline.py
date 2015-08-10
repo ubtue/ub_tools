@@ -13,7 +13,7 @@ import util
 
 
 def ExecOrDie(cmd_name, args, log_file_name):
-    if not process_util.Exec(cmd_path=pipeline_script_name, args=data_files, timeout=60*60,
+    if not process_util.Exec(cmd_path=cmd_name, args=args, timeout=60*60,
                              new_stdout=log_file_name, new_stderr=log_file_name) == 0:
         util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logs in /tmp for the reason.")
         sys.exit(-1)
