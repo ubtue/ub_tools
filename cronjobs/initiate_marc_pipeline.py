@@ -11,12 +11,32 @@ import sys
 import traceback
 import util
 
+
+def ExecOrDie(cmd_name, args, log_file_name):
+    if not process_util.Exec(cmd_path=cmd_name, args=args, timeout=60*60,
+                             new_stdout=log_file_name, new_stderr=log_file_name) == 0:
+        util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logs in /tmp for the reason.")
+        sys.exit(-1)
+
     
 def StartPipeline(pipeline_script_name, data_files):
     log_file_name = util.MakeLogFileName(pipeline_script_name)
-    if not process_util.Exec(cmd_path=pipeline_script_name, args=data_files, timeout=60*60,
-                             new_stdout=log_file_name, new_stderr=log_file_name) == 0:
-        util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logs in /tmp for the reason.")
+    ExecOrDie(pipeline_script_name, data_files, log_file_name)
+
+    deletion_list_glob = "LOEPPN-[0-9][0-9][0-9][0-9][0-9][0-9]"
+    most_recent_deletion_list = util.getMostRecentFileMatchingGlob(deletion_list_glob)
+    if not most_recent_deletion_list:
+        util.SendEmail("MARC-21 Pipeline",  "Did not find any files matching \"" + deletion_list_glob + "\".")
+    delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
+    ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
+
+    args = [
+        "ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-[0-9][0-9][0-9][0-9][0-9][0-9].mrc"]
+    ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
+
+    args = [
+        "TitelUndLokaldaten-normalised-with-issns-and-full-text-links-[0-9][0-9][0-9][0-9][0-9][0-9].mrc"]
+    ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
 
 
 def Main():
