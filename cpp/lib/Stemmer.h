@@ -9,6 +9,7 @@
 #endif
 
 
+/** \warning This class is not thread-safe! */
 class Stemmer {
     sb_stemmer *stemmer_;
 public:
@@ -23,7 +24,7 @@ public:
 
     virtual ~Stemmer() { if (stemmer_) ::sb_stemmer_delete(stemmer_); }
 
-    std::string stem(const std::string &word);
+    std::string stem(const std::string &word) const;
 };
 
 
