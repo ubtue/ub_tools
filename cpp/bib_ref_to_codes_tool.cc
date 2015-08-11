@@ -33,6 +33,27 @@
 #include "util.h"
 
 
+std::string InsertSpaceAtFirstLetterDigitBoundary(const std::string &s) {
+    if (s.empty())
+	return s;
+
+    std::string retval;
+    bool found_first_boundary(false);
+    auto ch(s.cbegin());
+    retval += *ch;
+    while (++ch != s.cend()) {
+	if (not found_first_boundary and (std::isalpha(*(ch - 1)) and std::isdigit(*ch))) {
+	    found_first_boundary = true;
+	    retval += ' ';
+	}
+
+	retval += *ch;
+    }
+
+    return retval;
+}
+
+
 // Squeezes out spaces after a leading number, e.g. "1. mos" => "1.mos" or "1 mos" => "1mos".
 std::string CanoniseLeadingNumber(const std::string &bib_ref_candidate) {
     static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\d\\.?\\s+\\S+"));
@@ -118,7 +139,8 @@ int main(int argc, char **argv) {
     std::unordered_multimap<std::string, std::string> pericopes_to_codes_map;
     MapIO::DeserialiseMap(argv[4], &pericopes_to_codes_map);
 
-    std::string bib_ref_candidate(CanoniseLeadingNumber(StringUtil::Trim(StringUtil::ToLower(argv[1]))));
+    std::string bib_ref_candidate(CanoniseLeadingNumber(
+        InsertSpaceAtFirstLetterDigitBoundary(StringUtil::Trim(StringUtil::ToLower(argv[1])))));
     StringUtil::CollapseWhitespace(&bib_ref_candidate);
 
     const auto begin_end(pericopes_to_codes_map.equal_range(bib_ref_candidate));
