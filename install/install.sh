@@ -63,6 +63,7 @@ SERVER_URL=""
 SERVER_IP=""
 EMAIL=""
 MODULES=""
+CONFIG_DIRETORY=""
 SSL_CERT=""
 SSL_KEY=""
 SSL_CHAIN_FILE=""
@@ -140,7 +141,7 @@ else
   fi
 fi
 
-cd $CLONE_DIRECTORY && git submodule update 
+cd $CLONE_DIRECTORY && git submodule update --init --recursive
 
 ##############################################################################
 
@@ -186,6 +187,15 @@ if [[ "$VERBOSE" == true ]] ; then
   echo "link_httpd_config.sh"
 fi
 "$SCRIPT_DIR/link_httpd_config.sh"
+
+##############################################################################
+
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "link_configs.sh"
+fi
+"$SCRIPT_DIR/link_configs.sh" "$CONFIG_DIRETORY"
 
 ##############################################################################
 
