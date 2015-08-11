@@ -32,6 +32,8 @@ marc_grep_tokenizer_test
 marc_filter
 resolve_in_path_test
 shared_buffer_test
+stemmer_test
+stemwords
 
 bsz_daten
 KeywordChainParser-*.jar
