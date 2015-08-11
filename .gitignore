@@ -22,6 +22,7 @@ delete_ids
 db_lookup
 download_test
 enrich_ddcs
+enrich_keywords_with_title_words
 exec_test
 extract_text_from_image_only_pdfs
 full_text_lookup

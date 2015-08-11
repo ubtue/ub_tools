@@ -1,7 +1,8 @@
 PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
       bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
-      exec_test krimdok_filter resolve_in_path_test enrich_ddcs control_number_filter stemmer_test
+      exec_test krimdok_filter resolve_in_path_test enrich_ddcs control_number_filter stemmer_test \
+      enrich_keywords_with_title_words
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
@@ -46,7 +47,7 @@ add_isbns_or_issns_to_articles.o: add_isbns_or_issns_to_articles.cc lib/MarcUtil
                                   lib/Leader.h lib/RegexMatcher.h lib/util.h lib/StringUtil.h
 
 add_title_keywords.o: add_title_keywords.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Leader.h lib/util.h \
-                      lib/StringUtil.h lib/TextUtil.h
+                      lib/StringUtil.h lib/Subfields.h lib/TextUtil.h
 
 add_title_keywords: add_title_keywords.o lib/libmarc.a
 	$(CCC) -o $@ $< -Llib -lmarc -lpcre -lcrypto
@@ -143,10 +144,17 @@ control_number_filter: control_number_filter.o lib/libmarc.a
 	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
 
 
-stemmer_test.o: stemmer_test.cc lib/libstemmer/include/libstemmer.h lib/util.h
+stemmer_test.o: stemmer_test.cc lib/Stemmer.h lib/util.h
 
 stemmer_test: stemmer_test.o lib/libmarc.a lib/libstemmer/libstemmer.a
 	$(CCC) -o $@ $^ -Llib -lmarc -Llib/libstemmer -lstemmer -lpcre -lcrypto
+
+enrich_keywords_with_title_words.o: enrich_keywords_with_title_words.cc lib/MarcUtil.h lib/DirectoryEntry.h \
+                                    lib/Leader.h lib/util.h lib/StringUtil.h lib/TextUtil.h \
+                                    lib/Subfields.h lib/Stemmer.h lib/RegexMatcher.h
+
+enrich_keywords_with_title_words: enrich_keywords_with_title_words.o lib/libmarc.a
+	$(CCC) -o $@ $< -Llib -lmarc -Llib/libstemmer -lstemmer -lpcre -lcrypto
 
 clean:
 	rm -f *~ $(PROGS) *.o
