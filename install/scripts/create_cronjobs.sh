@@ -41,6 +41,13 @@ if [[ -n $(crontab -l | grep "$PREFIX_HEADER") ]]; then
 	# The delimiter \` shouldn't be a charactor of the pattern or replacement.
 	EXPRESSION="s\`$VUFIND_SECTION_SEARCH_PATTERN\`$VUFIND_SECTION_REPLACEMENT\`g"
 
+	echo ""
+	echo "///EXPRESSION"
+	echo ""
+	echo "$EXPRESSION"
+	echo ""
+	echo "EXPRESSION///"
+	echo ""
 	#see http://stackoverflow.com/questions/1251999/how-can-i-replace-a-newline-n-using-sed
 	crontab -l | sed -e ':a;N;$!ba;' -e "$EXPRESSION" | crontab
 else
