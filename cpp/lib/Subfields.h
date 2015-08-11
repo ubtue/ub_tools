@@ -73,6 +73,9 @@ public:
     void addSubfield(const char subfield_code, const std::string &subfield_data)
         { subfield_code_to_data_map_.insert(std::make_pair(subfield_code, subfield_data)); }
 
+    /** \return A map from subfield codes to subfield data. */
+    const std::unordered_multimap<char, std::string> &getAllSubfields() const { return subfield_code_to_data_map_; }
+
     /** Returns true if the two indicators have valid, i.e. non-NUL, data and at least one subfield exists. */
     bool isValid() const
         { return indicator1_ != '\0' and indicator2_ != '\0' and not subfield_code_to_data_map_.empty(); }
