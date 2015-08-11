@@ -1,11 +1,11 @@
 PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
       bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
-      exec_test krimdok_filter resolve_in_path_test enrich_ddcs control_number_filter
+      exec_test krimdok_filter resolve_in_path_test enrich_ddcs control_number_filter stemmer_test
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
-CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -O3 -march=native -c
+CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Ilib -Ilib/libstemmer/include -O3 -march=native -c
 
 .PHONY: all clean cgi_install root_install install
 
@@ -141,6 +141,12 @@ control_number_filter.o: control_number_filter.cc lib/DirectoryEntry.h lib/Leade
 
 control_number_filter: control_number_filter.o lib/libmarc.a
 	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
+
+
+stemmer_test.o: stemmer_test.cc lib/libstemmer/include/libstemmer.h lib/util.h
+
+stemmer_test: stemmer_test.o lib/libmarc.a lib/libstemmer/libstemmer.a
+	$(CCC) -o $@ $^ -Llib -lmarc -Llib/libstemmer -lstemmer -lpcre -lcrypto
 
 clean:
 	rm -f *~ $(PROGS) *.o

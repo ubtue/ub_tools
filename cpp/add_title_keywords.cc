@@ -19,7 +19,7 @@
 
 void Usage() {
     std::cerr << "Usage: " << progname << " [--verbose] master_marc_input marc_output [stopwords_files]\n";
-    std::cerr << "       Stopword files must be named \"stopwords.xxx\" where xxa has to be a 3-letter\n";
+    std::cerr << "       Stopword files must be named \"stopwords.xxx\" where xxx has to be a 3-letter\n";
     std::cerr << "       language code.\n";
     std::exit(EXIT_FAILURE);
 }

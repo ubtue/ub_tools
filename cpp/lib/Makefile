@@ -1,5 +1,5 @@
 CCC=g++
-CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -O3 -march=native -c
+CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -O3 -march=native -Ilibstemmer/include -c
 LDOPTS=-O3
 
 .PHONY: clean
@@ -8,13 +8,18 @@ LDOPTS=-O3
 	$(CCC) $(CCOPTS) $<
 
 
+all: libstemmer/libstemmer.a libmarc.a
+
 libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o MarcUtil.o util.o HtmlParser.o \
            StringUtil.o TextUtil.o Locale.o OCR.o MediaTypeUtil.o MapIO.o MediaTypeUtil.o HtmlParser.o \
            Downloader.o MarcGrepTokenizer.o MarcQueryParser.o SmartDownloader.o BibleReferenceParser.o \
            ExecUtil.o PdfUtil.o FileUtil.o IniFile.o TimeLimit.o TimerUtil.o ThreadManager.o IdbPager.o \
-           HtmlUtil.o
+           HtmlUtil.o Stemmer.o
 	@echo "Linking $@..."
 	@ar crs $@ $^
+
+libstemmer/libstemmer.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/include/*.h)
+	$(MAKE) -C libstemmer
 
 FileUtil.o: FileUtil.h Compiler.h
 PdfUtil.o: PdfUtil.h ExecUtil.h util.h FileUtil.h
@@ -44,6 +49,7 @@ TimerUtil.o: TimerUtil.h Compiler.h
 ThreadManager.o: ThreadManager.h util.h
 IdbPager.o: IdbPager.h TimeLimit.h Downloader.h StringUtil.h
 HtmlUtil.o: HtmlUtil.h
+Stemmer.o: Stemmer.h libstemmer/libstemmer.a
 
 clean:
-	rm -f *~ $(PROGS) *.o *.a
+	rm -f *~ $(PROGS) *.o *.a && libstemmer && make clean && rm libstemmer.a
