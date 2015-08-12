@@ -6,4 +6,4 @@
 # to the website.
 #
 
-make -C "$VUFIND_HOME/ub_tools" root_install
+make -C "$VUFIND_HOME/../ub_tools" root_install

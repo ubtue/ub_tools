@@ -16,7 +16,7 @@ public class BibleRange extends Range {
 
 	private static int getUpper(final String range) {
 		if (range.length() == 15) {
-			return Integer.valueOf(range.substring(9, 15));
+			return Integer.valueOf(range.substring(8, 15));
 		} else {
 			return 9999999;
 		}
