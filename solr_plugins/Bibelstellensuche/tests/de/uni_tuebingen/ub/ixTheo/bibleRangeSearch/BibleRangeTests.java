@@ -28,6 +28,38 @@ public class BibleRangeTests {
     }
 
     @Test
+    public void testStaticGetDistance() {
+        rs1 = new Range[]{
+                new Range(2700320, 2700321),
+                new Range(2700331, 2700335),
+        };
+        rs2 = new Range[]{
+                new Range(2700320, 2700321),
+                new Range(2700331, 2700335),
+        };
+        assertEquals(0, Range.getDistance(rs1, rs2));
+
+        rs1 = new Range[]{
+                new Range(2700320, 2700321),
+                new Range(2700331, 2700335),
+        };
+        rs2 = new Range[]{
+                new Range(100000, 199999),
+                new Range(2700000, 2799999),
+        };
+        assertEquals(199993, Range.getDistance(rs1, rs2));
+
+        rs1 = new Range[]{
+                new Range(2700320, 2700321),
+                new Range(2700331, 2700335),
+        };
+        rs2 = new Range[]{
+                new Range(2700424, 2700424)
+        };
+        assertEquals(Range.OUT_OF_RANGE, Range.getDistance(rs1, rs2));
+    }
+
+    @Test
     public void testGetMinimumDistance() {
         Range r1;
         r1 = new Range(0, 2);
@@ -65,6 +97,10 @@ public class BibleRangeTests {
         r1 = new BibleRange("0000010:0000020");
         assertEquals(10, r1.getLower());
         assertEquals(20, r1.getUpper());
+
+        r1 = new BibleRange("2700320:2700321");
+        assertEquals(2700320, r1.getLower());
+        assertEquals(2700321, r1.getUpper());
 
         r1 = new BibleRange("*:*");
         assertEquals(0, r1.getLower());
