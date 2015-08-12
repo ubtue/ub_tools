@@ -24,9 +24,11 @@ public class KeywordChainMetric {
 						  final ArrayList<String> comparisonChain)
     {
 	double similarityScore = 0.0;
-	for (String referenceComponent : referenceChain) {
+	for (String referenceComponentMixedCase : referenceChain) {
+	    final String referenceComponent = referenceComponentMixedCase.toLowerCase();
 	    double maxComponentSimilarity = 0.0;
-	    for (String comparisonComponent : comparisonChain) {
+	    for (String comparisonComponentMixedCase : comparisonChain) {
+		final String comparisonComponent = comparisonComponentMixedCase.toLowerCase();
 		final int commonPrefixLength = calculateCommonPrefixLength(referenceComponent, comparisonComponent);
 		final int maxLength = Math.max(referenceComponent.length(), comparisonComponent.length());
 		final double score = (double)(commonPrefixLength) / maxLength;
