@@ -25,6 +25,9 @@ public:
     virtual ~Stemmer() { if (stemmer_) ::sb_stemmer_delete(stemmer_); }
 
     std::string stem(const std::string &word) const;
+
+    /** \return A pointer to a stemmer if we were able to construct one, o/w NULL. */
+    static Stemmer *StemmerFactory(const std::string &language_name_or_code);
 };
 
 

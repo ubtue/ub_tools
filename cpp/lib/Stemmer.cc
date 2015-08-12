@@ -12,3 +12,14 @@ Stemmer::Stemmer(const std::string &language_name_or_code) {
 std::string Stemmer::stem(const std::string &word) const {
     return std::string((const char *)::sb_stemmer_stem(stemmer_, (const sb_symbol *)word.c_str(), word.size()));
 }
+
+
+Stemmer *Stemmer::StemmerFactory(const std::string &language_name_or_code) {
+    Stemmer *new_stemmer(NULL);
+    try {
+	new_stemmer = new Stemmer(language_name_or_code);
+    } catch (const std::exception &x) {
+    }
+
+    return new_stemmer;
+}
