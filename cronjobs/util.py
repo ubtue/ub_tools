@@ -77,11 +77,11 @@ def SafeSymlink(source, link_name):
             if os.path.islink(link_name):
                 os.unlink(link_name)
             else:
-                Error("in SafeSymlink: trying to create a symlink to \"" + link_name
+                Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
                       + "\" which is an existing non-symlink file!")
         os.symlink(source, link_name)
     except Exception as e:
-        Error("os.symlink() failed: " + str(e))
+        Error("in util.SafeSymlink: os.symlink() failed: " + str(e))
 
 
 # @return The absolute path of the file "link_name" points to.
@@ -143,12 +143,12 @@ def LoadConfigFile(path=None):
         path = default_config_file_dir + os.path.basename(sys.argv[0])[:-2] + "conf"
     try:
         if not os.access(path, os.R_OK):
-            Error("can't open \"" + path + "\" for reading!")
+            Error("in util.LoadConfigFile: can't open \"" + path + "\" for reading!")
         config = ConfigParser.ConfigParser()
         config.read(path)
         return config
     except Exception as e:
-        Error("failed to load the config file from \"" + path + "\"! (" + str(e) + ")")
+        Error("in util.LoadConfigFile: failed to load the config file from \"" + path + "\"! (" + str(e) + ")")
 
 
 # This function looks for symlinks named "XXX-current-YYY" where "YYY" may be the empty string.  If found,
@@ -162,7 +162,7 @@ def FoundNewBSZDataFile(link_filename):
     try:
         statinfo = os.stat(link_filename)
     except FileNotFoundError as e:
-        Error("Symlink \"" + link_filename + "\" is missing or dangling!")
+        Error("in util.FoundNewBSZDataFile: Symlink \"" + link_filename + "\" is missing or dangling!")
     new_timestamp = statinfo.st_ctime
     timestamp_filename = os.path.basename(sys.argv[0][:-2]) + "timestamp"
     if not os.path.exists(timestamp_filename):
@@ -204,7 +204,8 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
         elif member.endswith("c001.raw"):
             ExtractAndRenameMember(tar_file, member, name_prefix + "Normdaten-" + current_date_str + ".mrc")
         else:
-            Error("Unknown member \"" + member + "\" in archive \"" + gzipped_tar_archive + "\"!")
+            Error("in util.ExtractAndRenameBSZFiles: Unknown member \"" + member + "\" in archive \""
+                  + gzipped_tar_archive + "\"!")
     return [name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc",
             name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc",
             name_prefix + "Normdaten-" + current_date_str + ".mrc"]
