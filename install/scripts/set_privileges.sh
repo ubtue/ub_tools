@@ -54,7 +54,6 @@ chown "$OWNER" "/var/log/vufind.log"
 mkdir --parents "/tmp/vufind_sessions/"
 chown -R "$OWNER" "/tmp/vufind_sessions/"
 
-mkdir --parents "/var/lib/tuelib/cronjobs"
 mkdir --parents "/var/lib/tuelib/bibleRef"
 chown -R "$OWNER" "/var/lib/tuelib"
 
