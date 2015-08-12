@@ -54,8 +54,8 @@ def PurgeFiles(generations_to_keep, all_files):
 
 def Main():
     util.default_email_sender = "purge_old_data@ub.uni-tuebingen.de"
-    if len(sys.argv) != 3:
-        util.Error("This script expects two arguments: default_email_recipient data_directory")
+    if len(sys.argv) != 2:
+        util.Error("This script expects one arguments: default_email_recipient")
     util.default_email_recipient = sys.argv[1]
     config = util.LoadConfigFile()
 
@@ -65,11 +65,6 @@ def Main():
         util.Error("failed to read config file! ("+ str(e) + ")")
     if generations_to_keep < 1:
         util.Error("generations_to_keep must be at least 1!")
-
-    try:
-        os.chdir(sys.argv[2])
-    except:
-        util.Error("Can't change directory into \"" + sys.argv[2] + "\"!")
 
     all_timestamped_files = glob.glob("*[0-9][0-9][0-9][0-9][0-9][0-9]*")
     if not all_timestamped_files:
