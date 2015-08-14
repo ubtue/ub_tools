@@ -10,8 +10,8 @@ public class KeywordChainMetric {
 	final int minLength = Math.min(s1.length(), s2.length());
 	int commonPrefixLength = 0;
 
-	for (int i = 0; i < minLength; ++i) {
-	    if (s1.charAt(i) != s2.charAt(i))
+	for (/* Intentionally empty! */; commonPrefixLength < minLength; ++commonPrefixLength) {
+	    if (s1.charAt(commonPrefixLength) != s2.charAt(commonPrefixLength))
 		return commonPrefixLength;
 	    ++commonPrefixLength;
 	}
