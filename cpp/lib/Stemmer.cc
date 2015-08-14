@@ -18,7 +18,7 @@ std::string Stemmer::stem(const std::string &word) const {
 const Stemmer *Stemmer::StemmerFactory(const std::string &language_name_or_code) {
     static std::unordered_map<std::string, const Stemmer *> code_to_stemmer_map;
 
-    // First see if we already 
+    // First see if we already have a cached Stemmer for the given language name of code:
     const auto code_and_stemmer_iter(code_to_stemmer_map.find(language_name_or_code));
     if (code_and_stemmer_iter != code_to_stemmer_map.end())
 	return code_and_stemmer_iter->second;
