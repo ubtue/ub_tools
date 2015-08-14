@@ -13,7 +13,6 @@ public class KeywordChainMetric {
 	for (/* Intentionally empty! */; commonPrefixLength < minLength; ++commonPrefixLength) {
 	    if (s1.charAt(commonPrefixLength) != s2.charAt(commonPrefixLength))
 		return commonPrefixLength;
-	    ++commonPrefixLength;
 	}
 
 	return commonPrefixLength;
