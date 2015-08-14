@@ -121,26 +121,12 @@ size_t ExtractKeywordsFromIndividualKeywordFields(
 }
 
 
-/** \return A Stemmer for "language_code" if we can create or find one.  Null o/w. */
-const Stemmer *GetStemmer(const std::string &language_code) {
-    static std::unordered_map<std::string, const Stemmer *> code_to_stemmer_map;
-    const auto code_and_stemmer_iter(code_to_stemmer_map.find(language_code));
-    if (code_and_stemmer_iter != code_to_stemmer_map.end())
-	return code_and_stemmer_iter->second;
-
-    const Stemmer *new_stemmer(Stemmer::StemmerFactory(language_code));
-    code_to_stemmer_map[language_code] = new_stemmer;
-
-    return new_stemmer;
-}
-
-
 size_t ExtractAllKeywords(
     const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
     std::unordered_map<std::string, std::string> * const stemmed_to_unstemmed_keywords_map)
 {
     const std::string language_code(MarcUtil::GetLanguage(dir_entries, field_data));
-    const Stemmer * const stemmer(language_code.empty() ? NULL : GetStemmer(language_code));
+    const Stemmer * const stemmer(language_code.empty() ? NULL : Stemmer::StemmerFactory(language_code));
 
     size_t extracted_count(ExtractKeywordsFromKeywordChainFields(dir_entries, field_data, stemmer,
 								 stemmed_to_unstemmed_keywords_map));
@@ -236,7 +222,7 @@ void AugmentRecordsWithTitleKeywords(
         }
 
 	// If we have an appropriate stemmer, replace the title words w/ stemmed title words:
-	const Stemmer * const stemmer(language_code.empty() ? NULL : GetStemmer(language_code));
+	const Stemmer * const stemmer(language_code.empty() ? NULL : Stemmer::StemmerFactory(language_code));
 	if (stemmer != NULL) {
 	    std::unordered_set<std::string> stemmed_title_words;
 	    for (const auto &title_word : title_words)
