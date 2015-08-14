@@ -106,7 +106,9 @@ size_t ExtractKeywordsFromIndividualKeywordFields(
 {
     size_t keyword_count(0);
     std::vector<std::string> keywords;
-    MarcUtil::ExtractAllSubfields("600:610:611:630:650:653:656", dir_entries, field_data, &keywords, "02");
+    static const std::string SUBFIELD_IGNORE_LIST("02"); // Do not extract $0 and $2.
+    MarcUtil::ExtractAllSubfields("600:610:611:630:650:653:656", dir_entries, field_data, &keywords,
+				  SUBFIELD_IGNORE_LIST);
     for (const auto &keyword : keywords) {
 	if (keyword.find(' ') != std::string::npos)
 	    continue;
