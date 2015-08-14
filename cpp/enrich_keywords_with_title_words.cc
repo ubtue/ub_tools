@@ -59,14 +59,6 @@ void LoadStopwords(const bool verbose, FILE * const input,
 }
 
 
-void LowercaseSet(std::unordered_set<std::string> * const words) {
-    std::unordered_set<std::string> lowercase_set;
-    for (const auto &word : *words)
-        lowercase_set.insert(StringUtil::ToLower(word));
-    std::swap(lowercase_set, *words);
-}
-
-
 void FilterOutStopwords(const std::unordered_set<std::string> &stopwords,
                         std::unordered_set<std::string> * const words)
 {
@@ -79,18 +71,12 @@ void FilterOutStopwords(const std::unordered_set<std::string> &stopwords,
 }
 
 
-std::string ConcatSet(const std::unordered_set<std::string> &words) {
-    std::string retval;
-    for (const auto &word : words)
-        retval += word + " ";
-    return retval;
-}
-
-
-void ExtractKeywordsFromKeywordChainFields(
+size_t ExtractKeywordsFromKeywordChainFields(
     const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
-    const Stemmer &stemmer, std::unordered_map<std::string, std::string> * const stemmed_to_unstemmed_keywords_map)
+    const Stemmer * const stemmer,
+    std::unordered_map<std::string, std::string> * const stemmed_to_unstemmed_keywords_map)
 {
+    size_t keyword_count(0);
     const auto _689_iterator(DirectoryEntry::FindField("689", dir_entries));
     if (_689_iterator != dir_entries.end()) {
 	size_t field_index(_689_iterator - dir_entries.begin());
@@ -98,29 +84,67 @@ void ExtractKeywordsFromKeywordChainFields(
 	    const Subfields subfields(field_data[field_index]);
 	    const std::string subfield_a_value(subfields.getFirstSubfieldValue('a'));
 	    if (not subfield_a_value.empty() and subfield_a_value.find(' ') == std::string::npos) {
-		const std::string stemmed_keyword(stemmer.stem(subfield_a_value));
+		const std::string stemmed_keyword(stemmer == NULL ? subfield_a_value
+						                  : stemmer->stem(subfield_a_value));
 		(*stemmed_to_unstemmed_keywords_map)[stemmed_keyword] = subfield_a_value;
+		++keyword_count;
 	    }
 
 	    ++field_index;
 	}
     }
+
+    return keyword_count;
 }
 
 
-void ExtractKeywordsFromIndividualKeywordFields(
+size_t ExtractKeywordsFromIndividualKeywordFields(
     const std::vector<DirectoryEntry> &dir_entries,
     const std::vector<std::string> &field_data,
-    const Stemmer &stemmer, std::unordered_map<std::string, std::string> * const stemmed_to_unstemmed_keywords_map)
+    const Stemmer * const stemmer,
+    std::unordered_map<std::string, std::string> * const stemmed_to_unstemmed_keywords_map)
 {
+    size_t keyword_count(0);
     std::vector<std::string> keywords;
-    MarcUtil::ExtractAllSubfields("600:610:611:630:650:653:656", dir_entries, field_data, &keywords);
+    MarcUtil::ExtractAllSubfields("600:610:611:630:650:653:656", dir_entries, field_data, &keywords, "02");
     for (const auto &keyword : keywords) {
 	if (keyword.find(' ') != std::string::npos)
 	    continue;
-	const std::string stemmed_keyword(stemmer.stem(keyword));
+	const std::string stemmed_keyword(stemmer == NULL ? keyword : stemmer->stem(keyword));
 	(*stemmed_to_unstemmed_keywords_map)[stemmed_keyword] = keyword;
+	++keyword_count;
     }
+
+    return keyword_count;
+}
+
+
+/** \return A Stemmer for "language_code" if we can create or find one.  Null o/w. */
+const Stemmer *GetStemmer(const std::string &language_code) {
+    static std::unordered_map<std::string, const Stemmer *> code_to_stemmer_map;
+    const auto code_and_stemmer_iter(code_to_stemmer_map.find(language_code));
+    if (code_and_stemmer_iter != code_to_stemmer_map.end())
+	return code_and_stemmer_iter->second;
+
+    const Stemmer *new_stemmer(Stemmer::StemmerFactory(language_code));
+    code_to_stemmer_map[language_code] = new_stemmer;
+
+    return new_stemmer;
+}
+
+
+size_t ExtractAllKeywords(
+    const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
+    std::unordered_map<std::string, std::string> * const stemmed_to_unstemmed_keywords_map)
+{
+    const std::string language_code(MarcUtil::GetLanguage(dir_entries, field_data));
+    const Stemmer * const stemmer(language_code.empty() ? NULL : GetStemmer(language_code));
+
+    size_t extracted_count(ExtractKeywordsFromKeywordChainFields(dir_entries, field_data, stemmer,
+								 stemmed_to_unstemmed_keywords_map));
+    extracted_count += ExtractKeywordsFromIndividualKeywordFields(dir_entries, field_data, stemmer,
+								  stemmed_to_unstemmed_keywords_map);
+    return extracted_count;
 }
 
 
@@ -130,7 +154,6 @@ void ExtractStemmedKeywords(const bool verbose, FILE * const input,
     if (verbose)
         std::cerr << "Starting extraction and stemming of pre-existing keywords.\n";
 
-    Stemmer stemmer("deu");
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
@@ -140,17 +163,10 @@ void ExtractStemmedKeywords(const bool verbose, FILE * const input,
         ++total_count;
         std::unique_ptr<Leader> leader(raw_leader);
 
-	const size_t old_size(stemmed_to_unstemmed_keywords_map->size());
-
-	ExtractKeywordsFromKeywordChainFields(dir_entries, field_data, stemmer,
-					      stemmed_to_unstemmed_keywords_map);
-	ExtractKeywordsFromIndividualKeywordFields(dir_entries, field_data, stemmer,
-						   stemmed_to_unstemmed_keywords_map);
-
-	const size_t new_size(stemmed_to_unstemmed_keywords_map->size());
-	if (new_size > old_size) {
+	const size_t extracted_count(ExtractAllKeywords(dir_entries, field_data, stemmed_to_unstemmed_keywords_map));
+	if (extracted_count > 0) {
 	    ++records_with_keywords_count;
-	    keywords_count += new_size - old_size;
+	    keywords_count += extracted_count;
 	}
     }
 
@@ -163,9 +179,9 @@ void ExtractStemmedKeywords(const bool verbose, FILE * const input,
 }
 
 
-/*
-void AugmentStopwordsWithTitleWords(
+void AugmentRecordsWithTitleKeywords(
     const bool verbose, FILE * const input, FILE * const output,
+    const std::unordered_map<std::string, std::string> &stemmed_to_unstemmed_keywords_map,
     const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
 {
     if (verbose)
@@ -174,18 +190,20 @@ void AugmentStopwordsWithTitleWords(
     Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
-    unsigned total_count(0), augment_count(0), title_count(0);
+    unsigned total_count(0), augmented_record_count(0);
     std::string err_msg;
     while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
         ++total_count;
         std::unique_ptr<Leader> leader(raw_leader);
 
+	// Look for a title...
         const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
         if (entry_iterator == dir_entries.end()) {
             MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
             continue;
         }
 
+	// ...in subfield 'a':
         const size_t title_index(entry_iterator - dir_entries.begin());
         Subfields subfields(field_data[title_index]);
         if (not subfields.hasSubfield('a')) {
@@ -195,17 +213,14 @@ void AugmentStopwordsWithTitleWords(
 
         const auto begin_end_a = subfields.getIterators('a');
         std::string title(begin_end_a.first->second);
-        const auto begin_end_b = subfields.getIterators('b');
-        if (begin_end_b.first != begin_end_b.second) {
+        const auto begin_end_b = subfields.getIterators('b'); // optional additional title part.
+        if (begin_end_b.first != begin_end_b.second)
             title += " " + begin_end_b.first->second;
-        }
-
-        ++title_count;
 
         std::unordered_set<std::string> title_words;
-        TextUtil::ChopIntoWords(title, &title_words, / * min_word_length = * / 3);
-        LowercaseSet(&title_words);
+        TextUtil::ChopIntoWords(title, &title_words, /* min_word_length = */ 3);
 
+	// Remove language-appropriate stop words from the title words:
         const std::string language_code(MarcUtil::GetLanguage(dir_entries, field_data));
         const auto code_and_stopwords(language_codes_to_stopword_sets.find(language_code));
         if (code_and_stopwords != language_codes_to_stopword_sets.end())
@@ -218,19 +233,49 @@ void AugmentStopwordsWithTitleWords(
             continue;
         }
 
-        for (const auto &word : title_words)
-            std::cout << word << ' ' << language_code << '\n';
+	// If we have an appropriate stemmer, replace the title words w/ stemmed title words:
+	const Stemmer * const stemmer(language_code.empty() ? NULL : GetStemmer(language_code));
+	if (stemmer != NULL) {
+	    std::unordered_set<std::string> stemmed_title_words;
+	    for (const auto &title_word : title_words)
+		stemmed_title_words.insert(stemmer->stem(title_word));
+	    std::swap(stemmed_title_words, title_words);
+	}
 
-        ++augment_count;
+	std::unordered_map<std::string, std::string> local_stemmed_to_unstemmed_keywords_map;
+	ExtractAllKeywords(dir_entries, field_data, &local_stemmed_to_unstemmed_keywords_map);
+
+	// Find title words that match stemmed keywords:
+	std::unordered_set<std::string> new_keywords;
+	for (const auto &title_word : title_words) {
+	    if (local_stemmed_to_unstemmed_keywords_map.find(title_word)
+		!= local_stemmed_to_unstemmed_keywords_map.end())
+		continue; // We already have this word.
+
+	    const auto stemmed_and_unstemmed_word_iter(stemmed_to_unstemmed_keywords_map.find(title_word));
+	    if (stemmed_and_unstemmed_word_iter != stemmed_to_unstemmed_keywords_map.end())
+		new_keywords.insert(stemmed_and_unstemmed_word_iter->second);
+	}
+
+        if (new_keywords.empty()) {
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            continue;
+        }
+
+	// Augment the record with new keywords derived from title words:
+	for (const auto &new_keyword : new_keywords) {
+	    const std::string field_contents("  ""\x1F""a" + new_keyword);
+	    MarcUtil::InsertField(field_contents, "601", leader.get(), &dir_entries, &field_data);
+	}
+
+	MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+        ++augmented_record_count;
     }
 
-    if (verbose) {
-        std::cerr << title_count << " records had titles in 245a.\n";
-        std::cerr << "Augmented " << augment_count << " records of " << total_count
-                  << " records with title words.\n";
-    }
+    if (verbose)
+        std::cerr << augmented_record_count << " records of " << total_count
+                  << " were augmented w/ additional keywords.\n";
 }
-*/
 
 
 int main(int argc, char **argv) {
@@ -280,6 +325,10 @@ int main(int argc, char **argv) {
 
     std::unordered_map<std::string, std::string> stemmed_to_unstemmed_keywords_map;
     ExtractStemmedKeywords(verbose, marc_input, &stemmed_to_unstemmed_keywords_map);
+
+    std::rewind(marc_input);
+    AugmentRecordsWithTitleKeywords(verbose, marc_input, marc_output, stemmed_to_unstemmed_keywords_map,
+				    language_codes_to_stopword_sets);
 
     std::fclose(marc_input);
     std::fclose(marc_output);
