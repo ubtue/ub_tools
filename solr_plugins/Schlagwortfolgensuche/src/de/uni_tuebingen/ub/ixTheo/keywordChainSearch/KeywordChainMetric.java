@@ -10,10 +10,9 @@ public class KeywordChainMetric {
 	final int minLength = Math.min(s1.length(), s2.length());
 	int commonPrefixLength = 0;
 
-	for (int i = 0; i < minLength; ++i) {
-	    if (s1.charAt(i) != s2.charAt(i))
+	for (/* Intentionally empty! */; commonPrefixLength < minLength; ++commonPrefixLength) {
+	    if (s1.charAt(commonPrefixLength) != s2.charAt(commonPrefixLength))
 		return commonPrefixLength;
-	    ++commonPrefixLength;
 	}
 
 	return commonPrefixLength;
@@ -24,9 +23,11 @@ public class KeywordChainMetric {
 						  final ArrayList<String> comparisonChain)
     {
 	double similarityScore = 0.0;
-	for (String referenceComponent : referenceChain) {
+	for (String referenceComponentMixedCase : referenceChain) {
+	    final String referenceComponent = referenceComponentMixedCase.toLowerCase();
 	    double maxComponentSimilarity = 0.0;
-	    for (String comparisonComponent : comparisonChain) {
+	    for (String comparisonComponentMixedCase : comparisonChain) {
+		final String comparisonComponent = comparisonComponentMixedCase.toLowerCase();
 		final int commonPrefixLength = calculateCommonPrefixLength(referenceComponent, comparisonComponent);
 		final int maxLength = Math.max(referenceComponent.length(), comparisonComponent.length());
 		final double score = (double)(commonPrefixLength) / maxLength;
