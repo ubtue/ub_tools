@@ -206,24 +206,30 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
     if (needle.empty())
 	return haystack.cbegin();
 
-    if (haystack.size() < needle.size())
-	return haystack.cend();
-
-    const std::vector<std::string>::const_iterator haystack_start(
-	std::find(haystack.cbegin(), haystack.cend(), needle[0]));
-    if ((haystack.cend() - haystack_start) < static_cast<ssize_t>(needle.size()))
-	return haystack.cend();
-
-    std::vector<std::string>::const_iterator needle_word(needle.cbegin());
-    std::vector<std::string>::const_iterator haystack_word(haystack_start);
-    for (;;) {
-	++needle_word;
-	if (needle_word == needle.cend())
-	    return haystack_start;
-	++haystack_word;
-	if (haystack_word == haystack.cend() or *haystack_word != *needle_word)
+    std::vector<std::string>::const_iterator search_start(haystack.cbegin());
+    while (search_start != haystack.cend()) {
+	const std::vector<std::string>::const_iterator haystack_start(
+            std::find(search_start, haystack.cend(), needle[0]));
+	if ((haystack.cend() - haystack_start) < static_cast<ssize_t>(needle.size()))
 	    return haystack.cend();
+
+	std::vector<std::string>::const_iterator needle_word(needle.cbegin());
+	std::vector<std::string>::const_iterator haystack_word(haystack_start);
+	for (;;) {
+	    ++needle_word;
+	    if (needle_word == needle.cend())
+		return haystack_start;
+	    ++haystack_word;
+	    if (haystack_word == haystack.cend())
+		return haystack.cend();
+	    else if (*haystack_word != *needle_word) {
+		search_start = haystack_start + 1;
+		break;
+	    }
+	}
     }
+
+    return haystack.cend();
 }
     
 
