@@ -28,7 +28,7 @@ def SendEmail(subject, msg, sender=None, recipient=None):
     if recipient is None:
         recipient = default_email_recipient
     try:
-        config = LoadConfigFile()
+        config = LoadConfigFile(no_error=True)
         server_address  = config.get("SMTPServer", "server_address")
         server_user     = config.get("SMTPServer", "server_user")
         server_password = config.get("SMTPServer", "server_password")
@@ -138,16 +138,20 @@ def WriteTimestamp(prefix=None, timestamp=None):
         timestamp_file.write(struct.pack('d', timestamp))
 
 
-def LoadConfigFile(path=None):
+def LoadConfigFile(path=None, no_error=False):
     if path is None: # Take script name w/ "py" extension replaced by "conf".
         path = default_config_file_dir + os.path.basename(sys.argv[0])[:-2] + "conf"
     try:
         if not os.access(path, os.R_OK):
+            if no_error:
+                raise OSError("in util.LoadConfigFile: can't open \"" + path + "\" for reading!")
             Error("in util.LoadConfigFile: can't open \"" + path + "\" for reading!")
         config = ConfigParser.ConfigParser()
         config.read(path)
         return config
     except Exception as e:
+        if no_error:
+            raise e
         Error("in util.LoadConfigFile: failed to load the config file from \"" + path + "\"! (" + str(e) + ")")
 
 
