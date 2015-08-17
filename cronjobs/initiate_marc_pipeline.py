@@ -20,7 +20,7 @@ def ExecOrDie(cmd_name, args, log_file_name):
 
     
 def StartPipeline(pipeline_script_name, data_files, conf):
-    log_file_name = util.MakeLogFileName(pipeline_script_name)
+    log_file_name = util.MakeLogFileName(pipeline_script_name, "/tmp")
     ExecOrDie(pipeline_script_name, data_files, log_file_name)
 
     deletion_list_glob = "LOEPPN-[0-9][0-9][0-9][0-9][0-9][0-9]"
