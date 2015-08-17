@@ -28,7 +28,7 @@ char *progname; // Must be set in main() with "progname = argv[0];";
 
 
 void Error(const std::string &msg) {
-    if (progname == NULL)
+    if (progname == nullptr)
         std::cerr << "You must set \"progname\" in main() with \"progname = argv[0];\" in oder to use Error().\n";
     else
         std::cerr << progname << ": " << msg << '\n';
@@ -37,7 +37,7 @@ void Error(const std::string &msg) {
 
 
 void Warning(const std::string &msg) {
-    if (progname == NULL)
+    if (progname == nullptr)
         std::cerr << "You must set \"progname\" in main() with \"progname = argv[0];\" in oder to use Warning().\n";
     else
         std::cerr << progname << ": " << msg << '\n';
@@ -46,7 +46,7 @@ void Warning(const std::string &msg) {
 
 bool ReadFile(const std::string &filename, std::string * const contents) {
     FILE *input(std::fopen(filename.c_str(), "r"));
-    if (input == NULL)
+    if (input == nullptr)
         return false;
 
     contents->clear();

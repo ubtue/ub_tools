@@ -136,7 +136,7 @@ std::string AccessErrnoToString(int errno_to_convert, const std::string &pathnam
 bool Exists(const std::string &path, std::string * const error_message) {
     errno = 0;
     int access_status = ::access(path.c_str(), F_OK);
-    if (error_message != NULL)
+    if (error_message != nullptr)
         *error_message = AccessErrnoToString(errno, path, "F_OK");
 
     return (access_status == 0);
@@ -248,7 +248,7 @@ std::string MakeAbsolutePath(const std::string &reference_path, const std::strin
 std::string MakeAbsolutePath(const std::string &relative_path) {
     char buf[PATH_MAX];
     const char * const current_working_dir(::getcwd(buf, sizeof buf));
-    if (unlikely(current_working_dir == NULL))
+    if (unlikely(current_working_dir == nullptr))
         throw std::runtime_error("in FileUtil::MakeAbsolutePath: getcwd(3) failed (" + ErrnoToString(errno) + ")!");
     return MakeAbsolutePath(std::string(current_working_dir) + "/", relative_path);
 }

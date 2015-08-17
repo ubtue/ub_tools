@@ -38,7 +38,7 @@ void LoadStopwords(const bool verbose, FILE * const input,
     unsigned count(0);
     while (not std::feof(input)) {
         char buf[1024];
-        if (std::fgets(buf, sizeof buf, input) == NULL)
+        if (std::fgets(buf, sizeof buf, input) == nullptr)
             break;
         if (buf[0] == '\0' or buf[0] == ';') // Empty or comment line?
             continue;
@@ -84,7 +84,7 @@ size_t ExtractKeywordsFromKeywordChainFields(
 	    const Subfields subfields(field_data[field_index]);
 	    const std::string subfield_a_value(subfields.getFirstSubfieldValue('a'));
 	    if (not subfield_a_value.empty() and subfield_a_value.find(' ') == std::string::npos) {
-		const std::string stemmed_keyword(stemmer == NULL ? subfield_a_value
+		const std::string stemmed_keyword(stemmer == nullptr ? subfield_a_value
 						                  : stemmer->stem(subfield_a_value));
 		(*stemmed_to_unstemmed_keywords_map)[stemmed_keyword] = subfield_a_value;
 		++keyword_count;
@@ -112,7 +112,7 @@ size_t ExtractKeywordsFromIndividualKeywordFields(
     for (const auto &keyword : keywords) {
 	if (keyword.find(' ') != std::string::npos)
 	    continue;
-	const std::string stemmed_keyword(stemmer == NULL ? keyword : stemmer->stem(keyword));
+	const std::string stemmed_keyword(stemmer == nullptr ? keyword : stemmer->stem(keyword));
 	(*stemmed_to_unstemmed_keywords_map)[stemmed_keyword] = keyword;
 	++keyword_count;
     }
@@ -126,7 +126,7 @@ size_t ExtractAllKeywords(
     std::unordered_map<std::string, std::string> * const stemmed_to_unstemmed_keywords_map)
 {
     const std::string language_code(MarcUtil::GetLanguage(dir_entries, field_data));
-    const Stemmer * const stemmer(language_code.empty() ? NULL : Stemmer::StemmerFactory(language_code));
+    const Stemmer * const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
 
     size_t extracted_count(ExtractKeywordsFromKeywordChainFields(dir_entries, field_data, stemmer,
 								 stemmed_to_unstemmed_keywords_map));
@@ -222,8 +222,8 @@ void AugmentRecordsWithTitleKeywords(
         }
 
 	// If we have an appropriate stemmer, replace the title words w/ stemmed title words:
-	const Stemmer * const stemmer(language_code.empty() ? NULL : Stemmer::StemmerFactory(language_code));
-	if (stemmer != NULL) {
+	const Stemmer * const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
+	if (stemmer != nullptr) {
 	    std::unordered_set<std::string> stemmed_title_words;
 	    for (const auto &title_word : title_words)
 		stemmed_title_words.insert(stemmer->stem(title_word));
@@ -278,12 +278,12 @@ int main(int argc, char **argv) {
 
     const std::string marc_input_filename(argv[verbose ? 2 : 1]);
     FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rm");
-    if (marc_input == NULL)
+    if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[verbose ? 3 : 2]);
     FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == NULL)
+    if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     if (unlikely(marc_input_filename == marc_output_filename))
@@ -299,7 +299,7 @@ int main(int argc, char **argv) {
             Error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(stopwords_filename.length() - 3));
         FILE *stopwords = std::fopen(stopwords_filename.c_str(), "rm");
-        if (stopwords == NULL)
+        if (stopwords == nullptr)
             Error("can't open \"" + stopwords_filename + "\" for reading!");
         std::unordered_set<std::string> stopwords_set;
         LoadStopwords(verbose, stopwords, &stopwords_set);

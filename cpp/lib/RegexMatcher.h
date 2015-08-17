@@ -49,11 +49,11 @@ public:
 
     /** \brief Creates a RegexMatcher.
      *  \param pattern      The pattern to be compiled.
-     *  \param err_msg      If non-NULL, an explanation of a possible error will be written here.
+     *  \param err_msg      If non-nullptr, an explanation of a possible error will be written here.
      *  \param enable_utf8  If true, support matching of UTF8 text.
-     *  \return NULL if "pattern" failed to compile and then also sets "err_msg".
+     *  \return nullptr if "pattern" failed to compile and then also sets "err_msg".
      */
-    static RegexMatcher *RegexMatcherFactory(const std::string &pattern, std::string * const err_msg = NULL,
+    static RegexMatcher *RegexMatcherFactory(const std::string &pattern, std::string * const err_msg = nullptr,
                                              const bool enable_utf8 = false);
 
     /** Returns true if "s" was matched, false, if an error occurred or no match was found. In the case of an
@@ -62,7 +62,7 @@ public:
      *  character of the matched part of "s" respectively.
      */
     bool matched(const std::string &s, std::string * const err_msg,
-                 size_t * const start_pos = NULL, size_t * const end_pos = NULL) const;
+                 size_t * const start_pos = nullptr, size_t * const end_pos = nullptr) const;
 
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return utf8_enabled_; }

@@ -47,11 +47,11 @@ bool IsRomanNumeral(const std::string &s) {
         return false;
 
     std::string err_msg;
-    static RegexMatcher *matcher(NULL);
-    if (unlikely(matcher == NULL)) {
+    static RegexMatcher *matcher(nullptr);
+    if (unlikely(matcher == nullptr)) {
         const std::string pattern("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
         matcher = RegexMatcher::RegexMatcherFactory(pattern, &err_msg);
-        if (unlikely(matcher == NULL))
+        if (unlikely(matcher == nullptr))
             throw std::runtime_error("Failed to construct a RegexMatcher for \"" + pattern
                                      + "\" in TextUtil::IsRomanNumeral: " + err_msg);
     }
@@ -67,11 +67,11 @@ bool IsRomanNumeral(const std::string &s) {
 
 bool IsUnsignedInteger(const std::string &s) {
     std::string err_msg;
-    static RegexMatcher *matcher(NULL);
-    if (unlikely(matcher == NULL)) {
+    static RegexMatcher *matcher(nullptr);
+    if (unlikely(matcher == nullptr)) {
         const std::string pattern("^[0-9]+$");
         matcher = RegexMatcher::RegexMatcherFactory(pattern, &err_msg);
-        if (unlikely(matcher == NULL))
+        if (unlikely(matcher == nullptr))
             throw std::runtime_error("Failed to construct a RegexMatcher for \"" + pattern
                                      + "\" in TextUtil::IsUnsignedInteger: " + err_msg);
     }

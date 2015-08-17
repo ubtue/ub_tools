@@ -78,7 +78,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
         argv[arg_no++] = ::strdup(command.c_str());
         for (const auto &arg : args)
             argv[arg_no++] = ::strdup(arg.c_str());
-        argv[arg_no] = NULL;
+        argv[arg_no] = nullptr;
         ::execv(command.c_str(), argv);
 
         ::_exit(EXECVE_FAILURE); // We typically never get here.
@@ -86,7 +86,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
     // The parent of the fork:
     else {
-        void (*old_alarm_handler)(int) = NULL;
+        void (*old_alarm_handler)(int) = nullptr;
 
         if (timeout_in_seconds > 0) {
             // Install new alarm handler...
@@ -100,7 +100,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
         int child_exit_status;
         errno = 0;
-        int wait_retval = ::wait4(pid, &child_exit_status, 0, NULL);
+        int wait_retval = ::wait4(pid, &child_exit_status, 0, nullptr);
         assert(wait_retval == pid or errno == EINTR);
 
         if (timeout_in_seconds > 0) {
@@ -114,7 +114,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
             if (alarm_went_off) {
                 // Snuff out all of our offspring.
                 ::kill(-pid, SIGKILL);
-                while (::wait4(-pid, &child_exit_status, 0, NULL) != -1)
+                while (::wait4(-pid, &child_exit_status, 0, nullptr) != -1)
                     /* Intentionally empty! */;
 
                 return -1;
@@ -147,7 +147,7 @@ std::string Which(const std::string &executable_candidate) {
 	return IsExecutableFile(executable_candidate) ? executable_candidate : "";
 
     const char * const PATH(::secure_getenv("PATH"));
-    if (PATH == NULL)
+    if (PATH == nullptr)
 	return "";
 
     const std::string path_str(PATH);

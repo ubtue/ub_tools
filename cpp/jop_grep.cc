@@ -45,7 +45,7 @@ void Usage() {
 
 void JOP_Grep(const std::string &input_filename, const unsigned max_result_count) {
     FILE *input = std::fopen(input_filename.c_str(), "rb");
-    if (input == NULL)
+    if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
     Leader *raw_leader;

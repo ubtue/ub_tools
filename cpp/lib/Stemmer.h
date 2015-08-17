@@ -26,7 +26,7 @@ public:
      *  Supported languages are Hungarian, Russian, Norwegian, Spanish, Italian, Dutch, English, Swedish,
      *  Portugese, Danish, French, Turkish, Romanian, German, and Finnish.
      *
-     * \return A pointer to a stemmer if we were able to construct one, o/w NULL.
+     * \return A pointer to a stemmer if we were able to construct one, o/w nullptr.
      * \note Caches the returned Stemmer so that it is cheap to repeatedly call this factory with
      *       the same language name or code.
      * \warning  Never delete Stemmers returned by this factory!!

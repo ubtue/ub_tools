@@ -4,7 +4,7 @@
 
 
 Stemmer::Stemmer(const std::string &language_name_or_code) {
-    if ((stemmer_ = ::sb_stemmer_new(language_name_or_code.c_str(), "UTF_8")) == NULL)
+    if ((stemmer_ = ::sb_stemmer_new(language_name_or_code.c_str(), "UTF_8")) == nullptr)
 	throw std::runtime_error("in Stemmer::Stemmer: unsuported language or language code \""
 				 + language_name_or_code + "\"!");
 }
@@ -23,7 +23,7 @@ const Stemmer *Stemmer::StemmerFactory(const std::string &language_name_or_code)
     if (code_and_stemmer_iter != code_to_stemmer_map.end())
 	return code_and_stemmer_iter->second;
 
-    Stemmer *new_stemmer(NULL);
+    Stemmer *new_stemmer(nullptr);
     try {
 	new_stemmer = new Stemmer(language_name_or_code);
     } catch (const std::exception &x) {

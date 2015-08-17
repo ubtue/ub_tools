@@ -43,7 +43,7 @@ void ExtractDeletionIds(FILE * const deletion_list, std::unordered_set<std::stri
 {
     unsigned line_no(0);
     char line[100];
-    while (std::fgets(line, sizeof(line), deletion_list) != NULL) {
+    while (std::fgets(line, sizeof(line), deletion_list) != nullptr) {
         ++line_no;
         size_t line_length(std::strlen(line));
         if (line_length < 13)
@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
 
     const std::string deletion_list_filename(argv[1]);
     FILE *deletion_list = std::fopen(deletion_list_filename.c_str(), "rb");
-    if (deletion_list == NULL)
+    if (deletion_list == nullptr)
         Error("can't open \"" + deletion_list_filename + "\" for reading!");
 
     std::unordered_set<std::string> title_deletion_ids, local_deletion_ids;
@@ -203,12 +203,12 @@ int main(int argc, char *argv[]) {
 
     const std::string marc_input_filename(argv[2]);
     FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rb");
-    if (marc_input == NULL)
+    if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[3]);
     FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == NULL)
+    if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {

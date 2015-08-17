@@ -107,11 +107,11 @@ public:
                 std::string text_;
                 unsigned lineno_;
                 std::string error_message_;
-                const AttributeMap *attribute_map_; // only non-NULL if type_ == OPENING_TAG
+                const AttributeMap *attribute_map_; // only non-nullptr if type_ == OPENING_TAG
         public:
                 /** Construct a chunk. */
                 Chunk(const unsigned type, const std::string &text, const unsigned lineno,
-                      const AttributeMap * const attribute_map=NULL)
+                      const AttributeMap * const attribute_map=nullptr)
                         : type_(type), text_(text), lineno_(lineno), attribute_map_(attribute_map) { }
 
                 /** Construct a chunk. */
@@ -140,7 +140,7 @@ protected:
         virtual void preNotify(Chunk * const chunk) { notify(*chunk); }
 private:
         void replaceEntitiesInString();
-        int getChar(bool * const is_entity = NULL);
+        int getChar(bool * const is_entity = nullptr);
         bool endOfStream() const { return end_of_stream_; }
         void ungetChar();
         bool parseTag();

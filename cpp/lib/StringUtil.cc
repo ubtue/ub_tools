@@ -60,7 +60,7 @@ namespace {
 bool InitializeLocale()
 {
         // Try to force the use of the iVia standard locale:
-        if (std::setlocale(LC_CTYPE, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == NULL) {
+        if (std::setlocale(LC_CTYPE, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr) {
                 const std::string error_message("in InitializeLocale: setlocale(3) failed: "
                                                 + StringUtil::IVIA_STANDARD_LOCALE + "\n");
                 const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
@@ -69,7 +69,7 @@ bool InitializeLocale()
         }
 
         // Try to force the use of the iVia standard locale:
-        if (std::setlocale(LC_MONETARY, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == NULL) {
+        if (std::setlocale(LC_MONETARY, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr) {
                 const std::string error_message("In InitializeLocale: setlocale(3) failed for LC_MONETARY.  Cannot "
                                                 "honour the '" + StringUtil::IVIA_STANDARD_LOCALE + "' locale!\n");
                 const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
@@ -299,7 +299,7 @@ std::string RightTrim(const std::string &trim_set, std::string * const s)
 
         size_t trimmed_length = original_length;
         const char * const set = trim_set.c_str();
-        while (trimmed_length > 0 and ::strchr(set, (*s)[trimmed_length-1]) != NULL)
+        while (trimmed_length > 0 and ::strchr(set, (*s)[trimmed_length-1]) != nullptr)
                 --trimmed_length;
 
         if (trimmed_length < original_length)
@@ -360,7 +360,7 @@ std::string LeftTrim(const std::string &trim_set, std::string * const s)
 
         size_t no_of_leading_trim_chars(0);
         const char * const set = trim_set.c_str();
-        while (no_of_leading_trim_chars < original_length - 1 and std::strchr(set, (*s)[no_of_leading_trim_chars]) != NULL)
+        while (no_of_leading_trim_chars < original_length - 1 and std::strchr(set, (*s)[no_of_leading_trim_chars]) != nullptr)
                 ++no_of_leading_trim_chars;
 
         if (no_of_leading_trim_chars > 0)
@@ -2169,7 +2169,7 @@ uint32_t SuperFastHash(const char * data, unsigned len)
         uint32_t hash = len, tmp;
         int rem;
 
-        if (len <= 0 or data == NULL)
+        if (len <= 0 or data == nullptr)
                 return 0;
 
         rem = len & 3;
@@ -2253,7 +2253,7 @@ std::string &Escape(const char escape_char, const char * const chars_to_escape, 
         escaped_string.reserve(s->length());
 
         for (std::string::const_iterator ch(s->begin()); ch != s->end(); ++ch) {
-                if (std::strchr(chars_to_escape, *ch) != NULL or *ch == escape_char)
+                if (std::strchr(chars_to_escape, *ch) != nullptr or *ch == escape_char)
                         escaped_string += escape_char;
                 escaped_string += *ch;
         }
@@ -2676,7 +2676,7 @@ std::string ExtractSensibleSubphrase(const std::string &source_text, const std::
         // If one of our delimiters is found, split the string at that point
         for (const char *delimiter = delimiters.c_str(); *delimiter; ++delimiter) {
                 const char *found_at = ::strchr(start_position, *delimiter);
-                if (found_at == NULL) // delimiter doesn't exist in this text? try next delimiter.
+                if (found_at == nullptr) // delimiter doesn't exist in this text? try next delimiter.
                         continue;
 
                 // Aha! We found a delimiter.

@@ -43,7 +43,7 @@ void Usage() {
 void FilterMarcRecords(const bool keep, const std::string &regex_pattern, FILE * const input, FILE * const output) {
     std::string err_msg;
     const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
-    if (matcher == NULL)
+    if (matcher == nullptr)
 	Error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
     Leader *raw_leader;
@@ -88,12 +88,12 @@ int main(int argc, char **argv) {
 
     const std::string marc_input_filename(argv[3]);
     FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rm");
-    if (marc_input == NULL)
+    if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[4]);
     FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == NULL)
+    if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     if (unlikely(marc_input_filename == marc_output_filename))
