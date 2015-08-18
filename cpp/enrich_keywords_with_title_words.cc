@@ -98,6 +98,7 @@ inline std::string FilterOutNonwordChars(const std::string &phrase) {
 }
 
 
+std::string ppn;
 // Lowercases and stems "keyword_phrase" and chops it into `words'.  Populates
 // "stemmed_keyword_to_stemmed_keyphrases_map" and "stemmed_keyphrases_to_unstemmed_keyphrases_map".
 // The former maps from each individual stemmed word to the entire cleaned up and stemmed key phrase and the
@@ -238,6 +239,7 @@ void ExtractStemmedKeywords(
         ++total_count;
         std::unique_ptr<Leader> leader(raw_leader);
 
+ppn=field_data[0];
 	const size_t extracted_count(
             ExtractAllKeywords(dir_entries, field_data, stemmed_keyword_to_stemmed_keyphrases_map,
 			       stemmed_keyphrases_to_unstemmed_keyphrases_map));
@@ -269,6 +271,12 @@ bool ContainedInMapValues(const std::string &value,
 
     return false;
 }
+
+
+// The following constant is used to reject cases where a key phrase consists of exactly one word and
+// that single word is not as least as long as the constant.  This is used to try to increase precision
+// but, of course, decreases recall.  Part of the reason why this seems necessary is the crappy stemmer.
+constexpr auto MIN_SINGLE_STEMMED_KEYWORD_LENGTH(7);
 
 
 void AugmentRecordsWithTitleKeywords(
@@ -354,7 +362,8 @@ void AugmentRecordsWithTitleKeywords(
 
 		std::vector<std::string> stemmed_phrase_as_vector;
 		StringUtil::Split(stemmed_phrase, ' ', &stemmed_phrase_as_vector);
-		if (stemmed_phrase_as_vector.size() == 1 and stemmed_phrase_as_vector[0].length() < 10)
+		if (stemmed_phrase_as_vector.size() == 1
+		    and stemmed_phrase_as_vector[0].length() < MIN_SINGLE_STEMMED_KEYWORD_LENGTH)
 		    continue;
 
 		if (TextUtil::FindSubstring(title_words, stemmed_phrase_as_vector) != title_words.end()) {
