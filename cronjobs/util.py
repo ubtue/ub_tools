@@ -23,6 +23,7 @@ default_config_file_dir = "/var/lib/tuelib/cronjobs/"
 
 
 def SendEmail(subject, msg, sender=None, recipient=None):
+    subject += " (from: " + socket.gethostname() + ")"
     if sender is None:
         sender = default_email_sender
     if recipient is None:
@@ -54,7 +55,7 @@ def SendEmail(subject, msg, sender=None, recipient=None):
 
 def Error(msg):
     print(sys.argv[0] + ": " + msg, file=sys.stderr)
-    SendEmail("Script error (" + os.path.basename(sys.argv[0]) + " on " + socket.gethostname() + ")!", msg)
+    SendEmail("Script error (script: " + os.path.basename(sys.argv[0]) + ")!", msg)
     sys.exit(1)
 
 
