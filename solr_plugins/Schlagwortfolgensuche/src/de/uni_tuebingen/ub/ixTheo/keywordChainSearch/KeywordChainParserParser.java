@@ -16,7 +16,7 @@ public class KeywordChainParserParser extends QParser {
         super(searchString, localParams, params, request);
         try {
 	    final String queryString = "key_word_chain_bag:(" + searchString +")";
-            final QParser parser = getParser(queryString, "lucene", getReq());
+	    final QParser parser = getParser(queryString, "lucene", getReq());
 	    this.innerQuery = parser.parse();
         } catch (SyntaxError ex) {
             throw new RuntimeException("error parsing query", ex);
