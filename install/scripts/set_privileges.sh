@@ -57,15 +57,15 @@ chown -R "$OWNER" "/tmp/vufind_sessions/"
 mkdir --parents "/var/lib/tuelib/bibleRef"
 chown -R "$OWNER" "/var/lib/tuelib"
 
-if [[ -x "/usr/sbin/getentforce" && `/usr/sbin/getenforce` == "Enforcing" ]] ; then
+if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
 
-  if [[ -e "/usr/sbin/setsebool" ]]; then
+  if [[ $(which setsebool) ]]; then
 	  setsebool -P httpd_can_network_connect=1 \
                httpd_can_network_connect_db=1 \
                httpd_enable_cgi=1
   fi
 
-  if [[ -e "/usr/bin/chcon" ]]; then
+  if [[ $(which chcon) ]]; then
     chcon --recursive unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_HOME"
     chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind.conf"
     chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind-vhosts.conf"
