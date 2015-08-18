@@ -85,7 +85,7 @@ bool IsUnsignedInteger(const std::string &s) {
 }
 
 
-bool UTF8toWCharString(const std::string &utf8_string, std::basic_string<wchar_t> * wchar_string) {
+bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_string) {
     wchar_string->clear();
 
     const char *cp(utf8_string.c_str());
@@ -105,7 +105,7 @@ bool UTF8toWCharString(const std::string &utf8_string, std::basic_string<wchar_t
 }
 
 
-bool WCharToUTF8String(const std::basic_string<wchar_t> &wchar_string, std::string * utf8_string) {
+bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string) {
     utf8_string->clear();
 
     char buf[6];
@@ -122,12 +122,12 @@ bool WCharToUTF8String(const std::basic_string<wchar_t> &wchar_string, std::stri
 
 
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string) {
-    std::basic_string<wchar_t> wchar_string;
+    std::wstring wchar_string;
     if (not UTF8toWCharString(utf8_string, &wchar_string))
         return false;
 
     // Lowercase the wide character string:
-    std::basic_string<wchar_t> lowercase_wide_string;
+    std::wstring lowercase_wide_string;
     for (const auto wide_ch : wchar_string)
         lowercase_wide_string += std::towlower(static_cast<wint_t>(wide_ch));
 
@@ -138,16 +138,32 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 namespace {
 
 
+/** \return True if "number_candidate" is non-empty and consists only of characters belonging
+ *	    to the wide-character class "digit"
+ */
+bool IsNumber(const std::wstring &number_candidate) {
+    if (number_candidate.empty())
+	return false;
+
+    for (const wchar_t ch : number_candidate) {
+	if (not std::iswdigit(ch))
+	    return false;
+    }
+
+    return true;
+}
+
+
 template<typename ContainerType> bool ChopIntoWords(const std::string &text, ContainerType * const words,
 						    const unsigned min_word_length)
 {
     words->clear();
 
-    std::basic_string<wchar_t> wide_text;
+    std::wstring wide_text;
     if (unlikely(not UTF8toWCharString(text, &wide_text)))
         return false;
 
-    std::basic_string<wchar_t> word;
+    std::wstring word;
     std::string utf8_word;
     bool leading(true);
     for (const wchar_t ch : wide_text) {
@@ -156,6 +172,15 @@ template<typename ContainerType> bool ChopIntoWords(const std::string &text, Con
         else if (iswalnum(ch) or ch == L'-' or ch == L'\'') {
             word += ch;
             leading = false;
+	} else if (ch == L'.' and IsNumber(word)) {
+	    word += ch;
+	    if (word.length() >= min_word_length) {
+                if (unlikely(not WCharToUTF8String(word, &utf8_word)))
+                    return false;
+                words->insert(words->end(), utf8_word);	
+            }
+            word.clear();
+            leading = true;
         } else {
             // Remove trailing and leading hyphens and quotes:
             while (word.length() > 0 and (word[word.length() - 1] == L'-' or word[word.length() - 1] == L'\''))
