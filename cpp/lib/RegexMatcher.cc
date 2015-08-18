@@ -113,7 +113,8 @@ RegexMatcher::RegexMatcher(RegexMatcher &&that)
 bool RegexMatcher::matched(const std::string &s, std::string * const err_msg,
                            size_t * const start_pos, size_t * const end_pos) const
 {
-    err_msg->clear();
+    if (err_msg != nullptr)
+	err_msg->clear();
 
     const int substr_vector_size(60); // must be a multiple of 3
     int substr_vector[substr_vector_size];
