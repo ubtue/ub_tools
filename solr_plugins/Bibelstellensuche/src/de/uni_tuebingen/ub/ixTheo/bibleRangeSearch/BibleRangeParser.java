@@ -8,7 +8,7 @@ import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
 
 public class BibleRangeParser extends QParser {
-    private final static String QUERY_SEPARATOR = " ";
+    private final static String QUERY_SEPARATOR = ",";
     private final static String DB_FIELD_SEPARATOR = ",";
 
     private Query innerQuery;
@@ -41,7 +41,7 @@ public class BibleRangeParser extends QParser {
         if (queryString == null || queryString.length() < 2) {
             return "*";
         }
-	return "/.*" + queryString.substring(0, 2) + "[0-9]{5}.*/";
+        return "/.*" + queryString.substring(0, 2) + "[0-9]{5}.*/";
     }
 
     @Override

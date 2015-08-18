@@ -6,6 +6,7 @@ from __future__ import print_function
 from email.mime.text import MIMEText
 import ConfigParser
 import datetime
+import glob
 import os
 import process_util
 import smtplib
@@ -18,18 +19,17 @@ import time
 
 default_email_sender = "unset_email_sender@ub.uni-tuebingen.de"
 default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
-default_config_file_path = None
+default_config_file_dir = "/var/lib/tuelib/cronjobs/"
 
 
-def SendEmail(subject, msg, sender=None, recipient=None, config_file_path=None):
+def SendEmail(subject, msg, sender=None, recipient=None):
+    subject += " (from: " + socket.gethostname() + ")"
     if sender is None:
         sender = default_email_sender
     if recipient is None:
         recipient = default_email_recipient
-    if config_file_path is None:
-        config_file_path = default_config_file_path
-    config = LoadConfigFile(config_file_path)
     try:
+        config = LoadConfigFile(no_error=True)
         server_address  = config.get("SMTPServer", "server_address")
         server_user     = config.get("SMTPServer", "server_user")
         server_password = config.get("SMTPServer", "server_password")
@@ -55,7 +55,7 @@ def SendEmail(subject, msg, sender=None, recipient=None, config_file_path=None):
 
 def Error(msg):
     print(sys.argv[0] + ": " + msg, file=sys.stderr)
-    SendEmail("Script error (" + os.path.basename(sys.argv[0]) + " on " + socket.gethostname() + ")!", msg)
+    SendEmail("Script error (script: " + os.path.basename(sys.argv[0]) + ")!", msg)
     sys.exit(1)
 
 
@@ -78,11 +78,11 @@ def SafeSymlink(source, link_name):
             if os.path.islink(link_name):
                 os.unlink(link_name)
             else:
-                Error("in SafeSymlink: trying to create a symlink to \"" + link_name
+                Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
                       + "\" which is an existing non-symlink file!")
         os.symlink(source, link_name)
     except Exception as e:
-        Error("os.symlink() failed: " + str(e))
+        Error("in util.SafeSymlink: os.symlink() failed: " + str(e))
 
 
 # @return The absolute path of the file "link_name" points to.
@@ -139,17 +139,21 @@ def WriteTimestamp(prefix=None, timestamp=None):
         timestamp_file.write(struct.pack('d', timestamp))
 
 
-def LoadConfigFile(path=None):
-    if path is None: # Take script name w/ "py" extension replaced by "conf" and current working directory.
-        path = os.path.basename(sys.argv[0])[:-2] + "conf"
+def LoadConfigFile(path=None, no_error=False):
+    if path is None: # Take script name w/ "py" extension replaced by "conf".
+        path = default_config_file_dir + os.path.basename(sys.argv[0])[:-2] + "conf"
     try:
         if not os.access(path, os.R_OK):
-            Error("can't open \"" + path + "\" for reading!")
+            if no_error:
+                raise OSError("in util.LoadConfigFile: can't open \"" + path + "\" for reading!")
+            Error("in util.LoadConfigFile: can't open \"" + path + "\" for reading!")
         config = ConfigParser.ConfigParser()
         config.read(path)
         return config
     except Exception as e:
-        Error("failed to load the config file from \"" + path + "\"! (" + str(e) + ")")
+        if no_error:
+            raise e
+        Error("in util.LoadConfigFile: failed to load the config file from \"" + path + "\"! (" + str(e) + ")")
 
 
 # This function looks for symlinks named "XXX-current-YYY" where "YYY" may be the empty string.  If found,
@@ -163,7 +167,7 @@ def FoundNewBSZDataFile(link_filename):
     try:
         statinfo = os.stat(link_filename)
     except FileNotFoundError as e:
-        Error("Symlink \"" + link_filename + "\" is missing or dangling!")
+        Error("in util.FoundNewBSZDataFile: Symlink \"" + link_filename + "\" is missing or dangling!")
     new_timestamp = statinfo.st_ctime
     timestamp_filename = os.path.basename(sys.argv[0][:-2]) + "timestamp"
     if not os.path.exists(timestamp_filename):
@@ -175,7 +179,7 @@ def FoundNewBSZDataFile(link_filename):
             (old_timestamp, ) = struct.unpack('d', timestamp_file.read())
         if (old_timestamp < new_timestamp):
             with open(timestamp_filename, "wb") as timestamp_file:
-                timestamp_file.write(struct.pack('f', new_timestamp))
+                timestamp_file.write(struct.pack('d', new_timestamp))
             return True
         else:
             return False
@@ -205,7 +209,8 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
         elif member.endswith("c001.raw"):
             ExtractAndRenameMember(tar_file, member, name_prefix + "Normdaten-" + current_date_str + ".mrc")
         else:
-            Error("Unknown member \"" + member + "\" in archive \"" + gzipped_tar_archive + "\"!")
+            Error("in util.ExtractAndRenameBSZFiles: Unknown member \"" + member + "\" in archive \""
+                  + gzipped_tar_archive + "\"!")
     return [name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc",
             name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc",
             name_prefix + "Normdaten-" + current_date_str + ".mrc"]
@@ -229,3 +234,32 @@ def Which(executable_candidate):
                 return full_name
 
     return None
+
+
+# Strips the path and an optional extension from "reference_file_name" and appends ".log"
+# and prepends "log_directory".
+# @return The complete path for the log file name.
+def MakeLogFileName(reference_file_name, log_directory):
+    if not log_directory.endswith("/"):
+        log_directory += "/"
+    last_dot_pos = reference_file_name.rfind(".")
+    if last_dot_pos == -1:
+        log_file_name = log_directory + os.path.basename(reference_file_name) + ".log"
+    else:
+        log_file_name = log_directory + os.path.basename(reference_file_name[:last_dot_pos]) + "log"
+
+
+# @return the most recent file matching "file_name_glob" or None if there were no matching files.
+def getMostRecentFileMatchingGlob(file_name_glob):
+    most_recent_matching_name = None
+    most_recent_mtime = None
+    for name in glob.glob(file_name_glob):
+        if not most_recent_matching_name:
+            most_recent_matching_name = name
+        else:
+            stat_buf = os.stat(name)
+            if most_recent_mtime is None or stat_buf.st_mtime > most_recent_mtime:
+                most_recent_matching_name = name
+                most_recent_mtime = stat_buf.st_mtime
+
+    return most_recent_matching_name

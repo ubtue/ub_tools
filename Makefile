@@ -1,6 +1,22 @@
-PROGS=black_box_monitor.py  fetch_marc_updates.py  initiate_marc_pipeline.py
-LIBS=process_util.py util.py
+SUBDIRS = solr_plugins
 
+all: 
+	$(MAKE) -C cpp;
+	$(MAKE) -C solr_plugins;
+	$(MAKE) -C cronjobs
 
 install:
-	cp $(PROGS) $(LIBS) /usr/local/bin/
+	$(MAKE) -C cpp install;
+	$(MAKE) -C solr_plugins install;
+	$(MAKE) -C cronjobs install
+
+root_install:
+	$(MAKE) -C cpp root_install;
+	$(MAKE) -C cpp cgi_install;
+	$(MAKE) -C solr_plugins install;
+	$(MAKE) -C cronjobs install
+
+clean: 
+	$(MAKE) -C cpp clean;
+	$(MAKE) -C cronjobs clean;
+	$(MAKE) -C solr_plugins clean;

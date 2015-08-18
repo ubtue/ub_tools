@@ -25,7 +25,7 @@ void *Consumer(void *shared_data) {
         std::cout << u << '\n';
     }
 
-    return NULL;
+    return nullptr;
 }
 
 

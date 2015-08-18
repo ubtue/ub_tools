@@ -31,14 +31,14 @@
 
 
 TimeLimit::TimeLimit(const unsigned time_limit) {
-    ::gettimeofday(&expire_time_, NULL);
+    ::gettimeofday(&expire_time_, nullptr);
     expire_time_ += time_limit;
 }
 
 
 unsigned TimeLimit::getRemainingTime() const {
     timeval now;
-    ::gettimeofday(&now, NULL);
+    ::gettimeofday(&now, nullptr);
 
     timeval diff_time;
     timersub(&expire_time_, &now, &diff_time);
@@ -51,7 +51,7 @@ unsigned TimeLimit::getRemainingTime() const {
 
 bool TimeLimit::limitExceeded() const {
     timeval now;
-    ::gettimeofday(&now, NULL);
+    ::gettimeofday(&now, nullptr);
 
     timeval diff_time;
     timersub(&expire_time_, &now, &diff_time);

@@ -92,6 +92,16 @@ std::string ExtractFirstSubfield(const std::string &tag, const char subfield_cod
 				 const std::vector<DirectoryEntry> &dir_entries,
 				 const std::vector<std::string> &field_data);
 
+/** \brief Extract values from all subfields from a list of fields.
+ *  \param tags    A colon-separated list of field tags.
+ *  \param values  Here the exracted subfield values will be returned.
+ *  \param ignore_subfield_codes  Subfields whose codes are listed here will not be extracted.
+ *  \return The number of values that have been extracted.
+ */
+size_t ExtractAllSubfields(const std::string &tags, const std::vector<DirectoryEntry> &dir_entries,
+			   const std::vector<std::string> &field_data, std::vector<std::string> * const values,
+			   const std::string &ignore_subfield_codes = "");
+
 
 } // namespace MarcUtil
 

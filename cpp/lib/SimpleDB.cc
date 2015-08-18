@@ -40,7 +40,7 @@ SimpleDB::Cursor::Cursor(SimpleDB * const simple_db, const std::string &initial_
         : cursor_(::tcbdbcurnew(simple_db->db_)), db_name_(simple_db->getFileName())
 {
         // Sanity check:
-        if (unlikely(cursor_ == NULL)) {
+        if (unlikely(cursor_ == nullptr)) {
                 const std::string error(::tcbdberrmsg(::tcbdbecode(simple_db->db_)));
                 throw std::runtime_error("in SimpleDB::Cursor::Cursor: tcbdbcurnew() failed (" + error + ")!");
         }
@@ -55,7 +55,7 @@ SimpleDB::Cursor::Cursor(SimpleDB * const simple_db, const std::string &initial_
 
 SimpleDB::Cursor::~Cursor()
 {
-        if (cursor_ != NULL)
+        if (cursor_ != nullptr)
                 ::tcbdbcurdel(cursor_);
 }
 
@@ -83,7 +83,7 @@ bool SimpleDB::Cursor::getCurrentKey(std::string * const current_key) const
 
         int size;
         char * const key(reinterpret_cast<char *>(::tcbdbcurkey(cursor_, &size)));
-        if (unlikely(key == NULL))
+        if (unlikely(key == nullptr))
                 throw std::runtime_error("in SimpleDB::Cursor::getCurrentKey: tcbdbcurkey() failed!");
 
         *current_key = std::string(key, size);
@@ -99,11 +99,11 @@ bool SimpleDB::Cursor::getKeyAndData(void ** const new_key, unsigned *new_key_si
                 return false;
 
         *new_key = ::tcbdbcurkey(cursor_, reinterpret_cast<int * const>(new_key_size));
-        if (unlikely(*new_key == NULL))
+        if (unlikely(*new_key == nullptr))
                 throw std::runtime_error("in SimpleDB::Cursor::getKeyAndData: tcbdbcurkey() failed!");
 
         *new_data = ::tcbdbcurval(cursor_, reinterpret_cast<int * const>(new_data_size));
-        if (unlikely(*new_data == NULL))
+        if (unlikely(*new_data == nullptr))
                 throw std::runtime_error("in SimpleDB::Cursor::getKeyAndData: tcbdbcurval() failed!");
 
         return true;
@@ -119,7 +119,7 @@ SimpleDB::Data::~Data()
 void SimpleDB::Data::clear()
 {
         std::free(data_);
-        data_ = NULL;
+        data_ = nullptr;
         size_ = 0;
 }
 
@@ -148,10 +148,10 @@ SimpleDB::SimpleDB(const std::string &db_name, const OpenMode open_mode, int mod
 void SimpleDB::init(const OpenMode open_mode, const int mode)
 {
         last_error_ = TCESUCCESS;
-        last_data_  = NULL;
+        last_data_  = nullptr;
 
         db_ = ::tcbdbnew();
-        if (unlikely(db_ == NULL))
+        if (unlikely(db_ == nullptr))
                 throw std::runtime_error("in SimpleDB::init: call to tcbdbnew() failed!");
 
         if (unlikely(not ::tcbdbsetmutex(db_))) {
@@ -209,15 +209,15 @@ void SimpleDB::clear()
 
 void SimpleDB::close()
 {
-        if (db_ != NULL) {
-                if (last_data_ != NULL) {
+        if (db_ != nullptr) {
+                if (last_data_ != nullptr) {
                         std::free(last_data_);
-                        last_data_ = NULL;
+                        last_data_ = nullptr;
                 }
 
                 ::tcbdbclose(db_);
                 ::tcbdbdel(db_);
-                db_ = NULL;
+                db_ = nullptr;
 
                 --open_count_;
         }
@@ -240,7 +240,7 @@ void SimpleDB::throwError(const char * const function_name, const char * const m
         err_msg += ": database \"";
         err_msg += db_name_;
         err_msg += "\": ";
-        if (msg != NULL) {
+        if (msg != nullptr) {
                 err_msg += ' ';
                 err_msg += msg;
         }
@@ -264,20 +264,20 @@ void SimpleDB::putData(const void * const key, const size_t key_size, const void
 
 void *SimpleDB::getData(const void * const key, const size_t key_size, size_t * const data_size) const
 {
-        if (last_data_ != NULL) {
+        if (last_data_ != nullptr) {
                 ::free(last_data_);
-                last_data_ = NULL;
+                last_data_ = nullptr;
         }
 
         int size;
         last_data_ = ::tcbdbget(db_, key, key_size, &size);
-        if (last_data_ == NULL) {
-                if (data_size != NULL)
+        if (last_data_ == nullptr) {
+                if (data_size != nullptr)
                         *data_size = 0;
-                return NULL;
+                return nullptr;
         }
 
-        if (data_size != NULL)
+        if (data_size != nullptr)
                 *data_size = size;
 
         return last_data_;

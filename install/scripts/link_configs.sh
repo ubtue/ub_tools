@@ -1,9 +1,8 @@
-#!/bin/bash
+#! /bin/bash
 #
 # $VUFIND_HOME and $VUFIND_LOCAL_DIR have to be set!
 #
-# Substitutes placeholders of templates/httpd-vufind.conf
-# and copies the file to the right location.
+# Links some configs.
 #
 set -o errexit -o nounset
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
@@ -14,14 +13,13 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-
 show_help() {
-  cat << EOF
-Substitutes placeholders of templates/httpd-vufind.conf and copies the file to the right location.
+    cat << EOF
+Links some configs.
 
-USAGE: ${0##*/} CLONE_PATH
+USAGE: ${0##*/} CONFIGS_DIRECTORY
 
-CLONE_PATH     The path to the vufind clone
+CONFIGS_DIRECTORY    The directory, which holds the configs.
 
 EOF
 }
@@ -33,6 +31,6 @@ if [ "$#" -ne 1 ]; then
   exit 1
 fi
 
-LOCAL_COPY_DIRECTORY="$1"
-
-ln --force --symbolic --no-target-directory "$LOCAL_COPY_DIRECTORY" "$VUFIND_HOME"
+CONFIGS_DIRECTORY=$1
+echo "ln --symbolic --force --no-target-directory" "$CONFIGS_DIRECTORY/cronjobs" "/var/lib/tuelib/cronjobs"
+ln --symbolic --force --no-target-directory "$CONFIGS_DIRECTORY/cronjobs" "/var/lib/tuelib/cronjobs"

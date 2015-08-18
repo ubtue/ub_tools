@@ -33,7 +33,7 @@ const std::string DB_PATH("/var/lib/tuelib/full_text.db");
 bool GetIdFromCGI(std::string * const id) {
     const char * const query = ::getenv("QUERY_STRING");
     const size_t ID_OFFSET(3);
-    if (query == NULL or std::strlen(query) < (ID_OFFSET + 1))
+    if (query == nullptr or std::strlen(query) < (ID_OFFSET + 1))
         return false;
 
     *id = query + ID_OFFSET;

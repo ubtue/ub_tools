@@ -1,4 +1,5 @@
 #include "TextUtil.h"
+#include <algorithm>
 #include <exception>
 #include <cwctype>
 #include "Compiler.h"
@@ -46,11 +47,11 @@ bool IsRomanNumeral(const std::string &s) {
         return false;
 
     std::string err_msg;
-    static RegexMatcher *matcher(NULL);
-    if (unlikely(matcher == NULL)) {
+    static RegexMatcher *matcher(nullptr);
+    if (unlikely(matcher == nullptr)) {
         const std::string pattern("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
         matcher = RegexMatcher::RegexMatcherFactory(pattern, &err_msg);
-        if (unlikely(matcher == NULL))
+        if (unlikely(matcher == nullptr))
             throw std::runtime_error("Failed to construct a RegexMatcher for \"" + pattern
                                      + "\" in TextUtil::IsRomanNumeral: " + err_msg);
     }
@@ -66,11 +67,11 @@ bool IsRomanNumeral(const std::string &s) {
 
 bool IsUnsignedInteger(const std::string &s) {
     std::string err_msg;
-    static RegexMatcher *matcher(NULL);
-    if (unlikely(matcher == NULL)) {
+    static RegexMatcher *matcher(nullptr);
+    if (unlikely(matcher == nullptr)) {
         const std::string pattern("^[0-9]+$");
         matcher = RegexMatcher::RegexMatcherFactory(pattern, &err_msg);
-        if (unlikely(matcher == NULL))
+        if (unlikely(matcher == nullptr))
             throw std::runtime_error("Failed to construct a RegexMatcher for \"" + pattern
                                      + "\" in TextUtil::IsUnsignedInteger: " + err_msg);
     }
@@ -134,8 +135,11 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 }
 
 
-bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * const words,
-                   const unsigned min_word_length)
+namespace {
+
+
+template<typename ContainerType> bool ChopIntoWords(const std::string &text, ContainerType * const words,
+						    const unsigned min_word_length)
 {
     words->clear();
 
@@ -159,7 +163,7 @@ bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * co
             if (word.length() >= min_word_length) {
                 if (unlikely(not WCharToUTF8String(word, &utf8_word)))
                     return false;
-                words->insert(utf8_word);
+                words->insert(words->end(), utf8_word);
             }
             word.clear();
             leading = true;
@@ -172,10 +176,60 @@ bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * co
     if (word.length() >= min_word_length) {
         if (unlikely(not WCharToUTF8String(word, &utf8_word)))
             return false;
-        words->insert(utf8_word);
+        words->insert(words->end(), utf8_word);
     }
 
     return true;
+}
+
+
+} // unnamed namespace
+
+
+bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * const words,
+                   const unsigned min_word_length)
+{
+    return ChopIntoWords<std::unordered_set<std::string>> (text, words, min_word_length);
+}
+
+
+bool ChopIntoWords(const std::string &text, std::vector<std::string> * const words,
+                   const unsigned min_word_length)
+{
+    return ChopIntoWords<std::vector<std::string>> (text, words, min_word_length);
+}
+    
+
+std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack,
+						       const std::vector<std::string> &needle)
+{
+    if (needle.empty())
+	return haystack.cbegin();
+
+    std::vector<std::string>::const_iterator search_start(haystack.cbegin());
+    while (search_start != haystack.cend()) {
+	const std::vector<std::string>::const_iterator haystack_start(
+            std::find(search_start, haystack.cend(), needle[0]));
+	if ((haystack.cend() - haystack_start) < static_cast<ssize_t>(needle.size()))
+	    return haystack.cend();
+
+	std::vector<std::string>::const_iterator needle_word(needle.cbegin());
+	std::vector<std::string>::const_iterator haystack_word(haystack_start);
+	for (;;) {
+	    ++needle_word;
+	    if (needle_word == needle.cend())
+		return haystack_start;
+	    ++haystack_word;
+	    if (haystack_word == haystack.cend())
+		return haystack.cend();
+	    else if (*haystack_word != *needle_word) {
+		search_start = haystack_start + 1;
+		break;
+	    }
+	}
+    }
+
+    return haystack.cend();
 }
     
 

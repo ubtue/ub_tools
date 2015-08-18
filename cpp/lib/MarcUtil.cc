@@ -303,4 +303,28 @@ std::string ExtractFirstSubfield(const std::string &tag, const char subfield_cod
 }
     
 
+size_t ExtractAllSubfields(const std::string &tags, const std::vector<DirectoryEntry> &dir_entries,
+			   const std::vector<std::string> &field_data, std::vector<std::string> * const values,
+			   const std::string &ignore_subfield_codes)
+{
+    values->clear();
+
+    std::vector<std::string> fields;
+    StringUtil::Split(tags, ':', &fields);
+    for (const auto &field : fields) {
+	const ssize_t field_index(MarcUtil::GetFieldIndex(dir_entries, field));
+	if (field_index == -1)
+	    continue;
+
+	const Subfields subfields(field_data[field_index]);
+	for (const auto &subfield_code_and_value : subfields.getAllSubfields()) {
+	    if (ignore_subfield_codes.find(subfield_code_and_value.first) == std::string::npos)
+		values->emplace_back(subfield_code_and_value.second);
+	}
+    }
+
+    return values->size();
+}
+
+
 } // namespace MarcUtil

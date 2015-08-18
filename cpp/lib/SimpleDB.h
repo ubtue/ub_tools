@@ -50,7 +50,7 @@ class SimpleDB {
                 std::string db_name_; // Used for error messages.
                 bool at_end_;
         public:
-                Cursor(): cursor_(NULL), at_end_(true) { }
+                Cursor(): cursor_(nullptr), at_end_(true) { }
 
                 /** \brief  Initializes a new Cursor object.
                  *  \param  simple_db    The database for which we'd like to create a cursor.
@@ -71,7 +71,7 @@ public:
                 void *data_;
                 unsigned size_;
         public:
-                Data(): data_(NULL), size_(0) { }
+                Data(): data_(nullptr), size_(0) { }
                 Data(void * const data, const unsigned size): data_(data), size_(size) { }
                 ~Data(); // Calls std::free(3) on _data
                 void clear();
@@ -100,7 +100,7 @@ public:
                 mutable Cursor *cursor_;
                 KeyDataPair key_data_pair_;
         public:
-                const_iterator(const const_iterator &rhs): cursor_(rhs.cursor_) { rhs.cursor_ = NULL; }
+                const_iterator(const const_iterator &rhs): cursor_(rhs.cursor_) { rhs.cursor_ = nullptr; }
                 ~const_iterator() { delete cursor_; }
                 const const_iterator &operator++();
 
@@ -164,16 +164,16 @@ public:
         /** \brief    Retrieve all or part of a record from a Berkeley DB table
          *  \param    key        The key of the item to retrieve.
          *  \param    key_size   The size (in bytes) of the key.
-         *  \param    data_size  If non-NULL, the returned data size will be stored here.
+         *  \param    data_size  If non-nullptr, the returned data size will be stored here.
          *  \return   A pointer to the returned data.  Do not free(3) or delete[] this!
          *  \warning  Caution: you must *not* "free" or "delete" the returned memory when you are done with it!
          */
-        void *getData(const void * const key, const size_t key_size, size_t * const data_size = NULL) const;
+        void *getData(const void * const key, const size_t key_size, size_t * const data_size = nullptr) const;
 
-        void *getData(const std::string &key, size_t * const data_size = NULL) const { return getData(key.c_str(), key.length(), data_size); }
+        void *getData(const std::string &key, size_t * const data_size = nullptr) const { return getData(key.c_str(), key.length(), data_size); }
 
         /** Makes no assumptions about "key" being zero-terminated. */
-        void *binaryGetData(const std::string &key, size_t * const data_size = NULL) const { return getData(key.c_str(), key.length(), data_size); }
+        void *binaryGetData(const std::string &key, size_t * const data_size = nullptr) const { return getData(key.c_str(), key.length(), data_size); }
 
         /** \brief  Delete a record from a Berkeley DB table
          *  \param  key       The key of the item to be deleted.
@@ -203,7 +203,7 @@ public:
 
         static unsigned GetOpenCount() { return open_count_; }
 private:
-        void throwError(const char * const function_name, const char * const msg = NULL) const;
+        void throwError(const char * const function_name, const char * const msg = nullptr) const;
         SimpleDB(const SimpleDB &rhs);                  // Intentionally unimplemented!
         const SimpleDB &operator=(const SimpleDB &rhs); // Intentionally unimplemented!
         void init(const OpenMode open_mode, int mode);

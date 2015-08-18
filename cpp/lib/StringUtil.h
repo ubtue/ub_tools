@@ -1039,7 +1039,7 @@ template<typename InsertableContainer> inline unsigned SplitThenTrim(const std::
                 std::string::const_iterator word_start(ch);
 
                 // Look for valid chars that may make up a word:
-                while (ch != s.end() and std::strchr(field_separators.c_str(), *ch) == NULL)
+                while (ch != s.end() and std::strchr(field_separators.c_str(), *ch) == nullptr)
                         ++ch;
 
                 // Extract the word:
@@ -1052,7 +1052,7 @@ template<typename InsertableContainer> inline unsigned SplitThenTrim(const std::
                 }
 
                 // Skip over separators:
-                if (ch != s.end() and std::strchr(field_separators.c_str(), *ch) != NULL)
+                if (ch != s.end() and std::strchr(field_separators.c_str(), *ch) != nullptr)
                         ++ch;
         }
 
@@ -1714,8 +1714,8 @@ inline bool Match(const std::string &pattern, const std::string &s, bool ignore_
  */
 inline char *strnewdup(const char * const s)
 {
-        if (s == NULL)
-                return NULL;
+        if (s == nullptr)
+                return nullptr;
 
         size_t len = std::strlen(s);
         char *new_s = new char[len+1];
@@ -2188,10 +2188,10 @@ inline size_t CharCount(const std::string &s, const char count_char)
 
 
 /** Safely converts a C-style string to an std::string taking into account the possibility that the C-style string may
-    be NULL. */
+    be nullptr. */
 inline std::string CStringToNonNullString(const char * const c_string)
 {
-        if (c_string == NULL)
+        if (c_string == nullptr)
                 return "";
         else
                 return c_string;
@@ -2293,7 +2293,7 @@ std::string CStyleUnescape(const std::string &escaped_text);
 
 inline bool IsLatin9Whitespace(const char ch)
 {
-        return std::strchr(WHITE_SPACE.c_str(), ch) != NULL;
+        return std::strchr(WHITE_SPACE.c_str(), ch) != nullptr;
 }
 
 

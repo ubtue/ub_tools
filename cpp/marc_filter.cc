@@ -29,37 +29,37 @@ const struct option longopts[] = {
     {
         .name    = "dump",
         .has_arg = no_argument,
-        .flag    = NULL,
+        .flag    = nullptr,
         .val     = 'd'
     },
     {
         .name    = "filter",
         .has_arg = no_argument,
-        .flag    = NULL,
+        .flag    = nullptr,
         .val     = 'f'
     },
     {
         .name    = "dump-edit-format",
         .has_arg = no_argument,
-        .flag    = NULL,
+        .flag    = nullptr,
         .val     = 'E'
     },
     {
         .name    = "delete-if-not-matched",
         .has_arg = no_argument,
-        .flag    = NULL,
+        .flag    = nullptr,
         .val     = 'D'
     },
     {
         .name    = "verbose",
         .has_arg = no_argument,
-        .flag    = NULL,
+        .flag    = nullptr,
         .val     = 'v'
     },
     {
-        .name    = NULL,
+        .name    = nullptr,
         .has_arg = 0,
-        .flag    = NULL,
+        .flag    = nullptr,
         .val     = '\0'
     },
 };
@@ -71,7 +71,7 @@ void Dump(const std::string &input_filename, const std::string &output_filename)
         Error("can't open \"" + output_filename + "\" for writing!");
 
     FILE *input = std::fopen(input_filename.c_str(), "rb");
-    if (input == NULL)
+    if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
     Leader *raw_leader;
@@ -150,7 +150,7 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
         const std::string regex_string(pattern.substr(first_colon_pos + 1));
 
         RegexMatcher *new_matcher = RegexMatcher::RegexMatcherFactory(regex_string, err_msg);
-        if (new_matcher == NULL) {
+        if (new_matcher == nullptr) {
             *err_msg = "failed to compile regular expression: \"" + regex_string + "\"! (" + *err_msg +")";
             return false;
         }
@@ -166,11 +166,11 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
 void Filter(const std::string &input_filename, const std::string &output_filename,
             std::vector<std::string> &patterns, const bool verbose) {
     FILE *input = std::fopen(input_filename.c_str(), "rb");
-    if (input == NULL)
+    if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
     FILE *output = std::fopen(output_filename.c_str(), "wb");
-    if (output == NULL)
+    if (output == nullptr)
         Error("can't open \"" + output_filename + "\" for writing!");
 
     std::vector<CompiledPattern> compiled_patterns;
@@ -222,7 +222,7 @@ void DumpEditFormat(const std::string &input_filename, const std::string &output
         Error("can't open \"" + output_filename + "\" for writing!");
 
     FILE *input = std::fopen(input_filename.c_str(), "rb");
-    if (input == NULL)
+    if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
     Leader *raw_leader;
@@ -305,11 +305,11 @@ void DeleteMatched(const std::string &input_filename, const std::string &output_
                    const std::string &tags_list, const std::vector<std::string> &patterns, const bool invert)
 {
     FILE *input = std::fopen(input_filename.c_str(), "rb");
-    if (input == NULL)
+    if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
     FILE *output = std::fopen(output_filename.c_str(), "wb");
-    if (output == NULL)
+    if (output == nullptr)
         Error("can't open \"" + output_filename + "\" for writing!");
 
     std::vector<CompiledPattern> compiled_patterns;

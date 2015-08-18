@@ -57,12 +57,16 @@ export VUFIND_HOME="/usr/local/vufind2"
 export VUFIND_LOCAL_DIR="$VUFIND_HOME/local"
 
 NAME=""
-CLONE_DIRECTORY=""
-REPOSITORY=""
+VUFIND_CLONE_DIRECTORY=""
+VUFIND_REPOSITORY=""
+UB_TOOLS_CLONE_DIRECTORY=""
+UB_TOOLS_REPOSITORY=""
 SERVER_URL=""
 SERVER_IP=""
 EMAIL=""
 MODULES=""
+CONFIGS_ORIGIN_DIRECTORY=""
+CONFIGS_DIRECTORY=""
 SSL_CERT=""
 SSL_KEY=""
 SSL_CHAIN_FILE=""
@@ -70,6 +74,7 @@ FORCE_SSL=false
 HTPASSWD=""
 USER_NAME="vufind"
 USER_GROUP="vufind"
+CRONJOBS=""
 
 source "$CONFIG_FILE"
 
@@ -86,8 +91,6 @@ read -s -p "Enter Password: " VUFIND_PASSWORD
 echo ""
 
 ##############################################################################
-# Write configurations
-##############################################################################
 
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
@@ -97,23 +100,7 @@ fi
 "$SCRIPT_DIR/create_user.sh" "$USER_NAME" "$USER_GROUP"
 
 ##############################################################################
-
-if [ -x "/bin/systemctl" ] ; then
-  if [[ "$VERBOSE" == true ]] ; then
-    echo ""
-    echo ""
-    echo "create_systemd_conf.sh"
-  fi
-  "$SCRIPT_DIR/create_systemd_conf.sh"
-else
-  if [[ "$VERBOSE" == true ]] ; then
-    echo ""
-    echo ""
-    echo "create_upstart_conf.sh"
-  fi
-  "$SCRIPT_DIR/create_upstart_conf.sh"
-fi
-
+# Setup mysql database
 ##############################################################################
 
 if [[ "$VERBOSE" == true ]] ; then
@@ -124,31 +111,50 @@ fi
 "$SCRIPT_DIR/create_mysql.sh" "$ROOT_PASSWORD" "$VUFIND_PASSWORD"
 
 ##############################################################################
+# Clone repositories
+##############################################################################
 
-if [[ -e "$CLONE_DIRECTORY" ]] ; then
+if [[ -e "$VUFIND_CLONE_DIRECTORY" ]] ; then
   if [[ "$VERBOSE" == true ]] ; then
-  	echo ""
-  	echo ""
-  	echo "Didn't clone git repository. Directory exists"
+    echo ""
+    echo ""
+    echo "Didn't clone $VUFIND_REPOSITORY repository. Directory exists"
   fi
 else
   if [[ "$VERBOSE" == true ]] ; then
     echo ""
     echo ""
-    echo "clone_git.sh $REPOSITORY $CLONE_DIRECTORY"
+    echo "clone_git.sh $VUFIND_REPOSITORY $VUFIND_CLONE_DIRECTORY"
   fi
-  "$SCRIPT_DIR/clone_git.sh" "$REPOSITORY" "$CLONE_DIRECTORY"
+  "$SCRIPT_DIR/clone_git.sh" "$VUFIND_REPOSITORY" "$VUFIND_CLONE_DIRECTORY"
 fi
 
 ##############################################################################
 
-if [[ "$VUFIND_HOME" != "$CLONE_DIRECTORY" ]] ; then
+if [[ -e "$UB_TOOLS_CLONE_DIRECTORY" ]] ; then
   if [[ "$VERBOSE" == true ]] ; then
     echo ""
     echo ""
-    echo "link_copy_to_vufind_home.sh $CLONE_DIRECTORY"
+    echo "Didn't clone $UB_TOOLS_REPOSITORY repository. Directory exists"
   fi
-  "$SCRIPT_DIR/link_copy_to_vufind_home.sh" "$CLONE_DIRECTORY"
+else
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "clone_git.sh $UB_TOOLS_REPOSITORY $UB_TOOLS_CLONE_DIRECTORY"
+  fi
+  "$SCRIPT_DIR/clone_git.sh" "$UB_TOOLS_REPOSITORY" "$UB_TOOLS_CLONE_DIRECTORY"
+fi
+
+##############################################################################
+
+if [[ "$VUFIND_HOME" != "$VUFIND_CLONE_DIRECTORY" ]] ; then
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "link_clones.sh $VUFIND_CLONE_DIRECTORY $UB_TOOLS_CLONE_DIRECTORY"
+  fi
+  "$SCRIPT_DIR/link_clones.sh" "$VUFIND_CLONE_DIRECTORY" "$UB_TOOLS_CLONE_DIRECTORY"
 else
   if [[ "$VERBOSE" == true ]] ; then
     echo ""
@@ -156,15 +162,9 @@ else
     echo "No symbolic linking of copy directory to '$VUFIND_HOME'! This is a single copy installation. If you want multible copies, DO NOT use '$VUFIND_HOME' as cloning directory."
   fi
 fi
+
 ##############################################################################
-
-if [[ "$VERBOSE" == true ]] ; then
-  echo ""
-  echo ""
-  echo "link_python2.sh"
-fi
-"$SCRIPT_DIR/link_python2.sh"
-
+# Write configurations
 ##############################################################################
 
 if [[ "$VERBOSE" == true ]] ; then
@@ -197,44 +197,28 @@ fi
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
-  echo "link_httpd_config.sh"
-fi
-"$SCRIPT_DIR/link_httpd_config.sh"
-
-##############################################################################
-
-if [[ "$VERBOSE" == true ]] ; then
-  echo ""
-  echo ""
   echo "create_private_server_config.sh $SERVER_URL $SERVER_IP $EMAIL PASSWORD"
 fi
 "$SCRIPT_DIR/create_private_server_config.sh" "$SERVER_IP" "$SERVER_URL" "$EMAIL" "$VUFIND_PASSWORD"
 
 ##############################################################################
 
-if [[ "$VUFIND_HOME" != "$CLONE_DIRECTORY" ]] ; then
-  if [[ "$VERBOSE" == true ]] ; then
-    echo ""
-    echo ""
-    echo "create_start_script.sh $CLONE_DIRECTORY"
-  fi
-  "$SCRIPT_DIR/create_start_script.sh" "$CLONE_DIRECTORY"
-else
-  if [[ "$VERBOSE" == true ]] ; then
-    echo ""
-    echo ""
-    echo "No start script! This is a single copy installation. If you want multiple copies, DO NOT use '$VUFIND_HOME' as cloning directory."
-  fi 
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "create_cronjobs.sh $CRONJOBS"
 fi
+"$SCRIPT_DIR/create_cronjobs.sh" "$CRONJOBS"
 
 ##############################################################################
 
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
-  echo "set_privileges.sh $CLONE_DIRECTORY"
+  echo "create_cronjobs_conf_files.sh $"
 fi
-"$SCRIPT_DIR/set_privileges.sh" "$CLONE_DIRECTORY" "$USER_NAME" "$USER_GROUP"
+"$SCRIPT_DIR/create_cronjobs_conf_files.sh" "$CONFIGS_ORIGIN_DIRECTORY" "$CONFIGS_DIRECTORY"
+
 
 ##############################################################################
 
@@ -248,7 +232,95 @@ if [[ "$HTPASSWD" ]] ; then
 fi
 
 ##############################################################################
+# Set Privileges
+##############################################################################
+
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "set_privileges.sh $VUFIND_CLONE_DIRECTORY $USER_NAME $USER_GROUP"
+fi
+"$SCRIPT_DIR/set_privileges.sh" "$VUFIND_CLONE_DIRECTORY" "$USER_NAME" "$USER_GROUP"
+
+##############################################################################
+# Linking
+##############################################################################
+
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "link_httpd_config.sh"
+fi
+"$SCRIPT_DIR/link_httpd_config.sh"
+
+##############################################################################
+
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "link_configs.sh $CONFIGS_DIRECTORY"
+fi
+"$SCRIPT_DIR/link_configs.sh" "$CONFIGS_DIRECTORY"
+
+##############################################################################
+
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "link_python2.sh"
+fi
+"$SCRIPT_DIR/link_python2.sh"
+
+##############################################################################
+# Linking
+##############################################################################
+
+if [[ "$VUFIND_HOME" != "$VUFIND_CLONE_DIRECTORY" ]] ; then
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "create_start_script.sh $VUFIND_CLONE_DIRECTORY"
+  fi
+  "$SCRIPT_DIR/create_start_script.sh" "$VUFIND_CLONE_DIRECTORY"
+else
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "No start script! This is a single copy installation. If you want multiple copies, DO NOT use '$VUFIND_HOME' as cloning directory."
+  fi 
+fi
+
+##############################################################################
+# Compile
+##############################################################################
+
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "make_install_ub_tools.sh"
+fi
+"$SCRIPT_DIR/make_install_ub_tools.sh"
+
+##############################################################################
 # start server
+##############################################################################
+
+if [ -x "/bin/systemctl" ] ; then
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "create_systemd_conf.sh"
+  fi
+  "$SCRIPT_DIR/create_systemd_conf.sh"
+else
+  if [[ "$VERBOSE" == true ]] ; then
+    echo ""
+    echo ""
+    echo "create_upstart_conf.sh"
+  fi
+  "$SCRIPT_DIR/create_upstart_conf.sh"
+fi
+
 ##############################################################################
 
 if [ -x "/bin/systemctl" ] ; then
@@ -259,7 +331,7 @@ if [ -x "/bin/systemctl" ] ; then
   fi
   systemctl restart httpd.service
   systemctl restart mariadb.service
-  systemctl start vufind.service
+  systemctl restart vufind.service
 else
   if [[ "$VERBOSE" == true ]] ; then
     echo ""
@@ -269,7 +341,7 @@ else
 
   service apache2 restart
   service mysql restart
-  service vufind start
+  service vufind restart
 fi
 
 

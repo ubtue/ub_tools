@@ -41,12 +41,12 @@ MODULES="$1"
 FORCE_SSL="$2"
 
 TPL_CONTENT="$(cat $TPL)"
-PLACE="$(echo "$TPL_CONTENT" | awk 'match($0, /{{{if forcessl [A-Za-z0-9\.\-]*}}}/) { print $0 }')"
+PLACE="$(echo "$TPL_CONTENT" | mawk 'match($0, /{{{if forcessl [A-Za-z0-9\.\-]*}}}/) { print $0 }')"
 
 if [[ "$PLACE" ]] && [[ "$FORCE_SSL" = true ]]; then
   INC_TPL="$TEMPLATE_DIR/$(echo $PLACE | sed 's/{{{if forcessl \([A-Za-z0-9\.\-]*\)}}}/\1/g')"
   INC_TPL_CONTENT="$(cat $INC_TPL)"
-  TPL_CONTENT="$(echo "$TPL_CONTENT" | awk -v r="$INC_TPL_CONTENT" "{gsub(/$PLACE/,r)}1")"
+  TPL_CONTENT="$(echo "$TPL_CONTENT" | mawk -v r="$INC_TPL_CONTENT" "{gsub(/$PLACE/,r)}1")"
 elif [[ "$PLACE" ]] ; then
   TPL_CONTENT="$(echo "$TPL_CONTENT" | sed "s|$PLACE| |g")"
 fi

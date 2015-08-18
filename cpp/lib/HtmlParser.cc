@@ -163,9 +163,9 @@ bool DecodeEntity(const char *entity_string, char * const ch) {
 
         // Hexdecimal version?
         if (entity_string[1] == 'x') // Yes!
-            code = std::strtoul(entity_string + 2, NULL, 16);
+            code = std::strtoul(entity_string + 2, nullptr, 16);
         else // We are dealing with the decimal version.
-            code = std::strtoul(entity_string + 1, NULL, 10);
+            code = std::strtoul(entity_string + 1, nullptr, 10);
 
         if (errno != 0 or code > 255)
             return false;
@@ -232,7 +232,7 @@ std::string HtmlParser::Chunk::toString() const
     switch (type_) {
     case OPENING_TAG:
     case MALFORMED_TAG:
-        return "<" + text_ + (attribute_map_ == NULL ? "" : attribute_map_->toString()) + ">";
+        return "<" + text_ + (attribute_map_ == nullptr ? "" : attribute_map_->toString()) + ">";
     case CLOSING_TAG:
     case UNEXPECTED_CLOSING_TAG:
         return "</" + text_ + ">";
@@ -367,7 +367,7 @@ void HtmlParser::replaceEntitiesInString()
 
 int HtmlParser::getChar(bool * const is_entity)
 {
-    if (unlikely(is_entity != NULL))
+    if (unlikely(is_entity != nullptr))
         *is_entity = false;
 
     char c = *cp_;
@@ -378,7 +378,7 @@ int HtmlParser::getChar(bool * const is_entity)
     if (unlikely(c == '\n'))
         ++lineno_;
     else if (c == '<' or c == '>') {
-        if (unlikely(is_entity != NULL))
+        if (unlikely(is_entity != nullptr))
             *is_entity = angle_bracket_entity_positions_.find(const_cast<char *>(cp_))
                 != angle_bracket_entity_positions_.end();
     }

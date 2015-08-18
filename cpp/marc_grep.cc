@@ -351,7 +351,7 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
                const OutputLabel output_format)
 {
     FILE *input = std::fopen(input_filename.c_str(), "rbm");
-    if (input == NULL)
+    if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
     Leader *raw_leader;

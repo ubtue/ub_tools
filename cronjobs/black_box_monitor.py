@@ -1,5 +1,5 @@
 #!/bin/python2
-# -*- coding: utf-8
+# -*- coding: utf-8 -*-
 #
 #    @brief  A very simple black box tester for web sites.
 #    @author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
@@ -46,7 +46,7 @@ def RunTest(test_name, url, timeout, expected):
 def Main():
     util.default_email_sender = "black_box_monitor@ub.uni-tuebingen.de"
     util.default_email_recipient = sys.argv[1]
-    config = util.LoadConfigFile("black_box_monitor.conf")
+    config = util.LoadConfigFile()
 
     for section in config.sections():
         if section == "SMTPServer":
@@ -59,8 +59,9 @@ def Main():
         if config.has_option(section, "timeout"):
             timeout = config.getfloat(section, "timeout")
         if not RunTest(section, url, timeout, expected):
-            util.SendEmail("Test " + section + " failed!\n\n--Your friendly black box monitor",
-                           "Black Box Test Failed!", "no_reply@uni-tuebingen.de")
+            util.SendEmail("Black Box Test Failed!",
+                           "Test " + section + " failed!\n\n--Your friendly black box monitor",
+                           "no_reply@uni-tuebingen.de")
 
 
 try:

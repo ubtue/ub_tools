@@ -41,26 +41,43 @@ chmod +xr "$VUFIND_LOCAL_DIR"
 touch "$VUFIND_LOCAL_DIR/logs/record.xml"
 touch "$VUFIND_LOCAL_DIR/logs/search.xml"
 
-touch "/var/log/vufind.log"
 touch "$VUFIND_LOCAL_DIR/import/solrmarc.log"
 mkdir --parents "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 chmod +xr "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 
 chown -R "$OWNER" "$VUFIND_HOME"
 chown -R "$OWNER" "$CLONE_DIRECTORY"
+
+touch "/var/log/vufind.log"
+chown "$OWNER" "/var/log/vufind.log"
+
+mkdir --parents "/tmp/vufind_sessions/"
 chown -R "$OWNER" "/tmp/vufind_sessions/"
 
-if [[ -e "/usr/sbin/setsebool" ]]; then
-  setsebool -P httpd_can_network_connect=1 \
+mkdir --parents "/var/lib/tuelib/bibleRef"
+chown -R "$OWNER" "/var/lib/tuelib"
+
+if [[ -x "/usr/sbin/getentforce" && `/usr/sbin/getenforce` == "Enforcing" ]] ; then
+
+  if [[ -e "/usr/sbin/setsebool" ]]; then
+	  setsebool -P httpd_can_network_connect=1 \
                httpd_can_network_connect_db=1 \
                httpd_enable_cgi=1
+  fi
+
+  if [[ -e "/usr/bin/chcon" ]]; then
+    chcon --recursive unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_HOME"
+    chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind.conf"
+    chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind-vhosts.conf"
+    chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/record.xml"
+    chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/search.xml"
+    chcon system_u:object_r:httpd_log_t:s0 /var/log/vufind.log
+  fi
+
+else
+  echo "##########################################################################################"
+  echo "# WARNING: SELinux is either not properly installed or currently disabled on this system #" 
+  echo "# Skipped SELinux configuration...							 #"
+  echo "##########################################################################################"
 fi
 
-if [[ -e "/usr/bin/chcon" ]]; then
-  chcon --recursive unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_HOME"
-  chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind.conf"
-  chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind-vhosts.conf"
-  chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/record.xml"
-  chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/search.xml"
-  chcon system_u:object_r:httpd_log_t:s0 /var/log/vufind.log
-fi

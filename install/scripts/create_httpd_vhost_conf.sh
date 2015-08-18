@@ -61,21 +61,21 @@ fi
 TPL_CONTENT="$(cat $TPL)"
 
 # Include SSL
-PLACE="$(echo "$TPL_CONTENT" | awk 'match($0, /{{{if ssl [A-Za-z0-9\.\-]*[\s]*}}}/) { print $0 }')"
+PLACE="$(echo "$TPL_CONTENT" | mawk 'match($0, /{{{if ssl [A-Za-z0-9\.\-]*[\s]*}}}/) { print $0 }')"
 if [[ "$PLACE" ]] && [[ "$USE_SSL" = true ]]; then
   INC_TPL="$TEMPLATE_DIR/$(echo "$PLACE" | sed 's/{{{if ssl \([A-Za-z0-9\.\-]*\)}}}/\1/g')"
 	INC_TPL_CONTENT="$(cat $INC_TPL)"
-	TPL_CONTENT="$(echo "$TPL_CONTENT" | awk -v r="$INC_TPL_CONTENT" "{gsub(/$PLACE/,r)}1")"
+	TPL_CONTENT="$(echo "$TPL_CONTENT" | mawk -v r="$INC_TPL_CONTENT" "{gsub(/$PLACE/,r)}1")"
 elif [[ "$PLACE" ]] ; then
 	TPL_CONTENT="$(echo "$TPL_CONTENT" | sed "s|$PLACE| |g")"
 fi
 
 # Include SSL_CHAIN_FILE
-PLACE="$(echo "$TPL_CONTENT" | awk 'match($0, /{{{if sslChainFile [A-Za-z0-9\.\-]*[\s]*}}}/) { print $0 }')"
+PLACE="$(echo "$TPL_CONTENT" | mawk 'match($0, /{{{if sslChainFile [A-Za-z0-9\.\-]*[\s]*}}}/) { print $0 }')"
 if [[ "$PLACE" ]] && [[ "$SSL_CHAIN_FILE" ]]; then
   INC_TPL="$TEMPLATE_DIR/$(echo $PLACE | sed 's/{{{if sslChainFile \([A-Za-z0-9\.\-]*\)}}}/\1/g')"
   INC_TPL_CONTENT="$(cat $INC_TPL)"
-  TPL_CONTENT="$(echo "$TPL_CONTENT" | awk -v r="$INC_TPL_CONTENT" "{gsub(/$PLACE/,r)}1")"
+  TPL_CONTENT="$(echo "$TPL_CONTENT" | mawk -v r="$INC_TPL_CONTENT" "{gsub(/$PLACE/,r)}1")"
 elif [[ "$PLACE" ]] ; then
   TPL_CONTENT="$(echo "$TPL_CONTENT" | sed "s|$PLACE| |g")"
 fi

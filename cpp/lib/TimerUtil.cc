@@ -37,18 +37,18 @@ namespace TimerUtil {
 
 
 SaveAndRestorePendingTimer::SaveAndRestorePendingTimer() {
-    if (::gettimeofday(&start_time_, NULL) == -1)
+    if (::gettimeofday(&start_time_, nullptr) == -1)
         throw std::runtime_error("in SaveAndRestorePendingTimer::SaveAndRestorePendingTimer: "
                                  "gettimeofday(2) failed!");
     if (::getitimer(ITIMER_REAL, &saved_itimerval_) == -1)
         throw std::runtime_error("in SaveAndRestorePendingTimer::SaveAndRestorePendingTimer: getitimer(2) failed!");
-    if (::sigaction(SIGALRM, NULL, &old_sigaction_) == -1)
+    if (::sigaction(SIGALRM, nullptr, &old_sigaction_) == -1)
         throw std::runtime_error("in SaveAndRestorePendingTimer::SaveAndRestorePendingTimer: sigaction(2) failed!");
 }
 
 
 SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer() {
-    if (::sigaction(SIGALRM, &old_sigaction_, NULL) == -1)
+    if (::sigaction(SIGALRM, &old_sigaction_, nullptr) == -1)
         throw std::runtime_error("in SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer: sigaction(2) failed!");
 
     // If we have no saved timeout, bail out early:
@@ -56,7 +56,7 @@ SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer() {
         return;
 
     timeval end_time;
-    if (::gettimeofday(&end_time, NULL) == -1)
+    if (::gettimeofday(&end_time, nullptr) == -1)
         throw std::runtime_error("in SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer: "
                                  "gettimeofday(2) failed!");
 
@@ -69,7 +69,7 @@ SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer() {
     if (unlikely(saved_itimerval_.it_value.tv_sec < 0 or saved_itimerval_.it_value.tv_usec < 0))
         saved_itimerval_.it_value.tv_sec = saved_itimerval_.it_value.tv_usec = 0;
 
-    if (::setitimer(ITIMER_REAL, &saved_itimerval_, NULL) == -1)
+    if (::setitimer(ITIMER_REAL, &saved_itimerval_, nullptr) == -1)
         throw std::runtime_error("in SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer: setitimer(2) failed!");
 }
 
@@ -115,7 +115,7 @@ void SubtractLeftOverTime(const struct timeval &start_time, const struct timeval
 
 uint64_t MillisecondsSinceEpoch() {
     timeval time_val;
-    ::gettimeofday(&time_val, NULL);
+    ::gettimeofday(&time_val, nullptr);
     return 1000UL * time_val.tv_sec + (time_val.tv_usec + 500UL) / 1000UL;
 }
 
