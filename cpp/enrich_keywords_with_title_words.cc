@@ -98,7 +98,6 @@ inline std::string FilterOutNonwordChars(const std::string &phrase) {
 }
 
 
-std::string ppn;
 // Lowercases and stems "keyword_phrase" and chops it into `words'.  Populates
 // "stemmed_keyword_to_stemmed_keyphrases_map" and "stemmed_keyphrases_to_unstemmed_keyphrases_map".
 // The former maps from each individual stemmed word to the entire cleaned up and stemmed key phrase and the
@@ -239,7 +238,6 @@ void ExtractStemmedKeywords(
         ++total_count;
         std::unique_ptr<Leader> leader(raw_leader);
 
-ppn=field_data[0];
 	const size_t extracted_count(
             ExtractAllKeywords(dir_entries, field_data, stemmed_keyword_to_stemmed_keyphrases_map,
 			       stemmed_keyphrases_to_unstemmed_keyphrases_map));
