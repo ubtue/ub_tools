@@ -45,11 +45,11 @@ void Usage() {
 
 
 bool IsPossibleISSN(const std::string &issn_candidate) {
-    static RegexMatcher *matcher(NULL);
+    static RegexMatcher *matcher(nullptr);
     std::string err_msg;
-    if (unlikely(matcher == NULL)) {
+    if (unlikely(matcher == nullptr)) {
         matcher = RegexMatcher::RegexMatcherFactory("\\d{4}\\-\\d{3}[\\dX]", &err_msg);
-        if (matcher == NULL)
+        if (matcher == nullptr)
             Error(err_msg);
     }
 
@@ -212,17 +212,17 @@ int main(int argc, char **argv) {
 
     const std::string marc_input_filename(argv[argc == 4 ? 1 : 2]);
     FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rm");
-    if (marc_input == NULL)
+    if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_aux_input_filename(argv[argc == 4 ? 2 : 3]);
     FILE *marc_aux_input = std::fopen(marc_aux_input_filename.c_str(), "rm");
-    if (marc_input == NULL)
+    if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[argc == 4 ? 3 : 4]);
     FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == NULL)
+    if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     if (unlikely(marc_input_filename == marc_output_filename))

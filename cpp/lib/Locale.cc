@@ -34,10 +34,10 @@ Locale::Locale(const std::string &new_locale, const int category, const bool res
 {
     if (restore_)
         // Save current locale for later restoration:
-        old_locale_ = ::setlocale(category, NULL);
+        old_locale_ = ::setlocale(category, nullptr);
 
     // Attempt to set the new locale:
-    if (::setlocale(category, new_locale.c_str()) == NULL)
+    if (::setlocale(category, new_locale.c_str()) == nullptr)
         throw std::runtime_error("in Locale::Locale: can't set new locale \"" + new_locale
                                  + "\" for requested category!");
 }
@@ -46,14 +46,14 @@ Locale::Locale(const std::string &new_locale, const int category, const bool res
 Locale::~Locale() {
     if (restore_)
         // Restore original locale:
-        assert(::setlocale(category_, old_locale_.c_str()) != NULL);
+        assert(::setlocale(category_, old_locale_.c_str()) != nullptr);
 }
 
 
 std::string Locale::GetLocaleName(const int category) {
     // Attempt to get the locale for "category":
-    const char *locale = ::setlocale(category, NULL);
-    if (locale == NULL)
+    const char *locale = ::setlocale(category, nullptr);
+    if (locale == nullptr)
         throw std::runtime_error("in Locale::Locale: can't get locale for requested category!");
 
     return locale;

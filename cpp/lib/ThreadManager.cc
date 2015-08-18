@@ -6,7 +6,7 @@ ThreadManager::ThreadManager(const unsigned no_of_threads, void *ThreadFunc(void
     : thread_ids_(no_of_threads)
 {
     for (unsigned thread_no(0); thread_no < no_of_threads; ++thread_no) {
-        if (::pthread_create(&thread_ids_[thread_no], NULL, ThreadFunc, thread_data) != 0)
+        if (::pthread_create(&thread_ids_[thread_no], nullptr, ThreadFunc, thread_data) != 0)
             Error("thread creation of thread #" + std::to_string(thread_no) + " failed!");
     }
 }

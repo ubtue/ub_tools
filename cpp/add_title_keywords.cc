@@ -34,7 +34,7 @@ void LoadStopwords(const bool verbose, FILE * const input,
     unsigned count(0);
     while (not std::feof(input)) {
         char buf[1024];
-        if (std::fgets(buf, sizeof buf, input) == NULL)
+        if (std::fgets(buf, sizeof buf, input) == nullptr)
             break;
         if (buf[0] == '\0' or buf[0] == ';') // Empty or comment line?
             continue;
@@ -163,12 +163,12 @@ int main(int argc, char **argv) {
 
     const std::string marc_input_filename(argv[verbose ? 2 : 1]);
     FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rm");
-    if (marc_input == NULL)
+    if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[verbose ? 3 : 2]);
     FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == NULL)
+    if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     if (unlikely(marc_input_filename == marc_output_filename))
@@ -183,7 +183,7 @@ int main(int argc, char **argv) {
             Error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(10));
         FILE *stopwords = std::fopen(stopwords_filename.c_str(), "rm");
-        if (stopwords == NULL)
+        if (stopwords == nullptr)
             Error("can't open \"" + stopwords_filename + "\" for reading!");
         std::unordered_set<std::string> stopwords_set;
         LoadStopwords(verbose, stopwords, &stopwords_set);

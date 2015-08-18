@@ -26,17 +26,17 @@ const size_t Leader::LEADER_LENGTH(24);
 
 
 bool Leader::ParseLeader(const std::string &leader_string, Leader ** const leader, std::string * const err_msg) {
-    if (err_msg != NULL)
+    if (err_msg != nullptr)
         err_msg->clear();
 
-    if (leader == NULL) {
-        if (err_msg != NULL)
+    if (leader == nullptr) {
+        if (err_msg != nullptr)
             *err_msg = "\"leader\" argument to Leader::ParseLeader must point to something!";
         return false;
     }
 
     if (leader_string.size() != LEADER_LENGTH) {
-        if (err_msg != NULL)
+        if (err_msg != nullptr)
             *err_msg = "Leader length must be " + std::to_string(LEADER_LENGTH) +
                 ", found " + std::to_string(leader_string.size()) + "!";
         return false;
@@ -44,14 +44,14 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader ** const leade
 
     unsigned record_length;
     if (std::sscanf(leader_string.substr(0, 5).data(), "%5u", &record_length) != 1) {
-        if (err_msg != NULL)
+        if (err_msg != nullptr)
             *err_msg = "Can't parse record length!";
         return false;
     }
 
     unsigned base_address_of_data;
     if (std::sscanf(leader_string.substr(12, 5).data(), "%5u", &base_address_of_data) != 1) {
-        if (err_msg != NULL)
+        if (err_msg != nullptr)
             *err_msg = "Can't parse base address of data!";
         return false;
     }
@@ -62,21 +62,21 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader ** const leade
 
     // Check indicator count:
     if (leader_string[10] != '2') {
-        if (err_msg != NULL)
+        if (err_msg != nullptr)
             *err_msg = "Invalid indicator count!";
         return false;
     }
   
     // Check subfield code length:
     if (leader_string[11] != '2') {
-        if (err_msg != NULL)
+        if (err_msg != nullptr)
             *err_msg = "Invalid subfield code length!";
         return false;
     }
 
     // Check entry map:
     if (leader_string.substr(20, 4) != "4500") {
-        if (err_msg != NULL)
+        if (err_msg != nullptr)
             *err_msg = "Invalid entry map!";
         return false;
     }
@@ -87,7 +87,7 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader ** const leade
 
 
 bool Leader::setRecordLength(const unsigned new_record_length, std::string * const err_msg) {
-    if (err_msg != NULL)
+    if (err_msg != nullptr)
         err_msg->clear();
 
     if (new_record_length > 99999) {

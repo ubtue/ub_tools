@@ -685,17 +685,17 @@ int main(int argc, char **argv) {
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
     FILE *title_input = std::fopen(title_input_filename.c_str(), "rbm");
-    if (title_input == NULL)
+    if (title_input == nullptr)
         Error("can't open \"" + title_input_filename + "\" for reading!");
 
     const std::string norm_input_filename(argv[verbose ? 3 : 2]);
     FILE *norm_input = std::fopen(norm_input_filename.c_str(), "rbm");
-    if (norm_input == NULL)
+    if (norm_input == nullptr)
         Error("can't open \"" + norm_input_filename + "\" for reading!");
 
     const std::string title_output_filename(argv[verbose ? 4 : 3]);
     FILE *title_output = std::fopen(title_output_filename.c_str(), "wb");
-    if (title_output == NULL)
+    if (title_output == nullptr)
         Error("can't open \"" + title_output_filename + "\" for writing!");
 
     if (unlikely(title_input_filename == title_output_filename))

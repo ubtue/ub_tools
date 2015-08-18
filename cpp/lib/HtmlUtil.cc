@@ -55,9 +55,9 @@ bool DecodeEntity(const char * const entity_string, char * const ch) {
         errno = 0;
         unsigned long code;
         if (entity_string[1] == 'x')
-            code = ::strtoul(entity_string + 2, NULL, 16);
+            code = ::strtoul(entity_string + 2, nullptr, 16);
         else
-            code = ::strtoul(entity_string + 1, NULL, 10);
+            code = ::strtoul(entity_string + 1, nullptr, 10);
         if (errno != 0)
             return false;
 

@@ -43,11 +43,11 @@ public:
      *  \param leader_string  The binary blob that should be a leader from a MARC-21 record.
      *  \param leader         Must be the address of a "Leader*" (pointer-to-Leader). ParseLeader will allocate a
      *                        Leader instance and set "*leader" to point to this newly initialised object.
-     *  \param err_msg        If not NULL and a parse error occurred an informational text will be returned here.
+     *  \param err_msg        If not nullptr and a parse error occurred an informational text will be returned here.
      *  \return True if the parse succeeded, else false.
      */
     static bool ParseLeader(const std::string &leader_string, Leader ** const leader,
-                            std::string * const err_msg = NULL);
+                            std::string * const err_msg = nullptr);
 
     /** \brief Index operator returning the n'th byte of the leader.
      *  \param pos  The offset of the byte to return.  Must be < Leader::LEADER_LENGTH.
@@ -55,7 +55,7 @@ public:
     char operator[](const std::string::size_type pos) const { return raw_leader_[pos]; }
 
     unsigned getRecordLength() const { return record_length_; }
-    bool setRecordLength(const unsigned new_record_length, std::string * const err_msg = NULL);
+    bool setRecordLength(const unsigned new_record_length, std::string * const err_msg = nullptr);
 
     char getRecordStatus() const { return raw_leader_[5]; }
     char getRecordType() const { return raw_leader_[6]; }

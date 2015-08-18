@@ -76,7 +76,7 @@ bool ReadString(const std::string &path, std::string * const data);
  *  \param  path           The path of the file.
  *  \param  error_message  Where to store an error message if an error occurred.
  */
-bool Exists(const std::string &path, std::string * const error_message = NULL);
+bool Exists(const std::string &path, std::string * const error_message = nullptr);
 
 
 /** \brief  Makes a relative path absolute using an absolute reference path.

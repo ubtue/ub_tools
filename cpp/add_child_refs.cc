@@ -193,12 +193,12 @@ int main(int argc, char **argv) {
 
     const std::string marc_input_filename(argv[1]);
     FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rb");
-    if (marc_input == NULL)
+    if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[2]);
     FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == NULL)
+    if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     std::unordered_map<std::string, std::string> parent_to_children_map;
