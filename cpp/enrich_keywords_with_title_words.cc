@@ -271,6 +271,12 @@ bool ContainedInMapValues(const std::string &value,
 }
 
 
+// The following constant is used to reject cases where a key phrase consists of exactly one word and
+// that single word is not as least as long as the constant.  This is used to try to increase precision
+// but, of course, decreases recall.  Part of the reason why this seems necessary is the crappy stemmer.
+constexpr auto MIN_SINGLE_STEMMED_KEYWORD_LENGTH(7);
+
+
 void AugmentRecordsWithTitleKeywords(
     const bool verbose, FILE * const input, FILE * const output,
     const std::unordered_map<std::string, std::set<std::string>> &stemmed_keyword_to_stemmed_keyphrases_map,
@@ -354,7 +360,8 @@ void AugmentRecordsWithTitleKeywords(
 
 		std::vector<std::string> stemmed_phrase_as_vector;
 		StringUtil::Split(stemmed_phrase, ' ', &stemmed_phrase_as_vector);
-		if (stemmed_phrase_as_vector.size() == 1 and stemmed_phrase_as_vector[0].length() < 10)
+		if (stemmed_phrase_as_vector.size() == 1
+		    and stemmed_phrase_as_vector[0].length() < MIN_SINGLE_STEMMED_KEYWORD_LENGTH)
 		    continue;
 
 		if (TextUtil::FindSubstring(title_words, stemmed_phrase_as_vector) != title_words.end()) {

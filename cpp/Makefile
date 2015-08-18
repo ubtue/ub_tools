@@ -2,7 +2,7 @@ PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
       bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
       exec_test krimdok_filter resolve_in_path_test enrich_ddcs control_number_filter stemmer_test \
-      enrich_keywords_with_title_words test_find_substring
+      enrich_keywords_with_title_words test_find_substring test_chop_into_words
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
@@ -159,6 +159,11 @@ enrich_keywords_with_title_words: enrich_keywords_with_title_words.o lib/libmarc
 test_find_substring.o: test_find_substring.cc lib/TextUtil.h lib/StringUtil.h lib/util.h
 
 test_find_substring: test_find_substring.o lib/libmarc.a
+	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
+
+test_chop_into_words.o: test_chop_into_words.cc lib/TextUtil.h lib/util.h
+
+test_chop_into_words: test_chop_into_words.o lib/libmarc.a
 	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
 
 clean:
