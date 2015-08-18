@@ -65,7 +65,8 @@ SERVER_URL=""
 SERVER_IP=""
 EMAIL=""
 MODULES=""
-CONFIGS_DIRETORY=""
+CONFIGS_ORIGIN_DIRECTORY=""
+CONFIGS_DIRECTORY=""
 SSL_CERT=""
 SSL_KEY=""
 SSL_CHAIN_FILE=""
@@ -211,6 +212,16 @@ fi
 
 ##############################################################################
 
+if [[ "$VERBOSE" == true ]] ; then
+  echo ""
+  echo ""
+  echo "create_cronjobs_conf_files.sh $"
+fi
+"$SCRIPT_DIR/create_cronjobs_conf_files.sh" "$CONFIGS_ORIGIN_DIRECTORY" "$CONFIGS_DIRECTORY"
+
+
+##############################################################################
+
 if [[ "$HTPASSWD" ]] ; then
   if [[ "$VERBOSE" == true ]] ; then
     echo ""
@@ -247,9 +258,9 @@ fi
 if [[ "$VERBOSE" == true ]] ; then
   echo ""
   echo ""
-  echo "link_configs.sh $CONFIGS_DIRETORY"
+  echo "link_configs.sh $CONFIGS_DIRECTORY"
 fi
-"$SCRIPT_DIR/link_configs.sh" "$CONFIGS_DIRETORY"
+"$SCRIPT_DIR/link_configs.sh" "$CONFIGS_DIRECTORY"
 
 ##############################################################################
 
