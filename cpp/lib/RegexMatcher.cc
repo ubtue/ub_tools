@@ -128,9 +128,10 @@ bool RegexMatcher::matched(const std::string &s, std::string * const err_msg,
     }
 
     if (retcode != PCRE_ERROR_NOMATCH) {
-        if (retcode == PCRE_ERROR_BADUTF8)
-            *err_msg = "A \"subject\" with invalid UTF-8 was passed into RegexMatcher::matched()!";
-        else
+        if (retcode == PCRE_ERROR_BADUTF8) {
+	    if (err_msg != nullptr)
+		*err_msg = "A \"subject\" with invalid UTF-8 was passed into RegexMatcher::matched()!";
+	} else if (err_msg != nullptr)
             *err_msg = "Unknown error!";
     }
 
