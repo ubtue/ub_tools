@@ -15,9 +15,7 @@ public class KeywordChainParserParser extends QParser {
     public KeywordChainParserParser(final String searchString, final SolrParams localParams, final SolrParams params, final SolrQueryRequest request) {
         super(searchString, localParams, params, request);
         try {
-//          final String queryString = "key_word_chain_bag:(Geschichte OR Wirtschaft)";
 	    final String queryString = "key_word_chain_bag:(" + searchString +")";
-//	    final String queryString = searchString;
             final QParser parser = getParser(queryString, "lucene", getReq());
 	    this.innerQuery = parser.parse();
         } catch (SyntaxError ex) {
