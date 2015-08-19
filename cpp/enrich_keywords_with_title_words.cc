@@ -302,7 +302,7 @@ void AugmentRecordsWithTitleKeywords(
             continue;
         }
 
-	// ...in subfields 'a' and 'b':
+	// ...in subfields 'a', 'b' and 'c':
         const size_t title_index(entry_iterator - dir_entries.begin());
         Subfields subfields(field_data[title_index]);
         if (not subfields.hasSubfield('a')) {
@@ -314,6 +314,9 @@ void AugmentRecordsWithTitleKeywords(
         const auto begin_end_b = subfields.getIterators('b'); // optional additional title part.
         if (begin_end_b.first != begin_end_b.second)
             title += " " + begin_end_b.first->second;
+        const auto begin_end_c = subfields.getIterators('c'); // and another optional additional title part.
+        if (begin_end_c.first != begin_end_c.second)
+            title += " " + begin_end_c.first->second;
 
 	std::string lowercase_title;
 	TextUtil::UTF8ToLower(title, &lowercase_title);
