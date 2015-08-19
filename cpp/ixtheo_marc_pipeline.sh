@@ -33,8 +33,8 @@ rm -f "${log}"
 # Phase 1:
 echo "*** Phase 1 ***"
 echo "*** Phase 1 ***" >> "${log}"
-create_child_refs.sh TitelUndLokaldaten-"${date}".mrc ÜbergeordneteTitelundLokaldaten-"${date}".mrc >> "${log}" 2>&1
-add_child_refs ÜbergeordneteTitelundLokaldaten-"${date}".mrc \
+create_child_refs.sh TitelUndLokaldaten-"${date}".mrc ÜbergeordneteTitelUndLokaldaten-"${date}".mrc >> "${log}" 2>&1
+add_child_refs ÜbergeordneteTitelUndLokaldaten-"${date}".mrc \
                ÜbergeordneteTitelUndLokaldaten-with-child-refs-"${date}".mrc \
                child_refs child_titles >> "${log}" 2>&1
 
@@ -59,7 +59,7 @@ augment_bible_references TitelUndLokaldaten-with-issns-and-title-keywords-"${dat
                          TitelUndLokaldaten-with-issns-title-keywords-and-bible-refs-"${date}".mrc
 
 # Cleanup of intermediate files:
-rm -f ÜbergeordneteTitelundLokaldaten-with-child-refs-"${date}".mrc
+rm -f ÜbergeordneteTitelUndLokaldaten-with-child-refs-"${date}".mrc
 rm -f TitelUndLokaldaten-with-issns-"${date}".mrc
 rm -f TitelUndLokaldaten-with-issns-and-title-keywords-"${date}".mrc
 rm -f child_refs child_titles parent_refs
