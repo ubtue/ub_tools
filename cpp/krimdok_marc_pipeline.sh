@@ -27,7 +27,7 @@ if [[ "$date" != "$date2" ]]; then
     exit 1
 fi
 
-log=krimdok_marc_pipeline.log
+log=/tmp/krimdok_marc_pipeline.log
 rm -f "${log}"
 
 # Phase 1:
