@@ -57,6 +57,7 @@ echo "*** Phase 4 ***" >> "${log}"
 augment_bible_references TitelUndLokaldaten-with-issns-and-title-keywords-"${date}".mrc \
                          Normdaten-"${date}".mrc \
                          TitelUndLokaldaten-with-issns-title-keywords-and-bible-refs-"${date}".mrc
+cp *.map /var/lib/tuelib/bibleRef/
 
 # Cleanup of intermediate files:
 rm -f ÜbergeordneteTitelUndLokaldaten-with-child-refs-"${date}".mrc
