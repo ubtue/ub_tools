@@ -71,5 +71,6 @@ cp full_text.db /var/lib/tuelib/
 rm -f ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc
 rm -f TitelUndLokaldaten-normalised-"${date}".mrc
 rm -f ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc
+rm -f ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc
 rm -f TitelUndLokaldaten-normalised-with-issns-"${date}".mrc
 rm -f child_refs child_titles parent_refs
