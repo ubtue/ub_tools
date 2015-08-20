@@ -37,14 +37,16 @@ def StartPipeline(pipeline_script_name, data_files, conf):
     ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
 
 
+# Returns True if we have no timestamp file or if link_filename's creation time is more recent than
+# the time found in the timestamp file.
 def FoundNewBSZDataFile(link_filename):
     try:
         statinfo = os.stat(link_filename)
-        new_timestamp = statinfo.st_ctime
+        file_creation_time = statinfo.st_ctime
     except FileNotFoundError as e:
         util.Error("in FoundNewBSZDataFile: Symlink \"" + link_filename + "\" is missing or dangling!")
     old_timestamp = util.ReadTimestamp()
-    return old_timestamp < new_timestamp
+    return old_timestamp < file_creation_time
 
 
 def Main():
