@@ -4,6 +4,7 @@
 
 from __future__ import print_function
 import datetime
+import glob
 import process_util
 import os
 import struct
@@ -18,6 +19,15 @@ def ExecOrDie(cmd_name, args, log_file_name):
         util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logs in /tmp for the reason.")
         sys.exit(-1)
 
+
+def ImportIntoVuFind(config_file_entry):
+    pattern = config.get("FileNames", config_file_entry)
+    args = [ glob.glob(pattern) ]
+    if len(args) != 1:
+        util.Error("\"" + pattern + "\" matched " + str(len(args))
+                   + " files! (Should have matched exactly 1 file!)")
+    ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
+
     
 def StartPipeline(pipeline_script_name, data_files, conf):
     log_file_name = util.MakeLogFileName(pipeline_script_name, "/tmp")
@@ -30,11 +40,8 @@ def StartPipeline(pipeline_script_name, data_files, conf):
     delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
     ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
 
-    args = [ config.get("FileNames", "superior_marc_data") ]
-    ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
-
-    args = [ config.get("FileNames", "title_marc_data") ]
-    ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
+    ImportIntoVuFind("superior_marc_data")
+    ImportIntoVuFind("title_marc_data")
 
 
 # Returns True if we have no timestamp file or if link_filename's creation time is more recent than
