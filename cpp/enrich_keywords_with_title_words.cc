@@ -7,6 +7,7 @@
 #include <set>
 #include <string>
 #include <unordered_set>
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include "DirectoryEntry.h"
@@ -302,21 +303,20 @@ void AugmentRecordsWithTitleKeywords(
             continue;
         }
 
-	// ...in subfields 'a', 'b' and 'c':
+	// ...in subfields 'a', 'b', 'c' and 'p':
         const size_t title_index(entry_iterator - dir_entries.begin());
         Subfields subfields(field_data[title_index]);
         if (not subfields.hasSubfield('a')) {
             MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
             continue;
         }
-        const auto begin_end_a = subfields.getIterators('a');
-        std::string title(begin_end_a.first->second);
-        const auto begin_end_b = subfields.getIterators('b'); // optional additional title part.
-        if (begin_end_b.first != begin_end_b.second)
-            title += " " + begin_end_b.first->second;
-        const auto begin_end_c = subfields.getIterators('c'); // and another optional additional title part.
-        if (begin_end_c.first != begin_end_c.second)
-            title += " " + begin_end_c.first->second;
+	std::string title;
+	for (const char subfield_code : "abcp") {
+	    const auto begin_end = subfields.getIterators(subfield_code);
+	    if (begin_end.first != begin_end.second)
+            title += " " + begin_end.first->second;
+	}
+	assert(not title.empty());
 
 	std::string lowercase_title;
 	TextUtil::UTF8ToLower(title, &lowercase_title);
