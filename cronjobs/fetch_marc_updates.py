@@ -78,7 +78,7 @@ def GetMostRecentRemoteFile(ftp, filename_regex, directory):
 def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
     most_recent_remote_file = GetMostRecentRemoteFile(ftp, filename_regex, remote_directory)
     if most_recent_remote_file is None:
-        util.Error("No filename matched \"" + filename_pattern + "\"!")
+        return None
     print("Found recent remote file:", most_recent_remote_file)
     most_recent_local_file = GetMostRecentLocalFile(filename_regex)
     if most_recent_local_file is not None:
