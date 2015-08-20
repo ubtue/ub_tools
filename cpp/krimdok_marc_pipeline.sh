@@ -61,7 +61,7 @@ echo "*** Phase 4 ***" >> "${log}"
 add_isbns_or_issns_to_articles TitelUndLokaldaten-normalised-"${date}".mrc \
                                ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
                                TitelUndLokaldaten-normalised-with-issns-"${date}".mrc >> "${log}" 2>&1
-rm -f TitelUndLokaldaten-normalised-with-issns-"${date}".mrc
+rm -f TitelUndLokaldaten-normalised-"${date}".mrc
 
 # Phase 5:
 echo "*** Phase 5 ***"
