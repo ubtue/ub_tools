@@ -156,35 +156,6 @@ def LoadConfigFile(path=None, no_error=False):
         Error("in util.LoadConfigFile: failed to load the config file from \"" + path + "\"! (" + str(e) + ")")
 
 
-# This function looks for symlinks named "XXX-current-YYY" where "YYY" may be the empty string.  If found,
-# it reads the creation time of the link target.  Next it looks for a file named "XXX-YYY.timestamp".  If
-# the timestamp file does not exist, it assumes it found a new file and creates a new timestamp file with
-# the creation time of the original link target and returns True.  If, on the other hand, a timestamp file
-# was found, it reads a second timestamp from the timestamp file and compares it against the first
-# timestamp.  If the timestamp from the timestamp file is older than the first timestamp, it updates the
-# timestamp file with the newer timestamp and returns True, otherwise it returns False.
-def FoundNewBSZDataFile(link_filename):
-    try:
-        statinfo = os.stat(link_filename)
-    except FileNotFoundError as e:
-        Error("in util.FoundNewBSZDataFile: Symlink \"" + link_filename + "\" is missing or dangling!")
-    new_timestamp = statinfo.st_ctime
-    timestamp_filename = os.path.basename(sys.argv[0][:-2]) + "timestamp"
-    if not os.path.exists(timestamp_filename):
-        with open(timestamp_filename, "wb") as timestamp_file:
-            timestamp_file.write(struct.pack('d', new_timestamp))
-        return True
-    else:
-        with open(timestamp_filename, "rb") as timestamp_file:
-            (old_timestamp, ) = struct.unpack('d', timestamp_file.read())
-        if (old_timestamp < new_timestamp):
-            with open(timestamp_filename, "wb") as timestamp_file:
-                timestamp_file.write(struct.pack('d', new_timestamp))
-            return True
-        else:
-            return False
-
-
 # Extracts the typical 3 files from a gizipped tar archive.
 # @param name_prefix  If not None, this will be prepended to the names of the extracted files
 # @return The list of names of the extracted files in the order: title data, superior data, norm data
