@@ -76,7 +76,6 @@
 #include "Subfields.h"
 #include "TextUtil.h"
 #include "ThreadManager.h"
-#include "ThreadSafeCounter.h"
 #include "util.h"
 
 
@@ -239,8 +238,7 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 }
 
 
-static ThreadSafeCounter<unsigned> relevant_links_count, failed_count, records_with_relevant_links_count;
-std::atomic_uint active_thread_count;
+static std::atomic_uint relevant_links_count, failed_count, records_with_relevant_links_count, active_thread_count;
 
 
 void ProcessRecord(ssize_t _856_index, Leader * const leader, std::vector<DirectoryEntry> &dir_entries,
@@ -369,9 +367,9 @@ void ProcessRecords(const unsigned worker_thread_count, const unsigned max_recor
     if (not err_msg.empty())
         Error(err_msg);
     std::cerr << "Read " << total_record_count << " records.\n";
-    std::cerr << "Found " << records_with_relevant_links_count.get() << " records w/ relevant 856u fields.\n";
-    std::cerr << failed_count.get() << " failed downloads, media type determinations or text extractions.\n";
-    std::cerr << (100.0 * (relevant_links_count.get() - failed_count.get()) / double(relevant_links_count.get()))
+    std::cerr << "Found " << records_with_relevant_links_count << " records w/ relevant 856u fields.\n";
+    std::cerr << failed_count << " failed downloads, media type determinations or text extractions.\n";
+    std::cerr << (100.0 * (relevant_links_count - failed_count) / double(relevant_links_count))
               << "% successes.\n";
 
     std::fclose(input);
