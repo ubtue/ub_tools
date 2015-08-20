@@ -51,6 +51,7 @@
       5 http://content.ub.hu-berlin.de
 
 */
+#include <atomic>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -239,12 +240,15 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 
 
 static ThreadSafeCounter<unsigned> relevant_links_count, failed_count, records_with_relevant_links_count;
+std::atomic_uint active_thread_count;
 
 
 void ProcessRecord(ssize_t _856_index, Leader * const leader, std::vector<DirectoryEntry> &dir_entries,
                    std::vector<std::string> &field_data, const unsigned per_doc_timeout,
                    const std::string pdf_images_script, FILE * const output, kyotocabinet::HashDB * const db)
 {
+    ++active_thread_count;
+
     bool found_at_least_one(false);
     for (/* Empty! */;
         static_cast<size_t>(_856_index) < dir_entries.size() and dir_entries[_856_index].getTag() == "856";
@@ -286,6 +290,8 @@ void ProcessRecord(ssize_t _856_index, Leader * const leader, std::vector<Direct
 
     ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader);
     delete leader;
+
+    --active_thread_count;
 }
 
 
@@ -357,7 +363,7 @@ void ProcessRecords(const unsigned worker_thread_count, const unsigned max_recor
         work_queue.push_back(std::move(thread_data));
     }
 
-    while (not work_queue.empty())
+    while (not work_queue.empty() or active_thread_count > 0)
         ::sleep(1);
 
     if (not err_msg.empty())
