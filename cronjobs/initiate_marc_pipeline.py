@@ -37,6 +37,16 @@ def StartPipeline(pipeline_script_name, data_files, conf):
     ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
 
 
+def FoundNewBSZDataFile(link_filename):
+    try:
+        statinfo = os.stat(link_filename)
+        new_timestamp = statinfo.st_ctime
+    except FileNotFoundError as e:
+        util.Error("in FoundNewBSZDataFile: Symlink \"" + link_filename + "\" is missing or dangling!")
+    old_timestamp = util.ReadTimestamp()
+    return old_timestamp < new_timestamp
+
+
 def Main():
     util.default_email_sender = "initiate_marc_pipeline@ub.uni-tuebingen.de"
     if len(sys.argv) != 3:
@@ -52,7 +62,7 @@ def Main():
          sys.exit(-1)
     conf = util.LoadConfigFile()
     link_name = conf.get("Misc", "link_name")
-    if util.FoundNewBSZDataFile(link_name):
+    if FoundNewBSZDataFile(link_name):
         bsz_data = util.ResolveSymlink(link_name)
         if not bsz_data.endswith(".tar.gz"):
             util.Error("BSZ data file must end in .tar.gz!")
@@ -60,6 +70,7 @@ def Main():
         
         StartPipeline(pipeline_script_name, file_name_list, conf)
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.")
+        util.WriteTimestamp()
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.")
 
