@@ -361,7 +361,7 @@ void ProcessRecords(const unsigned worker_thread_count, const unsigned max_recor
         work_queue.push_back(std::move(thread_data));
     }
 
-    while (not work_queue.empty() or active_thread_count > 0)
+    while (not work_queue.empty() and active_thread_count > 0)
         ::sleep(1);
 
     if (not err_msg.empty())
