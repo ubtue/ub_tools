@@ -20,7 +20,7 @@ def ExecOrDie(cmd_name, args, log_file_name):
         sys.exit(-1)
 
 
-def ImportIntoVuFind(pattern):
+def ImportIntoVuFind(pattern, log_file_name):
     args = [ glob.glob(pattern) ]
     if len(args) != 1:
         util.Error("\"" + pattern + "\" matched " + str(len(args))
@@ -39,8 +39,8 @@ def StartPipeline(pipeline_script_name, data_files, conf):
     delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
     ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
 
-    ImportIntoVuFind(conf.get("FileNames", "superior_marc_data"))
-    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"))
+    ImportIntoVuFind(conf.get("FileNames", "superior_marc_data"), log_file_name)
+    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), log_file_name)
 
 
 # Returns True if we have no timestamp file or if link_filename's creation time is more recent than
