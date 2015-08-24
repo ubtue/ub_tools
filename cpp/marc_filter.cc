@@ -74,14 +74,13 @@ void Dump(const std::string &input_filename, const std::string &output_filename)
     if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
     unsigned count(0);
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
-        std::unique_ptr<Leader> leader(raw_leader);
 
         output << "NEW RECORD\n";
 
@@ -178,13 +177,13 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     if (not CompilePatterns(patterns, &compiled_patterns, &err_msg))
         Error("Error while compiling patterns: " + err_msg);
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned count(0), matched_count(0);
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
-        std::unique_ptr<Leader> leader(raw_leader);
+
         bool matched(false);
         for (unsigned i(0); i < dir_entries.size(); ++i) {
             for (const auto &compiled_pattern : compiled_patterns) {
@@ -200,7 +199,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     found:
         if (matched) {
             ++matched_count;    
-            const std::string record(MarcUtil::ComposeRecord(dir_entries, field_data, leader.get()));
+            const std::string record(MarcUtil::ComposeRecord(dir_entries, field_data, leader));
             if ((std::fwrite(record.data(), record.size(), 1, output)) != record.size())
                 Error("failed to write to \"" + output_filename + "\"!");
         }
@@ -225,14 +224,14 @@ void DumpEditFormat(const std::string &input_filename, const std::string &output
     if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
     unsigned count(0);
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
-        std::unique_ptr<Leader> leader(raw_leader);
+
         output << "=LDR  ....." << leader->toString().substr(5) << '\n';
 
         unsigned i(0);
@@ -328,11 +327,11 @@ void DeleteMatched(const std::string &input_filename, const std::string &output_
                   + " characters in length! (Bad tag is \"" + tag +"\")");
     }
 
-    Leader *leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned count(0), modified_count(0);
-    while (MarcUtil::ReadNextRecord(input, &leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
 
         bool matched(false);
@@ -361,8 +360,6 @@ void DeleteMatched(const std::string &input_filename, const std::string &output_
         const size_t write_count = std::fwrite(record.data(), 1, record.size(), output);
         if (write_count != record.size())
             Error("failed to write " + std::to_string(record.size()) + " bytes to \"" + output_filename + "\"!");
-
-        delete leader;
     }
 
     if (not err_msg.empty())
