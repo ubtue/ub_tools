@@ -105,11 +105,11 @@ static void Usage() {
 
 
 void ThreadSafeComposeAndWriteRecord(FILE * const output, const std::vector<DirectoryEntry> &dir_entries,
-                                     const std::vector<std::string> &field_data, Leader * const leader)
+                                     const std::vector<std::string> &field_data, std::shared_ptr<Leader> leader)
 {
     static std::mutex marc_writer_mutex;
     std::unique_lock<std::mutex> mutex_locker(marc_writer_mutex);
-    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
 }
 
 
@@ -241,7 +241,7 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 static std::atomic_uint relevant_links_count, failed_count, records_with_relevant_links_count, active_thread_count;
 
 
-void ProcessRecord(ssize_t _856_index, Leader * const leader, std::vector<DirectoryEntry> &dir_entries,
+void ProcessRecord(ssize_t _856_index, std::shared_ptr<Leader> leader, std::vector<DirectoryEntry> &dir_entries,
                    std::vector<std::string> &field_data, const unsigned per_doc_timeout,
                    const std::string pdf_images_script, FILE * const output, kyotocabinet::HashDB * const db)
 {
@@ -283,11 +283,10 @@ void ProcessRecord(ssize_t _856_index, Leader * const leader, std::vector<Direct
 
         subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
         const std::string new_856_field(subfields.toString());
-        MarcUtil::UpdateField(_856_index, new_856_field, leader, &dir_entries, &field_data);
+        MarcUtil::UpdateField(_856_index, new_856_field, leader.get(), &dir_entries, &field_data);
     }
 
     ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader);
-    delete leader;
 
     --active_thread_count;
 }
@@ -295,7 +294,7 @@ void ProcessRecord(ssize_t _856_index, Leader * const leader, std::vector<Direct
 
 struct ThreadData {
     ssize_t _856_index_;
-    Leader * const leader_;
+    std::shared_ptr<Leader> leader_;
     std::vector<DirectoryEntry> dir_entries_;
     std::vector<std::string> field_data_;
     const unsigned per_doc_timeout_;
@@ -303,7 +302,7 @@ struct ThreadData {
     FILE * const output_;
     kyotocabinet::HashDB * const db_;
 public:
-    ThreadData(const ssize_t _856_index, Leader * const leader, std::vector<DirectoryEntry> &&dir_entries,
+    ThreadData(const ssize_t _856_index, std::shared_ptr<Leader> leader, std::vector<DirectoryEntry> &&dir_entries,
                std::vector<std::string> &&field_data, const unsigned per_doc_timeout,
                const std::string &pdf_images_script, FILE * const output, kyotocabinet::HashDB * const db)
         : _856_index_(_856_index), leader_(leader), dir_entries_(dir_entries), field_data_(field_data),
@@ -329,7 +328,7 @@ void ProcessRecords(const unsigned worker_thread_count, const unsigned max_recor
                     const unsigned per_doc_timeout, const std::string &pdf_images_script, FILE * const input,
                     FILE * const output, kyotocabinet::HashDB * const db)
 {
-    Leader *leader;
+    Leader *raw_leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
@@ -338,7 +337,8 @@ void ProcessRecords(const unsigned worker_thread_count, const unsigned max_recor
     SharedBuffer<ThreadData> work_queue(worker_thread_count);
     ThreadManager thread_manager(worker_thread_count, WorkerThread, &work_queue);
 
-    while (MarcUtil::ReadNextRecord(input, &leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+        std::shared_ptr<Leader> leader(raw_leader);
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;
