@@ -52,4 +52,4 @@ HtmlUtil.o: HtmlUtil.h
 Stemmer.o: Stemmer.h libstemmer/libstemmer.a
 
 clean:
-	rm -f *~ $(PROGS) *.o *.a && libstemmer && make clean && rm libstemmer.a
+	rm -f *~ $(PROGS) *.o *.a && cd libstemmer && make clean && rm libstemmer.a
