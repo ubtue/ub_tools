@@ -65,7 +65,6 @@ SERVER_URL=""
 SERVER_IP=""
 EMAIL=""
 MODULES=""
-CONFIGS_ORIGIN_DIRECTORY=""
 CONFIGS_DIRECTORY=""
 SSL_CERT=""
 SSL_KEY=""
@@ -209,16 +208,6 @@ if [[ "$VERBOSE" == true ]] ; then
   echo "create_cronjobs.sh $CRONJOBS"
 fi
 "$SCRIPT_DIR/create_cronjobs.sh" "$CRONJOBS"
-
-##############################################################################
-
-if [[ "$VERBOSE" == true ]] ; then
-  echo ""
-  echo ""
-  echo "create_cronjobs_conf_files.sh $"
-fi
-"$SCRIPT_DIR/create_cronjobs_conf_files.sh" "$CONFIGS_ORIGIN_DIRECTORY" "$CONFIGS_DIRECTORY"
-
 
 ##############################################################################
 
