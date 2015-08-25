@@ -46,30 +46,73 @@ void LoadCodeToDescriptionMap(const std::shared_ptr<FILE> &code_to_description_m
     unsigned line_no(0);
     while (std::fgets(line, sizeof line, code_to_description_map_file.get())) {
 	++line_no;
-	const size_t line_length(std::strlen(line));
-	if (line_length < 7) // 4 double quotes + 1 comma + two strings of length 1
+	size_t line_length(std::strlen(line));
+	if (line_length < 5) // Need at least a 2 character code, a comma, some text and a newline at the end.
 	    continue;
 
-	char *end(line + line_length);
-	char *quote(std::find(line + 1, end, '"'));
-	if (quote == end)
+	// Zap the newline at the end:
+	line[line_length] = '\0';
+	--line_length;
+
+	char *line_end(line + line_length);
+	char *comma(std::find(line, line_end, ','));
+	if (comma == line_end)
 	    Error("malformed line " + std::to_string(line_no) + " in \"" + code_to_description_map_filename
-		  + "\" (1)!");
-	*quote = '\0';
-	const std::string code(line + 1);
-	const char *description_start(quote + 2);
-	if (*description_start != '"')
+		  + "\"! (1)");
+
+	*comma = '\0';
+	const std::string code(line);
+	if (code.length() != 2 and code.length() != 3)
 	    Error("malformed line " + std::to_string(line_no) + " in \"" + code_to_description_map_filename
-		  + "\" (2)!");
-	if (line[line_length - 2] != '"')
-	    Error("malformed line " + std::to_string(line_no) + " in \"" + code_to_description_map_filename
-		  + "\" (3)!");
-	line[line_length - 2] = '\0';
-	const std::string  description(description_start + 1);
+		  + "\"! (2)");
+
+	const std::string  description(comma + 1);
 	(*code_to_description_map)[code] = description;
     }
 
     std::cerr << "Found " << code_to_description_map->size() << " code to description mappings.\n";
+}
+
+
+bool LocalBlockIsFromUbTueTheologians(const std::pair<size_t, size_t> &local_block_begin_and_end,
+				      const std::vector<std::string> &field_data)
+{
+    std::vector<size_t> _852_indices;
+    MarcUtil::FindFieldsInLocalBlock("852  ", local_block_begin_and_end, field_data, &_852_indices);
+
+    for (const auto index : _852_indices) {
+	const Subfields subfields(field_data[index]);
+	if (subfields.hasSubfieldWithValue('a', "DE-Tue135"))
+	    return true;
+    }
+
+    return false;
+}
+
+
+unsigned CountIxTheoNotations(const std::pair<size_t, size_t> &local_block_begin_and_end,
+			      const std::vector<std::string> &field_data,
+			      const std::unordered_map<std::string, std::string> &code_to_description_map,
+			      std::unordered_map<std::string, unsigned> * const categories_to_counts_map)
+{
+    std::vector<size_t> _936ln_indices;
+    MarcUtil::FindFieldsInLocalBlock("936ln", local_block_begin_and_end, field_data, &_936ln_indices);
+
+    size_t found_count(0);
+    for (const auto index : _936ln_indices) {
+	const Subfields subfields(field_data[index]);
+	const std::string ixtheo_notation_candidate(subfields.getFirstSubfieldValue('a'));
+	if (code_to_description_map.find(ixtheo_notation_candidate) != code_to_description_map.end()) {
+	    ++found_count;
+	    auto code_and_count(categories_to_counts_map->find(ixtheo_notation_candidate));
+	    if (code_and_count != categories_to_counts_map->end())
+		++code_and_count->second;
+	    else
+		(*categories_to_counts_map)[ixtheo_notation_candidate] = 1;
+	}
+    }
+
+    return found_count;
 }
 
 
@@ -90,6 +133,22 @@ void CollectCounts(const std::shared_ptr<FILE> &input,
 
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
+
+	std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+	if (MarcUtil::FindAllLocalDataBlocks(dir_entries, field_data, &local_block_boundaries) == 0)
+	    continue;
+
+	for (const auto local_block_begin_and_end : local_block_boundaries) {
+	    if (not LocalBlockIsFromUbTueTheologians(local_block_begin_and_end, field_data))
+		continue;
+
+	    const unsigned notation_count(CountIxTheoNotations(local_block_begin_and_end, field_data,
+							       code_to_description_map, categories_to_counts_map));
+	    if (ixtheo_notation_count > 0) {
+		++records_with_ixtheo_notations;
+		ixtheo_notation_count += notation_count;
+	    }
+	}
 
 	int lok_index(MarcUtil::GetFieldIndex(dir_entries, "LOK"));
 	bool found_at_least_one(false);
