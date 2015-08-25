@@ -42,6 +42,7 @@ echo "*** Phase 2 ***" >> "${log}"
 krimdok_filter --normalise-urls "$1" TitelUndLokaldaten-normalised-"${date}".mrc >> "${log}" 2>&1
 krimdok_filter --normalise-urls ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc \
                ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc >> "${log}" 2>&1
+rm -f ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc
 
 # Phase 3:
 echo "*** Phase 3 ***"
@@ -51,6 +52,8 @@ create_child_refs.sh TitelUndLokaldaten-normalised-"${date}".mrc \
 add_child_refs ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc \
                ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
                child_refs child_titles >> "${log}" 2>&1
+rm -f ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc
+rm -f child_refs child_titles parent_refs
 
 # Phase 4:
 echo "*** Phase 4 ***"
@@ -58,6 +61,7 @@ echo "*** Phase 4 ***" >> "${log}"
 add_isbns_or_issns_to_articles TitelUndLokaldaten-normalised-"${date}".mrc \
                                ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
                                TitelUndLokaldaten-normalised-with-issns-"${date}".mrc >> "${log}" 2>&1
+rm -f TitelUndLokaldaten-normalised-"${date}".mrc
 
 # Phase 5:
 echo "*** Phase 5 ***"
@@ -66,10 +70,4 @@ create_full_text_db TitelUndLokaldaten-normalised-with-issns-"${date}".mrc \
                     TitelUndLokaldaten-normalised-with-issns-and-full-text-links-"${date}".mrc \
                     full_text.db >> "${log}" 2>&1
 cp full_text.db /var/lib/tuelib/
-
-# Cleanup of intermediate files:
-rm -f ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc
-rm -f TitelUndLokaldaten-normalised-"${date}".mrc
-rm -f ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc
 rm -f TitelUndLokaldaten-normalised-with-issns-"${date}".mrc
-rm -f child_refs child_titles parent_refs

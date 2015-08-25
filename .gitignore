@@ -35,7 +35,9 @@ resolve_in_path_test
 shared_buffer_test
 stemmer_test
 stemwords
+test_chop_into_words
 test_find_substring
+test_auto_temp_file
 
 bsz_daten
 KeywordChainParser-*.jar

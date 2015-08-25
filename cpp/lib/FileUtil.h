@@ -44,8 +44,8 @@ namespace FileUtil {
 class AutoDeleteFile {
     std::string path_;
 public:
-    explicit AutoDeleteFile(const std::string &path): path_(path) { }
-    ~AutoDeleteFile() { ::unlink(path_.c_str()); }
+    explicit AutoDeleteFile(const std::string &path): path_(path) {}
+    ~AutoDeleteFile() { if (not path_.empty()) ::unlink(path_.c_str()); }
 };
 
 

@@ -24,14 +24,16 @@ bool IsUnsignedInteger(const std::string &s);
 
 
 /** \brief Convert UTF8 to wide characters. */
-bool UTF8toWCharString(const std::string &utf8_string, std::basic_string<wchar_t> * wchar_string);
+bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_string);
 
 
 /** \brief Convert wide characters to UTF8. */
-bool WCharToUTF8String(const std::basic_string<wchar_t> &wchar_string, std::string * utf8_string);
+bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string);
     
 
-/** \brief Converts a UTF8 string to lowercase. */
+/** \brief Converts a UTF8 string to lowercase.
+ *  \return True if no character set conversion error occurred, o/w false.
+  */
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string);
 
 

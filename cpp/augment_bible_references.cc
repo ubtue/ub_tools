@@ -19,6 +19,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -458,7 +459,7 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
     if (bible_book_map.fail())
         Error("Failed to open \"" + bible_book_map_filename + "\" for writing!");
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned count(0), bible_ref_count(0), _130a_count(0), _100t_count(0), _430a_count(0);
@@ -466,7 +467,7 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
     unsigned bible_book_code(0);
     std::unordered_map<std::string, std::string> bible_book_to_code_map;
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
-    while (MarcUtil::ReadNextRecord(norm_input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(norm_input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
 
         const auto _001_iter(DirectoryEntry::FindField("001", dir_entries));
@@ -632,14 +633,13 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
     if (verbose)
         std::cerr << "Starting augmentation of title records.\n";
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned total_count(0), augment_count(0);
     std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++total_count;
-        std::unique_ptr<Leader> leader(raw_leader);
 
         // Make sure that we don't use a bible reference tag that is already in use for another
         // purpose:
@@ -661,10 +661,10 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
 
             // Put the data into the $a subfield:
             range_string = "  ""\x1F""a" + range_string;
-            MarcUtil::InsertField(range_string, BIB_REF_RANGE_TAG, leader.get(), &dir_entries, &field_data);
+            MarcUtil::InsertField(range_string, BIB_REF_RANGE_TAG, leader, &dir_entries, &field_data);
         }
 
-        MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+        MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
     }
 
     if (verbose)

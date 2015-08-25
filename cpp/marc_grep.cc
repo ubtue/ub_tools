@@ -354,20 +354,19 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
     if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
     unsigned count(0), matched_count(0);
 
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
-        std::unique_ptr<Leader> leader(raw_leader);
 
         if (query_desc.hasLeaderCondition()) {
             const LeaderCondition &leader_cond(query_desc.getLeaderCondition());
-            if (raw_leader->toString().substr(leader_cond.getStartOffset(),
-                                              leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
+            if (leader->toString().substr(leader_cond.getStartOffset(),
+					  leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
                 != leader_cond.getMatch())
                 continue;
         }
