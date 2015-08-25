@@ -97,9 +97,7 @@ void CollectCounts(const std::shared_ptr<FILE> &input,
 	    const Subfields subfields(field_data[lok_index]);
 	    if (subfields.hasSubfieldWithValue('0', "936ln")) {
 		const std::string ixtheo_notation(subfields.getFirstSubfieldValue('a'));
-		if (not ixtheo_notation.empty()
-		    and code_to_description_map.find(ixtheo_notation) != code_to_description_map.end())
-		{
+		if (code_to_description_map.find(ixtheo_notation) != code_to_description_map.end()) {
 		    found_at_least_one = true;
 		    std::cout << field_data[0] << ": " << ixtheo_notation << '\n';
 		    ++ixtheo_notation_count;
