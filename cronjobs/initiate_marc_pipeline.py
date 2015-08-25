@@ -4,6 +4,7 @@
 
 from __future__ import print_function
 import datetime
+import glob
 import process_util
 import os
 import struct
@@ -18,6 +19,14 @@ def ExecOrDie(cmd_name, args, log_file_name):
         util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logs in /tmp for the reason.")
         sys.exit(-1)
 
+
+def ImportIntoVuFind(pattern, log_file_name):
+    args = glob.glob(pattern)
+    if len(args) != 1:
+        util.Error("\"" + pattern + "\" matched " + str(len(args))
+                   + " files! (Should have matched exactly 1 file!)")
+    ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
+
     
 def StartPipeline(pipeline_script_name, data_files, conf):
     log_file_name = util.MakeLogFileName(pipeline_script_name, "/tmp")
@@ -30,11 +39,20 @@ def StartPipeline(pipeline_script_name, data_files, conf):
     delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
     ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
 
-    args = [ config.get("FileNames", "superior_marc_data") ]
-    ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
+    ImportIntoVuFind(conf.get("FileNames", "superior_marc_data"), log_file_name)
+    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), log_file_name)
 
-    args = [ config.get("FileNames", "title_marc_data") ]
-    ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
+
+# Returns True if we have no timestamp file or if link_filename's creation time is more recent than
+# the time found in the timestamp file.
+def FoundNewBSZDataFile(link_filename):
+    try:
+        statinfo = os.stat(link_filename)
+        file_creation_time = statinfo.st_ctime
+    except OSError as e:
+        util.Error("in FoundNewBSZDataFile: Symlink \"" + link_filename + "\" is missing or dangling!")
+    old_timestamp = util.ReadTimestamp()
+    return old_timestamp < file_creation_time
 
 
 def Main():
@@ -52,7 +70,7 @@ def Main():
          sys.exit(-1)
     conf = util.LoadConfigFile()
     link_name = conf.get("Misc", "link_name")
-    if util.FoundNewBSZDataFile(link_name):
+    if FoundNewBSZDataFile(link_name):
         bsz_data = util.ResolveSymlink(link_name)
         if not bsz_data.endswith(".tar.gz"):
             util.Error("BSZ data file must end in .tar.gz!")
@@ -60,6 +78,7 @@ def Main():
         
         StartPipeline(pipeline_script_name, file_name_list, conf)
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.")
+        util.WriteTimestamp()
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.")
 
