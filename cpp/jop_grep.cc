@@ -19,6 +19,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -48,15 +49,15 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
     if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
     unsigned count(0), result_count(0);
 
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
-        std::unique_ptr<Leader> leader(raw_leader);
+
         const bool is_article(leader->isArticle());
         const bool is_serial(leader->isSerial());
         if (not is_article and not is_serial)

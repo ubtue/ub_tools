@@ -16,6 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include <iostream>
 #include <memory>
 #include <set>
@@ -70,12 +71,12 @@ void ExtractDDCsFromNormdata(const bool verbose, FILE * const norm_input,
     if (verbose)
         std::cerr << "Starting loading of norm data.\n";
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned count(0), ddc_record_count(0);
     std::string err_msg;
-    while (MarcUtil::ReadNextRecord(norm_input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(norm_input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
 
         const auto _001_iter(DirectoryEntry::FindField("001", dir_entries));
@@ -139,14 +140,13 @@ void AugmentRecordsWithDDCs(const bool verbose, FILE * const title_input, FILE *
     if (verbose)
         std::cerr << "Starting augmenting of data.\n";
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned count(0), augmented_count(0), already_had_ddcs(0), never_had_ddcs_and_now_have_ddcs(0);
     std::string err_msg;
-    while (MarcUtil::ReadNextRecord(title_input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(title_input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
-        std::unique_ptr<Leader> leader(raw_leader);
 
 	// Extract already existing DDCs:
 	std::set<std::string> existing_ddcs;
@@ -158,7 +158,7 @@ void AugmentRecordsWithDDCs(const bool verbose, FILE * const title_input, FILE *
 	std::set<std::string> topic_ids; // = the IDs of the corresponding norm data records
 	ExtractTopicIDs("600:610:611:630:650:653:656:689", dir_entries, field_data, existing_ddcs, &topic_ids);
 	if (topic_ids.empty()) {
-	    MarcUtil::ComposeAndWriteRecord(title_output, dir_entries, field_data, leader.get());
+	    MarcUtil::ComposeAndWriteRecord(title_output, dir_entries, field_data, leader);
 	    continue;
 	}
 
@@ -175,11 +175,11 @@ void AugmentRecordsWithDDCs(const bool verbose, FILE * const title_input, FILE *
 		++never_had_ddcs_and_now_have_ddcs;
 	    for (const auto &new_ddc : new_ddcs) {
 		const std::string new_field("0 ""\x1F""a" + new_ddc);
-		MarcUtil::InsertField(new_field, "082", leader.get(), &dir_entries, &field_data);
+		MarcUtil::InsertField(new_field, "082", leader, &dir_entries, &field_data);
 	    }
 	}
 
-	MarcUtil::ComposeAndWriteRecord(title_output, dir_entries, field_data, leader.get());
+	MarcUtil::ComposeAndWriteRecord(title_output, dir_entries, field_data, leader);
     }
 
     if (verbose) {

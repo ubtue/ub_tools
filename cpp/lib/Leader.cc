@@ -25,15 +25,11 @@
 const size_t Leader::LEADER_LENGTH(24);
 
 
-bool Leader::ParseLeader(const std::string &leader_string, Leader ** const leader, std::string * const err_msg) {
+bool Leader::ParseLeader(const std::string &leader_string, std::shared_ptr<Leader> &leader,
+			 std::string * const err_msg)
+{
     if (err_msg != nullptr)
         err_msg->clear();
-
-    if (leader == nullptr) {
-        if (err_msg != nullptr)
-            *err_msg = "\"leader\" argument to Leader::ParseLeader must point to something!";
-        return false;
-    }
 
     if (leader_string.size() != LEADER_LENGTH) {
         if (err_msg != nullptr)
@@ -81,7 +77,7 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader ** const leade
         return false;
     }
 
-    *leader = new Leader(leader_string, record_length, base_address_of_data);
+    leader.reset(new Leader(leader_string, record_length, base_address_of_data));
     return true;
 }
 

@@ -109,7 +109,7 @@ void ThreadSafeComposeAndWriteRecord(FILE * const output, const std::vector<Dire
 {
     static std::mutex marc_writer_mutex;
     std::unique_lock<std::mutex> mutex_locker(marc_writer_mutex);
-    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
 }
 
 
@@ -283,7 +283,7 @@ void ProcessRecord(ssize_t _856_index, std::shared_ptr<Leader> leader, std::vect
 
         subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
         const std::string new_856_field(subfields.toString());
-        MarcUtil::UpdateField(_856_index, new_856_field, leader.get(), &dir_entries, &field_data);
+        MarcUtil::UpdateField(_856_index, new_856_field, leader, &dir_entries, &field_data);
     }
 
     ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader);
@@ -328,7 +328,7 @@ void ProcessRecords(const unsigned worker_thread_count, const unsigned max_recor
                     const unsigned per_doc_timeout, const std::string &pdf_images_script, FILE * const input,
                     FILE * const output, kyotocabinet::HashDB * const db)
 {
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
@@ -337,8 +337,7 @@ void ProcessRecords(const unsigned worker_thread_count, const unsigned max_recor
     SharedBuffer<ThreadData> work_queue(worker_thread_count);
     ThreadManager thread_manager(worker_thread_count, WorkerThread, &work_queue);
 
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
-        std::shared_ptr<Leader> leader(raw_leader);
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;

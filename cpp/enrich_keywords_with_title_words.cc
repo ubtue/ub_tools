@@ -215,9 +215,11 @@ size_t ExtractAllKeywords(
     size_t extracted_count(ExtractKeywordsFromKeywordChainFields(dir_entries, field_data, stemmer,
 								 stemmed_keyword_to_stemmed_keyphrases_map,
 								 stemmed_keyphrases_to_unstemmed_keyphrases_map));
+/*
     extracted_count += ExtractKeywordsFromIndividualKeywordFields(dir_entries, field_data, stemmer,
 								  stemmed_keyword_to_stemmed_keyphrases_map,
 								  stemmed_keyphrases_to_unstemmed_keyphrases_map);
+*/
     return extracted_count;
 }
 
@@ -230,14 +232,13 @@ void ExtractStemmedKeywords(
     if (verbose)
         std::cerr << "Starting extraction and stemming of pre-existing keywords.\n";
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned total_count(0), records_with_keywords_count(0), keywords_count(0);
     std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++total_count;
-        std::unique_ptr<Leader> leader(raw_leader);
 
 	const size_t extracted_count(
             ExtractAllKeywords(dir_entries, field_data, stemmed_keyword_to_stemmed_keyphrases_map,
@@ -287,19 +288,18 @@ void AugmentRecordsWithTitleKeywords(
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned total_count(0), augmented_record_count(0);
     std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++total_count;
-        std::unique_ptr<Leader> leader(raw_leader);
 
 	// Look for a title...
         const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
         if (entry_iterator == dir_entries.end()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             continue;
         }
 
@@ -307,7 +307,7 @@ void AugmentRecordsWithTitleKeywords(
         const size_t title_index(entry_iterator - dir_entries.begin());
         Subfields subfields(field_data[title_index]);
         if (not subfields.hasSubfield('a')) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             continue;
         }
 	std::string title;
@@ -332,7 +332,7 @@ void AugmentRecordsWithTitleKeywords(
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             continue;
         }
 
@@ -376,17 +376,17 @@ void AugmentRecordsWithTitleKeywords(
 	}
 
         if (new_keyphrases.empty()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             continue;
         }
 
 	// Augment the record with new keywords derived from title words:
 	for (const auto &new_keyword : new_keyphrases) {
 	    const std::string field_contents("  ""\x1F""a" + new_keyword);
-	    MarcUtil::InsertField(field_contents, "601", leader.get(), &dir_entries, &field_data);
+	    MarcUtil::InsertField(field_contents, "601", leader, &dir_entries, &field_data);
 	}
 
-	MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+	MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
         ++augmented_record_count;
     }
 

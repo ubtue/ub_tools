@@ -22,8 +22,10 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <unordered_map>
 #include <cstdlib>
 #include <cstring>
@@ -46,12 +48,12 @@ void AddChildRefs(FILE * const input, FILE * const output,
                   const std::unordered_map<std::string, std::string> &parent_to_children_map,
                   const std::unordered_map<std::string, std::string> &id_to_title_map)
 {
-    Leader *leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned count(0), modified_count(0);
     std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, &leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
 
         if (dir_entries[0].getTag() != "001")
@@ -91,8 +93,6 @@ void AddChildRefs(FILE * const input, FILE * const output,
         const size_t write_count = std::fwrite(record.data(), 1, record.size(), output);
         if (write_count != record.size())
             Error("Failed to write " + std::to_string(record.size()) + " bytes to MARC output!");
-
-        delete leader;
     }
 
     if (not err_msg.empty())

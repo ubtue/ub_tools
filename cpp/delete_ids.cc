@@ -16,8 +16,10 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 #include <algorithm>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <unordered_set>
 #include <vector>
@@ -100,13 +102,13 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
                     const std::unordered_set<std::string> &local_deletion_ids, FILE * const input,
                     FILE * const output)
 {
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
 
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++total_record_count;
 
         if (dir_entries[0].getTag() != "001")
@@ -153,7 +155,7 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
 		for (auto dir_entry(dir_entries.cbegin() + start_local_match);
 		     dir_entry != dir_entries.cbegin() + end_local_match; ++dir_entry)
 		    deleted_size += dir_entry->getFieldLength() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
-		raw_leader->setRecordLength(raw_leader->getRecordLength() - deleted_size);
+		leader->setRecordLength(leader->getRecordLength() - deleted_size);
 
                 // ... and throw away the matched local data set.
                 dir_entries.erase(dir_entries.begin() + start_local_match, dir_entries.begin() + end_local_match);\
@@ -163,14 +165,14 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
             }
 
             if (not modified)
-                MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, raw_leader);
+                MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             else {
                 // Only keep records that still have at least one "LOK" tag:
                 if (std::find_if(dir_entries.cbegin(), dir_entries.cend(), MatchTag("LOK")) == dir_entries.cend())
                     ++deleted_record_count;
                 else {
                     ++modified_record_count;
-                    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, raw_leader);
+                    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
                 }
             }
         }

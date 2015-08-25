@@ -21,6 +21,7 @@
 #define LEADER_H
 
 
+#include <memory>
 #include <string>
 
 
@@ -46,7 +47,7 @@ public:
      *  \param err_msg        If not nullptr and a parse error occurred an informational text will be returned here.
      *  \return True if the parse succeeded, else false.
      */
-    static bool ParseLeader(const std::string &leader_string, Leader ** const leader,
+    static bool ParseLeader(const std::string &leader_string, std::shared_ptr<Leader> &leader,
                             std::string * const err_msg = nullptr);
 
     /** \brief Index operator returning the n'th byte of the leader.

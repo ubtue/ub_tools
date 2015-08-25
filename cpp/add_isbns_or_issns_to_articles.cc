@@ -20,6 +20,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -68,15 +69,14 @@ void PopulateParentIdToISBNAndISSNMap(
     if (verbose)
         std::cout << "Starting extraction of ISBN's and ISSN's.\n";
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned count(0), extracted_isbn_count(0), extracted_issn_count(0);
     std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
 
-        std::unique_ptr<Leader> leader(raw_leader);
         if (not leader->isSerial())
             continue;
 
@@ -114,17 +114,17 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
     if (verbose)
         std::cout << "Starting augmentation of article entries.\n";
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0),
              missing_isbn_or_issn_count(0);
     std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
-        std::unique_ptr<Leader> leader(raw_leader);
+
         if (not leader->isArticle()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             continue;
         }
 
@@ -133,20 +133,20 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
 
         auto entry_iterator(DirectoryEntry::FindField("773", dir_entries));
         if (entry_iterator == dir_entries.end()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             continue;
         }
 
         const size_t index_773(entry_iterator - dir_entries.begin());
         Subfields subfields(field_data[index_773]);
         if (subfields.hasSubfield('x')) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             continue;
         }
 
         auto begin_end = subfields.getIterators('w'); // Record control number of Host Item Entry.
         if (begin_end.first == begin_end.second) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             ++missing_host_record_ctrl_num_count;
             continue;
         }
@@ -156,7 +156,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
             host_id = host_id.substr(8);
         auto const parent_isbn_or_issn_iter(parent_id_to_isbn_and_issn_map.find(host_id));
         if (parent_isbn_or_issn_iter == parent_id_to_isbn_and_issn_map.end()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             ++missing_isbn_or_issn_count;
             continue;
         }
@@ -182,12 +182,12 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
 	    if (not MarcUtil::ExtractFirstSubfield("020", 'a', dir_entries, field_data).empty())
 		continue; // We already have an ISBN.
 	    std::string new_field_020("  ""\x1F""a" + parent_isbn_or_issn_iter->second);;
-	    MarcUtil::InsertField(new_field_020, "020", leader.get(), &dir_entries, &field_data);
+	    MarcUtil::InsertField(new_field_020, "020", leader, &dir_entries, &field_data);
 
 	    ++isbns_added;
 	}
 
-        MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+        MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
     }
 
     if (not err_msg.empty())
