@@ -95,16 +95,15 @@ void CollectCounts(const std::shared_ptr<FILE> &input,
 	bool found_at_least_one(false);
 	while (lok_index != -1) {
 	    const Subfields subfields(field_data[lok_index]);
-	    const auto begin_end(subfields.getIterators('0'));
-	    if (std::distance(begin_end.first, begin_end.second) == 2 and begin_end.first->second == "936ln") {
+	    if (subfields.hasSubfieldWithValue('0', "936ln")) {
 		const std::string ixtheo_notation(subfields.getFirstSubfieldValue('a'));
 		if (not ixtheo_notation.empty()
 		    and code_to_description_map.find(ixtheo_notation) != code_to_description_map.end())
-		    {
-			found_at_least_one = true;
-			std::cout << field_data[0] << ": " << ixtheo_notation << '\n';
-			++ixtheo_notation_count;
-		    }
+		{
+		    found_at_least_one = true;
+		    std::cout << field_data[0] << ": " << ixtheo_notation << '\n';
+		    ++ixtheo_notation_count;
+		}
 	    }
 
 	    // Continue loop if next tag is "LOK":
