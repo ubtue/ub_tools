@@ -21,7 +21,7 @@ def ExecOrDie(cmd_name, args, log_file_name):
 
 
 def ImportIntoVuFind(pattern, log_file_name):
-    args = glob.glob(pattern)
+    args = [ sorted(glob.glob(pattern), reverse=True)[0] ]
     if len(args) != 1:
         util.Error("\"" + pattern + "\" matched " + str(len(args))
                    + " files! (Should have matched exactly 1 file!)")
