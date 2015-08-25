@@ -25,7 +25,8 @@ public class KeywordChainParserParser extends QParser {
 
 
     public Query parse() throws SyntaxError {
-        return this.innerQuery;
+	// return this.innerQuery;
+	return new KeywordChainSearchQuery(innerQuery);
     }
 
 
