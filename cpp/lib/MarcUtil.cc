@@ -1,6 +1,5 @@
 #include "MarcUtil.h"
 #include "Compiler.h"
-#include <iostream>//XXX
 #include <algorithm>
 #include <iterator>
 #include <memory>
@@ -354,18 +353,20 @@ size_t FindAllLocalDataBlocks(const std::vector<DirectoryEntry> &dir_entries,
 }
 
 
-size_t FindFieldsInLocalBlock(const std::string &field_tag_and_indicators,
+size_t FindFieldsInLocalBlock(const std::string &indicators, const std::string &field_tag,
 			      const std::pair<size_t, size_t> &block_start_and_end,
 			      const std::vector<std::string> &field_data,
 			      std::vector<size_t> * const field_indices)
 {
     field_indices->clear();
 
-    if (unlikely(field_tag_and_indicators.length() != 5))
-	Error("in MarcUtil::FindFieldInLocalBlock: field_tag_and_indicators must be precisely 5 characters long!");
+    if (unlikely(indicators.length() != 2))
+	Error("in MarcUtil::FindFieldInLocalBlock: indicators must be precisely 2 characters long!");
+    if (unlikely(field_tag.length() != 3))
+	Error("in MarcUtil::FindFieldInLocalBlock: field_tag must be precisely 3 characters long!");
 
     for (size_t index(block_start_and_end.first); index < block_start_and_end.second; ++index) {
-	if (StringUtil::StartsWith(field_data[index], "LOK  ""\x1E""0" + field_tag_and_indicators))
+	if (StringUtil::StartsWith(field_data[index], indicators + "\x1F""0" + field_tag))
 	    field_indices->emplace_back(index);
     }
 

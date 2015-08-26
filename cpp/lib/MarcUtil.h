@@ -116,12 +116,14 @@ size_t FindAllLocalDataBlocks(const std::vector<DirectoryEntry> &dir_entries,
 			      std::vector<std::pair<size_t, size_t>> * const local_block_boundaries);
 
 /** \brief Locate a field in a local block.
+ *  \param field_tag            The 3 character tag that we're looking for.
+ *  \param indicators           The two 1-character indicators that we're looking for.
  *  \param field_tag_and_indicators  The 3 character tag and the two 1 character indicators that we're looking for.
  *  \param block_start_and_end  "first" must point to the first entry in "field_data" that belongs to the local
  *                              block that we're scanning and "second" one past the last entry.
  *  \return The number of times the field was found in the block.
  */
-size_t FindFieldsInLocalBlock(const std::string &field_tag_and_indicators,
+size_t FindFieldsInLocalBlock(const std::string &indicators, const std::string &field_tag,
 			      const std::pair<size_t, size_t> &block_start_and_end,
 			      const std::vector<std::string> &field_data,
 			      std::vector<size_t> * const field_indices);

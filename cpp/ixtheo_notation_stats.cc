@@ -78,7 +78,7 @@ bool LocalBlockIsFromUbTueTheologians(const std::pair<size_t, size_t> &local_blo
 				      const std::vector<std::string> &field_data)
 {
     std::vector<size_t> _852_indices;
-    MarcUtil::FindFieldsInLocalBlock("852  ", local_block_begin_and_end, field_data, &_852_indices);
+    MarcUtil::FindFieldsInLocalBlock("  ", "852", local_block_begin_and_end, field_data, &_852_indices);
 
     for (const auto index : _852_indices) {
 	const Subfields subfields(field_data[index]);
@@ -96,7 +96,7 @@ unsigned CountIxTheoNotations(const std::pair<size_t, size_t> &local_block_begin
 			      std::unordered_map<std::string, unsigned> * const categories_to_counts_map)
 {
     std::vector<size_t> _936ln_indices;
-    MarcUtil::FindFieldsInLocalBlock("936ln", local_block_begin_and_end, field_data, &_936ln_indices);
+    MarcUtil::FindFieldsInLocalBlock("ln", "936", local_block_begin_and_end, field_data, &_936ln_indices);
 
     size_t found_count(0);
     for (const auto index : _936ln_indices) {
