@@ -1,5 +1,6 @@
 #include "MarcUtil.h"
 #include "Compiler.h"
+#include <iostream>//XXX
 #include <algorithm>
 #include <iterator>
 #include <memory>
@@ -340,12 +341,12 @@ size_t FindAllLocalDataBlocks(const std::vector<DirectoryEntry> &dir_entries,
 
     size_t local_block_end(static_cast<size_t>(local_block_start) + 1);
     while (local_block_end < dir_entries.size()) {
-	if (StringUtil::StartsWith(field_data[local_block_end], "LOK  ""\x1E""0001")) {
+	if (StringUtil::StartsWith(field_data[local_block_end], "  ""\x1F""0000")) {
 	    local_block_boundaries->emplace_back(std::make_pair(static_cast<size_t>(local_block_start),
 								local_block_end));
 	    local_block_start = static_cast<ssize_t>(local_block_end);
-	    ++local_block_end;
 	}
+	++local_block_end;
     }
     local_block_boundaries->emplace_back(std::make_pair(static_cast<size_t>(local_block_start), local_block_end));
 
