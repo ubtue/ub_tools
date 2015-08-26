@@ -4,6 +4,7 @@
 #include <iterator>
 #include <memory>
 #include <stdexcept>
+#include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
 
@@ -324,6 +325,52 @@ size_t ExtractAllSubfields(const std::string &tags, const std::vector<DirectoryE
     }
 
     return values->size();
+}
+
+
+size_t FindAllLocalDataBlocks(const std::vector<DirectoryEntry> &dir_entries,
+			      const std::vector<std::string> &field_data,
+			      std::vector<std::pair<size_t, size_t>> * const local_block_boundaries)
+{
+    local_block_boundaries->clear();
+
+    ssize_t local_block_start(GetFieldIndex(dir_entries, "LOK"));
+    if (local_block_start == -1)
+	return 0;
+
+    size_t local_block_end(static_cast<size_t>(local_block_start) + 1);
+    while (local_block_end < dir_entries.size()) {
+	if (StringUtil::StartsWith(field_data[local_block_end], "  ""\x1F""0000")) {
+	    local_block_boundaries->emplace_back(std::make_pair(static_cast<size_t>(local_block_start),
+								local_block_end));
+	    local_block_start = static_cast<ssize_t>(local_block_end);
+	}
+	++local_block_end;
+    }
+    local_block_boundaries->emplace_back(std::make_pair(static_cast<size_t>(local_block_start), local_block_end));
+
+    return local_block_boundaries->size();
+}
+
+
+size_t FindFieldsInLocalBlock(const std::string &field_tag, const std::string &indicators,
+			      const std::pair<size_t, size_t> &block_start_and_end,
+			      const std::vector<std::string> &field_data,
+			      std::vector<size_t> * const field_indices)
+{
+    field_indices->clear();
+
+    if (unlikely(field_tag.length() != 3))
+	Error("in MarcUtil::FindFieldInLocalBlock: field_tag must be precisely 3 characters long!");
+    if (unlikely(indicators.length() != 2))
+	Error("in MarcUtil::FindFieldInLocalBlock: indicators must be precisely 2 characters long!");
+
+    for (size_t index(block_start_and_end.first); index < block_start_and_end.second; ++index) {
+	if (StringUtil::StartsWith(field_data[index], indicators + "\x1F""0" + field_tag))
+	    field_indices->emplace_back(index);
+    }
+
+    return field_indices->size();
 }
 
 

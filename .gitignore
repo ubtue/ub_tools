@@ -26,6 +26,7 @@ enrich_keywords_with_title_words
 exec_test
 extract_text_from_image_only_pdfs
 full_text_lookup
+ixtheo_notation_stats
 jop_grep
 krimdok_filter
 marc_grep
