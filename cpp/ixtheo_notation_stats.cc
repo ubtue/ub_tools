@@ -138,7 +138,7 @@ void CollectCounts(const std::shared_ptr<FILE> &input,
 	if (MarcUtil::FindAllLocalDataBlocks(dir_entries, field_data, &local_block_boundaries) == 0)
 	    continue;
 
-	for (const auto local_block_begin_and_end : local_block_boundaries) {
+	for (const auto &local_block_begin_and_end : local_block_boundaries) {
 	    if (not LocalBlockIsFromUbTueTheologians(local_block_begin_and_end, field_data))
 		continue;
 
