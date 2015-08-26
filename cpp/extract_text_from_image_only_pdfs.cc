@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
         if (argc == 3)
             args.emplace_back(argv[2]);
 
-        if (ExecUtil::Exec(dir_path + "/" + BASH_HELPER, args, "", 20 /* seconds */) != 0)
+        if (ExecUtil::Exec(dir_path + "/" + BASH_HELPER, args, "", ExecUtil::ExecMode::WAIT, 20 /* seconds */) != 0)
             Error("failed to execute conversion script!");
 
         std::string extracted_text;

@@ -32,6 +32,7 @@
 #include "PdfUtil.h"
 #include "SmartDownloader.h"
 #include "StringUtil.h"
+#include "Subfields.h"
 #include "util.h"
 
 
@@ -109,9 +110,9 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
     const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
-    const unsigned TIMEOUT(60); // in seconds
+    static constexpr unsigned TIMEOUT(60); // in seconds
     if (ExecUtil::Exec(pdf_images_script, { input_filename, output_filename, language_code }, "",
-		       TIMEOUT) != 0)
+		       ExecUtil::ExecMode::WAIT, TIMEOUT) != 0)
     {
         Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
                 + std::to_string(TIMEOUT) + " seconds ! (original Url: " + original_url + ")");
@@ -129,22 +130,64 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 
     return true;
 }
-/*
-
-static std::atomic_uint relevant_links_count, failed_count, records_with_relevant_links_count, active_thread_count;
 
 
-void ProcessRecord(ssize_t _856_index, std::shared_ptr<Leader> leader, std::vector<DirectoryEntry> &dir_entries,
-                   std::vector<std::string> &field_data, const unsigned per_doc_timeout,
-                   const std::string pdf_images_script, FILE * const output, kyotocabinet::HashDB * const db)
+// Checks subfields "3" and "z" to see if they start w/ "Rezension".
+bool IsProbablyAReview(const Subfields &subfields) {
+    const auto _3_begin_end(subfields.getIterators('3'));
+    if (_3_begin_end.first != _3_begin_end.second) {
+        if (StringUtil::StartsWith(_3_begin_end.first->second, "Rezension"))
+            return true;
+    } else {
+        const auto z_begin_end(subfields.getIterators('z'));
+        if (z_begin_end.first != z_begin_end.second
+            and StringUtil::StartsWith(z_begin_end.first->second, "Rezension"))
+            return true;
+    }
+
+    return false;
+}
+
+
+/** Writes "media_type" and "document" to "db" and returns the unique key that was generated for the write. */
+std::string FileLockedWriteDocumentWithMediaType(const std::string &media_type, const std::string &document,
+                                                 const std::string &db_filename)
 {
-    ++active_thread_count;
+    FileLocker file_locker(db_filename, FileLocker::WRITE_ONLY);
 
-    bool found_at_least_one(false);
-    for (/ * Empty! * /;
-        static_cast<size_t>(_856_index) < dir_entries.size() and dir_entries[_856_index].getTag() == "856";
-        ++_856_index)
-    {
+    kyotocabinet::HashDB db;
+    if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
+                                 | kyotocabinet::HashDB::OTRUNCATE))
+        Error("Failed to open database \"" + db_filename + "\" for writing ("
+              + std::string(db.error().message()) + ")!");
+    
+    static unsigned key;
+    ++key;
+    const std::string key_as_string(std::to_string(key));
+    db.add(key_as_string, "Content-type: " + media_type + "\r\n\r\n" + document);
+    
+    return key_as_string;
+}
+
+
+void ProcessRecord(FILE * const input, const std::string &marc_output_filename,
+		   const std::string &pdf_images_script, const std::string &db_filename)
+{
+    std::shared_ptr<Leader> leader;
+    std::vector<DirectoryEntry> dir_entries;
+    std::vector<std::string> field_data;
+    std::string err_msg;
+    if (not MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg))
+	Error("failed to read MARC record!");
+
+    ssize_t _856_index(MarcUtil::GetFieldIndex(dir_entries, "856"));
+    if (_856_index == -1)
+	Error("no 856 tag found!");
+
+    constexpr unsigned PER_DOC_TIMEOUT(20);
+
+    const ssize_t dir_entry_count(static_cast<ssize_t>(dir_entries.size()));
+    for (/* Empty! */; _856_index < dir_entry_count and dir_entries[_856_index].getTag() == "856"; ++_856_index) {
         Subfields subfields(field_data[_856_index]);
         const auto u_begin_end(subfields.getIterators('u'));
         if (u_begin_end.first == u_begin_end.second) // No subfield 'u'.
@@ -153,46 +196,30 @@ void ProcessRecord(ssize_t _856_index, std::shared_ptr<Leader> leader, std::vect
         if (IsProbablyAReview(subfields))
             continue;
 
-        // If we get here, we have an 856u subfield that is not a review.
-        ++relevant_links_count;
-        if (not found_at_least_one) {
-            ++records_with_relevant_links_count;
-            found_at_least_one = true;
-        }
-
         std::string document, media_type;
         const std::string url(u_begin_end.first->second);
-        if (not GetDocumentAndMediaType(url, per_doc_timeout, &document, &media_type)) {
-            ++failed_count;
+        if (not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type))
             continue;
-        }
 
         std::string extracted_text, key;
         if (GetTextFromImagePDF(document, media_type, url, dir_entries, field_data,
                                 pdf_images_script, &extracted_text))
-            key = ThreadSafeWriteDocumentWithMediaType("text/plain", extracted_text, db);
+            key = FileLockedWriteDocumentWithMediaType("text/plain", extracted_text, db_filename);
         else
-            key = ThreadSafeWriteDocumentWithMediaType(media_type, document, db);
+            key = FileLockedWriteDocumentWithMediaType(media_type, document, db_filename);
 
         subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
         const std::string new_856_field(subfields.toString());
         MarcUtil::UpdateField(_856_index, new_856_field, leader, &dir_entries, &field_data);
     }
 
-    ThreadSafeComposeAndWriteRecord(output, dir_entries, field_data, leader);
-
-    --active_thread_count;
-}
-*/
-
-
-void ProcessRecord(FILE * const input) {
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
-    std::string err_msg;
-    if (not MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg))
-	Error("failed to read MARC record!");
+    // Safely append the modified MARC data to the MARC output file:
+    FileLocker file_locker(marc_output_filename, FileLocker::WRITE_ONLY);
+    FILE * const marc_output(std::fopen(marc_output_filename.c_str(), "ab"));
+    if (marc_output == nullptr)
+        Error("can't open \"" + marc_output_filename + "\" for appending!");
+    MarcUtil::ComposeAndWriteRecord(marc_output, dir_entries, field_data, leader);
+    std::fclose(marc_output);
 }
 
 
@@ -225,22 +252,13 @@ int main(int argc, char *argv[]) {
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[3]);
-    FILE * const marc_output(std::fopen(marc_output_filename.c_str(), "wb"));
-    if (marc_output == nullptr)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     if (std::fseek(marc_input, offset, SEEK_SET) == -1)
 	Error("failed to position " + marc_input_filename + " at offset " + std::to_string(offset)
 	      + "! (" + std::to_string(errno) + ")");
 
-    kyotocabinet::HashDB db;
-    if (not db.open(argv[4], kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
-                             | kyotocabinet::HashDB::OTRUNCATE))
-        Error("Failed to open database \"" + std::string(argv[4]) + "\" for writing ("
-              + std::string(db.error().message()) + ")!");
-
     try {
-        ProcessRecord(marc_input);
+        ProcessRecord(marc_input, marc_output_filename, GetPathToPdfImagesScript(argv[0]), argv[4]);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }

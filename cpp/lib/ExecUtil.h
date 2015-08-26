@@ -36,16 +36,24 @@
 namespace ExecUtil {
 
 
+enum class ExecMode {
+    WAIT,  //< Exec() will wait for the child to exit.
+    DETACH //< Exec() will not wait for the child to exit and will return the child's PID.
+};
+
+
 /** \brief  Run a subcommand.
  *  \param  command             The path to the command that should be executed.
  *  \param  args                The arguments for the command, not including the command itself.
  *  \param  new_stdout          An optional replacement file path for the stdout.
  *  \param  timeout_in_seconds  If not zero, the subprocess will be killed if the timeout expires before
  *                              the process terminates.  SIGKILL will be used.
- *  \return The exit code of the subcommand or an error code if there was a failure along the way.
+ *  \return If "exec_mode" was ExecMode::DETACH: the PID of the child.\
+ *          If "exec_mode" was ExecMode::WAIT: the exit code of the subcommand or an error code if there
+ *          was a failure along the way.
  */
 int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdout = "",
-         unsigned timeout_in_seconds = 0);
+         const ExecMode exec_mode = ExecMode::WAIT, unsigned timeout_in_seconds = 0);
 
 
 /** \brief Tries to find a path, with the help of the environment variable PATH, to "executable_candidate".

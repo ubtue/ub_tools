@@ -46,10 +46,13 @@ namespace ExecUtil {
 
 
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
-         unsigned timeout_in_seconds)
+         const ExecMode exec_mode, unsigned timeout_in_seconds)
 {
     if (::access(command.c_str(), X_OK) != 0)
-        throw std::runtime_error("in Exec: can't execute \"" + command + "\"!");
+        throw std::runtime_error("in ExecUtil::Exec: can't execute \"" + command + "\"!");
+
+    if (exec_mode == ExecMode::DETACH and timeout_in_seconds > 0)
+	throw std::runtime_error("in ExecUtil::Exec: non-zero timeout is imcompatible w/ ExecMode::DETACH!");
 
     const int EXECVE_FAILURE(248);
 
@@ -86,6 +89,9 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
     // The parent of the fork:
     else {
+	if (exec_mode == ExecMode::DETACH)
+	    return pid;
+
         void (*old_alarm_handler)(int) = nullptr;
 
         if (timeout_in_seconds > 0) {
