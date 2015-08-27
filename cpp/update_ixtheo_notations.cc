@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[2]);
-    std::shared_ptr<FILE> marc_output(std::fopen(marc_output_filename.c_str(), "ob"), std::fclose);
+    std::shared_ptr<FILE> marc_output(std::fopen(marc_output_filename.c_str(), "wb"), std::fclose);
     if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
