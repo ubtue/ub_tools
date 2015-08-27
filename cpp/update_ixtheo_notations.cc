@@ -163,11 +163,6 @@ void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FI
 }
 
 
-void CloseFile(FILE * const file) {
-    std::fclose(file);
-}
-
-
 int main(int argc, char **argv) {
     progname = argv[0];
 
@@ -175,18 +170,18 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    std::shared_ptr<FILE> marc_input(std::fopen(marc_input_filename.c_str(), "rbm"), CloseFile);
+    std::shared_ptr<FILE> marc_input(std::fopen(marc_input_filename.c_str(), "rbm"), std::fclose);
     if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[2]);
-    std::shared_ptr<FILE> marc_output(std::fopen(marc_output_filename.c_str(), "ob"), CloseFile);
+    std::shared_ptr<FILE> marc_output(std::fopen(marc_output_filename.c_str(), "ob"), std::fclose);
     if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     const std::string code_to_description_map_filename(argv[3]);
     std::shared_ptr<FILE> code_to_description_map_file(std::fopen(code_to_description_map_filename.c_str(), "rbm"),
-						       CloseFile);
+						       std::fclose);
     if (code_to_description_map_file == nullptr)
         Error("can't open \"" + code_to_description_map_filename + "\" for reading!");
 
