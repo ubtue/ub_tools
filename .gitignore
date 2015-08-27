@@ -26,7 +26,6 @@ enrich_keywords_with_title_words
 exec_test
 extract_text_from_image_only_pdfs
 full_text_lookup
-ixtheo_notation_stats
 jop_grep
 kcdb_info
 krimdok_filter
@@ -41,6 +40,7 @@ test_chop_into_words
 test_find_substring
 test_auto_temp_file
 update_full_text_db
+update_ixtheo_notations
 
 bsz_daten
 KeywordChainParser-*.jar
