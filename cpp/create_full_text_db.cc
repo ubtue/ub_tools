@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -47,7 +48,11 @@ static void Usage() __attribute__((noreturn));
 
 static void Usage() {
     std::cerr << "Usage: " << ::progname
-	      << "[--max-record-count count] [--skip-count count] marc_input marc_output full_text_db\n\n";
+	      << "[--max-record-count count] [--skip-count count] [--process-count-low-and-high-watermarks low:high] "
+	      << "marc_input marc_output full_text_db\n"
+	      << "       --process-count-low-and-high-watermarks sets the maximum and minimum number of spawned\n"
+	      << "       child processes.  When we hit the high water mark we wait for child processes to exit\n"
+	      << "       until we reach the low watermark.\n\n";
 
     std::exit(EXIT_FAILURE);
 }
@@ -103,10 +108,6 @@ bool FoundAtLeastOneNonReviewLink(const std::vector<DirectoryEntry> &dir_entries
 }
 
 
-constexpr unsigned PROCESS_COUNT_HIGHWATER_MARK(10);
-constexpr unsigned PROCESS_COUNT_LOWWATER_MARK(5);
-
-
 // Returns the number of child processes that returned a non-zero exit code.
 unsigned CleanUpZombies(const unsigned zombies_to_collect) {
     unsigned child_reported_failure_count(0);
@@ -123,7 +124,8 @@ unsigned CleanUpZombies(const unsigned zombies_to_collect) {
 
 void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, FILE * const input,
                     const std::string &input_filename, FILE * const output, const std::string &output_filename,
-		    const std::string &db_filename)
+		    const std::string &db_filename, const unsigned process_count_low_watermark,
+		    const unsigned process_count_high_watermark)
 {
     std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
@@ -157,9 +159,9 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 	++active_child_count;
 	++spawn_count;
 
-	if (active_child_count > PROCESS_COUNT_HIGHWATER_MARK) {
-	    child_reported_failure_count += CleanUpZombies(active_child_count - PROCESS_COUNT_LOWWATER_MARK);
-	    active_child_count = PROCESS_COUNT_LOWWATER_MARK;
+	if (active_child_count > process_count_high_watermark) {
+	    child_reported_failure_count += CleanUpZombies(active_child_count - process_count_low_watermark);
+	    active_child_count = process_count_low_watermark;
 	}
     }
 
@@ -177,25 +179,47 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 }
 
 
+constexpr unsigned PROCESS_COUNT_DEFAULT_HIGH_WATERMARK(10);
+constexpr unsigned PROCESS_COUNT_DEFAULT_LOW_WATERMARK(5);
+
+
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 4 and argc != 6 and argc != 8)
+    if (argc != 4 and argc != 6 and argc != 8 and argc != 10)
         Usage();
     ++argv; // skip program name
 
     // Process optional args:
     unsigned max_record_count(UINT_MAX), skip_count(0);
+    unsigned process_count_low_watermark(PROCESS_COUNT_DEFAULT_LOW_WATERMARK),
+	     process_count_high_watermark(PROCESS_COUNT_DEFAULT_HIGH_WATERMARK);
     while (argc > 4) {
 	if (std::strcmp(*argv, "--max-record-count") == 0) {
 	    ++argv;
 	    if (not StringUtil::ToNumber(*argv, &max_record_count) or max_record_count == 0)
 		Error("bad value for --max-record-count!");
+	    ++argv;
 	    argc -= 2;
 	} else if (std::strcmp(*argv, "--skip-count") == 0) {
 	    ++argv;
 	    if (not StringUtil::ToNumber(*argv, &skip_count))
 		Error("bad value for --skip-count!");
+	    ++argv;
+	    argc -= 2;
+	} else if (std::strcmp("--process-count-low-and-high-watermarks", *argv) == 0) {
+	    ++argv;
+	    char *arg_end(*argv + std::strlen(*argv));
+	    char * const colon(std::find(*argv, arg_end, ':'));
+	    if (colon == arg_end)
+		Error("bad argument to --process-count-low-and-high-watermarks: colon is missing!");
+	    *colon = '\0';
+	    if (not StringUtil::ToNumber(*argv, &process_count_low_watermark)
+		or not StringUtil::ToNumber(*argv, &process_count_high_watermark))
+		Error("low or high watermark is not an unsigned number!");
+	    if (process_count_high_watermark > process_count_low_watermark)
+		Error("the high watermark must be larger than the low watermark!");
+	    ++argv;
 	    argc -= 2;
 	} else
 	    Error("unknown flag: " + std::string(*argv));
@@ -221,7 +245,8 @@ int main(int argc, char **argv) {
 
     try {
         ProcessRecords(max_record_count, skip_count, marc_input, marc_input_filename, marc_output,
-		       marc_output_filename, db_filename);
+		       marc_output_filename, db_filename, process_count_low_watermark,
+		       process_count_high_watermark);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
