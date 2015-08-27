@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
         args.emplace_back(argv[arg_no++]);
 
     try {
-        const int retcode(ExecUtil::Exec(command, args, new_stdout, timeout_in_seconds));
+        const int retcode(ExecUtil::Exec(command, args, new_stdout, ExecUtil::ExecMode::WAIT, timeout_in_seconds));
         if (retcode != 0) {
             std::cerr << "The executed script or binary failed with exit code " << retcode << "!\n";
             return EXIT_FAILURE;

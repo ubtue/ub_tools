@@ -25,6 +25,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include "Compiler.h"
@@ -253,5 +254,15 @@ std::string MakeAbsolutePath(const std::string &relative_path) {
     return MakeAbsolutePath(std::string(current_working_dir) + "/", relative_path);
 }
 
+
+bool MakeEmpty(const std::string &path) {
+    int fd;
+    if ((fd = ::open(path.c_str(), O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1)
+	return false;
+
+    ::close(fd);
+    return true;
+}
+    
 
 } // namespace FileUtil

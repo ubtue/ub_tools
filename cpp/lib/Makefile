@@ -37,7 +37,7 @@ RegexMatcher.o: RegexMatcher.h util.h
 Leader.o: Leader.h StringUtil.h
 DirectoryEntry.o: DirectoryEntry.h StringUtil.h util.h
 MarcUtil.o: MarcUtil.h DirectoryEntry.h Leader.h util.h Compiler.h Subfields.h StringUtil.h
-Downloader.o: Downloader.h util.h FileUtil.h
+Downloader.o: Downloader.h util.h FileUtil.h ExecUtil.h
 MarcGrepTokenizer.o: MarcGrepTokenizer.h StringUtil.h
 MarcQueryParser.o: DirectoryEntry.h Leader.h MarcQueryParser.h MarcGrepTokenizer.h RegexMatcher.h StringUtil.h util.h
 OCR.o: OCR.h ExecUtil.h FileUtil.h
