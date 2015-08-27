@@ -29,6 +29,7 @@
 #include <strings.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <kchashdb.h>
 #include "Downloader.h"
 #include "ExecUtil.h"
 #include "FileLocker.h"
@@ -211,8 +212,12 @@ int main(int argc, char **argv) {
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     const std::string db_filename(*argv);
-    if (not FileUtil::MakeEmpty(db_filename))
-	Error("can't create an empty \"" + db_filename + "\"!");
+    kyotocabinet::HashDB db;
+    if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
+		                 | kyotocabinet::HashDB::OTRUNCATE))
+        Error("Failed to create and truncate database \"" + db_filename + "\" ("
+              + std::string(db.error().message()) + ")!");
+    db.close();
 
     try {
         ProcessRecords(max_record_count, skip_count, marc_input, marc_input_filename, marc_output,
