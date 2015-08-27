@@ -40,7 +40,7 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << ::progname << " file_offset marc_input marc_output full_text_db\n\n"
+    std::cerr << "Usage: " << ::progname << " file_offset counter marc_input marc_output full_text_db\n\n"
               << "       file_offset  Where to start reading a MARC data set from in marc_input.\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -160,12 +160,12 @@ std::string FileLockedWriteDocumentWithMediaType(const std::string &media_type, 
         Error("Failed to open database \"" + db_filename + "\" for writing ("
               + std::string(db.error().message()) + ")!");
     
-    static unsigned key;
-    ++key;
-    const std::string key_as_string(std::to_string(key));
-    db.add(key_as_string, "Content-type: " + media_type + "\r\n\r\n" + document);
+    const std::string key(std::to_string(db.count() + 1));
+    if (not db.add(key, "Content-type: " + media_type + "\r\n\r\n" + document))
+        Error("Failed to add key/value pair to database \"" + db_filename + "\" ("
+              + std::string(db.error().message()) + ")!");
     
-    return key_as_string;
+    return key;
 }
 
 
