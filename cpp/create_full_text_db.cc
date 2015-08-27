@@ -142,10 +142,8 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;
-        if (total_record_count <= skip_count) {
-	    
+        if (total_record_count <= skip_count)
             continue;
-	}
 
 	if (not FoundAtLeastOneNonReviewLink(dir_entries, field_data)) {
 	    FileLockedComposeAndWriteRecord(output, output_filename, dir_entries, field_data, leader);
