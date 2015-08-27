@@ -57,7 +57,7 @@ void FileLockedComposeAndWriteRecord(FILE * const output, const std::string &out
                                      const std::vector<std::string> &field_data, std::shared_ptr<Leader> leader)
 {
     FileLocker file_locker(output_filename, FileLocker::WRITE_ONLY);
-    if (not std::fseek(output, 0, SEEK_END))
+    if (std::fseek(output, 0, SEEK_END) == -1)
 	Error("failed to seek to the end of \"" + output_filename + "\"!");
     MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
 }
