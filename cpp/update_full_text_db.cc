@@ -170,7 +170,8 @@ std::string FileLockedWriteDocumentWithMediaType(const std::string &media_type, 
 }
 
 
-void ProcessRecord(FILE * const input, const std::string &marc_output_filename,
+// Returns true if text has been successfully extrcated, else false.
+bool ProcessRecord(FILE * const input, const std::string &marc_output_filename,
 		   const std::string &pdf_images_script, const std::string &db_filename)
 {
     std::shared_ptr<Leader> leader;
@@ -185,6 +186,7 @@ void ProcessRecord(FILE * const input, const std::string &marc_output_filename,
 	Error("no 856 tag found!");
 
     constexpr unsigned PER_DOC_TIMEOUT(20);
+    bool succeeded(false);
 
     const ssize_t dir_entry_count(static_cast<ssize_t>(dir_entries.size()));
     for (/* Empty! */; _856_index < dir_entry_count and dir_entries[_856_index].getTag() == "856"; ++_856_index) {
@@ -211,6 +213,8 @@ void ProcessRecord(FILE * const input, const std::string &marc_output_filename,
         subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
         const std::string new_856_field(subfields.toString());
         MarcUtil::UpdateField(_856_index, new_856_field, leader, &dir_entries, &field_data);
+
+	succeeded = true;
     }
 
     // Safely append the modified MARC data to the MARC output file:
@@ -220,6 +224,8 @@ void ProcessRecord(FILE * const input, const std::string &marc_output_filename,
         Error("can't open \"" + marc_output_filename + "\" for appending!");
     MarcUtil::ComposeAndWriteRecord(marc_output, dir_entries, field_data, leader);
     std::fclose(marc_output);
+
+    return succeeded;
 }
 
 
@@ -258,7 +264,8 @@ int main(int argc, char *argv[]) {
 	      + "! (" + std::to_string(errno) + ")");
 
     try {
-        ProcessRecord(marc_input, marc_output_filename, GetPathToPdfImagesScript(argv[0]), argv[4]);
+        return ProcessRecord(marc_input, marc_output_filename, GetPathToPdfImagesScript(argv[0]), argv[4])
+	       ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
