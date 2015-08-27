@@ -156,8 +156,7 @@ std::string FileLockedWriteDocumentWithMediaType(const std::string &media_type, 
     FileLocker file_locker(db_filename, FileLocker::WRITE_ONLY);
 
     kyotocabinet::HashDB db;
-    if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
-                                 | kyotocabinet::HashDB::OTRUNCATE))
+    if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE))
         Error("Failed to open database \"" + db_filename + "\" for writing ("
               + std::string(db.error().message()) + ")!");
     
