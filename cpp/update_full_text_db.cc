@@ -116,7 +116,7 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
     {
         Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
                 + std::to_string(TIMEOUT) + " seconds ! (original Url: " + original_url + ")");
-        return true;
+        return false;
     }
 
     std::string plain_text;
