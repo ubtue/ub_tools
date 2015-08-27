@@ -28,6 +28,7 @@ extract_text_from_image_only_pdfs
 full_text_lookup
 ixtheo_notation_stats
 jop_grep
+kcdb_info
 krimdok_filter
 marc_grep
 marc_grep_tokenizer_test
