@@ -65,11 +65,11 @@ echo "*** Phase 5 ***"
 echo "*** Phase 5 ***" >> "${log}"
 update_ixtheo_notations \
     TitelUndLokaldaten-with-issns-title-keywords-and-bible-refs-"${date}".mrc \
-    TitelUndLokaldaten-with-issns-title-keywords-bible-refs-and-ixtheo-notations-"${date}".mrc
+    TitelUndLokaldaten-with-issns-title-keywords-bible-refs-and-ixtheo-notations-"${date}".mrc \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
 update_ixtheo_notations \
     ÜbergeordneteTitelUndLokaldaten-with-child-refs-"${date}".mrc \
-    ÜbergeordneteTitelUndLokaldaten-with-child-refs-and-ixtheo-notations-"${date}".mrc
+    ÜbergeordneteTitelUndLokaldaten-with-child-refs-and-ixtheo-notations-"${date}".mrc \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
 
 # Cleanup of intermediate files:

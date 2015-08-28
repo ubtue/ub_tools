@@ -33,7 +33,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << "marc_input marc_output code_to_description_map\n";
+    std::cerr << "Usage: " << progname << " marc_input marc_output code_to_description_map\n";
     std::exit(EXIT_FAILURE);
 }
 
