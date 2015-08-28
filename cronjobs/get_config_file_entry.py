@@ -15,6 +15,9 @@ import socket
 import sys
 
 
+DEFAULT_CONFIG_FILE_LOCATION = "/var/lib/tuelib/"
+
+
 def Main():
     if len(sys.argv) != 4:
         print("usage: " + sys.argv[0] + " config_file section entry", file=sys.stderr)
@@ -22,10 +25,10 @@ def Main():
 
     config_file = sys.argv[1]
     if not config_file.startswith("/"):
-        if os.access("/var/lib/tuelib/" + socket.gethostname() + "/", os.R_OK):
-            config_file = "/var/lib/tuelib/" + socket.gethostname() + "/" + config_file
+        if os.access(DEFAULT_CONFIG_FILE_LOCATION + socket.gethostname() + "/", os.R_OK):
+            config_file = DEFAULT_CONFIG_FILE_LOCATION + socket.gethostname() + "/" + config_file
         else:
-            config_file = "/var/lib/tuelib/" + config_file
+            config_file = DEFAULT_CONFIG_FILE_LOCATION + config_file
     if not os.access(config_file, os.R_OK):
         print(sys.argv[0] + ": can't read \"" + config_file + "\"!", file=sys.stderr)
         sys.exit(-1)
