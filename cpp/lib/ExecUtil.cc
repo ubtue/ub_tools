@@ -39,10 +39,10 @@ bool IsExecutableFile(const std::string &path) {
 }
 
 
-} // unnamed namespace
-
-
-namespace ExecUtil {
+enum class ExecMode {
+    WAIT,  //< Exec() will wait for the child to exit.
+    DETACH //< Exec() will not wait for the child to exit and will return the child's PID.
+};
 
 
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
@@ -144,6 +144,24 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
     }
 
     return 0; // Keep the compiler happy!
+}
+
+
+} // unnamed namespace
+
+
+namespace ExecUtil {
+
+
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
+         const unsigned timeout_in_seconds)
+{
+    return ::Exec(command, args, new_stdout, ExecMode::WAIT, timeout_in_seconds);
+}
+
+
+int Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout) {
+    return ::Exec(command, args, new_stdout, ExecMode::DETACH, 0);
 }
 
 

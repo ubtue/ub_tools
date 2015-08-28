@@ -153,9 +153,8 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 	    continue;
 	}
 
-	ExecUtil::Exec(UPDATE_FULL_TEXT_DB_PATH,
-		       { std::to_string(last_offset), input_filename, output_filename, db_filename },
-		       /* new_stdout = */"", ExecUtil::ExecMode::DETACH);
+	ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
+			{ std::to_string(last_offset), input_filename, output_filename, db_filename });
 	++active_child_count;
 	++spawn_count;
 
