@@ -49,7 +49,8 @@ add_isbns_or_issns_to_articles TitelUndLokaldaten-"${date}".mrc \
 echo "*** Phase 3 ***"
 echo "*** Phase 3 ***" >> "${log}"
 enrich_keywords_with_title_words TitelUndLokaldaten-with-issns-"${date}".mrc \
-                                 TitelUndLokaldaten-with-issns-and-title-keywords-"${date}".mrc ../cpp/data/*.???
+                                 TitelUndLokaldaten-with-issns-and-title-keywords-"${date}".mrc \
+                                 ../cpp/data/stopwords.???
 
 # Phase 4:
 echo "*** Phase 4 ***"
