@@ -65,13 +65,16 @@ if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
                httpd_enable_cgi=1
   fi
 
-  if [[ $(which chcon) ]]; then
-    chcon --recursive unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_HOME"
-    chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind.conf"
-    chcon system_u:object_r:httpd_config_t:s0 "$VUFIND_LOCAL_DIR/httpd-vufind-vhosts.conf"
-    chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/record.xml"
-    chcon unconfined_u:object_r:httpd_sys_rw_content_t:s0 "$VUFIND_LOCAL_DIR/logs/search.xml"
-    chcon system_u:object_r:httpd_log_t:s0 /var/log/vufind.log
+  if [[ $(which semanage) ]]; then
+    semanage fcontext --add --type httpd_config_t /var/lib/tuelib
+    semanage fcontext --add --type httpd_sys_rw_content_t "/usr/local/vufind2(/.*)?"
+    semanage fcontext --add --type httpd_config_t "$VUFIND_HOME/local/httpd-vufind(.*).conf"
+    semanage fcontext --add --type httpd_sys_rw_content_t "$VUFIND_HOME/logs/(.*).xml"
+    semanage fcontext --add --type httpd_log_t "/var/log/vufind.log"
+
+    restorecon -R "/var/lib/tuelib"
+    restorecon -R "$VUFIND_HOME"
+    restorecon -R "/var/log/vufind.log"
   fi
 
 else
