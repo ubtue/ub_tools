@@ -82,7 +82,7 @@ bool LocalBlockIsFromUbTueTheologians(const std::pair<size_t, size_t> &local_blo
 
     for (const auto index : _852_indices) {
 	const Subfields subfields(field_data[index]);
-	if (subfields.hasSubfieldWithValue('a', "DE-Tue135"))
+	if (subfields.hasSubfieldWithValue('a', "DE-21"))
 	    return true;
     }
 
@@ -140,7 +140,6 @@ void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FI
 	for (const auto &local_block_begin_and_end : local_block_boundaries) {
 	    if (not LocalBlockIsFromUbTueTheologians(local_block_begin_and_end, field_data))
 		continue;
-
 	    const unsigned notation_count(ExtractIxTheoNotations(local_block_begin_and_end, field_data,
 								 code_to_description_map, &ixtheo_notations_list));
 	    if (ixtheo_notation_count > 0) {
