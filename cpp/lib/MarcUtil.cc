@@ -365,8 +365,9 @@ size_t FindFieldsInLocalBlock(const std::string &field_tag, const std::string &i
     if (unlikely(indicators.length() != 2))
 	Error("in MarcUtil::FindFieldInLocalBlock: indicators must be precisely 2 characters long!");
 
+    const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag + indicators);
     for (size_t index(block_start_and_end.first); index < block_start_and_end.second; ++index) {
-	if (StringUtil::StartsWith(field_data[index], indicators + "\x1F""0" + field_tag))
+	if (StringUtil::StartsWith(field_data[index], FIELD_PREFIX))
 	    field_indices->emplace_back(index);
     }
 
