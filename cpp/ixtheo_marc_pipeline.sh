@@ -49,18 +49,33 @@ add_isbns_or_issns_to_articles TitelUndLokaldaten-"${date}".mrc \
 echo "*** Phase 3 ***"
 echo "*** Phase 3 ***" >> "${log}"
 enrich_keywords_with_title_words TitelUndLokaldaten-with-issns-"${date}".mrc \
-                                 TitelUndLokaldaten-with-issns-and-title-keywords-"${date}".mrc ../cpp/data/*.???
+                                 TitelUndLokaldaten-with-issns-and-title-keywords-"${date}".mrc \
+                                 ../cpp/data/stopwords.???
 
 # Phase 4:
 echo "*** Phase 4 ***"
 echo "*** Phase 4 ***" >> "${log}"
 augment_bible_references TitelUndLokaldaten-with-issns-and-title-keywords-"${date}".mrc \
                          Normdaten-"${date}".mrc \
-                         TitelUndLokaldaten-with-issns-title-keywords-and-bible-refs-"${date}".mrc
+                         TitelUndLokaldaten-with-issns-title-keywords-and-bible-refs-"${date}".mrc >> "${log}" 2>&1
 cp *.map /var/lib/tuelib/bibleRef/
+
+# Phase 5:
+echo "*** Phase 5 ***"
+echo "*** Phase 5 ***" >> "${log}"
+update_ixtheo_notations \
+    TitelUndLokaldaten-with-issns-title-keywords-and-bible-refs-"${date}".mrc \
+    TitelUndLokaldaten-with-issns-title-keywords-bible-refs-and-ixtheo-notations-"${date}".mrc \
+    ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
+update_ixtheo_notations \
+    ÜbergeordneteTitelUndLokaldaten-with-child-refs-"${date}".mrc \
+    ÜbergeordneteTitelUndLokaldaten-with-child-refs-and-ixtheo-notations-"${date}".mrc \
+    ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
 
 # Cleanup of intermediate files:
 rm -f ÜbergeordneteTitelUndLokaldaten-with-child-refs-"${date}".mrc
 rm -f TitelUndLokaldaten-with-issns-"${date}".mrc
 rm -f TitelUndLokaldaten-with-issns-and-title-keywords-"${date}".mrc
 rm -f child_refs child_titles parent_refs
+rm -f TitelUndLokaldaten-with-issns-title-keywords-and-bible-refs-"${date}".mrc
+

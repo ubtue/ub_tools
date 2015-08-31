@@ -98,6 +98,13 @@ inline std::string MakeAbsolutePath(const char * const relative_path)
 { return MakeAbsolutePath(std::string(relative_path)); }
 
 
+/** \brief Create an empty file or clear an existing file.
+ *  \return True upon success, false otherwise.
+ *  \note If the file does not exist it will be created w/ mode (600 & ~umask).
+ */
+bool MakeEmpty(const std::string &path);
+
+
 } // namespace FileUtil
 
 

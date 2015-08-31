@@ -39,17 +39,20 @@ bool IsExecutableFile(const std::string &path) {
 }
 
 
-} // unnamed namespace
-
-
-namespace ExecUtil {
+enum class ExecMode {
+    WAIT,  //< Exec() will wait for the child to exit.
+    DETACH //< Exec() will not wait for the child to exit and will return the child's PID.
+};
 
 
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
-         unsigned timeout_in_seconds)
+         const ExecMode exec_mode, unsigned timeout_in_seconds)
 {
     if (::access(command.c_str(), X_OK) != 0)
-        throw std::runtime_error("in Exec: can't execute \"" + command + "\"!");
+        throw std::runtime_error("in ExecUtil::Exec: can't execute \"" + command + "\"!");
+
+    if (exec_mode == ExecMode::DETACH and timeout_in_seconds > 0)
+	throw std::runtime_error("in ExecUtil::Exec: non-zero timeout is imcompatible w/ ExecMode::DETACH!");
 
     const int EXECVE_FAILURE(248);
 
@@ -86,6 +89,9 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
     // The parent of the fork:
     else {
+	if (exec_mode == ExecMode::DETACH)
+	    return pid;
+
         void (*old_alarm_handler)(int) = nullptr;
 
         if (timeout_in_seconds > 0) {
@@ -138,6 +144,24 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
     }
 
     return 0; // Keep the compiler happy!
+}
+
+
+} // unnamed namespace
+
+
+namespace ExecUtil {
+
+
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
+         const unsigned timeout_in_seconds)
+{
+    return ::Exec(command, args, new_stdout, ExecMode::WAIT, timeout_in_seconds);
+}
+
+
+int Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout) {
+    return ::Exec(command, args, new_stdout, ExecMode::DETACH, 0);
 }
 
 

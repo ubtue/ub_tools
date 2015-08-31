@@ -1,5 +1,5 @@
-/** \file    ixtheo_notation_stats.cc
- *  \brief   Gather statistics about the local ixTheo classification scheme.
+/** \file    update_ixtheo_notations.cc
+ *  \brief   Move the ixTheo classification notations from local data into field 652a.
  *  \author  Dr. Johannes Ruscheinski
  */
 
@@ -33,7 +33,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << "marc_input code_to_description_map\n";
+    std::cerr << "Usage: " << progname << " marc_input marc_output code_to_description_map\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -78,11 +78,11 @@ bool LocalBlockIsFromUbTueTheologians(const std::pair<size_t, size_t> &local_blo
 				      const std::vector<std::string> &field_data)
 {
     std::vector<size_t> _852_indices;
-    MarcUtil::FindFieldsInLocalBlock("  ", "852", local_block_begin_and_end, field_data, &_852_indices);
+    MarcUtil::FindFieldsInLocalBlock("852", "  ", local_block_begin_and_end, field_data, &_852_indices);
 
     for (const auto index : _852_indices) {
 	const Subfields subfields(field_data[index]);
-	if (subfields.hasSubfieldWithValue('a', "DE-Tue135"))
+	if (subfields.hasSubfieldWithValue('a', "Tü 135"))
 	    return true;
     }
 
@@ -90,13 +90,13 @@ bool LocalBlockIsFromUbTueTheologians(const std::pair<size_t, size_t> &local_blo
 }
 
 
-unsigned CountIxTheoNotations(const std::pair<size_t, size_t> &local_block_begin_and_end,
-			      const std::vector<std::string> &field_data,
-			      const std::unordered_map<std::string, std::string> &code_to_description_map,
-			      std::unordered_map<std::string, unsigned> * const categories_to_counts_map)
+unsigned ExtractIxTheoNotations(const std::pair<size_t, size_t> &local_block_begin_and_end,
+				const std::vector<std::string> &field_data,
+				const std::unordered_map<std::string, std::string> &code_to_description_map,
+				std::string * const ixtheo_notations_list)
 {
     std::vector<size_t> _936ln_indices;
-    MarcUtil::FindFieldsInLocalBlock("ln", "936", local_block_begin_and_end, field_data, &_936ln_indices);
+    MarcUtil::FindFieldsInLocalBlock("936", "ln", local_block_begin_and_end, field_data, &_936ln_indices);
 
     size_t found_count(0);
     for (const auto index : _936ln_indices) {
@@ -104,11 +104,10 @@ unsigned CountIxTheoNotations(const std::pair<size_t, size_t> &local_block_begin
 	const std::string ixtheo_notation_candidate(subfields.getFirstSubfieldValue('a'));
 	if (code_to_description_map.find(ixtheo_notation_candidate) != code_to_description_map.end()) {
 	    ++found_count;
-	    auto code_and_count(categories_to_counts_map->find(ixtheo_notation_candidate));
-	    if (code_and_count != categories_to_counts_map->end())
-		++code_and_count->second;
+	    if (ixtheo_notations_list->empty())
+		*ixtheo_notations_list = ixtheo_notation_candidate;
 	    else
-		(*categories_to_counts_map)[ixtheo_notation_candidate] = 1;
+		*ixtheo_notations_list += ":" + ixtheo_notation_candidate;
 	}
     }
 
@@ -116,12 +115,9 @@ unsigned CountIxTheoNotations(const std::pair<size_t, size_t> &local_block_begin
 }
 
 
-void CollectCounts(const std::shared_ptr<FILE> &input,
-		   const std::unordered_map<std::string, std::string> &code_to_description_map,
-		   std::unordered_map<std::string, unsigned> * const categories_to_counts_map)
+void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FILE> &output,
+		    const std::unordered_map<std::string, std::string> &code_to_description_map)
 {
-    categories_to_counts_map->clear();
-
     std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
@@ -135,42 +131,27 @@ void CollectCounts(const std::shared_ptr<FILE> &input,
             Error("First field is not \"001\"!");
 
 	std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-	if (MarcUtil::FindAllLocalDataBlocks(dir_entries, field_data, &local_block_boundaries) == 0)
+	if (MarcUtil::FindAllLocalDataBlocks(dir_entries, field_data, &local_block_boundaries) == 0) {
+	    MarcUtil::ComposeAndWriteRecord(output.get(), dir_entries, field_data, leader);
 	    continue;
+	}
 
+	std::string ixtheo_notations_list; // Colon-separated list of ixTheo notations.
 	for (const auto &local_block_begin_and_end : local_block_boundaries) {
 	    if (not LocalBlockIsFromUbTueTheologians(local_block_begin_and_end, field_data))
 		continue;
 
-	    const unsigned notation_count(CountIxTheoNotations(local_block_begin_and_end, field_data,
-							       code_to_description_map, categories_to_counts_map));
-	    if (ixtheo_notation_count > 0) {
+	    const unsigned notation_count(ExtractIxTheoNotations(local_block_begin_and_end, field_data,
+								 code_to_description_map, &ixtheo_notations_list));
+	    if (notation_count > 0) {
 		++records_with_ixtheo_notations;
 		ixtheo_notation_count += notation_count;
 	    }
 	}
 
-	int lok_index(MarcUtil::GetFieldIndex(dir_entries, "LOK"));
-	bool found_at_least_one(false);
-	while (lok_index != -1) {
-	    const Subfields subfields(field_data[lok_index]);
-	    if (subfields.hasSubfieldWithValue('0', "936ln")) {
-		const std::string ixtheo_notation(subfields.getFirstSubfieldValue('a'));
-		if (code_to_description_map.find(ixtheo_notation) != code_to_description_map.end()) {
-		    found_at_least_one = true;
-		    std::cout << field_data[0] << ": " << ixtheo_notation << '\n';
-		    ++ixtheo_notation_count;
-		}
-	    }
-
-	    // Continue loop if next tag is "LOK":
-	    if (lok_index == static_cast<ssize_t>(dir_entries.size()) - 1
-		or (dir_entries[++lok_index].getTag() != "LOK"))
-		lok_index = -1;
-	}
-
-	if (found_at_least_one)
-	    ++records_with_ixtheo_notations;
+	if (not ixtheo_notations_list.empty()) // Insert a new 652 field w/ a $a subfield.
+	    MarcUtil::InsertField("  ""\x1F""a" + ixtheo_notations_list, "652", leader, &dir_entries, &field_data);
+	MarcUtil::ComposeAndWriteRecord(output.get(), dir_entries, field_data, leader);
     }
     
     if (not err_msg.empty())
@@ -182,25 +163,25 @@ void CollectCounts(const std::shared_ptr<FILE> &input,
 }
 
 
-void CloseFile(FILE * const file) {
-    std::fclose(file);
-}
-
-
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc != 3)
+    if (argc != 4)
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    std::shared_ptr<FILE> marc_input(std::fopen(marc_input_filename.c_str(), "rm"), CloseFile);
+    std::shared_ptr<FILE> marc_input(std::fopen(marc_input_filename.c_str(), "rbm"), std::fclose);
     if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
-    const std::string code_to_description_map_filename(argv[2]);
-    std::shared_ptr<FILE> code_to_description_map_file(std::fopen(code_to_description_map_filename.c_str(), "rm"),
-						       CloseFile);
+    const std::string marc_output_filename(argv[2]);
+    std::shared_ptr<FILE> marc_output(std::fopen(marc_output_filename.c_str(), "wb"), std::fclose);
+    if (marc_output == nullptr)
+        Error("can't open \"" + marc_output_filename + "\" for writing!");
+
+    const std::string code_to_description_map_filename(argv[3]);
+    std::shared_ptr<FILE> code_to_description_map_file(std::fopen(code_to_description_map_filename.c_str(), "rbm"),
+						       std::fclose);
     if (code_to_description_map_file == nullptr)
         Error("can't open \"" + code_to_description_map_filename + "\" for reading!");
 
@@ -208,6 +189,5 @@ int main(int argc, char **argv) {
     LoadCodeToDescriptionMap(code_to_description_map_file, code_to_description_map_filename,
                              &code_to_description_map);
 
-    std::unordered_map<std::string, unsigned> categories_to_counts_map;
-    CollectCounts(marc_input, code_to_description_map, &categories_to_counts_map);
+    ProcessRecords(marc_input, marc_output, code_to_description_map);
 }
