@@ -67,8 +67,8 @@ rm -f TitelUndLokaldaten-normalised-"${date}".mrc
 echo "*** Phase 5 ***"
 echo "*** Phase 5 ***" >> "${log}"
 create_full_text_db --process-count-low-and-high-watermarks \
-                    $(get_config_file_entry.py create_full_text_db process_count_low_and_high_watermarks \
-                      krimdok_marc_pipeline.conf) \
+                    $(get_config_file_entry.py krimdok_marc_pipeline.conf \
+                      create_full_text_db process_count_low_and_high_watermarks) \
                     TitelUndLokaldaten-normalised-with-issns-"${date}".mrc \
                     TitelUndLokaldaten-normalised-with-issns-and-full-text-links-"${date}".mrc \
                     full_text.db >> "${log}" 2>&1
