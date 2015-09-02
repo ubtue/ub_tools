@@ -18,11 +18,36 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Leader.h"
+#include <cctype>
 #include <cstdio>
 #include "StringUtil.h"
 
 
 const size_t Leader::LEADER_LENGTH(24);
+
+
+namespace {
+
+
+std::string EscapeString(const std::string &s) {
+    std::string escaped_string;
+    escaped_string.reserve(s.length() * 3);
+
+    for (const char ch : s) {
+	if (std::isprint(ch))
+	    escaped_string += ch;
+	else {
+	    escaped_string += '\\';
+	    escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) >> 4);
+	    escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) & 0xF);
+	}
+    }
+
+    return escaped_string;
+}
+
+
+}
 
 
 bool Leader::ParseLeader(const std::string &leader_string, std::shared_ptr<Leader> &leader,
@@ -41,7 +66,7 @@ bool Leader::ParseLeader(const std::string &leader_string, std::shared_ptr<Leade
     unsigned record_length;
     if (std::sscanf(leader_string.substr(0, 5).data(), "%5u", &record_length) != 1) {
         if (err_msg != nullptr)
-            *err_msg = "Can't parse record length!";
+            *err_msg = "Can't parse record length! (Found \"" + EscapeString(leader_string.substr(0, 5)) + "\"";
         return false;
     }
 
