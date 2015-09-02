@@ -123,6 +123,12 @@ bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
         return false;
     }
 
+    // Sanity check for record end:
+    if (raw_field_data[field_data_size - 1] != '\x1D') {
+	*err_msg = "Record does not end with \\x1D!";
+        return false;
+    }
+
     if (not ReadFields(std::string(raw_field_data, field_data_size), *dir_entries, field_data, err_msg))
         return false;
 
