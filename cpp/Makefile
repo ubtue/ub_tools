@@ -87,10 +87,10 @@ create_full_text_db.o: create_full_text_db.cc lib/Downloader.h lib/RegexMatcher.
                        lib/TimeLimit.h lib/util.h
 
 create_full_text_db: create_full_text_db.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic -lpthread
+	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
 update_full_text_db: update_full_text_db.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic -lpthread
+	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
 update_full_text_db.o: update_full_text_db.cc lib/DirectoryEntry.h lib/ExecUtil.h lib/FileLocker.h lib/FileUtil.h \
                        lib/MarcUtil.h lib/MediaTypeUtil.h lib/PdfUtil.h lib/SmartDownloader.h lib/StringUtil.h \

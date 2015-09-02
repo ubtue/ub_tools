@@ -15,7 +15,7 @@ import socket
 import sys
 
 
-DEFAULT_CONFIG_FILE_LOCATION = "/var/lib/tuelib/"
+DEFAULT_CONFIG_FILE_LOCATION = "/var/lib/tuelib/cronjobs/"
 
 
 def Main():
