@@ -86,11 +86,14 @@ bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
 
     char leader_buf[Leader::LEADER_LENGTH];
     ssize_t read_count;
+    const long record_start_pos(std::ftell(input));
     if ((read_count = std::fread(leader_buf, sizeof leader_buf, 1, input)) != 1)
         return false;
 
-    if (not Leader::ParseLeader(std::string(leader_buf, Leader::LEADER_LENGTH), leader, err_msg))
+    if (not Leader::ParseLeader(std::string(leader_buf, Leader::LEADER_LENGTH), leader, err_msg)) {
+	err_msg->append(" (Bad record started at file offset " + std::to_string(record_start_pos) + ".)");
         return false;
+    }
 
     //
     // Parse directory entries.
