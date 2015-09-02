@@ -27,9 +27,6 @@ pid_t child_pid;
 //
 void SigAlarmHandler(int /* sig_no */) {
     alarm_went_off = true;
-    ::kill(-child_pid, SIGTERM);
-    ::sleep(2);
-    ::kill(-child_pid, SIGKILL);
 }
 
 
@@ -46,7 +43,7 @@ enum class ExecMode {
 
 
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
-         const ExecMode exec_mode, unsigned timeout_in_seconds)
+         const ExecMode exec_mode, unsigned timeout_in_seconds, const int tardy_child_signal)
 {
     if (::access(command.c_str(), X_OK) != 0)
         throw std::runtime_error("in ExecUtil::Exec: can't execute \"" + command + "\"!");
@@ -119,7 +116,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
             // Check to see whether the test timed out or not:
             if (alarm_went_off) {
                 // Snuff out all of our offspring.
-                ::kill(-pid, SIGKILL);
+                ::kill(-pid, tardy_child_signal);
                 while (::wait4(-pid, &child_exit_status, 0, nullptr) != -1)
                     /* Intentionally empty! */;
 
@@ -153,15 +150,30 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 namespace ExecUtil {
 
 
+SignalBlocker::SignalBlocker(const int signal_to_block) {
+    sigset_t new_set;
+    ::sigemptyset(&new_set);
+    ::sigaddset(&new_set, signal_to_block);
+    if (::sigprocmask(SIG_BLOCK, &new_set, &saved_set_) != 0)
+	Error("in ExecUtil::SignalBlocker::SignalBlocker: call to sigprocmask(2) failed!");
+}
+
+
+SignalBlocker::~SignalBlocker() {
+    if (::sigprocmask(SIG_SETMASK, &saved_set_, nullptr) != 0)
+	Error("in ExecUtil::SignalBlocker::~SignalBlocker: call to sigprocmask(2) failed!");
+}
+
+
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
-         const unsigned timeout_in_seconds)
+         const unsigned timeout_in_seconds, const int tardy_child_signal)
 {
-    return ::Exec(command, args, new_stdout, ExecMode::WAIT, timeout_in_seconds);
+    return ::Exec(command, args, new_stdout, ExecMode::WAIT, timeout_in_seconds, tardy_child_signal);
 }
 
 
 int Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout) {
-    return ::Exec(command, args, new_stdout, ExecMode::DETACH, 0);
+    return ::Exec(command, args, new_stdout, ExecMode::DETACH, 0, SIGKILL /* Not used because the timeout is 0. */);
 }
 
 
