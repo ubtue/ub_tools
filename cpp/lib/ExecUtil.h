@@ -31,10 +31,22 @@
 
 #include <string>
 #include <vector>
+#include <signal.h>
 
 
 namespace ExecUtil {
 
+
+/** \class SignalBlocker
+ *  \brief Blocks a signal for the livetime of an instance of this class.
+ */
+class SignalBlocker {
+    sigset_t saved_set_;
+public:
+    explicit SignalBlocker(const int signal_to_block);
+    ~SignalBlocker();
+};
+	
 
 /** \brief  Run a subcommand to completion.
  *  \param  command             The path to the command that should be executed.

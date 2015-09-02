@@ -153,6 +153,21 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 namespace ExecUtil {
 
 
+SignalBlocker::SignalBlocker(const int signal_to_block) {
+    sigset_t new_set;
+    ::sigemptyset(&new_set);
+    ::sigaddset(&new_set, signal_to_block);
+    if (::sigprocmask(SIG_BLOCK, &new_set, &saved_set_) != 0)
+	Error("in ExecUtil::SignalBlocker::SignalBlocker: call to sigprocmask(2) failed!");
+}
+
+
+SignalBlocker::~SignalBlocker() {
+    if (::sigprocmask(SIG_SETMASK, &saved_set_, nullptr) != 0)
+	Error("in ExecUtil::SignalBlocker::~SignalBlocker: call to sigprocmask(2) failed!");
+}
+
+
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
          const unsigned timeout_in_seconds)
 {
