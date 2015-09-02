@@ -31,13 +31,14 @@ namespace {
 
 std::string EscapeString(const std::string &s) {
     std::string escaped_string;
-    escaped_string.reserve(s.length() * 3);
+    escaped_string.reserve(s.length() * 4);
 
     for (const char ch : s) {
 	if (std::isprint(ch))
 	    escaped_string += ch;
 	else {
 	    escaped_string += '\\';
+	    escaped_string += 'x';
 	    escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) >> 4);
 	    escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) & 0xF);
 	}
