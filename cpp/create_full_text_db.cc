@@ -66,6 +66,7 @@ void FileLockedComposeAndWriteRecord(FILE * const output, const std::string &out
     if (std::fseek(output, 0, SEEK_END) == -1)
 	Error("failed to seek to the end of \"" + output_filename + "\"!");
     MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+    std::fflush(output);
 }
 
 
