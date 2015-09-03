@@ -28,9 +28,7 @@
 #include <cstdlib>
 #include <libgen.h>
 #include <strings.h>
-#include <fcntl.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <kchashdb.h>
 #include "Downloader.h"
@@ -60,19 +58,14 @@ static void Usage() {
 }
 
 
-void FileLockedComposeAndWriteRecord(const std::string &output_filename,
+void FileLockedComposeAndWriteRecord(FILE * const output, const std::string &output_filename,
 				     const std::vector<DirectoryEntry> &dir_entries,
                                      const std::vector<std::string> &field_data, std::shared_ptr<Leader> leader)
 {
     FileLocker file_locker(output_filename, FileLocker::WRITE_ONLY);
-
-    FILE *marc_output = std::fopen(output_filename.c_str(), "ab");
-    if (marc_output == nullptr)
-        Error("can't open \"" + output_filename + "\" for writing!");
-
-    MarcUtil::ComposeAndWriteRecord(marc_output, dir_entries, field_data, leader);
-
-    std::fclose(marc_output);
+    if (std::fseek(output, 0, SEEK_END) == -1)
+	Error("failed to seek to the end of \"" + output_filename + "\"!");
+    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
 }
 
 
@@ -130,7 +123,7 @@ unsigned CleanUpZombies(const unsigned zombies_to_collect) {
 
 
 void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, FILE * const input,
-                    const std::string &input_filename, const std::string &output_filename,
+                    const std::string &input_filename, FILE * const output, const std::string &output_filename,
 		    const std::string &db_filename, const unsigned process_count_low_watermark,
 		    const unsigned process_count_high_watermark)
 {
@@ -156,7 +149,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             continue;
 
 	if (not FoundAtLeastOneNonReviewLink(dir_entries, field_data)) {
-	    FileLockedComposeAndWriteRecord(output_filename, dir_entries, field_data, leader);
+	    FileLockedComposeAndWriteRecord(output, output_filename, dir_entries, field_data, leader);
 	    continue;
 	}
 
@@ -181,7 +174,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
     std::cerr << child_reported_failure_count << " children reported a failure!\n";
 
     std::fclose(input);
-
+    std::fclose(output);
 }
 
 
@@ -237,11 +230,9 @@ int main(int argc, char **argv) {
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(*argv++);
-    ::umask(0);
-    const int fd(::open(marc_output_filename.c_str(), O_CREAT | O_TRUNC, 0644));
-    if (fd == -1)
-        Error("Failed to touch file \"" + marc_output_filename + "\"!");
-    ::close(fd);
+    FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
+    if (marc_output == nullptr)
+        Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     const std::string db_filename(*argv);
     kyotocabinet::HashDB db;
@@ -252,7 +243,7 @@ int main(int argc, char **argv) {
     db.close();
 
     try {
-        ProcessRecords(max_record_count, skip_count, marc_input, marc_input_filename,
+        ProcessRecords(max_record_count, skip_count, marc_input, marc_input_filename, marc_output,
 		       marc_output_filename, db_filename, process_count_low_watermark,
 		       process_count_high_watermark);
     } catch (const std::exception &e) {
