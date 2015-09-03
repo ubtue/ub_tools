@@ -219,10 +219,10 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
         return false;
     }
 
-    const size_t directory_length(leader->getBaseAddressOfData() - Leader::LEADER_LENGTH - 1);
-    if ((directory_length % DirectoryEntry::DIRECTORY_ENTRY_LENGTH) != 0) {
-        *err_msg = "directory length is not a multiple of "
-                   + std::to_string(DirectoryEntry::DIRECTORY_ENTRY_LENGTH) + "!";
+    const size_t directory_length(leader->getBaseAddressOfData() - Leader::LEADER_LENGTH);
+    if ((directory_length % DirectoryEntry::DIRECTORY_ENTRY_LENGTH) != 1) {
+        *err_msg = "directory length " + std::to_string(directory_length) + " is not a multiple of "
+                   + std::to_string(DirectoryEntry::DIRECTORY_ENTRY_LENGTH) + " plus 1 for the RS at the end!";
         return false;
     }
 
@@ -230,6 +230,17 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
         *err_msg = "directory is not terminated with a field terminator!";
         return false;
     }
+
+    std::vector<DirectoryEntry> dir_entries;
+    if (not DirectoryEntry::ParseDirEntries(record.substr(Leader::LEADER_LENGTH, directory_length),
+					    &dir_entries, err_msg))
+        return false;
+
+    const size_t field_data_size(record.length() - Leader::LEADER_LENGTH - directory_length);
+    std::vector<std::string> field_data;
+    if (not ReadFields(record.substr(Leader::LEADER_LENGTH + directory_length, field_data_size),
+		       dir_entries, &field_data, err_msg))
+        return false;
 
     if (record[record.size() - 1] != '\x1D') {
         *err_msg = "record is not terminated with a record terminator!";

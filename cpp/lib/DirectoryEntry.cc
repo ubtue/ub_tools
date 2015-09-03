@@ -58,7 +58,8 @@ bool DirectoryEntry::ParseDirEntries(const std::string &entries_string, std::vec
     if ((entries_string.length() % DIRECTORY_ENTRY_LENGTH) != 1) {
         if (err_msg != nullptr)
             *err_msg = "Raw directory entries string must be a multiple of " + std::to_string(DIRECTORY_ENTRY_LENGTH)
-                + " in length!";
+                       + " in length plus 1 for the record separator at the end of the directory! "
+                       "Length found was " + std::to_string(entries_string.length()) + ".)";
         return false;
     }
 

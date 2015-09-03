@@ -67,7 +67,7 @@ bool Leader::ParseLeader(const std::string &leader_string, std::shared_ptr<Leade
     unsigned record_length;
     if (std::sscanf(leader_string.substr(0, 5).data(), "%5u", &record_length) != 1) {
         if (err_msg != nullptr)
-            *err_msg = "Can't parse record length! (Found \"" + EscapeString(leader_string.substr(0, 5)) + "\"";
+            *err_msg = "Can't parse record length! (Found \"" + EscapeString(leader_string.substr(0, 5)) + "\")";
         return false;
     }
 
