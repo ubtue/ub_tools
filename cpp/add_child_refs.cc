@@ -38,7 +38,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << "marc_input marc_output child_refs child_titles\n";
+    std::cerr << "Usage: " << progname << " marc_input marc_output child_refs child_titles\n";
 
     std::exit(EXIT_FAILURE);
 }

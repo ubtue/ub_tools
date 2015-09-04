@@ -52,16 +52,20 @@ create_child_refs.sh TitelUndLokaldaten-normalised-"${date}".mrc \
 add_child_refs ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc \
                ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
                child_refs child_titles >> "${log}" 2>&1
+add_child_refs TitelUndLokaldaten-normalised-"${date}".mrc \
+               TitelUndLokaldaten-normalised-with-child-refs-"${date}".mrc \
+               child_refs child_titles >> "${log}" 2>&1
 rm -f ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc
+rm -r TitelUndLokaldaten-normalised-"${date}".mrc
 rm -f child_refs child_titles parent_refs
 
 # Phase 4:
 echo "*** Phase 4 ***"
 echo "*** Phase 4 ***" >> "${log}"
-add_isbns_or_issns_to_articles TitelUndLokaldaten-normalised-"${date}".mrc \
+add_isbns_or_issns_to_articles TitelUndLokaldaten-normalised-with-child-refs-"${date}".mrc \
                                ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
-                               TitelUndLokaldaten-normalised-with-issns-"${date}".mrc >> "${log}" 2>&1
-rm -f TitelUndLokaldaten-normalised-"${date}".mrc
+                               TitelUndLokaldaten-normalised-with-child-refs-and-issns-"${date}".mrc >> "${log}" 2>&1
+rm -f TitelUndLokaldaten-normalised-with-child-refs-"${date}".mrc
 
 # Phase 5:
 echo "*** Phase 5 ***"
@@ -69,8 +73,8 @@ echo "*** Phase 5 ***" >> "${log}"
 create_full_text_db --process-count-low-and-high-watermarks \
                     $(get_config_file_entry.py krimdok_marc_pipeline.conf \
                       create_full_text_db process_count_low_and_high_watermarks) \
-                    TitelUndLokaldaten-normalised-with-issns-"${date}".mrc \
-                    TitelUndLokaldaten-normalised-with-issns-and-full-text-links-"${date}".mrc \
+                    TitelUndLokaldaten-normalised-with-child-refs-and-issns-"${date}".mrc \
+                    TitelUndLokaldaten-normalised-with-child-refs-issns-and-full-text-links-"${date}".mrc \
                     full_text.db >> "${log}" 2>&1
 cp full_text.db /var/lib/tuelib/
-rm -f TitelUndLokaldaten-normalised-with-issns-"${date}".mrc
+rm -f TitelUndLokaldaten-normalised-with-child-refs-and-issns-"${date}".mrc
