@@ -3,7 +3,7 @@ PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_
       bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
       exec_test krimdok_filter resolve_in_path_test enrich_ddcs control_number_filter stemmer_test \
       enrich_keywords_with_title_words test_find_substring test_chop_into_words test_auto_temp_file \
-      update_ixtheo_notations update_full_text_db kcdb_info
+      update_ixtheo_notations update_full_text_db kcdb_info classify_leader07a
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
@@ -57,6 +57,12 @@ add_child_refs.o: add_child_refs.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Lead
                   lib/Subfields.h
 
 add_child_refs: add_child_refs.o lib/libmarc.a
+	$(CCC) -o $@ $< -Llib -lmarc -lpcre -lcrypto
+
+classify_leader07a.o: classify_leader07a.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Leader.h lib/util.h \
+                      lib/Subfields.h
+
+classify_leader07a: classify_leader07a.o lib/libmarc.a
 	$(CCC) -o $@ $< -Llib -lmarc -lpcre -lcrypto
 
 augment_bible_references.o: augment_bible_references.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Leader.h \
