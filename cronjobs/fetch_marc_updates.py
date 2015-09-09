@@ -37,12 +37,12 @@ def Login(ftp_host, ftp_user, ftp_passwd):
     try:
         ftp = FTP(host=ftp_host)
     except Exception as e:
-        Error("failed to connect to FTP server! (" + str(e) + ")")
+        util.Error("failed to connect to FTP server! (" + str(e) + ")")
 
     try:
         ftp.login(user=ftp_user, passwd=ftp_passwd)
     except Exception as e:
-        Error("failed to login to FTP server! (" + str(e) + ")")
+        util.Error("failed to login to FTP server! (" + str(e) + ")")
     return ftp
 
 
@@ -68,7 +68,7 @@ def GetMostRecentRemoteFile(ftp, filename_regex, directory):
     try:
         ftp.cwd(directory)
     except Exception as e:
-        Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
+        util.Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
 
     return GetMostRecentFile(filename_regex, ftp.nlst())
 
