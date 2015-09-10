@@ -9,6 +9,7 @@ import datetime
 import glob
 import os
 import process_util
+import re
 import smtplib
 import socket
 import struct
@@ -66,6 +67,10 @@ def Warning(msg):
 # @brief Copy the contents, in order, of "files" into "target".
 # @return True if we succeeded, else False.
 def ConcatenateFiles(files, target):
+    if files is None or len(files) == 0:
+        Error("\"files\" argument to util.ConcatenateFiles() is empty or None!")
+    if target is None or len(target) == 0:
+        Error("\"target\" argument to util.ConcatenateFiles() is empty or None!")
     return process_util.Exec("/bin/cat", files, new_stdout=target) == 0
 
 
@@ -156,32 +161,46 @@ def LoadConfigFile(path=None, no_error=False):
         Error("in util.LoadConfigFile: failed to load the config file from \"" + path + "\"! (" + str(e) + ")")
 
 
-# Extracts the typical 3 files from a gizipped tar archive.
+# Extracts the typical files from a gzipped tar archive.
 # @param name_prefix  If not None, this will be prepended to the names of the extracted files
 # @return The list of names of the extracted files in the order: title data, superior data, norm data
 def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
-    def ExtractAndRenameMember(tar_file, member, new_name):
-        Remove(member)
-        tar_file.extract(member)
+    # Ensures that all members of "gzipped_tar_archive" match our expectation as to what the BSZ should deliver.
+    def TarFileMemberNamesAreOkOrDie(tar_file, archive_name):
+        compiled_pattern = re.compile("^[STW]A-MARC-[a-z]+00\\d.raw$")
+        for member in tar_file.getnames():
+            if not compiled_pattern.match(member):
+                Error("unknown tar file member \"" + member + "\" in \"" + archive_name + "\"!")
+
+
+    # Extracts all tar file members matching "member_pattern" from "tar_file" and concatenates them as "new_name".
+    def ExtractAndRenameMembers(tar_file, member_pattern, new_name):
+        extracted_files = []
+        compiled_pattern = re.compile(member_pattern)
+        for member in tar_file.getnames():
+            if compiled_pattern.match(member):
+                tar_file.extract(member)
+                extracted_files.append(member)
+
         Remove(new_name)
-        os.rename(member, new_name)
+        ConcatenateFiles(extracted_files, new_name)
+
+        # Clean up:
+        for extracted_file in extracted_files:
+            Remove(extracted_file)
+
 
     if name_prefix is None:
         name_prefix = ""
     tar_file = tarfile.open(gzipped_tar_archive, "r:gz")
-    members = tar_file.getnames()
+    TarFileMemberNamesAreOkOrDie(tar_file, gzipped_tar_archive)
     current_date_str = datetime.datetime.now().strftime("%d%m%y")
-    for member in members:
-        if member.endswith("a001.raw"):
-            ExtractAndRenameMember(tar_file, member, name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc")
-        elif member.endswith("b001.raw"):
-            ExtractAndRenameMember(tar_file, member,
-                                   name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc")
-        elif member.endswith("c001.raw"):
-            ExtractAndRenameMember(tar_file, member, name_prefix + "Normdaten-" + current_date_str + ".mrc")
-        else:
-            Error("in util.ExtractAndRenameBSZFiles: Unknown member \"" + member + "\" in archive \""
-                  + gzipped_tar_archive + "\"!")
+    ExtractAndRenameMembers(tar_file, ".+a00\\d.raw$",
+                            name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc")
+    ExtractAndRenameMembers(tar_file, ".+b00\\d.raw$",
+                            name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc")
+    ExtractAndRenameMembers(tar_file, ".+c00\\d.raw$", name_prefix + "Normdaten-" + current_date_str + ".mrc")
+
     return [name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc",
             name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc",
             name_prefix + "Normdaten-" + current_date_str + ".mrc"]

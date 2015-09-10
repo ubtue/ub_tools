@@ -14,7 +14,7 @@ root_install:
 	$(MAKE) -C cpp root_install;
 	$(MAKE) -C cpp cgi_install;
 	$(MAKE) -C solr_plugins install;
-	$(MAKE) -C cronjobs install
+	$(MAKE) -C cronjobs root_install
 
 clean: 
 	$(MAKE) -C cpp clean;

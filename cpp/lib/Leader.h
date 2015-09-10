@@ -60,6 +60,7 @@ public:
 
     char getRecordStatus() const { return raw_leader_[5]; }
     char getRecordType() const { return raw_leader_[6]; }
+    char getBibliographicLevel() const { return raw_leader_[7]; }
     char getCharacterCodingScheme() const { return raw_leader_[9]; }
     std::string getImplementationDefined1() const { return raw_leader_.substr(7, 2); }
     std::string getImplementationDefined2() const { return raw_leader_.substr(17, 3); }
