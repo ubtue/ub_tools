@@ -106,6 +106,10 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
 
 def Main():
     util.default_email_sender = "fetch_marc_updates@ub.uni-tuebingen.de"
+    if len(sys.argv) != 2:
+         util.SendEmail(os.path.basename(sys.argv[0]),
+                        "This script needs to be called with an email address as the only argument!\n")
+         sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
     try:
         config = util.LoadConfigFile()
