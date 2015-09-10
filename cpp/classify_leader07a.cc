@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
 	verbose = true;
     }
 
-    const std::string marc_input_filename(argv[1]);
+    const std::string marc_input_filename(argv[argc == 2 ? 1 : 2]);
     FILE *marc_input(std::fopen(marc_input_filename.c_str(), "rb"));
     if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
