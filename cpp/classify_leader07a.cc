@@ -34,7 +34,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " marc_input\n";
+    std::cerr << "Usage: " << progname << " [--verbose] marc_input\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -58,7 +58,7 @@ void ExtractBibliographicLevel(
 }
 
 
-void DetermineObjectType(FILE * const input,
+void DetermineObjectType(const bool verbose, FILE * const input,
 			 const std::unordered_map<std::string, char> &control_number_to_bibliographic_level_map)
 {
     std::shared_ptr<Leader> leader;
@@ -92,8 +92,11 @@ void DetermineObjectType(FILE * const input,
 	    else
 		++_935_index;
 	}
-	if (is_a_review)
+	if (is_a_review) {
+	    if (verbose)
+		std::cout << control_number << " review\n";
 	    continue;
+	}
 
 	//
 	// If we get here we might assume that we have an article.
@@ -101,26 +104,32 @@ void DetermineObjectType(FILE * const input,
 
 	const ssize_t _773_index(MarcUtil::GetFieldIndex(dir_entries, "773"));
 	if (_773_index == -1) {
-	    std::cout << control_number << '\n';
+	    if (verbose)
+		std::cout << control_number << " missing field 773\n";
 	    ++misclassified_count;
 	    continue;
 	}
 	const Subfields _773_subfields(field_data[_773_index]);
 	const std::string _773w_contents(_773_subfields.getFirstSubfieldValue('w'));
 	if (_773w_contents.empty() or not StringUtil::StartsWith(_773w_contents, "(DE-576)")) {
-	    std::cout << control_number << '\n';
+	    if (verbose)
+		std::cout << control_number << " 773$w is missing or empty\n";
 	    ++misclassified_count;
 	    continue;
 	}
 	const std::string parent_control_number(_773w_contents.substr(8));
 	const auto iter(control_number_to_bibliographic_level_map.find(parent_control_number));
 	if (iter == control_number_to_bibliographic_level_map.end()) {
-	    std::cout << control_number << '\n';
+	    if (verbose)
+		std::cout << control_number << " no parent found for control number "
+			  << parent_control_number << '\n';
 	    ++misclassified_count;
 	    continue;
 	}
 	if (iter->second != 's' and iter->second != 'm') { // Neither a serial nor a monograph!
-	    std::cout << control_number << '\n';
+	    if (verbose)
+		std::cout << control_number << " parent w/ control number " << parent_control_number
+			  << " is neither a serial nor a monograph\n";
 	    ++misclassified_count;
 	    continue;
 	}
@@ -132,17 +141,26 @@ void DetermineObjectType(FILE * const input,
     std::cerr << "Found " << _07a_count << " entries with an 'a' in leader postion 07.\n";
     std::cerr << review_count << " records were reviews.\n";
     std::cerr << misclassified_count
-	      << " records would be  misclassified as articles if we used strategy 1.\n";
+	      << " records would be  classified as unknown if we used strategy 2.\n";
 }
 
 
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc != 2)
+    if (argc != 2 and argc != 3)
         Usage();
 
-    const std::string marc_input_filename(argv[1]);
+    bool verbose;
+    if (argc == 2)
+	verbose = false;
+    else { // argc == 3
+	if (std::strcmp(argv[1], "--verbose") != 0)
+	    Usage();
+	verbose = true;
+    }
+
+    const std::string marc_input_filename(argv[argc == 2 ? 1 : 2]);
     FILE *marc_input(std::fopen(marc_input_filename.c_str(), "rb"));
     if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
@@ -151,7 +169,7 @@ int main(int argc, char **argv) {
     ExtractBibliographicLevel(marc_input, &control_number_to_bibliographic_level_map);
 
     std::rewind(marc_input);
-    DetermineObjectType(marc_input, control_number_to_bibliographic_level_map);
+    DetermineObjectType(verbose, marc_input, control_number_to_bibliographic_level_map);
 
     std::fclose(marc_input);
 }
