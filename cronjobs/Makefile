@@ -4,4 +4,7 @@ LIBS=process_util.py util.py
 all:
 
 install:
+	cp $(PROGS) $(LIBS) ~/bin/
+
+root_install:
 	cp $(PROGS) $(LIBS) /usr/local/bin/
