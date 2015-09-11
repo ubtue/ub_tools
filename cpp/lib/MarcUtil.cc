@@ -74,11 +74,13 @@ ssize_t GetFieldIndex(const std::vector<DirectoryEntry> &dir_entries, const std:
 // error has been detected.  For each entry in "dir_entries" there will be a corresponding entry in "field_data".
 bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
 		    std::vector<DirectoryEntry> * const dir_entries, std::vector<std::string> * const field_data,
-		    std::string * const err_msg)
+		    std::string * const err_msg, std::string * const entire_record)
 {
     dir_entries->clear();
     field_data->clear();
     err_msg->clear();
+    if (entire_record != nullptr)
+	entire_record->clear();
 
     //
     // Read leader.
@@ -95,6 +97,11 @@ bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
         return false;
     }
 
+    if (entire_record != nullptr) {
+	entire_record->reserve(leader->getRecordLength());
+	entire_record->append(leader_buf, Leader::LEADER_LENGTH);
+    }
+
     //
     // Parse directory entries.
     //
@@ -108,6 +115,9 @@ bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
 
     if (not DirectoryEntry::ParseDirEntries(std::string(directory_buf, directory_length), dir_entries, err_msg))
         return false;
+
+    if (entire_record != nullptr)
+	entire_record->append(directory_buf, directory_length);
 
     //
     // Parse variable fields.
@@ -131,6 +141,9 @@ bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
 
     if (not ReadFields(std::string(raw_field_data, field_data_size), *dir_entries, field_data, err_msg))
         return false;
+
+    if (entire_record != nullptr)
+	entire_record->append(raw_field_data, field_data_size);
 
     return true;
 }
