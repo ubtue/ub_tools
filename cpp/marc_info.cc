@@ -64,9 +64,9 @@ void ProcessRecords(FILE * const input) {
         Error(err_msg);
 
     std::cout << "Data set contains " << record_count << " MARC record(s).\n";
-    std::cout << "Largest record contains " << max_record_length << " bytes\n";
+    std::cout << "Largest record contains " << max_record_length << " bytes.\n";
     std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count
-	      << " local blocks\n";
+	      << " local blocks.\n";
 }
 
 
