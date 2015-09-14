@@ -46,7 +46,7 @@ ssize_t GetFieldIndex(const std::vector<DirectoryEntry> &dir_entries, const std:
 // error has been detected.  For each entry in "dir_entries" there will be a corresponding entry in "field_data".
 bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
 		    std::vector<DirectoryEntry> * const dir_entries, std::vector<std::string> * const field_data,
-		    std::string * const err_msg);
+		    std::string * const err_msg, std::string * const entire_record = NULL);
 
 
 // Inserts the new field with contents "new_contents" and tag "new_tag" in "*leader", "*dir_entries" and
