@@ -16,6 +16,7 @@ add_title_keywords
 augment_bible_references
 bib_ref_parser_test
 bib_ref_to_codes_tool
+classify_leader07a
 control_number_filter
 create_full_text_db
 delete_ids
@@ -29,9 +30,11 @@ full_text_lookup
 jop_grep
 kcdb_info
 krimdok_filter
-marc_grep
-marc_grep_tokenizer_test
 marc_filter
+marc_grep
+marc_grep_static
+marc_grep_tokenizer_test
+marc_info
 resolve_in_path_test
 shared_buffer_test
 stemmer_test
