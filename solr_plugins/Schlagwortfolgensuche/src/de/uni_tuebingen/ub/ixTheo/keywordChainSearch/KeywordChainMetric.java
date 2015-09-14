@@ -14,7 +14,7 @@ public class KeywordChainMetric {
 	    if (s1.charAt(commonPrefixLength) != s2.charAt(commonPrefixLength))
 		return commonPrefixLength;
 	}
-
+	
 	return commonPrefixLength;
     }
 
@@ -59,18 +59,18 @@ public class KeywordChainMetric {
 	System.exit(-1);
     }
 
-    public static void main(String[] args) {
-	if (args.length < 2)
-	    usage();
+    // public static void main(String[] args) {
+    // 	if (args.length < 2)
+    // 	    usage();
 
-	final ArrayList<String> referenceChain = new ArrayList<String>();
-	parseArg(args[0], referenceChain);
+    // 	final ArrayList<String> referenceChain = new ArrayList<String>();
+    // 	parseArg(args[0], referenceChain);
 
-	for (int arg_no = 1; arg_no < args.length; ++arg_no) {
-	    final ArrayList<String> comparisonChain = new ArrayList<String>();
-	    parseArg(args[arg_no], comparisonChain);
-	    System.out.println("CalculateSimilarityScore(" + args[0] + ", " + args[arg_no] + ") = "
-			       + calculateSimilarityScore(referenceChain, comparisonChain));
-	}
-    }
+    // 	for (int arg_no = 1; arg_no < args.length; ++arg_no) {
+    // 	    final ArrayList<String> comparisonChain = new ArrayList<String>();
+    // 	    parseArg(args[arg_no], comparisonChain);
+    // 	    System.out.println("CalculateSimilarityScore(" + args[0] + ", " + args[arg_no] + ") = "
+    // 			       + calculateSimilarityScore(referenceChain, comparisonChain));
+    // 	}
+    // }
 }
