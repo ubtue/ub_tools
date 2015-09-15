@@ -91,7 +91,7 @@ echo ""
 
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "create_user.sh $USER_NAME $USER_GROUP"
@@ -102,7 +102,7 @@ fi
 # Setup mysql database
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "create_mysql.sh PASSWORD PASSWORD"
@@ -114,13 +114,13 @@ fi
 ##############################################################################
 
 if [[ -e "$VUFIND_CLONE_DIRECTORY" ]] ; then
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "Didn't clone $VUFIND_REPOSITORY repository. Directory exists"
   fi
 else
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "clone_git.sh $VUFIND_REPOSITORY $VUFIND_CLONE_DIRECTORY"
@@ -131,13 +131,13 @@ fi
 ##############################################################################
 
 if [[ -e "$UB_TOOLS_CLONE_DIRECTORY" ]] ; then
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "Didn't clone $UB_TOOLS_REPOSITORY repository. Directory exists"
   fi
 else
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "clone_git.sh $UB_TOOLS_REPOSITORY $UB_TOOLS_CLONE_DIRECTORY"
@@ -148,14 +148,14 @@ fi
 ##############################################################################
 
 if [[ "$VUFIND_HOME" != "$VUFIND_CLONE_DIRECTORY" ]] ; then
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "link_clones.sh $VUFIND_CLONE_DIRECTORY $UB_TOOLS_CLONE_DIRECTORY"
   fi
   "$SCRIPT_DIR/link_clones.sh" "$VUFIND_CLONE_DIRECTORY" "$UB_TOOLS_CLONE_DIRECTORY"
 else
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "No symbolic linking of copy directory to '$VUFIND_HOME'! This is a single copy installation. If you want multible copies, DO NOT use '$VUFIND_HOME' as cloning directory."
@@ -166,7 +166,7 @@ fi
 # Write configurations
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "create_etc_profile.sh"
@@ -175,7 +175,7 @@ fi
 
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "create_httpd_conf.sh $MODULES $FORCE_SSL"
@@ -184,7 +184,7 @@ fi
 
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "create_httpd_vhost_conf.sh $SERVER_URL $SERVER_IP $SSL_CERT $SSL_KEY"
@@ -193,7 +193,7 @@ fi
 
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "create_logrotate_conf.sh"
@@ -202,7 +202,7 @@ fi
 
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "create_private_server_config.sh $SERVER_URL $SERVER_IP $EMAIL PASSWORD"
@@ -211,7 +211,7 @@ fi
 
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "create_cronjobs.sh $CRONJOBS"
@@ -221,7 +221,7 @@ fi
 ##############################################################################
 
 if [[ "$HTPASSWD" ]] ; then
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "create_htpasswd_protection.sh $NAME $HTPASSWD"
@@ -233,7 +233,7 @@ fi
 # Set Privileges
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "set_privileges.sh $VUFIND_CLONE_DIRECTORY $USER_NAME $USER_GROUP"
@@ -244,7 +244,7 @@ fi
 # Linking
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "link_httpd_config.sh"
@@ -253,7 +253,7 @@ fi
 
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "link_configs.sh $CONFIGS_DIRECTORY"
@@ -262,7 +262,7 @@ fi
 
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "link_python2.sh"
@@ -274,14 +274,14 @@ fi
 ##############################################################################
 
 if [[ "$VUFIND_HOME" != "$VUFIND_CLONE_DIRECTORY" ]] ; then
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "create_start_script.sh $VUFIND_CLONE_DIRECTORY"
   fi
   "$SCRIPT_DIR/create_start_script.sh" "$VUFIND_CLONE_DIRECTORY"
 else
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "No start script! This is a single copy installation. If you want multiple copies, DO NOT use '$VUFIND_HOME' as cloning directory."
@@ -292,7 +292,7 @@ fi
 # Compile
 ##############################################################################
 
-if [[ "$VERBOSE" == true ]] ; then
+if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
   echo "make_install_ub_tools.sh"
@@ -304,14 +304,14 @@ fi
 ##############################################################################
 
 if [ -x "/bin/systemctl" ] ; then
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "create_systemd_conf.sh"
   fi
   "$SCRIPT_DIR/create_systemd_conf.sh"
 else
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "create_upstart_conf.sh"
@@ -322,7 +322,7 @@ fi
 ##############################################################################
 
 if [ -x "/bin/systemctl" ] ; then
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "Start server with SystemD"
@@ -331,7 +331,7 @@ if [ -x "/bin/systemctl" ] ; then
   systemctl restart mariadb.service
   systemctl restart vufind.service
 else
-  if [[ "$VERBOSE" == true ]] ; then
+  if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
     echo "Start server with upstart"
