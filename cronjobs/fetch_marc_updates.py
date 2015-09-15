@@ -29,13 +29,14 @@ from ftplib import FTP
 import os
 import re
 import sys
+import time
 import traceback
 import util
 
 
 def Login(ftp_host, ftp_user, ftp_passwd):
     try:
-        ftp = FTP(host=ftp_host)
+        ftp = FTP(host=ftp_host, timeout=120)
     except Exception as e:
         util.Error("failed to connect to FTP server! (" + str(e) + ")")
 
@@ -70,7 +71,15 @@ def GetMostRecentRemoteFile(ftp, filename_regex, directory):
     except Exception as e:
         util.Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
 
-    return GetMostRecentFile(filename_regex, ftp.nlst())
+    # Retry calling GetMostRecentFile() up to 3 times:
+    exception = None
+    for i in xrange(3):
+        try:
+            return GetMostRecentFile(filename_regex, ftp.nlst())
+        except Exception as e:
+            exception = e
+            time.sleep(10 * (i + 1))
+    raise exception
 
 
 # Compares remote and local filenames against pattern and, if the remote filename

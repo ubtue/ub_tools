@@ -44,20 +44,29 @@ void ProcessRecords(FILE * const input) {
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
-    unsigned record_count(0), max_record_length(0);
+    unsigned record_count(0), max_record_length(0), max_local_block_count(0);
 
     while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+        ++record_count;
+
 	const unsigned record_length(leader->getRecordLength());
 	if (record_length > max_record_length)
 	    max_record_length = record_length;
-        ++record_count;
+
+	std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+	const size_t local_block_count(
+            MarcUtil::FindAllLocalDataBlocks(dir_entries, field_data, &local_block_boundaries));
+	if (local_block_count > max_local_block_count)
+	    max_local_block_count = local_block_count;
     }
 
     if (not err_msg.empty())
         Error(err_msg);
 
-    std::cout << "Data set contains " << record_count << " MARC records.\n";
-    std::cout << "Largest record contains " << max_record_length << " bytes\n";
+    std::cout << "Data set contains " << record_count << " MARC record(s).\n";
+    std::cout << "Largest record contains " << max_record_length << " bytes.\n";
+    std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count
+	      << " local blocks.\n";
 }
 
 
