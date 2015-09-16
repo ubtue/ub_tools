@@ -10,16 +10,18 @@ import org.apache.lucene.search.Query;
 
 public class KeywordChainSearchQuery extends CustomScoreQuery {
       
-        final String queryString;
+        final Query query;
+        final String origQueryString;
 
-        public KeywordChainSearchQuery(final Query subQuery) {
+        public KeywordChainSearchQuery(final Query subQuery, final String origQueryString) {
                 super(subQuery);
-		queryString = subQuery.toString();
+                this.query = subQuery;
+                this.origQueryString = origQueryString;
         }
 
         @Override
         protected CustomScoreProvider getCustomScoreProvider(final AtomicReaderContext context) throws IOException {
-	    return new KeywordChainScoreProvider(context, queryString);
+        	return new KeywordChainScoreProvider(context, query, origQueryString);
         }
         
         @Override

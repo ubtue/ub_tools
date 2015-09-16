@@ -16,9 +16,6 @@ public class KeywordChainParserParserPlugin extends QParserPlugin {
 	@Override
 	public QParser createParser(String queryString, SolrParams localParams, SolrParams params, SolrQueryRequest req) {
 
-	    
-
-
 	    return new KeywordChainParserParser(queryString, localParams, params, req);
 	}
 
