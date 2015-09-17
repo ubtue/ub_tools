@@ -14,13 +14,16 @@ libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o Mar
            StringUtil.o TextUtil.o Locale.o OCR.o MediaTypeUtil.o MapIO.o MediaTypeUtil.o HtmlParser.o \
            Downloader.o MarcGrepTokenizer.o MarcQueryParser.o SmartDownloader.o BibleReferenceParser.o \
            ExecUtil.o PdfUtil.o FileUtil.o IniFile.o TimeLimit.o TimerUtil.o ThreadManager.o IdbPager.o \
-           HtmlUtil.o Stemmer.o FileLocker.o
+           HtmlUtil.o Stemmer.o FileLocker.o DbConnection.o DbRow.o DbResultSet.o
 	@echo "Linking $@..."
 	@ar crs $@ $^
 
 libstemmer/libstemmer.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/include/*.h)
 	$(MAKE) -C libstemmer
 
+DbConnection.o: DbConnection.h DbResultSet.h
+DbResultSet.o: DbResultSet.h DbRow.h
+DbRow.o: DbRow.h
 FileUtil.o: FileUtil.h Compiler.h
 PdfUtil.o: PdfUtil.h ExecUtil.h util.h FileUtil.h
 ExecUtil.o: ExecUtil.h StringUtil.h util.h
