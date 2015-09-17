@@ -21,23 +21,6 @@
 #include <stdexcept>
 
 
-DbRow DbResultSet::getNextRow() {
-    const MYSQL_ROW row(::mysql_fetch_row(result_set_));
-
-    unsigned long *field_sizes;
-    unsigned field_count;
-    if (row == nullptr) {
-	field_sizes = NULL;
-	field_count = 0;
-    } else {
-	field_sizes = ::mysql_fetch_lengths(result_set_);
-	field_count = ::mysql_num_fields(result_set_);
-    }
-
-    return DbRow(row, field_sizes, field_count);
-}
-
-
 DbConnection::DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd,
 			   const std::string &host, const unsigned port): initialised_(false)
 {
