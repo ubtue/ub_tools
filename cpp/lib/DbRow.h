@@ -25,7 +25,8 @@
 #include <mysql/mysql.h>
 
 
-/** \warning No DbRow object must be live after the DbResultSet that it belongs to has been deleted! */
+/** \warning It is unsafe to access DbRow instances after the DbResultSet that it belongs to has been deleted
+ *           or gone out of scope! */
 class DbRow {
     friend class DbResultSet;
     MYSQL_ROW row_;
