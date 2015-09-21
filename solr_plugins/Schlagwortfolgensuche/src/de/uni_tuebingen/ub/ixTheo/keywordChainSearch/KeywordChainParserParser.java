@@ -15,12 +15,13 @@ public class KeywordChainParserParser extends QParser {
 
     private Query innerQuery;
     private String origQueryString;
+    private final static int PREFIX_LENGTH = 4;
 
     public KeywordChainParserParser(final String searchString, final SolrParams localParams, final SolrParams params, final SolrQueryRequest request) {
         super(searchString, localParams, params, request);
         try {
         	this.origQueryString = searchString;
-           	final String queryString = "key_word_chain_bag:(" + adjustQueryString(origQueryString) +")";
+           	final String queryString = "prefix4_key_word_chain_bag:(" + adjustQueryString(origQueryString) +")";
 	    
         	//String reqString = getReq().getParamString();
 	    
@@ -45,8 +46,6 @@ public class KeywordChainParserParser extends QParser {
     	// a broad set for the Scorer to compare on, so truncate the terms of the original search
     	// for the lucene search
     	
-    	private final static int PREFIX_LENGTH = 4;
-    	
     	origQueryString = origQueryString.replaceAll("[^\\p{L}\\p{Nd}\\s]+", "");
 	    ArrayList<String> queryList = new ArrayList<String>(Arrays.asList(origQueryString.split("[\\s]")));
 	    
@@ -62,13 +61,13 @@ public class KeywordChainParserParser extends QParser {
 	    		queryTerm = queryTerm.substring(0, PREFIX_LENGTH);
 	    	}
 	    	
-	    	newQueryString += queryTerm + "*" + " ";
+	    	newQueryString += queryTerm + " ";
    	
 	    }
     	
 	    return  newQueryString;
-
-    }
+	    
+	}
 
 }
 
