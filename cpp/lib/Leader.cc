@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Leader.h"
+#include <cctype>
 #include <cstdio>
 #include "StringUtil.h"
 
@@ -25,15 +26,36 @@
 const size_t Leader::LEADER_LENGTH(24);
 
 
-bool Leader::ParseLeader(const std::string &leader_string, Leader ** const leader, std::string * const err_msg) {
+namespace {
+
+
+std::string EscapeString(const std::string &s) {
+    std::string escaped_string;
+    escaped_string.reserve(s.length() * 4);
+
+    for (const char ch : s) {
+	if (std::isprint(ch))
+	    escaped_string += ch;
+	else {
+	    escaped_string += '\\';
+	    escaped_string += 'x';
+	    escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) >> 4);
+	    escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) & 0xF);
+	}
+    }
+
+    return escaped_string;
+}
+
+
+}
+
+
+bool Leader::ParseLeader(const std::string &leader_string, std::shared_ptr<Leader> &leader,
+			 std::string * const err_msg)
+{
     if (err_msg != nullptr)
         err_msg->clear();
-
-    if (leader == nullptr) {
-        if (err_msg != nullptr)
-            *err_msg = "\"leader\" argument to Leader::ParseLeader must point to something!";
-        return false;
-    }
 
     if (leader_string.size() != LEADER_LENGTH) {
         if (err_msg != nullptr)
@@ -45,7 +67,7 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader ** const leade
     unsigned record_length;
     if (std::sscanf(leader_string.substr(0, 5).data(), "%5u", &record_length) != 1) {
         if (err_msg != nullptr)
-            *err_msg = "Can't parse record length!";
+            *err_msg = "Can't parse record length! (Found \"" + EscapeString(leader_string.substr(0, 5)) + "\")";
         return false;
     }
 
@@ -81,7 +103,7 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader ** const leade
         return false;
     }
 
-    *leader = new Leader(leader_string, record_length, base_address_of_data);
+    leader.reset(new Leader(leader_string, record_length, base_address_of_data));
     return true;
 }
 

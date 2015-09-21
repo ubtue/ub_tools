@@ -2,7 +2,8 @@ PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
       bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
       exec_test krimdok_filter resolve_in_path_test enrich_ddcs control_number_filter stemmer_test \
-      enrich_keywords_with_title_words test_find_substring test_chop_into_words
+      enrich_keywords_with_title_words test_find_substring test_chop_into_words test_auto_temp_file \
+      update_ixtheo_notations update_full_text_db kcdb_info classify_leader07a marc_info
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
@@ -20,6 +21,10 @@ lib/libmarc.a: $(wildcard lib/*.cc) $(wildcard lib/*.h)
 
 marc_grep: marc_grep.o lib/libmarc.a
 	$(CCC) -o $@ $< -Llib -lmarc -lpcre -lcrypto
+
+marc_grep_static: marc_grep.o lib/libmarc.a
+	$(CCC) --static -o $@ $< -Llib -lmarc -lpcre -lcrypto
+	strip $@
 
 marc_grep.o: marc_grep.cc lib/Leader.h lib/MarcQueryParser.h lib/MarcUtil.h lib/RegexMatcher.h lib/Subfields.h \
               lib/util.h
@@ -58,6 +63,12 @@ add_child_refs.o: add_child_refs.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Lead
 add_child_refs: add_child_refs.o lib/libmarc.a
 	$(CCC) -o $@ $< -Llib -lmarc -lpcre -lcrypto
 
+classify_leader07a.o: classify_leader07a.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Leader.h lib/util.h \
+                      lib/Subfields.h
+
+classify_leader07a: classify_leader07a.o lib/libmarc.a
+	$(CCC) -o $@ $< -Llib -lmarc -lpcre -lcrypto
+
 augment_bible_references.o: augment_bible_references.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Leader.h \
                             lib/util.h lib/StringUtil.h lib/TextUtil.h lib/BibleReferenceParser.h lib/MapIO.h
 
@@ -81,13 +92,19 @@ download_test.o: download_test.cc lib/SmartDownloader.h lib/util.h lib/FileUtil.
 download_test: download_test.o lib/libmarc.a
 	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
-create_full_text_db.o: create_full_text_db.cc lib/Downloader.h lib/RegexMatcher.h lib/StringUtil.h \
-                       lib/TextUtil.h lib/util.h lib/MediaTypeUtil.h lib/MarcUtil.h lib/Subfields.h \
-                       lib/SharedBuffer.h lib/SmartDownloader.h lib/PdfUtil.h lib/ExecUtil.h lib/FileUtil.h \
-	               lib/TimeLimit.h lib/util.h lib/ThreadManager.h
+create_full_text_db.o: create_full_text_db.cc lib/Downloader.h lib/RegexMatcher.h lib/StringUtil.h lib/util.h \
+                       lib/MarcUtil.h lib/Subfields.h lib/ExecUtil.h lib/FileLocker.h lib/FileUtil.h \
+                       lib/TimeLimit.h lib/util.h
 
 create_full_text_db: create_full_text_db.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic -lpthread
+	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
+
+update_full_text_db: update_full_text_db.o lib/libmarc.a
+	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
+
+update_full_text_db.o: update_full_text_db.cc lib/DirectoryEntry.h lib/ExecUtil.h lib/FileLocker.h lib/FileUtil.h \
+                       lib/MarcUtil.h lib/MediaTypeUtil.h lib/PdfUtil.h lib/SmartDownloader.h lib/StringUtil.h \
+                       lib/Subfields.h lib/util.h
 
 delete_ids.o: delete_ids.cc lib/MarcUtil.h lib/StringUtil.h lib/Subfields.h lib/util.h
 
@@ -156,6 +173,12 @@ enrich_keywords_with_title_words.o: enrich_keywords_with_title_words.cc lib/Marc
 enrich_keywords_with_title_words: enrich_keywords_with_title_words.o lib/libmarc.a
 	$(CCC) -o $@ $< -Llib -lmarc -Llib/libstemmer -lstemmer -lpcre -lcrypto
 
+update_ixtheo_notations.o: update_ixtheo_notations.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h \
+                         lib/Subfields.h lib/util.h
+
+update_ixtheo_notations: update_ixtheo_notations.o lib/libmarc.a
+	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
+
 test_find_substring.o: test_find_substring.cc lib/TextUtil.h lib/StringUtil.h lib/util.h
 
 test_find_substring: test_find_substring.o lib/libmarc.a
@@ -165,6 +188,21 @@ test_chop_into_words.o: test_chop_into_words.cc lib/TextUtil.h lib/util.h
 
 test_chop_into_words: test_chop_into_words.o lib/libmarc.a
 	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
+
+kcdb_info.o: kcdb_info.cc lib/util.h
+
+kcdb_info: kcdb_info.o lib/libmarc.a
+	$(CCC) -o $@ $^ -Llib -lmarc -lkyotocabinet
+
+test_auto_temp_file.o: test_auto_temp_file.cc lib/FileUtil.h
+
+test_auto_temp_file: test_auto_temp_file.o lib/libmarc.a
+	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
+
+marc_info.o: marc_info.cc lib/Leader.h lib/MarcUtil.h lib/util.h
+
+marc_info: marc_info.o lib/libmarc.a
+	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto
 
 clean:
 	rm -f *~ $(PROGS) *.o

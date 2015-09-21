@@ -70,10 +70,10 @@ char help_text[] =
   "\n"
   "  Output label format:\n"
   "    label_format = matched_field_or_subfield | control_number | control_number_and_matched_field_or_subfield\n"
-  "                   | no_label\n"
+  "                   | no_label | marc_binary\n"
   "\n"
   "  The default output label is the control number followed by a colon followed by matched field or subfield\n"
-  "  followed by a colon.\n";
+  "  followed by a colon.  When the format is \"marc_binary\" entire records will always be copied.\n";
 
 
 void Usage() {
@@ -84,7 +84,7 @@ void Usage() {
 
 
 enum OutputLabel { MATCHED_FIELD_OR_SUBFIELD_ONLY, CONTROL_NUMBER_ONLY, CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD,
-                   TRADITIONAL, NO_LABEL };
+                   TRADITIONAL, NO_LABEL, MARC_BINARY };
 
 
 OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
@@ -98,6 +98,8 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
         return TRADITIONAL;
     if (label_format_candidate == "no_label")
         return NO_LABEL;
+    if (label_format_candidate == "marc_binary")
+        return MARC_BINARY;
 
     Error("\"" + label_format_candidate + "\" is no valid output label format!");
 }
@@ -123,6 +125,8 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
     case NO_LABEL:
         std::cout << contents << '\n';
         return;
+    case MARC_BINARY:
+	Error("MARC_BINARY should never be passed into Emit(0!");
     }
 }
 
@@ -354,20 +358,21 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
     if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
     unsigned count(0), matched_count(0);
+    std::string raw_record;
+    std::string * const raw_record_address(output_format == MARC_BINARY ? &raw_record : nullptr);
 
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg, raw_record_address)) {
         ++count;
-        std::unique_ptr<Leader> leader(raw_leader);
 
         if (query_desc.hasLeaderCondition()) {
             const LeaderCondition &leader_cond(query_desc.getLeaderCondition());
-            if (raw_leader->toString().substr(leader_cond.getStartOffset(),
-                                              leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
+            if (leader->toString().substr(leader_cond.getStartOffset(),
+					  leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
                 != leader_cond.getMatch())
                 continue;
         }
@@ -389,13 +394,17 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
         if (matched) {
             ++matched_count;
 
-	    // Determine the control number:
-	    const auto &control_number_iter(field_to_content_map.find("001"));
-	    if (unlikely(control_number_iter == field_to_content_map.end()))
-		Error("In FieldGrep: record has no control number!");
-	    const std::string control_number(*(control_number_iter->second));
+	    if (output_format == MARC_BINARY)
+		std::fwrite(raw_record.data(), raw_record.size(), 1, stdout);
+	    else {
+		// Determine the control number:
+		const auto &control_number_iter(field_to_content_map.find("001"));
+		if (unlikely(control_number_iter == field_to_content_map.end()))
+		    Error("In FieldGrep: record has no control number!");
+		const std::string control_number(*(control_number_iter->second));
 
-	    Emit(control_number, output_format, &tags_and_contents);
+		Emit(control_number, output_format, &tags_and_contents);
+	    }
 	}
     }
 

@@ -21,6 +21,7 @@
 #define LEADER_H
 
 
+#include <memory>
 #include <string>
 
 
@@ -46,7 +47,7 @@ public:
      *  \param err_msg        If not nullptr and a parse error occurred an informational text will be returned here.
      *  \return True if the parse succeeded, else false.
      */
-    static bool ParseLeader(const std::string &leader_string, Leader ** const leader,
+    static bool ParseLeader(const std::string &leader_string, std::shared_ptr<Leader> &leader,
                             std::string * const err_msg = nullptr);
 
     /** \brief Index operator returning the n'th byte of the leader.
@@ -59,6 +60,7 @@ public:
 
     char getRecordStatus() const { return raw_leader_[5]; }
     char getRecordType() const { return raw_leader_[6]; }
+    char getBibliographicLevel() const { return raw_leader_[7]; }
     char getCharacterCodingScheme() const { return raw_leader_[9]; }
     std::string getImplementationDefined1() const { return raw_leader_.substr(7, 2); }
     std::string getImplementationDefined2() const { return raw_leader_.substr(17, 3); }

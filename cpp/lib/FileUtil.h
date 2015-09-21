@@ -44,8 +44,8 @@ namespace FileUtil {
 class AutoDeleteFile {
     std::string path_;
 public:
-    explicit AutoDeleteFile(const std::string &path): path_(path) { }
-    ~AutoDeleteFile() { ::unlink(path_.c_str()); }
+    explicit AutoDeleteFile(const std::string &path): path_(path) {}
+    ~AutoDeleteFile() { if (not path_.empty()) ::unlink(path_.c_str()); }
 };
 
 
@@ -96,6 +96,13 @@ std::string MakeAbsolutePath(const std::string &relative_path);
 
 inline std::string MakeAbsolutePath(const char * const relative_path)
 { return MakeAbsolutePath(std::string(relative_path)); }
+
+
+/** \brief Create an empty file or clear an existing file.
+ *  \return True upon success, false otherwise.
+ *  \note If the file does not exist it will be created w/ mode (600 & ~umask).
+ */
+bool MakeEmpty(const std::string &path);
 
 
 } // namespace FileUtil

@@ -29,20 +29,21 @@ from ftplib import FTP
 import os
 import re
 import sys
+import time
 import traceback
 import util
 
 
 def Login(ftp_host, ftp_user, ftp_passwd):
     try:
-        ftp = FTP(host=ftp_host)
+        ftp = FTP(host=ftp_host, timeout=120)
     except Exception as e:
-        Error("failed to connect to FTP server! (" + str(e) + ")")
+        util.Error("failed to connect to FTP server! (" + str(e) + ")")
 
     try:
         ftp.login(user=ftp_user, passwd=ftp_passwd)
     except Exception as e:
-        Error("failed to login to FTP server! (" + str(e) + ")")
+        util.Error("failed to login to FTP server! (" + str(e) + ")")
     return ftp
 
 
@@ -68,9 +69,17 @@ def GetMostRecentRemoteFile(ftp, filename_regex, directory):
     try:
         ftp.cwd(directory)
     except Exception as e:
-        Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
+        util.Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
 
-    return GetMostRecentFile(filename_regex, ftp.nlst())
+    # Retry calling GetMostRecentFile() up to 3 times:
+    exception = None
+    for i in xrange(3):
+        try:
+            return GetMostRecentFile(filename_regex, ftp.nlst())
+        except Exception as e:
+            exception = e
+            time.sleep(10 * (i + 1))
+    raise exception
 
 
 # Compares remote and local filenames against pattern and, if the remote filename
@@ -106,6 +115,10 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
 
 def Main():
     util.default_email_sender = "fetch_marc_updates@ub.uni-tuebingen.de"
+    if len(sys.argv) != 2:
+         util.SendEmail(os.path.basename(sys.argv[0]),
+                        "This script needs to be called with an email address as the only argument!\n")
+         sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
     try:
         config = util.LoadConfigFile()

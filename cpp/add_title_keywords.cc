@@ -1,4 +1,22 @@
-// A tool for adding keywords extracted from titles to MARC records.
+/** \brief A tool for adding keywords extracted from titles to MARC records.
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *
+ *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -90,25 +108,24 @@ void AugmentStopwordsWithTitleWords(
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned total_count(0), augment_count(0), title_count(0);
     std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++total_count;
-        std::unique_ptr<Leader> leader(raw_leader);
 
         const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
         if (entry_iterator == dir_entries.end()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             continue;
         }
 
         const size_t title_index(entry_iterator - dir_entries.begin());
         Subfields subfields(field_data[title_index]);
         if (not subfields.hasSubfield('a')) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             continue;
         }
 
@@ -133,7 +150,7 @@ void AugmentStopwordsWithTitleWords(
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
             continue;
         }
 

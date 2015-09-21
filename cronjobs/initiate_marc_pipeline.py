@@ -14,14 +14,14 @@ import util
 
 
 def ExecOrDie(cmd_name, args, log_file_name):
-    if not process_util.Exec(cmd_path=cmd_name, args=args, timeout=60*60,
-                             new_stdout=log_file_name, new_stderr=log_file_name) == 0:
+    if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
+                             new_stderr=log_file_name) == 0:
         util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logs in /tmp for the reason.")
         sys.exit(-1)
 
 
-def ImportIntoVuFind(pattern):
-    args = [ glob.glob(pattern) ]
+def ImportIntoVuFind(pattern, log_file_name):
+    args = [ sorted(glob.glob(pattern), reverse=True)[0] ]
     if len(args) != 1:
         util.Error("\"" + pattern + "\" matched " + str(len(args))
                    + " files! (Should have matched exactly 1 file!)")
@@ -39,8 +39,8 @@ def StartPipeline(pipeline_script_name, data_files, conf):
     delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
     ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
 
-    ImportIntoVuFind(conf.get("FileNames", "superior_marc_data"))
-    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"))
+    ImportIntoVuFind(conf.get("FileNames", "superior_marc_data"), log_file_name)
+    ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), log_file_name)
 
 
 # Returns True if we have no timestamp file or if link_filename's creation time is more recent than

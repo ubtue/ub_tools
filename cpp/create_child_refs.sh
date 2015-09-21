@@ -2,7 +2,7 @@
 set -o errexit -o nounset
 
 # Creates an inverted index from parent IDs to child IDs.  The original records have "uplinks" to parent IDs in
-# fields 800w 810w 830w.  These uplinks are extracted and processed to create a file, named "child_refs",
+# fields 800w 810w 830w 773w.  These uplinks are extracted and processed to create a file, named "child_refs",
 # containing lines that look like "parentID:childID_1:childID_2:...:childID_N for later processing by the
 # add_child_refs tool.  A second pass generates a map from child IDs to child titles which is stored in
 # "child_titles".  This too will be used by the add_child_refs tool.

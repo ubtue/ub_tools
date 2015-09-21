@@ -4,6 +4,7 @@
 #include <iterator>
 #include <memory>
 #include <stdexcept>
+#include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
 
@@ -71,12 +72,15 @@ ssize_t GetFieldIndex(const std::vector<DirectoryEntry> &dir_entries, const std:
 
 // Returns false on error and EOF.  To distinguish between the two: on EOF "err_msg" is empty but not when an
 // error has been detected.  For each entry in "dir_entries" there will be a corresponding entry in "field_data".
-bool ReadNextRecord(FILE * const input, Leader ** const leader, std::vector<DirectoryEntry> * const dir_entries,
-                    std::vector<std::string> * const field_data, std::string * const err_msg)
+bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
+		    std::vector<DirectoryEntry> * const dir_entries, std::vector<std::string> * const field_data,
+		    std::string * const err_msg, std::string * const entire_record)
 {
     dir_entries->clear();
     field_data->clear();
     err_msg->clear();
+    if (entire_record != nullptr)
+	entire_record->clear();
 
     //
     // Read leader.
@@ -84,19 +88,25 @@ bool ReadNextRecord(FILE * const input, Leader ** const leader, std::vector<Dire
 
     char leader_buf[Leader::LEADER_LENGTH];
     ssize_t read_count;
+    const long record_start_pos(std::ftell(input));
     if ((read_count = std::fread(leader_buf, sizeof leader_buf, 1, input)) != 1)
         return false;
 
     if (not Leader::ParseLeader(std::string(leader_buf, Leader::LEADER_LENGTH), leader, err_msg)) {
-        delete *leader;
+	err_msg->append(" (Bad record started at file offset " + std::to_string(record_start_pos) + ".)");
         return false;
+    }
+
+    if (entire_record != nullptr) {
+	entire_record->reserve(leader->getRecordLength());
+	entire_record->append(leader_buf, Leader::LEADER_LENGTH);
     }
 
     //
     // Parse directory entries.
     //
 
-    const ssize_t directory_length((*leader)->getBaseAddressOfData() - Leader::LEADER_LENGTH);
+    const ssize_t directory_length(leader->getBaseAddressOfData() - Leader::LEADER_LENGTH);
     char directory_buf[directory_length];
     if ((read_count = std::fread(directory_buf, 1, directory_length, input)) != directory_length) {
         *err_msg = "Short read for a directory or premature EOF!";
@@ -106,11 +116,14 @@ bool ReadNextRecord(FILE * const input, Leader ** const leader, std::vector<Dire
     if (not DirectoryEntry::ParseDirEntries(std::string(directory_buf, directory_length), dir_entries, err_msg))
         return false;
 
+    if (entire_record != nullptr)
+	entire_record->append(directory_buf, directory_length);
+
     //
     // Parse variable fields.
     //
 
-    const size_t field_data_size((*leader)->getRecordLength() - Leader::LEADER_LENGTH - directory_length);
+    const size_t field_data_size(leader->getRecordLength() - Leader::LEADER_LENGTH - directory_length);
     char raw_field_data[field_data_size];
     if ((read_count = std::fread(raw_field_data, 1, field_data_size, input))
         != static_cast<ssize_t>(field_data_size))
@@ -120,14 +133,23 @@ bool ReadNextRecord(FILE * const input, Leader ** const leader, std::vector<Dire
         return false;
     }
 
+    // Sanity check for record end:
+    if (raw_field_data[field_data_size - 1] != '\x1D') {
+	*err_msg = "Record does not end with \\x1D!";
+        return false;
+    }
+
     if (not ReadFields(std::string(raw_field_data, field_data_size), *dir_entries, field_data, err_msg))
         return false;
+
+    if (entire_record != nullptr)
+	entire_record->append(raw_field_data, field_data_size);
 
     return true;
 }
 
 
-void InsertField(const std::string &new_contents, const std::string &new_tag, Leader * const leader,
+void InsertField(const std::string &new_contents, const std::string &new_tag, const std::shared_ptr<Leader> &leader,
                  std::vector<DirectoryEntry> * const dir_entries, std::vector<std::string> * const fields)
 {
     leader->setRecordLength(leader->getRecordLength() + new_contents.length()
@@ -153,7 +175,7 @@ void InsertField(const std::string &new_contents, const std::string &new_tag, Le
 
 // Creates a binary, a.k.a. "raw" representation of a MARC21 record.
 std::string ComposeRecord(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &fields,
-                          Leader * const leader)
+                          const std::shared_ptr<Leader> &leader)
 {
     size_t record_size(Leader::LEADER_LENGTH);
     const size_t directory_size(dir_entries.size() * DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
@@ -189,10 +211,9 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
         return false;
     }
 
-    Leader *raw_leader;
-    if (not Leader::ParseLeader(record.substr(0, Leader::LEADER_LENGTH), &raw_leader, err_msg))
+    std::shared_ptr<Leader> leader;
+    if (not Leader::ParseLeader(record.substr(0, Leader::LEADER_LENGTH), leader, err_msg))
         return false;
-    const std::unique_ptr<Leader> leader(raw_leader);
 
     if (leader->getRecordLength() != record.length()) {
         *err_msg = "leader's record length (" + std::to_string(leader->getRecordLength())
@@ -211,10 +232,10 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
         return false;
     }
 
-    const size_t directory_length(leader->getBaseAddressOfData() - Leader::LEADER_LENGTH - 1);
-    if ((directory_length % DirectoryEntry::DIRECTORY_ENTRY_LENGTH) != 0) {
-        *err_msg = "directory length is not a multiple of "
-                   + std::to_string(DirectoryEntry::DIRECTORY_ENTRY_LENGTH) + "!";
+    const size_t directory_length(leader->getBaseAddressOfData() - Leader::LEADER_LENGTH);
+    if ((directory_length % DirectoryEntry::DIRECTORY_ENTRY_LENGTH) != 1) {
+        *err_msg = "directory length " + std::to_string(directory_length) + " is not a multiple of "
+                   + std::to_string(DirectoryEntry::DIRECTORY_ENTRY_LENGTH) + " plus 1 for the RS at the end!";
         return false;
     }
 
@@ -222,6 +243,17 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
         *err_msg = "directory is not terminated with a field terminator!";
         return false;
     }
+
+    std::vector<DirectoryEntry> dir_entries;
+    if (not DirectoryEntry::ParseDirEntries(record.substr(Leader::LEADER_LENGTH, directory_length),
+					    &dir_entries, err_msg))
+        return false;
+
+    const size_t field_data_size(record.length() - Leader::LEADER_LENGTH - directory_length);
+    std::vector<std::string> field_data;
+    if (not ReadFields(record.substr(Leader::LEADER_LENGTH + directory_length, field_data_size),
+		       dir_entries, &field_data, err_msg))
+        return false;
 
     if (record[record.size() - 1] != '\x1D') {
         *err_msg = "record is not terminated with a record terminator!";
@@ -233,7 +265,8 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
 
 
 void ComposeAndWriteRecord(FILE * const output, const std::vector<DirectoryEntry> &dir_entries,
-                           const std::vector<std::string> &field_data, Leader * const leader)
+                           const std::vector<std::string> &field_data,
+			   const std::shared_ptr<Leader> &leader)
 {
     std::string err_msg;
     const std::string record(MarcUtil::ComposeRecord(dir_entries, field_data, leader));
@@ -247,8 +280,9 @@ void ComposeAndWriteRecord(FILE * const output, const std::vector<DirectoryEntry
 }
 
 
-void UpdateField(const size_t field_index, const std::string &new_field_contents, Leader * const leader,
-                 std::vector<DirectoryEntry> * const dir_entries, std::vector<std::string> * const field_data)
+void UpdateField(const size_t field_index, const std::string &new_field_contents,
+		 const std::shared_ptr<Leader> &leader, std::vector<DirectoryEntry> * const dir_entries,
+		 std::vector<std::string> * const field_data)
 {
     if (unlikely(field_index >= dir_entries->size()))
         throw std::runtime_error("in MarcUtil::UpdateField: \"field_index\" (" + std::to_string(field_index)
@@ -324,6 +358,53 @@ size_t ExtractAllSubfields(const std::string &tags, const std::vector<DirectoryE
     }
 
     return values->size();
+}
+
+
+size_t FindAllLocalDataBlocks(const std::vector<DirectoryEntry> &dir_entries,
+			      const std::vector<std::string> &field_data,
+			      std::vector<std::pair<size_t, size_t>> * const local_block_boundaries)
+{
+    local_block_boundaries->clear();
+
+    ssize_t local_block_start(GetFieldIndex(dir_entries, "LOK"));
+    if (local_block_start == -1)
+	return 0;
+
+    size_t local_block_end(static_cast<size_t>(local_block_start) + 1);
+    while (local_block_end < dir_entries.size()) {
+	if (StringUtil::StartsWith(field_data[local_block_end], "  ""\x1F""0000")) {
+	    local_block_boundaries->emplace_back(std::make_pair(static_cast<size_t>(local_block_start),
+								local_block_end));
+	    local_block_start = static_cast<ssize_t>(local_block_end);
+	}
+	++local_block_end;
+    }
+    local_block_boundaries->emplace_back(std::make_pair(static_cast<size_t>(local_block_start), local_block_end));
+
+    return local_block_boundaries->size();
+}
+
+
+size_t FindFieldsInLocalBlock(const std::string &field_tag, const std::string &indicators,
+			      const std::pair<size_t, size_t> &block_start_and_end,
+			      const std::vector<std::string> &field_data,
+			      std::vector<size_t> * const field_indices)
+{
+    field_indices->clear();
+
+    if (unlikely(field_tag.length() != 3))
+	Error("in MarcUtil::FindFieldInLocalBlock: field_tag must be precisely 3 characters long!");
+    if (unlikely(indicators.length() != 2))
+	Error("in MarcUtil::FindFieldInLocalBlock: indicators must be precisely 2 characters long!");
+
+    const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag + indicators);
+    for (size_t index(block_start_and_end.first); index < block_start_and_end.second; ++index) {
+	if (StringUtil::StartsWith(field_data[index], FIELD_PREFIX))
+	    field_indices->emplace_back(index);
+    }
+
+    return field_indices->size();
 }
 
 

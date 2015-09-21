@@ -31,21 +31,43 @@
 
 #include <string>
 #include <vector>
+#include <signal.h>
 
 
 namespace ExecUtil {
 
 
-/** \brief  Run a subcommand.
+/** \class SignalBlocker
+ *  \brief Blocks a signal for the livetime of an instance of this class.
+ */
+class SignalBlocker {
+    sigset_t saved_set_;
+public:
+    explicit SignalBlocker(const int signal_to_block);
+    ~SignalBlocker();
+};
+	
+
+/** \brief  Run a subcommand to completion.
  *  \param  command             The path to the command that should be executed.
  *  \param  args                The arguments for the command, not including the command itself.
  *  \param  new_stdout          An optional replacement file path for the stdout.
  *  \param  timeout_in_seconds  If not zero, the subprocess will be killed if the timeout expires before
  *                              the process terminates.  SIGKILL will be used.
+ *  \param  tardy_child_signal  The signal to send to our offspring if there was a timeout.
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
 int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdout = "",
-         unsigned timeout_in_seconds = 0);
+         const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
+
+
+/** \brief  Kicks off a subcommand and returns.
+ *  \param  command             The path to the command that should be executed.
+ *  \param  args                The arguments for the command, not including the command itself.
+ *  \param  new_stdout          An optional replacement file path for the stdout.
+ *  \return The PID of the child.
+ */
+int Spawn(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdout = "");
 
 
 /** \brief Tries to find a path, with the help of the environment variable PATH, to "executable_candidate".

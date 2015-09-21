@@ -46,14 +46,13 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, FILE *
     if (matcher == nullptr)
 	Error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
-    Leader *raw_leader;
+    std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     unsigned count(0), kept_or_deleted_count(0);
 
-    while (MarcUtil::ReadNextRecord(input, &raw_leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
-        std::unique_ptr<Leader> leader(raw_leader);
 
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
@@ -64,7 +63,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, FILE *
 
 	if ((keep and matched) or (not keep and not matched)) {
 	    ++kept_or_deleted_count;
-	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader.get());
+	    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
 	}
     }
     
