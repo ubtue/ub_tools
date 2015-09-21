@@ -39,13 +39,13 @@ public class KeywordChainParserParser extends QParser {
     }
     
     
-    public String adjustQueryString(String origQueryString){
+    public String adjustQueryString(String origQueryString) {
     	
     	// We would like to flexible as to the matches in the key_word_chain_bag to acquire 
     	// a broad set for the Scorer to compare on, so truncate the terms of the original search
     	// for the lucene search
     	
-    	final int PREFIXLEN = 4;
+    	private final static int PREFIX_LENGTH = 4;
     	
     	origQueryString = origQueryString.replaceAll("[^\\p{L}\\p{Nd}\\s]+", "");
 	    ArrayList<String> queryList = new ArrayList<String>(Arrays.asList(origQueryString.split("[\\s]")));
@@ -57,15 +57,13 @@ public class KeywordChainParserParser extends QParser {
 	    	if (queryTerm.length() == 0)
 	    		continue;
 	    	
-	    	// trunk down to 3 letters
-	    	if (queryTerm.length() > PREFIXLEN) {
-	    		queryTerm = queryTerm.substring(0, PREFIXLEN);
+	    	// trunk down to the beginning letters
+	    	if (queryTerm.length() > PREFIX_LENGTH) {
+	    		queryTerm = queryTerm.substring(0, PREFIX_LENGTH);
 	    	}
 	    	
 	    	newQueryString += queryTerm + "*" + " ";
-	    	
-	    	
-	    	
+   	
 	    }
     	
 	    return  newQueryString;

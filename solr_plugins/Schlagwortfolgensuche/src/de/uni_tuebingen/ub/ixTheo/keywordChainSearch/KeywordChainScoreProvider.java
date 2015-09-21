@@ -27,56 +27,39 @@ public class KeywordChainScoreProvider extends CustomScoreProvider {
 		@Override
         public float customScore(final int docId, final float subQueryScore, final float valSrcScores[]) throws IOException {
 
-	    // We want the query be represented such that we can compare it to the
-	    // key_word_chains. To make it compatible to Solr Keyword chains are stored
-	    // as "/"-separated Strings
-	    // We need to convert them to ArrayListy<String> and then do the comparison for
-	    // each keyword chain entry
+			// We want the query be represented such that we can compare it to the
+			// key_word_chains. To make it compatible to Solr Keyword chains are stored
+			// as "/"-separated Strings
+			// We need to convert them to ArrayListy<String> and then do the comparison for
+			// each keyword chain entry
 
-        final int MAXARRAYSIZE = 20;	
-        	
-		ArrayList<String> keywordChainValues = new ArrayList<String>();
-	    ArrayList<String>[] keywordChainStringsList = (ArrayList<String>[])new ArrayList[MAXARRAYSIZE];
-	    ArrayList<Double> documentScoringResults = new ArrayList<Double>();
-	    	    
-	    queryString = origQueryString.replaceAll("[^\\p{L}\\p{Nd}\\s]+", "");
-	    ArrayList<String> queryList = new ArrayList<String>(Arrays.asList(queryString.split("[\\s]")));
-	    // Replace possible non word characters
+			ArrayList<String> keywordChainValues = new ArrayList<String>();
+			ArrayList<Double> documentScoringResults = new ArrayList<Double>();
+	    	 
+			//Replace possible non word characters
+			queryString = origQueryString.replaceAll("[^\\p{L}\\p{Nd}\\s]+", "");
+			ArrayList<String> queryList = new ArrayList<String>(Arrays.asList(queryString.split("[\\s]")));
+				    
+	        Document d = context.reader().document(docId);
+
+	        // Get all "/"-separated keywordchains 
+	        keywordChainValues.addAll(Arrays.asList(d.getValues("key_word_chains")));
+
+	    	// 2.) Split up the keywordChain and compare the KWC
+	 	 
+	    	for (String keywordChainStringComposite : keywordChainValues) {
+	    		String[] keywordChainStringSplit = keywordChainStringComposite.split("/");
+	    		ArrayList<String> keywordChain = new ArrayList<String>(Arrays.asList(keywordChainStringSplit));
 	    
-	    
-	    Document d = context.reader().document(docId);
-	    // plugin external score calculation based on the fields...
+	    		if ((! keywordChain.isEmpty())  &&  (! queryList.isEmpty())){
+	    			documentScoringResults.add(KeywordChainMetric.calculateSimilarityScore(queryList, keywordChain));
+	    		}
 
-	    // 1.) Get all "/"-separated keywordchains 
-	    keywordChainValues.addAll(Arrays.asList(d.getValues("key_word_chains")));
-
-	    // 2.) Split up the keywordChain
-	    int i = 0;
-	 
-	    for (String keywordChainStringComposite : keywordChainValues) {
-	    	String[] keywordChainStringSplit = keywordChainStringComposite.split("/");
-	    	keywordChainStringsList[i++] = new ArrayList<String>(Arrays.asList(keywordChainStringSplit));
-	    }
-
-	    // 3.) Compare the KWC	
-	    for (ArrayList<String> keywordChain : keywordChainStringsList){
-	    	
-	    	KeywordChainMetric keywordChainMetric = new KeywordChainMetric();
-
-	    	if (keywordChain == null)
-	    		continue;
-
-	    	if ((! keywordChain.isEmpty())  &&  (! queryList.isEmpty()))
-	    		documentScoringResults.add(keywordChainMetric.calculateSimilarityScore(queryList, keywordChain));
 	    	}
-
-	    	// and return the custom score
-
-	    	float score = Collections.max(documentScoringResults).floatValue();
-	    	return score;
-        }
-
-    
+	    
+	    	// return the custom score
+			return Collections.max(documentScoringResults).floatValue();
+		}
 }
 
 
