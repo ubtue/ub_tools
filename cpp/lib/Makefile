@@ -1,5 +1,5 @@
 CCC=g++
-CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -O3 -march=native -Ilibstemmer/include -c
+CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -O3 -march=native -Ilibstemmer/include -c
 LDOPTS=-O3
 
 .PHONY: clean
@@ -14,7 +14,7 @@ libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o Mar
            StringUtil.o TextUtil.o Locale.o OCR.o MediaTypeUtil.o MapIO.o MediaTypeUtil.o HtmlParser.o \
            Downloader.o MarcGrepTokenizer.o MarcQueryParser.o SmartDownloader.o BibleReferenceParser.o \
            ExecUtil.o PdfUtil.o FileUtil.o IniFile.o TimeLimit.o TimerUtil.o ThreadManager.o IdbPager.o \
-           HtmlUtil.o Stemmer.o FileLocker.o DbConnection.o DbRow.o DbResultSet.o
+           HtmlUtil.o Stemmer.o FileLocker.o DbConnection.o DbRow.o DbResultSet.o PHPUtil.o
 	@echo "Linking $@..."
 	@ar crs $@ $^
 
@@ -31,6 +31,7 @@ FileLocker.o: FileLocker.h
 MapIO.o: MapIO.h StringUtil.h util.h
 MediaTypeUtil.o: MediaTypeUtil.cc MediaTypeUtil.h
 Locale.o: Locale.h
+PHPUtil.o: PHPUtil.h Compiler.h StringUtil.h
 util.o: util.h
 HtmlParser.o: HtmlParser.h Compiler.h StringUtil.h util.h
 StringUtil.o: StringUtil.h Compiler.h

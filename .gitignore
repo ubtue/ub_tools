@@ -19,8 +19,9 @@ bib_ref_to_codes_tool
 classify_leader07a
 control_number_filter
 create_full_text_db
-delete_ids
 db_lookup
+delete_ids
+deserialise_php_test
 download_test
 enrich_ddcs
 enrich_keywords_with_title_words
