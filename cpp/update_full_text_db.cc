@@ -230,7 +230,9 @@ const std::string BASH_HELPER("pdf_images_to_text.sh");
 
 
 std::string GetPathToPdfImagesScript(const char * const argv0) {
+    #pragma GCC diagnostic ignored "-Wvla"
     char path[std::strlen(argv0) + 1];
+    #pragma GCC diagnostic warning "-Wvla"
     std::strcpy(path, argv0);
     const std::string pdf_images_script_path(ExecUtil::Which(BASH_HELPER));
     if (::access(pdf_images_script_path.c_str(), X_OK) != 0)

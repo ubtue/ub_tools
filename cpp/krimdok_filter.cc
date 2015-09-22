@@ -491,6 +491,7 @@ void Usage() {
 }
 
 
+#pragma GCC diagnostic ignored "-Wpedantic"
 const struct option longopts[] = {
     {
         .name    = "bibliotheks-sigel-filtern",
@@ -517,6 +518,7 @@ const struct option longopts[] = {
         .val     = '\0'
     },
 };
+#pragma GCC diagnostic warning "-Wpedantic"
 
 
 int main(int argc, char **argv) {

@@ -81,7 +81,9 @@ bool InitializeLocale()
 }
 
 
+#pragma GCC diagnostic ignored "-Wunused-variable"
 bool locale_initialized = InitializeLocale();
+#pragma GCC diagnostic warning "-Wunused-variable"
 
 
 char ToHexChar(const unsigned u)
@@ -2139,10 +2141,8 @@ std::string Sha1(const std::string &s)
 
 size_t Sha1Hash(const std::string &s)
 {
-        size_t remainder = SHA_DIGEST_LENGTH - (SHA_DIGEST_LENGTH / (sizeof(size_t))) * sizeof(size_t);
-        if (remainder != 0)
-                remainder = sizeof(size_t) - remainder;
-        char cryptographic_hash[SHA_DIGEST_LENGTH + remainder];
+    constexpr size_t remainder(SHA_DIGEST_LENGTH - (SHA_DIGEST_LENGTH / (sizeof(size_t))) * sizeof(size_t));
+        char cryptographic_hash[SHA_DIGEST_LENGTH + (remainder == 0 ? 0 : sizeof(size_t) - remainder)];
         if (remainder != 0)
                 __builtin_memset(cryptographic_hash + SHA_DIGEST_LENGTH, '\0', remainder);
         ::SHA1(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(),

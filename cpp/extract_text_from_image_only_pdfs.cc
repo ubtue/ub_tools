@@ -43,7 +43,9 @@ int main(int argc, char *argv[]) {
             Error("failed to create a temporary file!");
         const FileUtil::AutoDeleteFile auto_deleter(output_filename);
 
+        #pragma GCC diagnostic ignored "-Wvla"
         char path[std::strlen(argv[0]) + 1];
+        #pragma GCC diagnostic warning "-Wvla"
         std::strcpy(path, argv[0]);
         const std::string dir_path(::dirname(path));
 

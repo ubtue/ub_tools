@@ -25,6 +25,7 @@ void Usage() {
 }
 
 
+#pragma GCC diagnostic ignored "-Wpedantic"
 const struct option longopts[] = {
     {
         .name    = "dump",
@@ -63,6 +64,7 @@ const struct option longopts[] = {
         .val     = '\0'
     },
 };
+#pragma GCC diagnostic warning "-Wpedantic"
 
                     
 void Dump(const std::string &input_filename, const std::string &output_filename) {
