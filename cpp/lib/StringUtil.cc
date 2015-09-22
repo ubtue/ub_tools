@@ -57,8 +57,7 @@
 namespace {
 
 
-bool InitializeLocale()
-{
+__attribute__((constructor)) bool InitializeLocale() {
         // Try to force the use of the iVia standard locale:
         if (std::setlocale(LC_CTYPE, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr) {
                 const std::string error_message("in InitializeLocale: setlocale(3) failed: "
@@ -79,11 +78,6 @@ bool InitializeLocale()
 
         return true;
 }
-
-
-#pragma GCC diagnostic ignored "-Wunused-variable"
-bool locale_initialized = InitializeLocale();
-#pragma GCC diagnostic warning "-Wunused-variable"
 
 
 char ToHexChar(const unsigned u)
