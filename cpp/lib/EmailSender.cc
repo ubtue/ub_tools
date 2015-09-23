@@ -72,17 +72,20 @@ namespace EmailSender {
 bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
 	       const std::string &message_body)
 {
-    ReplaceEnvVar replace_env_var("PATH", "/bin:/usr/bin");
-    const std::string MAILX_PATH(ExecUtil::Which("mailx"));
-    if (unlikely(MAILX_PATH.empty()))
-	Error("in EmailSender::SendEmail: can't find \"mailx\"!");
+    static std::string mailx_path;
+    if (mailx_path.empty()) {
+	ReplaceEnvVar replace_env_var("PATH", "/bin:/usr/bin");
+	mailx_path = ExecUtil::Which("mailx");
+	if (unlikely(mailx_path.empty()))
+	    Error("in EmailSender::SendEmail: can't find \"mailx\"!");
+    }
 
     FileUtil::AutoTempFile auto_temp_file;
     const std::string &stdin_replacement_for_mailx(auto_temp_file.getFilePath());
     if (not FileUtil::WriteString(stdin_replacement_for_mailx, message_body))
 	Error("in EmailSender::SendEmail: can't write the message body into a temporary file!");
 
-    return ExecUtil::Exec(MAILX_PATH, { "-a", "Reply-To: " + sender, "-s", subject, recipient },
+    return ExecUtil::Exec(mailx_path, { "-a", "Reply-To: " + sender, "-s", subject, recipient },
 			  stdin_replacement_for_mailx) == 0;
 }
 
