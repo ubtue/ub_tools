@@ -82,7 +82,7 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
     if (not FileUtil::WriteString(stdin_replacement_for_mailx, message_body))
 	Error("in EmailSender::SendEmail: can't write the message body into a temporary file!");
 
-    return ExecUtil::Exec(MAILX_PATH, { "-a", "Reply-To: " + sender, "-s ", subject, recipient },
+    return ExecUtil::Exec(MAILX_PATH, { "-a", "Reply-To: " + sender, "-s", subject, recipient },
 			  stdin_replacement_for_mailx) == 0;
 }
 
