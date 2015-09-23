@@ -33,7 +33,7 @@ bool PdfFileContainsNoText(const std::string &path) {
     const FileUtil::AutoTempFile auto_temp_file;
     const std::string &output_filename(auto_temp_file.getFilePath());
     std::vector<std::string> args{ path };
-    const int retval = ExecUtil::Exec(pdffonts_path, args, output_filename);
+    const int retval(ExecUtil::Exec(pdffonts_path, args, "", output_filename));
     if (retval == 0) {
         std::string output;
         if (not ReadFile(output_filename, &output))

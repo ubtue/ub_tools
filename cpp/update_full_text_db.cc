@@ -111,7 +111,9 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
     const std::string &output_filename(auto_temp_file2.getFilePath());
     const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
     static constexpr unsigned TIMEOUT(60); // in seconds
-    if (ExecUtil::Exec(pdf_images_script, { input_filename, output_filename, language_code }, "", TIMEOUT) != 0) {
+    if (ExecUtil::Exec(pdf_images_script, { input_filename, output_filename, language_code }, "", "", "", TIMEOUT)
+	!= 0)
+    {
         Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
                 + std::to_string(TIMEOUT) + " seconds ! (original Url: " + original_url + ")");
         return false;
