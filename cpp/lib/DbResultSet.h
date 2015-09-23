@@ -32,8 +32,8 @@ class DbResultSet {
 private:
     explicit DbResultSet(MYSQL_RES * const result_set): result_set_(result_set) { }
 public:
-    DbResultSet(DbResultSet &&other): result_set_(nullptr) { std::swap(result_set_, other.result_set_); }
-    ~DbResultSet() { if (result_set_ != nullptr) ::mysql_free_result(result_set_); }
+    DbResultSet(DbResultSet &&other);
+    ~DbResultSet();
 
     /** \return The number of rows in the result set. */
     size_t size() const { return ::mysql_num_rows(result_set_); }

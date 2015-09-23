@@ -17,7 +17,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "PHPUtil.h"
-#include <iostream>//XXX
 #include <cctype>
 #include <cstdio>
 #include "Compiler.h"
@@ -119,9 +118,6 @@ static double ExtractFloat(std::string::const_iterator &ch, const std::string::c
 
 
 static std::string Unescape(const std::string &s) {
-std::cout << "In Unescape: aboyt to return " << s << '\n';
-    return s;
-    /*
     std::string unescaped_s;
 
     bool escaped(false);
@@ -136,7 +132,6 @@ std::cout << "In Unescape: aboyt to return " << s << '\n';
     }
 
     return unescaped_s;
-    */
 }
 
 
@@ -320,7 +315,6 @@ Object *ParseObject(std::string::const_iterator &ch, const std::string::const_it
 
     ScanOverColon(ch, end);
     const std::string class_name(ExtractString(ch, end));
-std::cout << "class_name="<<class_name<<'\n';
     if (unlikely(class_name.empty()))
 	throw ParseException("in PHPUtil::ParseObject: found an empty class name!");
     if (unlikely(class_name.length() != class_name_length))
