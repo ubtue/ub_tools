@@ -79,15 +79,19 @@ def ConcatenateFiles(files, target):
 def SafeSymlink(source, link_name):
     try:
         os.lstat(source) # Throws an exception if "source" does not exist.
-        if os.access(link_name, os.F_OK) != 0:
-            if os.path.islink(link_name):
-                os.unlink(link_name)
-            else:
-                Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
-                      + "\" which is an existing non-symlink file!")
-        os.symlink(source, link_name)
     except Exception as e:
-        Error("in util.SafeSymlink: os.symlink() failed: " + str(e))
+        Error("in util.SafeSymlink: os.lstat(" + source + ") failed: " + str(e))
+        
+    if os.access(link_name, os.F_OK) != 0:
+        if os.path.islink(link_name):
+            os.unlink(link_name)
+        else:
+            Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
+                  + "\" which is an existing non-symlink file!")
+    try:
+        os.symlink(source, link_name)
+    except Exception as e2:
+        Error("in util.SafeSymlink: os.symlink(" + link_name + ") failed: " + str(e2))
 
 
 # @return The absolute path of the file "link_name" points to.

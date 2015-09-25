@@ -43,7 +43,9 @@ int main(int argc, char *argv[]) {
             Error("failed to create a temporary file!");
         const FileUtil::AutoDeleteFile auto_deleter(output_filename);
 
+        #pragma GCC diagnostic ignored "-Wvla"
         char path[std::strlen(argv[0]) + 1];
+        #pragma GCC diagnostic warning "-Wvla"
         std::strcpy(path, argv[0]);
         const std::string dir_path(::dirname(path));
 
@@ -51,7 +53,7 @@ int main(int argc, char *argv[]) {
         if (argc == 3)
             args.emplace_back(argv[2]);
 
-        if (ExecUtil::Exec(dir_path + "/" + BASH_HELPER, args, "", 20 /* seconds */) != 0)
+        if (ExecUtil::Exec(dir_path + "/" + BASH_HELPER, args, "", "", "", 20 /* seconds */) != 0)
             Error("failed to execute conversion script!");
 
         std::string extracted_text;

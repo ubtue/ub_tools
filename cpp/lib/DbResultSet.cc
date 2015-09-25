@@ -21,6 +21,20 @@
 #include <stdexcept>
 
 
+DbResultSet::DbResultSet(DbResultSet &&other) {
+    if (&other != this) {
+	result_set_ = other.result_set_;
+	other.result_set_ = nullptr;
+    }
+}
+
+
+DbResultSet::~DbResultSet() {
+    if (result_set_ != nullptr)
+	::mysql_free_result(result_set_);
+}
+
+
 DbRow DbResultSet::getNextRow() {
     const MYSQL_ROW row(::mysql_fetch_row(result_set_));
 

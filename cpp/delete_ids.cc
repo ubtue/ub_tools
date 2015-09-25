@@ -125,9 +125,9 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
                 --start_local_match;
                 if (start_local_match <= 0)
                     Error("weird data structure (1)!");
-                const Subfields subfields(field_data[start_local_match]);
-                if (not subfields.hasSubfield('0')
-                    or not StringUtil::StartsWith(subfields.getFirstSubfieldValue('0'), "000 "))
+                const Subfields subfields1(field_data[start_local_match]);
+                if (not subfields1.hasSubfield('0')
+                    or not StringUtil::StartsWith(subfields1.getFirstSubfieldValue('0'), "000 "))
                     Error("missing or empty local field \"000\"! (EPN: "
                           + field_data[start_local_match + 1].substr(8) + ", PPN: " + field_data[0] + ")");
 
@@ -137,10 +137,10 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
                 bool found_next_000(false);
                 size_t end_local_match(start_local_match + 2);
                 while (end_local_match < field_data.size()) {
-                    const Subfields subfields(field_data[end_local_match]);
-                    if (not subfields.hasSubfield('0'))
+                    const Subfields subfields2(field_data[end_local_match]);
+                    if (not subfields2.hasSubfield('0'))
                         Error("weird data (2)!");
-                    if (StringUtil::StartsWith(subfields.getFirstSubfieldValue('0'), "000 ")) {
+                    if (StringUtil::StartsWith(subfields2.getFirstSubfieldValue('0'), "000 ")) {
                         found_next_000 = true;
                         break;
                     }

@@ -36,7 +36,9 @@ marc_grep_static
 marc_grep_tokenizer_test
 marc_info
 mysql_test
+notify_users
 resolve_in_path_test
+send_email_test
 shared_buffer_test
 stemmer_test
 stemwords

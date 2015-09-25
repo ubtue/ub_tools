@@ -30,7 +30,7 @@
  */
 class Leader {
 public:
-    static const size_t LEADER_LENGTH;
+    static const size_t LEADER_LENGTH = 24;
 private:
     std::string raw_leader_;
     unsigned record_length_;
