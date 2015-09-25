@@ -59,4 +59,4 @@ TimerUtil.o: TimerUtil.h Compiler.h
 util.o: util.h
 
 clean:
-	rm -f *~ $(PROGS) *.o *.a && cd libstemmer && make clean && rm libstemmer.a
+	rm -f *~ $(PROGS) *.o *.a && cd libstemmer && make clean && rm -f libstemmer.a
