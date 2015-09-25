@@ -48,11 +48,15 @@ void Usage() {
 class SearchObject {
     std::vector<std::string> search_terms_;
     std::vector<std::string> filters_;
+    std::string type_;
+    std::string class_;
 public:
     explicit SearchObject(const PHPUtil::Object &minSO);
 
     const std::vector<std::string> &getSearchTerms() const { return search_terms_; }
     const std::vector<std::string> &getFilters() const { return filters_; }
+    const std::string &getType() const { return type_; }
+    const std::string &getClass() const { return class_; }
 };
 
 
@@ -74,6 +78,8 @@ SearchObject::SearchObject(const PHPUtil::Object &minSO) {
 
     StringArrayToVector(reinterpret_cast<const PHPUtil::Array &>(minSO["t"]), &search_terms_);
     StringArrayToVector(reinterpret_cast<const PHPUtil::Array &>(minSO["f"]), &filters_);
+    type_  = reinterpret_cast<const PHPUtil::String &>(minSO["ty"]).getValue();
+    class_ = reinterpret_cast<const PHPUtil::String &>(minSO["cl"]).getValue();
 }
 
 
