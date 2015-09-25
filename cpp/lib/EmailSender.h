@@ -1,5 +1,5 @@
-/** \file   DbResultSet.h
- *  \brief  Interface for the DbResultSet class.
+/** \file   EmailSender.h
+ *  \brief  Utility functions etc. related to the sending of email messages.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
@@ -17,36 +17,21 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DB_RESULT_SET_H
-#define DB_RESULT_SET_H
+#ifndef EMAIL_SENDER_H
+#define EMAIL_SENDER_H
 
 
-#include <algorithm>
-#include <mysql/mysql.h>
-#include "DbRow.h"
+#include <string>
 
 
-class DbResultSet {
-    friend class DbConnection;
-    MYSQL_RES *result_set_;
-private:
-    explicit DbResultSet(MYSQL_RES * const result_set): result_set_(result_set) { }
-public:
-    DbResultSet(DbResultSet &&other);
-    ~DbResultSet();
-
-    /** \return The number of rows in the result set. */
-    size_t size() const { return ::mysql_num_rows(result_set_); }
-
-    /** Typically you would call this in a loop like:
-     *
-     *  DbRow row;
-     *  while (row = result_set.getNextRow())
-     *      ProcessRow(row);
-     *
-     */
-    DbRow getNextRow();
-};
+namespace EmailSender {
 
 
-#endif // ifndef DB_RESULT_SET_H
+bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
+	       const std::string &message_body);
+
+
+} // namespace EmailSender
+
+
+#endif // ifndef EMAIL_SENDER_H

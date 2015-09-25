@@ -23,9 +23,6 @@
 #include "StringUtil.h"
 
 
-const size_t Leader::LEADER_LENGTH(24);
-
-
 namespace {
 
 

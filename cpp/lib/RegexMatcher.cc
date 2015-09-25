@@ -24,29 +24,28 @@
 bool RegexMatcher::utf8_configured_;
 
 
-bool CompileRegex(const std::string &pattern, const bool enable_utf8, ::pcre **pcre, ::pcre_extra **pcre_extra,
-                  std::string * const err_msg)
+bool CompileRegex(const std::string &pattern, const bool enable_utf8, ::pcre **pcre_arg,
+		  ::pcre_extra **pcre_extra_arg, std::string * const err_msg)
 {
     if (err_msg != nullptr)
         err_msg->clear();
 
     const char *errptr;
     int erroffset;
-    *pcre = ::pcre_compile(pattern.c_str(), enable_utf8 ? PCRE_UTF8 : 0, &errptr, &erroffset, nullptr);
-    if (*pcre == nullptr) {
-        *pcre = nullptr;
-        *pcre_extra = nullptr;
+    *pcre_arg = ::pcre_compile(pattern.c_str(), enable_utf8 ? PCRE_UTF8 : 0, &errptr, &erroffset, nullptr);
+    if (*pcre_arg == nullptr) {
+        *pcre_extra_arg = nullptr;
         if (err_msg != nullptr)
             *err_msg = "failed to compile invalid regular expression: \"" + pattern + "\"! ("
                 + std::string(errptr) + ")";
         return false;
     }
 
-    *pcre_extra = ::pcre_study(*pcre, 0, &errptr); // Can't use PCRE_STUDY_JIT_COMPILE because it's not thread safe.
-    if (*pcre_extra == nullptr and errptr != nullptr) {
-        ::pcre_free(*pcre);
-        *pcre = nullptr;
-        *pcre_extra = nullptr;
+    // Can't use PCRE_STUDY_JIT_COMPILE because it's not thread safe.
+    *pcre_extra_arg = ::pcre_study(*pcre_arg, 0, &errptr);
+    if (*pcre_extra_arg == nullptr and errptr != nullptr) {
+        ::pcre_free(*pcre_arg);
+        *pcre_arg = nullptr;
         if (err_msg != nullptr)
             *err_msg = "failed to \"study\" the compiled pattern \"" + pattern + "\"! (" + std::string(errptr) + ")";
         return false;
@@ -77,12 +76,12 @@ RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std:
         RegexMatcher::utf8_configured_ = true;
     }
 
-    ::pcre *pcre;
-    ::pcre_extra *pcre_extra;
-    if (not CompileRegex(pattern, enable_utf8, &pcre, &pcre_extra, err_msg))
+    ::pcre *pcre_ptr;
+    ::pcre_extra *pcre_extra_ptr;
+    if (not CompileRegex(pattern, enable_utf8, &pcre_ptr, &pcre_extra_ptr, err_msg))
         return nullptr;
 
-    return new RegexMatcher(pattern, enable_utf8, pcre, pcre_extra);
+    return new RegexMatcher(pattern, enable_utf8, pcre_ptr, pcre_extra_ptr);
 }
 
 

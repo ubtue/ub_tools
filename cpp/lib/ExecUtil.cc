@@ -42,8 +42,9 @@ enum class ExecMode {
 };
 
 
-int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
-         const ExecMode exec_mode, unsigned timeout_in_seconds, const int tardy_child_signal)
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
+         const std::string &new_stdout, const std::string &new_stderr, const ExecMode exec_mode,
+	 unsigned timeout_in_seconds, const int tardy_child_signal)
 {
     if (::access(command.c_str(), X_OK) != 0)
         throw std::runtime_error("in ExecUtil::Exec: can't execute \"" + command + "\"!");
@@ -63,6 +64,15 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
         if (::setsid() == static_cast<pid_t>(-1))
             Error("in Exec(): child failed to become a new session leader!");
 
+        if (not new_stdin.empty()) {
+            const int new_stdin_fd(::open(new_stdin.c_str(), O_RDONLY));
+            if (new_stdin_fd == -1)
+                ::_exit(-1);
+            if (::dup2(new_stdin_fd, STDIN_FILENO) == -1)
+                ::_exit(-1);
+            ::close(new_stdin_fd);
+        }
+
         if (not new_stdout.empty()) {
             const int new_stdout_fd(::open(new_stdout.c_str(), O_WRONLY | O_CREAT, 0644));
             if (new_stdout_fd == -1)
@@ -72,8 +82,19 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
             ::close(new_stdout_fd);
         }
 
+        if (not new_stderr.empty()) {
+            const int new_stderr_fd(::open(new_stderr.c_str(), O_WRONLY | O_CREAT, 0644));
+            if (new_stderr_fd == -1)
+                ::_exit(-1);
+            if (::dup2(new_stderr_fd, STDERR_FILENO) == -1)
+                ::_exit(-1);
+            ::close(new_stderr_fd);
+        }
+
         // Build the argument list for execve(2):
+        #pragma GCC diagnostic ignored "-Wvla"
         char *argv[1 + args.size() + 1];
+        #pragma GCC diagnostic warning "-Wvla"
         unsigned arg_no(0);
         argv[arg_no++] = ::strdup(command.c_str());
         for (const auto &arg : args)
@@ -142,7 +163,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
     return 0; // Keep the compiler happy!
 }
-
+    
 
 } // unnamed namespace
 
@@ -165,15 +186,20 @@ SignalBlocker::~SignalBlocker() {
 }
 
 
-int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout,
-         const unsigned timeout_in_seconds, const int tardy_child_signal)
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
+         const std::string &new_stdout, const std::string &new_stderr, const unsigned timeout_in_seconds,
+	 const int tardy_child_signal)
 {
-    return ::Exec(command, args, new_stdout, ExecMode::WAIT, timeout_in_seconds, tardy_child_signal);
+    return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::WAIT, timeout_in_seconds,
+		  tardy_child_signal);
 }
 
 
-int Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdout) {
-    return ::Exec(command, args, new_stdout, ExecMode::DETACH, 0, SIGKILL /* Not used because the timeout is 0. */);
+int Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
+	  const std::string &new_stdout , const std::string &new_stderr)
+{
+    return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::DETACH, 0,
+		  SIGKILL /* Not used because the timeout is 0. */);
 }
 
 

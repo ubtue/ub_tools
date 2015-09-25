@@ -67,9 +67,9 @@ public:
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return utf8_enabled_; }
 private:
-    RegexMatcher(const std::string &pattern, const bool utf8_enabled, pcre * const pcre,
-                 pcre_extra * const pcre_extra)
-        : pattern_(pattern), utf8_enabled_(utf8_enabled), pcre_(pcre), pcre_extra_(pcre_extra) {}
+    RegexMatcher(const std::string &pattern, const bool utf8_enabled, pcre * const pcre_arg,
+                 pcre_extra * const pcre_extra_arg)
+        : pattern_(pattern), utf8_enabled_(utf8_enabled), pcre_(pcre_arg), pcre_extra_(pcre_extra_arg) {}
 };
 
 

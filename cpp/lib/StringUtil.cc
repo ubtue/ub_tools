@@ -57,8 +57,7 @@
 namespace {
 
 
-bool InitializeLocale()
-{
+__attribute__((constructor)) bool InitializeLocale() {
         // Try to force the use of the iVia standard locale:
         if (std::setlocale(LC_CTYPE, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr) {
                 const std::string error_message("in InitializeLocale: setlocale(3) failed: "
@@ -79,9 +78,6 @@ bool InitializeLocale()
 
         return true;
 }
-
-
-bool locale_initialized = InitializeLocale();
 
 
 char ToHexChar(const unsigned u)
@@ -2139,10 +2135,8 @@ std::string Sha1(const std::string &s)
 
 size_t Sha1Hash(const std::string &s)
 {
-        size_t remainder = SHA_DIGEST_LENGTH - (SHA_DIGEST_LENGTH / (sizeof(size_t))) * sizeof(size_t);
-        if (remainder != 0)
-                remainder = sizeof(size_t) - remainder;
-        char cryptographic_hash[SHA_DIGEST_LENGTH + remainder];
+    constexpr size_t remainder(SHA_DIGEST_LENGTH - (SHA_DIGEST_LENGTH / (sizeof(size_t))) * sizeof(size_t));
+        char cryptographic_hash[SHA_DIGEST_LENGTH + (remainder == 0 ? 0 : sizeof(size_t) - remainder)];
         if (remainder != 0)
                 __builtin_memset(cryptographic_hash + SHA_DIGEST_LENGTH, '\0', remainder);
         ::SHA1(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(),

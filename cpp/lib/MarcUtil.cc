@@ -106,8 +106,10 @@ bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
     // Parse directory entries.
     //
 
+    #pragma GCC diagnostic ignored "-Wvla"
     const ssize_t directory_length(leader->getBaseAddressOfData() - Leader::LEADER_LENGTH);
     char directory_buf[directory_length];
+    #pragma GCC diagnostic warning "-Wvla"
     if ((read_count = std::fread(directory_buf, 1, directory_length, input)) != directory_length) {
         *err_msg = "Short read for a directory or premature EOF!";
         return false;
@@ -124,7 +126,9 @@ bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
     //
 
     const size_t field_data_size(leader->getRecordLength() - Leader::LEADER_LENGTH - directory_length);
+    #pragma GCC diagnostic ignored "-Wvla"
     char raw_field_data[field_data_size];
+    #pragma GCC diagnostic warning "-Wvla"
     if ((read_count = std::fread(raw_field_data, 1, field_data_size, input))
         != static_cast<ssize_t>(field_data_size))
     {

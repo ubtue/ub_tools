@@ -25,6 +25,7 @@ void Usage() {
 }
 
 
+#pragma GCC diagnostic ignored "-Wpedantic"
 const struct option longopts[] = {
     {
         .name    = "dump",
@@ -63,6 +64,7 @@ const struct option longopts[] = {
         .val     = '\0'
     },
 };
+#pragma GCC diagnostic warning "-Wpedantic"
 
                     
 void Dump(const std::string &input_filename, const std::string &output_filename) {
@@ -289,12 +291,12 @@ void FilterTagsAndFields(const std::unordered_set<std::string> &drop_tags,
     field_data->reserve(new_size);
 
     std::vector<size_t>::const_iterator matched_slot(matched_slots.begin());
-    for (unsigned slot_no (0); slot_no < old_dir_entries.size(); ++slot_no) {
-        if (matched_slot != matched_slots.end() and *matched_slot == slot_no)
+    for (unsigned slot(0); slot < old_dir_entries.size(); ++slot) {
+        if (matched_slot != matched_slots.end() and *matched_slot == slot)
             ++matched_slot; // skip tag and field
         else {
-            dir_entries->push_back(std::move(old_dir_entries[slot_no]));
-            field_data->push_back(std::move(old_field_data[slot_no]));
+            dir_entries->push_back(std::move(old_dir_entries[slot]));
+            field_data->push_back(std::move(old_field_data[slot]));
         }
     }
 }
