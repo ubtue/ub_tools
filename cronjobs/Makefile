@@ -8,3 +8,6 @@ install:
 
 root_install:
 	cp $(PROGS) $(LIBS) /usr/local/bin/
+
+clean:
+	# Intentionally do nothing.
