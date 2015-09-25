@@ -38,7 +38,7 @@ if [[ "$1" != git@* ]]; then
 fi
 
 # Clone repository and its submodules
-git clone --recurse-submodules "$1" "$2"
+git clone --recursive "$1" "$2"
 if [[ $? -ne 0 ]]; then
 	logger -s "${0##*/} - ERROR. Couldn't clone git repository '$1' to '$2'"
 	exit 1;
