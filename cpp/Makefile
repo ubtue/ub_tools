@@ -11,8 +11,8 @@ CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib -Ilib/libstemmer/include \
        -pedantic -march=native -O3 -c
 
-ifneq ("$(wildcard $(/etc/redhat-release))","")
-  LIBMARIADB=-lbmysqlclient
+ifneq ($(wildcard /etc/centos-release),"")
+  LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
 else # Ubuntu version
   LIBMARIADB=-lmariadbclient
 endif
@@ -215,13 +215,14 @@ marc_info: marc_info.o lib/libmarc.a
 mysql_test.o: mysql_test.cc lib/DbConnection.h lib/DbResultSet.h lib/DbRow.h lib/util.h
 
 mysql_test: mysql_test.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB)
+	$(CCC) -o $@ $^ -lcrypto $(LIBMARIADB) -Llib -lmarc
+#	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB)
 
 notify_users.o: notify_users.cc lib/DbConnection.h lib/DbResultSet.h lib/DbRow.h lib/util.h lib/Compiler.h \
                 lib/PHPUtil.h
 
 notify_users: notify_users.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto -lmariadbclient
+	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB)
 
 deserialise_php_test.o: deserialise_php_test.cc lib/util.h lib/PHPUtil.h lib/Compiler.h
 
