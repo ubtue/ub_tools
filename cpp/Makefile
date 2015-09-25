@@ -11,6 +11,12 @@ CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib -Ilib/libstemmer/include \
        -pedantic -march=native -O3 -c
 
+ifneq ("$(wildcard $(/etc/redhat-release))","")
+  LIBMARIADB=-lbmysqlclient
+else # Ubuntu version
+  LIBMARIADB=-lmariadbclient
+endif
+
 .PHONY: all clean cgi_install root_install install
 
 %.o: %.cc
@@ -209,7 +215,7 @@ marc_info: marc_info.o lib/libmarc.a
 mysql_test.o: mysql_test.cc lib/DbConnection.h lib/DbResultSet.h lib/DbRow.h lib/util.h
 
 mysql_test: mysql_test.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto -lmariadbclient
+	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB)
 
 notify_users.o: notify_users.cc lib/DbConnection.h lib/DbResultSet.h lib/DbRow.h lib/util.h lib/Compiler.h \
                 lib/PHPUtil.h
