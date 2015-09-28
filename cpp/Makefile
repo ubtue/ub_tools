@@ -11,7 +11,7 @@ CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib -Ilib/libstemmer/include \
        -pedantic -march=native -O3 -c
 
-ifneq ($(wildcard /etc/centos-release),"")
+ifneq ("$(wildcard /etc/centos-release)","")
   LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
 else # Ubuntu version
   LIBMARIADB=-lmariadbclient
