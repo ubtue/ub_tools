@@ -82,12 +82,14 @@ def SafeSymlink(source, link_name):
     except Exception as e:
         Error("in util.SafeSymlink: os.lstat(" + source + ") failed: " + str(e))
         
-    if os.access(link_name, os.F_OK) != 0:
-        if os.path.islink(link_name):
-            os.unlink(link_name)
-        else:
-            Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
-                  + "\" which is an existing non-symlink file!")
+    if os.path.islink(link_name):
+        os.unlink(link_name)
+    else if (os.isfile(link_name):
+        Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
+              + "\" which is an existing non-symlink file!")
+    else if (os.isdir(link_name):
+        Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
+              + "\" which is an existing non-symlink directory!")
     try:
         os.symlink(source, link_name)
     except Exception as e2:
