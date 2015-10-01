@@ -38,6 +38,7 @@ marc_grep_tokenizer_test
 marc_info
 mysql_test
 notify_users
+regex_matcher
 resolve_in_path_test
 send_email_test
 shared_buffer_test
@@ -48,6 +49,7 @@ test_find_substring
 test_auto_temp_file
 update_full_text_db
 update_ixtheo_notations
+urlencode
 
 bsz_daten
 KeywordChainParser-*.jar

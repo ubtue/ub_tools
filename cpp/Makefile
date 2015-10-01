@@ -1,10 +1,10 @@
 PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_tokenizer_test db_lookup \
       create_full_text_db add_title_keywords augment_bible_references add_child_refs bib_ref_parser_test \
-      bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids marc_filter \
+      bib_ref_to_codes_tool extract_text_from_image_only_pdfs shared_buffer_test delete_ids \
       exec_test krimdok_filter resolve_in_path_test enrich_ddcs control_number_filter stemmer_test \
       enrich_keywords_with_title_words test_find_substring test_chop_into_words test_auto_temp_file \
       update_ixtheo_notations update_full_text_db kcdb_info classify_leader07a marc_info mysql_test \
-      deserialise_php_test notify_users send_email_test urlencode
+      deserialise_php_test notify_users send_email_test urlencode regex_matcher
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
@@ -134,12 +134,6 @@ shared_buffer_test: shared_buffer_test.o lib/libmarc.a
 
 shared_buffer_test.o: shared_buffer_test.cc lib/SharedBuffer.h lib/ThreadManager.h lib/util.h lib/StringUtil.h
 
-marc_filter: marc_filter.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
-
-marc_filter.o: marc_filter.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h lib/RegexMatcher.h \
-               lib/StringUtil.h lib/util.h
-
 exec_test: exec_test.o lib/libmarc.a
 	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
 
@@ -216,10 +210,14 @@ mysql_test.o: mysql_test.cc lib/DbConnection.h lib/DbResultSet.h lib/DbRow.h lib
 
 mysql_test: mysql_test.o lib/libmarc.a
 	$(CCC) -o $@ $^ -lcrypto $(LIBMARIADB) -Llib -lmarc
-#	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB)
+
+regex_matcher.o: regex_matcher.cc lib/RegexMatcher.h lib/util.h
+
+regex_matcher: regex_matcher.o lib/libmarc.a
+	$(CCC) -o $@ $^ -lcrypto $(LIBMARIADB) -Llib -lmarc -lpcre
 
 notify_users.o: notify_users.cc lib/DbConnection.h lib/DbResultSet.h lib/DbRow.h lib/util.h lib/Compiler.h \
-                lib/PHPUtil.h
+                lib/UrlUtil.h lib/Downloader.h lib/StringUtil.h
 
 notify_users: notify_users.o lib/libmarc.a
 	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB)
