@@ -40,7 +40,7 @@
  *  which tokens should generate events (by setting the notification_mask) and then overriding the
  *  notify member function to take an appropriate action whenever an event occurs.
  *
- *  See the accompanying XmlParserTest program for an example.
+ *  See the accompanying xml_parser_test program for an example.
  */
 class XmlParser {
     const char * const filename_;

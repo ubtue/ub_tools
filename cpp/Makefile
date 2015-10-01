@@ -4,12 +4,12 @@ PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_
       exec_test krimdok_filter resolve_in_path_test enrich_ddcs control_number_filter stemmer_test \
       enrich_keywords_with_title_words test_find_substring test_chop_into_words test_auto_temp_file \
       update_ixtheo_notations update_full_text_db kcdb_info classify_leader07a marc_info mysql_test \
-      deserialise_php_test notify_users send_email_test urlencode regex_matcher
+      deserialise_php_test notify_users send_email_test urlencode regex_matcher xml_parser_test
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib -Ilib/libstemmer/include \
-       -pedantic -march=native -O3 -c
+       -pedantic -march=native -O3 -I/usr/include/libxml2 -c
 
 ifneq ("$(wildcard /etc/centos-release)","")
   LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
@@ -217,10 +217,15 @@ regex_matcher: regex_matcher.o lib/libmarc.a
 	$(CCC) -o $@ $^ -lcrypto $(LIBMARIADB) -Llib -lmarc -lpcre
 
 notify_users.o: notify_users.cc lib/DbConnection.h lib/DbResultSet.h lib/DbRow.h lib/util.h lib/Compiler.h \
-                lib/UrlUtil.h lib/Downloader.h lib/StringUtil.h
+                lib/UrlUtil.h lib/Downloader.h lib/StringUtil.h lib/RegexMatcher.h lib/XmlParser.h
 
 notify_users: notify_users.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB)
+	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB) -lpcre
+
+xml_parser_test.o: xml_parser_test.cc lib/util.h lib/XmlParser.h lib/StringUtil.h
+
+xml_parser_test: xml_parser_test.o lib/libmarc.a
+	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB) -lpcre -lxml2
 
 deserialise_php_test.o: deserialise_php_test.cc lib/util.h lib/PHPUtil.h lib/Compiler.h
 
