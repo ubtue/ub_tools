@@ -16,7 +16,7 @@ libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o Mar
            Downloader.o MarcGrepTokenizer.o MarcQueryParser.o SmartDownloader.o BibleReferenceParser.o \
            ExecUtil.o PdfUtil.o FileUtil.o IniFile.o TimeLimit.o TimerUtil.o ThreadManager.o IdbPager.o \
            HtmlUtil.o Stemmer.o FileLocker.o DbConnection.o DbRow.o DbResultSet.o PHPUtil.o EmailSender.o \
-	   UrlUtil.o XmlParser.o
+	   UrlUtil.o XmlParser.o GzStream.o
 	@echo "Linking $@..."
 	@ar crs $@ $^
 
@@ -33,6 +33,7 @@ Downloader.o: Downloader.h util.h FileUtil.h ExecUtil.h
 ExecUtil.o: ExecUtil.h StringUtil.h util.h
 FileLocker.o: FileLocker.h
 FileUtil.o: FileUtil.h Compiler.h
+GzStream.o: GzStream.h Compiler.h
 HtmlParser.o: HtmlParser.h Compiler.h StringUtil.h util.h
 HtmlUtil.o: HtmlUtil.h
 IdbPager.o: IdbPager.h TimeLimit.h Downloader.h StringUtil.h
