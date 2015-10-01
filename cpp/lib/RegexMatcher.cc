@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "RegexMatcher.h"
+#include "Compiler.h"
 #include "util.h"
 
 
@@ -96,34 +97,45 @@ RegexMatcher::RegexMatcher(const RegexMatcher &that): pattern_(that.pattern_) {
         std::string err_msg;
         if (not CompileRegex(pattern_, that.utf8_enabled_, &pcre_, &pcre_extra_, &err_msg))
             Error("In RegexMatcher copy constructor: unexpected error: " + err_msg);
+	substr_vector_    = that.substr_vector_;
+	last_match_count_ = that.last_match_count_;
     }
 }
 
 
 RegexMatcher::RegexMatcher(RegexMatcher &&that)
     : pattern_(std::move(that.pattern_)), utf8_enabled_(that.utf8_enabled_), pcre_(that.pcre_),
-      pcre_extra_(that.pcre_extra_)
+      pcre_extra_(that.pcre_extra_), last_subject_(std::move(that.last_subject_)),
+      substr_vector_(std::move(that.substr_vector_)), last_match_count_(that.last_match_count_)
 {
     that.pcre_       = nullptr;
     that.pcre_extra_ = nullptr;
 }
 
 
-bool RegexMatcher::matched(const std::string &s, std::string * const err_msg,
+bool RegexMatcher::matched(const std::string &subject, std::string * const err_msg,
                            size_t * const start_pos, size_t * const end_pos) const
 {
     if (err_msg != nullptr)
 	err_msg->clear();
 
-    const int substr_vector_size(60); // must be a multiple of 3
-    int substr_vector[substr_vector_size];
-    const int retcode = ::pcre_exec(pcre_, pcre_extra_, s.data(), s.length(), 0, 0,
-                                    substr_vector, substr_vector_size);
+    const int retcode = ::pcre_exec(pcre_, pcre_extra_, subject.data(), subject.length(), 0, 0,
+                                    &substr_vector_[0], substr_vector_.size());
+
+    if (retcode == 0) {
+	if (err_msg != nullptr)
+	    *err_msg = "Too many captured substrings! (We only support "
+                       + std::to_string(substr_vector_.size() / 3 - 1) + " substrings.)";
+	return false;
+    }
+
     if (retcode > 0) {
+	last_match_count_ = retcode;
+	last_subject_     = subject;
         if (start_pos != nullptr)
-            *start_pos = substr_vector[0];
+            *start_pos = substr_vector_[0];
         if (end_pos != nullptr)
-            *end_pos = substr_vector[1];
+            *end_pos = substr_vector_[1];
         return true;
     }
 
@@ -136,4 +148,15 @@ bool RegexMatcher::matched(const std::string &s, std::string * const err_msg,
     }
 
     return false;
+}
+
+
+std::string RegexMatcher::operator[](const unsigned group) const throw(std::out_of_range) {
+    if (unlikely(group >= last_match_count_))
+	throw std::out_of_range("in RegexMatcher::operator[]: group(" + std::to_string(group) + ") >= "
+				+ std::to_string(last_match_count_) + "!");
+
+    const unsigned first_index(group * 2);
+    const unsigned substring_length(substr_vector_[first_index + 1] - substr_vector_[first_index]);
+    return last_subject_.substr(substr_vector_[first_index], substring_length);
 }
