@@ -1,6 +1,6 @@
 CCC=g++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include -O3 \
-       -pedantic -c
+       -pedantic -I/usr/include/libxml2 -c
 LDOPTS=-O3
 
 .PHONY: clean
@@ -16,7 +16,7 @@ libmarc.a: Subfields.o RegexMatcher.o Leader.o StringUtil.o DirectoryEntry.o Mar
            Downloader.o MarcGrepTokenizer.o MarcQueryParser.o SmartDownloader.o BibleReferenceParser.o \
            ExecUtil.o PdfUtil.o FileUtil.o IniFile.o TimeLimit.o TimerUtil.o ThreadManager.o IdbPager.o \
            HtmlUtil.o Stemmer.o FileLocker.o DbConnection.o DbRow.o DbResultSet.o PHPUtil.o EmailSender.o \
-	   UrlUtil.o
+	   UrlUtil.o XmlParser.o
 	@echo "Linking $@..."
 	@ar crs $@ $^
 
@@ -59,6 +59,7 @@ TimeLimit.o: TimeLimit.h TimerUtil.h
 TimerUtil.o: TimerUtil.h Compiler.h
 UrlUtil.o: UrlUtil.h
 util.o: util.h
+XmlParser.o: XmlParser.h StringUtil.h
 
 clean:
 	rm -f *~ $(PROGS) *.o *.a && cd libstemmer && make clean && rm -f libstemmer.a
