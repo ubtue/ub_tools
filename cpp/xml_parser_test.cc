@@ -34,7 +34,7 @@
 
 class TestParser: public XmlParser {
 public:
-    explicit TestParser(const std::string filename, unsigned notification_mask)
+    TestParser(const std::string &filename, unsigned notification_mask)
 	: XmlParser(filename, true, notification_mask) { }
     virtual void notify(const Chunk &chunk);
 };

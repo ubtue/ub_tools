@@ -217,10 +217,11 @@ regex_matcher: regex_matcher.o lib/libmarc.a
 	$(CCC) -o $@ $^ -lcrypto $(LIBMARIADB) -Llib -lmarc -lpcre
 
 notify_users.o: notify_users.cc lib/DbConnection.h lib/DbResultSet.h lib/DbRow.h lib/util.h lib/Compiler.h \
-                lib/UrlUtil.h lib/Downloader.h lib/StringUtil.h lib/RegexMatcher.h lib/XmlParser.h
+                lib/UrlUtil.h lib/Downloader.h lib/StringUtil.h lib/RegexMatcher.h lib/XmlParser.h \
+		lib/GzStream.h
 
 notify_users: notify_users.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB) -lpcre
+	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB) -lpcre -lxml2 -lz
 
 xml_parser_test.o: xml_parser_test.cc lib/util.h lib/XmlParser.h lib/StringUtil.h
 
