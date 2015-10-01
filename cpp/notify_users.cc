@@ -25,18 +25,23 @@ passwd   = "???"
 database = "vufind"
 */
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
-#include <cassert>
 #include <cstdlib>
 #include <Compiler.h>
 #include <DbConnection.h>
 #include <DbResultSet.h>
 #include <DbRow.h>
+#include <Downloader.h>
+#include <GzStream.h>
+#include <RegexMatcher.h>
 #include <IniFile.h>
-#include <PHPUtil.h>
+#include <StringUtil.h>
+#include <UrlUtil.h>
 #include <util.h>
+#include <XmlParser.h>
 
 
 void Usage() {
@@ -45,41 +50,204 @@ void Usage() {
 }
 
 
-class SearchObject {
-    std::vector<std::string> search_terms_;
-    std::vector<std::string> filters_;
-    std::string type_;
-    std::string class_;
-public:
-    explicit SearchObject(const PHPUtil::Object &minSO);
-
-    const std::vector<std::string> &getSearchTerms() const { return search_terms_; }
-    const std::vector<std::string> &getFilters() const { return filters_; }
-    const std::string &getType() const { return type_; }
-    const std::string &getClass() const { return class_; }
-};
+namespace {
 
 
-void StringArrayToVector(const PHPUtil::Array &array, std::vector<std::string> * const v) {
-    v->clear();
+enum class ParseState { ARRAY_EXPECTED, OPEN_PAREN_EXPECTED, PARAM_OR_CLOSE_PAREN_EXPECTED, PARAM_OPEN_PAREN_EXPECTED,
+	                PARAM_VALUE_EXPECTED, PARAM_CLOSE_PAREN_EXPECTED };
 
-    for (auto index_and_value(array.cbegin()); index_and_value != array.cend(); ++index_and_value) {
-	const PHPUtil::String * const php_string(reinterpret_cast<PHPUtil::String *>(index_and_value->second.get()));
-	assert(php_string != nullptr);
-	v->emplace_back(php_string->getValue());
+
+} // unnamed namespace
+
+
+/** Parses structures like the following:
+
+Array
+(
+    [qf] => Array
+        (
+            [0] => title_short^750 title_full_unstemmed^600 title_full^400 title^500 title_alt^200 title_new^100 series^50 series2^30 author^300 author_fuller^150 contents^10 topic_unstemmed^550 topic^500 geographic^300 genre^300 allfields_unstemmed^10 fulltext_unstemmed^10 allfields fulltext description isbn issn
+        )
+
+    [qt] => Array
+        (
+            [0] => dismax
+        )
+
+    [q] => Array
+        (
+            [0] => brxx
+        )
+)
+
+This is a pretty-printed PHP array of arrays data type representing a query.
+*/
+bool ExtractQueryParams(const std::string &php_query_array,
+			std::map<std::string, std::string> * const params_to_values_map)
+{
+    std::vector<std::string> lines;
+    if (StringUtil::SplitThenTrim(php_query_array, '\n', "\t ", &lines) <= 1)
+	return false;
+
+    static RegexMatcher * const param_name_matcher(RegexMatcher::RegexMatcherFactory("\\[([[:lower:]]+)\\]"));
+    ParseState parse_state(ParseState::ARRAY_EXPECTED);
+    std::string last_parem_name;
+    for (std::string line : lines) {
+	StringUtil::Trim(&line);
+	if (line.empty())
+	    continue;
+
+	switch (parse_state) {
+	case ParseState::ARRAY_EXPECTED:
+	    if (line != "Array")
+		return false;
+	    parse_state = ParseState::OPEN_PAREN_EXPECTED;
+	    break;
+	case ParseState::OPEN_PAREN_EXPECTED:
+	    if (line != "(")
+		return false;
+	    parse_state = ParseState::PARAM_OR_CLOSE_PAREN_EXPECTED;
+	    break;
+	case ParseState::PARAM_OR_CLOSE_PAREN_EXPECTED:
+	    if (line == ")")
+		return not params_to_values_map->empty();
+	    if (not param_name_matcher->matched(line))
+		return false;
+	    last_parem_name = (*param_name_matcher)[1];
+	    parse_state = ParseState::PARAM_OPEN_PAREN_EXPECTED;
+	    break;
+	case ParseState::PARAM_OPEN_PAREN_EXPECTED:
+	    if (line != "(")
+		return false;
+	    parse_state = ParseState::PARAM_VALUE_EXPECTED;
+	    break;
+	case ParseState::PARAM_VALUE_EXPECTED:
+	    if (not StringUtil::StartsWith(line, "[0] => "))
+		return false;
+	    (*params_to_values_map)[last_parem_name] = line.substr(7);
+	    parse_state = ParseState::PARAM_CLOSE_PAREN_EXPECTED;
+	    break;
+	case ParseState::PARAM_CLOSE_PAREN_EXPECTED:
+	    if (line != ")")
+		return false;
+	    parse_state = ParseState::PARAM_OR_CLOSE_PAREN_EXPECTED;
+	    break;
+	}
     }
+
+    return false;
 }
 
 
-SearchObject::SearchObject(const PHPUtil::Object &minSO) {
-    if (unlikely(minSO.getClass() != "minSO"))
-	Error("in SearchObject::SearchObject: expected instance of PHP class \"minSo\", found \""
-	      + minSO.getClass() + "\" instead!");
+// Contacts VuFind to get the SOLR query parameters given a serialised minSO PHP object.
+void GetQueryParams(const std::string &serialised_minSO,
+		    std::map<std::string, std::string> * const params_to_values_map)
+{
+    params_to_values_map->clear();
 
-    StringArrayToVector(reinterpret_cast<const PHPUtil::Array &>(minSO["t"]), &search_terms_);
-    StringArrayToVector(reinterpret_cast<const PHPUtil::Array &>(minSO["f"]), &filters_);
-    type_  = reinterpret_cast<const PHPUtil::String &>(minSO["ty"]).getValue();
-    class_ = reinterpret_cast<const PHPUtil::String &>(minSO["cl"]).getValue();
+    static const std::string URL_BASE("http://localhost/Devtools/Deminify?min=");
+    static const unsigned TIMEOUT(10); // seconds
+    std::string web_document;
+    if (Download(URL_BASE + UrlUtil::UrlEncode(serialised_minSO), TIMEOUT, &web_document) != 0)
+	throw std::runtime_error("Failed to contact VuFind w/in " + std::to_string(TIMEOUT) + " seconds!");
+
+    const std::string::size_type pre_start_pos(web_document.find("<pre>"));
+    if (pre_start_pos == std::string::npos)
+	throw std::runtime_error("Failed to find <pre>!");
+
+    const std::string::size_type pre_end_pos(web_document.find("</pre>"));
+    if (pre_end_pos == std::string::npos)
+	throw std::runtime_error("Failed to find </pre>!");
+
+    if (not ExtractQueryParams(web_document.substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5),
+			       params_to_values_map))
+	throw std::runtime_error("Failed to extract query parameters!");
+}
+
+
+std::string GenerateSolrQuery(const std::map<std::string, std::string> &params_to_values_map) {
+    std::string url("http://localhost:8080/solr/biblio/select?");
+    for (const auto &key_and_value : params_to_values_map) {
+	if (url[url.length() - 1] != '?')
+	    url += '&';
+	url += key_and_value.first + "=" + UrlUtil::UrlEncode(key_and_value.second);
+    }
+
+    return url;
+}
+
+
+/** \brief Extracts ID's between <str name="id"> and </str> tags. */
+class IdExtractor: public XmlParser {
+    std::string first_error_;
+    std::vector<std::string> extracted_ids_;
+    bool between_opening_and_closing_id_str_tags_;
+    std::string current_id_;
+public:
+    explicit IdExtractor(const std::string &document)
+	: XmlParser(document.c_str(), document.size(), /* convert_to_iso8859_15 = */false,
+		    XmlParser::START_ELEMENT | XmlParser::END_ELEMENT | XmlParser::CHARACTERS
+		    | XmlParser::ERROR | XmlParser::FATAL_ERROR),
+	  between_opening_and_closing_id_str_tags_(false) { }
+    virtual void notify(const Chunk &chunk);
+    const std::string &getFirstError() const { return first_error_; }
+    void getExtractedIds(std::vector<std::string> * const extracted_ids) {
+	extracted_ids->swap(extracted_ids_);
+    }
+};
+
+
+void IdExtractor::notify(const Chunk &chunk) {
+    if (not first_error_.empty())
+	return;
+
+    if (chunk.type_ == XmlParser::START_ELEMENT) {
+	if (chunk.text_ != "str" or chunk.attribute_map_->find("name") == chunk.attribute_map_->end())
+	    return;
+	if ((*chunk.attribute_map_)["name"] != "id")
+	    return;
+	between_opening_and_closing_id_str_tags_ = true;
+    } else if (chunk.type_ == XmlParser::CHARACTERS) {
+	if (between_opening_and_closing_id_str_tags_)
+	    current_id_ += chunk.text_;
+    } else if (chunk.type_ == XmlParser::END_ELEMENT) {
+	if (between_opening_and_closing_id_str_tags_) {
+	    between_opening_and_closing_id_str_tags_ = false;
+	    extracted_ids_.emplace_back(current_id_);
+	    current_id_.clear();
+	}
+    } else if (chunk.type_ == XmlParser::ERROR)
+	first_error_ = chunk.text_;
+    else if (chunk.type_ == XmlParser::FATAL_ERROR)
+	first_error_ = chunk.text_;
+}
+
+
+/** \brief Given two sorted vectors of IDs, extract the ID's which are only in "new_ids". */
+void FindNewIds(const std::vector<std::string> &old_ids, const std::vector<std::string> &new_ids,
+		std::vector<std::string> * const additional_ids)
+{
+    additional_ids->clear();
+
+    std::vector<std::string>::const_iterator old_id(old_ids.begin());
+    std::vector<std::string>::const_iterator new_id(new_ids.begin());
+
+    while (old_id != old_ids.end()) {
+	if (new_id == new_ids.end())
+	    return;
+
+	if (*old_id == *new_id)
+	    ++old_id, ++new_id;
+	else if (*old_id < *new_id)
+	    ++old_id;
+	else if (*old_id > *new_id) {
+	    additional_ids->emplace_back(*new_id);
+	    ++new_id;
+	}
+    }
+
+    while (new_id != new_ids.end())
+	additional_ids->emplace_back(*new_id++);
 }
 
 
@@ -89,18 +257,35 @@ bool ProcessUser(const std::string &user_id, const std::string &/*email_address*
     if (not connection->query(query))
 	Error("Query failed: \"" + query + "\" (" + connection->getLastErrorMessage() + ")!");
 
+    constexpr unsigned SOLR_QUERY_TIMEOUT(20); // seconds
     DbResultSet result_set(connection->getLastResultSet());
     DbRow row;
     while (row = result_set.getNextRow()) {
-	std::shared_ptr<PHPUtil::DataType> deserialised_object(PHPUtil::DeserialisePHPObject(row[0]));
-	const PHPUtil::Object * const minSO(reinterpret_cast<PHPUtil::Object *>(deserialised_object.get()));
-	if (unlikely(minSO == nullptr))
-	    Error("unable to downcast a PHPUtil::DataType pointer to a PHPUtil::Object pointer!");
+	std::map<std::string, std::string> params_to_values_map;
+	GetQueryParams(row[0], &params_to_values_map);
+	const std::string solr_query_url(GenerateSolrQuery(params_to_values_map));
 
-	const SearchObject search_object(*minSO);
+	std::string xml_document;
+	if (Download(solr_query_url, SOLR_QUERY_TIMEOUT, &xml_document) != 0) {
+	    Warning("SOLR query failed! (" + solr_query_url + ")");
+	    return false;
+	}
+
+	IdExtractor id_extractor(xml_document);
+	if (not id_extractor.parse()) {
+	    Warning("Failed to parse XML document! (" + id_extractor.getFirstError() + ")");
+	    return false;
+	}
+
+	std::vector<std::string> ids;
+	id_extractor.getExtractedIds(&ids);
+	std::sort(ids.begin(), ids.end());
+
+	for (const auto &id : ids)
+	    std::cout << id << '\n';
     }
 
-    return false;
+    return true;
 }
 
 
