@@ -223,7 +223,7 @@ void IdExtractor::notify(const Chunk &chunk) {
 }
 
 
-/** \brief Given two sorted vectors of IDs, extract the ID's which are only in "new_ids". */
+/** \brief Given two sorted vectors of ID's, extract the ID's which are only in "new_ids". */
 void FindNewIds(const std::vector<std::string> &old_ids, const std::vector<std::string> &new_ids,
 		std::vector<std::string> * const additional_ids)
 {
@@ -248,6 +248,40 @@ void FindNewIds(const std::vector<std::string> &old_ids, const std::vector<std::
 
     while (new_id != new_ids.end())
 	additional_ids->emplace_back(*new_id++);
+}
+
+
+// Turn a vector of ID's into a compressed colon-separted string of ID's.
+void SerialiseIds(const std::vector<std::string> &ids, std::string * const serialized_ids) {
+    std::string uncompressed_string;
+    uncompressed_string.reserve(ids.size() * (9 + 1)/* PPN length + colon */);
+
+    for (const auto &id : ids)
+	uncompressed_string += id + ":";
+    if (not uncompressed_string.empty())
+	uncompressed_string.resize(uncompressed_string.length() - 1); // Remove the trailing colon.
+
+    *serialized_ids = GzStream::CompressString(uncompressed_string);
+}
+
+
+// Turn a compressed colon-separted string of ID's into a vector of ID's.
+void DeserialiseIds(const std::string &serialized_ids, std::vector<std::string> * const deserialised_ids) {
+    deserialised_ids->clear();
+
+    const std::string decompressed_string(GzStream::DecompressString(serialized_ids));
+    if (unlikely(decompressed_string.empty()))
+	return;
+
+    std::string::size_type id_start_pos(0);
+    std::string::size_type colon_pos(decompressed_string.find(':'));
+    while (colon_pos != std::string::npos) {
+	deserialised_ids->emplace_back(id_start_pos, colon_pos - id_start_pos);
+	id_start_pos = colon_pos + 1;
+	colon_pos = decompressed_string.find(':', id_start_pos);
+    }
+
+    deserialised_ids->emplace_back(decompressed_string.substr(colon_pos + 1));
 }
 
 
