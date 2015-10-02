@@ -4,9 +4,9 @@ CREATE TABLE ixtheo_notations (
        FOREIGN KEY (id) REFERENCES user(id) ON DELETE CASCADE
 );
 
-CREATE TABLE ixtheo_search_hash (
+CREATE TABLE ixtheo_id_result_sets (
        id INT(11) NOT NULL,
-       search_hash VARCHAR(128) NOT NULL,
+       ids VARCHAR(128) NOT NULL,
        FOREIGN KEY (id) REFERENCES search(id) ON DELETE CASCADE
 );
 

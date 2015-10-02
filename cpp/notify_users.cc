@@ -30,7 +30,7 @@ database = "vufind"
 #include <stdexcept>
 #include <vector>
 #include <cstdlib>
-#include <Compiler.h>
+#include <cstdint>
 #include <DbConnection.h>
 #include <DbResultSet.h>
 #include <DbRow.h>
@@ -285,18 +285,33 @@ void DeserialiseIds(const std::string &serialized_ids, std::vector<std::string> 
 }
 
 
+void InsertIdsIntoTheIxtheoIdResultSetsTable(const std::string &query_id, const std::vector<std::string> &ids,
+					     DbConnection * const connection, const bool overwrite = false)
+{
+    std::string serialized_ids;
+    SerialiseIds(ids, &serialized_ids);
+    const std::string insert_stmt("INSERT INTO ixtheo_id_result_sets VALUES(" + query_id + ",\""
+				  + connection->escapeString(serialized_ids) + "\")"
+				  + std::string(overwrite ? " ON DUPLICATE KEY UPDATE" : ""));
+    if (not connection->query(insert_stmt))
+	Error("Insert failed: \"" + insert_stmt + "\" (" + connection->getLastErrorMessage() + ")!");
+}
+
+
 /** \return true = we need to notify the user that something has changed that they would like to know about */
 bool ProcessUser(const std::string &user_id, const std::string &/*email_address*/, DbConnection * const connection) {
-    const std::string query("SELECT search_object FROM search WHERE user_id=" + user_id);
+    const std::string query("SELECT id,search_object FROM search WHERE user_id=" + user_id);
     if (not connection->query(query))
 	Error("Query failed: \"" + query + "\" (" + connection->getLastErrorMessage() + ")!");
 
     constexpr unsigned SOLR_QUERY_TIMEOUT(20); // seconds
-    DbResultSet result_set(connection->getLastResultSet());
-    DbRow row;
-    while (row = result_set.getNextRow()) {
+    DbResultSet search_object_result_set(connection->getLastResultSet());
+    while (const DbRow row = search_object_result_set.getNextRow()) {
+	const std::string query_id(row[0]);
+	const std::string serialised_search_object(row[1]);
+
 	std::map<std::string, std::string> params_to_values_map;
-	GetQueryParams(row[0], &params_to_values_map);
+	GetQueryParams(serialised_search_object, &params_to_values_map);
 	const std::string solr_query_url(GenerateSolrQuery(params_to_values_map));
 
 	std::string xml_document;
@@ -315,8 +330,25 @@ bool ProcessUser(const std::string &user_id, const std::string &/*email_address*
 	id_extractor.getExtractedIds(&ids);
 	std::sort(ids.begin(), ids.end());
 
-	for (const auto &id : ids)
-	    std::cout << id << '\n';
+	const std::string ids_query("SELECT ids FROM ixtheo_id_result_sets WHERE id=" + query_id);
+	if (not connection->query(ids_query))
+	    Error("Query failed: \"" + ids_query + "\" (" + connection->getLastErrorMessage() + ")!");
+	DbResultSet ids_result_set(connection->getLastResultSet());
+
+	if (ids_result_set.empty()) // We have nothing to compare against this time.
+	    InsertIdsIntoTheIxtheoIdResultSetsTable(query_id, ids, connection);
+	else { // We need to compare against the previously stored list of ID's.
+	    const DbRow serialised_ids_row(ids_result_set.getNextRow());
+	    const std::string serialised_ids(serialised_ids_row[0]);
+	    std::vector<std::string> old_ids;
+	    DeserialiseIds(GzStream::DecompressString(serialised_ids), &old_ids);
+
+	    std::vector<std::string> additional_ids;
+	    FindNewIds(old_ids, ids, &additional_ids);
+	    if (not additional_ids.empty()) {
+		InsertIdsIntoTheIxtheoIdResultSetsTable(query_id, ids, connection, /* overwrite = */true);
+	    }
+	}
     }
 
     return true;
