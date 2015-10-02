@@ -38,6 +38,8 @@ public:
     /** \return The number of rows in the result set. */
     size_t size() const { return ::mysql_num_rows(result_set_); }
 
+    bool empty() const  { return ::mysql_num_rows(result_set_) == 0; }
+
     /** Typically you would call this in a loop like:
      *
      *  DbRow row;
