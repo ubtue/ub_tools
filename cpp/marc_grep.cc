@@ -65,7 +65,7 @@ char help_text[] =
   "  String constants start and end with double quotes. Backslashes and double quotes within need to be escaped\n"
   "  with a backslash. The difference between the \"==\" and \"!=\" vs. \"===\" and \"!===\" comparision\n"
   "  operators is that the latter compare subfields within a given field while the former compare against any two\n"
-  "  matching fields or subfields.  This becomes relevant when there are mutiple occurrences of a field in a\n"
+  "  matching fields or subfields.  This becomes relevant when there are multiple occurrences of a field in a\n"
   "  record. \"*\" matches all fields.  Field and subfield references are strings and thus need to be quoted.\n"
   "\n"
   "  Output label format:\n"
