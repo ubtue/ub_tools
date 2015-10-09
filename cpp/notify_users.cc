@@ -83,11 +83,16 @@ Array
 This is a pretty-printed PHP array of arrays data type representing a query.
 */
 bool ExtractQueryParams(const std::string &php_query_array,
-			std::map<std::string, std::string> * const params_to_values_map)
+			std::map<std::string, std::string> * const params_to_values_map,
+			std::string * const err_msg)
 {
+    err_msg->clear();
+
     std::vector<std::string> lines;
-    if (StringUtil::SplitThenTrim(php_query_array, '\n', "\t ", &lines) <= 1)
+    if (StringUtil::SplitThenTrim(php_query_array, '\n', "\t ", &lines) <= 1) {
+	*err_msg = "Too few lines!";
 	return false;
+    }
 
     static RegexMatcher * const param_name_matcher(RegexMatcher::RegexMatcherFactory("\\[([[:lower:]]+)\\]"));
     ParseState parse_state(ParseState::ARRAY_EXPECTED);
@@ -99,42 +104,60 @@ bool ExtractQueryParams(const std::string &php_query_array,
 
 	switch (parse_state) {
 	case ParseState::ARRAY_EXPECTED:
-	    if (line != "Array")
+	    if (line != "Array") {
+		*err_msg = "\"Array\" expected!";
 		return false;
+	    }
 	    parse_state = ParseState::OPEN_PAREN_EXPECTED;
 	    break;
 	case ParseState::OPEN_PAREN_EXPECTED:
-	    if (line != "(")
+	    if (line != "(") {
+		*err_msg = "Open parenthesis expected!";
 		return false;
+	    }
 	    parse_state = ParseState::PARAM_OR_CLOSE_PAREN_EXPECTED;
 	    break;
 	case ParseState::PARAM_OR_CLOSE_PAREN_EXPECTED:
-	    if (line == ")")
-		return not params_to_values_map->empty();
-	    if (not param_name_matcher->matched(line))
+	    if (line == ")") {
+		if (params_to_values_map->empty()) {
+		    *err_msg = "Closing parenthesis expected!";
+		    return false;
+		}
+		return true;
+	    }
+	    if (not param_name_matcher->matched(line)) {
+		*err_msg = "line mismatch!";
 		return false;
+	    }
 	    last_parem_name = (*param_name_matcher)[1];
 	    parse_state = ParseState::PARAM_OPEN_PAREN_EXPECTED;
 	    break;
 	case ParseState::PARAM_OPEN_PAREN_EXPECTED:
-	    if (line != "(")
+	    if (line != "(") {
+		*err_msg = "Open parenthesis as part of parameter expression expected!";
 		return false;
+	    }
 	    parse_state = ParseState::PARAM_VALUE_EXPECTED;
 	    break;
 	case ParseState::PARAM_VALUE_EXPECTED:
-	    if (not StringUtil::StartsWith(line, "[0] => "))
+	    if (not StringUtil::StartsWith(line, "[0] => ")) {
+		*err_msg = "line did not start with \"[0] => \"!";
 		return false;
+	    }
 	    (*params_to_values_map)[last_parem_name] = line.substr(7);
 	    parse_state = ParseState::PARAM_CLOSE_PAREN_EXPECTED;
 	    break;
 	case ParseState::PARAM_CLOSE_PAREN_EXPECTED:
-	    if (line != ")")
+	    if (line != ")") {
+		*err_msg = "Closing parenthesis as part of parameter expression expected!";
 		return false;
+	    }
 	    parse_state = ParseState::PARAM_OR_CLOSE_PAREN_EXPECTED;
 	    break;
 	}
     }
 
+    *err_msg = "We should *never* get here!";
     return false;
 }
 
@@ -159,9 +182,10 @@ void GetQueryParams(const std::string &serialised_minSO,
     if (pre_end_pos == std::string::npos)
 	throw std::runtime_error("Failed to find </pre>!");
 
+    std::string err_msg;
     if (not ExtractQueryParams(web_document.substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5),
-			       params_to_values_map))
-	throw std::runtime_error("Failed to extract query parameters!");
+			       params_to_values_map, &err_msg))
+	throw std::runtime_error("Failed to extract query parameters: " + err_msg);
 }
 
 
@@ -172,6 +196,8 @@ std::string GenerateSolrQuery(const std::map<std::string, std::string> &params_t
 	    url += '&';
 	url += key_and_value.first + "=" + UrlUtil::UrlEncode(key_and_value.second);
     }
+    url += "&fl=id"; // We only need ID's anyway.
+    url += "&rows=10000"; // Let's hope that no user is interested in more than the first 10k documents.
 
     return url;
 }
@@ -276,25 +302,24 @@ void DeserialiseIds(const std::string &serialized_ids, std::vector<std::string> 
     std::string::size_type id_start_pos(0);
     std::string::size_type colon_pos(decompressed_string.find(':'));
     while (colon_pos != std::string::npos) {
-	deserialised_ids->emplace_back(id_start_pos, colon_pos - id_start_pos);
+	deserialised_ids->emplace_back(decompressed_string.substr(id_start_pos, colon_pos - id_start_pos));
 	id_start_pos = colon_pos + 1;
 	colon_pos = decompressed_string.find(':', id_start_pos);
     }
 
-    deserialised_ids->emplace_back(decompressed_string.substr(colon_pos + 1));
+    deserialised_ids->emplace_back(decompressed_string.c_str() + colon_pos + 1);
 }
 
 
 void InsertIdsIntoTheIxtheoIdResultSetsTable(const std::string &query_id, const std::vector<std::string> &ids,
-					     DbConnection * const connection, const bool overwrite = false)
+					     DbConnection * const connection)
 {
     std::string serialized_ids;
     SerialiseIds(ids, &serialized_ids);
-    const std::string insert_stmt("INSERT INTO ixtheo_id_result_sets VALUES(" + query_id + ",\""
-				  + connection->escapeString(serialized_ids) + "\")"
-				  + std::string(overwrite ? " ON DUPLICATE KEY UPDATE" : ""));
-    if (not connection->query(insert_stmt))
-	Error("Insert failed: \"" + insert_stmt + "\" (" + connection->getLastErrorMessage() + ")!");
+    const std::string replace_stmt("REPLACE INTO ixtheo_id_result_sets (id,ids) VALUES(" + query_id + ",\""
+				  + connection->escapeString(serialized_ids) + "\")");
+    if (not connection->query(replace_stmt))
+	Error("Insert failed: \"" + replace_stmt + "\" (" + connection->getLastErrorMessage() + ")!");
 }
 
 
@@ -341,12 +366,13 @@ bool ProcessUser(const std::string &user_id, const std::string &/*email_address*
 	    const DbRow serialised_ids_row(ids_result_set.getNextRow());
 	    const std::string serialised_ids(serialised_ids_row[0]);
 	    std::vector<std::string> old_ids;
-	    DeserialiseIds(GzStream::DecompressString(serialised_ids), &old_ids);
+std::cerr << "serialised_ids.size()="<<serialised_ids.size()<<'\n';
+	    DeserialiseIds(serialised_ids, &old_ids);
 
 	    std::vector<std::string> additional_ids;
 	    FindNewIds(old_ids, ids, &additional_ids);
 	    if (not additional_ids.empty()) {
-		InsertIdsIntoTheIxtheoIdResultSetsTable(query_id, ids, connection, /* overwrite = */true);
+		InsertIdsIntoTheIxtheoIdResultSetsTable(query_id, ids, connection);
 	    }
 	}
     }
