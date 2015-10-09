@@ -19,6 +19,7 @@
  */
 #include "DbConnection.h"
 #include <stdexcept>
+#include <cstdlib>
 
 
 DbConnection::DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd,
@@ -48,3 +49,14 @@ DbResultSet DbConnection::getLastResultSet() {
 
     return DbResultSet(result_set);
 }
+
+
+std::string DbConnection::escapeString(const std::string &unescaped_string) {
+    char * const buffer(reinterpret_cast<char * const>(std::malloc(unescaped_string.size() * 2 + 1)));
+    const size_t escaped_length(::mysql_real_escape_string(&mysql_, buffer, unescaped_string.data(),
+							   unescaped_string.size()));
+    const std::string escaped_string(buffer, escaped_length);
+    std::free(buffer);
+    return escaped_string;
+}
+

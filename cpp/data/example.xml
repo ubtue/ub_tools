@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<response>
+
+<lst name="responseHeader">
+  <int name="status">400</int>
+  <int name="QTime">5</int>
+  <lst name="params">
+    <str name="df">id</str>
+    <str name="indent">true</str>
+    <str name="q">*:hauser</str>
+    <str name="_">1443702983386</str>
+    <str name="wt">xml</str>
+  </lst>
+</lst>
+<lst name="error">
+  <str name="msg">undefined field *</str>
+  <int name="code">400</int>
+</lst>
+</response>

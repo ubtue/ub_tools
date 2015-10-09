@@ -65,15 +65,15 @@ char help_text[] =
   "  String constants start and end with double quotes. Backslashes and double quotes within need to be escaped\n"
   "  with a backslash. The difference between the \"==\" and \"!=\" vs. \"===\" and \"!===\" comparision\n"
   "  operators is that the latter compare subfields within a given field while the former compare against any two\n"
-  "  matching fields or subfields.  This becomes relevant when there are mutiple occurrences of a field in a\n"
+  "  matching fields or subfields.  This becomes relevant when there are multiple occurrences of a field in a\n"
   "  record. \"*\" matches all fields.  Field and subfield references are strings and thus need to be quoted.\n"
   "\n"
   "  Output label format:\n"
   "    label_format = matched_field_or_subfield | control_number | control_number_and_matched_field_or_subfield\n"
   "                   | no_label | marc_binary\n"
   "\n"
-  "  The default output label is the control number followed by a colon followed by matched field or subfield\n"
-  "  followed by a colon.  When the format is \"marc_binary\" entire records will always be copied.\n";
+  "  The default output label is the control number followed by a colon followed by the matched field or \n"
+  "  subfield followed by a colon.  When the format is \"marc_binary\" entire records will always be copied.\n";
 
 
 void Usage() {
