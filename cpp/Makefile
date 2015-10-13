@@ -4,7 +4,8 @@ PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_
       exec_test krimdok_filter resolve_in_path_test enrich_ddcs control_number_filter stemmer_test \
       enrich_keywords_with_title_words test_find_substring test_chop_into_words test_auto_temp_file \
       update_ixtheo_notations update_full_text_db kcdb_info classify_leader07a marc_info mysql_test \
-      deserialise_php_test notify_users send_email_test urlencode regex_matcher xml_parser_test
+      deserialise_php_test notify_users send_email_test urlencode regex_matcher xml_parser_test \
+      compress_test
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
@@ -242,6 +243,11 @@ urlencode.o: urlencode.cc lib/util.h lib/UrlUtil.h
 
 urlencode: urlencode.o lib/libmarc.a
 	$(CCC) -o $@ $^ -Llib -lmarc
+
+compress_test.o: compress_test.cc lib/util.h lib/GzStream.h
+
+compress_test: compress_test.o lib/libmarc.a
+	$(CCC) -o $@ $^ -Llib -lmarc -lz
 
 clean:
 	rm -f *~ $(PROGS) *.o

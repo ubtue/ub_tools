@@ -17,6 +17,7 @@ augment_bible_references
 bib_ref_parser_test
 bib_ref_to_codes_tool
 classify_leader07a
+compress_test
 control_number_filter
 create_full_text_db
 db_lookup
