@@ -133,7 +133,7 @@ bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
         != static_cast<ssize_t>(field_data_size))
     {
         *err_msg = "Short read for field data or premature EOF! (Expected "
-            + std::to_string(field_data_size) + " bytes, got "+ std::to_string(read_count) +" bytes.)";
+                   + std::to_string(field_data_size) + " bytes, got "+ std::to_string(read_count) +" bytes.)";
         return false;
     }
 
