@@ -78,3 +78,15 @@ create_full_text_db --process-count-low-and-high-watermarks \
                     full_text.db >> "${log}" 2>&1
 cp full_text.db /var/lib/tuelib/
 rm -f TitelUndLokaldaten-normalised-with-child-refs-and-issns-"${date}".mrc
+
+# Phase 6:
+echo "*** Phase 5 ***"
+echo "*** Phase 5 ***" >> "${log}"
+fix_article_biblio_levels --verbose \
+    TitelUndLokaldaten-normalised-with-child-refs-issns-and-full-text-links-"${date}".mrc \
+    TitelUndLokaldaten-normalised-with-child-refs-issns-full-text-links-and-fixed-articles-"${date}".mrc
+fix_article_biblio_levels --verbose \
+    ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
+    ÜbergeordneteTitelUndLokaldaten-filtered-normalised-with-child-refs-and-fixed-articles-"${date}".mrc
+rm -f TitelUndLokaldaten-normalised-with-child-refs-issns-and-full-text-links-"${date}".mrc
+rm -f ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc
