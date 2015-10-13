@@ -72,10 +72,21 @@ update_ixtheo_notations \
     ÜbergeordneteTitelUndLokaldaten-with-child-refs-and-ixtheo-notations-"${date}".mrc \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
 
+# Phase 6:
+echo "*** Phase 6 ***"
+echo "*** Phase 6 ***" >> "${log}"
+fix_article_biblio_levels --verbose \
+    TitelUndLokaldaten-with-issns-title-keywords-bible-refs-and-ixtheo-notations-"${date}".mrc \
+    TitelUndLokaldaten-with-issns-title-keywords-bible-refs-ixtheo-notations-and-fixed-articles-"${date}".mrc
+fix_article_biblio_levels --verbose \
+    ÜbergeordneteTitelUndLokaldaten-with-child-refs-and-ixtheo-notations-"${date}".mrc \
+    ÜbergeordneteTitelUndLokaldaten-with-child-refs-ixtheo-notations-and-fixed-articles-"${date}".mrc
+
 # Cleanup of intermediate files:
 rm -f ÜbergeordneteTitelUndLokaldaten-with-child-refs-"${date}".mrc
 rm -f TitelUndLokaldaten-with-issns-"${date}".mrc
 rm -f TitelUndLokaldaten-with-issns-and-title-keywords-"${date}".mrc
 rm -f child_refs child_titles parent_refs
 rm -f TitelUndLokaldaten-with-issns-title-keywords-and-bible-refs-"${date}".mrc
-
+rm -f TitelUndLokaldaten-with-issns-title-keywords-bible-refs-and-ixtheo-notations-"${date}".mrc
+rm -f ÜbergeordneteTitelUndLokaldaten-with-child-refs-and-ixtheo-notations-"${date}".mrc
