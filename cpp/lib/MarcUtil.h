@@ -47,6 +47,20 @@ ssize_t GetFieldIndex(const std::vector<DirectoryEntry> &dir_entries, const std:
 bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
 		    std::vector<DirectoryEntry> * const dir_entries, std::vector<std::string> * const field_data,
 		    std::string * const err_msg, std::string * const entire_record = NULL);
+    
+
+using RecordFunc = bool (&)(std::shared_ptr<Leader> &leader,
+			    std::vector<DirectoryEntry> * const dir_entries,
+                            std::vector<std::string> * const field_data,
+			    std::string * const err_msg);
+
+
+// Returns false on error and EOF.  To distinguish between the two: on EOF "err_msg" is empty but not when an
+// error has been detected.  For each entry in "dir_entries" there will be a corresponding entry in "field_data".
+// Each record read from "input" will be parsed and the directory entries and field data will be passed into
+// "process_record".  If "process_record" returns false, ProcessRecords will be aborted and the error message will
+// be passed up to the caller.
+bool ProcessRecords(FILE * const input, RecordFunc process_record, std::string * const err_msg);
 
 
 // Inserts the new field with contents "new_contents" and tag "new_tag" in "*leader", "*dir_entries" and
