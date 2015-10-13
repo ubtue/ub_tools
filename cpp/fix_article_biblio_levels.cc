@@ -24,11 +24,13 @@
 */
 
 #include <iostream>
+#include <set>
 #include <unordered_set>
 #include <cstdlib>
 #include "DirectoryEntry.h"
 #include "Leader.h"
 #include "MarcUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -54,7 +56,6 @@ bool RecordSerialControlNumbers(std::shared_ptr<Leader> &leader, std::vector<Dir
 
 
 void CollectSerials(const bool verbose, FILE * const input) {
-
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(input, RecordSerialControlNumbers, &err_msg))
 	Error("error while looking for serials: " + err_msg);
@@ -68,36 +69,60 @@ static FILE *output_ptr;
 static unsigned patch_count;
 
 
+bool HasSerialParent(const std::string &subfield, const std::vector<DirectoryEntry> dir_entries,
+		     const std::vector<std::string> field_data)
+{
+    const std::string tag(subfield.substr(0, 3));
+    const char subfield_code(subfield[3]);
+    const ssize_t field_index(MarcUtil::GetFieldIndex(dir_entries, tag));
+    if (field_index == -1)
+	return false;
+
+    const Subfields subfields(field_data[field_index]);
+    const std::string subfield_contents(subfields.getFirstSubfieldValue(subfield_code));
+    if (subfield_contents.empty())
+	return false;
+
+    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\\(.+\\)(\\d{8}[\\dX])"));
+    if (not matcher->matched(subfield_contents))
+	return false;
+
+    const std::string parent_id((*matcher)[1]);
+    return serial_control_numbers.find(parent_id) != serial_control_numbers.cend();
+}
+
+
+bool HasAtLeastOneSerialParent(const std::string &subfield_list, const std::vector<DirectoryEntry> dir_entries,
+			       const std::vector<std::string> field_data)
+{
+    std::vector<std::string> subfields;
+    StringUtil::Split(subfield_list, ':', &subfields);
+    for (const auto &subfield : subfields) {
+	if (HasSerialParent(subfield, dir_entries, field_data))
+	    return true;
+    }
+
+    return false;
+}
+
+
 // Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is a serial.
 // Also writes all records to "output_ptr".
 bool PatchUpArticle(std::shared_ptr<Leader> &leader, std::vector<DirectoryEntry> * const dir_entries,
 		    std::vector<std::string> * const field_data, std::string * const /*err_msg*/)
 {
-    ssize_t _773_index;
-    if ((*leader)[7] != 'a' or (_773_index = MarcUtil::GetFieldIndex(*dir_entries, "773")) == -1) {
+    if ((*leader)[7] != 'a') {
 	MarcUtil::ComposeAndWriteRecord(output_ptr, *dir_entries, *field_data, leader);
 	return true;
     }
 
-    const Subfields _773_subfields((*field_data)[_773_index]);
-    if (not _773_subfields.hasSubfield('w')) {
+    if (not HasAtLeastOneSerialParent("800w:810w:830w:773w", *dir_entries, *field_data)) {
 	MarcUtil::ComposeAndWriteRecord(output_ptr, *dir_entries, *field_data, leader);
 	return true;
     }
 
-    const std::string _773w_contents(_773_subfields.getFirstSubfieldValue('w'));
-    if (not StringUtil::StartsWith(_773w_contents, "(DE-576)")) {
-	MarcUtil::ComposeAndWriteRecord(output_ptr, *dir_entries, *field_data, leader);
-	return true;
-    }
-
-    const std::string parent_control_number(_773w_contents.substr(8));
-    const auto iter(serial_control_numbers.find(parent_control_number));
-    if (iter != serial_control_numbers.end()) {
-	(*leader)[7] = 'b';
-	++patch_count;
-    }
-
+    (*leader)[7] = 'b';
+    ++patch_count;
     MarcUtil::ComposeAndWriteRecord(output_ptr, *dir_entries, *field_data, leader);
 
     return true;

@@ -73,7 +73,7 @@ add_child_refs: add_child_refs.o lib/libmarc.a
 	$(CCC) -o $@ $< -Llib -lmarc -lpcre -lcrypto
 
 fix_article_biblio_levels.o: fix_article_biblio_levels.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Leader.h \
-                             lib/util.h lib/StringUtil.h lib/Subfields.h
+                             lib/RegexMatcher.h lib/StringUtil.h lib/Subfields.h lib/util.h
 
 fix_article_biblio_levels: fix_article_biblio_levels.o lib/libmarc.a
 	$(CCC) -o $@ $< -Llib -lmarc -lpcre -lcrypto
