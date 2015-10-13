@@ -55,6 +55,11 @@ public:
      */
     char operator[](const std::string::size_type pos) const { return raw_leader_[pos]; }
 
+    /** \brief Index operator returning the n'th byte of the leader.
+     *  \param pos  The offset of the byte to return.  Must be < Leader::LEADER_LENGTH.
+     */
+    char &operator[](const std::string::size_type pos) { return raw_leader_[pos]; }
+
     unsigned getRecordLength() const { return record_length_; }
     bool setRecordLength(const unsigned new_record_length, std::string * const err_msg = nullptr);
 

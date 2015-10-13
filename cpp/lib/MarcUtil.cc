@@ -133,7 +133,7 @@ bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
         != static_cast<ssize_t>(field_data_size))
     {
         *err_msg = "Short read for field data or premature EOF! (Expected "
-            + std::to_string(field_data_size) + " bytes, got "+ std::to_string(read_count) +" bytes.)";
+                   + std::to_string(field_data_size) + " bytes, got "+ std::to_string(read_count) +" bytes.)";
         return false;
     }
 
@@ -150,6 +150,22 @@ bool ReadNextRecord(FILE * const input, std::shared_ptr<Leader> &leader,
 	entire_record->append(raw_field_data, field_data_size);
 
     return true;
+}
+
+
+bool ProcessRecords(FILE * const input, RecordFunc process_record, std::string * const err_msg) {
+    err_msg->clear();
+
+    std::shared_ptr<Leader> leader;
+    std::vector<DirectoryEntry> dir_entries;
+    std::vector<std::string> field_data;
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, err_msg)) {
+	if (not (*process_record)(leader, &dir_entries, &field_data, err_msg))
+	    return false;
+	err_msg->clear();
+    }
+
+    return err_msg->empty();
 }
 
 
@@ -339,7 +355,7 @@ std::string ExtractFirstSubfield(const std::string &tag, const char subfield_cod
     const Subfields subfields(field_data[entry_iterator - dir_entries.begin()]);
     return subfields.getFirstSubfieldValue(subfield_code);
 }
-    
+
 
 size_t ExtractAllSubfields(const std::string &tags, const std::vector<DirectoryEntry> &dir_entries,
 			   const std::vector<std::string> &field_data, std::vector<std::string> * const values,

@@ -15,7 +15,7 @@ add_title_keywords
 augment_bible_references
 bib_ref_parser_test
 bib_ref_to_codes_tool
-classify_leader07a
+compress_test
 control_number_filter
 create_full_text_db
 db_lookup
@@ -26,6 +26,7 @@ enrich_ddcs
 enrich_keywords_with_title_words
 exec_test
 extract_text_from_image_only_pdfs
+fix_article_biblio_levels
 full_text_lookup
 jop_grep
 kcdb_info
