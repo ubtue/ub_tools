@@ -70,7 +70,7 @@ char help_text[] =
   "\n"
   "  Output label format:\n"
   "    label_format = matched_field_or_subfield | control_number | control_number_and_matched_field_or_subfield\n"
-  "                   | no_label | marc_binary\n"
+  "                   | no_label | marc_binary | control_number_and_traditional\n"
   "\n"
   "  The default output label is the control number followed by a colon followed by the matched field or \n"
   "  subfield followed by a colon.  When the format is \"marc_binary\" entire records will always be copied.\n";
@@ -84,7 +84,7 @@ void Usage() {
 
 
 enum OutputLabel { MATCHED_FIELD_OR_SUBFIELD_ONLY, CONTROL_NUMBER_ONLY, CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD,
-                   TRADITIONAL, NO_LABEL, MARC_BINARY };
+                   TRADITIONAL, NO_LABEL, MARC_BINARY, CONTROL_NUMBER_AND_TRADITIONAL };
 
 
 OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
@@ -100,6 +100,8 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
         return NO_LABEL;
     if (label_format_candidate == "marc_binary")
         return MARC_BINARY;
+    if (label_format_candidate == "control_number_and_traditional")
+	return CONTROL_NUMBER_AND_TRADITIONAL;
 
     Error("\"" + label_format_candidate + "\" is no valid output label format!");
 }
@@ -127,6 +129,10 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
         return;
     case MARC_BINARY:
 	Error("MARC_BINARY should never be passed into Emit(0!");
+    case CONTROL_NUMBER_AND_TRADITIONAL:
+        std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':'
+		  << StringUtil::Map(contents, '\x1F', '$') << '\n';
+        return;
     }
 }
 
