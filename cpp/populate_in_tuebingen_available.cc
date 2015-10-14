@@ -42,8 +42,8 @@ static unsigned modified_record_count;
 static unsigned add_sig_count;
 
 
-bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry> *const dir_entries,
-                   std::vector <std::string> *const field_data, std::string *const /*err_msg*/) {
+bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry> * const dir_entries,
+                   std::vector <std::string> * const field_data, std::string * const /*err_msg*/) {
     std::vector <std::pair<size_t, size_t>> local_block_boundaries;
     MarcUtil::FindAllLocalDataBlocks(*dir_entries, *field_data, &local_block_boundaries);
 
@@ -82,7 +82,7 @@ bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry
 }
 
 
-void PopulateTheInTuebingenAvailableField(const bool verbose, FILE *const input, FILE *const output) {
+void PopulateTheInTuebingenAvailableField(const bool verbose, FILE * const input, FILE * const output) {
     output_ptr = output;
 
     std::string err_msg;
@@ -112,12 +112,12 @@ int main(int argc, char **argv) {
     }
 
     const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
-    FILE *const marc_input(std::fopen(marc_input_filename.c_str(), "rbm"));
+    FILE * const marc_input(std::fopen(marc_input_filename.c_str(), "rbm"));
     if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
-    FILE *const marc_output(std::fopen(marc_output_filename.c_str(), "wb"));
+    FILE * const marc_output(std::fopen(marc_output_filename.c_str(), "wb"));
     if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
