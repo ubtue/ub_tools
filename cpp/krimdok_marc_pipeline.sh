@@ -80,8 +80,8 @@ cp full_text.db /var/lib/tuelib/
 rm -f TitelUndLokaldaten-normalised-with-child-refs-and-issns-"${date}".mrc
 
 # Phase 6:
-echo "*** Phase 5 ***"
-echo "*** Phase 5 ***" >> "${log}"
+echo "*** Phase 6 ***"
+echo "*** Phase 6 ***" >> "${log}"
 fix_article_biblio_levels --verbose \
     TitelUndLokaldaten-normalised-with-child-refs-issns-and-full-text-links-"${date}".mrc \
     TitelUndLokaldaten-normalised-with-child-refs-issns-full-text-links-and-fixed-articles-"${date}".mrc
@@ -90,3 +90,15 @@ fix_article_biblio_levels --verbose \
     ÜbergeordneteTitelUndLokaldaten-filtered-normalised-with-child-refs-and-fixed-articles-"${date}".mrc
 rm -f TitelUndLokaldaten-normalised-with-child-refs-issns-and-full-text-links-"${date}".mrc
 rm -f ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc
+
+# Phase 7:
+echo "*** Phase 7 ***"
+echo "*** Phase 7 ***" >> "${log}"
+populate_in_tuebingen_available --verbose \
+    TitelUndLokaldaten-normalised-with-child-refs-issns-full-text-links-and-fixed-articles-"${date}".mrc \
+    TitelUndLokaldaten-normalised-with-child-refs-issns-full-text-links-fixed-articles-and-availability-"${date}".mrc
+populate_in_tuebingen_available --verbose \
+    ÜbergeordneteTitelUndLokaldaten-filtered-normalised-with-child-refs-and-fixed-articles-"${date}".mrc \
+    ÜbergeordneteTitelUndLokaldaten-filtered-normalised-with-child-refs-fixed-articles-and-availability-"${date}".mrc
+rm -f TitelUndLokaldaten-normalised-with-child-refs-issns-full-text-links-and-fixed-articles-"${date}".mrc
+rm -f ÜbergeordneteTitelUndLokaldaten-filtered-normalised-with-child-refs-and-fixed-articles-"${date}".mrc
