@@ -1,7 +1,7 @@
 /** \file    fix_article_biblio_levels.cc
  *  \author  Dr. Johannes Ruscheinski
  *
- *  A tool for determing the patching up the biblilographic level of article records.
+ *  A tool for patching up the bibliographic level of article records.
  *  Many, possibly all, article records that we get have an 'a' in leader position 7 instead of a 'b'.
  *  If the referenced parent is a serial this tool changes the 'a' to a 'b'.
  */
@@ -24,7 +24,6 @@
 */
 
 #include <iostream>
-#include <set>
 #include <unordered_set>
 #include <cstdlib>
 #include "DirectoryEntry.h"
