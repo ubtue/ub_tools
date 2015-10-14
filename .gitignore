@@ -38,6 +38,7 @@ marc_grep_tokenizer_test
 marc_info
 mysql_test
 notify_users
+populate_in_tuebingen_available
 regex_matcher
 resolve_in_path_test
 send_email_test

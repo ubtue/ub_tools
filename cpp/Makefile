@@ -5,7 +5,7 @@ PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_
       enrich_keywords_with_title_words test_find_substring test_chop_into_words test_auto_temp_file \
       update_ixtheo_notations update_full_text_db kcdb_info fix_article_biblio_levels marc_info mysql_test \
       deserialise_php_test notify_users send_email_test urlencode regex_matcher xml_parser_test \
-      compress_test
+      compress_test populate_in_tuebingen_available
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
@@ -76,6 +76,12 @@ fix_article_biblio_levels.o: fix_article_biblio_levels.cc lib/MarcUtil.h lib/Dir
                              lib/RegexMatcher.h lib/StringUtil.h lib/Subfields.h lib/util.h
 
 fix_article_biblio_levels: fix_article_biblio_levels.o lib/libmarc.a
+	$(CCC) -o $@ $< -Llib -lmarc -lpcre -lcrypto
+
+populate_in_tuebingen_available.o: populate_in_tuebingen_available.cc lib/MarcUtil.h lib/DirectoryEntry.h \
+                                   lib/Leader.h lib/StringUtil.h lib/Subfields.h lib/util.h
+
+populate_in_tuebingen_available: populate_in_tuebingen_available.o lib/libmarc.a
 	$(CCC) -o $@ $< -Llib -lmarc -lpcre -lcrypto
 
 augment_bible_references.o: augment_bible_references.cc lib/MarcUtil.h lib/DirectoryEntry.h lib/Leader.h \
