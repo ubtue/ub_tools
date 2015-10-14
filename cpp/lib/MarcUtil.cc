@@ -406,6 +406,15 @@ size_t FindAllLocalDataBlocks(const std::vector<DirectoryEntry> &dir_entries,
 }
 
 
+static bool IndicatorsMatch(const std::string &indicator_pattern, const std::string &indicators) {
+    if (indicator_pattern[0] != '?' and indicator_pattern[0] != indicators[0])
+	return false;
+    if (indicator_pattern[1] != '?' and indicator_pattern[1] != indicators[1])
+	return false;
+    return true;
+}
+    
+
 size_t FindFieldsInLocalBlock(const std::string &field_tag, const std::string &indicators,
 			      const std::pair<size_t, size_t> &block_start_and_end,
 			      const std::vector<std::string> &field_data,
@@ -418,9 +427,11 @@ size_t FindFieldsInLocalBlock(const std::string &field_tag, const std::string &i
     if (unlikely(indicators.length() != 2))
 	Error("in MarcUtil::FindFieldInLocalBlock: indicators must be precisely 2 characters long!");
 
-    const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag + indicators);
+    const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag);
     for (size_t index(block_start_and_end.first); index < block_start_and_end.second; ++index) {
-	if (StringUtil::StartsWith(field_data[index], FIELD_PREFIX))
+	const std::string &current_field(field_data[index]);
+	if (StringUtil::StartsWith(current_field, FIELD_PREFIX)
+	    and IndicatorsMatch(indicators, current_field.substr(7, 2)))
 	    field_indices->emplace_back(index);
     }
 
