@@ -87,7 +87,7 @@ def SafeSymlink(source, link_name):
     elif os.isfile(link_name):
         Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
               + "\" which is an existing non-symlink file!")
-    elif (os.isdir(link_name):
+    elif os.isdir(link_name):
         Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
               + "\" which is an existing non-symlink directory!")
     try:
