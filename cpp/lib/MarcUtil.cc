@@ -180,6 +180,13 @@ void InsertField(const std::string &new_contents, const std::string &new_tag, co
     auto dir_entry(dir_entries->begin());
     while (dir_entry != dir_entries->end() and new_tag > dir_entry->getTag())
         ++dir_entry;
+
+    if (dir_entry == dir_entries->end()) {
+	dir_entries->emplace_back(new_tag, new_contents.length() + 1, (dir_entries->end() - 1)->getFieldOffset());
+	fields->emplace_back(new_contents);
+	return;
+    }
+
     const auto insertion_location(dir_entry);
 
     // Correct the offsets for old fields and then insert the new fields:
