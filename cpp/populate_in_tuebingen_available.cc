@@ -62,9 +62,9 @@ bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry
             const std::string institution(isil_subfield == "DE-21" ? "UB: " : "IFK: ");
             if (_852_index + 1 < block_start_and_end.second) {
                 const Subfields subfields2((*field_data)[_852_index + 1]);
-                const std::string callnumber_subfield(subfields2.getFirstSubfieldValue('c'));
-                if (not callnumber_subfield.empty()) {
-                    const std::string institution_and_call_number(institution + callnumber_subfield);
+                const std::string call_number_subfield(subfields2.getFirstSubfieldValue('c'));
+                if (not call_number_subfield.empty()) {
+                    const std::string institution_and_call_number(institution + call_number_subfield);
                     ++add_sig_count;
                     modified_record = true;
                     MarcUtil::InsertField(institution_and_call_number, "SIG", leader, dir_entries, field_data);
