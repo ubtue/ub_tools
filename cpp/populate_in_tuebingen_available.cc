@@ -38,45 +38,44 @@ void Usage() {
 
 
 static FILE *output_ptr;
-static unsigned in_tuebingen_available_count;
+static unsigned modified_record_count;
+static unsigned add_sig_count;
 
 
-bool ProcessRecord(std::shared_ptr<Leader> &leader, std::vector<DirectoryEntry> * const dir_entries,
-		   std::vector<std::string> * const field_data, std::string * const /*err_msg*/)
-{
-    std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry> * const dir_entries,
+                   std::vector <std::string> * const field_data, std::string * const /*err_msg*/) {
+    std::vector <std::pair<size_t, size_t>> local_block_boundaries;
     MarcUtil::FindAllLocalDataBlocks(*dir_entries, *field_data, &local_block_boundaries);
 
-    std::string local_call_numbers;
+    bool modified_record(false);
     for (const auto &block_start_and_end : local_block_boundaries) {
-	std::vector<size_t> _852_field_indices;
-	if (MarcUtil::FindFieldsInLocalBlock("852", "??", block_start_and_end, *field_data, &_852_field_indices) == 0)
-	    continue;
-	for (const size_t _852_index : _852_field_indices) {
-	    const Subfields subfields1((*field_data)[_852_index]);
-	    const std::string a_subfield(subfields1.getFirstSubfieldValue('a'));
-	    if (a_subfield == "DE-21" or a_subfield == "DE-21-110") {
-		const std::string institution(a_subfield == "DE-21" ? "UB: " : "IFK: ");
-		if (_852_index + 1 < block_start_and_end.second) {
-		    const Subfields subfields2((*field_data)[_852_index + 1]);
-		    const std::string c_subfield(subfields2.getFirstSubfieldValue('c'));
-		    if (not c_subfield.empty()) {
-			const std::string institution_and_call_number(institution +  c_subfield);
-			if (local_call_numbers.empty())
-			    local_call_numbers = institution_and_call_number;
-			else
-			    local_call_numbers += ", " + institution_and_call_number;
-		    }
-		}
-		break;
-	    }
-	}
+        std::vector <size_t> _852_field_indices;
+        if (MarcUtil::FindFieldsInLocalBlock("852", "??", block_start_and_end, *field_data, &_852_field_indices) == 0)
+            continue;
+        for (const size_t _852_index : _852_field_indices) {
+            const Subfields subfields1((*field_data)[_852_index]);
+            const std::string isil_subfield(subfields1.getFirstSubfieldValue('a'));
+
+            if (isil_subfield != "DE-21" and isil_subfield != "DE-21-110")
+                continue;
+
+            const std::string institution(isil_subfield == "DE-21" ? "UB: " : "IFK: ");
+            if (_852_index + 1 < block_start_and_end.second) {
+                const Subfields subfields2((*field_data)[_852_index + 1]);
+                const std::string call_number_subfield(subfields2.getFirstSubfieldValue('c'));
+                if (not call_number_subfield.empty()) {
+                    const std::string institution_and_call_number(institution + call_number_subfield);
+                    ++add_sig_count;
+                    modified_record = true;
+                    MarcUtil::InsertField(institution_and_call_number, "SIG", leader, dir_entries, field_data);
+                }
+            }
+            break;
+        }
     }
 
-    if (not local_call_numbers.empty()) {
-	++in_tuebingen_available_count;
-	MarcUtil::InsertField(local_call_numbers, "SIG", leader, dir_entries, field_data);
-    }
+    if (modified_record)
+        ++modified_record_count;
 
     MarcUtil::ComposeAndWriteRecord(output_ptr, *dir_entries, *field_data, leader);
     return true;
@@ -88,10 +87,12 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, FILE * const input
 
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(input, ProcessRecord, &err_msg))
-	Error("error while processing records: " + err_msg);
+        Error("error while processing records: " + err_msg);
 
-    if (verbose)
-	std::cout << "Added a in-Tübingen-available field in " << in_tuebingen_available_count << " records.\n";
+    if (verbose) {
+        std::cout << "Modified " << modified_record_count << " records.\n";
+        std::cout << "Added " << add_sig_count << " signature fields.\n";
+    }
 }
 
 
@@ -103,11 +104,11 @@ int main(int argc, char **argv) {
 
     bool verbose;
     if (argc == 3)
-	verbose = false;
+        verbose = false;
     else { // argc == 4
-	if (std::strcmp(argv[1], "--verbose") != 0)
-	    Usage();
-	verbose = true;
+        if (std::strcmp(argv[1], "--verbose") != 0)
+            Usage();
+        verbose = true;
     }
 
     const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
