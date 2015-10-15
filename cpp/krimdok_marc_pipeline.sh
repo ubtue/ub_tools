@@ -78,6 +78,7 @@ create_full_text_db --process-count-low-and-high-watermarks \
                     full_text.db >> "${log}" 2>&1
 cp full_text.db /var/lib/tuelib/
 rm -f TitelUndLokaldaten-normalised-with-child-refs-and-issns-"${date}".mrc
+rm -f full_text.db
 
 # Phase 6:
 echo "*** Phase 6 ***"
