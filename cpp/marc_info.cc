@@ -44,10 +44,14 @@ void ProcessRecords(FILE * const input) {
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
     std::string err_msg;
+    std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0);
 
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg, &raw_record)) {
         ++record_count;
+
+	if (not MarcUtil::RecordSeemsCorrect(raw_record, &err_msg))
+	    Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
 
 	const unsigned record_length(leader->getRecordLength());
 	if (record_length > max_record_length)

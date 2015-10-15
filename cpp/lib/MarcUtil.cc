@@ -189,13 +189,15 @@ void InsertField(const std::string &new_contents, const std::string &new_tag, co
 
     const auto insertion_location(dir_entry);
 
-    // Correct the offsets for old fields and then insert the new fields:
-    const std::vector<DirectoryEntry>::difference_type new_index(dir_entry - dir_entries->begin());
-    for (dir_entry = dir_entries->begin() + new_index; dir_entry != dir_entries->end(); ++dir_entry)
+    // Correct the offsets for old fields following the slot where the new field will be inserted:
+    const std::vector<DirectoryEntry>::difference_type insertion_index(insertion_location - dir_entries->begin());
+    for (dir_entry = dir_entries->begin() + insertion_index; dir_entry != dir_entries->end(); ++dir_entry)
         dir_entry->setFieldOffset(dir_entry->getFieldOffset() + new_contents.length() + 1);
+
+    // Now insert the new field:
     dir_entries->emplace(insertion_location, new_tag, new_contents.length() + 1,
                          (insertion_location - 1)->getFieldOffset());
-    const auto field(fields->begin() + new_index);
+    const auto field(fields->begin() + insertion_index);
     fields->emplace(field, new_contents);
 }
 
@@ -239,8 +241,10 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
     }
 
     std::shared_ptr<Leader> leader;
-    if (not Leader::ParseLeader(record.substr(0, Leader::LEADER_LENGTH), leader, err_msg))
+    if (not Leader::ParseLeader(record.substr(0, Leader::LEADER_LENGTH), leader, err_msg)) {
+	*err_msg = "failed to parse the leader!";
         return false;
+    }
 
     if (leader->getRecordLength() != record.length()) {
         *err_msg = "leader's record length (" + std::to_string(leader->getRecordLength())
@@ -274,13 +278,41 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
     std::vector<DirectoryEntry> dir_entries;
     if (not DirectoryEntry::ParseDirEntries(record.substr(Leader::LEADER_LENGTH, directory_length),
 					    &dir_entries, err_msg))
+    {
+	*err_msg = "failed to parse directory entries!";
         return false;
+    }
+
+    size_t expected_start_offset(Leader::LEADER_LENGTH
+                                 + dir_entries.size() * DirectoryEntry::DIRECTORY_ENTRY_LENGTH
+				 + 1 /* For the field terminator at the end of the directory. */);
+    for (const auto &dir_entry : dir_entries) {
+	const size_t dir_entry_start_offset(dir_entry.getFieldOffset() + leader->getBaseAddressOfData());
+	if (dir_entry_start_offset != expected_start_offset) {
+	    *err_msg = "expected field start offset (" + std::to_string(expected_start_offset)
+		       + ") does not equal the field start offset in the corresponding directory entry ("
+		       + std::to_string(dir_entry_start_offset) + ")!";
+	    return false;
+	}
+	expected_start_offset += dir_entry.getFieldLength();
+    }
+
+    const size_t computed_length(expected_start_offset + 1 /* For the record terminator. */);
+    if (computed_length != record.length()) {
+        *err_msg = "actual record length (" + std::to_string(record.length())
+	           + ") does not equal the sum of the computed component lengths ("
+	           + std::to_string(computed_length) + ")!";
+        return false;
+    }
 
     const size_t field_data_size(record.length() - Leader::LEADER_LENGTH - directory_length);
     std::vector<std::string> field_data;
     if (not ReadFields(record.substr(Leader::LEADER_LENGTH + directory_length, field_data_size),
 		       dir_entries, &field_data, err_msg))
+    {
+	*err_msg = "failed to parse fields!";
         return false;
+    }
 
     if (record[record.size() - 1] != '\x1D') {
         *err_msg = "record is not terminated with a record terminator!";
