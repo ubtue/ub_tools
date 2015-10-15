@@ -43,7 +43,8 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
+    std::cerr << "Usage: " << progname
+	      << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles bible_order_map\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -132,6 +133,33 @@ const std::unordered_set<std::string> books_with_ordinals {
 
 
 const std::string BIB_REF_RANGE_TAG("801");
+const std::string BIB_BROWSE_TAG("802");
+
+
+void LoadBibleOrderMap(const bool verbose, FILE * const input,
+		       std::unordered_map<std::string, std::string> * const bible_order_map)
+{
+    if (verbose)
+	std::cerr << "Started loading of the bible-order map.\n";
+
+    char line_buf[1024];
+    unsigned line_no(0);
+    while (std::fgets(line_buf, sizeof line_buf, input) != nullptr) {
+	++line_no;
+
+	size_t line_length(std::strlen(line_buf));
+	if (line_length == 1)
+	    continue;
+	const std::string line(line_buf, line_length - 2 /* Do not include the trailing newline. */);
+	const size_t equal_pos(line.find('='));
+	if (equal_pos == std::string::npos)
+	    Error("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
+	(*bible_order_map)[StringUtil::ToLower(line.substr(0, equal_pos))] = line.substr(equal_pos + 1);
+    }
+
+    if (verbose)
+	std::cerr << "Loaded " << line_no << " entries from the bible-order map file.\n";
+}
 
 
 bool StartsWithSmallRomanOrdinal(const std::string &roman_ordinal_candidate) {
@@ -676,11 +704,11 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc < 4)
+    if (argc != 5 and argc != 6)
         Usage();
 
     const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
-    if (verbose ? (argc != 5) : (argc != 4))
+    if (verbose ? (argc != 6) : (argc != 5))
         Usage();
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
@@ -689,12 +717,12 @@ int main(int argc, char **argv) {
         Error("can't open \"" + title_input_filename + "\" for reading!");
 
     const std::string norm_input_filename(argv[verbose ? 3 : 2]);
-    FILE *norm_input = std::fopen(norm_input_filename.c_str(), "rbm");
+    FILE *norm_input(std::fopen(norm_input_filename.c_str(), "rbm"));
     if (norm_input == nullptr)
         Error("can't open \"" + norm_input_filename + "\" for reading!");
 
     const std::string title_output_filename(argv[verbose ? 4 : 3]);
-    FILE *title_output = std::fopen(title_output_filename.c_str(), "wb");
+    FILE *title_output(std::fopen(title_output_filename.c_str(), "wb"));
     if (title_output == nullptr)
         Error("can't open \"" + title_output_filename + "\" for writing!");
 
@@ -703,6 +731,14 @@ int main(int argc, char **argv) {
 
     if (unlikely(norm_input_filename == title_output_filename))
         Error("Norm data input file name equals title output file name!");
+
+    const std::string bible_order_map_filename(argv[verbose ? 5 : 4]);
+    FILE *bible_order_map_file(std::fopen(bible_order_map_filename.c_str(), "rbm"));
+    if (bible_order_map_file == nullptr)
+        Error("can't open \"" + bible_order_map_filename + "\" for reading!");
+
+    std::unordered_map<std::string, std::string> bible_order_map;
+    LoadBibleOrderMap(verbose, bible_order_map_file, &bible_order_map);
 
     std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_codes_to_bible_ref_codes_map;
     LoadNormData(verbose, norm_input, &gnd_codes_to_bible_ref_codes_map);

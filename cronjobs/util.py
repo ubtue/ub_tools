@@ -259,3 +259,35 @@ def getMostRecentFileMatchingGlob(file_name_glob):
                 most_recent_mtime = stat_buf.st_mtime
 
     return most_recent_matching_name
+
+
+# @brief Stores a list of files in a tarball
+# @param tar_file_name       The name of the archive that will be created.  If the name ends with "gz" or "bz" the
+#                            appropriate compression method will be applied.
+# @param list_of_members     A list of pairs (2-tuples), one for each archive member.  The 0th slot of each pair
+#                            specifies the file name that should be stored and the 1st slot the member name.
+#                            If the member name is None, the file name from the 0th slot will be used.
+# @param overwrite           If False, we fail if the tarball file already exists.
+# @param delete_input_files  If True, after creating the tarball we delete the input files.
+# @return None
+def CreateTarball(tar_file_name, list_of_members, overwrite=False, delete_input_files=False):
+    if not overwrite and os.access(tar_file_name, os.F_OK):
+        Error("tarball \"" + tar_file_name + "\" already exists!")
+
+    if tar_file_name.endswith("gz"):
+        mode = "w:gz"
+    elif tar_file_name.endswith("bz"):
+        mode = "w:bz"
+    else:
+        mode = "w"
+    
+    new_tarfile = tarfile.open(name=tar_file_name, mode=mode)
+    for file_and_member_names in list_of_members:
+        new_tarfile.add(name=file_and_member_names[0], arcname=file_and_member_names[1])
+
+    if not delete_input_files:
+        return
+
+    for file_and_member_names in list_of_members:
+        if not Remove(file_and_member_names[0]):
+            Error("in util.CreateTarball: can't delete \"" + file_and_member_names[0] + "\"!")
