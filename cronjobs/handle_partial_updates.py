@@ -88,7 +88,11 @@ def UpdateAllMarcFiles(orig_deletion_list):
     # Create a deletion list that consists of the original list from the
     # BSZ as well as all the ID's from the files starting w/ "Diff":
     util.Remove("augmented_deletion_list")
-    shutil.copyfile(orig_deletion_list, "augmented_deletion_list")
+    if orig_deletion_list is None: # Create empty file.
+        with open("augmented_deletion_list", "a") as _:
+            pass
+    else:
+        shutil.copyfile("../" + orig_deletion_list, "augmented_deletion_list")
     extract_IDs_script_path = GetPathOrDie("extract_IDs_in_erase_format.sh")
     for marc_file_name in glob.glob("*.mrc"):
         if not marc_file_name.startswith("Diff"):
@@ -125,15 +129,19 @@ def UpdateAllMarcFiles(orig_deletion_list):
 
     # Rename files to include the current date and move them up a directory:
     current_date_str = datetime.datetime.now().strftime("%y%m%d")
-    for marc_file_name in glob.glob("*.mrc"):
+    marc_files = glob.glob("*.mrc")
+    for marc_file_name in marc_files:
         RenameOrDie(marc_file_name, "../" + marc_file_name[:-4] + "-" + current_date_str + ".mrc")
     os.chdir("..")
-    print("Reamed and moved files.")
+    print("Renamed and moved files.")
 
-    # Create symlinks with "current" instead of "MMDDYY" in the orginal files:
-    for marc_file_name in glob.glob("*-[0-9][0-9][0-9][0-9][0-9][0-9].mrc"):
-        util.SafeSymlink(marc_file_name, re.sub("\\d\\d\\d\\d\\d\\d", "current", marc_file_name))
+    # Create symlinks with "current" instead of "YYMMDD" in the orginal files:
+    for marc_file in marc_files:
+        new_name = marc_file[:-4] + "-" + current_date_str + ".mrc"
+        util.SafeSymlink(new_name, re.sub("\\d\\d\\d\\d\\d\\d", "current", new_name))
     print("Symlinked files.")
+    return ("TitelUndLokaldaten-current.mrc", "ÜbergeordneteTitelUndLokaldaten-current.mrc",
+            "Normdaten-current.mrc")
 
 
 # Creates a new tarball named "new_tar_file_name" and linked from "link_name".
@@ -144,7 +152,7 @@ def UpdateAllMarcFiles(orig_deletion_list):
 def CreateNewTarballAndDeletePreviousTarball(new_tar_file_name, title_superior_norm_tuple, link_name):
     # Determine the base name for the archive members:
     tar_file = tarfile.open(name=link_name, mode="r:*")
-    base_name = tar_file.getnames()[0][-8:]
+    base_name = tar_file.getnames()[0][-1000:-8]
 
     file_and_member_names = []
     file_and_member_names.append((title_superior_norm_tuple[0], base_name + "a001.raw"))
@@ -173,7 +181,9 @@ def Main():
         util.Error("failed to read config file! ("+ str(e) + ")")
     if not os.access(complete_data, os.R_OK):
         util.Error("Fehlender oder nicht lesbarer Komplettabzug.")
-    deletion_list_is_readable     = os.access(deletion_list, os.R_OK)
+    deletion_list_is_readable = os.access(deletion_list, os.R_OK)
+    if not deletion_list_is_readable:
+        deletion_list = None
     differential_data_is_readable = os.access(differential_data, os.R_OK)
     if not deletion_list_is_readable and not differential_data_is_readable:
         util.Error("Fehlende oder nicht lesbare Löschliste und Differenzabzug..")
@@ -181,11 +191,14 @@ def Main():
     # Bail out if the most recent complete data set is at least as recent as the deletion list or the differential
     # data:
     complete_data_mtime = os.path.getmtime(complete_data)
+    deletion_list_mtime = None
     if deletion_list_is_readable:
         deletion_list_mtime = os.path.getmtime(deletion_list)
+    differential_data_mtime = None
     if differential_data_is_readable:
         differential_data_mtime = os.path.getmtime(differential_data)
-    if complete_data_mtime >= deletion_list_mtime or complete_data_mtime >= differential_data_mtime:
+    if ((deletion_list_mtime is not None and complete_data_mtime >= deletion_list_mtime)
+        or (differential_data_mtime is not None and complete_data_mtime >= differential_data_mtime)):
         util.SendEmail("Nichts zu tun!", "Komplettabzug ist neu.\n")
         sys.exit(0)
 
@@ -193,11 +206,14 @@ def Main():
 
     util.ExtractAndRenameBSZFiles("../" + complete_data)
     util.ExtractAndRenameBSZFiles("../" + differential_data, "Diff")
-    title_superior_norm_tuple = UpdateAllMarcFiles("../" + deletion_list) # ...and we're back in the original directory.
+    title_superior_norm_tuple = UpdateAllMarcFiles(deletion_list) # ...and we're back in the original directory.
 
-    new_tarball_name = complete_data.replace("current", datatime.date.strftime("%y%m%d"))
+    new_tarball_name = complete_data.replace("current", datetime.date.today().strftime("%y%m%d"))
     CreateNewTarballAndDeletePreviousTarball(new_tarball_name, title_superior_norm_tuple,
                                              complete_data)
+    util.RemoveLinkTargetAndLink(title_superior_norm_tuple[0])
+    util.RemoveLinkTargetAndLink(title_superior_norm_tuple[1])
+    util.RemoveLinkTargetAndLink(title_superior_norm_tuple[2])
     print("Successfully created updated MARC files.")
 
 
