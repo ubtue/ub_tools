@@ -5,6 +5,7 @@
 from __future__ import print_function
 from email.mime.text import MIMEText
 import ConfigParser
+import ctypes
 import datetime
 import glob
 import os
@@ -84,7 +85,7 @@ def SafeSymlink(source, link_name):
         
     if os.path.islink(link_name):
         os.unlink(link_name)
-    elif os.isfile(link_name):
+    elif os.path.isfile(link_name):
         Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
               + "\" which is an existing non-symlink file!")
     elif os.isdir(link_name):
@@ -200,7 +201,7 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
         name_prefix = ""
     tar_file = tarfile.open(gzipped_tar_archive, "r:gz")
     TarFileMemberNamesAreOkOrDie(tar_file, gzipped_tar_archive)
-    current_date_str = datetime.datetime.now().strftime("%d%m%y")
+    current_date_str = datetime.datetime.now().strftime("%y%m%d")
     ExtractAndRenameMembers(tar_file, ".+a00\\d.raw$",
                             name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc")
     ExtractAndRenameMembers(tar_file, ".+b00\\d.raw$",
@@ -291,3 +292,22 @@ def CreateTarball(tar_file_name, list_of_members, overwrite=False, delete_input_
     for file_and_member_names in list_of_members:
         if not Remove(file_and_member_names[0]):
             Error("in util.CreateTarball: can't delete \"" + file_and_member_names[0] + "\"!")
+
+
+# @brief Deletes a symlink's target and the symlink itself
+# @param link_name         The pathname of the symlink.
+# @param fail_on_dangling  If True, abort the program if the symlink's link target does not exist. If this is False
+#                          this function may still fail, for example, because the process lacks the permissions to
+#                          delete the link target.
+# @return None
+def RemoveLinkTargetAndLink(link_name, fail_on_dangling=False):
+    if not os.path.islink(link_name):
+        Error("in util.RemoveLinkTargetAndLink: \"" + link_name + "\" is not a symlink!")
+    try:
+        link_target = os.readlink(link_name)
+        ctypes.set_errno(0)
+        os.unlink(link_target)
+    except Exception as e:
+        if not fail_on_dangling or ctypes.get_errno() != errno.ENOENT:
+            Error("in util.RemoveLinkTargetAndLink: can't delete link target of \"" + link_name + "\"!")
+    os.unlink(link_name)
