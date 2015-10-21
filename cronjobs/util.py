@@ -5,6 +5,7 @@
 from __future__ import print_function
 from email.mime.text import MIMEText
 import ConfigParser
+import ctypes
 import datetime
 import glob
 import os
@@ -84,10 +85,10 @@ def SafeSymlink(source, link_name):
         
     if os.path.islink(link_name):
         os.unlink(link_name)
-    elif os.isfile(link_name):
+    elif os.path.isfile(link_name):
         Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
               + "\" which is an existing non-symlink file!")
-    elif os.isdir(link_name):
+    elif os.path.isdir(link_name):
         Error("in util.SafeSymlink: trying to create a symlink to \"" + link_name
               + "\" which is an existing non-symlink directory!")
     try:
@@ -200,7 +201,7 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
         name_prefix = ""
     tar_file = tarfile.open(gzipped_tar_archive, "r:gz")
     TarFileMemberNamesAreOkOrDie(tar_file, gzipped_tar_archive)
-    current_date_str = datetime.datetime.now().strftime("%d%m%y")
+    current_date_str = datetime.datetime.now().strftime("%y%m%d")
     ExtractAndRenameMembers(tar_file, ".+a00\\d.raw$",
                             name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc")
     ExtractAndRenameMembers(tar_file, ".+b00\\d.raw$",
@@ -259,3 +260,54 @@ def getMostRecentFileMatchingGlob(file_name_glob):
                 most_recent_mtime = stat_buf.st_mtime
 
     return most_recent_matching_name
+
+
+# @brief Stores a list of files in a tarball
+# @param tar_file_name       The name of the archive that will be created.  If the name ends with "gz" or "bz" the
+#                            appropriate compression method will be applied.
+# @param list_of_members     A list of pairs (2-tuples), one for each archive member.  The 0th slot of each pair
+#                            specifies the file name that should be stored and the 1st slot the member name.
+#                            If the member name is None, the file name from the 0th slot will be used.
+# @param overwrite           If False, we fail if the tarball file already exists.
+# @param delete_input_files  If True, after creating the tarball we delete the input files.
+# @return None
+def CreateTarball(tar_file_name, list_of_members, overwrite=False, delete_input_files=False):
+    if not overwrite and os.access(tar_file_name, os.F_OK):
+        Error("tarball \"" + tar_file_name + "\" already exists!")
+
+    if tar_file_name.endswith("gz"):
+        mode = "w:gz"
+    elif tar_file_name.endswith("bz"):
+        mode = "w:bz"
+    else:
+        mode = "w"
+    
+    new_tarfile = tarfile.open(name=tar_file_name, mode=mode)
+    for file_and_member_names in list_of_members:
+        new_tarfile.add(name=file_and_member_names[0], arcname=file_and_member_names[1])
+
+    if not delete_input_files:
+        return
+
+    for file_and_member_names in list_of_members:
+        if not Remove(file_and_member_names[0]):
+            Error("in util.CreateTarball: can't delete \"" + file_and_member_names[0] + "\"!")
+
+
+# @brief Deletes a symlink's target and the symlink itself
+# @param link_name         The pathname of the symlink.
+# @param fail_on_dangling  If True, abort the program if the symlink's link target does not exist. If this is False
+#                          this function may still fail, for example, because the process lacks the permissions to
+#                          delete the link target.
+# @return None
+def RemoveLinkTargetAndLink(link_name, fail_on_dangling=False):
+    if not os.path.islink(link_name):
+        Error("in util.RemoveLinkTargetAndLink: \"" + link_name + "\" is not a symlink!")
+    try:
+        link_target = os.readlink(link_name)
+        ctypes.set_errno(0)
+        os.unlink(link_target)
+    except Exception as e:
+        if not fail_on_dangling or ctypes.get_errno() != errno.ENOENT:
+            Error("in util.RemoveLinkTargetAndLink: can't delete link target of \"" + link_name + "\"!")
+    os.unlink(link_name)
