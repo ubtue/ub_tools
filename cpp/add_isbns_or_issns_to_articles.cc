@@ -37,7 +37,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << "[--verbose] master_marc_input additional_marc_input marc_output\n";
+    std::cerr << "Usage: " << progname << " [-v|--verbose] master_marc_input additional_marc_input marc_output\n";
     std::cerr << "  Adds host/parent/journal ISBNs and ISSNs to article entries found in the\n";
     std::cerr << "  master_marc_input and writes this augmented file as marc_output.  The ISBNs and ISSNs are\n";
     std::cerr << "  extracted from superior entries found in master_marc_input and additional_marc_input.\n";
@@ -83,17 +83,17 @@ void PopulateParentIdToISBNAndISSNMap(
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
 
-	const std::string isbn(MarcUtil::ExtractFirstSubfield("020", 'a', dir_entries, field_data));
-	if (not isbn.empty()) {
+        const std::string isbn(MarcUtil::ExtractFirstSubfield("020", 'a', dir_entries, field_data));
+        if (not isbn.empty()) {
             (*parent_id_to_isbn_and_issn_map)[field_data[0]] = isbn;
             ++extracted_isbn_count;
-	}
+        }
 
-	const std::string issn(MarcUtil::ExtractFirstSubfield("022", 'a', dir_entries, field_data));
-	if (not issn.empty()) {
+        const std::string issn(MarcUtil::ExtractFirstSubfield("022", 'a', dir_entries, field_data));
+        if (not issn.empty()) {
             (*parent_id_to_isbn_and_issn_map)[field_data[0]] = issn;
             ++extracted_issn_count;
-	}
+        }
     }
 
     if (not err_msg.empty())
@@ -108,8 +108,8 @@ void PopulateParentIdToISBNAndISSNMap(
 
 
 void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const input, FILE * const output,
-					    const std::unordered_map<std::string,
-					    std::string> &parent_id_to_isbn_and_issn_map)
+                                            const std::unordered_map<std::string,
+                                            std::string> &parent_id_to_isbn_and_issn_map)
 {
     if (verbose)
         std::cout << "Starting augmentation of article entries.\n";
@@ -161,31 +161,17 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
             continue;
         }
 
-	if (IsPossibleISSN(parent_isbn_or_issn_iter->second)) {
-	    subfields.addSubfield('x', parent_isbn_or_issn_iter->second);
-	    const size_t old_773_field_length(field_data[index_773].size());
-	    field_data[index_773] = subfields.toString();
-	    const size_t new_773_field_length(field_data[index_773].size());
-
-	    //
-	    // Patch up all directory entries starting with the one with index "index_773".
-	    //
-
-	    const size_t offset(new_773_field_length - old_773_field_length);
-	    dir_entries[index_773].setFieldLength(dir_entries[index_773].getFieldLength() + offset);
-	    for (auto dir_entry_iter(dir_entries.begin() + index_773); dir_entry_iter != dir_entries.end();
-		 ++dir_entry_iter)
-		dir_entry_iter->setFieldOffset(dir_entry_iter->getFieldOffset() + offset);
-
-	    ++issns_added;
-	} else { // Deal with ISBNs.
-	    if (not MarcUtil::ExtractFirstSubfield("020", 'a', dir_entries, field_data).empty())
-		continue; // We already have an ISBN.
-	    std::string new_field_020("  ""\x1F""a" + parent_isbn_or_issn_iter->second);;
-	    MarcUtil::InsertField(new_field_020, "020", leader, &dir_entries, &field_data);
-
-	    ++isbns_added;
-	}
+        if (IsPossibleISSN(parent_isbn_or_issn_iter->second)) {
+            subfields.addSubfield('x', parent_isbn_or_issn_iter->second);
+            MarcUtil::UpdateField(index_773, subfields.toString(), leader, &dir_entries, &field_data);
+            ++issns_added;
+        } else { // Deal with ISBNs.
+            if (not MarcUtil::ExtractFirstSubfield("020", 'a', dir_entries, field_data).empty())
+                continue; // We already have an ISBN.
+            std::string new_field_020("  ""\x1F""a" + parent_isbn_or_issn_iter->second);
+            MarcUtil::InsertField(new_field_020, "020", leader, &dir_entries, &field_data);
+            ++isbns_added;
+        }
 
         MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
     }
@@ -206,7 +192,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if ((argc != 4 and argc != 5) or (argc == 5 and std::strcmp(argv[1], "--verbose") != 0))
+    if ((argc != 4 and argc != 5) or (argc == 5 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
         Usage();
     const bool verbose(argc == 5);
 

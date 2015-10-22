@@ -32,7 +32,7 @@
 #include "Subfields.h"
 #include "util.h"
 
-                    
+
 class CompiledPattern {
     std::string tag_;
     RegexMatcher matcher_;
@@ -125,7 +125,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
         }
     found:
         if (matched) {
-            ++matched_count;    
+            ++matched_count;
             const std::string record(MarcUtil::ComposeRecord(dir_entries, field_data, leader));
             if ((std::fwrite(record.data(), record.size(), 1, output)) != record.size())
                 Error("failed to write to \"" + output_filename + "\"!");
@@ -141,7 +141,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     std::fclose(output);
 }
 
-                    
+
 void DumpEditFormat(const std::string &input_filename, const std::string &output_filename) {
     std::ofstream output(output_filename);
     if (!output)
@@ -169,7 +169,7 @@ void DumpEditFormat(const std::string &input_filename, const std::string &output
                 if (field_data[i][1] == ' ') field_data[i][1] = '\\';
             }
                 output << field_data[i] << '\n';
-            
+
             ++i;
         }
 
@@ -223,7 +223,7 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
         *err_msg = "record is not terminated with a record terminator!";
         return false;
     }
-    
+
     return true;
 }
 
@@ -271,7 +271,7 @@ void FilterTagsAndFields(const std::unordered_set<std::string> &drop_tags,
 
 
 void DeleteMatched(const std::string &tags_list, const std::vector<std::string> &patterns, const bool invert,
-                   FILE * const input, FILE * const output, const std::string &output_filename)
+                   FILE * const input, FILE * const output)
 {
     std::vector<CompiledPattern> compiled_patterns;
     std::string err_msg;
@@ -316,13 +316,7 @@ found_match:
             FilterTagsAndFields(drop_tags, &dir_entries, &field_data);
         }
 
-        const std::string record(MarcUtil::ComposeRecord(dir_entries, field_data, leader));
-        if (not RecordSeemsCorrect(record, &err_msg))
-            Error("bad record! (" + err_msg + ")");
-
-        const size_t write_count = std::fwrite(record.data(), 1, record.size(), output);
-        if (write_count != record.size())
-            Error("failed to write " + std::to_string(record.size()) + " bytes to \"" + output_filename + "\"!");
+        MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
     }
 
     if (not err_msg.empty())
@@ -371,7 +365,7 @@ void SelectHttpAndHttpsURLs(const std::vector<Record856uEntry> &entries,
     for (auto const &entry : entries) {
         if (IsHttpOrHttpsURL(entry.link_))
             http_urls->insert(entry.link_);
-    }       
+    }
 }
 
 
@@ -382,11 +376,11 @@ void SelectNonHttpAndHttpsLinkEntries(const std::vector<Record856uEntry> &entrie
     for (auto const &entry : entries) {
         if (not IsHttpOrHttpsURL(entry.link_))
             non_http_link_entries->push_back(entry);
-    }       
+    }
 }
 
 
-void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output, const std::string &output_filename) {
+void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) {
     std::shared_ptr<Leader> leader;
     std::vector<DirectoryEntry> dir_entries;
     std::vector<std::string> field_data;
@@ -394,7 +388,6 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output, 
     std::string err_msg;
     while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
         ++count;
-
         std::vector<Record856uEntry> _856u_entries;
         for (unsigned i(0); i < dir_entries.size(); ++i) {
             if (dir_entries[i].getTag() != "856")
@@ -405,7 +398,7 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output, 
             if (_856_subfields.hasSubfield('u')) {
                 const std::pair<Subfields::ConstIterator, Subfields::ConstIterator> begin_end(
                     _856_subfields.getIterators('u'));
-                
+
                 for (Subfields::ConstIterator code_and_value(begin_end.first);
                      code_and_value != begin_end.second; ++code_and_value)
                 {
@@ -430,8 +423,7 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output, 
                             std::cout << "Deleting tag " << dir_entries[non_http_link_entry.index_].getTag()
                                       << " with link \"" << field_data[non_http_link_entry.index_]
                                       << "\" because it is probably a duplicate of \"" << http_url << "\".\n";
-                        dir_entries.erase(dir_entries.begin() + non_http_link_entry.index_);
-                        field_data.erase(field_data.begin() + non_http_link_entry.index_);
+                        MarcUtil::DeleteField(non_http_link_entry.index_, leader, &dir_entries, &field_data);
                         modified_record = true;
                         break;
                     }
@@ -447,16 +439,8 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output, 
                     if (verbose)
                         std::cout << "Replacing \"" << non_http_link_entry.link_ << "\" with \""
                                   << new_http_url << "\".\n";
-                    subfields.replace('u', non_http_link_entry.link_, new_http_url);
 
-                    const size_t orig_length = field_data[non_http_link_entry.index_].size();
-                    field_data[non_http_link_entry.index_] = subfields.toString();
-                    const size_t new_length = field_data[non_http_link_entry.index_].size();
-                    const ssize_t delta = new_length - orig_length;
-                    leader->setRecordLength(leader->getRecordLength() + delta);
-                    dir_entries[non_http_link_entry.index_].setFieldLength(
-                        dir_entries[non_http_link_entry.index_].getFieldLength() + delta);
-
+                    MarcUtil::UpdateField(non_http_link_entry.index_, new_http_url, leader, &dir_entries, &field_data);
                     modified_record = true;
                 }
             }
@@ -465,13 +449,7 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output, 
         if (modified_record)
             ++modified_count;
 
-        const std::string record(MarcUtil::ComposeRecord(dir_entries, field_data, leader));
-        if (not RecordSeemsCorrect(record, &err_msg))
-            Error("bad record! (" + err_msg + ")");
-
-        const size_t write_count = std::fwrite(record.data(), 1, record.size(), output);
-        if (write_count != record.size())
-            Error("failed to write " + std::to_string(record.size()) + " bytes to \"" + output_filename + "\"!");
+        MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
     }
 
     if (not err_msg.empty())
@@ -567,9 +545,9 @@ int main(int argc, char **argv) {
 
     if (bibliotheks_sigel_filtern) {
         std::vector<std::string> patterns = { "LOK:^.*[a]DE-21 *$|^.*[a]DE-21-24 *$|^.*[a]DE-21-110 *$" };
-        DeleteMatched("LOK", patterns, /* invert = */ true, input, output, output_filename);
+        DeleteMatched("LOK", patterns, /* invert = */ true, input, output);
     } else if (normalise_urls)
-        NormaliseURLs(verbose, input, output, output_filename);
+        NormaliseURLs(verbose, input, output);
     else
         Usage();
 
