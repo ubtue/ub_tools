@@ -30,6 +30,7 @@ def ImportIntoVuFind(pattern, log_file_name):
     
 def StartPipeline(pipeline_script_name, data_files, conf):
     log_file_name = util.MakeLogFileName(pipeline_script_name, "/tmp")
+
     ExecOrDie(pipeline_script_name, data_files, log_file_name)
 
     deletion_list_glob = "LOEPPN-[0-9][0-9][0-9][0-9][0-9][0-9]"
@@ -63,6 +64,7 @@ def Main():
                         + "the default email recipient and the name of the MARC-21\n"
                         + "pipeline script to be executed.\n")
          sys.exit(-1)
+
     util.default_email_recipient = sys.argv[1]
     pipeline_script_name = sys.argv[2]
     if not os.access(pipeline_script_name, os.X_OK):

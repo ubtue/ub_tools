@@ -284,7 +284,7 @@ def CreateTarball(tar_file_name, list_of_members, overwrite=False, delete_input_
     
     new_tarfile = tarfile.open(name=tar_file_name, mode=mode)
     for file_and_member_names in list_of_members:
-        new_tarfile.add(name=file_and_member_names[0], arcname=file_and_member_names[1])
+        new_tarfile.add(name=os.path.realpath(file_and_member_names[0]), arcname=file_and_member_names[1])
 
     if not delete_input_files:
         return
