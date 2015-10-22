@@ -1,4 +1,5 @@
 # Locate directories
+VUFIND_HOME=/usr/local/vufind2
 PROJECT_NAME=bibleRangeSearch
 JAR_FILE=BibleRangeParser-1.0.0.jar
 SOLR_JAR_FILE=$(VUFIND_HOME)/solr/lib/BibleRangeParser.jar
