@@ -67,7 +67,7 @@ bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry
                     const std::string institution_and_call_number(institution + call_number_subfield);
                     ++add_sig_count;
                     modified_record = true;
-                    MarcUtil::InsertField(institution_and_call_number, "SIG", leader, dir_entries, field_data);
+                    MarcUtil::InsertField("  ""\x1F""a" + institution_and_call_number, "SIG", leader, dir_entries, field_data);
                 }
             }
             break;

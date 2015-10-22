@@ -1,4 +1,5 @@
 # Locate directories
+VUFIND_HOME=/usr/local/vufind2
 PROJECT_NAME=keywordChainSearch
 JAR_FILE=KeywordChainParser-0.0.1.jar
 SOLR_JAR_FILE=$(VUFIND_HOME)/solr/lib/KeywordChainParser.jar

@@ -91,6 +91,10 @@ void UpdateField(const size_t field_index, const std::string &new_field_contents
 		 const std::shared_ptr<Leader> &leader, std::vector<DirectoryEntry> * const dir_entries,
 		 std::vector<std::string> * const field_data);
 
+/** \brief Deletes the field at index "field_index" and adjusts various field and records lengths.
+  */
+void DeleteField(const size_t field_index, const std::shared_ptr<Leader> &leader,
+				 std::vector<DirectoryEntry> * const dir_entries, std::vector<std::string> * const field_data);
 
 /** \brief Returns 3-letter language codes from field 041a. */
 std::string GetLanguage(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &fields,
