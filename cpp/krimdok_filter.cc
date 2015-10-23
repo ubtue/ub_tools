@@ -439,8 +439,9 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) 
                     if (verbose)
                         std::cout << "Replacing \"" << non_http_link_entry.link_ << "\" with \""
                                   << new_http_url << "\".\n";
+                    subfields.replace('u', non_http_link_entry.link_, new_http_url);
 
-                    MarcUtil::UpdateField(non_http_link_entry.index_, new_http_url, leader, &dir_entries, &field_data);
+                    MarcUtil::UpdateField(non_http_link_entry.index_, subfields.toString(), leader, &dir_entries, &field_data);
                     modified_record = true;
                 }
             }

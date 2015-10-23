@@ -66,7 +66,12 @@ bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry
                 Warning("Can't find title for \"" + child_id + "\"!");
                 continue;
             }
-            // MarcUtil::InsertField("  ""\x1F""a" + child_id + "\x1F""b" + id_and_title_iter->second , "CLD", leader, dir_entries, field_data);
+
+            Subfields subfields(' ', ' ');
+            subfields.addSubfield('a', child_id);
+            subfields.addSubfield('b', id_and_title_iter->second);
+
+            MarcUtil::InsertField(subfields.toString() , "CLD", leader, dir_entries, field_data);
         }
     }
 
