@@ -33,7 +33,8 @@ Subfields::Subfields(const std::string &field_data) {
     
     while (ch != field_data.end()) {
         if (*ch != '\x1F')
-            Error("Expected subfield code delimiter not found!");
+            Error("Expected subfield code delimiter not found! Found " + std::string(1, *ch) + " in " + field_data
+                  + " indicators: " + std::string(1, indicator1_) + ", " + std::string(1, indicator2_));
 
         ++ch;
         if (ch == field_data.end())
