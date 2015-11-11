@@ -17,7 +17,7 @@ CRONJOBS     The list of cronjobs (one per line)
 EOF
 }
 
-if [[ "$#" -ne 2 ]] ; then
+if [[ "$#" -ne 1 ]] ; then
   show_help
   exit 1
 fi
