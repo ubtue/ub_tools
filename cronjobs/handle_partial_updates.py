@@ -111,7 +111,8 @@ def UpdateAllMarcFiles(orig_deletion_list):
             continue
         trimmed_marc_file = marc_file_name[:-4] + "-trimmed.mrc"
         if process_util.Exec(delete_ids_path, args=["augmented_deletion_list", marc_file_name, trimmed_marc_file],
-                             timeout=200, new_stdout="/dev/null", new_stderr="/dev/null") != 0:
+                             timeout=200, new_stdout="/tmp/delete_ids_path.log", new_stderr="/tmp/delete_ids_path.log")
+                             != 0:
             util.Error("Failed to create \"" + trimmed_marc_file + "\"!")
         RemoveOrDie(marc_file_name)
     RemoveOrDie("augmented_deletion_list")
