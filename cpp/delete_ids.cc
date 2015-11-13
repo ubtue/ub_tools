@@ -40,9 +40,8 @@ static void Usage() {
 }
 
 
-void ExtractDeletionIds(FILE * const deletion_list, std::unordered_set<std::string> * const title_deletion_ids,
-                        std::unordered_set<std::string> * const local_deletion_ids)
-{
+void ExtractDeletionIds(FILE *const deletion_list, std::unordered_set <std::string> *const title_deletion_ids,
+                        std::unordered_set <std::string> *const local_deletion_ids) {
     unsigned line_no(0);
     char line[100];
     while (std::fgets(line, sizeof(line), deletion_list) != nullptr) {
@@ -67,9 +66,8 @@ void ExtractDeletionIds(FILE * const deletion_list, std::unordered_set<std::stri
 }
 
 
-int MatchLocalID(const std::unordered_set<std::string> &local_ids, const std::vector<DirectoryEntry> &dir_entries,
-                 const std::vector<std::string> &field_data)
-{
+int MatchLocalID(const std::unordered_set <std::string> &local_ids, const std::vector <DirectoryEntry> &dir_entries,
+                 const std::vector <std::string> &field_data) {
     for (size_t i(0); i < dir_entries.size(); ++i) {
         if (dir_entries[i].getTag() != "LOK")
             continue;
@@ -93,18 +91,18 @@ int MatchLocalID(const std::unordered_set<std::string> &local_ids, const std::ve
 class MatchTag {
     const std::string tag_to_match_;
 public:
-    explicit MatchTag(const std::string &tag_to_match): tag_to_match_(tag_to_match) { }
+    explicit MatchTag(const std::string &tag_to_match) : tag_to_match_(tag_to_match) { }
+
     bool operator()(const DirectoryEntry &dir_entry) const { return dir_entry.getTag() == tag_to_match_; }
 };
 
 
-void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
-                    const std::unordered_set<std::string> &local_deletion_ids, FILE * const input,
-                    FILE * const output)
-{
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
+void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
+                    const std::unordered_set <std::string> &local_deletion_ids, FILE *const input,
+                    FILE *const output) {
+    std::shared_ptr <Leader> leader;
+    std::vector <DirectoryEntry> dir_entries;
+    std::vector <std::string> field_data;
     std::string err_msg;
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
 
@@ -150,16 +148,8 @@ void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids,
                 if (not found_next_000)
                     ++end_local_match;
 
-		// Update the record length field in the leader...
-		size_t deleted_size(0);
-		for (auto dir_entry(dir_entries.cbegin() + start_local_match);
-		     dir_entry != dir_entries.cbegin() + end_local_match; ++dir_entry)
-		    deleted_size += dir_entry->getFieldLength() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
-		leader->setRecordLength(leader->getRecordLength() - deleted_size);
-
-                // ... and throw away the matched local data set.
-                dir_entries.erase(dir_entries.begin() + start_local_match, dir_entries.begin() + end_local_match);\
-                field_data.erase(field_data.begin() + start_local_match, field_data.begin() + end_local_match);\
+                for (ssize_t dir_entry(end_local_match - 1); dir_entry >= start_local_match; --dir_entry)
+                    MarcUtil::DeleteField(dir_entry, leader, &dir_entries, &field_data);
 
                 modified = true;
             }
@@ -200,7 +190,7 @@ int main(int argc, char *argv[]) {
     if (deletion_list == nullptr)
         Error("can't open \"" + deletion_list_filename + "\" for reading!");
 
-    std::unordered_set<std::string> title_deletion_ids, local_deletion_ids;
+    std::unordered_set <std::string> title_deletion_ids, local_deletion_ids;
     ExtractDeletionIds(deletion_list, &title_deletion_ids, &local_deletion_ids);
 
     const std::string marc_input_filename(argv[2]);
