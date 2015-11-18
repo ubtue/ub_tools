@@ -17,6 +17,12 @@ import java.util.regex.Pattern;
 
 public class TuelibMixin extends SolrIndexerMixin {
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
+    private Set<String> isils_cache = null;
+
+    @Override
+    public void perRecordInit(final Record record) {
+        isils_cache = null;
+    }
 
     /**
      * Determine Record Title
@@ -169,14 +175,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
         return urls_and_material_types;
-    }
-
-    /**
-     * @param record the record
-     * @return
-     */
-    public String hasSignatures(final Record record) {
-        return Boolean.toString(!record.getVariableFields("SIG").isEmpty());
     }
 
     /**
@@ -362,6 +360,10 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return Set of   isils
      */
     public Set<String> getIsils(final Record record) {
+        if (isils_cache != null) {
+            return isils_cache;
+        }
+
         final Set<String> isils = new LinkedHashSet<>();
         final List<VariableField> fields = record.getVariableFields("LOK");
         if (fields != null) {
@@ -381,7 +383,20 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (isils.isEmpty()) { // Nothing worked!
             isils.add("Unknown");
         }
+        this.isils_cache = isils;
         return isils;
+    }
+
+    /**
+     * @param record the record
+     * @return
+     */
+    public String isAvailableInTuebingen(final Record record) {
+        Set<String> isils = getIsils(record);
+        if (isils.contains("DE-21") || isils.contains("DE-21-110")) {
+            return Boolean.toString(true);
+        }
+        return Boolean.toString(!record.getVariableFields("SIG").isEmpty());
     }
 
     // TODO: This should be in a translation mapping file
