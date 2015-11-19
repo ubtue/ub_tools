@@ -370,7 +370,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             for (final VariableField variableField : fields) {
                 final DataField lokfield = (DataField) variableField;
                 final Subfield subfield0 = lokfield.getSubfield('0');
-                if (subfield0 == null || !subfield0.getData().equals("852")) {
+                if (subfield0 == null || !subfield0.getData().startsWith("852")) {
                     continue;
                 }
                 final Subfield subfieldA = lokfield.getSubfield('a');
@@ -392,7 +392,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return
      */
     public String isAvailableInTuebingen(final Record record) {
-        Set<String> isils = getIsils(record);
+        final Set<String> isils = getIsils(record);
         if (isils.contains("DE-21") || isils.contains("DE-21-110")) {
             return Boolean.toString(true);
         }
