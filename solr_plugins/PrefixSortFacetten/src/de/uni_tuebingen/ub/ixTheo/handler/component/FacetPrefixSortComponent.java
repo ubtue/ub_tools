@@ -61,11 +61,12 @@ import org.apache.solr.handler.component.*;
  */
 @SuppressWarnings("rawtypes")
 //public class FacetComponent extends SearchComponent {
-public class FacetComponent extends org.apache.solr.handler.component.FacetComponent {
+public class FacetPrefixSortComponent extends FacetComponent {
 
   @Override
   public void prepare(ResponseBuilder rb) throws IOException {
 
+	SolrParams params = rb.req.getParams();
 	super.prepare(rb);
 
   }
