@@ -42,18 +42,18 @@ static unsigned modified_record_count;
 static unsigned add_sig_count;
 
 
-bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry> * const dir_entries,
-                   std::vector <std::string> * const field_data, std::string * const /*err_msg*/) {
+bool ProcessRecord(MarcUtil::Record * const record, std::string * const /*err_msg*/) {
     std::vector <std::pair<size_t, size_t>> local_block_boundaries;
-    MarcUtil::FindAllLocalDataBlocks(*dir_entries, *field_data, &local_block_boundaries);
+    record->findAllLocalDataBlocks(&local_block_boundaries);
 
     bool modified_record(false);
+    const std::vector<std::string> &fields(record->getFields());
     for (const auto &block_start_and_end : local_block_boundaries) {
         std::vector <size_t> _852_field_indices;
-        if (MarcUtil::FindFieldsInLocalBlock("852", "??", block_start_and_end, *field_data, &_852_field_indices) == 0)
+        if (record->findFieldsInLocalBlock("852", "??", block_start_and_end, &_852_field_indices) == 0)
             continue;
         for (const size_t _852_index : _852_field_indices) {
-            const Subfields subfields1((*field_data)[_852_index]);
+            const Subfields subfields1(fields[_852_index]);
             const std::string isil_subfield(subfields1.getFirstSubfieldValue('a'));
 
             if (isil_subfield != "DE-21" and isil_subfield != "DE-21-110")
@@ -61,13 +61,13 @@ bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry
 
             const std::string institution(isil_subfield == "DE-21" ? "UB: " : "IFK: ");
             if (_852_index + 1 < block_start_and_end.second) {
-                const Subfields subfields2((*field_data)[_852_index + 1]);
+                const Subfields subfields2(fields[_852_index + 1]);
                 const std::string call_number_subfield(subfields2.getFirstSubfieldValue('c'));
                 if (not call_number_subfield.empty()) {
                     const std::string institution_and_call_number(institution + call_number_subfield);
                     ++add_sig_count;
                     modified_record = true;
-                    MarcUtil::InsertField("  ""\x1F""a" + institution_and_call_number, "SIG", leader, dir_entries, field_data);
+                    record->insertField("  ""\x1F""a" + institution_and_call_number, "SIG");
                 }
             }
             break;
@@ -77,7 +77,7 @@ bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry
     if (modified_record)
         ++modified_record_count;
 
-    MarcUtil::ComposeAndWriteRecord(output_ptr, *dir_entries, *field_data, leader);
+    record->write(output_ptr);
     return true;
 }
 

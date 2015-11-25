@@ -49,27 +49,26 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
     if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
-    std::string err_msg;
     unsigned count(0), result_count(0);
-
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (std::feof(input) == 0) {
+	const MarcUtil::Record record(input);
         ++count;
 
-        const bool is_article(leader->isArticle());
-        const bool is_serial(leader->isSerial());
+	const Leader &leader(record.getLeader());
+        const bool is_article(leader.isArticle());
+        const bool is_serial(leader.isSerial());
         if (not is_article and not is_serial)
             continue;
 
         std::string control_number, isbn, issn;
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+	const std::vector<std::string> &fields(record.getFields());
         for (unsigned i(0); i < dir_entries.size(); ++i) {
             const std::string tag(dir_entries[i].getTag());
             if (tag == "001")
-                control_number = field_data[i];
+                control_number = fields[i];
             else if (tag == "020" or tag == "022") {
-                const Subfields subfields(field_data[i]);
+                const Subfields subfields(fields[i]);
                 auto begin_end = subfields.getIterators('a');
                 if (begin_end.first != begin_end.second) {
                     if (tag == "020")
@@ -78,7 +77,7 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
                         issn = begin_end.first->second;
                 }
             } else if (is_article and tag == "773") {
-                const Subfields subfields(field_data[i]);
+                const Subfields subfields(fields[i]);
                 auto begin_end = subfields.getIterators('x'); // ISSN
                 if (begin_end.first != begin_end.second)
                     issn = begin_end.first->second;
@@ -101,9 +100,6 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
             std::cout << (is_serial ? "journal" : "article") << ", ISBN: " << isbn << '\n';
     }
 
-    if (not err_msg.empty())
-        Error(err_msg);
-
 done:
     std::cerr << "Matched " << result_count << " records of " << count << " overall records.\n";
 
@@ -123,5 +119,9 @@ int main(int argc, char **argv) {
             Usage();
     }
 
-    JOP_Grep(argv[1], max_result_count);
+    try {
+	JOP_Grep(argv[1], max_result_count);
+    } catch (const std::exception &x) {
+	Error("caught exception: " + std::string(x.what()));
+    }
 }

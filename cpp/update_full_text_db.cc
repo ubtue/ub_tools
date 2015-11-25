@@ -82,18 +82,15 @@ static std::map<std::string, std::string> marc_to_tesseract_language_codes_map {
 };
 
 
-std::string GetTesseractLanguageCode(const std::vector<DirectoryEntry> &dir_entries,
-                                     const std::vector<std::string> &field_data)
-{
+std::string GetTesseractLanguageCode(const MarcUtil::Record &record) {
     const auto map_iter(marc_to_tesseract_language_codes_map.find(
-        MarcUtil::GetLanguageCode(dir_entries, field_data)));
+        record.getLanguageCode()));
     return (map_iter == marc_to_tesseract_language_codes_map.cend()) ? "" : map_iter->second;
 }
 
 
 bool GetTextFromImagePDF(const std::string &document, const std::string &media_type, const std::string &original_url,
-                         const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
-                         const std::string &pdf_images_script, std::string * const extracted_text)
+			 const MarcUtil::Record &record, const std::string &pdf_images_script, std::string * const extracted_text)
 {
     extracted_text->clear();
 
@@ -109,7 +106,7 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
-    const std::string language_code(GetTesseractLanguageCode(dir_entries, field_data));
+    const std::string language_code(GetTesseractLanguageCode(record));
     static constexpr unsigned TIMEOUT(60); // in seconds
     if (ExecUtil::Exec(pdf_images_script, { input_filename, output_filename, language_code }, "", "", "", TIMEOUT)
 	!= 0)
@@ -173,23 +170,20 @@ std::string FileLockedWriteDocumentWithMediaType(const std::string &media_type, 
 bool ProcessRecord(FILE * const input, const std::string &marc_output_filename,
 		   const std::string &pdf_images_script, const std::string &db_filename)
 {
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
-    std::string err_msg;
-    if (not MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg))
-	Error("failed to read MARC record!");
+    MarcUtil::Record record(input);
 
-    ssize_t _856_index(MarcUtil::GetFieldIndex(dir_entries, "856"));
+    ssize_t _856_index(record.getFieldIndex("856"));
     if (_856_index == -1)
 	Error("no 856 tag found!");
 
     constexpr unsigned PER_DOC_TIMEOUT(20);
     bool succeeded(false);
 
+    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+    const std::vector<std::string> &fields(record.getFields());
     const ssize_t dir_entry_count(static_cast<ssize_t>(dir_entries.size()));
     for (/* Empty! */; _856_index < dir_entry_count and dir_entries[_856_index].getTag() == "856"; ++_856_index) {
-        Subfields subfields(field_data[_856_index]);
+        Subfields subfields(fields[_856_index]);
         const auto u_begin_end(subfields.getIterators('u'));
         if (u_begin_end.first == u_begin_end.second) // No subfield 'u'.
             continue;
@@ -203,15 +197,14 @@ bool ProcessRecord(FILE * const input, const std::string &marc_output_filename,
             continue;
 
         std::string extracted_text, key;
-        if (GetTextFromImagePDF(document, media_type, url, dir_entries, field_data,
-                                pdf_images_script, &extracted_text))
+        if (GetTextFromImagePDF(document, media_type, url, record, pdf_images_script, &extracted_text))
             key = FileLockedWriteDocumentWithMediaType("text/plain", extracted_text, db_filename);
         else
             key = FileLockedWriteDocumentWithMediaType(media_type, document, db_filename);
 
         subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
         const std::string new_856_field(subfields.toString());
-        MarcUtil::UpdateField(_856_index, new_856_field, leader, &dir_entries, &field_data);
+        record.updateField(_856_index, new_856_field);
 
 	succeeded = true;
     }
@@ -221,7 +214,7 @@ bool ProcessRecord(FILE * const input, const std::string &marc_output_filename,
     FILE * const marc_output(std::fopen(marc_output_filename.c_str(), "ab"));
     if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for appending!");
-    MarcUtil::ComposeAndWriteRecord(marc_output, dir_entries, field_data, leader);
+    record.write(marc_output);
     std::fclose(marc_output);
 
     return succeeded;
