@@ -35,10 +35,6 @@ private:
     std::string raw_leader_;
     unsigned record_length_;
     unsigned base_address_of_data_;
-
-    /** Constructs a leader from its constituent parts. */
-    Leader(const std::string &raw_leader, unsigned record_length, unsigned base_address_of_data)
-        : raw_leader_(raw_leader), record_length_(record_length), base_address_of_data_(base_address_of_data) {}
 public:
     /** \brief Creates a "Leader" instance from a binary MARC-21 leader blob.
      *  \param leader_string  The binary blob that should be a leader from a MARC-21 record.
@@ -47,8 +43,7 @@ public:
      *  \param err_msg        If not nullptr and a parse error occurred an informational text will be returned here.
      *  \return True if the parse succeeded, else false.
      */
-    static bool ParseLeader(const std::string &leader_string, std::shared_ptr<Leader> &leader,
-                            std::string * const err_msg = nullptr);
+    static bool ParseLeader(const std::string &leader_string, Leader * const leader, std::string * const err_msg = nullptr);
 
     /** \brief Index operator returning the n'th byte of the leader.
      *  \param pos  The offset of the byte to return.  Must be < Leader::LEADER_LENGTH.

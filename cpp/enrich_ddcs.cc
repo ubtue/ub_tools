@@ -45,11 +45,11 @@ bool IsPossibleDDC(const std::string &ddc_candidate) {
 
 
 void ExtractDDCsFromField(const std::string &tag, const std::vector<DirectoryEntry> &dir_entries,
-			  const std::vector<std::string> &field_data, std::set<std::string> * const ddcs)
+			  const std::vector<std::string> &fields, std::set<std::string> * const ddcs)
 {
     const auto begin_end(DirectoryEntry::FindFields(tag, dir_entries));
     for (auto iter(begin_end.first); iter != begin_end.second; ++iter) {
-	const Subfields subfields(field_data[iter - dir_entries.begin()]);
+	const Subfields subfields(fields[iter - dir_entries.begin()]);
 	if (subfields.hasSubfield('z')) // Auxillary table number => not a regular DDC in $a!
 	    continue;
 
@@ -59,8 +59,6 @@ void ExtractDDCsFromField(const std::string &tag, const std::vector<DirectoryEnt
 		ddcs->insert(ddc->second);
 	}
     }
-
-    
 }
 
 
@@ -71,31 +69,27 @@ void ExtractDDCsFromNormdata(const bool verbose, FILE * const norm_input,
     if (verbose)
         std::cerr << "Starting loading of norm data.\n";
 
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     unsigned count(0), ddc_record_count(0);
-    std::string err_msg;
-    while (MarcUtil::ReadNextRecord(norm_input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (std::feof(norm_input) == 0) {
+	const MarcUtil::Record record(norm_input);
         ++count;
 
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const auto _001_iter(DirectoryEntry::FindField("001", dir_entries));
         if (_001_iter == dir_entries.end())
             continue;
-        const std::string &control_number(field_data[_001_iter - dir_entries.begin()]);
+	const std::vector<std::string> &fields(record.getFields());
+        const std::string &control_number(fields[_001_iter - dir_entries.begin()]);
 
 	std::set<std::string> ddcs;
-	ExtractDDCsFromField("083", dir_entries, field_data, &ddcs);
-	ExtractDDCsFromField("089", dir_entries, field_data, &ddcs);
+	ExtractDDCsFromField("083", dir_entries, fields, &ddcs);
+	ExtractDDCsFromField("089", dir_entries, fields, &ddcs);
 
 	if (not ddcs.empty()) {
 	    ++ddc_record_count;
 	    norm_ids_to_ddcs_map->insert(std::make_pair(control_number, ddcs));
 	}
     }
-
-    if (not err_msg.empty())
-        Error("Read error while trying to read the norm data file: " + err_msg);
 
     if (verbose) {
         std::cerr << "Read " << count << " norm data records.\n";
@@ -104,22 +98,23 @@ void ExtractDDCsFromNormdata(const bool verbose, FILE * const norm_input,
 }
 
 
-void ExtractTopicIDs(const std::string &fields, const std::vector<DirectoryEntry> &dir_entries,
-		     const std::vector<std::string> &field_data, const std::set<std::string> &existing_ddcs,
+void ExtractTopicIDs(const std::string &tags, const MarcUtil::Record &record, const std::set<std::string> &existing_ddcs,
 		     std::set<std::string> * const topic_ids)
 {
     topic_ids->clear();
 
-    std::vector<std::string> tags;
-    StringUtil::Split(fields, ':', &tags);
+    std::vector<std::string> individual_tags;
+    StringUtil::Split(tags, ':', &individual_tags);
 
-    for (const auto &tag : tags) {
-        const ssize_t first_index(MarcUtil::GetFieldIndex(dir_entries, tag));
+    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+    const std::vector<std::string> &fields(record.getFields());
+    for (const auto &tag : individual_tags) {
+        const ssize_t first_index(record.getFieldIndex(tag));
         if (first_index == -1)
             continue;
 
         for (size_t index(first_index); index < dir_entries.size() and dir_entries[index].getTag() == tag; ++index) {
-            const Subfields subfields(field_data[index]);
+            const Subfields subfields(fields[index]);
             const auto begin_end(subfields.getIterators('0'));
             for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
                 if (not StringUtil::StartsWith(subfield0->second, "(DE-576)"))
@@ -140,25 +135,24 @@ void AugmentRecordsWithDDCs(const bool verbose, FILE * const title_input, FILE *
     if (verbose)
         std::cerr << "Starting augmenting of data.\n";
 
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     unsigned count(0), augmented_count(0), already_had_ddcs(0), never_had_ddcs_and_now_have_ddcs(0);
-    std::string err_msg;
-    while (MarcUtil::ReadNextRecord(title_input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (std::feof(title_input) == 0) {
+	MarcUtil::Record record(title_input);
         ++count;
 
 	// Extract already existing DDCs:
 	std::set<std::string> existing_ddcs;
-	ExtractDDCsFromField("082", dir_entries, field_data, &existing_ddcs);
-	ExtractDDCsFromField("083", dir_entries, field_data, &existing_ddcs);
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+	const std::vector<std::string> &fields(record.getFields());
+	ExtractDDCsFromField("082", dir_entries, fields, &existing_ddcs);
+	ExtractDDCsFromField("083", dir_entries, fields, &existing_ddcs);
 	if (not existing_ddcs.empty())
 	    ++already_had_ddcs;
 	
 	std::set<std::string> topic_ids; // = the IDs of the corresponding norm data records
-	ExtractTopicIDs("600:610:611:630:650:653:656:689", dir_entries, field_data, existing_ddcs, &topic_ids);
+	ExtractTopicIDs("600:610:611:630:650:653:656:689", record, existing_ddcs, &topic_ids);
 	if (topic_ids.empty()) {
-	    MarcUtil::ComposeAndWriteRecord(title_output, dir_entries, field_data, leader);
+	    record.write(title_output);
 	    continue;
 	}
 
@@ -175,11 +169,11 @@ void AugmentRecordsWithDDCs(const bool verbose, FILE * const title_input, FILE *
 		++never_had_ddcs_and_now_have_ddcs;
 	    for (const auto &new_ddc : new_ddcs) {
 		const std::string new_field("0 ""\x1F""a" + new_ddc);
-		MarcUtil::InsertField(new_field, "082", leader, &dir_entries, &field_data);
+		record.insertField(new_field, "082");
 	    }
 	}
 
-	MarcUtil::ComposeAndWriteRecord(title_output, dir_entries, field_data, leader);
+	record.write(title_output);
     }
 
     if (verbose) {
@@ -231,9 +225,14 @@ int main(int argc, char *argv[]) {
     if (unlikely(norm_input_filename == title_output_filename))
         Error("Norm data input file name equals title output file name!");
 
-    std::unordered_map<std::string, std::set<std::string>> norm_ids_to_ddcs_map;
-    ExtractDDCsFromNormdata(verbose, norm_input, &norm_ids_to_ddcs_map);
-    std::fclose(norm_input);
-    AugmentRecordsWithDDCs(verbose, title_input, title_output, norm_ids_to_ddcs_map);
+    try {
+	std::unordered_map<std::string, std::set<std::string>> norm_ids_to_ddcs_map;
+	ExtractDDCsFromNormdata(verbose, norm_input, &norm_ids_to_ddcs_map);
+	std::fclose(norm_input);
+	AugmentRecordsWithDDCs(verbose, title_input, title_output, norm_ids_to_ddcs_map);
+    } catch (const std::exception &x) {
+	Error("caught exception: " + std::string(x.what()));
+    }
+
     std::fclose(title_input);
 }

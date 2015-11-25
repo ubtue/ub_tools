@@ -108,24 +108,23 @@ void AugmentStopwordsWithTitleWords(
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     unsigned total_count(0), augment_count(0), title_count(0);
-    std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (std::feof(input) == 0) {
+	const MarcUtil::Record record(input);
         ++total_count;
 
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
         if (entry_iterator == dir_entries.end()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+	    record.write(output);
             continue;
         }
 
         const size_t title_index(entry_iterator - dir_entries.begin());
-        Subfields subfields(field_data[title_index]);
+	const std::vector<std::string> &fields(record.getFields());
+        Subfields subfields(fields[title_index]);
         if (not subfields.hasSubfield('a')) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+	    record.write(output);
             continue;
         }
 
@@ -142,7 +141,7 @@ void AugmentStopwordsWithTitleWords(
         TextUtil::ChopIntoWords(title, &title_words, /* min_word_length = */ 3);
         LowercaseSet(&title_words);
 
-        const std::string language_code(MarcUtil::GetLanguage(dir_entries, field_data));
+        const std::string language_code(record.getLanguage());
         const auto code_and_stopwords(language_codes_to_stopword_sets.find(language_code));
         if (code_and_stopwords != language_codes_to_stopword_sets.end())
             FilterOutStopwords(code_and_stopwords->second, &title_words);
@@ -150,7 +149,7 @@ void AugmentStopwordsWithTitleWords(
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+	    record.write(output);
             continue;
         }
 
