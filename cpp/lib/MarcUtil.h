@@ -65,19 +65,25 @@ public:
 
     void insertField(const std::string &new_field_tag, const std::string &new_field_value);
 
-
     /** \brief Deletes the field at index "field_index" and adjusts various field and records lengths. */
     void deleteField(const size_t field_index);
 
-
     /** \brief Extract values from all subfields from a list of fields.
      *  \param tags    A colon-separated list of field tags.
-     *  \param values  Here the exracted subfield values will be returned.
+     *  \param values  Here the extracted subfield values will be returned.
      *  \param ignore_subfield_codes  Subfields whose codes are listed here will not be extracted.
      *  \return The number of values that have been extracted.
      */
     size_t extractAllSubfields(const std::string &tags, std::vector<std::string> * const values,
 			       const std::string &ignore_subfield_codes = "") const;
+
+    /** \brief Extract values from a, possibly repeated, subfield from a, possibly repeated, field.
+     *  \param tag            A field tag.
+     *  \param subfield_code  The subfield from which we'd like the values.
+     *  \param values         Here the extracted subfield values will be returned.
+     *  \return The number of values that have been extracted.
+     */
+    size_t extractSubfield(const std::string &tag, const char subfield_code, std::vector<std::string> * const values) const;
 
     /** \brief Remove matching tags and corresponding fields. */
     void filterTags(const std::unordered_set<std::string> &drop_tags);
