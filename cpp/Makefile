@@ -5,7 +5,7 @@ PROGS=marc_grep jop_grep download_test add_isbns_or_issns_to_articles marc_grep_
       enrich_keywords_with_title_words test_find_substring test_chop_into_words test_auto_temp_file \
       update_ixtheo_notations update_full_text_db kcdb_info fix_article_biblio_levels marc_info mysql_test \
       deserialise_php_test notify_users send_email_test urlencode regex_matcher xml_parser_test \
-      compress_test populate_in_tuebingen_available
+      compress_test populate_in_tuebingen_available map_ddc_and_rvk_to_ixtheo_notations.cc dsv_reader
 INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=g++
@@ -188,6 +188,12 @@ update_ixtheo_notations.o: update_ixtheo_notations.cc lib/DirectoryEntry.h lib/L
 update_ixtheo_notations: update_ixtheo_notations.o lib/libmarc.a
 	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
 
+map_ddc_and_rvk_to_ixtheo_notations.o: map_ddc_and_rvk_to_ixtheo_notations.cc lib/DirectoryEntry.h lib/Leader.h lib/MarcUtil.h \
+                         lib/Subfields.h lib/util.h
+
+map_ddc_and_rvk_to_ixtheo_notations: map_ddc_and_rvk_to_ixtheo_notations.o lib/libmarc.a
+	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto
+
 test_find_substring.o: test_find_substring.cc lib/TextUtil.h lib/StringUtil.h lib/util.h
 
 test_find_substring: test_find_substring.o lib/libmarc.a
@@ -221,6 +227,11 @@ mysql_test: mysql_test.o lib/libmarc.a
 regex_matcher.o: regex_matcher.cc lib/RegexMatcher.h lib/util.h
 
 regex_matcher: regex_matcher.o lib/libmarc.a
+	$(CCC) -o $@ $^ -lcrypto $(LIBMARIADB) -Llib -lmarc -lpcre
+
+dsv_reader.o: dsv_reader.cc lib/util.h
+
+dsv_reader: dsv_reader.o lib/libmarc.a
 	$(CCC) -o $@ $^ -lcrypto $(LIBMARIADB) -Llib -lmarc -lpcre
 
 notify_users.o: notify_users.cc lib/DbConnection.h lib/DbResultSet.h lib/DbRow.h lib/util.h lib/Compiler.h \

@@ -22,6 +22,7 @@ db_lookup
 delete_ids
 deserialise_php_test
 download_test
+dsv_reader
 enrich_ddcs
 enrich_keywords_with_title_words
 exec_test
