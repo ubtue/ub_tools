@@ -363,6 +363,25 @@ size_t Record::extractAllSubfields(const std::string &tags, std::vector<std::str
 }
 
 
+size_t Record::extractSubfield(const std::string &tag, const char subfield_code, std::vector<std::string> * const values) const {
+    values->clear();
+
+    ssize_t field_index(getFieldIndex(tag));
+    if (field_index == -1)
+	return 0;
+
+    while (static_cast<size_t>(field_index) < dir_entries_.size() and tag == dir_entries_[field_index].getTag()) {
+        const Subfields subfields(fields_[field_index]);
+	const auto begin_end(subfields.getIterators(subfield_code));
+	for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second; ++subfield_code_and_value)
+	    values->emplace_back(subfield_code_and_value->second);
+	++field_index;
+    }
+
+    return values->size();
+}
+
+
 void Record::filterTags(const std::unordered_set<std::string> &drop_tags) {
     std::vector<size_t> matched_slots;
     matched_slots.reserve(dir_entries_.size());
