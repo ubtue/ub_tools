@@ -170,7 +170,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
             if (not record.extractFirstSubfield("020", 'a').empty())
                 continue; // We already have an ISBN.
             std::string new_field_020("  ""\x1F""a" + parent_isbn_or_issn_iter->second);
-            record.insertField(new_field_020, "020");
+            record.insertField("020", new_field_020);
             ++isbns_added;
         }
 
