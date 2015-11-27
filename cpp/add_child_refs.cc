@@ -49,12 +49,12 @@ void Usage() {
 }
 
 
-void ProcessRecord(FILE * const output, MarcUtil::Record &record) {
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+void ProcessRecord(FILE * const output, MarcUtil::Record * const record) {
+    const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
     if (dir_entries.at(0).getTag() != "001")
         Error("First field of record is not \"001\"!");
 
-    const std::vector<std::string> field_data(record.getFields());
+    const std::vector<std::string> field_data(record->getFields());
     const auto map_iter(parent_to_children_map.find(field_data.at(0)));
     if (map_iter != parent_to_children_map.end()) {
         std::vector<std::string> child_ids;
@@ -70,20 +70,18 @@ void ProcessRecord(FILE * const output, MarcUtil::Record &record) {
             subfields.addSubfield('a', child_id);
             subfields.addSubfield('b', id_and_title_iter->second);
 
-            record.insertField("CLD", subfields.toString());
+            record->insertField("CLD", subfields.toString());
         }
 	++modified_count;
     }
 
-    record.write(output);
+    record->write(output);
 }
 
 
 void AddChildRefs(FILE * const input, FILE * const output) {
-    while (std::feof(input) == 0) {
-	MarcUtil::Record record(input);
-	ProcessRecord(output, record);
-    }
+    while (MarcUtil::Record record = MarcUtil::Record(input))
+	ProcessRecord(output, &record);
 
     std::cerr << "Modified " << modified_count << " record(s).\n";
 }

@@ -82,6 +82,9 @@ namespace MarcUtil {
 
 
 Record::Record(FILE * const input) {
+    if (std::feof(input))
+	return; // Create an empty instance!
+
     //
     // Read leader.
     //

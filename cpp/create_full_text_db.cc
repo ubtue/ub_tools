@@ -140,8 +140,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     std::cout << "Skip " << skip_count << " records\n";
 
-    while (std::feof(input) == 0) {
-	const MarcUtil::Record record(input);
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         last_offset = offset;
         offset += leader->getRecordLength();
 

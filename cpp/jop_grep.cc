@@ -50,8 +50,7 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
         Error("can't open \"" + input_filename + "\" for reading!");
 
     unsigned count(0), result_count(0);
-    while (std::feof(input) == 0) {
-	const MarcUtil::Record record(input);
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
 	const Leader &leader(record.getLeader());

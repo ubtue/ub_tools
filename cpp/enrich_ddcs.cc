@@ -70,8 +70,7 @@ void ExtractDDCsFromNormdata(const bool verbose, FILE * const norm_input,
         std::cerr << "Starting loading of norm data.\n";
 
     unsigned count(0), ddc_record_count(0);
-    while (std::feof(norm_input) == 0) {
-	const MarcUtil::Record record(norm_input);
+    while (const MarcUtil::Record record = MarcUtil::Record(norm_input)) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -136,8 +135,7 @@ void AugmentRecordsWithDDCs(const bool verbose, FILE * const title_input, FILE *
         std::cerr << "Starting augmenting of data.\n";
 
     unsigned count(0), augmented_count(0), already_had_ddcs(0), never_had_ddcs_and_now_have_ddcs(0);
-    while (std::feof(title_input) == 0) {
-	MarcUtil::Record record(title_input);
+    while (MarcUtil::Record record = MarcUtil::Record(title_input)) {
         ++count;
 
 	// Extract already existing DDCs:

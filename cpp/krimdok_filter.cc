@@ -105,8 +105,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
         Error("Error while compiling patterns: " + err_msg);
 
     unsigned count(0), matched_count(0);
-    while (std::feof(input) == 0) {
-	const MarcUtil::Record record(input);
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -154,8 +153,7 @@ void DumpEditFormat(const std::string &input_filename, const std::string &output
     std::vector<std::string> field_data;
     std::string err_msg;
     unsigned count(0);
-    while (std::feof(input) == 0) {
-	const MarcUtil::Record record(input);
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
         output << "=LDR  ....." << leader->toString().substr(5) << '\n';
@@ -247,8 +245,7 @@ void DeleteMatched(const std::string &tags_list, const std::vector<std::string> 
     }
 
     unsigned count(0), modified_count(0);
-    while (std::feof(input) == 0) {
-	MarcUtil::Record record(input);
+    while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
         bool matched(false);
@@ -339,8 +336,7 @@ void SelectNonHttpAndHttpsLinkEntries(const std::vector<Record856uEntry> &entrie
 
 void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) {
     unsigned count(0), modified_count(0);
-    while (std::feof(input) == 0) {
-	MarcUtil::Record record(input);
+    while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
         std::vector<Record856uEntry> _856u_entries;
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());

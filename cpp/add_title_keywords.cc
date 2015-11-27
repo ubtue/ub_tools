@@ -109,8 +109,7 @@ void AugmentStopwordsWithTitleWords(
         std::cerr << "Starting augmentation of stopwords.\n";
 
     unsigned total_count(0), augment_count(0), title_count(0);
-    while (std::feof(input) == 0) {
-	const MarcUtil::Record record(input);
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++total_count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
