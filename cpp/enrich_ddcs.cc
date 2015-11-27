@@ -169,7 +169,7 @@ void AugmentRecordsWithDDCs(const bool verbose, FILE * const title_input, FILE *
 		++never_had_ddcs_and_now_have_ddcs;
 	    for (const auto &new_ddc : new_ddcs) {
 		const std::string new_field("0 ""\x1F""a" + new_ddc);
-		record.insertField(new_field, "082");
+		record.insertField("082", new_field);
 	    }
 	}
 

@@ -67,7 +67,7 @@ bool ProcessRecord(MarcUtil::Record * const record, std::string * const /*err_ms
                     const std::string institution_and_call_number(institution + call_number_subfield);
                     ++add_sig_count;
                     modified_record = true;
-                    record->insertField("  ""\x1F""a" + institution_and_call_number, "SIG");
+                    record->insertField("SIG", "  ""\x1F""a" + institution_and_call_number);
                 }
             }
             break;
