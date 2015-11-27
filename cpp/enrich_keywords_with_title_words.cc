@@ -379,7 +379,7 @@ void AugmentRecordsWithTitleKeywords(
 	// Augment the record with new keywords derived from title words:
 	for (const auto &new_keyword : new_keyphrases) {
 	    const std::string field_contents("  ""\x1F""a" + new_keyword);
-	    record.insertField(field_contents, "601");
+	    record.insertField("601", field_contents);
 	}
 
 	record.write(output);

@@ -149,7 +149,7 @@ void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FI
 	}
 
 	if (not ixtheo_notations_list.empty()) // Insert a new 652 field w/ a $a subfield.
-	    record.insertField("  ""\x1F""a" + ixtheo_notations_list, "652");
+	    record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list);
 	record.write(output.get());
     }
 
