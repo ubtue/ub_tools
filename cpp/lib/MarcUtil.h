@@ -78,6 +78,16 @@ public:
     size_t extractAllSubfields(const std::string &tags, std::vector<std::string> * const values,
 			       const std::string &ignore_subfield_codes = "") const;
 
+    /** \brief Extract values from all subfields from a list of fields.
+     *  \param tags                       A colon-separated list of field tags.
+     *  \param subfield_codes_and_values  Here the extracted subfield codes and values will be returned.
+     *  \param ignore_subfield_codes      Subfields whose codes are listed here will not be extracted.
+     *  \return The number of values that have been extracted.
+     */
+    size_t extractAllSubfields(const std::string &tags,
+			       std::vector<std::pair<char, std::string>> * const subfield_codes_and_values,
+			       const std::string &ignore_subfield_codes = "") const;
+
     /** \brief Extract values from a, possibly repeated, subfield from a, possibly repeated, field.
      *  \param tag            A field tag.
      *  \param subfield_code  The subfield from which we'd like the values.
