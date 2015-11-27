@@ -373,6 +373,30 @@ size_t Record::extractAllSubfields(const std::string &tags, std::vector<std::str
 }
 
 
+size_t Record::extractAllSubfields(const std::string &tags,
+				   std::vector<std::pair<char, std::string>> * const subfield_codes_and_values,
+				   const std::string &ignore_subfield_codes) const
+{
+    subfield_codes_and_values->clear();
+
+    std::vector<std::string> individual_tags;
+    StringUtil::Split(tags, ':', &individual_tags);
+    for (const auto &tag : individual_tags) {
+        const ssize_t field_index(getFieldIndex(tag));
+        if (field_index == -1)
+            continue;
+
+        const Subfields subfields(fields_[field_index]);
+        for (const auto &subfield_code_and_value : subfields.getAllSubfields()) {
+            if (ignore_subfield_codes.find(subfield_code_and_value.first) == std::string::npos)
+                subfield_codes_and_values->emplace_back(subfield_code_and_value);
+        }
+    }
+
+    return subfield_codes_and_values->size();
+}
+    
+
 size_t Record::extractSubfield(const std::string &tag, const char subfield_code, std::vector<std::string> * const values) const {
     values->clear();
 
