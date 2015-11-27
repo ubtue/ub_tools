@@ -288,6 +288,9 @@ void Record::updateField(const size_t field_index, const std::string &new_field_
 
 
 void Record::insertField(const std::string &new_field_tag, const std::string &new_field_value) {
+    if (new_field_tag.length() != 3)
+	throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of 3!");
+
     leader_.setRecordLength(leader_.getRecordLength() + new_field_value.length()
                             + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1 /* For new field separator. */);
     leader_.setBaseAddressOfData(leader_.getBaseAddressOfData() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
