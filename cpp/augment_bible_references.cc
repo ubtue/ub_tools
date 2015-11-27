@@ -682,7 +682,7 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
 
             // Put the data into the $a subfield:
             range_string = "  ""\x1F""a" + range_string;
-            record.insertField(range_string, BIB_REF_RANGE_TAG);
+            record.insertField(BIB_REF_RANGE_TAG, range_string);
         }
 
 	record.write(output);
