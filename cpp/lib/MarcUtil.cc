@@ -284,6 +284,8 @@ void Record::updateField(const size_t field_index, const std::string &new_field_
     // Correct the offsets for fields following the slot where the field was updated:
     for (auto dir_entry = dir_entries_.begin() + field_index + 1; dir_entry != dir_entries_.end(); ++dir_entry)
         dir_entry->setFieldOffset(dir_entry->getFieldOffset() + delta);
+
+    raw_record_is_out_of_date_ = true;
 }
 
 
@@ -340,6 +342,8 @@ void Record::deleteField(const size_t field_index) {
     // Correct the offsets for fields following the slot where the field was deleted:
     for (auto dir_entry = dir_entries_.begin() + field_index; dir_entry != dir_entries_.end(); ++dir_entry)
         dir_entry->setFieldOffset(dir_entry->getFieldOffset() - deleted_field_size);
+
+    raw_record_is_out_of_date_ = true;
 }
 
 
