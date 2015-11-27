@@ -48,8 +48,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, FILE *
 
     unsigned count(0), kept_or_deleted_count(0);
 
-    while (std::feof(input) == 0) {
-	const MarcUtil::Record record(input);
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());

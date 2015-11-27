@@ -44,8 +44,7 @@ void ProcessRecords(FILE * const input) {
     unsigned record_count(0), max_record_length(0), max_local_block_count(0);
     std::unordered_set<std::string> control_numbers;
 
-    while (std::feof(input) == 0) {
-	const MarcUtil::Record record(input);
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++record_count;
 
 	std::string err_msg;

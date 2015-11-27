@@ -367,8 +367,7 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
     std::string err_msg;
     unsigned count(0), matched_count(0);
 
-    while (std::feof(input) == 0) {
-	const MarcUtil::Record record(input);
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
         if (query_desc.hasLeaderCondition()) {

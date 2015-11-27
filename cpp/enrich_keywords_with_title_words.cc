@@ -233,8 +233,7 @@ void ExtractStemmedKeywords(
         std::cerr << "Starting extraction and stemming of pre-existing keywords.\n";
 
     unsigned total_count(0), records_with_keywords_count(0), keywords_count(0);
-    while (std::feof(input) == 0) {
-	const MarcUtil::Record record(input);
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++total_count;
 
 	const size_t extracted_count(
@@ -286,8 +285,7 @@ void AugmentRecordsWithTitleKeywords(
         std::cerr << "Starting augmentation of stopwords.\n";
 
     unsigned total_count(0), augmented_record_count(0);
-    while (std::feof(input) == 0) {
-	MarcUtil::Record record(input);
+    while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++total_count;
 
 	// Look for a title...

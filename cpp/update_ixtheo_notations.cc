@@ -121,8 +121,7 @@ void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FI
 		    const std::unordered_map<std::string, std::string> &code_to_description_map)
 {
     unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0);
-    while (std::feof(input.get()) == 0) {
-	MarcUtil::Record record(input.get());
+    while (MarcUtil::Record record = MarcUtil::Record(input.get())) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());

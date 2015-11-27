@@ -71,8 +71,7 @@ void PopulateParentIdToISBNAndISSNMap(
 
     unsigned count(0), extracted_isbn_count(0), extracted_issn_count(0);
     std::string err_msg;
-    while (std::feof(input) == 0) {
-	const MarcUtil::Record record(input);
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
 	const Leader &leader(record.getLeader());
@@ -117,8 +116,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
 
     unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0),
              missing_isbn_or_issn_count(0);
-    while (std::feof(input) == 0) {
-	MarcUtil::Record record(input);
+    while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
 	const Leader &leader(record.getLeader());

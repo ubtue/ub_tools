@@ -101,8 +101,7 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     const std::unordered_set <std::string> &local_deletion_ids, FILE *const input,
                     FILE *const output) {
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
-    while (std::feof(input) == 0) {
-	MarcUtil::Record record(input);
+    while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++total_record_count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());

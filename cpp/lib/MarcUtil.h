@@ -44,6 +44,7 @@ class Record {
 public:
     explicit Record(FILE * const input);
 
+    operator bool () const { return not dir_entries_.empty(); }
     const Leader &getLeader() const { return leader_; }
     Leader &getLeader() { return leader_; }
     const std::vector<DirectoryEntry> &getDirEntries() const { return dir_entries_; }

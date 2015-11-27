@@ -491,8 +491,7 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
     unsigned bible_book_code(0);
     std::unordered_map<std::string, std::string> bible_book_to_code_map;
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
-    while (std::feof(norm_input) == 0) {
-	const MarcUtil::Record record(norm_input);
+    while (const MarcUtil::Record record = MarcUtil::Record(norm_input)) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -659,8 +658,7 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
         std::cerr << "Starting augmentation of title records.\n";
 
     unsigned total_count(0), augment_count(0);
-    while (std::feof(input) == 0) {
-	MarcUtil::Record record(input);
+    while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++total_count;
 
         // Make sure that we don't use a bible reference tag that is already in use for another
