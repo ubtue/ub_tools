@@ -44,7 +44,7 @@ MarcQueryParser.o: DirectoryEntry.h Leader.h MarcQueryParser.h MarcGrepTokenizer
 MediaTypeUtil.o: MediaTypeUtil.cc MediaTypeUtil.h
 Leader.o: Leader.h StringUtil.h
 Locale.o: Locale.h
-MarcUtil.o: MarcUtil.h DirectoryEntry.h Leader.h util.h Compiler.h Subfields.h StringUtil.h
+MarcUtil.o: MarcUtil.h DirectoryEntry.h FileUtil.h Leader.h util.h Compiler.h Subfields.h StringUtil.h
 PdfUtil.o: PdfUtil.h ExecUtil.h util.h FileUtil.h
 PHPUtil.o: PHPUtil.h Compiler.h StringUtil.h
 OCR.o: OCR.h ExecUtil.h FileUtil.h
