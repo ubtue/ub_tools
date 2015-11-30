@@ -266,7 +266,7 @@ bool MakeEmpty(const std::string &path) {
 
 
 std::string GetFileName(const int fd) {
-    char proc_path[20];
+    char proc_path[25];
     std::sprintf(proc_path, "/proc/self/fd/%d", fd);
     struct stat stat_buf;
     if (::lstat(proc_path, &stat_buf) == -1)
