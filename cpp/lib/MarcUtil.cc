@@ -93,9 +93,13 @@ Record::Record(FILE * const input) {
     char leader_buf[Leader::LEADER_LENGTH];
     ssize_t read_count;
     const long record_start_pos(std::ftell(input));
-    if ((read_count = std::fread(leader_buf, sizeof leader_buf, 1, input)) != 1)
+    if ((read_count = std::fread(leader_buf, sizeof leader_buf, 1, input)) != 1) {
+	if (read_count == 0)
+	    return;
         throw std::runtime_error("in MarcUtil::Record::Record: failed to read leader bytes from \""
-				 + FileUtil::GetFileName(input) + "\"! (read count was " + std::to_string(read_count) + ")");
+				 + FileUtil::GetFileName(input) + "\"! (read count was " + std::to_string(read_count)
+				 + ", record_start_pos was " + std::to_string(record_start_pos) + ")");
+    }
 
     std::string err_msg;
     if (not Leader::ParseLeader(std::string(leader_buf, Leader::LEADER_LENGTH), &leader_, &err_msg)) {
