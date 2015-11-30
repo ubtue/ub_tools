@@ -4,6 +4,7 @@
 #include <iterator>
 #include <memory>
 #include <stdexcept>
+#include "FileUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -93,8 +94,8 @@ Record::Record(FILE * const input) {
     ssize_t read_count;
     const long record_start_pos(std::ftell(input));
     if ((read_count = std::fread(leader_buf, sizeof leader_buf, 1, input)) != 1)
-        throw std::runtime_error("in MarcUtil::Record::Record: failed to read leader bytes from input! (read count was "
-				 + std::to_string(read_count) + ")");
+        throw std::runtime_error("in MarcUtil::Record::Record: failed to read leader bytes from \""
+				 + FileUtil::GetFileName(input) + "\"! (read count was " + std::to_string(read_count) + ")");
 
     std::string err_msg;
     if (not Leader::ParseLeader(std::string(leader_buf, Leader::LEADER_LENGTH), &leader_, &err_msg)) {
