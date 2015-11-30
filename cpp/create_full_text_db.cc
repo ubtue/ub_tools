@@ -127,9 +127,6 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
                     const std::string &db_filename, const unsigned process_count_low_watermark,
                     const unsigned process_count_high_watermark)
 {
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
     long offset(0L), last_offset;
@@ -142,7 +139,8 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         last_offset = offset;
-        offset += leader->getRecordLength();
+	const Leader &leader(record.getLeader());
+        offset += leader.getRecordLength();
 
         if (total_record_count == max_record_count)
             break;
