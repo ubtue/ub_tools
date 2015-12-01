@@ -33,6 +33,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Collection;
 
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.solr.common.SolrException;
@@ -124,18 +125,33 @@ public class FacetPrefixSortComponent extends FacetComponent {
 	// Determine a score relative to the original query
 
 	// Determine the query and make it compatible with our metric class
+	// by splitting the single terms
 	String[] queryTerms = params.getParams(CommonParams.Q);
-	ArrayList<String> queryList = new ArrayList<String>(Arrays.asList(queryTerms));
+	Collection<String> queryTermsCollection = new ArrayList<String>();
 	
+	for(String s : queryTerms){
+
+		queryTermsCollection.addAll(Arrays.asList(s.split("[\\s]")));
+	}
+
+	queryTerms = queryTermsCollection.toArray(new String[] {});
+
+
+	ArrayList<String> queryList = new ArrayList<String>(Arrays.asList(queryTerms));
+	String facetfield = params.get(FacetParams.FACET_FIELD);
 
 	// Get the current facet entry and make it compatible with our metric class
+	// "facet_fields" itself contains a NamedList with the facet.field as key
 
-	NamedList<Object> facetFields = (NamedList<Object>) counts.get("facet_fields");
-//	NamedList<Object> facetFieldsPrefixScored = new NamedList<Object>();
+	NamedList<Object> facetFieldsNamedList = (NamedList<Object>) counts.get("facet_fields");
+	NamedList<Object> facetFields = (NamedList<Object>) facetFieldsNamedList.get(facetfield);
 	
 	Iterator<Map.Entry<String,Object>> iterFacets = facetFields.iterator();
 
-	Map<Double, Map.Entry<String, Object>> facetMapPrefixScored = new TreeMap<Double, Map.Entry<String, Object>>();
+	
+
+	Map<Map.Entry<String, Object>, Double> facetMapPrefixScored = 
+		new HashMap<Map.Entry<String, Object>, Double>();
 
 	while(iterFacets.hasNext()){
 
@@ -143,34 +159,51 @@ public class FacetPrefixSortComponent extends FacetComponent {
 
 		String facetTerms = entry.getKey();
 
-		// Split up the result and calculate the scoring		
+		// Split up each KWC and calculate the scoring		
 
 		ArrayList<String> facetList = new ArrayList<String>(Arrays.asList(facetTerms.split("/")));
-		Double score = (Double) KeywordChainMetric.calculateSimilarityScore(queryList, facetList);	
-		
+		Double score = (Double) KeywordChainMetric.calculateSimilarityScore(queryList, facetList);		
 		// Collect the result in a sorted list
-
-		facetMapPrefixScored.put(score, entry);		
+		
+		facetMapPrefixScored.put(entry, score);		
 
 	}
 
-	// Extract all the values and write it back
+	@SuppressWarnings("unchecked")
+	Entry<Entry<String, Object>, Double>[] facetPrefixArrayScored = 
+		facetMapPrefixScored.entrySet().toArray( new Entry[facetMapPrefixScored.size()] );
 
-	counts.remove("facet_fields");
+	Arrays.sort(facetPrefixArrayScored, new Comparator<Entry<Entry<String, Object>, Double>>(){
+
+		public int compare(Entry<Entry<String, Object>, Double> e1,
+				    Entry<Entry<String, Object>, Double> e2){
+
+			// We would like to score according to the second element
+			return e2.getValue().compareTo(e1.getValue());
+		}
+	    }
+	);
+
+	// Extract all the values wrap it back to NamedList again and replace in the original structure
+
+	facetFieldsNamedList.clear();
+
+	NamedList<Object> facetNamedListSorted = new NamedList<Object>();
+
+	for(Entry<Entry<String, Object>, Double> e : facetPrefixArrayScored){
+ 	//	facetNamedListSorted.add(e.getKey().getKey(), e.getKey().getValue().toString() + ":" + e.getValue().toString() );
+ 		facetNamedListSorted.add(e.getKey().getKey(), e.getKey().getValue() );
+	}
+
+	facetFieldsNamedList.add(facetfield, facetNamedListSorted);
 	
-
-	 counts.add("facet_fields", facetMapPrefixScored.entrySet());
-
-
+	counts.remove("facet_fields");
+	counts.add("facet_fields", facetFieldsNamedList);
+      
       }
       
       rb.rsp.add("facet_counts", counts);
     }
- 
-
-
-
-//	super.process(rb);	
 
   }
   
