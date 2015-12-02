@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Collection;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.solr.common.SolrException;
@@ -52,6 +54,7 @@ import org.apache.solr.search.QueryParsing;
 import org.apache.solr.search.SyntaxError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 import org.apache.solr.handler.component.*;
 import de.uni_tuebingen.ub.ixTheo.common.params.*;
@@ -129,9 +132,26 @@ public class FacetPrefixSortComponent extends FacetComponent {
 	String[] queryTerms = params.getParams(CommonParams.Q);
 	Collection<String> queryTermsCollection = new ArrayList<String>();
 	
+	// We should split at spaces but pay attention to quoted strings which
+	// can have internally escaped quotes again. The regex is based on
+	// http://www.metaltoad.com/blog/regex-quoted-string-escapable-quotes (2015-12-2)
+	// to achieve this.
+
+	String pattern = "((?<![\\\\])['\"]|\\\\\")((?:.(?!(?<![\\\\])\\1))*.?)\\1|([^\\s]+)";
+	Pattern regex = Pattern.compile(pattern);
+	
 	for(String s : queryTerms){
 
-		queryTermsCollection.addAll(Arrays.asList(s.split("[\\s]")));
+		// Split at whitespace except we have a quoted term
+
+		Matcher matcher = regex.matcher(s);		
+
+		while (matcher.find()){
+		   
+		   queryTermsCollection.add(matcher.group().replaceAll("^\"|\"$", ""));
+		
+                }
+
 	}
 
 	queryTerms = queryTermsCollection.toArray(new String[] {});
