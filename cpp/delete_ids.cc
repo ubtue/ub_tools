@@ -100,42 +100,39 @@ public:
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     const std::unordered_set <std::string> &local_deletion_ids, FILE *const input,
                     FILE *const output) {
-    std::shared_ptr <Leader> leader;
-    std::vector <DirectoryEntry> dir_entries;
-    std::vector <std::string> field_data;
-    std::string err_msg;
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
-
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++total_record_count;
 
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
 
         ssize_t start_local_match;
-        if (title_deletion_ids.find(field_data[0]) != title_deletion_ids.end()) {
+	const std::vector<std::string> &fields(record.getFields());
+        if (title_deletion_ids.find(fields[0]) != title_deletion_ids.end()) {
             ++deleted_record_count;
-            std::cout << "Deleted record with ID " << field_data[0] << '\n';
+            std::cout << "Deleted record with ID " << fields[0] << '\n';
         } else { // Look for local data sets that may need to be deleted.
             bool modified(false);
-            while ((start_local_match = MatchLocalID(local_deletion_ids, dir_entries, field_data)) != -1) {
+            while ((start_local_match = MatchLocalID(local_deletion_ids, dir_entries, fields)) != -1) {
                 // We now expect a field "000" before the current "001" field:
                 --start_local_match;
                 if (start_local_match <= 0)
                     Error("weird data structure (1)!");
-                const Subfields subfields1(field_data[start_local_match]);
+                const Subfields subfields1(fields[start_local_match]);
                 if (not subfields1.hasSubfield('0')
                     or not StringUtil::StartsWith(subfields1.getFirstSubfieldValue('0'), "000 "))
                     Error("missing or empty local field \"000\"! (EPN: "
-                          + field_data[start_local_match + 1].substr(8) + ", PPN: " + field_data[0] + ")");
+                          + fields[start_local_match + 1].substr(8) + ", PPN: " + fields[0] + ")");
 
                 // Now we need to find the index one past the end of the local record.  This would
                 // be either the "000" field of the next local record or one past the end of the overall
                 // MARC record.
                 bool found_next_000(false);
                 size_t end_local_match(start_local_match + 2);
-                while (end_local_match < field_data.size()) {
-                    const Subfields subfields2(field_data[end_local_match]);
+                while (end_local_match < fields.size()) {
+                    const Subfields subfields2(fields[end_local_match]);
                     if (not subfields2.hasSubfield('0'))
                         Error("weird data (2)!");
                     if (StringUtil::StartsWith(subfields2.getFirstSubfieldValue('0'), "000 ")) {
@@ -149,27 +146,25 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     ++end_local_match;
 
                 for (ssize_t dir_entry(end_local_match - 1); dir_entry >= start_local_match; --dir_entry)
-                    MarcUtil::DeleteField(dir_entry, leader, &dir_entries, &field_data);
+                    record.deleteField(dir_entry);
 
                 modified = true;
             }
 
             if (not modified)
-                MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+		record.write(output);
             else {
                 // Only keep records that still have at least one "LOK" tag:
                 if (std::find_if(dir_entries.cbegin(), dir_entries.cend(), MatchTag("LOK")) == dir_entries.cend())
                     ++deleted_record_count;
                 else {
                     ++modified_record_count;
-                    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+		    record.write(output);
                 }
             }
         }
     }
 
-    if (not err_msg.empty())
-        Error(err_msg);
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Deleted " << deleted_record_count << " records.\n";
     std::cerr << "Modified " << modified_record_count << " records.\n";

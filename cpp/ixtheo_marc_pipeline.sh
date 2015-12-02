@@ -57,7 +57,8 @@ echo "*** Phase 4 ***"
 echo "*** Phase 4 ***" >> "${log}"
 augment_bible_references TitelUndLokaldaten-with-issns-and-title-keywords-"${date}".mrc \
                          Normdaten-"${date}".mrc \
-                         TitelUndLokaldaten-with-issns-title-keywords-and-bible-refs-"${date}".mrc >> "${log}" 2>&1
+                         TitelUndLokaldaten-with-issns-title-keywords-and-bible-refs-"${date}".mrc \
+                         ../cpp/data/BibleOrder.map >> "${log}" 2>&1
 cp *.map /var/lib/tuelib/bibleRef/
 
 # Phase 5:

@@ -364,28 +364,26 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
     if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     std::string err_msg;
     unsigned count(0), matched_count(0);
-    std::string raw_record;
-    std::string * const raw_record_address(output_format == MARC_BINARY ? &raw_record : nullptr);
 
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg, raw_record_address)) {
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
         if (query_desc.hasLeaderCondition()) {
             const LeaderCondition &leader_cond(query_desc.getLeaderCondition());
-            if (leader->toString().substr(leader_cond.getStartOffset(),
-					  leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
+	    const Leader &leader(record.getLeader());
+            if (leader.toString().substr(leader_cond.getStartOffset(),
+					 leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
                 != leader_cond.getMatch())
                 continue;
         }
 
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+	const std::vector<std::string> &fields(record.getFields());
         std::unordered_multimap<std::string, const std::string *> field_to_content_map;
         for (unsigned i(0); i < dir_entries.size(); ++i)
-            field_to_content_map.insert(std::make_pair(dir_entries[i].getTag(), &field_data[i]));
+            field_to_content_map.insert(std::make_pair(dir_entries[i].getTag(), &fields[i]));
 
         bool matched(false);
 	std::priority_queue<TagAndContents> tags_and_contents;
@@ -401,7 +399,7 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
             ++matched_count;
 
 	    if (output_format == MARC_BINARY)
-		std::fwrite(raw_record.data(), raw_record.size(), 1, stdout);
+		record.write(stdout);
 	    else {
 		// Determine the control number:
 		const auto &control_number_iter(field_to_content_map.find("001"));

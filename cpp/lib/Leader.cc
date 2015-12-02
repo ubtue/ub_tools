@@ -23,34 +23,7 @@
 #include "StringUtil.h"
 
 
-namespace {
-
-
-std::string EscapeString(const std::string &s) {
-    std::string escaped_string;
-    escaped_string.reserve(s.length() * 4);
-
-    for (const char ch : s) {
-	if (std::isprint(ch))
-	    escaped_string += ch;
-	else {
-	    escaped_string += '\\';
-	    escaped_string += 'x';
-	    escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) >> 4);
-	    escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) & 0xF);
-	}
-    }
-
-    return escaped_string;
-}
-
-
-}
-
-
-bool Leader::ParseLeader(const std::string &leader_string, std::shared_ptr<Leader> &leader,
-			 std::string * const err_msg)
-{
+bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader, std::string * const err_msg) {
     if (err_msg != nullptr)
         err_msg->clear();
 
@@ -64,7 +37,7 @@ bool Leader::ParseLeader(const std::string &leader_string, std::shared_ptr<Leade
     unsigned record_length;
     if (std::sscanf(leader_string.substr(0, 5).data(), "%5u", &record_length) != 1) {
         if (err_msg != nullptr)
-            *err_msg = "Can't parse record length! (Found \"" + EscapeString(leader_string.substr(0, 5)) + "\")";
+            *err_msg = "Can't parse record length! (Found \"" + StringUtil::CStyleEscape(leader_string.substr(0, 5)) + "\")";
         return false;
     }
 
@@ -100,7 +73,10 @@ bool Leader::ParseLeader(const std::string &leader_string, std::shared_ptr<Leade
         return false;
     }
 
-    leader.reset(new Leader(leader_string, record_length, base_address_of_data));
+    leader->raw_leader_           = leader_string;
+    leader->record_length_        = record_length;
+    leader->base_address_of_data_ = base_address_of_data;
+
     return true;
 }
 

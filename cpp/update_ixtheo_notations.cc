@@ -75,13 +75,14 @@ void LoadCodeToDescriptionMap(const std::shared_ptr<FILE> &code_to_description_m
 
 
 bool LocalBlockIsFromUbTueTheologians(const std::pair<size_t, size_t> &local_block_begin_and_end,
-				      const std::vector<std::string> &field_data)
+				      const MarcUtil::Record &record)
 {
     std::vector<size_t> _852_indices;
-    MarcUtil::FindFieldsInLocalBlock("852", "  ", local_block_begin_and_end, field_data, &_852_indices);
+    record.findFieldsInLocalBlock("852", "  ", local_block_begin_and_end, &_852_indices);
 
+    const std::vector<std::string> &fields(record.getFields());
     for (const auto index : _852_indices) {
-	const Subfields subfields(field_data[index]);
+	const Subfields subfields(fields[index]);
 	if (subfields.hasSubfieldWithValue('a', "Tü 135"))
 	    return true;
     }
@@ -91,16 +92,17 @@ bool LocalBlockIsFromUbTueTheologians(const std::pair<size_t, size_t> &local_blo
 
 
 unsigned ExtractIxTheoNotations(const std::pair<size_t, size_t> &local_block_begin_and_end,
-				const std::vector<std::string> &field_data,
+				const MarcUtil::Record &record,
 				const std::unordered_map<std::string, std::string> &code_to_description_map,
 				std::string * const ixtheo_notations_list)
 {
     std::vector<size_t> _936ln_indices;
-    MarcUtil::FindFieldsInLocalBlock("936", "ln", local_block_begin_and_end, field_data, &_936ln_indices);
+    record.findFieldsInLocalBlock("936", "ln", local_block_begin_and_end, &_936ln_indices);
 
     size_t found_count(0);
+    const std::vector<std::string> &fields(record.getFields());
     for (const auto index : _936ln_indices) {
-	const Subfields subfields(field_data[index]);
+	const Subfields subfields(fields[index]);
 	const std::string ixtheo_notation_candidate(subfields.getFirstSubfieldValue('a'));
 	if (code_to_description_map.find(ixtheo_notation_candidate) != code_to_description_map.end()) {
 	    ++found_count;
@@ -118,30 +120,26 @@ unsigned ExtractIxTheoNotations(const std::pair<size_t, size_t> &local_block_beg
 void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FILE> &output,
 		    const std::unordered_map<std::string, std::string> &code_to_description_map)
 {
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0);
-
-    std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input.get(), leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::Record record = MarcUtil::Record(input.get())) {
         ++count;
 
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
 
 	std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-	if (MarcUtil::FindAllLocalDataBlocks(dir_entries, field_data, &local_block_boundaries) == 0) {
-	    MarcUtil::ComposeAndWriteRecord(output.get(), dir_entries, field_data, leader);
+	if (record.findAllLocalDataBlocks(&local_block_boundaries) == 0) {
+	    record.write(output.get());
 	    continue;
 	}
 
 	std::string ixtheo_notations_list; // Colon-separated list of ixTheo notations.
 	for (const auto &local_block_begin_and_end : local_block_boundaries) {
-	    if (not LocalBlockIsFromUbTueTheologians(local_block_begin_and_end, field_data))
+	    if (not LocalBlockIsFromUbTueTheologians(local_block_begin_and_end, record))
 		continue;
 
-	    const unsigned notation_count(ExtractIxTheoNotations(local_block_begin_and_end, field_data,
+	    const unsigned notation_count(ExtractIxTheoNotations(local_block_begin_and_end, record,
 								 code_to_description_map, &ixtheo_notations_list));
 	    if (notation_count > 0) {
 		++records_with_ixtheo_notations;
@@ -150,12 +148,9 @@ void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FI
 	}
 
 	if (not ixtheo_notations_list.empty()) // Insert a new 652 field w/ a $a subfield.
-	    MarcUtil::InsertField("  ""\x1F""a" + ixtheo_notations_list, "652", leader, &dir_entries, &field_data);
-	MarcUtil::ComposeAndWriteRecord(output.get(), dir_entries, field_data, leader);
+	    record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list);
+	record.write(output.get());
     }
-    
-    if (not err_msg.empty())
-        Error(err_msg);
 
     std::cerr << "Read " << count << " records.\n";
     std::cerr << records_with_ixtheo_notations << " records had ixTheo notations.\n";
@@ -185,9 +180,12 @@ int main(int argc, char **argv) {
     if (code_to_description_map_file == nullptr)
         Error("can't open \"" + code_to_description_map_filename + "\" for reading!");
 
-    std::unordered_map<std::string, std::string> code_to_description_map;
-    LoadCodeToDescriptionMap(code_to_description_map_file, code_to_description_map_filename,
-                             &code_to_description_map);
-
-    ProcessRecords(marc_input, marc_output, code_to_description_map);
+    try {
+	std::unordered_map<std::string, std::string> code_to_description_map;
+	LoadCodeToDescriptionMap(code_to_description_map_file, code_to_description_map_filename,
+				 &code_to_description_map);
+	ProcessRecords(marc_input, marc_output, code_to_description_map);
+    } catch (const std::exception &x) {
+	Error("caught exception: " + std::string(x.what()));
+    }
 }

@@ -31,6 +31,7 @@
 
 
 #include <string>
+#include <cstdio>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -103,6 +104,14 @@ inline std::string MakeAbsolutePath(const char * const relative_path)
  *  \note If the file does not exist it will be created w/ mode (600 & ~umask).
  */
 bool MakeEmpty(const std::string &path);
+
+
+/** \brief Attempts to get a filename (there may be multiple) from a file descriptor. */
+std::string GetFileName(const int fd);
+
+
+/** \brief Attempts to get a filename (there may be multiple) from a FILE. */
+inline std::string GetFileName(FILE * file) { return GetFileName(fileno(file)); }
 
 
 } // namespace FileUtil

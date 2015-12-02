@@ -104,19 +104,18 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     if (not CompilePatterns(patterns, &compiled_patterns, &err_msg))
         Error("Error while compiling patterns: " + err_msg);
 
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     unsigned count(0), matched_count(0);
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+	const std::vector<std::string> &fields(record.getFields());
         bool matched(false);
         for (unsigned i(0); i < dir_entries.size(); ++i) {
             for (const auto &compiled_pattern : compiled_patterns) {
                 if (compiled_pattern.tagMatched(dir_entries[i].getTag())) {
-                    if (compiled_pattern.fieldMatched(field_data[i])) {
-                        if (verbose) std::cerr << '=' << dir_entries[i].getTag() << "  " << field_data[i] << '\n';
+                    if (compiled_pattern.fieldMatched(fields[i])) {
+                        if (verbose) std::cerr << '=' << dir_entries[i].getTag() << "  " << fields[i] << '\n';
                         matched = true;
                         goto found;
                     }
@@ -126,9 +125,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     found:
         if (matched) {
             ++matched_count;
-            const std::string record(MarcUtil::ComposeRecord(dir_entries, field_data, leader));
-            if ((std::fwrite(record.data(), record.size(), 1, output)) != record.size())
-                Error("failed to write to \"" + output_filename + "\"!");
+	    record.write(output);
         }
     }
 
@@ -156,7 +153,7 @@ void DumpEditFormat(const std::string &input_filename, const std::string &output
     std::vector<std::string> field_data;
     std::string err_msg;
     unsigned count(0);
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
         output << "=LDR  ....." << leader->toString().substr(5) << '\n';
@@ -193,7 +190,7 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
     }
 
     std::shared_ptr<Leader> leader;
-    if (not Leader::ParseLeader(record.substr(0, Leader::LEADER_LENGTH), leader, err_msg))
+    if (not Leader::ParseLeader(record.substr(0, Leader::LEADER_LENGTH), leader.get(), err_msg))
         return false;
 
     if (leader->getRecordLength() != record.length()) {
@@ -228,48 +225,6 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
 }
 
 
-// Removes any tags and corresponding fields where the tag is contained in "drop_tags".
-void FilterTagsAndFields(const std::unordered_set<std::string> &drop_tags,
-                         std::vector<DirectoryEntry> * const dir_entries,
-                         std::vector<std::string> * const field_data)
-{
-    if (dir_entries->empty() or dir_entries->size() != field_data->size())
-        Error("Incorrect input data for FilterTagsAndFields()!");
-
-    std::vector<size_t> matched_slots;
-    matched_slots.reserve(dir_entries->size());
-
-    unsigned slot_no(0);
-    for (const auto &dir_entry : *dir_entries) {
-        if (drop_tags.find(dir_entry.getTag()) != drop_tags.end())
-            matched_slots.push_back(slot_no);
-        ++slot_no;
-    }
-
-    if (matched_slots.empty())
-        return;
-    const size_t new_size(dir_entries->size() - matched_slots.size());
-
-    std::vector<DirectoryEntry> old_dir_entries;
-    dir_entries->swap(old_dir_entries);
-    dir_entries->reserve(new_size);
-
-    std::vector<std::string> old_field_data;
-    field_data->swap(old_field_data);
-    field_data->reserve(new_size);
-
-    std::vector<size_t>::const_iterator matched_slot(matched_slots.begin());
-    for (unsigned slot(0); slot < old_dir_entries.size(); ++slot) {
-        if (matched_slot != matched_slots.end() and *matched_slot == slot)
-            ++matched_slot; // skip tag and field
-        else {
-            dir_entries->push_back(std::move(old_dir_entries[slot]));
-            field_data->push_back(std::move(old_field_data[slot]));
-        }
-    }
-}
-
-
 void DeleteMatched(const std::string &tags_list, const std::vector<std::string> &patterns, const bool invert,
                    FILE * const input, FILE * const output)
 {
@@ -289,18 +244,17 @@ void DeleteMatched(const std::string &tags_list, const std::vector<std::string> 
                   + " characters in length! (Bad tag is \"" + tag +"\")");
     }
 
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     unsigned count(0), modified_count(0);
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
         bool matched(false);
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+	const std::vector<std::string> &fields(record.getFields());
         for (unsigned i(0); i < dir_entries.size(); ++i) {
             for (const auto &compiled_pattern : compiled_patterns) {
                 if (compiled_pattern.tagMatched(dir_entries[i].getTag())) {
-                    if (compiled_pattern.fieldMatched(field_data[i])) {
+                    if (compiled_pattern.fieldMatched(fields[i])) {
                         matched = true;
                         goto found_match;
                     }
@@ -313,10 +267,10 @@ found_match:
             matched = not matched;
         if (matched) {
             ++modified_count;
-            FilterTagsAndFields(drop_tags, &dir_entries, &field_data);
+            record.filterTags(drop_tags);
         }
 
-        MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+        record.write(output);
     }
 
     if (not err_msg.empty())
@@ -381,20 +335,18 @@ void SelectNonHttpAndHttpsLinkEntries(const std::vector<Record856uEntry> &entrie
 
 
 void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) {
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     unsigned count(0), modified_count(0);
-    std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
         std::vector<Record856uEntry> _856u_entries;
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+	const std::vector<std::string> &fields(record.getFields());
         for (unsigned i(0); i < dir_entries.size(); ++i) {
             if (dir_entries[i].getTag() != "856")
                 continue;
 
             std::vector<std::string> links;
-            Subfields _856_subfields(field_data[i]);
+            Subfields _856_subfields(fields[i]);
             if (_856_subfields.hasSubfield('u')) {
                 const std::pair<Subfields::ConstIterator, Subfields::ConstIterator> begin_end(
                     _856_subfields.getIterators('u'));
@@ -421,15 +373,15 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) 
                         is_suffix = true;
                         if (verbose)
                             std::cout << "Deleting tag " << dir_entries[non_http_link_entry.index_].getTag()
-                                      << " with link \"" << field_data[non_http_link_entry.index_]
+                                      << " with link \"" << fields[non_http_link_entry.index_]
                                       << "\" because it is probably a duplicate of \"" << http_url << "\".\n";
-                        MarcUtil::DeleteField(non_http_link_entry.index_, leader, &dir_entries, &field_data);
+                        record.deleteField(non_http_link_entry.index_);
                         modified_record = true;
                         break;
                     }
                 }
                 if (not is_suffix) { // Replace non a HTTP URL with an HTTP URL.
-                    Subfields subfields(field_data[non_http_link_entry.index_]);
+                    Subfields subfields(fields[non_http_link_entry.index_]);
 
                     std::string new_http_url;
                     if (StringUtil::StartsWith(non_http_link_entry.link_, "urn:"))
@@ -441,7 +393,7 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) 
                                   << new_http_url << "\".\n";
                     subfields.replace('u', non_http_link_entry.link_, new_http_url);
 
-                    MarcUtil::UpdateField(non_http_link_entry.index_, subfields.toString(), leader, &dir_entries, &field_data);
+                    record.updateField(non_http_link_entry.index_, subfields.toString());
                     modified_record = true;
                 }
             }
@@ -450,11 +402,8 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) 
         if (modified_record)
             ++modified_count;
 
-        MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+	record.write(output);
     }
-
-    if (not err_msg.empty())
-        Error(err_msg);
 
     std::cerr << "Read " << count << " records.\n";
     std::cerr << "Modified " << modified_count << " record(s).\n";
@@ -544,13 +493,17 @@ int main(int argc, char **argv) {
     if (output == nullptr)
         Error("can't open \"" + output_filename + "\" for writing!");
 
-    if (bibliotheks_sigel_filtern) {
-        std::vector<std::string> patterns = { "LOK:^.*[a]DE-21 *$|^.*[a]DE-21-24 *$|^.*[a]DE-21-110 *$" };
-        DeleteMatched("LOK", patterns, /* invert = */ true, input, output);
-    } else if (normalise_urls)
-        NormaliseURLs(verbose, input, output);
-    else
-        Usage();
+    try {
+	if (bibliotheks_sigel_filtern) {
+	    std::vector<std::string> patterns = { "LOK:^.*[a]DE-21 *$|^.*[a]DE-21-24 *$|^.*[a]DE-21-110 *$" };
+	    DeleteMatched("LOK", patterns, /* invert = */ true, input, output);
+	} else if (normalise_urls)
+	    NormaliseURLs(verbose, input, output);
+	else
+	    Usage();
+    } catch (const std::exception &x) {
+	Error("caught exception: " + std::string(x.what()));
+    }
 
     std::fclose(input);
     std::fclose(output);
