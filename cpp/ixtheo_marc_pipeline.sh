@@ -78,10 +78,25 @@ update_ixtheo_notations \
     ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
 
+
 # Phase 6:
 P=6
-echo "*** Phase 6 ***"
-echo "*** Phase 6 ***" >> "${log}"
+echo "*** Phase $P ***"
+echo "*** Phase $P ***" >> "${log}"
+map_ddc_and_rvk_to_ixtheo_notations \
+    TitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
+    TitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
+    ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map
+map_ddc_and_rvk_to_ixtheo_notations \
+    ÜbergeordneteTitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
+    ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
+    ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map
+
+
+# Phase 7:
+P=7
+echo "*** Phase $P ***"
+echo "*** Phase $P ***" >> "${log}"
 fix_article_biblio_levels --verbose \
     TitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
     TitelUndLokaldaten-post-pipeline-"${date}".mrc
