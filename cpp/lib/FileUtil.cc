@@ -62,7 +62,7 @@ bool WriteString(const std::string &path, const std::string &data) {
     output.write(data.data(), data.size());
     return not output.bad();
 }
-    
+
 
 bool ReadString(const std::string &path, std::string * const data) {
     std::ifstream input(path, std::ios_base::in | std::ios_base::binary);
@@ -75,7 +75,7 @@ bool ReadString(const std::string &path, std::string * const data) {
     return not input.bad();
 
 }
-    
+
 
 // DirnameAndBasename -- Split a path into a directory name part and filename part.
 //
@@ -263,6 +263,29 @@ bool MakeEmpty(const std::string &path) {
     ::close(fd);
     return true;
 }
-    
+
+
+std::string GetFileName(const int fd) {
+    char proc_path[25];
+    std::sprintf(proc_path, "/proc/self/fd/%d", fd);
+    struct stat stat_buf;
+    if (::lstat(proc_path, &stat_buf) == -1)
+	std::runtime_error("in FileUtil::GetFileName: lstat(2) failed on \"" + std::string(proc_path)
+			   + "\"! (errno = " + std::to_string(errno) + ")");
+    char * const linkname(reinterpret_cast<char *>(std::malloc(stat_buf.st_size + 1)));
+    if (linkname == nullptr)
+	std::runtime_error("in FileUtil::GetFileName: malloc(3) failed!");
+    const ssize_t link_size(::readlink(proc_path, linkname, stat_buf.st_size + 1));
+    if (link_size == -1)
+ 	std::runtime_error("in FileUtil::GetFileName: readlink(2) failed on \"" + std::string(proc_path)
+			   + "\"! (errno = " + std::to_string(errno) + ")");
+    if (link_size > stat_buf.st_size)
+	std::runtime_error("in FileUtil::GetFileName: symlink increased in size between call to lstat(2) and readlink(2)!");
+    const std::string filename(linkname);
+    std::free(linkname);
+
+    return filename;
+}
+
 
 } // namespace FileUtil

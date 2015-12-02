@@ -22,6 +22,8 @@
 
 
 #include <string>
+#include <vector>
+#include <cstdio>
 
 
 /** Must be set to point to argv[0] in main(). */
@@ -37,6 +39,22 @@ void Warning(const std::string &msg);
 
 
 bool ReadFile(const std::string &filename, std::string * const contents);
+
+
+/** \class DSVReader
+ *  \brief A "reader" for delimiter-separated values.
+ */
+class DSVReader {
+    char field_separator_;
+    char field_delimiter_;
+    unsigned line_no_;
+    std::string filename_;
+    FILE *input_;
+public:
+    explicit DSVReader(const std::string &filename, const char field_separator=',', const char field_delimiter='"');
+    ~DSVReader();
+    bool readLine(std::vector<std::string> * const values);
+};
 
 
 #endif // ifndef UTIL_H
