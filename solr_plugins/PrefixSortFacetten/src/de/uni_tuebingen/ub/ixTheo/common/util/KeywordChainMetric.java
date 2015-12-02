@@ -1,4 +1,4 @@
-package de.uni_tuebingen.ub.ixTheo.keywordChainSearch;
+package de.uni_tuebingen.ub.ixTheo.common.util;
 
 
 import java.util.ArrayList;
