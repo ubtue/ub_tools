@@ -9,23 +9,25 @@ SRC=src
 PACKAGE_DIRECOTRY=de/uni_tuebingen/ub/ixTheo/handler/component
 LIB_DIRECTORIES=$(VUFIND_SOLR)/lib/*:$(VUFIND_JETTY)/lib/*:$(VUFIND_JETTY)/lib/ext/*:$(VUFIND_JETTY)/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/WEB-INF/lib/*
 JAVA_VERSION=1.7
+JAVA_FILES=$(shell find -name *.java)
+
 
 # Compiler
 JAVAC=javac
-JAVAFLAGS=-g -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORIES) -sourcepath $(SRC) -source $(JAVA_VERSION) -target $(JAVA_VERSION)
+JAVAFLAGS=-g:source,lines,vars -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORIES) -sourcepath $(SRC) -source $(JAVA_VERSION) -target $(JAVA_VERSION)
 COMPILE = $(JAVAC) $(JAVAFLAGS)
 
 JAR=jar cvf 
-JAR_FLAGS=-C $(BIN)
+JAR_FLAGS=
 
-all: compile
+all: $(JAR_FILE)
 
-compile: $(SRC)/$(PACKAGE_DIRECOTRY)/*.java
+$(JAR_FILE): $(JAVA_FILES)
 	test -d bin || mkdir bin
-	$(COMPILE) $(SRC)/$(PACKAGE_DIRECOTRY)/*.java
-	$(JAR) $(JAR_FILE) $(JAR_FLAGS) $(PACKAGE_DIRECOTRY)
+	find -name '*.java' -print0 | xargs -0 $(COMPILE)	
+	find $(BIN)/ -name '*.class' -print0 | xargs -0 $(JAR) $(JAR_FILE) $(JAR_FLAGS)  
 
-install: compile
+install: $(JAR_FILE)
 	cp -f $(JAR_FILE) $(SOLR_JAR_FILE)
 
 clean:
