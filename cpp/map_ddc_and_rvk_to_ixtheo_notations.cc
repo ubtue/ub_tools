@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <unordered_map>
 #include <cctype>
@@ -33,7 +34,8 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " marc_input marc_output ddc_to_ixtheo_notations_map rvk_to_ixtheo_notations_map\n";
+    std::cerr << "Usage: " << progname << " [--verbose] marc_input marc_output ddc_to_ixtheo_notations_map "
+	      << "rvk_to_ixtheo_notations_map\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -58,7 +60,7 @@ IxTheoMapper::IxTheoMapper(const std::vector<std::string> &map_file_line) {
 	throw std::runtime_error("in IxTheoMapper::IxTheoMapper: need at least 2 elements in \"map_file_line\"!");
     from_hierarchy_ = map_file_line[0];
     to_ix_theo_notation_ = map_file_line[1];
-    std::copy(map_file_line.begin() + 2, map_file_line.end(), exclusions_.begin());
+    std::copy(map_file_line.begin() + 2, map_file_line.end(), std::back_inserter(exclusions_));
 }
 
 
@@ -75,37 +77,46 @@ std::string IxTheoMapper::map(const std::string &hierarchy_classification) const
 }
 
 
-void LoadCSVFile(const std::string &filename, std::vector<IxTheoMapper> * const mappers) {
+void LoadCSVFile(const bool verbose, const std::string &filename, std::vector<IxTheoMapper> * const mappers) {
     DSVReader csv_reader(filename);
     std::vector<std::string> csv_values;
     while (csv_reader.readLine(&csv_values))
 	mappers->emplace_back(csv_values);
 
-    std::cout << "Read " << mappers->size() << " mappings from \"" << filename << "\".\n";
+    if (verbose)
+	std::cerr << "Read " << mappers->size() << " mappings from \"" << filename << "\".\n";
 }
 
 
 void UpdateIxTheoNotations(const std::vector<IxTheoMapper> &mappers, const std::vector<std::string> &orig_values,
 			   std::string * const ixtheo_notations_list)
 {
+    std::vector<std::string> ixtheo_notations_vector;
+    StringUtil::Split(*ixtheo_notations_list, ':', &ixtheo_notations_vector);
+    std::set<std::string> previously_assigned_notations(std::make_move_iterator(ixtheo_notations_vector.begin()),
+							std::make_move_iterator(ixtheo_notations_vector.end()));
+
     for (const auto &mapper : mappers) {
 	for (const auto &orig_value : orig_values) {
 	    const std::string mapped_value(mapper.map(orig_value));
-	    if (not mapped_value.empty()) {
+	    if (not mapped_value.empty()
+		and previously_assigned_notations.find(mapped_value) == previously_assigned_notations.end())
+	    {
 		if (not ixtheo_notations_list->empty())
 		    *ixtheo_notations_list += ':';
 		*ixtheo_notations_list += mapped_value;
+		previously_assigned_notations.insert(mapped_value);
 	    }
 	}
     }
 }
 
 
-void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FILE> &output,
+void ProcessRecords(const bool verbose, const std::shared_ptr<FILE> &input, const std::shared_ptr<FILE> &output,
 		    const std::vector<IxTheoMapper> &ddc_to_ixtheo_notation_mappers,
-		    const std::vector<IxTheoMapper> &rvk_to_ixtheo_notation_mappers)
+		    const std::vector<IxTheoMapper> &/*rvk_to_ixtheo_notation_mappers*/)
 {
-    unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0);
+    unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0), records_with_new_notations(0);
     while (MarcUtil::Record record = MarcUtil::Record(input.get())) {
         ++count;
 
@@ -125,7 +136,12 @@ void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FI
 	    continue;
 	}
 	UpdateIxTheoNotations(ddc_to_ixtheo_notation_mappers, ddc_values, &ixtheo_notations_list);
+	if (verbose and not ixtheo_notations_list.empty()) {
+	    const std::vector<std::string> &fields(record.getFields());
+	    std::cout << fields[0] << " -> " << ixtheo_notations_list << '\n';
+        }
 
+/*
 	std::vector<std::string> rvk_values;
 	int _084_index(record.getFieldIndex("084"));
 	if (_084_index != -1) {
@@ -138,43 +154,56 @@ void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FI
 	    }
 	}
 	UpdateIxTheoNotations(rvk_to_ixtheo_notation_mappers, rvk_values, &ixtheo_notations_list);
+*/
 
-	if (not ixtheo_notations_list.empty())
+	if (not ixtheo_notations_list.empty()) {
+	    ++records_with_new_notations;
 	    record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list);
+	}
 
 	record.write(output.get());
     }
 
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << records_with_ixtheo_notations << " records had ixTheo notations.\n";
-    std::cerr << "Found " << ixtheo_notation_count << " ixTheo notations overall.\n";
+    if (verbose) {
+	std::cerr << "Read " << count << " records.\n";
+	std::cerr << records_with_ixtheo_notations << " records had Ixtheo notations.\n";
+	std::cerr << "Found " << ixtheo_notation_count << " ixTheo notations overall.\n";
+	std::cerr << records_with_new_notations << " records received new Ixtheo notations.\n";
+    }
 }
 
 
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc != 5)
+    if (argc != 5 and argc != 6)
         Usage();
 
-    const std::string marc_input_filename(argv[1]);
+    bool verbose(false);
+    if (argc == 6) {
+	if (std::strcmp(argv[1], "--verbose") != 0)
+	    Usage();
+	verbose = true;
+    }
+
+    const std::string marc_input_filename(argv[verbose ? 2 : 1]);
     std::shared_ptr<FILE> marc_input(std::fopen(marc_input_filename.c_str(), "rbm"), std::fclose);
     if (marc_input == nullptr)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
-    const std::string marc_output_filename(argv[2]);
+    const std::string marc_output_filename(argv[verbose ? 3 : 2]);
     std::shared_ptr<FILE> marc_output(std::fopen(marc_output_filename.c_str(), "wb"), std::fclose);
     if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
 	std::vector<IxTheoMapper> ddc_to_ixtheo_notation_mappers;
-	LoadCSVFile(argv[3], &ddc_to_ixtheo_notation_mappers);
+	LoadCSVFile(verbose, argv[verbose ? 4 : 3], &ddc_to_ixtheo_notation_mappers);
 
 	std::vector<IxTheoMapper> rvk_to_ixtheo_notation_mappers;
-	LoadCSVFile(argv[4], &rvk_to_ixtheo_notation_mappers);
+//	LoadCSVFile(verbose, argv[verbose ? 5 : 4], &rvk_to_ixtheo_notation_mappers);
 
-	ProcessRecords(marc_input, marc_output, ddc_to_ixtheo_notation_mappers, rvk_to_ixtheo_notation_mappers);
+	ProcessRecords(verbose, marc_input, marc_output, ddc_to_ixtheo_notation_mappers, rvk_to_ixtheo_notation_mappers);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
