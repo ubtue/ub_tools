@@ -23,7 +23,34 @@
 
 #include <string>
 #include <vector>
+#include <cerrno>
 #include <cstdio>
+#include <cstring>
+#include "Compiler.h"
+
+
+// Macros to create strings describing where and why an error occurred. Must be macros to access __FILE__ and __LINE__.
+// This gobble-dee-goop necessary to turn __LINE__ into a string. See doctor dobs: http://www.ddj.com/dept/cpp/184403864
+//
+#define Stringize(S) ReallyStringize(S)
+#define ReallyStringize(S) #S
+
+
+// TestAndThrowOrReturn -- tests condition "cond" and, if it evaluates to "true", throws an exception unless another
+//                         exception is already in progress.  In the latter case, TestAndThrowOrReturn() simply returns.
+//
+#define TestAndThrowOrReturn(cond, err_text)                                                                       \
+    do {                                                                                                           \
+        if (unlikely(cond)) {                                                                                      \
+	    if (unlikely(std::uncaught_exception()))                                                               \
+                return;                                                                                            \
+	    else                                                                                                   \
+	        throw std::runtime_error(std::string("in ") + __PRETTY_FUNCTION__ + "(" __FILE__ ":"               \
+                                         Stringize(__LINE__) "): " + std::string(err_text)                         \
+					 + std::string(errno != 0 ? " (" + std::string(std::strerror(errno)) + ")" \
+							                 : std::string("")));                      \
+	    }                                                                                                      \
+    } while (false)
 
 
 /** Must be set to point to argv[0] in main(). */

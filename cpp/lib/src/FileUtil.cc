@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "Compiler.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -74,26 +75,6 @@ bool ReadString(const std::string &path, std::string * const data) {
     input.read(const_cast<char *>(data->data()), file_size);
     return not input.bad();
 
-}
-
-
-// DirnameAndBasename -- Split a path into a directory name part and filename part.
-//
-void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename) {
-    if (unlikely(path.length() == 0)) {
-        *dirname = *basename = "";
-        return;
-    }
-
-    std::string::size_type last_slash_pos = path.rfind('/');
-    if (last_slash_pos == std::string::npos) {
-        *dirname  = "";
-        *basename = path;
-    }
-    else {
-        *dirname  = path.substr(0, last_slash_pos);
-        *basename = path.substr(last_slash_pos + 1);
-    }
 }
 
 
@@ -285,6 +266,263 @@ std::string GetFileName(const int fd) {
     std::free(linkname);
 
     return filename;
+}
+
+
+bool SetNonblocking(const int fd) {
+    // First, retrieve current settings:
+    int flags = ::fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+	return false;
+
+    flags |= O_NONBLOCK;
+
+    return ::fcntl(fd, F_SETFL, flags) != -1;
+}
+
+
+bool SetBlocking(const int fd) {
+    // First, retrieve current settings:
+    int flags = ::fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+	return false;
+
+    flags &= ~O_NONBLOCK;
+
+    return ::fcntl(fd, F_SETFL, flags) != -1;
+}
+
+
+// DirnameAndBasename -- Split a path into a directory name part and filename part.
+//
+void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename) {
+    if (unlikely(path.length() == 0)) {
+	*dirname = *basename = "";
+	return;
+    }
+
+    std::string::size_type last_slash_pos = path.rfind('/');
+    if (last_slash_pos == std::string::npos) {
+	*dirname  = "";
+	*basename = path;
+    } else {
+	*dirname  = path.substr(0, last_slash_pos);
+	*basename = path.substr(last_slash_pos + 1);
+    }
+}
+
+
+// IsDirectory -- Is the specified file a directory?
+//
+bool IsDirectory(const std::string &dir_name) {
+    struct stat statbuf;
+    if (::stat(dir_name.c_str(), &statbuf) != 0)
+	return false;
+
+    return S_ISDIR(statbuf.st_mode);
+}
+
+
+// MakeDirectory -- Create a directory.
+//
+bool MakeDirectory(const std::string &path, const bool recursive, const mode_t mode) {
+    const bool absolute(path[0] == '/' ? true : false);
+    // In NON-recursive mode we make a single attempt to create the directory:
+    if (not recursive) {
+	errno = 0;
+	if (::mkdir(path.c_str(), mode) == 0)
+	    return true;
+	return errno == EEXIST and IsDirectory(path);
+    }
+
+    std::vector<std::string> path_components;
+    StringUtil::Split(path, '/', &path_components);
+
+    std::string path_so_far;
+    if (absolute)
+	path_so_far += "/";
+    for (std::vector<std::string>::const_iterator path_component(path_components.begin());
+	 path_component != path_components.end(); ++path_component)
+    {
+	path_so_far += *path_component;
+	path_so_far += '/';
+	errno = 0;
+	if (::mkdir(path_so_far.c_str(), mode) == -1 and errno != EEXIST)
+	    return false;
+	if (errno == EEXIST and not IsDirectory(path_so_far))
+	    return false;
+    }
+
+    return true;
+}
+
+
+bool Rewind(const int fd) {
+    return ::lseek(fd, 0, SEEK_SET) == 0;
+}
+
+
+FileUtil::FileType GuessFileType(const std::string &filename) {
+    if (filename.empty())
+	return FILE_TYPE_UNKNOWN;
+
+    // Cannot guess a mime type without an extension:
+    const std::string::size_type extension_pos = filename.rfind('.');
+    if (extension_pos == std::string::npos)
+	return FILE_TYPE_UNKNOWN;
+
+    std::string file_extension = filename.substr(extension_pos + 1);
+    StringUtil::ToLower(&file_extension);
+    if (file_extension.find("htm") != std::string::npos) // .phtml, .shtml, .html
+	return FILE_TYPE_HTML;
+
+    FileUtil::FileType file_type = FILE_TYPE_UNKNOWN;
+    switch (file_extension[0]) {
+    case 'c':
+	if (file_extension == "c" or file_extension == "cc" or file_extension == "cpp"
+	    or file_extension == "cxx")
+	    file_type = FILE_TYPE_CODE;
+	else if (file_extension == "cgi")
+	    file_type = FILE_TYPE_HTML;
+	break;
+    case 'd':
+	if (file_extension == "dvi")
+	    file_type = FILE_TYPE_DVI;
+	else if (file_extension == "divx")
+	    file_type = FILE_TYPE_MOVIE;
+	else if (file_extension == "doc")
+	    file_type = FILE_TYPE_DOC;
+	break;
+    case 'e':
+	if (file_extension == "eps")
+	    file_type = FILE_TYPE_PS;
+	break;
+    case 'g':
+	if (file_extension == "gif")
+	    file_type = FILE_TYPE_GRAPHIC;
+	else if (file_extension == "gz")
+	    file_type = FILE_TYPE_GZIP;
+	break;
+    case 'h':
+	if (file_extension == "h")
+	    file_type = FILE_TYPE_CODE;
+	break;
+    case 'j':
+	if (file_extension == "jpg")
+	    file_type = FILE_TYPE_GRAPHIC;
+	break;
+    case 'p':
+	switch (file_extension[1]) {
+	case 'd':
+	    if (file_extension == "pdf")
+		file_type = FILE_TYPE_PDF;
+	    break;
+	case 'h':
+	    if (file_extension == "phtml") // serverside parsed html
+		file_type = FILE_TYPE_HTML;
+	    else if (file_extension == "php") //
+		file_type = FILE_TYPE_HTML;
+	    break;
+	case 'l':
+	    if (file_extension == "pl")
+		file_type = FILE_TYPE_HTML; // it might be a source code too!
+	case 'n':
+	    if (file_extension == "png")
+		file_type = FILE_TYPE_GRAPHIC;
+	    break;
+	case 'p':
+	    if (file_extension == "ppt")
+		file_type = FILE_TYPE_SLIDES;
+	    break;
+	case 's':
+	    if (file_extension == "ps")
+		file_type = FILE_TYPE_PS;
+	    break;
+	case 'y':
+	    if (file_extension == "py")
+		file_type = FILE_TYPE_HTML; // it might be a source code too!
+	    break;
+	}
+	break;
+    case 'r':
+	if (file_extension == "rtf")
+	    file_type = FILE_TYPE_RTF;
+	break;
+    case 's':
+	if (file_extension == "sxi")
+	    file_type = FILE_TYPE_SLIDES;
+	else if (file_extension == "sxw")
+	    file_type = FILE_TYPE_DOC;
+	break;
+    case 't':
+	switch (file_extension[1]) {
+	case 'a':
+	    if (file_extension == "tar")
+		file_type = FILE_TYPE_TAR;
+	    break;
+	case 'e':
+	    if (file_extension == "tex")
+		file_type = FILE_TYPE_TEX;
+	    break;
+	case 'g':
+	    if (file_extension == "tgz")
+		file_type = FILE_TYPE_GZIP;
+	    break;
+	case 'x':
+	    if (file_extension == "txt")
+		file_type = FILE_TYPE_TEXT;
+	    break;
+	}
+	break;
+    case 'x':
+	if (file_extension == "xhtml") // serverside parsed html.
+	    file_type = FILE_TYPE_HTML;
+	break;
+    }
+
+    return file_type;
+}
+
+
+std::string FileTypeToString(const FileType file_type) {
+    switch (file_type) {
+    case FILE_TYPE_UNKNOWN:
+	return "unknown";
+    case FILE_TYPE_TEXT:
+	return "text";
+    case FILE_TYPE_HTML:
+	return "html";
+    case FILE_TYPE_PDF:
+	return "pdf";
+    case FILE_TYPE_PS:
+	return "ps";
+    case FILE_TYPE_DOC:
+	return "doc";
+    case FILE_TYPE_SLIDES:
+	return "slides";
+    case FILE_TYPE_TEX:
+	return "tex";
+    case FILE_TYPE_DVI:
+	return "dvi";
+    case FILE_TYPE_TAR:
+	return "tar";
+    case FILE_TYPE_RTF:
+	return "rtf";
+    case FILE_TYPE_GZIP:
+	return "gzip";
+    case FILE_TYPE_Z:
+	return "z";
+    case FILE_TYPE_CODE:
+	return "code";
+    case FILE_TYPE_GRAPHIC:
+	return "graphics";
+    case FILE_TYPE_AUDIO:
+	return "audio";
+    case FILE_TYPE_MOVIE:
+	return "movie";
+    default:
+	throw std::runtime_error("in FileUtil::FileTypeToString: Unknown file type!");
+    }
 }
 
 

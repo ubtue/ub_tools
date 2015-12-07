@@ -114,6 +114,93 @@ std::string GetFileName(const int fd);
 inline std::string GetFileName(FILE * file) { return GetFileName(fileno(file)); }
 
 
+/** \brief  Attempts to set O_NONBLOCK on a file descriptor.
+ *  \param  fd  An open file descriptor.
+ *  \return True if we succeeded in setting O_NONBLOCK on "fd", else false.
+ *  \note   If this function returns false errno contains an appropriate error code.
+ */
+bool SetNonblocking(const int fd);
+
+
+/** \brief  Attempts to clear O_NONBLOCK on a file descriptor.
+ *  \param  fd  An open file descriptor.
+ *  \return True if we succeeded in clearing O_NONBLOCK on "fd", else false.
+ *  \note   If this function returns false errno contains an appropriate error code.
+ */
+bool SetBlocking(const int fd);
+
+
+/** \brief  Split a path into a directory name part and filename part.
+ *  \param  path      The path to split.
+ *  \param  dirname   Will hold the directory name part.
+ *  \param  basename  Will hold the filename part.
+ */
+void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename);
+
+
+/** \brief   Is the given path the name of a directory?
+ *  \param   dir_name  The path to test.
+ *  \return  True if the path is a directory and can be accessed.
+ *
+ *  IsDirectory returns false if "dir_name" either doesn't exist, we
+ *  don't have sufficient priviledges to stat it or it exists but is
+ *  not a directory.
+ */
+bool IsDirectory(const std::string &dir_name);
+
+
+/** \brief   Create a directory.
+ *  \param   path       The path to create.
+ *  \param   recursive  If true, attempt to recursively create parent directoris too.
+ *  \param   mode       The access permission for the directory/directories that will be created.
+ *  \return  True if the directory already existed or has been created else false.
+ */
+bool MakeDirectory(const std::string &path, const bool recursive = false, const mode_t mode = 0775);
+
+
+/** Repositions the offset of the open file associated with the file descriptor "fd" to the start of the file.
+ *  If this function fails it returns false and sets errno to an appropriate error code.
+ */
+bool Rewind(const int fd);
+
+
+/** \enum   FileType
+ *  \brief  Possible types for a file.
+ */
+enum FileType {
+	FILE_TYPE_UNKNOWN,
+	FILE_TYPE_TEXT,      // .txt
+	FILE_TYPE_HTML,      // .htm .html .php
+	FILE_TYPE_PDF,       // .pdf
+	FILE_TYPE_PS,        // .ps, .eps
+	FILE_TYPE_DOC,       // .sxw .doc
+	FILE_TYPE_SLIDES,    // .sxi .ppt
+	FILE_TYPE_TEX,       // .tex ???
+	FILE_TYPE_DVI,       // .dvi
+	FILE_TYPE_TAR,       // .tar
+	FILE_TYPE_RTF,       // .rtf
+	FILE_TYPE_GZIP,      // .tgz, .gz
+	FILE_TYPE_Z,         // .Z    COMPRESS
+	FILE_TYPE_CODE,      // .c, .cc, .h, .pm, ...
+	FILE_TYPE_GRAPHIC,   // .gif, .jpg, ...
+	FILE_TYPE_AUDIO,     // .ogg, .mp3
+	FILE_TYPE_MOVIE      // .mpg, .mpeg, .divx
+};
+
+
+/** \brief  Attempt to guess the file type of "filename".
+ *  \param  filename  The filename for which we'd like to determine the file type.
+ *  \return The guessed file type.
+ */
+FileType GuessFileType(const std::string &filename);
+
+
+/** \brief  Converts an enumerated type 'file_type' to a std::string.
+ *  \param  file_type   The type of file that should be converted to a std::string.
+ */
+std::string FileTypeToString(FileType const file_type);
+
+
 } // namespace FileUtil
 
 

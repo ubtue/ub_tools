@@ -1,3 +1,31 @@
+/** \file    TextUtil.h
+ *  \brief   Declarations of text related utility functions.
+ *  \author  Dr. Johannes Ruscheinski
+ *  \author  Jiangtao Hu
+ */
+
+/*
+ *  Copyright 2003-2009 Project iVia.
+ *  Copyright 2003-2009 The Regents of The University of California.
+ *  Copyright 2015 Universitätsbibliothek Tübingen.
+ *
+ *  This file is part of the libiViaCore package.
+ *
+ *  The libiViaCore package is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public License as published
+ *  by the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  libiViaCore is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with libiViaCore; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include "TextUtil.h"
 #include <algorithm>
 #include <exception>
@@ -255,6 +283,47 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
     }
 
     return haystack.cend();
+}
+
+
+std::string Base64Encode(const std::string &s, const char symbol63, const char symbol64) {
+    static char symbols[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\0\0";
+    symbols[62] = symbol63;
+    symbols[63] = symbol64;
+
+    std::string encoded_chars;
+    std::string::const_iterator ch(s.begin());
+    while (ch != s.end()) {
+	// Collect groups of 3 characters:
+	unsigned buf(static_cast<unsigned char>(*ch));
+	buf <<= 8u;
+	++ch;
+	unsigned ignore_count(0);
+	if (ch != s.end()) {
+	    buf |= static_cast<unsigned char>(*ch);
+	    ++ch;
+	} else
+	    ++ignore_count;
+	buf <<= 8u;
+	if (ch != s.end()) {
+	    buf |= static_cast<unsigned char>(*ch);
+	    ++ch;
+	}
+	else
+	    ++ignore_count;
+
+	// Now grab 6 bits at a time and encode them starting with the 4th character:
+	char next4[4];
+	for (unsigned char_no(0); char_no < 4; ++char_no) {
+	    next4[4 - 1 - char_no] = symbols[buf & 0x3Fu];
+	    buf >>= 6u;
+	}
+
+	for (unsigned char_no(0); char_no < 4 - ignore_count; ++char_no)
+	    encoded_chars += next4[char_no];
+    }
+
+    return encoded_chars;
 }
     
 

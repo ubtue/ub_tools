@@ -7,6 +7,7 @@
 *.log
 *.tar.gz
 *.timestamp
+.deps
 LOEPPN-*
 \#*\#
 add_child_refs
@@ -30,6 +31,7 @@ extract_text_from_image_only_pdfs
 fix_article_biblio_levels
 full_text_lookup
 getfilename_test
+iViaCore-mkdep
 jop_grep
 kcdb_info
 krimdok_filter
