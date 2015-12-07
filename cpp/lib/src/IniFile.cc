@@ -45,81 +45,78 @@ extern "C" int isblank(const int ch);
 #include "util.h"
 
 
-const std::string ETC_DIR("/usr/local/etc");
-
-
 namespace {
 
 
-    std::string BackQuoteUnescape(const std::string &s) {
-        std::string result;
-        result.reserve(s.length());
+std::string BackQuoteUnescape(const std::string &s) {
+    std::string result;
+    result.reserve(s.length());
 
-        for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
-            if (unlikely(*ch == '\\')) {
-                ++ch;
-                if (ch == s.end())
-                    break;
+    for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
+	if (unlikely(*ch == '\\')) {
+	    ++ch;
+	    if (ch == s.end())
+		break;
 
-                switch (*ch) {
-                case 'a':
-                    result += '\a';
-                    break;
-                case 'b':
-                    result += '\b';
-                    break;
-                case 'f':
-                    result += '\f';
-                    break;
-                case 'n':
-                    result += '\n';
-                    break;
-                case 'r':
-                    result += '\r';
-                    break;
-                case 't':
-                    result += '\t';
-                    break;
-                case 'v':
-                    result += '\v';
-                    break;
-                case '\\':
-                    result += '\\';
-                    break;
-                case '\'':
-                    result += '\'';
-                    break;
-                case '"':
-                    result += '"';
-                    break;
-                case '?':
-                    result += '?';
-                    break;
-                default:
-                    result += *ch;
-                }
-            }
-            else
-                result += *ch;
-        }
-
-        return result;
+	    switch (*ch) {
+	    case 'a':
+		result += '\a';
+		break;
+	    case 'b':
+		result += '\b';
+		break;
+	    case 'f':
+		result += '\f';
+		break;
+	    case 'n':
+		result += '\n';
+		break;
+	    case 'r':
+		result += '\r';
+		break;
+	    case 't':
+		result += '\t';
+		break;
+	    case 'v':
+		result += '\v';
+		break;
+	    case '\\':
+		result += '\\';
+		break;
+	    case '\'':
+		result += '\'';
+		break;
+	    case '"':
+		result += '"';
+		break;
+	    case '?':
+		result += '?';
+		break;
+	    default:
+		result += *ch;
+	    }
+	}
+	else
+	    result += *ch;
     }
 
+    return result;
+}
 
-    std::string StripComment(std::string * const s) {
-        size_t hash_mark_pos(0);
-        while ((hash_mark_pos = s->find('#', hash_mark_pos)) != std::string::npos) {
-            if (hash_mark_pos == 0)
-                return (*s = "");
-            else if ((*s)[hash_mark_pos - 1] == '\\')
-                hash_mark_pos = s->find('#', hash_mark_pos + 1);
-            else
-                return (*s = s->substr(0, hash_mark_pos));
-        }
 
-        return *s;
+std::string StripComment(std::string * const s) {
+    size_t hash_mark_pos(0);
+    while ((hash_mark_pos = s->find('#', hash_mark_pos)) != std::string::npos) {
+	if (hash_mark_pos == 0)
+	    return (*s = "");
+	else if ((*s)[hash_mark_pos - 1] == '\\')
+	    hash_mark_pos = s->find('#', hash_mark_pos + 1);
+	else
+	    return (*s = s->substr(0, hash_mark_pos));
     }
+
+    return *s;
+}
 
 
 } // unnamed namespace

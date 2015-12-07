@@ -1,3 +1,31 @@
+/** \file    TextUtil.h
+ *  \brief   Declarations of text related utility functions.
+ *  \author  Dr. Johannes Ruscheinski
+ *  \author  Jiangtao Hu
+ */
+
+/*
+ *  Copyright 2003-2009 Project iVia.
+ *  Copyright 2003-2009 The Regents of The University of California.
+ *  Copyright 2015 Universitätsbibliothek Tübingen.
+ *
+ *  This file is part of the libiViaCore package.
+ *
+ *  The libiViaCore package is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public License as published
+ *  by the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  libiViaCore is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with libiViaCore; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #ifndef TEXT_UTIL_H
 #define TEXT_UTIL_H
 
@@ -63,6 +91,15 @@ bool ChopIntoWords(const std::string &text, std::vector<std::string> * const wor
     is not in "haystack". */
 std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack,
 						       const std::vector<std::string> &needle);
+
+
+/** \brief  Base64 encodes a string.
+ *  \param  s         The string that will be encoded.
+ *  \param  symbol63  The character that will be used for symbol 63.
+ *  \param  symbol64  The character that will be used for symbol 64.
+ *  \return The encoded string.
+ */
+std::string Base64Encode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/');
 
 
 } // namespace TextUtil
