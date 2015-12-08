@@ -415,8 +415,8 @@ public:
     static SingleArgManipulator<int> setprecision(int new_precision) {
 	return SingleArgManipulator<int>(SetPrecision, new_precision); }
 private:
-    File(const File &rhs);                 // Intentionally unimplemented!
-    const File operator=(const File &rhs); // Intentionally unimplemented!
+    File(const File &rhs) = delete;
+    const File operator=(const File &rhs) = delete;
 
     /** Helper function for both waitOnAsyncReadCompletion() and waitOnAsyncWriteCompletion(). */
     bool waitOnAsyncCompletion(aiocb * const control_block_ptr, const unsigned timeout, size_t * const nbytes);
@@ -429,7 +429,7 @@ private:
 
 
 template<typename ArgType> inline File &operator<<(File &file, const File::SingleArgManipulator<ArgType> &manipulator)
-{ return manipulator.func_(file, manipulator.arg_); }
+    { return manipulator.func_(file, manipulator.arg_); }
 
 
 #endif // ifndef FILE_H

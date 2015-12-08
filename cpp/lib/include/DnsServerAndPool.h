@@ -118,8 +118,8 @@ public:
     bool processServerReply(std::vector<in_addr_t> * const resolved_ip_addresses, std::vector<std::string> * const resolved_domainnames,
 			    uint32_t * const ttl, uint16_t * const query_id);
 private:
-    DnsServer(const DnsServer &rhs);                  // Intentionally unimplemented!
-    const DnsServer &operator=(const DnsServer &rhs); // Intentionally unimplemented!
+    DnsServer(const DnsServer &rhs) = delete;
+    const DnsServer &operator=(const DnsServer &rhs) = delete;
 };
 
 
@@ -158,8 +158,8 @@ public:
 
     void insertUnresolvableEntry(const std::string &hostname) { insert(hostname, BAD_ENTRY, bad_dns_expire_time_ * 1000); }
 private:
-    DnsCache(const DnsCache &rhs);                  // Intentionally unimplemented!
-    const DnsCache &operator=(const DnsCache &rhs); // Intentionally unimplemented!
+    DnsCache(const DnsCache &rhs) = delete;
+    const DnsCache &operator=(const DnsCache &rhs) = delete;
 };
 
 
@@ -219,8 +219,8 @@ public:
     /** Returns the number of outstanding requests with our DNS servers. */
     unsigned getQueueLength() const;
 private:
-    DnsServerPool(const DnsServerPool &rhs);                  // Intentionally unimplemented!
-    const DnsServerPool &operator=(const DnsServerPool &rhs); // Intentionally unimplemented!
+    DnsServerPool(const DnsServerPool &rhs) = delete;
+    const DnsServerPool &operator=(const DnsServerPool &rhs) = delete;
 
     /** Returns the average queue length averaged over all DNS servers.  Used internally. */
     double getAverageQueueLength() const;
