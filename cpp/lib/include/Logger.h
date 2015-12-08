@@ -127,7 +127,7 @@ public:
 
 protected:
     explicit Logger(const bool destroy_file)
-	: destroy_file_(destroy_file), already_dead_(true), log_file_(NULL) { }
+	: destroy_file_(destroy_file), already_dead_(true), log_file_(nullptr) { }
 private:
     Logger();                                   // Intentionally unimplemented!
     Logger(const Logger &rhs);                  // Intentionally unimplemented!

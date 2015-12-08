@@ -69,7 +69,7 @@ const char *File::const_iterator::operator++(int) {
 File::const_iterator::const_iterator(FILE *file)
     : file_(file)
 {
-    if (file == NULL) {
+    if (file == nullptr) {
 	eof_ = true;
 	current_char_ = EOF;
     } else {
@@ -85,7 +85,7 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 	: file_(::fopen(path.c_str(), (mode + "m").c_str())), path_(path), mode_(mode), precision_(6),
 	  unique_id_(next_unique_id_++), delete_on_close_(delete_on_close_behaviour == DELETE_ON_CLOSE)
 {
-    if (unlikely(file_ == NULL) and throw_on_error_behaviour == THROW_ON_ERROR)
+    if (unlikely(file_ == nullptr) and throw_on_error_behaviour == THROW_ON_ERROR)
 	throw std::runtime_error("in File::File: fopen(3) on \"" + std::string(path) + "\" with mode \"" + mode
 				 + "m\" failed (" + std::to_string(errno) + ") (1)!");
 }
@@ -112,7 +112,7 @@ File::File(const int fd, const std::string &mode)
     }
 
     file_ = ::fdopen(fd, mode_.c_str());
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::File: fdopen(3) on \"" + std::to_string(fd) + "\" with mode \""
 				 + mode_ + "\" failed (" + std::to_string(errno) + ") (3)!");
 }
@@ -124,7 +124,7 @@ File::~File() {
 
 
 off_t File::size() const {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::size: can't obtain the size of non-open File \"" + (path_.empty() ? "" : path_) + "\"!");
 
     struct stat stat_buf;
@@ -148,12 +148,12 @@ bool File::reopen(const std::string &filepath, const std::string &openmode) {
     if (mode.empty())
 	mode = mode_;
 
-    if (file_ == NULL)
+    if (file_ == nullptr)
 	file_ = ::fopen(path.c_str(), mode.c_str());
     else
 	file_ = ::freopen(path.c_str(), mode.c_str(), file_);
 
-    if (unlikely(file_ == NULL)) {
+    if (unlikely(file_ == nullptr)) {
 	path_.clear();
 	mode_.clear();
 	return false;
@@ -166,7 +166,7 @@ bool File::reopen(const std::string &filepath, const std::string &openmode) {
 
 
 bool File::close() {
-    if (file_ == NULL)
+    if (file_ == nullptr)
 	return false;
     else {
 	// Call all registered on-close callbacks:
@@ -175,7 +175,7 @@ bool File::close() {
 	    (*function_and_user_data->first)(*this, function_and_user_data->second);
 
 	const bool retval = ::fclose(file_) == 0;
-	file_ = NULL;
+	file_ = nullptr;
 
 	if (delete_on_close_)
 	    ::unlink(path_.c_str());
@@ -189,7 +189,7 @@ bool File::close() {
 
 
 bool File::flush() const {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::flush: can't flush non-open file \"" + (path_.empty() ? "" : path_) + "\"!");
 
     return ::fflush(file_) == 0;
@@ -228,7 +228,7 @@ std::string File::getline(const char terminator) {
 
 
 size_t File::write(const void * const buf, const size_t buf_size) {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::write: can't write to non-open file (1) \"" + (path_.empty() ? "" : path_) + "\"!");
 
     return ::fwrite(buf, 1, buf_size, file_);
@@ -236,7 +236,7 @@ size_t File::write(const void * const buf, const size_t buf_size) {
 
 
 bool File::serialize(const std::string &s) {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::serialize: can't serialize to non-open file (2) \"" + (path_.empty() ? "" : path_)
 				 + "\"!");
 
@@ -252,7 +252,7 @@ bool File::serialize(const std::string &s) {
 
 
 bool File::serialize(const char * const s) {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::serialize: can't serialize to non-open file (3) \"" + (path_.empty() ? "" : path_)
 				 + "\"!");
 
@@ -268,7 +268,7 @@ bool File::serialize(const char * const s) {
 
 
 bool File::serialize(const bool b) {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::serialize: can't serialize to non-open file (4) \"" + (path_.empty() ? "" : path_)
 				 + "\"!");
 
@@ -289,7 +289,7 @@ void File::putback(const char ch) {
 
 
 size_t File::read(void * const buf, const size_t buf_size) {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::read: can't read from non-open file (1) \"" + (path_.empty() ? "" : path_) + "\"!");
 
     return ::fread(buf, 1, buf_size, file_);
@@ -318,7 +318,7 @@ uint64_t File::ignore(const uint64_t max_skip_count, const int delimiter) {
 
 
 bool File::deserialize(std::string * const s) {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::deserialize: can't deserialize from non-open file (2) \"" + (path_.empty() ? "" : path_)
 				 + "\"!");
 
@@ -339,7 +339,7 @@ bool File::deserialize(std::string * const s) {
 
 
 bool File::deserialize(bool * const b) {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::deserialize: can't deserialize from non-open file (3) \"" + (path_.empty() ? "" : path_)
 				 + "\"!");
 
@@ -348,7 +348,7 @@ bool File::deserialize(bool * const b) {
 
 
 bool File::seek(const off_t offset, const int whence) {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::seek: can't seek on non-open file \"" + (path_.empty() ? "" : path_) + "\"!");
 
     return ::fseeko(file_, offset, whence) == 0;
@@ -356,7 +356,7 @@ bool File::seek(const off_t offset, const int whence) {
 
 
 off_t File::tell() const {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::tell: can't get a file offset on non-open file \"" + (path_.empty() ? "" : path_)
 				 + "\"!");
 
@@ -365,7 +365,7 @@ off_t File::tell() const {
 
 
 bool File::truncate(const off_t new_length) {
-    if (unlikely(file_ == NULL))
+    if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::setNewSize: can't get non-open file's size \"" + (path_.empty() ? "" : path_) + "\"!");
 
     ::fflush(file_);
@@ -415,9 +415,9 @@ void File::registerOnCloseCallback(void (*new_callback)(File &file, void * const
 const char *File::getReadOnlyMmap() const {
     struct stat stat_buf;
     if (unlikely(::fstat(fileno(file_), &stat_buf) == -1))
-	return NULL;
+	return nullptr;
     const char *data = reinterpret_cast<const char *>(::mmap(0, stat_buf.st_size, PROT_READ, MAP_SHARED, fileno(file_), 0));
-    return data == MAP_FAILED ? NULL : data;
+    return data == MAP_FAILED ? nullptr : data;
 }
 
 
@@ -579,7 +579,7 @@ File::const_iterator File::begin() const {
 
 
 File::const_iterator File::end() const {
-    return const_iterator(NULL);
+    return const_iterator(nullptr);
 }
 
 
@@ -588,7 +588,7 @@ bool File::waitOnAsyncCompletion(aiocb * const control_block_ptr, const unsigned
 
     // Wait forever?
     if (timeout == UINT_MAX)
-	success = ::aio_suspend(&control_block_ptr, 1, NULL) == 0;
+	success = ::aio_suspend(&control_block_ptr, 1, nullptr) == 0;
     else {
 	timespec time_spec;
 	TimeUtil::MillisecondsToTimeSpec(timeout, &time_spec);

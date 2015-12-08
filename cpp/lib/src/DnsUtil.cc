@@ -157,7 +157,7 @@ bool IpAddrToHostnames(const std::string &dotted_quad, std::list<std::string> * 
 
     hostnames->push_back(entry->h_name);
 
-    for (const char * const *alias = entry->h_aliases; *alias != 0 /* rather than NULL */; ++alias)
+    for (const char * const *alias = entry->h_aliases; *alias != 0 /* rather than nullptr */; ++alias)
 	hostnames->push_back(*alias);
     return true;
 }

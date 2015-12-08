@@ -43,7 +43,7 @@ const size_t MAX_BUF_SIZE(2048);
 
 
 Logger::Logger(const std::string &log_filename, const VerbosityLevel default_verbosity, const OpenMode open_mode)
-    : destroy_file_(true), already_dead_(false), log_file_(NULL), log_filename_(log_filename), verbosity_(default_verbosity)
+    : destroy_file_(true), already_dead_(false), log_file_(nullptr), log_filename_(log_filename), verbosity_(default_verbosity)
 {
     // Make sure the logging directory exists:
     std::string dirname, basename;
@@ -58,7 +58,7 @@ Logger::Logger(const std::string &log_filename, const VerbosityLevel default_ver
 
 
 Logger::Logger(const char * const log_filename, const VerbosityLevel default_verbosity, const OpenMode open_mode)
-	: destroy_file_(true), already_dead_(false), log_file_(NULL), log_filename_(log_filename), verbosity_(default_verbosity)
+	: destroy_file_(true), already_dead_(false), log_file_(nullptr), log_filename_(log_filename), verbosity_(default_verbosity)
 {
     // Make sure the logging directory exists:
     std::string dirname, basename;

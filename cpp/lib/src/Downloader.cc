@@ -56,11 +56,11 @@ int GlobalInit() {
 int dummy(GlobalInit());
 
 
-CURLSH *Downloader::share_handle_(NULL);
+CURLSH *Downloader::share_handle_(nullptr);
 unsigned Downloader::instance_count_(0);
-std::mutex *Downloader::dns_mutex_(NULL);
-std::mutex *Downloader::cookie_mutex_(NULL);
-std::mutex *Downloader::robots_dot_txt_mutex_(NULL);
+std::mutex *Downloader::dns_mutex_(nullptr);
+std::mutex *Downloader::cookie_mutex_(nullptr);
+std::mutex *Downloader::robots_dot_txt_mutex_(nullptr);
 std::unordered_map<std::string, RobotsDotTxt> Downloader::url_to_robots_dot_txt_map_;
 const std::string Downloader::DEFAULT_ACCEPTABLE_LANGUAGES("en,eng,english");
 std::string Downloader::DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG("Disallowed by robots.txt.");
@@ -85,7 +85,7 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
 
 
 Downloader::Downloader(const Url &url, const Params &params, const TimeLimit &time_limit)
-    : multi_mode_(false), additional_http_headers_(NULL), params_(params)
+    : multi_mode_(false), additional_http_headers_(nullptr), params_(params)
 {
     init();
     newUrl(url, time_limit);
@@ -93,7 +93,7 @@ Downloader::Downloader(const Url &url, const Params &params, const TimeLimit &ti
 
 
 Downloader::Downloader(const std::string &url, const Params &params, const TimeLimit &time_limit, bool multimode)
-    : multi_mode_(multimode), additional_http_headers_(NULL), params_(params)
+    : multi_mode_(multimode), additional_http_headers_(nullptr), params_(params)
 {
     init();
     newUrl(url, time_limit);
@@ -103,9 +103,9 @@ Downloader::Downloader(const std::string &url, const Params &params, const TimeL
 Downloader::~Downloader() {
     --instance_count_;
 
-    if (additional_http_headers_ != NULL)
+    if (additional_http_headers_ != nullptr)
 	::curl_slist_free_all(additional_http_headers_);
-    if (likely(easy_handle_ != NULL))
+    if (likely(easy_handle_ != nullptr))
 	::curl_easy_cleanup(easy_handle_);
 }
 
@@ -241,12 +241,12 @@ void Downloader::InitCurlEasyHandle(const long dns_cache_timeout, const char * c
 				    const bool follow_redirects)
 {
     *easy_handle = ::curl_easy_init();
-    if (unlikely(*easy_handle == NULL))
+    if (unlikely(*easy_handle == nullptr))
 	throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_init() failed!");
 
-    if (share_handle_ == NULL) {
+    if (share_handle_ == nullptr) {
 	share_handle_ = ::curl_share_init( );
-	if (unlikely(share_handle_ == NULL))
+	if (unlikely(share_handle_ == nullptr))
 	    throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_init() failed!");
 	dns_mutex_ = new std::mutex;
 	cookie_mutex_ = new std::mutex;
@@ -329,7 +329,7 @@ bool Downloader::internalNewUrl(const Url &url, const TimeLimit &time_limit) {
 	return false;
 
     // Add additional HTTP headers:
-    if (url.isValidWebUrl() and additional_http_headers_ != NULL)
+    if (url.isValidWebUrl() and additional_http_headers_ != nullptr)
 	::curl_easy_setopt(easy_handle_, CURLOPT_HTTPHEADER, additional_http_headers_);
 
     if (not multi_mode_) {
@@ -377,7 +377,7 @@ size_t Downloader::headerFunction(void *data, size_t size, size_t nmemb) {
     // Look for "Location:" fields when dealing with HTTP or HTTPS:
     if (current_url_.isValidWebUrl()) {
 	const char * const location_plus_colon(::strcasestr(chunk.c_str(), "Location:"));
-	if (location_plus_colon != NULL) {
+	if (location_plus_colon != nullptr) {
 	    std::string redirect_url(location_plus_colon + 9);
 	    StringUtil::TrimWhite(&redirect_url);
 	    if (not redirect_url.empty())
@@ -461,14 +461,14 @@ void Downloader::GlobalCleanup(const bool forever) {
     if (unlikely(GetInstanceCount() != 0))
 	throw std::runtime_error("in Downloader::GlobalCleanup: can't cleanup with existing instances of class Downloader!");
 
-    if (share_handle_ != NULL) {
+    if (share_handle_ != nullptr) {
 	::curl_share_cleanup(share_handle_);
-	share_handle_ = NULL;
+	share_handle_ = nullptr;
     }
 
-    delete dns_mutex_,  dns_mutex_ = NULL;
-    delete cookie_mutex_,  cookie_mutex_ = NULL;
-    delete robots_dot_txt_mutex_,  robots_dot_txt_mutex_ = NULL;
+    delete dns_mutex_,  dns_mutex_ = nullptr;
+    delete cookie_mutex_,  cookie_mutex_ = nullptr;
+    delete robots_dot_txt_mutex_,  robots_dot_txt_mutex_ = nullptr;
 
     if (forever)
 	::curl_global_cleanup();
@@ -526,7 +526,7 @@ bool Downloader::getHttpEquivRedirect(std::string * const redirect_url) const {
 	return false;
 
     const char * const url_and_equal_sign(::strcasestr(url_and_possible_junk.c_str(), "url="));
-    if (url_and_equal_sign != NULL)
+    if (url_and_equal_sign != nullptr)
 	*redirect_url = url_and_equal_sign + 4;
     else
 	*redirect_url = url_and_possible_junk;

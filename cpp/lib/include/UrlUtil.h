@@ -172,10 +172,10 @@ public:
 
     /** \brief   Is this URL blocked by the blacklist?
      *  \param   url     The URL to test.
-     *  \param   reason  If non-NULL, returns the pattern that was the reason that the URL was blocked.
+     *  \param   reason  If non-nullptr, returns the pattern that was the reason that the URL was blocked.
      *  \return  True if the URL is an 'http' or 'https' URL and is blocked; otherwise false.
      */
-    bool blocked(const std::string &url, std::string * const reason = NULL) const;
+    bool blocked(const std::string &url, std::string * const reason = nullptr) const;
 private:
     /** Extracts blocking and unblocking info from "action_filename" and stores it in "reg_exps_". */
     void processPrivoxyActionFile(const std::string &action_filename);

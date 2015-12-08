@@ -99,10 +99,10 @@ public:
     /** \brief   Attempts to submit a new name lookup request to our DNS server.
      *  \param   valid_hostname  A name hostname that we want to resolve.
      *  \param   query_id        Uniquely identifies the submitted request.
-     *  \param   deadline        If non-NULL we store the request's expiration time in milliseconds since the epoch here.
+     *  \param   deadline        If non-nullptr we store the request's expiration time in milliseconds since the epoch here.
      *  \return  True if we submitted the new request to our DNS server or false if our server is currently busy.
      */
-    bool addLookupRequest(const std::string &valid_hostname, uint16_t * const query_id, uint64_t * const deadline = NULL);
+    bool addLookupRequest(const std::string &valid_hostname, uint16_t * const query_id, uint64_t * const deadline = nullptr);
 
     /** \brief  Call this function if our socket file descriptor is ready for reading.
      *  \param  resolved_ip_addresses  List of IP address for an earlier submitted lookup request.  May be incomplete!

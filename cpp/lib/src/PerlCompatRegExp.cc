@@ -36,7 +36,7 @@
  *  PerlCompatRegExp in another file crashes due to these values being unitialized.
  */
 inline const unsigned char *&PerlCompatRegExp::GetCharacterTable() {
-    static const unsigned char *character_table = NULL;
+    static const unsigned char *character_table = nullptr;
     return character_table;
 }
 
@@ -48,23 +48,23 @@ inline std::string &PerlCompatRegExp::GetCodeset() {
 
 
 PerlCompatRegExp::PerlCompatRegExp(const std::string &pattern, const ProcessingMode processing_mode, const int options)
-	: compiled_pattern_(NULL), extra_pattern_info_(NULL), substring_match_count_(0)
+	: compiled_pattern_(nullptr), extra_pattern_info_(nullptr), substring_match_count_(0)
 {
     resetPattern(pattern, processing_mode, options);
 }
 
 
 PerlCompatRegExp::PerlCompatRegExp(const PerlCompatRegExp &rhs)
-	: compiled_pattern_(NULL), extra_pattern_info_(NULL), substring_match_count_(rhs.substring_match_count_)
+	: compiled_pattern_(nullptr), extra_pattern_info_(nullptr), substring_match_count_(rhs.substring_match_count_)
 {
     resetPattern(rhs.pattern_, rhs.processing_mode_, rhs.options_);
 }
 
 
 PerlCompatRegExp::~PerlCompatRegExp() {
-    if (compiled_pattern_ != NULL)
+    if (compiled_pattern_ != nullptr)
 	::pcre_free(compiled_pattern_);
-    if (extra_pattern_info_ != NULL)
+    if (extra_pattern_info_ != nullptr)
 	::pcre_free(extra_pattern_info_);
 }
 
@@ -100,7 +100,7 @@ void PerlCompatRegExp::resetPattern(const std::string &new_pattern, const Proces
 bool PerlCompatRegExp::match(const std::string &subject_text, const size_t start_offset, size_t * const start_pos,
 			     size_t * const length, const int options) const
 {
-    assert(compiled_pattern_ != NULL);
+    assert(compiled_pattern_ != nullptr);
 
     subject_text_ = subject_text;
     const int match_count(::pcre_exec(compiled_pattern_, extra_pattern_info_, subject_text_.c_str(),
@@ -114,9 +114,9 @@ bool PerlCompatRegExp::match(const std::string &subject_text, const size_t start
     if (match_count < 1)
 	return false;
     else {
-	if (start_pos != NULL)
+	if (start_pos != nullptr)
 	    *start_pos = offset_vector_[0];
-	if (length != NULL)
+	if (length != nullptr)
 	    *length    = offset_vector_[1] - offset_vector_[0];
 	return true;
     }
@@ -226,208 +226,198 @@ bool PerlCompatRegExp::getMatchedSubstring(unsigned index, std::string * const m
 }
 
 
-std::string PerlCompatRegExp::getMatchedSubstring(unsigned index) const
-{
-	if (substring_match_count_ == 0)
-		throw std::runtime_error("in PerlCompatRegExp::getMatchedSubstring: no matches available!");
+std::string PerlCompatRegExp::getMatchedSubstring(unsigned index) const {
+    if (substring_match_count_ == 0)
+	throw std::runtime_error("in PerlCompatRegExp::getMatchedSubstring: no matches available!");
 
-	if (index == 0)
-		throw std::runtime_error("in PerlCompatRegExp::getMatchedSubstring: index out of range (indexes start at 1)!");
+    if (index == 0)
+	throw std::runtime_error("in PerlCompatRegExp::getMatchedSubstring: index out of range (indexes start at 1)!");
 
-	if (index > substring_match_count_)
-		throw std::runtime_error("in PerlCompatRegExp::getMatchedSubstring: asked for substring beyond available count!");
+    if (index > substring_match_count_)
+	throw std::runtime_error("in PerlCompatRegExp::getMatchedSubstring: asked for substring beyond available count!");
 
-	index <<= 1; // Indexes come in pairs.
-	if (offset_vector_[index] == -1)
-		return "";
+    index <<= 1; // Indexes come in pairs.
+    if (offset_vector_[index] == -1)
+	return "";
 
-	return subject_text_.substr(offset_vector_[index], offset_vector_[index+1]-offset_vector_[index]);
+    return subject_text_.substr(offset_vector_[index], offset_vector_[index+1]-offset_vector_[index]);
 }
 
 
 std::string PerlCompatRegExp::Subst(const std::string &pattern, const std::string &replacement, const std::string &subject_text,
 				    const bool global, const int options)
 {
-	PerlCompatRegExp reg_exp(pattern, global ? OPTIMIZE_FOR_MULTIPLE_USE : DONT_OPTIMIZE_FOR_MULTIPLE_USE, options);
+    PerlCompatRegExp reg_exp(pattern, global ? OPTIMIZE_FOR_MULTIPLE_USE : DONT_OPTIMIZE_FOR_MULTIPLE_USE, options);
 
-	std::string ret_val;
-	size_t start_pos, length;
-	if (not reg_exp.match(subject_text, 0, &start_pos, &length))
-		return subject_text;
-	else
-		ret_val = subject_text.substr(0, start_pos) + GenerateReplacementText(reg_exp, replacement);
+    std::string ret_val;
+    size_t start_pos, length;
+    if (not reg_exp.match(subject_text, 0, &start_pos, &length))
+	return subject_text;
+    else
+	ret_val = subject_text.substr(0, start_pos) + GenerateReplacementText(reg_exp, replacement);
 
-	size_t last_end_pos(start_pos + length);
-	while (global and reg_exp.match(subject_text, start_pos + length, &start_pos, &length)) {
-		ret_val += subject_text.substr(last_end_pos, start_pos - last_end_pos)
-			   + GenerateReplacementText(reg_exp, replacement);
-		last_end_pos = start_pos + length;
-	}
+    size_t last_end_pos(start_pos + length);
+    while (global and reg_exp.match(subject_text, start_pos + length, &start_pos, &length)) {
+	ret_val += subject_text.substr(last_end_pos, start_pos - last_end_pos)
+	    + GenerateReplacementText(reg_exp, replacement);
+	last_end_pos = start_pos + length;
+    }
 
-	ret_val += subject_text.substr(last_end_pos);
-	return ret_val;
+    ret_val += subject_text.substr(last_end_pos);
+    return ret_val;
 }
 
 
-std::string PerlCompatRegExp::subst(const std::string &replacement, const std::string &subject_text, const bool global) const
-{
-	std::string ret_val;
-	size_t start_pos, length;
-	if (not match(subject_text, 0, &start_pos, &length))
-		return subject_text;
-	else
-		ret_val = subject_text.substr(0, start_pos) + GenerateReplacementText(*this, replacement);
+std::string PerlCompatRegExp::subst(const std::string &replacement, const std::string &subject_text, const bool global) const {
+    std::string ret_val;
+    size_t start_pos, length;
+    if (not match(subject_text, 0, &start_pos, &length))
+	return subject_text;
+    else
+	ret_val = subject_text.substr(0, start_pos) + GenerateReplacementText(*this, replacement);
 
-	size_t last_end_pos(start_pos + length);
-	while (global and match(subject_text, start_pos + length, &start_pos, &length)) {
-		ret_val += subject_text.substr(last_end_pos, start_pos - last_end_pos)
-			   + GenerateReplacementText(*this, replacement);
-		last_end_pos = start_pos + length;
-	}
+    size_t last_end_pos(start_pos + length);
+    while (global and match(subject_text, start_pos + length, &start_pos, &length)) {
+	ret_val += subject_text.substr(last_end_pos, start_pos - last_end_pos)
+	    + GenerateReplacementText(*this, replacement);
+	last_end_pos = start_pos + length;
+    }
 
-	ret_val += subject_text.substr(last_end_pos);
-	return ret_val;
+    ret_val += subject_text.substr(last_end_pos);
+    return ret_val;
 }
 
 
-std::string PerlCompatRegExp::Subst(const std::string &subst_expression, const std::string &subject_text, const int options)
-{
-	if (subst_expression.length() < 3)
-		throw std::runtime_error("in PerlCompatRegExp::Subst: subst_expression.length() < 3!");
+std::string PerlCompatRegExp::Subst(const std::string &subst_expression, const std::string &subject_text, const int options) {
+    if (subst_expression.length() < 3)
+	throw std::runtime_error("in PerlCompatRegExp::Subst: subst_expression.length() < 3!");
 
-	const char DELIMITER = subst_expression[0];
+    const char DELIMITER = subst_expression[0];
 
-	std::string pattern, replacement;
-	bool scanning_pattern(true), escaped(false);
-	std::string::const_iterator ch(subst_expression.begin());
-	for (++ch; /* forever */; ++ch) {
-		if (ch == subst_expression.end())
-			throw std::runtime_error("in PerlCompatRegExp::Subst: missing final delimiter!");
-		else if (escaped) {
-			escaped = false;
-			if (scanning_pattern)
-				pattern += *ch;
-			else
-				replacement += *ch;
+    std::string pattern, replacement;
+    bool scanning_pattern(true), escaped(false);
+    std::string::const_iterator ch(subst_expression.begin());
+    for (++ch; /* forever */; ++ch) {
+	if (ch == subst_expression.end())
+	    throw std::runtime_error("in PerlCompatRegExp::Subst: missing final delimiter!");
+	else if (escaped) {
+	    escaped = false;
+	    if (scanning_pattern)
+		pattern += *ch;
+	    else
+		replacement += *ch;
+	} else if (*ch == '\\') {
+	    escaped = true;
+	    if (scanning_pattern)
+		pattern += *ch;
+	    else
+		replacement += *ch;
+	} else if (*ch == DELIMITER) {
+	    if (scanning_pattern)
+		scanning_pattern = false;
+	    else {
+		bool global(false);
+		if (++ch != subst_expression.end()) {
+		    if (*ch == 'g') {
+			global = true;
+			++ch;
+		    }
 		}
-		else if (*ch == '\\') {
-			escaped = true;
-			if (scanning_pattern)
-				pattern += *ch;
-			else
-				replacement += *ch;
-		}
-		else if (*ch == DELIMITER) {
-			if (scanning_pattern)
-				scanning_pattern = false;
-			else {
-				bool global(false);
-				if (++ch != subst_expression.end()) {
-					if (*ch == 'g') {
-						global = true;
-						++ch;
-					}
-				}
-				if (ch != subst_expression.end())
-					throw std::runtime_error("in PerlCompatRegExp::Subst: unexpected delimiter before end of replacement text!");
+		if (ch != subst_expression.end())
+		    throw std::runtime_error("in PerlCompatRegExp::Subst: unexpected delimiter before end of replacement text!");
 
-				return Subst(pattern, replacement, subject_text, global, options);
-			}
-		}
-		else {
-			if (scanning_pattern)
-				pattern += *ch;
-			else
-				replacement += *ch;
-		}
+		return Subst(pattern, replacement, subject_text, global, options);
+	    }
+	} else {
+	    if (scanning_pattern)
+		pattern += *ch;
+	    else
+		replacement += *ch;
 	}
+    }
 }
 
 
-bool PerlCompatRegExp::IsValid(const std::string &test_pattern)
-{
-	const char *err_ptr;
-	int err_offset;
-	UpdateCharacterTable();
-	pcre *compiled_pattern = ::pcre_compile(test_pattern.c_str(), 0, &err_ptr, &err_offset, PerlCompatRegExp::GetCharacterTable());
-	if (compiled_pattern == NULL)
-		return false;
-	else {
-		::pcre_free(compiled_pattern);
-		return true;
-	}
+bool PerlCompatRegExp::IsValid(const std::string &test_pattern) {
+    const char *err_ptr;
+    int err_offset;
+    UpdateCharacterTable();
+    pcre *compiled_pattern = ::pcre_compile(test_pattern.c_str(), 0, &err_ptr, &err_offset, PerlCompatRegExp::GetCharacterTable());
+    if (compiled_pattern == nullptr)
+	return false;
+    else {
+	::pcre_free(compiled_pattern);
+	return true;
+    }
 }
 
 
-bool PerlCompatRegExp::internalResetPattern(const std::string &new_pattern, const ProcessingMode new_processing_mode, const int new_options,
-					    std::string * const error_message)
+bool PerlCompatRegExp::internalResetPattern(const std::string &new_pattern, const ProcessingMode new_processing_mode,
+					    const int new_options, std::string * const error_message)
 {
-	pattern_         = new_pattern;
-	processing_mode_ = new_processing_mode;
-	options_         = new_options;
+    pattern_         = new_pattern;
+    processing_mode_ = new_processing_mode;
+    options_         = new_options;
 
-	if (compiled_pattern_ != NULL)
-		::pcre_free(compiled_pattern_);
-	if (extra_pattern_info_ != NULL)
-		::pcre_free(extra_pattern_info_);
+    if (compiled_pattern_ != nullptr)
+	::pcre_free(compiled_pattern_);
+    if (extra_pattern_info_ != nullptr)
+	::pcre_free(extra_pattern_info_);
 
-	const char *err_ptr;
-	int err_offset;
-	UpdateCharacterTable();
-	compiled_pattern_ = ::pcre_compile(new_pattern.c_str(), new_options, &err_ptr, &err_offset, PerlCompatRegExp::GetCharacterTable());
-	if (compiled_pattern_ == NULL) {
-		*error_message = StringUtil::Format("error \"%s\" while compiling pattern at offset %u (%s)!", err_ptr, err_offset,
-						    new_pattern.c_str() + err_offset);
-		return false;
-	}
+    const char *err_ptr;
+    int err_offset;
+    UpdateCharacterTable();
+    compiled_pattern_ = ::pcre_compile(new_pattern.c_str(), new_options, &err_ptr, &err_offset, PerlCompatRegExp::GetCharacterTable());
+    if (compiled_pattern_ == nullptr) {
+	*error_message = StringUtil::Format("error \"%s\" while compiling pattern at offset %u (%s)!", err_ptr, err_offset,
+					    new_pattern.c_str() + err_offset);
+	return false;
+    }
 
 #if 0 // The "studying" seems to currently be broken for the general case!
-	if (new_processing_mode == OPTIMIZE_FOR_MULTIPLE_USE) {
-		extra_pattern_info_ = ::pcre_study(compiled_pattern_, 0, &err_ptr);
-		if (extra_pattern_info_ == NULL) {
-			*error_message = "error while optimizing the pattern \"";
-			*error_message += pattern;
-			*error_message += "\" (";
-			*error_message += err_ptr;
-			*error_message += ")!";
-			return false;
-		}
+    if (new_processing_mode == OPTIMIZE_FOR_MULTIPLE_USE) {
+	extra_pattern_info_ = ::pcre_study(compiled_pattern_, 0, &err_ptr);
+	if (extra_pattern_info_ == nullptr) {
+	    *error_message = "error while optimizing the pattern \"";
+	    *error_message += pattern;
+	    *error_message += "\" (";
+	    *error_message += err_ptr;
+	    *error_message += ")!";
+	    return false;
 	}
+    }
 #endif
 
-	return true;
+    return true;
 }
 
 
-void PerlCompatRegExp::UpdateCharacterTable()
-{
-	const std::string current_codeset(::nl_langinfo(CODESET));
-	if (PerlCompatRegExp::GetCodeset() != current_codeset) {
-		PerlCompatRegExp::GetCodeset() = current_codeset;
-		if (GetCharacterTable() != NULL)
-			::pcre_free(reinterpret_cast<void *>(const_cast<unsigned char *>(PerlCompatRegExp::GetCharacterTable())));
-		PerlCompatRegExp::GetCharacterTable() = ::pcre_maketables();
-	}
+void PerlCompatRegExp::UpdateCharacterTable() {
+    const std::string current_codeset(::nl_langinfo(CODESET));
+    if (PerlCompatRegExp::GetCodeset() != current_codeset) {
+	PerlCompatRegExp::GetCodeset() = current_codeset;
+	if (GetCharacterTable() != nullptr)
+	    ::pcre_free(reinterpret_cast<void *>(const_cast<unsigned char *>(PerlCompatRegExp::GetCharacterTable())));
+	PerlCompatRegExp::GetCharacterTable() = ::pcre_maketables();
+    }
 }
 
 
-bool PerlCompatRegExp::IsMetacharacter(const char ch)
-{
-	return std::strchr("\\^$.[]()?*+{}", ch) != NULL;
+bool PerlCompatRegExp::IsMetacharacter(const char ch) {
+    return std::strchr("\\^$.[]()?*+{}", ch) != nullptr;
 }
 
 
-std::string PerlCompatRegExp::EscapeMetacharacters(const std::string &s)
-{
-	std::string escaped_s;
-	escaped_s.reserve(s.size());
-	for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
-		if (IsMetacharacter(*ch))
-			escaped_s += '\\';
-		escaped_s += *ch;
-	}
+std::string PerlCompatRegExp::EscapeMetacharacters(const std::string &s) {
+    std::string escaped_s;
+    escaped_s.reserve(s.size());
+    for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
+	if (IsMetacharacter(*ch))
+	    escaped_s += '\\';
+	escaped_s += *ch;
+    }
 
-	return escaped_s;
+    return escaped_s;
 }
 
 
@@ -437,134 +427,129 @@ PerlCompatRegExps::PerlCompatRegExps(const PerlCompatRegExps &rhs)
 }
 
 
-bool PerlCompatRegExps::empty() const
-{
-	for (std::list<PerlCompatRegExp>::const_iterator reg_exp(reg_exps_.begin()); reg_exp != reg_exps_.end(); ++reg_exp) {
-		if (not reg_exp->empty())
-			return false;
-	}
+bool PerlCompatRegExps::empty() const {
+    for (std::list<PerlCompatRegExp>::const_iterator reg_exp(reg_exps_.begin()); reg_exp != reg_exps_.end(); ++reg_exp) {
+	if (not reg_exp->empty())
+	    return false;
+    }
 
-	return true;
+    return true;
 }
 
 
-const PerlCompatRegExps &PerlCompatRegExps::operator=(const PerlCompatRegExps &rhs)
-{
-	// Prevent self-assignment:
-	if (this != &rhs) {
+const PerlCompatRegExps &PerlCompatRegExps::operator=(const PerlCompatRegExps &rhs) {
+    // Prevent self-assignment:
+    if (this != &rhs) {
 #if 0
-		reg_exps_.clear();
-		for (std::list<PerlCompatRegExp>::const_iterator reg_exp(rhs.reg_exps_.begin()); reg_exp != rhs.reg_exps_.end(); ++reg_exp)
-			reg_exps_.push_back(*reg_exp);
+	reg_exps_.clear();
+	for (std::list<PerlCompatRegExp>::const_iterator reg_exp(rhs.reg_exps_.begin()); reg_exp != rhs.reg_exps_.end(); ++reg_exp)
+	    reg_exps_.push_back(*reg_exp);
 #else
-		processing_mode_ = rhs.processing_mode_;
-		options_         = rhs.options_;
-		patterns_        = rhs.patterns_;
-		reg_exps_        = rhs.reg_exps_;
+	processing_mode_ = rhs.processing_mode_;
+	options_         = rhs.options_;
+	patterns_        = rhs.patterns_;
+	reg_exps_        = rhs.reg_exps_;
 #endif
-	}
+    }
 
-	return *this;
+    return *this;
 }
 
 
-bool PerlCompatRegExps::matchAny(const std::string &subject_text, const size_t start_offset, size_t * const start_pos, size_t * const length,
-				 const int options) const
+bool PerlCompatRegExps::matchAny(const std::string &subject_text, const size_t start_offset, size_t * const start_pos,
+				 size_t * const length, const int options) const
 {
-	for (std::list<PerlCompatRegExp>::const_iterator reg_exp(reg_exps_.begin()); reg_exp != reg_exps_.end(); ++reg_exp) {
-		if (reg_exp->match(subject_text, start_offset, start_pos, length, options))
-			return true;
-	}
+    for (std::list<PerlCompatRegExp>::const_iterator reg_exp(reg_exps_.begin()); reg_exp != reg_exps_.end(); ++reg_exp) {
+	if (reg_exp->match(subject_text, start_offset, start_pos, length, options))
+	    return true;
+    }
 
-	return false;
+    return false;
 }
 
 
-bool PerlCompatRegExps::matchAny(const std::string &subject_text, const int options) const
-{
-	for (std::list<PerlCompatRegExp>::const_iterator reg_exp(reg_exps_.begin()); reg_exp != reg_exps_.end(); ++reg_exp) {
-		if (reg_exp->match(subject_text, options))
-			return true;
-	}
+bool PerlCompatRegExps::matchAny(const std::string &subject_text, const int options) const {
+    for (std::list<PerlCompatRegExp>::const_iterator reg_exp(reg_exps_.begin()); reg_exp != reg_exps_.end(); ++reg_exp) {
+	if (reg_exp->match(subject_text, options))
+	    return true;
+    }
 
-	return false;
+    return false;
 }
 
 
-bool PerlCompatRegExps::multiMatch(const std::string &subject_text, std::vector<std::string> * const matched_substrings, const int options) const
+bool PerlCompatRegExps::multiMatch(const std::string &subject_text, std::vector<std::string> * const matched_substrings,
+				   const int options) const
 {
-	matched_substrings->clear();
+    matched_substrings->clear();
 
-	size_t start_offset(0);
-	size_t start_pos, match_length;
-	while (matchAny(subject_text, start_offset, &start_pos, &match_length, options)) {
-		matched_substrings->push_back(subject_text.substr(start_pos, match_length));
-		start_offset = start_pos + match_length; // For the next match attempt.
-	}
+    size_t start_offset(0);
+    size_t start_pos, match_length;
+    while (matchAny(subject_text, start_offset, &start_pos, &match_length, options)) {
+	matched_substrings->push_back(subject_text.substr(start_pos, match_length));
+	start_offset = start_pos + match_length; // For the next match attempt.
+    }
 
-	return not matched_substrings->empty();
+    return not matched_substrings->empty();
 }
 
 
 PerlCompatSubst::PerlCompatSubst(const std::string &subst_expr)
-	: subst_expr_(subst_expr), global_(false), perl_compat_regexp_(NULL)
+    : subst_expr_(subst_expr), global_(false), perl_compat_regexp_(nullptr)
 {
-	if (subst_expr.length() < 3)
-		throw std::runtime_error("in PerlCompatSubst::PerlCompatSubst: subst_expression.length() < 3!");
+    if (subst_expr.length() < 3)
+	throw std::runtime_error("in PerlCompatSubst::PerlCompatSubst: subst_expression.length() < 3!");
 
-	const char DELIMITER = subst_expr[0];
+    const char DELIMITER = subst_expr[0];
 
-	std::string pattern;
-	bool scanning_pattern(true), escaped(false);
-	std::string::const_iterator ch(subst_expr.begin());
-	for (++ch; /* forever */; ++ch) {
-		if (ch == subst_expr.end())
-			throw std::runtime_error("in PerlCompatRegExp::PerlCompatRegExp: missing final delimiter!");
-		else if (escaped) {
-			escaped = false;
-			if (scanning_pattern)
-				pattern += *ch;
-			else
-				replacement_ += *ch;
+    std::string pattern;
+    bool scanning_pattern(true), escaped(false);
+    std::string::const_iterator ch(subst_expr.begin());
+    for (++ch; /* forever */; ++ch) {
+	if (ch == subst_expr.end())
+	    throw std::runtime_error("in PerlCompatRegExp::PerlCompatRegExp: missing final delimiter!");
+	else if (escaped) {
+	    escaped = false;
+	    if (scanning_pattern)
+		pattern += *ch;
+	    else
+		replacement_ += *ch;
+	} else if (*ch == '\\') {
+	    escaped = true;
+	    if (scanning_pattern)
+		pattern += *ch;
+	    else
+		replacement_ += *ch;
+	} else if (*ch == DELIMITER) {
+	    if (scanning_pattern)
+		scanning_pattern = false;
+	    else {
+		if (++ch != subst_expr.end()) {
+		    if (*ch == 'g') {
+			global_ = true;
+			++ch;
+		    }
 		}
-		else if (*ch == '\\') {
-			escaped = true;
-			if (scanning_pattern)
-				pattern += *ch;
-			else
-				replacement_ += *ch;
-		}
-		else if (*ch == DELIMITER) {
-			if (scanning_pattern)
-				scanning_pattern = false;
-			else {
-				if (++ch != subst_expr.end()) {
-					if (*ch == 'g') {
-						global_ = true;
-						++ch;
-					}
-				}
-				if (ch != subst_expr.end())
-					throw std::runtime_error("in PerlCompatSubst::PerlCompatSubst: unexpected delimiter before end of "
-							"replacement text!");
+		if (ch != subst_expr.end())
+		    throw std::runtime_error("in PerlCompatSubst::PerlCompatSubst: unexpected delimiter before end of "
+					     "replacement text!");
 
-				perl_compat_regexp_ = new PerlCompatRegExp(pattern, PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE);
-				return;
-			}
-		}
-		else {
-			if (scanning_pattern)
-				pattern += *ch;
-			else
-				replacement_ += *ch;
-		}
+		perl_compat_regexp_ = new PerlCompatRegExp(pattern, PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE);
+		return;
+	    }
+	} else {
+	    if (scanning_pattern)
+		pattern += *ch;
+	    else
+		replacement_ += *ch;
 	}
+    }
 }
 
 
 PerlCompatSubst::PerlCompatSubst(const PerlCompatSubst &rhs)
-	: subst_expr_(rhs.subst_expr_), replacement_(rhs.replacement_), global_(rhs.global_),
-	  perl_compat_regexp_(new PerlCompatRegExp(*rhs.perl_compat_regexp_))
+    : subst_expr_(rhs.subst_expr_), replacement_(rhs.replacement_), global_(rhs.global_),
+      perl_compat_regexp_(new PerlCompatRegExp(*rhs.perl_compat_regexp_))
 {
 }
 

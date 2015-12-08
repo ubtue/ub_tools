@@ -430,7 +430,7 @@ std::string HttpHeader::GetLanguagePrimarySubtag(const std::string &language_tag
 
 std::string HttpHeader::GetCharsetFromContentType(const std::string &content_type) {
     const char *start(::strcasestr(content_type.c_str(), "charset="));
-    if (start == NULL)
+    if (start == nullptr)
 	return "";
 
     std::string charset(start + 8);

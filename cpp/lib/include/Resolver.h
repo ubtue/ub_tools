@@ -106,9 +106,9 @@ public:
      *  this section.  Otherwise, nameservers will be drawn from the standard UNIX /etc/resolv.conf file.
      */
     explicit Resolver(const std::list<std::string> &dns_servers = std::list<std::string>(),
-		      Logger * const logger = NULL, const unsigned verbosity = 3);
-    explicit Resolver(const std::string &dns_server, Logger * const logger = NULL, const unsigned verbosity = 3);
-    explicit Resolver(const in_addr_t dns_server, Logger * const logger = NULL, const unsigned verbosity = 3);
+		      Logger * const logger = nullptr, const unsigned verbosity = 3);
+    explicit Resolver(const std::string &dns_server, Logger * const logger = nullptr, const unsigned verbosity = 3);
+    explicit Resolver(const in_addr_t dns_server, Logger * const logger = nullptr, const unsigned verbosity = 3);
     ~Resolver();
 
     /** \brief   Submits a lookup request to a DNS server.
@@ -152,13 +152,13 @@ public:
      *  \param  ttl           Time-to-live for the returned nameserver information.
      *  \param  reply_id      The ID of the reply packet in host byte-order.
      *  \param  truncated     True if the "TC" bit was set in the DNS server's reply header.
-     *  \param  logger        If non-NULL, where we send logging messages.
-     *  \param  verbosity     Verbosity of logging (0-5).  Only relevant if "logger" is not NULL.
+     *  \param  logger        If non-nullptr, where we send logging messages.
+     *  \param  verbosity     Verbosity of logging (0-5).  Only relevant if "logger" is not nullptr.
      *  \return True if we successfully extracted at least one IP address or we received a truncated reply, else false.
      */
     static bool DecodeReply(const unsigned char * const packet_start, const size_t packet_size, std::set<std::string> * const domainnames,
 			    std::set<in_addr_t> * const ip_addresses, uint32_t * const ttl, uint16_t * const reply_id, bool * const truncated,
-			    Logger * const logger = NULL, const unsigned verbosity = 3);
+			    Logger * const logger = nullptr, const unsigned verbosity = 3);
 
     /** \brief   Checks whether a DNS server is alive or not.
      *  \param   server_ip_address    The server's IP address as a dotted quad.
@@ -169,10 +169,10 @@ public:
      *  \return  True if the server responded within the given maximum time or false if it didn't.
      *  \warning This function is absolutely not thread-safe!
      */
-    static bool ServerIsAlive(const std::string &server_ip_address, const std::string &hostname_to_resolve, const unsigned time_limit = 5000,
-			      Logger * const logger = NULL, const unsigned verbosity = 3);
-    static bool ServerIsAlive(const in_addr_t server_ip_address, const std::string &hostname_to_resolve, const unsigned time_limit = 5000,
-			      Logger * const logger = NULL, const unsigned verbosity = 3);
+    static bool ServerIsAlive(const std::string &server_ip_address, const std::string &hostname_to_resolve,
+			      const unsigned time_limit = 5000, Logger * const logger = nullptr, const unsigned verbosity = 3);
+    static bool ServerIsAlive(const in_addr_t server_ip_address, const std::string &hostname_to_resolve,
+			      const unsigned time_limit = 5000, Logger * const logger = nullptr, const unsigned verbosity = 3);
 
     /** \brief  Extracts DNS server IP addresses from /etc/resolv.conf.
      *  \param  server_ip_addresses  Upon return, this variable will contain the resolver IP addresses.

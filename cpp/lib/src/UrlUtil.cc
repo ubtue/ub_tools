@@ -117,13 +117,13 @@ bool Blacklister::UrlRegExpList::block(const std::string &url, std::string * con
 	 reg_exp != ref_counted_reg_exps_.rend(); ++reg_exp)
     {
 	if (reg_exp->match(url)) {
-	    if (reason != NULL)
+	    if (reason != nullptr)
 		*reason = reg_exp->getPattern();
 	    return reg_exp->block();
 	}
     }
 
-    if (reason != NULL)
+    if (reason != nullptr)
 	reason->clear();
 
     return false;
@@ -198,7 +198,7 @@ bool Blacklister::blocked(const std::string &url, std::string * const reason) co
     else if (::strncmp(url_as_c_string, "https://", 8) == 0)
 	scheme_is_http = false;
     else {
-	if (reason != NULL)
+	if (reason != nullptr)
 	    *reason = "Not a valid HTTP or HTTPS URL!";
 	return false; // Not a valid HTTP or HTTPS URL!
     }

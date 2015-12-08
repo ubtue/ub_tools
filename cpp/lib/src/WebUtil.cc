@@ -214,7 +214,7 @@ int MonthToInt(const std::string &const_month) {
 
 time_t ParseWebDateAndTime(const std::string &possible_web_date_and_time) {
     if (::strcasecmp("now", possible_web_date_and_time.c_str()) == 0)
-	return std::time(NULL);
+	return std::time(nullptr);
 
     int month, day, hour, min, sec, year;
 

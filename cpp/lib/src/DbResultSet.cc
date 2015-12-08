@@ -41,7 +41,7 @@ DbRow DbResultSet::getNextRow() {
     unsigned long *field_sizes;
     unsigned field_count;
     if (row == nullptr) {
-	field_sizes = NULL;
+	field_sizes = nullptr;
 	field_count = 0;
     } else {
 	field_sizes = ::mysql_fetch_lengths(result_set_);

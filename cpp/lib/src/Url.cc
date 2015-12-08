@@ -203,7 +203,7 @@ uint64_t Url::getHash(const HashBehaviour hash_behaviour) const {
     // Hash the protocol ignoring slashes
     const char *start_pos = std::strchr(c_string, ':');
     uint64_t hash(0);
-    if (likely(start_pos != NULL)) {
+    if (likely(start_pos != nullptr)) {
 	for (const char *cp(c_string); cp != start_pos; ++cp)
 	    hash = 131 * hash + *cp;
 	++start_pos;
@@ -219,7 +219,7 @@ uint64_t Url::getHash(const HashBehaviour hash_behaviour) const {
     // Remove trailing anchor
     const char *last_hash = std::strchr(c_string, '#');
     const char *end_pos;
-    if (unlikely(last_hash != NULL)) {
+    if (unlikely(last_hash != nullptr)) {
 	end_pos = last_hash;
 	if (unlikely(end_pos < start_pos))
 	    end_pos = start_pos;

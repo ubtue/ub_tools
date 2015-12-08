@@ -110,7 +110,7 @@ DnsServer::DnsServer(const in_addr_t &server_ip_address, const unsigned max_outs
       socket_fd_(-1), request_lifetime_(request_lifetime), outstanding_requests_(max_outstanding_request_count + 10)
 {
     const protoent *protocol_entry = ::getprotobyname("udp");
-    if (unlikely(protocol_entry == NULL))
+    if (unlikely(protocol_entry == nullptr))
 	throw std::runtime_error("in Resolver::Resolver: can't get protocol entry for \"udp\"!");
 
     socket_fd_ = ::socket(PF_INET, SOCK_DGRAM, protocol_entry->p_proto);
@@ -155,7 +155,7 @@ bool DnsServer::addLookupRequest(const std::string &valid_hostname, uint16_t * c
 
     const uint64_t expire_time(TimeUtil::GetCurrentTimeInMilliseconds() + request_lifetime_);
     outstanding_requests_.addRequest(next_query_id_, valid_hostname, expire_time);
-    if (deadline != NULL)
+    if (deadline != nullptr)
 	*deadline = expire_time;
     ++next_query_id_;
 
@@ -189,7 +189,7 @@ bool DnsServer::processServerReply(std::vector<in_addr_t> * const resolved_ip_ad
     std::set<in_addr_t> ip_addresses;
     std::set<std::string> domainnames;
     if (Resolver::DecodeReply(packet, read_retcode, &domainnames, &ip_addresses, ttl, &reply_id, &truncated,
-			      NULL /* logger */, 0 /* verbosity */))
+			      nullptr /* logger */, 0 /* verbosity */))
     {
 	std::string original_request_hostname;
 	if (likely(outstanding_requests_.removeRequest(reply_id, &original_request_hostname))) {
@@ -224,7 +224,7 @@ const in_addr_t DnsCache::BAD_ENTRY(0);
 bool DnsCache::lookup(const std::string &hostname, in_addr_t * const ip_address) {
     std::unordered_map<std::string, DnsCacheEntry>::iterator entry(resolved_hostnames_cache_.find(hostname));
     if (entry != resolved_hostnames_cache_.end()) {
-	const time_t now(std::time(NULL));
+	const time_t now(std::time(nullptr));
 	if (entry->second.expire_time_ > now) {
 	    *ip_address = entry->second.ip_address_;
 	    return true;
@@ -249,7 +249,7 @@ void DnsCache::insert(const std::string &hostname, const in_addr_t &ip_address, 
     }
 
     // Create a new cache entry:
-    const uint64_t now(std::time(NULL));
+    const uint64_t now(std::time(nullptr));
     const DnsCache::DnsCacheEntry new_cache_entry(now + ttl, ip_address);
     resolved_hostnames_cache_.insert(std::make_pair(hostname, new_cache_entry));
 }
@@ -301,7 +301,7 @@ bool DnsServerPool::addLookupRequest(const std::string &valid_hostname, in_addr_
 	return true;
 
     // Find the least loaded server:
-    DnsServer *least_loaded_server(NULL);
+    DnsServer *least_loaded_server(nullptr);
     unsigned max_queue_length_so_far(max_queue_length_per_server_);
     for (std::vector<DnsServer *>::iterator server(servers_.begin()); server != servers_.end(); ++server) {
 	const unsigned queue_length((*server)->getQueueLength());
@@ -309,7 +309,7 @@ bool DnsServerPool::addLookupRequest(const std::string &valid_hostname, in_addr_
 	    least_loaded_server = *server;
     }
 
-    if (least_loaded_server != NULL) {
+    if (least_loaded_server != nullptr) {
 	uint16_t query_id;
 	uint64_t deadline;
 	least_loaded_server->addLookupRequest(valid_hostname, &query_id, &deadline);

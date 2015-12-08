@@ -98,7 +98,7 @@ public:
     typedef size_t (*HeaderFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
     typedef int (*DebugFunc)(CURL *handle, curl_infotype infotype, char *data, size_t size, void *this_pointer);
 public:
-    explicit Downloader(const Params &params = Params()): multi_mode_(false), additional_http_headers_(NULL), params_(params)
+    explicit Downloader(const Params &params = Params()): multi_mode_(false), additional_http_headers_(nullptr), params_(params)
         { init(); }
     explicit Downloader(const Url &url, const Params &params = Params(), const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
     explicit Downloader(const std::string &url, const Params &params = Params(), const TimeLimit &time_limit = DEFAULT_TIME_LIMIT,

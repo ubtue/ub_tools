@@ -117,7 +117,7 @@ int TcpConnect(const std::string &address, const unsigned short port, const Time
  *          to ETIMEOUT.
  */
 ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data, size_t data_size,
-		  SslConnection * const ssl_connection = NULL);
+		  SslConnection * const ssl_connection = nullptr);
 
 
 /** \brief  Allows reading from a socket file descriptor with a given time limit.
@@ -128,7 +128,7 @@ ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data,
  *  \return True if EOF was found, otherwise false.
  */
 bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s,
-	       SslConnection * const ssl_connection = NULL);
+	       SslConnection * const ssl_connection = nullptr);
 
 
 /** \brief  Allows writing to a file descriptor with a given time limit.
@@ -141,7 +141,7 @@ bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s
  *           written.
  */
 ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * const data, size_t data_size,
-		   SslConnection * const ssl_connection = NULL);
+		   SslConnection * const ssl_connection = nullptr);
 
 
 /** \brief  Allows writing to a file descriptor with a given time limit.
@@ -153,7 +153,7 @@ ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * cons
  *           written.
  */
 inline ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const std::string &data,
-			  SslConnection * const ssl_connection = NULL)
+			  SslConnection * const ssl_connection = nullptr)
 {
 	return TimedWrite(socket_fd, time_limit, data.c_str(), data.size(), ssl_connection);
 }
