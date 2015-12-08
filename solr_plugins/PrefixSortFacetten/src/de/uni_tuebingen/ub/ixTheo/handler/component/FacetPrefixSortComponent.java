@@ -199,7 +199,15 @@ public class FacetPrefixSortComponent extends FacetComponent {
 
                         // We would like to score according to the second
                         // element
-                        return e2.getValue().compareTo(e1.getValue());
+			int compval = e2.getValue().compareTo(e1.getValue());
+
+			if(compval != 0){
+			  return compval;
+			}
+			else{
+			  return e1.getKey().getKey().compareTo(e2.getKey().getKey());
+			}
+//                        return e2.getValue().compareTo(e1.getValue());
                     }
                 });
 
@@ -211,10 +219,10 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 NamedList<Object> facetNamedListSorted = new NamedList<Object>();
 
                 for (Entry<Entry<String, Object>, Double> e : facetPrefixArrayScored) {
-                    // facetNamedListSorted.add(e.getKey().getKey(),
-                    // e.getKey().getValue().toString() + ":" +
-                    // e.getValue().toString() );
-                    facetNamedListSorted.add(e.getKey().getKey(), e.getKey().getValue());
+                     facetNamedListSorted.add(e.getKey().getKey(),
+                     e.getKey().getValue().toString() + ":" +
+                     e.getValue().toString() );
+     //               facetNamedListSorted.add(e.getKey().getKey(), e.getKey().getValue());
                 }
 
                 facetFieldsNamedList.add(facetfield, facetNamedListSorted);
