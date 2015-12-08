@@ -67,8 +67,8 @@ private:
 	bool removeRequest(const uint16_t query_id, std::string * const hostname);
 	void expireOldRequests();
     private:
-	OutstandingRequests(const OutstandingRequests &rhs);                  // Intentionally unimplemented!
-	const OutstandingRequests &operator=(const OutstandingRequests &rhs); // Intentionally unimplemented!
+	OutstandingRequests(const OutstandingRequests &rhs) = delete;
+	const OutstandingRequests &operator=(const OutstandingRequests &rhs) = delete;
     };
     mutable OutstandingRequests outstanding_requests_;
 public:
@@ -132,7 +132,8 @@ class DnsCache {
 	time_t expire_time_;
 	in_addr_t ip_address_;
     public:
-	DnsCacheEntry(const uint64_t expire_time, const in_addr_t &ip_address): expire_time_(expire_time), ip_address_(ip_address) { }
+	DnsCacheEntry(const uint64_t expire_time, const in_addr_t &ip_address)
+	    : expire_time_(expire_time), ip_address_(ip_address) { }
     };
     std::unordered_map<std::string, DnsCacheEntry> resolved_hostnames_cache_;
     unsigned bad_dns_expire_time_;
