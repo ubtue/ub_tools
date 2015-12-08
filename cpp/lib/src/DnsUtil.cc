@@ -41,30 +41,6 @@
 #include "Url.h"
 
 
-namespace { // unnamed namespace for supporting functions
-
-
-/** Converts h_errno to a string. */
-std::string HErrnoToString(const int host_errno) {
-    switch (host_errno) {
-    case HOST_NOT_FOUND:
-	return "the specified host is unknown!";
-    case NO_ADDRESS:
-	return "the requested name is valid but does not have an IP address!";
-    case NO_RECOVERY:
-	return "a non-recoverable name server error occurred!";
-    case TRY_AGAIN:
-	return "a temporary error occurred on an authoritative name server."
-	    "  Try again later!";
-    default:
-	return "unknown h_error value: " + StringUtil::ToString(host_errno);
-    }
-}
-
-
-} // unnamed namespace
-
-
 namespace DnsUtil {
 
 
