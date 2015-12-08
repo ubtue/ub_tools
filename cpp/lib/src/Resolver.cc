@@ -65,7 +65,7 @@ std::mutex resolver_mutex;
 bool Resolver::Cache::lookup(const std::string &hostname, std::set<in_addr_t> * const ip_addresses) {
     std::unordered_map<std::string, CacheEntry>::iterator entry(resolved_hostnames_cache_.find(hostname));
     if (entry != resolved_hostnames_cache_.end()) {
-	const time_t now(std::time(NULL));
+	const time_t now(std::time(nullptr));
 	if (entry->second.expire_time_ > now) {
 	    *ip_addresses = entry->second.ip_addresses_;
 	    return true;
@@ -95,15 +95,15 @@ void Resolver::Cache::insert(const std::string &hostname, const std::set<in_addr
     }
 
     // Create a new cache entry:
-    const time_t now(std::time(NULL));
+    const time_t now(std::time(nullptr));
     const Cache::CacheEntry new_cache_entry(now + ttl, ip_addresses);
     resolved_hostnames_cache_.insert(std::make_pair(hostname, new_cache_entry));
 }
 
 
 Resolver::Resolver(const std::list<std::string> &dns_servers, Logger * const logger, const unsigned verbosity)
-	: verbosity_(logger != NULL ? verbosity : 0), logger_(logger), cleanup_logger_(false), udp_fd_(-1),
-	  reply_packet_(NULL), reply_packet_size_(0)
+	: verbosity_(logger != nullptr ? verbosity : 0), logger_(logger), cleanup_logger_(false), udp_fd_(-1),
+	  reply_packet_(nullptr), reply_packet_size_(0)
 {
     // This variable keeps track of whether we have read in a
     // list of DNS servers from one of the three sources yet:
@@ -129,7 +129,7 @@ Resolver::Resolver(const std::list<std::string> &dns_servers, Logger * const log
     if (FileUtil::Exists(ETC_DIR "/Resolver.conf")) {
 	IniFile ini_file(ETC_DIR "/Resolver.conf");
 
-	if (logger_ == NULL) {
+	if (logger_ == nullptr) {
 	    // Read logging instructions:
 	    verbosity_ = ini_file.getUnsigned("Logging", "verbosity", 0);
 	    if (verbosity_ > 5)
@@ -178,7 +178,7 @@ Resolver::Resolver(const std::list<std::string> &dns_servers, Logger * const log
 
 
 Resolver::Resolver(const std::string &dns_server, Logger * const logger, const unsigned verbosity)
-	: verbosity_(logger != NULL ? verbosity : 0), logger_(logger), cleanup_logger_(false)
+	: verbosity_(logger != nullptr ? verbosity : 0), logger_(logger), cleanup_logger_(false)
 {
     in_addr_t ip_address;
     if (unlikely(not NetUtil::StringToNetworkAddress(dns_server, &ip_address)))
@@ -191,7 +191,7 @@ Resolver::Resolver(const std::string &dns_server, Logger * const logger, const u
 
 
 Resolver::Resolver(const in_addr_t dns_server, Logger * const logger, const unsigned verbosity)
-	: verbosity_(logger != NULL ? verbosity : 0), logger_(logger), cleanup_logger_(false)
+	: verbosity_(logger != nullptr ? verbosity : 0), logger_(logger), cleanup_logger_(false)
 {
     dns_server_ip_addresses_and_busy_counts_.insert(std::make_pair(dns_server, 0));
 
@@ -320,7 +320,7 @@ namespace { // helper functions for logging
 void LogIpAddresses(const std::string &domainname, const std::string &event, const std::set<in_addr_t> &ip_addresses,
 		    const TimeLimit &time_limit, Logger * const logger)
 {
-    if (logger == NULL)
+    if (logger == nullptr)
 	return;
 
     std::string result(domainname + " (" + StringUtil::ToString(time_limit.getRemainingTime()) + "ms): " + event + ":");
@@ -467,7 +467,7 @@ bool Resolver::resolve(const std::string &mixed_case_domainname, const TimeLimit
 		reply_data_size = ntohs(reply_data_size);
 		if (reply_data_size > reply_packet_size_) {
 		    delete [] reply_packet_;
-		    reply_packet_ = NULL;
+		    reply_packet_ = nullptr;
 		    reply_packet_ = reinterpret_cast<byte *>(new uint32_t[(reply_data_size + sizeof(uint32_t) - 1) / sizeof(uint32_t)]);
 		    reply_packet_size_ = reply_data_size;
 		}
@@ -644,10 +644,10 @@ bool Resolver::DecodeReply(const unsigned char * const packet_start, const size_
 			   Logger * const logger, const unsigned _verbosity)
 {
     // Set the actual verbosity:
-    const unsigned verbosity(logger != NULL ? _verbosity : 0);
+    const unsigned verbosity(logger != nullptr ? _verbosity : 0);
 
     if (unlikely(packet_size < sizeof(HEADER))) {
-	if (logger != NULL and verbosity > 2)
+	if (logger != nullptr and verbosity > 2)
 	    logger->log("in Resolver::DecodeReply: got a short packet!");
 	return false;
     }
@@ -801,7 +801,7 @@ bool ThreadSafeDnsCache::lookup(const std::string &hostname, std::set<in_addr_t>
 
     std::unordered_map<std::string, ThreadSafeDnsCacheEntry>::iterator entry(resolved_hostnames_cache_.find(hostname));
     if (entry != resolved_hostnames_cache_.end()) {
-	const time_t now(std::time(NULL));
+	const time_t now(std::time(nullptr));
 	if (entry->second.expire_time_ > now) {
 	    *ip_addresses = entry->second.ip_addresses_;
 	    return true;
@@ -833,7 +833,7 @@ void ThreadSafeDnsCache::insert(const std::string &hostname, const std::set<in_a
     }
 
     // Create a new cache entry:
-    const time_t now(std::time(NULL));
+    const time_t now(std::time(nullptr));
     const ThreadSafeDnsCache::ThreadSafeDnsCacheEntry new_cache_entry(now + ttl, ip_addresses);
     resolved_hostnames_cache_.insert(std::make_pair(hostname, new_cache_entry));
 }

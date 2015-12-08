@@ -151,7 +151,7 @@ time_t TimeGm(const struct tm &tm) {
     const time_t ret_val = ::mktime(&temp_tm);
 
     // Restore the original time zone:
-    if (saved_time_zone != NULL)
+    if (saved_time_zone != nullptr)
 	::setenv("TZ", saved_time_zone, 1);
     else
 	::unsetenv("TZ");
@@ -355,14 +355,14 @@ time_t ConvertHumanDateTimeToTimeT(const std::string &human_date) {
 
 uint64_t GetCurrentTimeInMilliseconds() {
     timeval time_val;
-    ::gettimeofday(&time_val, NULL);
+    ::gettimeofday(&time_val, nullptr);
     return 1000ULL * time_val.tv_sec + (time_val.tv_usec + 500ULL) / 1000ULL;
 }
 
 
 uint64_t GetCurrentTimeInMicroseconds() {
     timeval time_val;
-    ::gettimeofday(&time_val, NULL);
+    ::gettimeofday(&time_val, nullptr);
     return 1000000ULL * time_val.tv_sec + time_val.tv_usec;
 }
 
@@ -370,7 +370,7 @@ uint64_t GetCurrentTimeInMicroseconds() {
 void Millisleep(const unsigned sleep_interval) {
     timespec time_spec;
     MillisecondsToTimeSpec(sleep_interval, &time_spec);
-    ::nanosleep(&time_spec, NULL);
+    ::nanosleep(&time_spec, nullptr);
 }
 
 

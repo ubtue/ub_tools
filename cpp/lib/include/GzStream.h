@@ -53,7 +53,7 @@ private:
 public:
     explicit GzStream(const Type type, const unsigned compression_level = 9,
 		      void *(*_zalloc)(void *, unsigned int, unsigned int) = nullptr,
-		      void (*_zfree)(void *, void *) = NULL) throw(std::exception);
+		      void (*_zfree)(void *, void *) = nullptr) throw(std::exception);
     ~GzStream();
 
 
@@ -66,7 +66,7 @@ public:
      *  \param  bytes_produced   The length of the compressed output "output_data" actually used.
      *  \return Returns true if more compressed data can be retrieved and false otherwise.
      *  \note   After passing in all data to be compressed you must call "compress" with "input_data" set to
-     *          NULL and retrieve "output_data" until "compress" returns false.
+     *          nullptr and retrieve "output_data" until "compress" returns false.
      */
     bool compress(const char * const input_data, unsigned input_data_size, char * const output_data,
 		  unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced)
@@ -82,7 +82,7 @@ public:
      *  \param  bytes_produced   The length of the compressed output "output_data" actually used.
      *  \return Returns true if more decompressed data can be retrieved and false otherwise.
      *  \note   After passing in all data to be decompressed you can call "decompress" with "input_data" set to
-     *          NULL and/or "input_data_size" set to 0 and retrieve "output_data" until "decompress" returns false.
+     *          nullptr and/or "input_data_size" set to 0 and retrieve "output_data" until "decompress" returns false.
      */
     bool decompress(const char * const input_data, unsigned input_data_size, char * const output_data,
 		    unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced)

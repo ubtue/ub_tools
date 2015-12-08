@@ -66,11 +66,11 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 
     // 2. Next try libmagic:
     const magic_t cookie = ::magic_open(MAGIC_MIME);
-    if (unlikely(cookie == NULL))
+    if (unlikely(cookie == nullptr))
 	throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
 
     // Load the default "magic" definitions file:
-    if (unlikely(::magic_load(cookie, NULL /* use default magic file */) != 0)) {
+    if (unlikely(::magic_load(cookie, nullptr /* use default magic file */) != 0)) {
 	::magic_close(cookie);
 	throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not load libmagic ("
 	                         + std::string(::magic_error(cookie)) + ").");
@@ -78,7 +78,7 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 
     // Use magic to get the mime type of the buffer:
     const char *magic_mime_type = ::magic_buffer(cookie, document.c_str(), document.length());
-    if (unlikely(magic_mime_type == NULL)) {
+    if (unlikely(magic_mime_type == nullptr)) {
 	::magic_close(cookie);
 	throw std::runtime_error("in MediaTypeUtil::GetMediaType: error in libmagic ("
 	                         + std::string(::magic_error(cookie)) + ").");

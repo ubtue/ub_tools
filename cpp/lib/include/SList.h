@@ -55,7 +55,7 @@ public:
 	Node *previous_, *current_;
     public:
 	iterator(const iterator &rhs): previous_(rhs.previous_), current_(rhs.current_) { }
-	iterator(): previous_(NULL), current_(NULL) { }
+	iterator(): previous_(nullptr), current_(nullptr) { }
 	iterator(const const_iterator &rhs): previous_(rhs.previous_), current_(rhs.current_) { }
 	EntryType *operator->() { return &(current_->data_); }
 	EntryType &operator*() { return current_->data_; }
@@ -83,7 +83,7 @@ public:
 	const_iterator(Node * const previous, Node * const current): previous_(previous), current_(current) { }
     };
 public:
-    SList(): head_(NULL), tail_(NULL), size_(0) { }
+    SList(): head_(nullptr), tail_(nullptr), size_(0) { }
     SList(const SList &rhs);
     virtual ~SList();
     SList &operator=(const SList &rhs);
@@ -95,10 +95,10 @@ public:
     void push_front(const EntryType &new_entry);
     void push_back(const EntryType &new_entry);
     void pop_front();
-    iterator begin() { return iterator(NULL, head_); }
-    iterator end() { return iterator(tail_, NULL); }
-    const_iterator begin() const { return const_iterator(NULL, head_); }
-    const_iterator end() const { return const_iterator(tail_, NULL); }
+    iterator begin() { return iterator(nullptr, head_); }
+    iterator end() { return iterator(tail_, nullptr); }
+    const_iterator begin() const { return const_iterator(nullptr, head_); }
+    const_iterator end() const { return const_iterator(tail_, nullptr); }
     iterator insert(iterator where, const EntryType &new_entry);
     iterator erase(iterator where);
     iterator erase(iterator first, iterator last);
@@ -124,18 +124,18 @@ public:
 template<typename EntryType> SList<EntryType>::SList(const SList &rhs) {
     // Avoid self assignment:
     if (&rhs != this) {
-	if (rhs.head_ == NULL)
-	    head_ = tail_ = NULL;
+	if (rhs.head_ == nullptr)
+	    head_ = tail_ = nullptr;
 	else {
 	    Node **last(&head_);
-	    Node *new_node(NULL);
-	    for (Node *node(rhs.head_); node != NULL; node = node->next_) {
+	    Node *new_node(nullptr);
+	    for (Node *node(rhs.head_); node != nullptr; node = node->next_) {
 		new_node = new Node(node->data_);
 		*last = new_node;
 		last = &new_node->next_;
 	    }
 	    tail_ = new_node;
-	    tail_->next_ = NULL;
+	    tail_->next_ = nullptr;
 	}
 	size_ = rhs.size_;
     }
@@ -144,7 +144,7 @@ template<typename EntryType> SList<EntryType>::SList(const SList &rhs) {
 
 template<typename EntryType> SList<EntryType>::~SList() {
     Node *node(head_);
-    while (node != NULL) {
+    while (node != nullptr) {
 	Node *temp(node);
 	node = node->next_;
 	delete temp;
@@ -156,19 +156,19 @@ template<typename EntryType> typename SList<EntryType>::SList &SList<EntryType>:
     // Avoid self-assignment:
     if (&rhs != this) {
 	this->~SList();
-	if (rhs.head_ == NULL)
-	    head_ = tail_ = NULL;
+	if (rhs.head_ == nullptr)
+	    head_ = tail_ = nullptr;
 	else {
 	    Node **last(&head_);
 	    Node *new_node;
-	    for (Node *node(rhs.head_); node != NULL; node = node->next_) {
+	    for (Node *node(rhs.head_); node != nullptr; node = node->next_) {
 		new_node = new Node(node->data_);
 		*last = new_node;
 		tail_ = *last;
 		last = &new_node->next_;
 	    }
 	    tail_ = new_node;
-	    tail_->next_ = NULL;
+	    tail_->next_ = nullptr;
 	}
 	size_ = rhs.size_;
     }
@@ -178,13 +178,13 @@ template<typename EntryType> typename SList<EntryType>::SList &SList<EntryType>:
 
 
 template<typename EntryType> bool SList<EntryType>::operator==(const SList<EntryType> &rhs) const {
-    if (head_ == NULL)
-	return rhs.head_ == NULL;
+    if (head_ == nullptr)
+	return rhs.head_ == nullptr;
     else if (size_ != rhs.size_)
 	return false;
 
     Node *rhs_node(rhs.head_), *node(head_);
-    for (/* Empty. */; node != NULL; node = node->next_, rhs_node = rhs_node->next_) {
+    for (/* Empty. */; node != nullptr; node = node->next_, rhs_node = rhs_node->next_) {
 	if (node->data_ != rhs_node->data_)
 	    return false;
     }
@@ -195,7 +195,7 @@ template<typename EntryType> bool SList<EntryType>::operator==(const SList<Entry
 
 template<typename EntryType> void SList<EntryType>::clear() {
     this->~SList();
-    head_ = tail_ = NULL;
+    head_ = tail_ = nullptr;
     size_ = 0;
 }
 
@@ -221,7 +221,7 @@ template<typename EntryType> void SList<EntryType>::push_front(const EntryType &
     Node *new_node(new Node(new_entry));
 
     // Empty list?
-    if (head_ == NULL)
+    if (head_ == nullptr)
 	tail_ = new_node;
 
     new_node->next_ = head_;
@@ -232,10 +232,10 @@ template<typename EntryType> void SList<EntryType>::push_front(const EntryType &
 
 template<typename EntryType> void SList<EntryType>::push_back(const EntryType &new_entry) {
     Node *new_node(new Node(new_entry));
-    new_node->next_ = NULL;
+    new_node->next_ = nullptr;
 
     // Empty list?
-    if (tail_ == NULL)
+    if (tail_ == nullptr)
 	head_ = new_node;
     else
 	tail_->next_ = new_node;
@@ -246,15 +246,15 @@ template<typename EntryType> void SList<EntryType>::push_back(const EntryType &n
 
 
 template<typename EntryType> void SList<EntryType>::pop_front() {
-    if (unlikely(head_ == NULL))
+    if (unlikely(head_ == nullptr))
 	throw std::runtime_error("in SList<EntryType>::pop_front: can't pop an empty list!");
 
     Node *temp(head_);
     head_ = head_->next_;
 
     // Do we have an empty list now?
-    if (head_ == NULL)
-	tail_ = NULL;
+    if (head_ == nullptr)
+	tail_ = nullptr;
 
     delete temp;
     --size_;
@@ -284,12 +284,12 @@ template<typename EntryType> typename SList<EntryType>::iterator SList<EntryType
 
 
 template<typename EntryType> typename SList<EntryType>::iterator SList<EntryType>::erase(SList<EntryType>::iterator where) {
-    if (unlikely(head_ == NULL))
+    if (unlikely(head_ == nullptr))
 	throw std::runtime_error("in SList<EntryType>::erase: can't erase an element from an empty list!");
 
     if (where == begin()) {
 	pop_front();
-	return iterator(NULL, head_);
+	return iterator(nullptr, head_);
     }
     else if (unlikely(where == end()))
 	throw std::runtime_error("in SList<EntryType>::erase: can't erase end()!");
@@ -319,14 +319,14 @@ template<typename EntryType> void SList<EntryType>::append(SList<EntryType> * co
     if (other_list->empty())
 	return;
 
-    if (head_ == NULL)
+    if (head_ == nullptr)
 	head_ = other_list->head_;
     else
 	tail_->next_ = other_list->head_;
     tail_ = other_list->tail_;
     size_ += other_list->size_;
 
-    other_list->head_ = other_list->tail_ = NULL;
+    other_list->head_ = other_list->tail_ = nullptr;
     other_list->size_ = 0;
 }
 

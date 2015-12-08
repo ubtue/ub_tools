@@ -83,7 +83,7 @@ public:
     enum ThrowOnOpenBehaviour { THROW_ON_ERROR, DO_NOT_THROW_ON_ERROR };
     enum DeleteOnCloseBehaviour { DO_NOT_DELETE_ON_CLOSE, DELETE_ON_CLOSE };
 public:
-    File(): file_(NULL), precision_(6), delete_on_close_(false) { }
+    File(): file_(nullptr), precision_(6), delete_on_close_(false) { }
 
     /** \brief  Creates and initalises a File object.
      *  \param  path                       The pathname for the file (see fopen(3) for details).
@@ -127,7 +127,7 @@ public:
     bool reopen(const std::string &filepath = "", const std::string &openmode = "");
 
     /** Will the next I/O operation fail? */
-    bool fail() const { return file_ == NULL or anErrorOccurred() or eof(); }
+    bool fail() const { return file_ == nullptr or anErrorOccurred() or eof(); }
 
     bool operator!() const { return fail(); }
 
@@ -198,7 +198,7 @@ public:
      *  \return True if the operation succeeded and false if there was some I/O error.
      */
     template <typename NumericType> bool serialize(const NumericType n) {
-	if (unlikely(file_ == NULL))
+	if (unlikely(file_ == nullptr))
 	    throw std::runtime_error("in File::serialize: can't serialize to a non-open file (4)!");
 	return write(reinterpret_cast<const void *>(&n), sizeof n) == sizeof n;
     }
@@ -244,7 +244,7 @@ public:
      *  \return True if the operation succeeded and false if there was some I/O error.
      */
     template <typename NumericType> bool deserialize(NumericType * const n) {
-	if (unlikely(file_ == NULL))
+	if (unlikely(file_ == nullptr))
 	    throw std::runtime_error("in File::deserialize: can't read from a non-open file (4)!");
 	return read(reinterpret_cast<void *>(n), sizeof *n) == sizeof *n;
     }
@@ -277,10 +277,10 @@ public:
      *  \param  new_callback  The function to be called.
      *  \param  user_data     The (optional) data to passed into "new_callback" when it will be called.
      */
-    void registerOnCloseCallback(void (*new_callback)(File &file, void * const user_data), void * const user_data = NULL);
+    void registerOnCloseCallback(void (*new_callback)(File &file, void * const user_data), void * const user_data = nullptr);
 
     /** \brief  Creates a read-only memory-map of a file.
-     *  \return A pointer to the start of the memory map on success or NULL on failure.
+     *  \return A pointer to the start of the memory map on success or nullptr on failure.
      */
     const char *getReadOnlyMmap() const;
 

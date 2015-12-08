@@ -97,7 +97,7 @@ bool GzStream::compress(const char * const input_data, unsigned input_data_size,
     stream_.avail_in  = input_data_size;
     stream_.next_out  = reinterpret_cast<Bytef *>(output_data);
     stream_.avail_out = output_data_size;
-    int flush = (input_data == NULL) ? Z_FINISH : 0;
+    int flush = (input_data == nullptr) ? Z_FINISH : 0;
     int retval = ::deflate(&stream_, flush);
     *bytes_consumed = input_data_size  - stream_.avail_in;
     *bytes_produced = output_data_size - stream_.avail_out;
@@ -123,10 +123,10 @@ bool GzStream::decompress(const char * const input_data, unsigned input_data_siz
 			  unsigned * const bytes_produced) throw(std::exception)
 {
     stream_.next_in   = reinterpret_cast<Bytef * const>(const_cast<char * const>(input_data));
-    stream_.avail_in  = (input_data == NULL) ? 0 : input_data_size;
+    stream_.avail_in  = (input_data == nullptr) ? 0 : input_data_size;
     stream_.next_out  = reinterpret_cast<Bytef *>(output_data);
     stream_.avail_out = output_data_size;
-    int flush = (input_data == NULL) ? Z_FINISH : 0;
+    int flush = (input_data == nullptr) ? Z_FINISH : 0;
     int retval = ::inflate(&stream_, flush);
     *bytes_consumed = input_data_size  - stream_.avail_in;
     *bytes_produced = output_data_size - stream_.avail_out;
@@ -167,7 +167,7 @@ void GzStream::Decompress(const char * const compressed_data, const size_t compr
     } while (total_processed < compressed_data_size);
 
     while (more and bytes_produced > 0) {
-	more = stream.decompress(NULL, 0, uncompressed_data, sizeof(uncompressed_data) - 1, &bytes_consumed,
+	more = stream.decompress(nullptr, 0, uncompressed_data, sizeof(uncompressed_data) - 1, &bytes_consumed,
 				 &bytes_produced);
 	s->append(uncompressed_data, bytes_produced);
     }
@@ -203,7 +203,7 @@ std::string GzStream::CompressString(const std::string &input, const Type type) 
 
     // If there is input that is "buffered", compress it
     while (more) {
-	more = stream.compress(NULL, 0, compressed_data, sizeof(compressed_data), &bytes_consumed, &bytes_produced);
+	more = stream.compress(nullptr, 0, compressed_data, sizeof(compressed_data), &bytes_consumed, &bytes_produced);
 	compressed_output.append(compressed_data, bytes_produced);
     }
 
@@ -240,8 +240,7 @@ std::string GzStream::DecompressString(const std::string &input, const Type type
 
     // If there is any input that is "buffered", then decompress it.
     while (more) {
-	more = stream.decompress(NULL, 0, decompressed_data, sizeof(decompressed_data), &bytes_consumed,
-				 &bytes_produced);
+	more = stream.decompress(nullptr, 0, decompressed_data, sizeof(decompressed_data), &bytes_consumed, &bytes_produced);
 	decompressed_output.append(decompressed_data, bytes_produced);
     }
 

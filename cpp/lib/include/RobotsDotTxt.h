@@ -173,7 +173,7 @@ public:
     unsigned getMaxCacheSize() const { return max_cache_size_; }
     void setMaxCacheSize(const unsigned new_max_cache_size);
 
-    /** Returns the RobotsDotTxt for "hostname" or NULL if "hostname" has not been found. */
+    /** Returns the RobotsDotTxt for "hostname" or nullptr if "hostname" has not been found. */
     const RobotsDotTxt *getRobotsDotTxt(const std::string &hostname) const;
 
     static RobotsDotTxtCache &GetInstance();

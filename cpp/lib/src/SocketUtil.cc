@@ -160,7 +160,7 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
 #else
     new_action.sa_flags = 0;
 #endif
-    if (::sigaction(SIGALRM, &new_action, NULL) < 0) {
+    if (::sigaction(SIGALRM, &new_action, nullptr) < 0) {
 	*error_message = "sigaction(2) failed to set the new signal handler ("
 	    + std::to_string(errno) + ")!";
 	return -1;
@@ -184,7 +184,7 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
     TimerUtil::malarm(0);
 
     struct timeval end_time;
-    ::gettimeofday(&end_time, NULL);
+    ::gettimeofday(&end_time, nullptr);
 
     // Alarm took too long?
     if (errno == ETIMEDOUT) { // Yes, timed out.
@@ -225,7 +225,7 @@ ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data,
     fd_set read_set;
     FD_ZERO(&read_set);
     FD_SET(socket_fd, &read_set);
-    switch (::select(socket_fd + 1, &read_set, NULL, NULL, &select_timeout)) {
+    switch (::select(socket_fd + 1, &read_set, nullptr, nullptr, &select_timeout)) {
     case -1:
 	if (errno == EINTR)
 	    goto select_again;
@@ -240,7 +240,7 @@ ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data,
 
  read_again:
     ssize_t ret_val;
-    if (ssl_connection == NULL) { // We have a non-SSL connection.
+    if (ssl_connection == nullptr) { // We have a non-SSL connection.
 	ret_val = ::read(socket_fd, data, data_size);
 	if (ret_val < 0) {
 	    if (errno == EINTR)
@@ -302,7 +302,7 @@ ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * cons
     fd_set write_set;
     FD_ZERO(&write_set);
     FD_SET(socket_fd, &write_set);
-    switch (::select(socket_fd+1, NULL, &write_set, NULL, &select_timeout)) {
+    switch (::select(socket_fd + 1, nullptr, &write_set, nullptr, &select_timeout)) {
     case -1:
 	if (errno == EINTR)
 	    goto select_again;
@@ -315,7 +315,7 @@ ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * cons
 
  write_again:
     ssize_t ret_val;
-    if (ssl_connection != NULL) {
+    if (ssl_connection != nullptr) {
 	ret_val = ssl_connection->write(data, data_size);
 	if (ret_val < 0) {
 	    switch (ssl_connection->getLastErrorCode()) {
@@ -351,7 +351,7 @@ ssize_t TimedRecvFrom(const int socket_fd, const TimeLimit &time_limit, void * c
 		      struct sockaddr_in *from, const int flags)
 {
     struct timeval select_timeout;
-#ifdef __linux_
+#ifdef __linux__
     MillisecondsToTimeVal(time_limit.getRemainingTime(), &select_timeout);
  select_again:
 #else
@@ -361,7 +361,7 @@ ssize_t TimedRecvFrom(const int socket_fd, const TimeLimit &time_limit, void * c
     fd_set read_set;
     FD_ZERO(&read_set);
     FD_SET(socket_fd, &read_set);
-    switch (::select(socket_fd+1, &read_set, NULL, NULL, &select_timeout)) {
+    switch (::select(socket_fd + 1, &read_set, nullptr, nullptr, &select_timeout)) {
     case -1:
 	if (errno == EINTR)
 	    goto select_again;
@@ -402,7 +402,7 @@ ssize_t TimedSendTo(const int socket_fd, const TimeLimit &time_limit, const void
     fd_set write_set;
     FD_ZERO(&write_set);
     FD_SET(socket_fd, &write_set);
-    switch (::select(socket_fd+1, NULL, &write_set, NULL, &select_timeout)) {
+    switch (::select(socket_fd + 1, nullptr, &write_set, nullptr, &select_timeout)) {
     case -1:
 	if (errno == EINTR)
 	    goto select_again;

@@ -39,7 +39,7 @@ std::list<SslConnection::ContextInfo> SslConnection::context_infos_;
 
 SslConnection::SslConnection(const int fd, const Method method, const ClientServerMode client_server_mode,
 			     const ThreadingSupportMode threading_support_mode)
-	: threading_support_mode_(threading_support_mode), ssl_connection_(NULL), last_ret_val_(0)
+	: threading_support_mode_(threading_support_mode), ssl_connection_(nullptr), last_ret_val_(0)
 {
     std::auto_ptr<std::lock_guard<std::mutex>> mutex_locker;
     if (threading_support_mode == SUPPORT_MULTITHREADING)
@@ -48,7 +48,7 @@ SslConnection::SslConnection(const int fd, const Method method, const ClientServ
     ssl_context_ = SslConnection::InitContext(method, client_server_mode);
 
     ssl_connection_ = ::SSL_new(ssl_context_);
-    if (unlikely(ssl_connection_ == NULL))
+    if (unlikely(ssl_connection_ == nullptr))
 	throw std::runtime_error("in SslConnection::SslConnection: ::SSL_new() failed!");
 
     if (unlikely(not ::SSL_set_fd(ssl_connection_, fd)))
@@ -78,7 +78,7 @@ SslConnection::~SslConnection() {
 	if (threading_support_mode_ == SUPPORT_MULTITHREADING)
 	    mutex_locker.reset(new std::lock_guard<std::mutex>(SslConnection::mutex_));
 
-	if (ssl_connection_ != NULL)
+	if (ssl_connection_ != nullptr)
 	    ::SSL_free(ssl_connection_);
 	SslConnection::ReleaseContext(ssl_context_);
     }
@@ -225,8 +225,8 @@ SSL_CTX *SslConnection::InitClient(const Method method) {
 	throw std::runtime_error("in SslConnection::InitClient: unknown method!");
     }
 
-    if (unlikely(ssl_method == NULL))
-	throw std::runtime_error("in SslConnection::InitClient: unexpected NULL SSL method!");
+    if (unlikely(ssl_method == nullptr))
+	throw std::runtime_error("in SslConnection::InitClient: unexpected nullptr SSL method!");
 
     return ::SSL_CTX_new(ssl_method);
 }
@@ -254,8 +254,8 @@ SSL_CTX *SslConnection::InitServer(const Method method) {
 	throw std::runtime_error("in SslConnection::InitServer: unknown method!");
     }
 
-    if (unlikely(ssl_method == NULL))
-	throw std::runtime_error("in SslConnection::InitServer: unexpected NULL SSL method!");
+    if (unlikely(ssl_method == nullptr))
+	throw std::runtime_error("in SslConnection::InitServer: unexpected nullptr SSL method!");
 
     return ::SSL_CTX_new(ssl_method);
 }
@@ -283,8 +283,8 @@ SSL_CTX *SslConnection::InitClientAndServer(const Method method) {
 	throw std::runtime_error("in SslConnection::InitClientAndServer: unknown method!");
     }
 
-    if (unlikely(ssl_method == NULL))
-	throw std::runtime_error("in SslConnection::InitClientAndServer: unexpected NULL SSL method!");
+    if (unlikely(ssl_method == nullptr))
+	throw std::runtime_error("in SslConnection::InitClientAndServer: unexpected nullptr SSL method!");
 
     return ::SSL_CTX_new(ssl_method);
 }

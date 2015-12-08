@@ -58,7 +58,7 @@ public:
 		unsigned usage_count_;
 	public:
 		ContextInfo(const Method method, const ClientServerMode client_server_mode)
-			: method_(method), client_server_mode_(client_server_mode), ssl_context_(NULL), usage_count_(1) { }
+		    : method_(method), client_server_mode_(client_server_mode), ssl_context_(nullptr), usage_count_(1) { }
 	};
 private:
 	static std::list<ContextInfo> context_infos_;

@@ -55,7 +55,7 @@ private:
 	static const unsigned char *&GetCharacterTable();
 	static std::string &GetCodeset();
 public:
-	PerlCompatRegExp(): compiled_pattern_(NULL), extra_pattern_info_(NULL) { }
+	PerlCompatRegExp(): compiled_pattern_(nullptr), extra_pattern_info_(nullptr) { }
 	PerlCompatRegExp(const PerlCompatRegExp &rhs);
 
 	/** \note  See pcre_compile(3) for which options are available.
@@ -108,7 +108,8 @@ public:
 	 *  \return True if "subject_text" is a match for the pattern, else false.  Please note that a successful return does not imply that there are any
 	 *          substring matches.
 	 */
-	bool match(const std::string &subject_text, const int options = 0) const { return match(subject_text, 0, NULL, NULL, options); }
+	bool match(const std::string &subject_text, const int options = 0) const
+            { return match(subject_text, 0, nullptr, nullptr, options); }
 
 	/** \note  Takes the same arguments as "match()" in addition to "pattern" but requires no PerlCompatRegExp object.  The intended use of this
 	 *         function as for one-shot matching.  If you want to repeatedly match against the same pattern it is probably better to create a

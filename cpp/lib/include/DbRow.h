@@ -44,7 +44,7 @@ public:
     /** \return The number of fields in the row. */
     size_t size() const { return field_count_; }
 
-    /** \brief Tests a DbRow for being non-NULL. */
+    /** \brief Tests a DbRow for being non-nullptr. */
     explicit operator bool() const { return row_ != nullptr; }
 
     /** \brief Retrieve the i-th field from the row.  (The index is 0-based.) */

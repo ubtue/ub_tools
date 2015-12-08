@@ -80,7 +80,7 @@ public:
 	const unsigned type_;
 	const std::string text_;
 	const unsigned lineno_;
-	AttributeMap *attribute_map_; // only non-NULL if type_ == OPENING_TAG
+	AttributeMap *attribute_map_; // only non-nullptr if type_ == OPENING_TAG
     public:
 	Chunk(const unsigned type, const std::string &text, const unsigned lineno,
 	      AttributeMap * const attribute_map = nullptr)
