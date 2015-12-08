@@ -129,9 +129,9 @@ protected:
     explicit Logger(const bool destroy_file)
 	: destroy_file_(destroy_file), already_dead_(true), log_file_(nullptr) { }
 private:
-    Logger();                                   // Intentionally unimplemented!
-    Logger(const Logger &rhs);                  // Intentionally unimplemented!
-    const Logger &operator=(const Logger &rhs); // Intentionally unimplemented!
+    Logger() = delete;
+    Logger(const Logger &rhs) = delete;
+    const Logger &operator=(const Logger &rhs) = delete;
 protected:
     enum LogType { EXITING = 1, NON_EXITING = 2, HANDLE_ERRNO = 4 };
     virtual void writeLog(const std::string &message, const unsigned log_mask);

@@ -181,8 +181,8 @@ private:
     RobotsDotTxtCache(): max_cache_size_(10000) { }
     ~RobotsDotTxtCache() { clear(); }
 
-    RobotsDotTxtCache(const RobotsDotTxtCache &rhs);                  // Intentionally unimplemented!
-    const RobotsDotTxtCache &operator=(const RobotsDotTxtCache &rhs); // Intentionally unimplemented!
+    RobotsDotTxtCache(const RobotsDotTxtCache &rhs) = delete;
+    const RobotsDotTxtCache &operator=(const RobotsDotTxtCache &rhs) = delete;
 
     void nonThreadSafeClear();
 };

@@ -1866,7 +1866,7 @@ public:
     const std::string &getFromPattern() const { return from_pattern_; }
     const std::string &getToPattern() const { return to_pattern_; }
 private:
-    UrlMap(); // Intentionally unimplemented!
+    UrlMap() = delete;
 };
 
 
