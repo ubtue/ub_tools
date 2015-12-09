@@ -62,3 +62,4 @@ KeywordChainParser-*.jar
 BibleRangeParser-*.jar
 solr_plugins/Bibelstellensuche/bin/
 solr_plugins/Schlagwortfolgensuche/bin/
+SolrmarcMixin-*.jar
