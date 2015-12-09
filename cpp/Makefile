@@ -24,11 +24,11 @@ all: .deps $(PROGS)
 
 %.o: %.cc
 	@echo "Compiling $<..."
-	$(CCC) $(CCCFLAGS) $< -c -o $@
+	@$(CCC) $(CCCFLAGS) $< -c -o $@
 
 $(PROGS): % : %.o lib/libmarc.a
-	@echo "Compiling and Linking $@..."
-	$(CCC) $< -o $@ $(LIBS)
+	@echo "Linking $@..."
+	@$(CCC) $< -o $@ $(LIBS)
 
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile
