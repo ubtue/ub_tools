@@ -405,7 +405,7 @@ void RobotsMetaTagExtractor::notify(const Chunk &chunk) {
 }
 
 
-std::mutex mutex_;
+std::mutex RobotsDotTxtCache::mutex_;
 RobotsDotTxtCache *RobotsDotTxtCache::the_singleton_(nullptr);
 
 
