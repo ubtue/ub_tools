@@ -39,16 +39,13 @@
         </jar>
     </target>
 
-    <target name="run" depends="jar">
-        <java jar="${local.jar}" fork="true"/>
-    </target>
-
     <target name="install" depends="clean,jar"> 
 	<copy file="${local.jar}" tofile="${dest.jar}"/>
     </target>
+
     <target name="clean-build" depends="clean,jar"/>
 
-    <target name="main" depends="clean,run"/>
+    <target name="main" depends="clean,jar"/>
 
 
 </project>
