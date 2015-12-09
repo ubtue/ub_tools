@@ -10,7 +10,7 @@ LIB_DIRECTORY=/usr/local/vufind2/solr/lib/*:/usr/local/vufind2/solr/jetty/lib/ex
 
 # Compiler
 JAVAC=javac
-JAVAFLAGS=-g -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC)
+JAVAFLAGS=-g -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC) -source 1.7 -target 1.7
 COMPILE = $(JAVAC) $(JAVAFLAGS)
 
 JAR=jar cvf 

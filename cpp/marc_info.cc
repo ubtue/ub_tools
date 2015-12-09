@@ -40,38 +40,33 @@ static void Usage() {
 
 
 void ProcessRecords(FILE * const input) {
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
-    std::string err_msg;
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0);
     std::unordered_set<std::string> control_numbers;
 
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg, &raw_record)) {
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++record_count;
 
-	if (not MarcUtil::RecordSeemsCorrect(raw_record, &err_msg))
+	std::string err_msg;
+	if (not record.recordSeemsCorrect(&err_msg))
 	    Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
 
-	const std::string &control_number(field_data[0]);
+	const std::vector<std::string> &fields(record.getFields());
+	const std::string &control_number(fields[0]);
 	if (control_numbers.find(control_number) != control_numbers.end())
 	    Error("found at least one duplicate control number: " + control_number);
 	control_numbers.insert(control_number);
 
-	const unsigned record_length(leader->getRecordLength());
+	const Leader &leader(record.getLeader());
+	const unsigned record_length(leader.getRecordLength());
 	if (record_length > max_record_length)
 	    max_record_length = record_length;
 
 	std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-	const size_t local_block_count(
-            MarcUtil::FindAllLocalDataBlocks(dir_entries, field_data, &local_block_boundaries));
+	const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
 	if (local_block_count > max_local_block_count)
 	    max_local_block_count = local_block_count;
     }
-
-    if (not err_msg.empty())
-        Error(err_msg);
 
     std::cout << "Data set contains " << record_count << " MARC record(s).\n";
     std::cout << "Largest record contains " << max_record_length << " bytes.\n";

@@ -44,11 +44,12 @@ void Usage() {
 static std::unordered_set<std::string> serial_control_numbers;
 
 
-bool RecordSerialControlNumbers(std::shared_ptr<Leader> &leader, std::vector<DirectoryEntry> * const /*dir_entries*/,
-				std::vector<std::string> * const field_data, std::string * const /*err_msg*/)
-{
-    if ((*leader)[7] == 's')
-	serial_control_numbers.insert((*field_data)[0]);
+bool RecordSerialControlNumbers(MarcUtil::Record * const record, std::string * const /* err_msg */) {
+    const Leader &leader(record->getLeader());
+    if (leader[7] == 's') {
+	const std::vector<std::string> &fields(record->getFields());
+	serial_control_numbers.insert(fields[0]);
+    }
 
     return true;
 }
@@ -68,16 +69,15 @@ static FILE *output_ptr;
 static unsigned patch_count;
 
 
-bool HasSerialParent(const std::string &subfield, const std::vector<DirectoryEntry> dir_entries,
-		     const std::vector<std::string> field_data)
-{
+bool HasSerialParent(const std::string &subfield, const MarcUtil::Record &record) {
     const std::string tag(subfield.substr(0, 3));
     const char subfield_code(subfield[3]);
-    const ssize_t field_index(MarcUtil::GetFieldIndex(dir_entries, tag));
+    const ssize_t field_index(record.getFieldIndex(tag));
     if (field_index == -1)
 	return false;
 
-    const Subfields subfields(field_data[field_index]);
+    const std::vector<std::string> &fields(record.getFields());
+    const Subfields subfields(fields[field_index]);
     const std::string subfield_contents(subfields.getFirstSubfieldValue(subfield_code));
     if (subfield_contents.empty())
 	return false;
@@ -91,13 +91,11 @@ bool HasSerialParent(const std::string &subfield, const std::vector<DirectoryEnt
 }
 
 
-bool HasAtLeastOneSerialParent(const std::string &subfield_list, const std::vector<DirectoryEntry> dir_entries,
-			       const std::vector<std::string> field_data)
-{
+bool HasAtLeastOneSerialParent(const std::string &subfield_list, const MarcUtil::Record &record) {
     std::vector<std::string> subfields;
     StringUtil::Split(subfield_list, ':', &subfields);
     for (const auto &subfield : subfields) {
-	if (HasSerialParent(subfield, dir_entries, field_data))
+	if (HasSerialParent(subfield, record))
 	    return true;
     }
 
@@ -107,22 +105,22 @@ bool HasAtLeastOneSerialParent(const std::string &subfield_list, const std::vect
 
 // Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is a serial.
 // Also writes all records to "output_ptr".
-bool PatchUpArticle(std::shared_ptr<Leader> &leader, std::vector<DirectoryEntry> * const dir_entries,
-		    std::vector<std::string> * const field_data, std::string * const /*err_msg*/)
+bool PatchUpArticle(MarcUtil::Record * const record, std::string * const /*err_msg*/)
 {
-    if ((*leader)[7] != 'a') {
-	MarcUtil::ComposeAndWriteRecord(output_ptr, *dir_entries, *field_data, leader);
+    Leader &leader(record->getLeader());
+    if (leader[7] != 'a') {
+	record->write(output_ptr);
 	return true;
     }
 
-    if (not HasAtLeastOneSerialParent("800w:810w:830w:773w", *dir_entries, *field_data)) {
-	MarcUtil::ComposeAndWriteRecord(output_ptr, *dir_entries, *field_data, leader);
+    if (not HasAtLeastOneSerialParent("800w:810w:830w:773w", *record)) {
+	record->write(output_ptr);
 	return true;
     }
 
-    (*leader)[7] = 'b';
+    leader[7] = 'b';
     ++patch_count;
-    MarcUtil::ComposeAndWriteRecord(output_ptr, *dir_entries, *field_data, leader);
+    record->write(output_ptr);
 
     return true;
 }
@@ -165,10 +163,14 @@ int main(int argc, char **argv) {
     if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
-    CollectSerials(verbose, marc_input);
+    try {
+	CollectSerials(verbose, marc_input);
 
-    std::rewind(marc_input);
-    PatchUpSerialComponentParts(verbose, marc_input, marc_output);
+	std::rewind(marc_input);
+	PatchUpSerialComponentParts(verbose, marc_input, marc_output);
+    } catch (const std::exception &x) {
+	Error("caught exception: " + std::string(x.what()));
+    }
 
     std::fclose(marc_input);
     std::fclose(marc_output);

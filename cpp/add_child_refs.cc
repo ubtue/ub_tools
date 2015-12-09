@@ -37,10 +37,10 @@
 #include "util.h"
 
 
-static FILE *output_ptr;
 static unsigned modified_count(0);
 static std::unordered_map<std::string, std::string> parent_to_children_map;
 static std::unordered_map<std::string, std::string> id_to_title_map;
+
 
 void Usage() {
     std::cerr << "Usage: " << progname << " marc_input marc_output child_refs child_titles\n";
@@ -48,18 +48,17 @@ void Usage() {
     std::exit(EXIT_FAILURE);
 }
 
-bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry> * const dir_entries,
-                   std::vector <std::string> * const field_data, std::string * const /*err_msg*/) {
 
-    if (dir_entries->at(0).getTag() != "001")
-        Error("First field is not \"001\"!");
+void ProcessRecord(FILE * const output, MarcUtil::Record * const record) {
+    const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
+    if (dir_entries.at(0).getTag() != "001")
+        Error("First field of record is not \"001\"!");
 
-    const auto map_iter(parent_to_children_map.find(field_data->at(0)));
+    const std::vector<std::string> field_data(record->getFields());
+    const auto map_iter(parent_to_children_map.find(field_data.at(0)));
     if (map_iter != parent_to_children_map.end()) {
         std::vector<std::string> child_ids;
         StringUtil::Split(map_iter->second, ':', &child_ids);
-        dir_entries->reserve(dir_entries->size() + child_ids.size());
-        field_data->reserve(field_data->size() + child_ids.size());
         for (const auto &child_id : child_ids) {
             const auto id_and_title_iter(id_to_title_map.find(child_id));
             if (id_and_title_iter == id_to_title_map.end()) {
@@ -67,35 +66,31 @@ bool ProcessRecord(std::shared_ptr <Leader> &leader, std::vector <DirectoryEntry
                 continue;
             }
 
-            Subfields subfields(' ', ' ');
+            Subfields subfields(/* indicator1 = */' ', /* indicator2 = */' ');
             subfields.addSubfield('a', child_id);
             subfields.addSubfield('b', id_and_title_iter->second);
 
-            MarcUtil::InsertField(subfields.toString() , "CLD", leader, dir_entries, field_data);
+            record->insertField("CLD", subfields.toString());
         }
+	++modified_count;
     }
 
-    ++modified_count;
-    MarcUtil::ComposeAndWriteRecord(output_ptr, *dir_entries, *field_data, leader);
-    return true;
+    record->write(output);
 }
 
-void AddChildRefs(FILE * const input, FILE * const output)
-{
-    output_ptr = output;
 
-    std::string err_msg;
-    if (not MarcUtil::ProcessRecords(input, ProcessRecord, &err_msg))
-        Error("error while processing records: " + err_msg);
+void AddChildRefs(FILE * const input, FILE * const output) {
+    while (MarcUtil::Record record = MarcUtil::Record(input))
+	ProcessRecord(output, &record);
 
     std::cerr << "Modified " << modified_count << " record(s).\n";
 }
 
+
 // LoadRefs -- reads lines from "child_refs_filename".  Each line is expected to contain at least a single colon.
 //             Each line will be split on the first colon and the part before the colon used as key and the part
 //             after the colon as value and inserted into "*parent_to_children_map".
-void LoadRefs(const std::string &child_refs_filename)
-{
+void LoadRefs(const std::string &child_refs_filename) {
     std::ifstream child_refs(child_refs_filename.c_str());
     if (not child_refs.is_open())
         Error("Failed to open \"" + child_refs_filename + "\" for reading!");
@@ -128,8 +123,7 @@ void LoadRefs(const std::string &child_refs_filename)
 
 // LoadTitles -- reads lines from "child_titles_filename".  Each line is expected to contain an ID followed by a
 //               colon, followed by a subfield code, followed by another colon, followed by a title.
-void LoadTitles(const std::string &child_titles_filename)
-{
+void LoadTitles(const std::string &child_titles_filename) {
     std::ifstream titles(child_titles_filename.c_str());
     if (not titles.is_open())
         Error("Failed to open \"" + child_titles_filename + "\" for reading!");
@@ -187,8 +181,12 @@ int main(int argc, char **argv) {
     if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
-    LoadRefs(argv[3]);
-    LoadTitles(argv[4]);
+    try {
+	LoadRefs(argv[3]);
+	LoadTitles(argv[4]);
+    } catch (const std::exception &x) {
+	Error("caught exception: " + std::string(x.what()));
+    }
 
     AddChildRefs(marc_input, marc_output);
 

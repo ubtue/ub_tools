@@ -59,13 +59,12 @@ static void Usage() {
 
 
 void FileLockedComposeAndWriteRecord(FILE * const output, const std::string &output_filename,
-                                     const std::vector<DirectoryEntry> &dir_entries,
-                                     const std::vector<std::string> &field_data, std::shared_ptr<Leader> leader)
+				     const MarcUtil::Record &record)
 {
     FileLocker file_locker(output_filename, FileLocker::WRITE_ONLY);
     if (std::fseek(output, 0, SEEK_END) == -1)
         Error("failed to seek to the end of \"" + output_filename + "\"!");
-    MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+    record.write(output);
     std::fflush(output);
 }
 
@@ -87,16 +86,16 @@ bool IsProbablyAReview(const Subfields &subfields) {
 }
 
 
-bool FoundAtLeastOneNonReviewLink(const std::vector<DirectoryEntry> &dir_entries,
-                                  const std::vector<std::string> &field_data)
-{
-    ssize_t _856_index(MarcUtil::GetFieldIndex(dir_entries, "856"));
+bool FoundAtLeastOneNonReviewLink(const MarcUtil::Record &record) {
+    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+    ssize_t _856_index(record.getFieldIndex("856"));
     if (_856_index == -1)
         return false;
 
     const ssize_t dir_entry_count(static_cast<ssize_t>(dir_entries.size()));
     for (/* Empty! */; _856_index < dir_entry_count and dir_entries[_856_index].getTag() == "856"; ++_856_index) { 
-        const Subfields subfields(field_data[_856_index]);
+	const std::vector<std::string> &fields(record.getFields());
+        const Subfields subfields(fields[_856_index]);
         const auto u_begin_end(subfields.getIterators('u'));
         if (u_begin_end.first == u_begin_end.second) // No subfield 'u'.
             continue;
@@ -128,9 +127,6 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
                     const std::string &db_filename, const unsigned process_count_low_watermark,
                     const unsigned process_count_high_watermark)
 {
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
     long offset(0L), last_offset;
@@ -141,9 +137,10 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     std::cout << "Skip " << skip_count << " records\n";
 
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         last_offset = offset;
-        offset += leader->getRecordLength();
+	const Leader &leader(record.getLeader());
+        offset += leader.getRecordLength();
 
         if (total_record_count == max_record_count)
             break;
@@ -151,8 +148,8 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
         if (total_record_count <= skip_count)
             continue;
 
-        if (not FoundAtLeastOneNonReviewLink(dir_entries, field_data)) {
-            FileLockedComposeAndWriteRecord(output, output_filename, dir_entries, field_data, leader);
+        if (not FoundAtLeastOneNonReviewLink(record)) {
+            FileLockedComposeAndWriteRecord(output, output_filename, record);
             continue;
         }
 
