@@ -10,12 +10,14 @@ INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 CGI_PROGS=full_text_lookup
 CCC=clang++
 CCOPTS=-g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include -Ilib/libstemmer/include \
-       -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 -I/usr/include/libxml2 -c
+       -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 -I/opt/shibboleth/include -I/usr/include/libxml2 -c
 
 ifneq ("$(wildcard /etc/centos-release)","")
   LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
+  LIBCURL=-L/opt/shibboleth/lib64/ -lcurl
 else # Ubuntu version
   LIBMARIADB=-lmariadbclient
+  LIBCURL=-lcurl
 endif
 
 .PHONY: all clean cgi_install root_install install
@@ -36,7 +38,7 @@ marc_grep_static: marc_grep.o lib/libmarc.a
 	strip $@
 
 marc_grep.o: marc_grep.cc lib/include/Leader.h lib/include/MarcQueryParser.h lib/include/MarcUtil.h \
-                          lib/include/RegexMatcher.h lib/include/Subfields.h lib/include/util.h
+             lib/include/RegexMatcher.h lib/include/Subfields.h lib/include/util.h
 
 extract_text_from_image_only_pdfs.o: extract_text_from_image_only_pdfs.cc lib/include/PdfUtil.h \
                                      lib/include/ExecUtil.h lib/include/FileUtil.h
@@ -108,7 +110,7 @@ download_test.o: download_test.cc lib/include/SmartDownloader.h lib/include/util
                  lib/include/StringUtil.h
 
 download_test: download_test.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic -lrt -lssl -lcurl
+	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic -lrt -lssl $(LIBCURL)
 
 create_full_text_db.o: create_full_text_db.cc lib/include/Downloader.h lib/include/RegexMatcher.h lib/include/StringUtil.h \
                        lib/include/util.h lib/include/MarcUtil.h lib/include/Subfields.h lib/include/ExecUtil.h \
@@ -118,7 +120,7 @@ create_full_text_db: create_full_text_db.o lib/libmarc.a
 	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic
 
 update_full_text_db: update_full_text_db.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic -lrt -lssl -lcurl
+	$(CCC) -o $@ $^ -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic -lrt -lssl $(LIBCURL)
 
 update_full_text_db.o: update_full_text_db.cc lib/include/DirectoryEntry.h lib/include/ExecUtil.h lib/include/FileLocker.h \
                        lib/include/FileUtil.h lib/include/MarcUtil.h lib/include/MediaTypeUtil.h lib/include/PdfUtil.h \
@@ -244,7 +246,7 @@ notify_users.o: notify_users.cc lib/include/DbConnection.h lib/include/DbResultS
 		lib/include/GzStream.h
 
 notify_users: notify_users.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB) -lpcre -lxml2 -lz -lmagic -lrt -lssl -lcurl
+	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto $(LIBMARIADB) -lpcre -lxml2 -lz -lmagic -lrt -lssl $(LIBCURL)
 
 xml_parser_test.o: xml_parser_test.cc lib/include/util.h lib/include/XmlParser.h lib/include/StringUtil.h
 
@@ -269,7 +271,7 @@ send_email_test: send_email_test.o lib/libmarc.a
 urlencode.o: urlencode.cc lib/include/util.h lib/include/UrlUtil.h
 
 urlencode: urlencode.o lib/libmarc.a
-	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto -lpcre -lmagic -lrt -lssl -lcurl
+	$(CCC) -o $@ $^ -Llib -lmarc -lcrypto -lpcre -lmagic -lrt -lssl $(LIBCURL)
 
 compress_test.o: compress_test.cc lib/include/util.h lib/include/GzStream.h
 
