@@ -1,6 +1,7 @@
 INC             = lib/include
-CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include -Ilib/libstemmer/include -I/opt/shibboleth/include \
-                   -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 -I/usr/include/libxml2 -c
+CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include -Ilib/libstemmer/include \
+                  -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
+                  -I/usr/include/libxml2 -c
 CCC             = clang++
 MAKE_DEPS_FLAGS = --output-program-rules
 
@@ -43,7 +44,7 @@ install: $(INSTALL_PROGS)
 root_install: $(INSTALL_PROGS)
 	@echo "Installing programs..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
-	
+
 cgi_install: $(CGI_PROGS)
 	mkdir --parents /var/www/cgi-bin
 	cp full_text_lookup /var/www/cgi-bin/
