@@ -44,7 +44,7 @@ import org.apache.solr.search.DocSet;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.util.BoundedTreeSet;
 
-class PerSegmentSingleValuedFaceting {
+public class PerSegmentSingleValuedFaceting {
 
     // input params
     SolrIndexSearcher searcher;
