@@ -1,93 +1,35 @@
 package de.uni_tuebingen.ub.ixTheo.request;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.EnumSet;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.RunnableFuture;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.lucene.index.AtomicReader;
-import org.apache.lucene.index.DocsEnum;
-import org.apache.lucene.index.Fields;
-import org.apache.lucene.index.MultiDocsEnum;
-import org.apache.lucene.index.SortedDocValues;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.FieldCache;
-import org.apache.lucene.search.Filter;
-import org.apache.lucene.search.MatchAllDocsQuery;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.search.TermRangeQuery;
-import org.apache.lucene.search.grouping.AbstractAllGroupHeadsCollector;
-import org.apache.lucene.search.grouping.term.TermAllGroupsCollector;
-import org.apache.lucene.search.grouping.term.TermGroupFacetCollector;
-import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.BytesRefBuilder;
-import org.apache.lucene.util.CharsRef;
-import org.apache.lucene.util.CharsRefBuilder;
-import org.apache.lucene.util.StringHelper;
-import org.apache.lucene.util.UnicodeUtil;
+import de.uni_tuebingen.ub.ixTheo.common.params.FacetPrefixSortParams;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.FacetParams;
-import org.apache.solr.common.params.FacetParams.FacetRangeInclude;
-import org.apache.solr.common.params.FacetParams.FacetRangeOther;
 import org.apache.solr.common.params.GroupParams;
-import org.apache.solr.common.params.RequiredSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.handler.component.ResponseBuilder;
-//import org.apache.solr.request.IntervalFacets.FacetInterval;
+import org.apache.solr.request.DocValuesFacets;
+import org.apache.solr.request.SimpleFacets;
+import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.request.UnInvertedField;
 import org.apache.solr.schema.BoolField;
-import org.apache.solr.schema.DateField;
 import org.apache.solr.schema.FieldType;
-import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.schema.SchemaField;
-import org.apache.solr.schema.SortableDoubleField;
-import org.apache.solr.schema.SortableFloatField;
-import org.apache.solr.schema.SortableIntField;
-import org.apache.solr.schema.SortableLongField;
 import org.apache.solr.schema.TrieField;
-import org.apache.solr.search.BitDocSet;
-import org.apache.solr.search.DocIterator;
 import org.apache.solr.search.DocSet;
-import org.apache.solr.search.Grouping;
-import org.apache.solr.search.HashDocSet;
-import org.apache.solr.search.QParser;
-import org.apache.solr.search.QueryParsing;
-import org.apache.solr.search.SolrIndexSearcher;
-import org.apache.solr.search.SortedIntDocSet;
 import org.apache.solr.search.SyntaxError;
-import org.apache.solr.search.grouping.GroupingSpecification;
-import org.apache.solr.util.BoundedTreeSet;
-import org.apache.solr.util.DateMathParser;
 import org.apache.solr.util.DefaultSolrThreadFactory;
-import org.apache.solr.util.LongPriorityQueue;
 
-import org.apache.solr.handler.component.*;
-import org.apache.solr.request.*;
-import de.uni_tuebingen.ub.ixTheo.common.params.*;
-import de.uni_tuebingen.ub.ixTheo.common.util.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
+
+//import org.apache.solr.request.IntervalFacets.FacetInterval;
 
 public class SimplePrefixSortFacets extends SimpleFacets {
 
@@ -98,11 +40,10 @@ public class SimplePrefixSortFacets extends SimpleFacets {
     public SimplePrefixSortFacets(SolrQueryRequest req, DocSet docs, SolrParams params, ResponseBuilder rb) {
 
         super(req, docs, params, rb);
-
     }
 
     enum FacetMethod {
-        ENUM, FC, FCS;
+        ENUM, FC, FCS
     }
 
     /**
@@ -191,14 +132,10 @@ public class SimplePrefixSortFacets extends SimpleFacets {
         if (method == null) {
             // TODO: default to per-segment or not?
             method = FacetMethod.FC;
-        }
-
-        if (method == FacetMethod.FCS && multiToken) {
+        } else if (method == FacetMethod.FCS && multiToken) {
             // only fc knows how to deal with multi-token fields
             method = FacetMethod.FC;
-        }
-
-        if (method == FacetMethod.ENUM && sf.hasDocValues()) {
+        } else if (method == FacetMethod.ENUM && sf.hasDocValues()) {
             // only fc can handle docvalues types
             method = FacetMethod.FC;
         }
@@ -207,42 +144,40 @@ public class SimplePrefixSortFacets extends SimpleFacets {
             counts = getGroupedCounts(searcher, base, field, multiToken, offset, limit, mincount, missing, sort,
                     prefix);
         } else {
-            assert method != null;
             switch (method) {
-            case ENUM:
-                assert TrieField.getMainValuePrefix(ft) == null;
-                counts = getFacetTermEnumCounts(searcher, base, field, offset, limit, mincount, missing, sort, prefix);
-                break;
-            case FCS:
-                assert !multiToken;
-                if (ft.getNumericType() != null && !sf.multiValued()) {
-                    // force numeric faceting
-                    if (prefix != null && !prefix.isEmpty()) {
-                        throw new SolrException(ErrorCode.BAD_REQUEST,
-                                FacetParams.FACET_PREFIX + " is not supported on numeric types");
+                case ENUM:
+                    assert TrieField.getMainValuePrefix(ft) == null;
+                    counts = getFacetTermEnumCounts(searcher, base, field, offset, limit, mincount, missing, sort, prefix);
+                    break;
+                case FCS:
+                    if (ft.getNumericType() != null && !sf.multiValued()) {
+                        // force numeric faceting
+                        if (prefix != null && !prefix.isEmpty()) {
+                            throw new SolrException(ErrorCode.BAD_REQUEST,
+                                    FacetParams.FACET_PREFIX + " is not supported on numeric types");
+                        }
+                        counts = NumericFacets.getCounts(searcher, base, field, offset, limit, mincount, missing, sort);
+                    } else {
+                        PerSegmentSingleValuedFaceting ps = new PerSegmentSingleValuedFaceting(searcher, base, field,
+                                offset, limit, mincount, missing, sort, prefix);
+                        Executor executor = threads == 0 ? directExecutor : facetExecutor;
+                        ps.setNumThreads(threads);
+                        counts = ps.getFacetCounts(executor);
                     }
-                    counts = NumericFacets.getCounts(searcher, base, field, offset, limit, mincount, missing, sort);
-                } else {
-                    PerSegmentSingleValuedFaceting ps = new PerSegmentSingleValuedFaceting(searcher, base, field,
-                            offset, limit, mincount, missing, sort, prefix);
-                    Executor executor = threads == 0 ? directExecutor : facetExecutor;
-                    ps.setNumThreads(threads);
-                    counts = ps.getFacetCounts(executor);
-                }
-                break;
-            case FC:
-                if (sf.hasDocValues()) {
-                    counts = DocValuesFacets.getCounts(searcher, base, field, offset, limit, mincount, missing, sort,
-                            prefix);
-                } else if (multiToken || TrieField.getMainValuePrefix(ft) != null) {
-                    UnInvertedField uif = UnInvertedField.getUnInvertedField(field, searcher);
-                    counts = uif.getCounts(searcher, base, offset, limit, mincount, missing, sort, prefix);
-                } else {
-                    counts = getFieldCacheCounts(searcher, base, field, offset, limit, mincount, missing, sort, prefix);
-                }
-                break;
-            default:
-                throw new AssertionError();
+                    break;
+                case FC:
+                    if (sf.hasDocValues()) {
+                        counts = DocValuesFacets.getCounts(searcher, base, field, offset, limit, mincount, missing, sort,
+                                prefix);
+                    } else if (multiToken || TrieField.getMainValuePrefix(ft) != null) {
+                        UnInvertedField uif = UnInvertedField.getUnInvertedField(field, searcher);
+                        counts = uif.getCounts(searcher, base, offset, limit, mincount, missing, sort, prefix);
+                    } else {
+                        counts = getFieldCacheCounts(searcher, base, field, offset, limit, mincount, missing, sort, prefix);
+                    }
+                    break;
+                default:
+                    throw new AssertionError();
             }
         }
 
@@ -260,13 +195,13 @@ public class SimplePrefixSortFacets extends SimpleFacets {
      * Looks at various Params to determining if any simple Facet Constraint
      * count computations are desired.
      *
+     * @return a NamedList of Facet Count info or null
      * @see #getFacetQueryCounts
      * @see #getFacetFieldCounts
      * @see #getFacetDateCounts
      * @see #getFacetRangeCounts
      * @see #getFacetIntervalCounts
      * @see FacetParams#FACET
-     * @return a NamedList of Facet Count info or null
      */
     public NamedList<Object> getFacetCounts() {
 
@@ -281,7 +216,6 @@ public class SimplePrefixSortFacets extends SimpleFacets {
             facetResponse.add("facet_dates", getFacetDateCounts());
             facetResponse.add("facet_ranges", getFacetRangeCounts());
             facetResponse.add("facet_intervals", getFacetIntervalCounts());
-
         } catch (IOException e) {
             throw new SolrException(ErrorCode.SERVER_ERROR, e);
         } catch (SyntaxError e) {
@@ -396,13 +330,7 @@ public class SimplePrefixSortFacets extends SimpleFacets {
         return getTermCounts(field, mincount, base);
     }
 
-    static final Executor facetExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 10, TimeUnit.SECONDS, // terminate
-                                                                                                             // idle
-                                                                                                             // threads
-                                                                                                             // after
-                                                                                                             // 10
-                                                                                                             // sec
-            new SynchronousQueue<Runnable>() // directly hand off tasks
+    static final Executor facetExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 10, TimeUnit.SECONDS // terminate idle threads after 10 sec
+            , new SynchronousQueue<Runnable>() // directly hand off tasks
             , new DefaultSolrThreadFactory("facetExecutor"));
-
 };
