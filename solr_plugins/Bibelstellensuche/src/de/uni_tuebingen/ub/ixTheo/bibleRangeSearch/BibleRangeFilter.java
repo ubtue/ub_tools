@@ -23,7 +23,7 @@ public class BibleRangeFilter extends Filter {
     @Override
     public DocIdSet getDocIdSet(final AtomicReaderContext context, final Bits acceptDocs)
             throws IOException {
-        final BinaryDocValues values = FieldCache.DEFAULT.getTerms(context.reader(), FIELD);
+        final BinaryDocValues values = FieldCache.DEFAULT.getTerms(context.reader(), FIELD, false);
         return new FastDocIdSet(context.reader().maxDoc(), acceptDocs, values);
     }
 
@@ -37,9 +37,7 @@ public class BibleRangeFilter extends Filter {
 
         @Override
         protected final boolean matchDoc(final int docId) {
-            final BytesRef ref = new BytesRef();
-            values.get(docId, ref);
-
+            final BytesRef ref = values.get(docId);
             final String dbField = ref.utf8ToString();
             if (dbField.isEmpty()) {
                 return false;
