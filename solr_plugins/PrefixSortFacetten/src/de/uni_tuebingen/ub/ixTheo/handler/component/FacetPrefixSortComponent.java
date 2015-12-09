@@ -18,51 +18,28 @@
 //package org.apache.solr.handler.component;
 package de.uni_tuebingen.ub.ixTheo.handler.component;
 
-import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.TreeMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Collection;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
 
-import org.apache.lucene.util.FixedBitSet;
-import org.apache.solr.common.SolrException;
-import org.apache.solr.common.SolrException.ErrorCode;
+import de.uni_tuebingen.ub.ixTheo.common.params.FacetPrefixSortParams;
+import de.uni_tuebingen.ub.ixTheo.common.util.KeywordChainMetric;
+import de.uni_tuebingen.ub.ixTheo.request.SimplePrefixSortFacets;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.FacetParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
-import org.apache.solr.common.params.ShardParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
-import org.apache.solr.common.util.StrUtils;
-import org.apache.solr.request.SimpleFacets;
-import org.apache.solr.schema.FieldType;
-import org.apache.solr.search.QueryParsing;
-import org.apache.solr.search.SyntaxError;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.solr.handler.component.*;
-import de.uni_tuebingen.ub.ixTheo.common.params.*;
-import de.uni_tuebingen.ub.ixTheo.common.util.*;
-import de.uni_tuebingen.ub.ixTheo.request.*;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 
 /**
  * TODO!
- *
  *
  * @since solr 1.3
  */
@@ -70,17 +47,29 @@ import de.uni_tuebingen.ub.ixTheo.request.*;
 // public class FacetComponent extends SearchComponent {
 public class FacetPrefixSortComponent extends FacetComponent {
 
+    // We should split at spaces but pay attention to quoted strings which
+    // can have internally escaped quotes again. The regex is based on
+    // http://www.metaltoad.com/blog/regex-quoted-string-escapable-quotes
+    // (2015-12-2) to achieve this.
+    private final static Pattern WHITE_SPACES_WITH_QUOTES_SPLITTING_PATTERN = Pattern.compile("((?<![\\\\])['\"]|\\\\\")((?:.(?!(?<![\\\\])\\1))*.?)\\1|([^\\s]+)");
+
+    private final static Comparator<Entry<Entry<String, Object>, Double>> ENTRY_COMPARATOR = new Comparator<Entry<Entry<String, Object>, Double>>() {
+        public int compare(Entry<Entry<String, Object>, Double> e1,
+                           Entry<Entry<String, Object>, Double> e2) {
+            // We would like to score according to the second element
+            int compval = e2.getValue().compareTo(e1.getValue());
+
+            if (compval != 0) {
+                return compval;
+            } else {
+                return e1.getKey().getKey().compareTo(e2.getKey().getKey());
+            }
+        }
+    };
+
     // Redefined for finishStage() since private in FacetComponent
     int pivotRefinementCounter = 0;
     private static final String PIVOT_KEY = "facet_pivot";
-
-    @Override
-    public void prepare(ResponseBuilder rb) throws IOException {
-
-        SolrParams params = rb.req.getParams();
-        super.prepare(rb);
-
-    }
 
     /**
      * Actually run the query
@@ -89,25 +78,25 @@ public class FacetPrefixSortComponent extends FacetComponent {
     public void process(ResponseBuilder rb) throws IOException {
 
         if (rb.doFacets) {
-            ModifiableSolrParams params = new ModifiableSolrParams();
-            SolrParams origParams = rb.req.getParams();
-            Iterator<String> iter = origParams.getParameterNamesIterator();
+            final ModifiableSolrParams params = new ModifiableSolrParams();
+            final SolrParams origParams = rb.req.getParams();
+            final Iterator<String> iter = origParams.getParameterNamesIterator();
             while (iter.hasNext()) {
-                String paramName = iter.next();
+                final String paramName = iter.next();
                 // Deduplicate the list with LinkedHashSet, but _only_ for facet
                 // params.
-                if (paramName.startsWith(FacetParams.FACET) == false) {
+                if (!paramName.startsWith(FacetParams.FACET)) {
                     params.add(paramName, origParams.getParams(paramName));
                     continue;
                 }
-                HashSet<String> deDupe = new LinkedHashSet<>(Arrays.asList(origParams.getParams(paramName)));
+                final HashSet<String> deDupe = new LinkedHashSet<>(Arrays.asList(origParams.getParams(paramName)));
                 params.add(paramName, deDupe.toArray(new String[deDupe.size()]));
             }
 
-            SimplePrefixSortFacets f = new SimplePrefixSortFacets(rb.req, rb.getResults().docSet, params, rb);
+            final SimplePrefixSortFacets facets = new SimplePrefixSortFacets(rb.req, rb.getResults().docSet, params, rb);
+            final NamedList<Object> counts = facets.getFacetCounts();
 
-            NamedList<Object> counts = f.getFacetCounts();
-            String[] pivots = params.getParams(FacetParams.FACET_PIVOT);
+            final String[] pivots = params.getParams(FacetParams.FACET_PIVOT);
             if (pivots != null && pivots.length > 0) {
                 PivotFacetProcessor pivotProcessor = new PivotFacetProcessor(rb.req, rb.getResults().docSet, params,
                         rb);
@@ -120,7 +109,7 @@ public class FacetPrefixSortComponent extends FacetComponent {
             // Check whether we have to reorder out results
             // according to prefix
 
-            String sort = params.get(FacetParams.FACET_SORT);
+            final String sort = params.get(FacetParams.FACET_SORT);
             if (FacetPrefixSortParams.FACET_SORT_PREFIX.equals(sort)) {
 
                 // Determine a score relative to the original query
@@ -129,97 +118,47 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 // class
                 // by splitting the single terms
                 String[] queryTerms = params.getParams(CommonParams.Q);
-                Collection<String> queryTermsCollection = new ArrayList<String>();
-
-                // We should split at spaces but pay attention to quoted strings
-                // which
-                // can have internally escaped quotes again. The regex is based
-                // on
-                // http://www.metaltoad.com/blog/regex-quoted-string-escapable-quotes
-                // (2015-12-2)
-                // to achieve this.
-
-                String pattern = "((?<![\\\\])['\"]|\\\\\")((?:.(?!(?<![\\\\])\\1))*.?)\\1|([^\\s]+)";
-                Pattern regex = Pattern.compile(pattern);
-
+                final Collection<String> queryTermsCollection = new ArrayList<>();
                 for (String s : queryTerms) {
-
                     // Split at whitespace except we have a quoted term
-
-                    Matcher matcher = regex.matcher(s);
-
+                    Matcher matcher = WHITE_SPACES_WITH_QUOTES_SPLITTING_PATTERN.matcher(s);
                     while (matcher.find()) {
-
                         queryTermsCollection.add(matcher.group().replaceAll("^\"|\"$", ""));
-
                     }
-
                 }
+                queryTerms = queryTermsCollection.toArray(new String[queryTermsCollection.size()]);
 
-                queryTerms = queryTermsCollection.toArray(new String[] {});
+                final ArrayList<String> queryList = new ArrayList<>(Arrays.asList(queryTerms));
+                final String facetfield = params.get(FacetParams.FACET_FIELD);
 
-                ArrayList<String> queryList = new ArrayList<String>(Arrays.asList(queryTerms));
-                String facetfield = params.get(FacetParams.FACET_FIELD);
+                // Get the current facet entry and make it compatible with our metric class
+                // "facet_fields" itself contains a NamedList with the facet.field as key
 
-                // Get the current facet entry and make it compatible with our
-                // metric class
-                // "facet_fields" itself contains a NamedList with the
-                // facet.field as key
+                final NamedList<Object> facetFieldsNamedList = (NamedList<Object>) counts.get("facet_fields");
+                final NamedList<Object> facetFields = (NamedList<Object>) facetFieldsNamedList.get(facetfield);
 
-                NamedList<Object> facetFieldsNamedList = (NamedList<Object>) counts.get("facet_fields");
-                NamedList<Object> facetFields = (NamedList<Object>) facetFieldsNamedList.get(facetfield);
-
-                Iterator<Map.Entry<String, Object>> iterFacets = facetFields.iterator();
-
-                Map<Map.Entry<String, Object>, Double> facetMapPrefixScored = new HashMap<Map.Entry<String, Object>, Double>();
-
-                while (iterFacets.hasNext()) {
-
-                    Map.Entry<String, Object> entry = iterFacets.next();
-
+                final Map<Map.Entry<String, Object>, Double> facetMapPrefixScored = new HashMap<>();
+                for (final Entry<String, Object> entry : facetFields) {
                     String facetTerms = entry.getKey();
 
                     // Split up each KWC and calculate the scoring
+                    final ArrayList<String> facetList = new ArrayList<>(Arrays.asList(facetTerms.split("/")));
+                    final double score = KeywordChainMetric.calculateSimilarityScore(queryList, facetList);
 
-                    ArrayList<String> facetList = new ArrayList<String>(Arrays.asList(facetTerms.split("/")));
-                    Double score = (Double) KeywordChainMetric.calculateSimilarityScore(queryList, facetList);
-
-                    // Collect the result in a sorted list and throw away
-                    // garbage
-
+                    // Collect the result in a sorted list and throw away garbage
                     if (score > 0) {
                         facetMapPrefixScored.put(entry, score);
                     }
-
                 }
 
-                @SuppressWarnings("unchecked")
-                Entry<Entry<String, Object>, Double>[] facetPrefixArrayScored = facetMapPrefixScored.entrySet()
-                        .toArray(new Entry[facetMapPrefixScored.size()]);
-
-                Arrays.sort(facetPrefixArrayScored, new Comparator<Entry<Entry<String, Object>, Double>>() {
-
-                    public int compare(Entry<Entry<String, Object>, Double> e1,
-                            Entry<Entry<String, Object>, Double> e2) {
-
-                        // We would like to score according to the second
-                        // element
-                        int compval = e2.getValue().compareTo(e1.getValue());
-
-                        if (compval != 0) {
-                            return compval;
-                        } else {
-                            return e1.getKey().getKey().compareTo(e2.getKey().getKey());
-                        }
-                    }
-                });
+                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScored = new ArrayList<>(facetMapPrefixScored.entrySet());
+                Collections.sort(facetPrefixListScored, ENTRY_COMPARATOR);
 
                 // Extract all the values wrap it back to NamedList again and
                 // replace in the original structure
 
                 facetFieldsNamedList.clear();
-
-                NamedList<Object> facetNamedListSorted = new NamedList<Object>();
+                NamedList<Object> facetNamedListSorted = new NamedList<>();
 
                 // We had to disable all limits and offsets sort according
                 // Handle this accordingly now
@@ -229,24 +168,17 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 int limit = (params.getInt(FacetParams.FACET_LIMIT) != null) ? params.getInt(FacetParams.FACET_LIMIT)
                         : 100;
 
-                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScored = Arrays
-                        .asList(facetPrefixArrayScored);
-
                 // Strip uneeded elements
                 int s = facetPrefixListScored.size();
                 int off = (offset < s) ? offset : 0;
                 limit = (limit < 0) ? s : limit; // Handle a negative limit
-                                                 // param, i.e. unlimited
-                                                 // results
+                // param, i.e. unlimited results
                 int lim = (offset + limit <= s) ? (offset + limit) : s;
 
                 final List<Entry<Entry<String, Object>, Double>> facetPrefixListScoredTruncated = facetPrefixListScored
                         .subList(off, lim);
 
                 for (Entry<Entry<String, Object>, Double> e : facetPrefixListScoredTruncated) {
-                    // facetNamedListSorted.add(e.getKey().getKey(),
-                    // e.getKey().getValue().toString() + ":" +
-                    // e.getValue().toString() );
                     facetNamedListSorted.add(e.getKey().getKey(), e.getKey().getValue());
                 }
 
@@ -254,12 +186,10 @@ public class FacetPrefixSortComponent extends FacetComponent {
 
                 counts.remove("facet_fields");
                 counts.add("facet_fields", facetFieldsNamedList);
-
             }
 
             rb.rsp.add("facet_counts", counts);
         }
-
     }
 
     private static final String commandPrefix = "{!" + CommonParams.TERMS + "=$";
@@ -321,8 +251,8 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 int lim = dff.limit >= 0 ? dff.limit : Integer.MAX_VALUE;
 
                 // index order...
-                for (int i = 0; i < counts.length; i++) {
-                    long count = counts[i].count;
+                for (final ShardFacetCount count1 : counts) {
+                    long count = count1.count;
                     if (count < dff.minCount)
                         continue;
                     if (off > 0) {
@@ -333,7 +263,7 @@ public class FacetPrefixSortComponent extends FacetComponent {
                         break;
                     }
                     lim--;
-                    fieldCounts.add(counts[i].name, num(count));
+                    fieldCounts.add(count1.name, num(count));
                 }
             }
 
@@ -353,7 +283,6 @@ public class FacetPrefixSortComponent extends FacetComponent {
         rb.rsp.add("facet_counts", facet_counts);
 
         rb._facetInfo = null; // could be big, so release asap
-
     }
 
     // Helper functions that must be redefined since they are private in Facet
@@ -367,7 +296,7 @@ public class FacetPrefixSortComponent extends FacetComponent {
             PivotFacet pivot = entry.getValue();
             List<NamedList<Object>> trimmedPivots = pivot.getTrimmedPivotsAsListOfNamedLists(rb);
             if (null == trimmedPivots) {
-                trimmedPivots = Collections.<NamedList<Object>> emptyList();
+                trimmedPivots = Collections.emptyList();
             }
 
             combinedPivotFacets.add(key, trimmedPivots);
@@ -383,7 +312,7 @@ public class FacetPrefixSortComponent extends FacetComponent {
     }
 
     private Number num(Long val) {
-        if (val.longValue() < Integer.MAX_VALUE)
+        if (val < Integer.MAX_VALUE)
             return val.intValue();
         else
             return val;
@@ -407,5 +336,4 @@ public class FacetPrefixSortComponent extends FacetComponent {
     public URL[] getDocs() {
         return null;
     }
-
 }

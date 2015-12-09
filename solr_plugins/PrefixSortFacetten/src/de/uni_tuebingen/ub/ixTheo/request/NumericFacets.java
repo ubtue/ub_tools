@@ -17,17 +17,6 @@ package de.uni_tuebingen.ub.ixTheo.request;
  * limitations under the License.
  */
 
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import org.apache.lucene.document.FieldType.NumericType;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.ReaderUtil;
@@ -36,13 +25,8 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.queries.function.FunctionValues;
 import org.apache.lucene.queries.function.ValueSource;
 import org.apache.lucene.search.FieldCache;
-import org.apache.lucene.util.Bits;
-import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.CharsRef;
-import org.apache.lucene.util.CharsRefBuilder;
-import org.apache.lucene.util.NumericUtils;
+import org.apache.lucene.util.*;
 import org.apache.lucene.util.PriorityQueue;
-import org.apache.lucene.util.StringHelper;
 import org.apache.solr.common.params.FacetParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.schema.FieldType;
@@ -52,7 +36,13 @@ import org.apache.solr.search.DocIterator;
 import org.apache.solr.search.DocSet;
 import org.apache.solr.search.SolrIndexSearcher;
 
-/** Utility class to compute facets on numeric fields. */
+import java.io.IOException;
+import java.util.*;
+
+
+/**
+ * Utility class to compute facets on numeric fields.
+ */
 final class NumericFacets {
 
     NumericFacets() {
@@ -82,7 +72,7 @@ final class NumericFacets {
         private int hash(long v) {
             int h = (int) (v ^ (v >>> 32));
             h = (31 * h) & mask; // * 31 to try to use the whole table, even if
-                                 // values are dense
+            // values are dense
             return h;
         }
 
@@ -91,7 +81,7 @@ final class NumericFacets {
                 rehash();
             }
             final int h = hash(value);
-            for (int slot = h;; slot = (slot + 1) & mask) {
+            for (int slot = h; ; slot = (slot + 1) & mask) {
                 if (counts[slot] == 0) {
                     bits[slot] = value;
                     docIDs[slot] = docID;
@@ -123,7 +113,6 @@ final class NumericFacets {
                 }
             }
         }
-
     }
 
     private static class Entry {
@@ -133,7 +122,7 @@ final class NumericFacets {
     }
 
     public static NamedList<Integer> getCounts(SolrIndexSearcher searcher, DocSet docs, String fieldName, int offset,
-            int limit, int mincount, boolean missing, String sort) throws IOException {
+                                               int limit, int mincount, boolean missing, String sort) throws IOException {
         final boolean zeros = mincount <= 0;
         mincount = Math.max(mincount, 1);
         final SchemaField sf = searcher.getSchema().getField(fieldName);
@@ -151,7 +140,7 @@ final class NumericFacets {
         FieldCache.Longs longs = null;
         Bits docsWithField = null;
         int missingCount = 0;
-        for (DocIterator docsIt = docs.iterator(); docsIt.hasNext();) {
+        for (DocIterator docsIt = docs.iterator(); docsIt.hasNext(); ) {
             final int doc = docsIt.nextDoc();
             if (ctx == null || doc >= ctx.docBase + ctx.reader().maxDoc()) {
                 do {
@@ -159,38 +148,38 @@ final class NumericFacets {
                 } while (ctx == null || doc >= ctx.docBase + ctx.reader().maxDoc());
                 assert doc >= ctx.docBase;
                 switch (numericType) {
-                case LONG:
-                    longs = FieldCache.DEFAULT.getLongs(ctx.reader(), fieldName, true);
-                    break;
-                case INT:
-                    final FieldCache.Ints ints = FieldCache.DEFAULT.getInts(ctx.reader(), fieldName, true);
-                    longs = new FieldCache.Longs() {
-                        @Override
-                        public long get(int docID) {
-                            return ints.get(docID);
-                        }
-                    };
-                    break;
-                case FLOAT:
-                    final FieldCache.Floats floats = FieldCache.DEFAULT.getFloats(ctx.reader(), fieldName, true);
-                    longs = new FieldCache.Longs() {
-                        @Override
-                        public long get(int docID) {
-                            return NumericUtils.floatToSortableInt(floats.get(docID));
-                        }
-                    };
-                    break;
-                case DOUBLE:
-                    final FieldCache.Doubles doubles = FieldCache.DEFAULT.getDoubles(ctx.reader(), fieldName, true);
-                    longs = new FieldCache.Longs() {
-                        @Override
-                        public long get(int docID) {
-                            return NumericUtils.doubleToSortableLong(doubles.get(docID));
-                        }
-                    };
-                    break;
-                default:
-                    throw new AssertionError();
+                    case LONG:
+                        longs = FieldCache.DEFAULT.getLongs(ctx.reader(), fieldName, true);
+                        break;
+                    case INT:
+                        final FieldCache.Ints ints = FieldCache.DEFAULT.getInts(ctx.reader(), fieldName, true);
+                        longs = new FieldCache.Longs() {
+                            @Override
+                            public long get(int docID) {
+                                return ints.get(docID);
+                            }
+                        };
+                        break;
+                    case FLOAT:
+                        final FieldCache.Floats floats = FieldCache.DEFAULT.getFloats(ctx.reader(), fieldName, true);
+                        longs = new FieldCache.Longs() {
+                            @Override
+                            public long get(int docID) {
+                                return NumericUtils.floatToSortableInt(floats.get(docID));
+                            }
+                        };
+                        break;
+                    case DOUBLE:
+                        final FieldCache.Doubles doubles = FieldCache.DEFAULT.getDoubles(ctx.reader(), fieldName, true);
+                        longs = new FieldCache.Longs() {
+                            @Override
+                            public long get(int docID) {
+                                return NumericUtils.doubleToSortableLong(doubles.get(docID));
+                            }
+                        };
+                        break;
+                    default:
+                        throw new AssertionError();
                 }
                 docsWithField = FieldCache.DEFAULT.getDocsWithField(ctx.reader(), fieldName);
             }
@@ -209,11 +198,7 @@ final class NumericFacets {
             pq = new PriorityQueue<Entry>(pqSize) {
                 @Override
                 protected boolean lessThan(Entry a, Entry b) {
-                    if (a.count < b.count || (a.count == b.count && a.bits > b.bits)) {
-                        return true;
-                    } else {
-                        return false;
-                    }
+                    return a.count < b.count || (a.count == b.count && a.bits > b.bits);
                 }
             };
         } else {
@@ -259,9 +244,9 @@ final class NumericFacets {
             }
 
             if (zeros && (limit < 0 || result.size() < limit)) { // need to
-                                                                 // merge with
-                                                                 // the term
-                                                                 // dict
+                // merge with
+                // the term
+                // dict
                 if (!sf.indexed()) {
                     throw new IllegalStateException("Cannot use " + FacetParams.FACET_MINCOUNT + "=0 on field "
                             + sf.getName() + " which is not indexed");
@@ -289,19 +274,19 @@ final class NumericFacets {
                     final TermsEnum termsEnum = terms.iterator(null);
                     BytesRef term;
                     switch (termsEnum.seekCeil(prefix)) {
-                    case FOUND:
-                    case NOT_FOUND:
-                        term = termsEnum.term();
-                        break;
-                    case END:
-                        term = null;
-                        break;
-                    default:
-                        throw new AssertionError();
+                        case FOUND:
+                        case NOT_FOUND:
+                            term = termsEnum.term();
+                            break;
+                        case END:
+                            term = null;
+                            break;
+                        default:
+                            throw new AssertionError();
                     }
                     final CharsRef spare = new CharsRef();
                     for (int skipped = hashTable.size; skipped < offset && term != null
-                            && StringHelper.startsWith(term, prefix);) {
+                            && StringHelper.startsWith(term, prefix); ) {
                         ft.indexedToReadable(term, spare);
                         final String termStr = spare.toString();
                         if (!alreadySeen.contains(termStr)) {
@@ -345,15 +330,15 @@ final class NumericFacets {
                 final TermsEnum termsEnum = terms.iterator(null);
                 BytesRef term;
                 switch (termsEnum.seekCeil(prefix)) {
-                case FOUND:
-                case NOT_FOUND:
-                    term = termsEnum.term();
-                    break;
-                case END:
-                    term = null;
-                    break;
-                default:
-                    throw new AssertionError();
+                    case FOUND:
+                    case NOT_FOUND:
+                        term = termsEnum.term();
+                        break;
+                    case END:
+                        term = null;
+                        break;
+                    default:
+                        throw new AssertionError();
                 }
                 final CharsRef spare = new CharsRef();
                 for (int i = 0; i < offset && term != null && StringHelper.startsWith(term, prefix); ++i) {
@@ -377,5 +362,4 @@ final class NumericFacets {
         }
         return result;
     }
-
 }
