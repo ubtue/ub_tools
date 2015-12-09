@@ -152,17 +152,19 @@ std::string CanonizeCentury(const std::string &century_candidate) {
 
 
 size_t ExtractKeywordsFromKeywordChainFields(
-    const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
+    const MarcUtil::Record &record,
     const Stemmer * const stemmer,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
 {
     size_t keyword_count(0);
+    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+    const std::vector<std::string> &fields(record.getFields());
     const auto _689_iterator(DirectoryEntry::FindField("689", dir_entries));
     if (_689_iterator != dir_entries.end()) {
 	size_t field_index(_689_iterator - dir_entries.begin());
-	while (field_index < field_data.size() and dir_entries[field_index].getTag() == "689") {
-	    const Subfields subfields(field_data[field_index]);
+	while (field_index < fields.size() and dir_entries[field_index].getTag() == "689") {
+	    const Subfields subfields(fields[field_index]);
 	    const std::string subfield_a_value(subfields.getFirstSubfieldValue('a'));
 	    if (not subfield_a_value.empty()) {
 		std::string keyphrase(subfield_a_value);
@@ -183,8 +185,7 @@ size_t ExtractKeywordsFromKeywordChainFields(
 
 
 size_t ExtractKeywordsFromIndividualKeywordFields(
-    const std::vector<DirectoryEntry> &dir_entries,
-    const std::vector<std::string> &field_data,
+    const MarcUtil::Record &record,
     const Stemmer * const stemmer,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
@@ -192,8 +193,7 @@ size_t ExtractKeywordsFromIndividualKeywordFields(
     size_t keyword_count(0);
     std::vector<std::string> keyword_phrases;
     static const std::string SUBFIELD_IGNORE_LIST("02"); // Do not extract $0 and $2.
-    MarcUtil::ExtractAllSubfields("600:610:611:630:650:653:656", dir_entries, field_data, &keyword_phrases,
-				  SUBFIELD_IGNORE_LIST);
+    record.extractAllSubfields("600:610:611:630:650:653:656", &keyword_phrases, SUBFIELD_IGNORE_LIST);
     for (const auto &keyword_phrase : keyword_phrases) {
 	ProcessKeywordPhrase(CanonizeCentury(keyword_phrase), stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
 			     stemmed_keyphrases_to_unstemmed_keyphrases_map);
@@ -205,18 +205,18 @@ size_t ExtractKeywordsFromIndividualKeywordFields(
 
 
 size_t ExtractAllKeywords(
-    const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
+    const MarcUtil::Record &record,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
 {
-    const std::string language_code(MarcUtil::GetLanguage(dir_entries, field_data));
+    const std::string language_code(record.getLanguage());
     const Stemmer * const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
 
-    size_t extracted_count(ExtractKeywordsFromKeywordChainFields(dir_entries, field_data, stemmer,
+    size_t extracted_count(ExtractKeywordsFromKeywordChainFields(record, stemmer,
 								 stemmed_keyword_to_stemmed_keyphrases_map,
 								 stemmed_keyphrases_to_unstemmed_keyphrases_map));
 /*
-    extracted_count += ExtractKeywordsFromIndividualKeywordFields(dir_entries, field_data, stemmer,
+    extracted_count += ExtractKeywordsFromIndividualKeywordFields(dir_entries, fields, stemmer,
 								  stemmed_keyword_to_stemmed_keyphrases_map,
 								  stemmed_keyphrases_to_unstemmed_keyphrases_map);
 */
@@ -232,16 +232,12 @@ void ExtractStemmedKeywords(
     if (verbose)
         std::cerr << "Starting extraction and stemming of pre-existing keywords.\n";
 
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     unsigned total_count(0), records_with_keywords_count(0), keywords_count(0);
-    std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
         ++total_count;
 
 	const size_t extracted_count(
-            ExtractAllKeywords(dir_entries, field_data, stemmed_keyword_to_stemmed_keyphrases_map,
+            ExtractAllKeywords(record, stemmed_keyword_to_stemmed_keyphrases_map,
 			       stemmed_keyphrases_to_unstemmed_keyphrases_map));
 	if (extracted_count > 0) {
 	    ++records_with_keywords_count;
@@ -288,26 +284,24 @@ void AugmentRecordsWithTitleKeywords(
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
     unsigned total_count(0), augmented_record_count(0);
-    std::string err_msg;
-    while (MarcUtil::ReadNextRecord(input, leader, &dir_entries, &field_data, &err_msg)) {
+    while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++total_count;
 
 	// Look for a title...
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
         if (entry_iterator == dir_entries.end()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+            record.write(output);
             continue;
         }
 
 	// ...in subfields 'a', 'b', 'c' and 'p':
         const size_t title_index(entry_iterator - dir_entries.begin());
-        Subfields subfields(field_data[title_index]);
+	const std::vector<std::string> &fields(record.getFields());
+        Subfields subfields(fields[title_index]);
         if (not subfields.hasSubfield('a')) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+            record.write(output);
             continue;
         }
 	std::string title;
@@ -324,7 +318,7 @@ void AugmentRecordsWithTitleKeywords(
         TextUtil::ChopIntoWords(lowercase_title, &title_words, MIN_WORD_LENGTH);
 
 	// Remove language-appropriate stop words from the title words:
-        const std::string language_code(MarcUtil::GetLanguage(dir_entries, field_data));
+        const std::string language_code(record.getLanguage());
         const auto code_and_stopwords(language_codes_to_stopword_sets.find(language_code));
         if (code_and_stopwords != language_codes_to_stopword_sets.end())
             FilterOutStopwords(code_and_stopwords->second, &title_words);
@@ -332,7 +326,7 @@ void AugmentRecordsWithTitleKeywords(
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+            record.write(output);
             continue;
         }
 
@@ -347,7 +341,7 @@ void AugmentRecordsWithTitleKeywords(
 
 	std::unordered_map<std::string, std::set<std::string>> local_stemmed_keyword_to_stemmed_keyphrases_map;
 	std::unordered_map<std::string, std::string> local_stemmed_keyphrases_to_unstemmed_keyphrases_map;
-	ExtractAllKeywords(dir_entries, field_data, &local_stemmed_keyword_to_stemmed_keyphrases_map,
+	ExtractAllKeywords(record, &local_stemmed_keyword_to_stemmed_keyphrases_map,
 			   &local_stemmed_keyphrases_to_unstemmed_keyphrases_map);
 
 	// Find title phrases that match stemmed keyphrases:
@@ -376,17 +370,17 @@ void AugmentRecordsWithTitleKeywords(
 	}
 
         if (new_keyphrases.empty()) {
-            MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+            record.write(output);
             continue;
         }
 
 	// Augment the record with new keywords derived from title words:
 	for (const auto &new_keyword : new_keyphrases) {
 	    const std::string field_contents("  ""\x1F""a" + new_keyword);
-	    MarcUtil::InsertField(field_contents, "601", leader, &dir_entries, &field_data);
+	    record.insertField("601", field_contents);
 	}
 
-	MarcUtil::ComposeAndWriteRecord(output, dir_entries, field_data, leader);
+	record.write(output);
         ++augmented_record_count;
     }
 
@@ -441,14 +435,18 @@ int main(int argc, char **argv) {
     if (language_codes_to_stopword_sets.find("eng") == language_codes_to_stopword_sets.end())
         Error("You always need to provide \"stopwords.eng\"!");
 
-    std::unordered_map<std::string, std::set<std::string>> stemmed_keyword_to_stemmed_keyphrases_map;
-    std::unordered_map<std::string, std::string> stemmed_keyphrases_to_unstemmed_keyphrases_map;
-    ExtractStemmedKeywords(verbose, marc_input, &stemmed_keyword_to_stemmed_keyphrases_map,
-			   &stemmed_keyphrases_to_unstemmed_keyphrases_map);
+    try {
+	std::unordered_map<std::string, std::set<std::string>> stemmed_keyword_to_stemmed_keyphrases_map;
+	std::unordered_map<std::string, std::string> stemmed_keyphrases_to_unstemmed_keyphrases_map;
+	ExtractStemmedKeywords(verbose, marc_input, &stemmed_keyword_to_stemmed_keyphrases_map,
+			       &stemmed_keyphrases_to_unstemmed_keyphrases_map);
 
-    std::rewind(marc_input);
-    AugmentRecordsWithTitleKeywords(verbose, marc_input, marc_output, stemmed_keyword_to_stemmed_keyphrases_map,
-				    stemmed_keyphrases_to_unstemmed_keyphrases_map, language_codes_to_stopword_sets);
+	std::rewind(marc_input);
+	AugmentRecordsWithTitleKeywords(verbose, marc_input, marc_output, stemmed_keyword_to_stemmed_keyphrases_map,
+					stemmed_keyphrases_to_unstemmed_keyphrases_map, language_codes_to_stopword_sets);
+    } catch (const std::exception &x) {
+	Error("caught exception: " + std::string(x.what()));
+    }
 
     std::fclose(marc_input);
     std::fclose(marc_output);

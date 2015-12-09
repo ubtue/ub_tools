@@ -7,10 +7,11 @@ BIN=bin
 SRC=src
 PACKAGE_DIRECOTRY=de/uni_tuebingen/ub/ixTheo/$(PROJECT_NAME)
 LIB_DIRECTORY=/usr/local/vufind2/solr/lib/*:/usr/local/vufind2/solr/jetty/lib/ext/*:/usr/local/vufind2/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/WEB-INF/lib/*
+JAVA_VERSION=1.7
 
 # Compiler
 JAVAC=javac
-JAVAFLAGS=-g -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC)
+JAVAFLAGS=-g -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC) -source $(JAVA_VERSION) -target $(JAVA_VERSION)
 COMPILE = $(JAVAC) $(JAVAFLAGS)
 
 JAR=jar cvf 
