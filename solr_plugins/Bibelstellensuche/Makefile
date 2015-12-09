@@ -16,12 +16,12 @@ COMPILE = $(JAVAC) $(JAVAFLAGS)
 JAR=jar cvf 
 JAR_FLAGS=-C $(BIN)
 
-bin: 
+$(JAR_FILE): $(SRC)/$(PACKAGE_DIRECOTRY)/*.java
 	test -d bin || mkdir bin
 	$(COMPILE) $(SRC)/$(PACKAGE_DIRECOTRY)/*.java
 	$(JAR) $(JAR_FILE) $(JAR_FLAGS) $(PACKAGE_DIRECOTRY)
 
-install: bin
+install: $(JAR_FILE)
 	cp -f $(JAR_FILE) $(SOLR_JAR_FILE)
 
 clean:
