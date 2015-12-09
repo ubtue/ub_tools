@@ -4,7 +4,6 @@
 
     <property name="classes.dir"   value="bin"/>
     <property name="jar.dir"     value="."/>
-    <property name="lib.dir"     value="../lib"/>
     <property name="vufind.dir"     value="/usr/local/vufind2"/>
     <property name="solr.lib.dir" value="${vufind.dir}/solr/lib"/>
     <property name="jetty.dir"    value="${vufind.dir}/solr/jetty"/>
@@ -14,7 +13,6 @@
     <property name="dest.jar" value="${solr.lib.dir}/${ant.project.name}.jar"/> 
 
     <path id="classpath">
-        <fileset dir="${lib.dir}" includes="**/*.jar"/>
 	<fileset dir="${solr.lib.dir}" includes="**/*.jar"/>
 	<fileset dir="${jetty.lib.dir1}" includes="**/*.jar"/>
 	<fileset dir="${jetty.lib.dir2}" includes="**/*.jar"/>

@@ -1,4 +1,4 @@
-SUBDIRS = Schlagwortfolgensuche Bibelstellensuche
+SUBDIRS = Schlagwortfolgensuche Bibelstellensuche PrefixSortFacetten
 
 all: 
 	for dir in $(SUBDIRS); do \
