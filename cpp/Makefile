@@ -1,6 +1,6 @@
 INC             = lib/include
 CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include -Ilib/libstemmer/include \
-                  -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O6 \
+                  -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
                   -I/usr/include/libxml2 -c
 CCC             = clang++
 MAKE_DEPS_FLAGS = --output-program-rules
