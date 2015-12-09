@@ -1,8 +1,8 @@
 INC             = lib/include
-CXXFLAGS        += -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include -Ilib/libstemmer/include \
+CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include -Ilib/libstemmer/include \
                    -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 -I/usr/include/libxml2 -c
-CXX             = clang++
-MAKE_DEPS_FLAGS += --output-program-rules
+CCC             = clang++
+MAKE_DEPS_FLAGS = --output-program-rules
 
 ifneq ("$(wildcard /etc/centos-release)","")
   LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
@@ -11,33 +11,43 @@ else # Ubuntu version
   LIBMARIADB=-lmariadbclient
   LIBCURL=-lcurl
 endif
-LIBS += -Llib -lmarc -lpcre -lcrypto -lkyotocabinet -lmagic -lrt -lssl $(LIBCURL) $(LIBMARIADB)
+LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpthread -lpcre -lcrypto -lkyotocabinet -lmagic -lz -lrt -lssl $(LIBCURL) $(LIBMARIADB)
 
 PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
-
-all: .deps $(PROGS)
-
--include .deps
-.deps: $(PROGS) $(INC)/*.h Makefile
-	iViaCore-mkdep $(MAKE_DEPS_FLAGS) -I $(INC) $(SRCS)
-
-%.o: %.cc
-	@echo "Compiling $<..."
-	@$(CXX) $(CXXFLAGS) $< -c -o $@
-
-%: %.o lib/libmarc.a
-	@echo "Compiling and Linking $@..."
-	@$(CXX) $< -o $@ $(LIBS)
+CGI_PROGS=full_text_lookup
+INSTALL_PROGS=$(filter-out %_test,$(PROGS))
 
 .PHONY: all install root_install clean
 
-install: all
-	@echo "Installing programs..."
-	cp $(PROGS) ~/bin/
+all: .deps $(PROGS)
 
-root_install: all
+%.o: %.cc
+	@echo "Compiling $<..."
+	$(CCC) $(CCCFLAGS) $< -c -o $@
+
+$(PROGS): % : %.o lib/libmarc.a
+	@echo "Compiling and Linking $@..."
+	$(CCC) $< -o $@ $(LIBS)
+
+-include .deps
+.deps: *.cc $(INC)/*.h Makefile
+	iViaCore-mkdep $(MAKE_DEPS_FLAGS) -I $(INC) *.cc
+
+lib/libmarc.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
+	$(MAKE) -C lib
+
+install: $(INSTALL_PROGS)
 	@echo "Installing programs..."
-	cp $(PROGS) /usr/local/bin/
+	cp $(INSTALL_PROGS) ~/bin/
+
+root_install: $(INSTALL_PROGS)
+	@echo "Installing programs..."
+	cp $(INSTALL_PROGS) /usr/local/bin/
+	
+cgi_install: $(CGI_PROGS)
+	mkdir --parents /var/www/cgi-bin
+	cp full_text_lookup /var/www/cgi-bin/
 
 clean:
-	rm -f *.o *~ $(PROGS)
+	rm -f *.o *~ $(PROGS) .deps
+	make -C ./lib clean
