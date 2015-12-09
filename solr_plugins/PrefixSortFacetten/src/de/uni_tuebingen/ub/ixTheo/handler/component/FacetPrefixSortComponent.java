@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.solr.handler.component.*;
 import de.uni_tuebingen.ub.ixTheo.common.params.*;
 import de.uni_tuebingen.ub.ixTheo.common.util.*;
+import de.uni_tuebingen.ub.ixTheo.request.*;
 
 /**
  * TODO!
@@ -103,7 +104,7 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 params.add(paramName, deDupe.toArray(new String[deDupe.size()]));
             }
 
-            SimpleFacets f = new SimpleFacets(rb.req, rb.getResults().docSet, params, rb);
+            SimplePrefixSortFacets f = new SimplePrefixSortFacets(rb.req, rb.getResults().docSet, params, rb);
 
             NamedList<Object> counts = f.getFacetCounts();
             String[] pivots = params.getParams(FacetParams.FACET_PIVOT);
@@ -182,9 +183,13 @@ public class FacetPrefixSortComponent extends FacetComponent {
 
                     ArrayList<String> facetList = new ArrayList<String>(Arrays.asList(facetTerms.split("/")));
                     Double score = (Double) KeywordChainMetric.calculateSimilarityScore(queryList, facetList);
-                    // Collect the result in a sorted list
 
-                    facetMapPrefixScored.put(entry, score);
+                    // Collect the result in a sorted list and throw away
+                    // garbage
+
+                    if (score > 0) {
+                        facetMapPrefixScored.put(entry, score);
+                    }
 
                 }
 
@@ -199,7 +204,13 @@ public class FacetPrefixSortComponent extends FacetComponent {
 
                         // We would like to score according to the second
                         // element
-                        return e2.getValue().compareTo(e1.getValue());
+                        int compval = e2.getValue().compareTo(e1.getValue());
+
+                        if (compval != 0) {
+                            return compval;
+                        } else {
+                            return e1.getKey().getKey().compareTo(e2.getKey().getKey());
+                        }
                     }
                 });
 
@@ -210,7 +221,29 @@ public class FacetPrefixSortComponent extends FacetComponent {
 
                 NamedList<Object> facetNamedListSorted = new NamedList<Object>();
 
-                for (Entry<Entry<String, Object>, Double> e : facetPrefixArrayScored) {
+                // We had to disable all limits and offsets sort according
+                // Handle this accordingly now
+
+                int offset = (params.getInt(FacetParams.FACET_OFFSET) != null) ? params.getInt(FacetParams.FACET_OFFSET)
+                        : 0;
+                int limit = (params.getInt(FacetParams.FACET_LIMIT) != null) ? params.getInt(FacetParams.FACET_LIMIT)
+                        : 100;
+
+                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScored = Arrays
+                        .asList(facetPrefixArrayScored);
+
+                // Strip uneeded elements
+                int s = facetPrefixListScored.size();
+                int off = (offset < s) ? offset : 0;
+                limit = (limit < 0) ? s : limit; // Handle a negative limit
+                                                 // param, i.e. unlimited
+                                                 // results
+                int lim = (offset + limit <= s) ? (offset + limit) : s;
+
+                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScoredTruncated = facetPrefixListScored
+                        .subList(off, lim);
+
+                for (Entry<Entry<String, Object>, Double> e : facetPrefixListScoredTruncated) {
                     // facetNamedListSorted.add(e.getKey().getKey(),
                     // e.getKey().getValue().toString() + ":" +
                     // e.getValue().toString() );
