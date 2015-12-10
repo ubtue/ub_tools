@@ -31,14 +31,14 @@ import traceback
 import util
 
 
-# Create a new deletion list named "augmented_list" which consists of a copy of "orig_list" and the
+# Create a new deletion list "augmented_list" which consists of a copy of "orig_list" and the
 # list of extracted control numbers from "changed_marc_data".
 def AugmentDeletionList(orig_list, changed_marc_data, augmented_list):
     util.Remove(augmented_list)
     shutil.copyfile(orig_list, augmented_list)
     if process_util.Exec("extract_IDs_in_erase_format.sh", args=[changed_marc_data, augmented_list],
                          timeout=100) != 0:
-        util.Error("Failed to create \"" + augmented_list + "\"!")
+        util.Error("failed to create \"" + augmented_list + "\" from \"" + changed_marc_data + "\"!")
     print("Successfully created \"" + augmented_list + "\".")
 
 
@@ -46,7 +46,8 @@ def DeleteMarcRecords(original_marc_file, deletion_list, processed_marc_file):
     util.Remove(processed_marc_file)
     if process_util.Exec("delete_ids", args=[deletion_list, original_marc_file, processed_marc_file],
                          timeout=200) != 0:
-        util.Error("Failed to create \"" + processed_marc_file + "\"!")
+        util.Error("failed to create \"" + processed_marc_file + "\" from \"" + deletion_list + "\" and \""
+                   + original_marc_file + "\"!")
     print("Successfully created \"" + processed_marc_file + "\".")
 
 
@@ -100,7 +101,7 @@ def UpdateAllMarcFiles(orig_deletion_list):
         if process_util.Exec(extract_IDs_script_path,
                              args=[marc_file_name, "augmented_deletion_list"],
                              timeout=100) != 0:
-            util.Error("Failed to append ID's from \"" + marc_file_name
+            util.Error("failed to append ID's from \"" + marc_file_name
                        + "\" to \"augmented_deletion_list\"!")
     print("Created an augmented deletion list.")
 
@@ -112,7 +113,8 @@ def UpdateAllMarcFiles(orig_deletion_list):
         trimmed_marc_file = marc_file_name[:-4] + "-trimmed.mrc"
         if process_util.Exec(delete_ids_path, args=["augmented_deletion_list", marc_file_name, trimmed_marc_file],
                              timeout=200, new_stdout="/tmp/trimmed_marc.log", new_stderr="/tmp/trimmed_marc.log") != 0:
-            util.Error("Failed to create \"" + trimmed_marc_file + "\"!")
+            util.Error("failed to create \"" + trimmed_marc_file + " from \"augmented_deletion_list\" and "
+                       "\"" + marc_file_name + "\"!")
         RemoveOrDie(marc_file_name)
     RemoveOrDie("augmented_deletion_list")
     print("Deleted ID's from MARC files.")
@@ -180,7 +182,7 @@ def Main():
     except Exception as e:
         util.Error("failed to read config file! ("+ str(e) + ")")
     if not os.access(complete_data, os.R_OK):
-        util.Error("Fehlender oder nicht lesbarer Komplettabzug.")
+        util.Error("Fehlender oder nicht lesbarer Komplettabzug. (" + complete_data + ")")
     deletion_list_is_readable = os.access(deletion_list, os.R_OK)
     if not deletion_list_is_readable:
         deletion_list = None
