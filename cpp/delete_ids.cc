@@ -97,6 +97,52 @@ public:
 };
 
 
+/** \brief Deletes LOK sections if their pseudo tags are found in "local_deletion_ids"
+ *  \return True if at least one local section has been deleted, else false.
+ */
+bool DeleteLocalSections(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &fields,
+			 const std::unordered_set <std::string> &local_deletion_ids, MarcUtil::Record * const record)
+{
+    bool modified(false);
+
+    ssize_t start_local_match;
+    while ((start_local_match = MatchLocalID(local_deletion_ids, dir_entries, fields)) != -1) {
+	// We now expect a field "000" before the current "001" field.  (This is just a sanity check!):
+	--start_local_match;
+	if (start_local_match <= 0)
+	    Error("weird data structure (1)!");
+	const Subfields subfields1(fields[start_local_match]);
+	if (not subfields1.hasSubfield('0')
+	    or not StringUtil::StartsWith(subfields1.getFirstSubfieldValue('0'), "000 "))
+	    Error("missing or empty local field \"000\"! (EPN: "
+		  + fields[start_local_match + 1].substr(8) + ", PPN: " + fields[0] + ")");
+
+	// Now we need to find the index one past the end of the local record.  This would
+	// be either the "000" field of the next local record or one past the end of the overall
+	// MARC record.
+	size_t end_local_match(start_local_match + 2);
+	while (end_local_match < fields.size()) {
+	    const Subfields subfields2(fields[end_local_match]);
+	    if (not subfields2.hasSubfield('0'))
+		Error("weird data structure (2)!");
+	    if (StringUtil::StartsWith(subfields2.getFirstSubfieldValue('0'), "000 ")) {
+		--end_local_match;
+		break;
+	    }
+
+	    ++end_local_match;
+	}
+
+	for (ssize_t dir_entry_index(end_local_match - 1); dir_entry_index >= start_local_match; --dir_entry_index)
+	    record->deleteField(dir_entry_index);
+
+	modified = true;
+    }
+
+    return modified;
+}
+
+
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     const std::unordered_set <std::string> &local_deletion_ids, FILE *const input,
                     FILE *const output) {
@@ -108,50 +154,12 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
 
-        ssize_t start_local_match;
 	const std::vector<std::string> &fields(record.getFields());
         if (title_deletion_ids.find(fields[0]) != title_deletion_ids.end()) {
             ++deleted_record_count;
             std::cout << "Deleted record with ID " << fields[0] << '\n';
-        } else { // Look for local data sets that may need to be deleted.
-            bool modified(false);
-            while ((start_local_match = MatchLocalID(local_deletion_ids, dir_entries, fields)) != -1) {
-                // We now expect a field "000" before the current "001" field:
-                --start_local_match;
-                if (start_local_match <= 0)
-                    Error("weird data structure (1)!");
-                const Subfields subfields1(fields[start_local_match]);
-                if (not subfields1.hasSubfield('0')
-                    or not StringUtil::StartsWith(subfields1.getFirstSubfieldValue('0'), "000 "))
-                    Error("missing or empty local field \"000\"! (EPN: "
-                          + fields[start_local_match + 1].substr(8) + ", PPN: " + fields[0] + ")");
-
-                // Now we need to find the index one past the end of the local record.  This would
-                // be either the "000" field of the next local record or one past the end of the overall
-                // MARC record.
-                bool found_next_000(false);
-                size_t end_local_match(start_local_match + 2);
-                while (end_local_match < fields.size()) {
-                    const Subfields subfields2(fields[end_local_match]);
-                    if (not subfields2.hasSubfield('0'))
-                        Error("weird data (2)!");
-                    if (StringUtil::StartsWith(subfields2.getFirstSubfieldValue('0'), "000 ")) {
-                        found_next_000 = true;
-                        break;
-                    }
-
-                    ++end_local_match;
-                }
-                if (not found_next_000)
-                    ++end_local_match;
-
-                for (ssize_t dir_entry(end_local_match - 1); dir_entry >= start_local_match; --dir_entry)
-                    record.deleteField(dir_entry);
-
-                modified = true;
-            }
-
-            if (not modified)
+        } else { // Look for local (LOK) data sets that may need to be deleted.
+            if (not DeleteLocalSections(dir_entries, fields, local_deletion_ids, &record))
 		record.write(output);
             else {
                 // Only keep records that still have at least one "LOK" tag:
