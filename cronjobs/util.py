@@ -8,6 +8,7 @@ import ConfigParser
 import ctypes
 import datetime
 import glob
+import inspect
 import os
 import process_util
 import re
@@ -56,12 +57,14 @@ def SendEmail(subject, msg, sender=None, recipient=None):
 
 
 def Error(msg):
+    msg = os.path.basename(inspect.stack()[1][1]) + "." + inspect.stack()[1][3] + ": " + msg
     print(sys.argv[0] + ": " + msg, file=sys.stderr)
     SendEmail("Script error (script: " + os.path.basename(sys.argv[0]) + ")!", msg)
     sys.exit(1)
 
 
 def Warning(msg):
+    msg = os.path.basename(inspect.stack()[1][1]) + "." + inspect.stack()[1][3] + ": " + msg
     print(sys.argv[0] + ": " + msg, file=sys.stderr)
 
 

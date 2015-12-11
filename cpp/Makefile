@@ -1,6 +1,7 @@
 INC             = lib/include
 CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include -Ilib/libstemmer/include \
-                   -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 -I/usr/include/libxml2 -c
+                  -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
+                  -I/usr/include/libxml2
 CCC             = clang++
 MAKE_DEPS_FLAGS = --output-program-rules
 
@@ -11,7 +12,8 @@ else # Ubuntu version
   LIBMARIADB=-lmariadbclient
   LIBCURL=-lcurl
 endif
-LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpthread -lpcre -lcrypto -lkyotocabinet -lmagic -lz -lrt -lssl $(LIBCURL) $(LIBMARIADB)
+LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpthread -lpcre -lcrypto -lkyotocabinet -lmagic -lz -lrt -lssl \
+       $(LIBCURL) $(LIBMARIADB)
 
 PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
 CGI_PROGS=full_text_lookup
@@ -23,11 +25,11 @@ all: .deps $(PROGS)
 
 %.o: %.cc
 	@echo "Compiling $<..."
-	$(CCC) $(CCCFLAGS) $< -c -o $@
+	@$(CCC) $(CCCFLAGS) $< -c
 
 $(PROGS): % : %.o lib/libmarc.a
-	@echo "Compiling and Linking $@..."
-	$(CCC) $< -o $@ $(LIBS)
+	@echo "Linking $@..."
+	@$(CCC) $< -o $@ $(LIBS)
 
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile
@@ -43,11 +45,11 @@ install: $(INSTALL_PROGS)
 root_install: $(INSTALL_PROGS)
 	@echo "Installing programs..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
-	
+
 cgi_install: $(CGI_PROGS)
 	mkdir --parents /var/www/cgi-bin
 	cp full_text_lookup /var/www/cgi-bin/
 
 clean:
 	rm -f *.o *~ $(PROGS) .deps
-	make -C ./lib clean
+	make -C lib clean
