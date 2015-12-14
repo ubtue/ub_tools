@@ -116,7 +116,7 @@ void ProcessRecords(const bool verbose, const std::shared_ptr<FILE> &input, cons
 		    const std::vector<IxTheoMapper> &ddc_to_ixtheo_notation_mappers,
 		    const std::vector<IxTheoMapper> &/*rvk_to_ixtheo_notation_mappers*/)
 {
-    unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0), records_with_new_notations(0);
+    unsigned count(0), records_with_ixtheo_notations(0), records_with_new_notations(0), skipped_group_count(0);
     while (MarcUtil::Record record = MarcUtil::Record(input.get())) {
         ++count;
 
@@ -126,6 +126,7 @@ void ProcessRecords(const bool verbose, const std::shared_ptr<FILE> &input, cons
 
 	std::string ixtheo_notations_list(record.extractFirstSubfield("652", 'a'));
 	if (not ixtheo_notations_list.empty()) {
+	    ++records_with_ixtheo_notations;
 	    record.write(output.get());
 	    continue;
 	}
@@ -135,10 +136,25 @@ void ProcessRecords(const bool verbose, const std::shared_ptr<FILE> &input, cons
 	    record.write(output.get());
 	    continue;
 	}
+
+	// "K" stands for children's literature and "B" stands for fiction, both of which we don't want to
+	// import into IxTheo;
+	if (std::find(ddc_values.cbegin(), ddc_values.cend(), "K") != ddc_values.cend()
+	    or std::find(ddc_values.cbegin(), ddc_values.cend(), "B") != ddc_values.cend())
+	{
+	    ++skipped_group_count;
+	    continue;
+	}
+
+	// Many DDCs have superfluous backslashes which are non-standard and need to be removed before further
+	// processing can take place:
+	for (auto &ddc_value : ddc_values)
+	    StringUtil::RemoveChars("/", &ddc_value);
+
 	UpdateIxTheoNotations(ddc_to_ixtheo_notation_mappers, ddc_values, &ixtheo_notations_list);
 	if (verbose and not ixtheo_notations_list.empty()) {
 	    const std::vector<std::string> &fields(record.getFields());
-	    std::cout << fields[0] << " -> " << ixtheo_notations_list << '\n';
+	    std::cout << fields[0] << ": " << StringUtil::Join(ddc_values, ',') << " -> " << ixtheo_notations_list << '\n';
         }
 
 /*
@@ -167,8 +183,8 @@ void ProcessRecords(const bool verbose, const std::shared_ptr<FILE> &input, cons
     if (verbose) {
 	std::cerr << "Read " << count << " records.\n";
 	std::cerr << records_with_ixtheo_notations << " records had Ixtheo notations.\n";
-	std::cerr << "Found " << ixtheo_notation_count << " ixTheo notations overall.\n";
 	std::cerr << records_with_new_notations << " records received new Ixtheo notations.\n";
+	std::cerr << skipped_group_count << " records where skipped because they were in a group that we are not interested in.\n";
     }
 }
 
