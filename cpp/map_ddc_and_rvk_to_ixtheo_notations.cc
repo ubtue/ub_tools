@@ -137,6 +137,8 @@ void ProcessRecords(const bool verbose, const std::shared_ptr<FILE> &input, cons
 	    continue;
 	}
 
+	// "K" stands for children's literature and "B" stands for fiction, both of which we don't want to
+	// import into IxTheo;
 	if (std::find(ddc_values.cbegin(), ddc_values.cend(), "K") != ddc_values.cend()
 	    or std::find(ddc_values.cbegin(), ddc_values.cend(), "B") != ddc_values.cend())
 	{
