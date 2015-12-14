@@ -20,15 +20,12 @@
 #include <stdexcept>
 #include <string>
 #include <cstdlib>
-#include <cstring>
 #include <DbConnection.h>
 #include <DbResultSet.h>
 #include <DbRow.h>
 #include <File.h>
-#include <RegexMatcher.h>
 #include <StringUtil.h>
 #include <util.h>
-#include <UrlUtil.h>
 #include <VuFind.h>
 
 
@@ -38,36 +35,13 @@ void Usage() {
 }
 
 
-/** \brief Attemps to parse something like 'database = "mysql://ruschein:xfgYu8z@localhost:3345/vufind"' */
-void GetAuthentisationCredentialsHostAndDbName(const std::string &mysql_url, std::string * const user, std::string * const passwd,
-					       std::string * host, unsigned * const port, std::string * const db_name)
-{
-    static const RegexMatcher * const mysql_url_matcher(
-        RegexMatcher::RegexMatcherFactory("mysql://([^:]+):([^@]+)@([^:/]+)(\\d+:)?/(.+)"));
-    std::string err_msg;
-    if (not mysql_url_matcher->matched(mysql_url, &err_msg))
-	throw std::runtime_error("\"" + mysql_url + "\" does not look like an expected MySQL URL! (" + err_msg + ")");
-
-    *user    = (*mysql_url_matcher)[1];
-    *passwd  = (*mysql_url_matcher)[2];
-    *host    = (*mysql_url_matcher)[3];
-    *db_name = (*mysql_url_matcher)[5];
-
-    const std::string port_plus_colon((*mysql_url_matcher)[4]);
-    if (port_plus_colon.empty())
-	*port = MYSQL_PORT;
-    else
-	*port = StringUtil::ToUnsigned(port_plus_colon.substr(0, port_plus_colon.length() - 1));
-}
-
-
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 1)
 	Usage();
 
-//    try {
+    try {
 	const std::string database_conf_filename(VuFind::VUFIND_HOME + "/" + VuFind::DATABASE_CONF);
 	File database_conf(database_conf_filename, "r", File::THROW_ON_ERROR);
 	const std::string line(database_conf.getline());
@@ -77,18 +51,9 @@ int main(int argc, char *argv[]) {
 	std::string mysql_url(StringUtil::RightTrim(line.substr(schema_pos)));
 	mysql_url.resize(mysql_url.size() - 1); // Remove trailing double quote.
 
-	std::string user, passwd, host, db_name;
-	unsigned port;
-	GetAuthentisationCredentialsHostAndDbName(mysql_url, &user, &passwd, &host, &port, &db_name);
-
-	std::cout << "user=" << user << '\n';
-	std::cout << "passwd=" << passwd << '\n';
-	std::cout << "host=" << host << '\n';
-	std::cout << "port=" << port << '\n';
-	std::cout << "db_name=" << db_name << '\n';
-/*
+	// The following definition would throw an exception if the "mysql_url" was invalid:
+	DbConnection db_connection(mysql_url);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));	
     }
-*/
 }
