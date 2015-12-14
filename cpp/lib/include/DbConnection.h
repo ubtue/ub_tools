@@ -32,6 +32,7 @@ class DbConnection {
 public:
     DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd = "",
 		 const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+    
     virtual ~DbConnection();
 
     bool query(const std::string &query_statement) { return ::mysql_query(&mysql_, query_statement.c_str()) == 0; }
