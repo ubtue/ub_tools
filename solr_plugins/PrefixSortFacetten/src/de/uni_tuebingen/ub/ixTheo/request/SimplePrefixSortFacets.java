@@ -63,11 +63,11 @@ public class SimplePrefixSortFacets extends SimpleFacets {
         int offset;
         int limit;
 
-        if (params.get(FacetParams.FACET_SORT).equals(FacetPrefixSortParams.FACET_SORT_PREFIX)) {
+        if (params.get(FacetParams.FACET_SORT) == null
+            || params.get(FacetParams.FACET_SORT).equals(FacetPrefixSortParams.FACET_SORT_PREFIX)) {
             offset = 0;
             limit = -1;
         } else {
-
             offset = params.getFieldInt(field, FacetParams.FACET_OFFSET, 0);
             limit = params.getFieldInt(field, FacetParams.FACET_LIMIT, 100);
 

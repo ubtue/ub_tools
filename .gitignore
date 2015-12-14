@@ -65,3 +65,5 @@ solr_plugins/Bibelstellensuche/bin/
 solr_plugins/Schlagwortfolgensuche/bin/
 SolrmarcMixin-*.jar
 FacetPrefixSortComponent-*.jar
+solr_plugins/PrefixSortFacetten/bin/
+solrmarc_mixin/bin/

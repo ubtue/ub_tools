@@ -183,8 +183,13 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 }
 
                 facetFieldsNamedList.add(facetfield, facetNamedListSorted);
+                NamedList<Object> countList = new NamedList<>();
+                countList.add("count", facetPrefixListScored.size());
+                facetFieldsNamedList.add(facetfield + "-count", countList);
+
 
                 counts.remove("facet_fields");
+                counts.add("facet_fields", facetFieldsNamedList);
                 counts.add("facet_fields", facetFieldsNamedList);
             }
 
