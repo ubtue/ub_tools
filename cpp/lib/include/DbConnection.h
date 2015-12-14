@@ -31,7 +31,12 @@ class DbConnection {
     bool initialised_;
 public:
     DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd = "",
-		 const std::string &host = "localhost", const unsigned port = MYSQL_PORT);
+		 const std::string &host = "localhost", const unsigned port = MYSQL_PORT)
+        { init(database_name, user, passwd, host, port); }
+
+    /** \brief Attemps to parse something like "mysql://ruschein:xfgYu8z@localhost:3345/vufind" */
+    DbConnection(const std::string &mysql_url);
+
     virtual ~DbConnection();
 
     bool query(const std::string &query_statement) { return ::mysql_query(&mysql_, query_statement.c_str()) == 0; }
@@ -41,6 +46,9 @@ public:
     /** Converts the binary contents of "unescaped_string" into a form that can used as a string (you still
 	need to add quotes around it) in SQL statements. */
     std::string escapeString(const std::string &unescaped_string);
+public:
+    void init(const std::string &database_name, const std::string &user, const std::string &passwd,
+	      const std::string &host, const unsigned port);
 };
 
 

@@ -20,19 +20,31 @@
 #include "DbConnection.h"
 #include <stdexcept>
 #include <cstdlib>
+#include "RegexMatcher.h"
+#include "StringUtil.h"
+#include "UrlUtil.h"
 
 
-DbConnection::DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd,
-			   const std::string &host, const unsigned port): initialised_(false)
-{
-    if (::mysql_init(&mysql_) == nullptr)
-	throw std::runtime_error("in DbConnection::DbConnection: mysql_init() failed!");
+DbConnection::DbConnection(const std::string &mysql_url) {
+    static const RegexMatcher * const mysql_url_matcher(
+        RegexMatcher::RegexMatcherFactory("mysql://([^:]+):([^@]+)@([^:/]+)(\\d+:)?/(.+)"));
+    std::string err_msg;
+    if (not mysql_url_matcher->matched(mysql_url, &err_msg))
+	throw std::runtime_error("\"" + mysql_url + "\" does not look like an expected MySQL URL! (" + err_msg + ")");
 
-    if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), database_name.c_str(), port,
-			     /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
-	throw std::runtime_error("in DbConnection::DbConnection: mysql_real_connect() failed!");
+    const std::string user(UrlUtil::UrlDecode((*mysql_url_matcher)[1]));
+    const std::string passwd((*mysql_url_matcher)[2]);
+    const std::string host(UrlUtil::UrlDecode((*mysql_url_matcher)[3]));
+    const std::string db_name(UrlUtil::UrlDecode((*mysql_url_matcher)[5]));
 
-    initialised_ = true;
+    const std::string port_plus_colon((*mysql_url_matcher)[4]);
+    unsigned port;
+    if (port_plus_colon.empty())
+	port = MYSQL_PORT;
+    else
+	port = StringUtil::ToUnsigned(port_plus_colon.substr(0, port_plus_colon.length() - 1));
+
+    init(db_name, user, passwd, host, port);
 }
 
 
@@ -58,5 +70,21 @@ std::string DbConnection::escapeString(const std::string &unescaped_string) {
     const std::string escaped_string(buffer, escaped_length);
     std::free(buffer);
     return escaped_string;
+}
+
+
+void DbConnection::init(const std::string &database_name, const std::string &user, const std::string &passwd,
+			const std::string &host, const unsigned port)
+{
+    initialised_ = false;
+
+    if (::mysql_init(&mysql_) == nullptr)
+	throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
+
+    if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), database_name.c_str(), port,
+			     /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
+	throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed!");
+
+    initialised_ = true;
 }
 
