@@ -27,11 +27,45 @@
  */
 
 #include "SqlUtil.h"
+#include <algorithm>
 #include <stdexcept>
 #include <cstdio>
+#include "Compiler.h"
 
 
 namespace SqlUtil {
+
+
+// EscapeBlob -- Escape charcters in a binary string so it can be used as a MySQL BLOB.
+//
+std::string &EscapeBlob(std::string * const s) {
+    std::string encoded_string;
+    encoded_string.reserve(s->size() * 2);
+
+    for (const char ch : *s) {
+	if (unlikely(ch == '\'')) {
+	    encoded_string += '\\';
+	    encoded_string += '\'';
+	}
+	else if (unlikely(ch == '"')) {
+	    encoded_string += '\\';
+	    encoded_string += '"';
+	}
+	else if (unlikely(ch == '\\')) {
+	    encoded_string += '\\';
+	    encoded_string += '\\';
+	}
+	else if (unlikely(ch == '\0')) {
+	    encoded_string += '\\';
+	    encoded_string += '\0';
+	}
+	else
+	    encoded_string += ch;
+    }
+
+    std::swap(*s, encoded_string);
+    return *s;
+}
 
 
 tm DatetimeToTm(const std::string &datetime) {
