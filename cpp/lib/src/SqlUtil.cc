@@ -58,6 +58,21 @@ time_t DatetimeToTimeT(const std::string &datetime) {
 }
 
 
+std::string TmToDatetime(const struct tm &time_struct) {
+    char sql_datetime[30 + 1];
+    std::sprintf(sql_datetime, "%04u-%02u-%02u %02u:%02u:%02u", time_struct.tm_year + 1900,
+		 time_struct.tm_mon + 1, time_struct.tm_mday, time_struct.tm_hour,
+		 time_struct.tm_min, time_struct.tm_sec);
+
+    return sql_datetime;
+}
+
+
+std::string TimeTToDatetime(const time_t time) {
+    return TmToDatetime(*::gmtime(&time));
+}
+
+
 bool IsValidDatetime(const std::string &datetime) {
     if (datetime.length() == 10) {
 	// Presumably "YYYY-MM-DD".
