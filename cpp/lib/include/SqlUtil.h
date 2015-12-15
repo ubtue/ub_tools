@@ -37,6 +37,19 @@
 namespace SqlUtil {
 
 
+/** \brief   Escape special characters in a MySQL BLOB
+ *  \param   s  The BLOB to escape
+ *  \return  A pointer to the new, escaped s.
+ *
+ *  EscapeBlob escapes binary strings that represent MySQL BLOBs.
+ *  BLOBs require less escaping than strings: only null characters,
+ *  backslashes, quotes and double-quotes need be escaped.
+ *
+ * \note Use the standard Unescape to unescape a BLOB.
+ */
+std::string &EscapeBlob(std::string * const s);
+
+
 /** Converts an SQL datetime to a struct tm type. */
 tm DatetimeToTm(const std::string &datetime);
 
