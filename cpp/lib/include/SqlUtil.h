@@ -45,6 +45,14 @@ tm DatetimeToTm(const std::string &datetime);
 time_t DatetimeToTimeT(const std::string &datetime);
 
 
+/** Changes a time_t type (number of seconds since epoch) to an SQL datetime. */
+std::string TimeTToDatetime(const time_t time);
+
+
+/** Changes a struct tm (broken down time) to an SQL datetime. */
+std::string TmToDatetime(const struct tm &time_struct);
+
+
 /** Checks if "datetime" is in format that an SQL database can use ("YYYY-MM-DD" or "YYYY-MM-DD hh:mm:ss"). */
 bool IsValidDatetime(const std::string &datetime);
 
