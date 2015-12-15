@@ -21,6 +21,7 @@ package de.uni_tuebingen.ub.ixTheo.handler.component;
 
 import de.uni_tuebingen.ub.ixTheo.common.params.FacetPrefixSortParams;
 import de.uni_tuebingen.ub.ixTheo.common.util.KeywordChainMetric;
+import de.uni_tuebingen.ub.ixTheo.common.util.KeywordSort;
 import de.uni_tuebingen.ub.ixTheo.request.SimplePrefixSortFacets;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.FacetParams;
@@ -30,12 +31,18 @@ import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.handler.component.*;
 
+import org.apache.commons.lang.*;
+
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.AbstractMap;
+
+
 
 
 /**
@@ -139,15 +146,23 @@ public class FacetPrefixSortComponent extends FacetComponent {
 
                 final Map<Map.Entry<String, Object>, Double> facetMapPrefixScored = new HashMap<>();
                 for (final Entry<String, Object> entry : facetFields) {
-                    String facetTerms = entry.getKey();
+                    final String facetTerms = entry.getKey();
 
                     // Split up each KWC and calculate the scoring
-                    final ArrayList<String> facetList = new ArrayList<>(Arrays.asList(facetTerms.split("/")));
+
+                    ArrayList<String> facetList = new ArrayList<>(Arrays.asList(facetTerms.split("/")));
+
+		    // For usability reasons sort the result facets according to the order of the search
+		    facetList = KeywordSort.sortToReferenceChain(queryList, facetList);
+
                     final double score = KeywordChainMetric.calculateSimilarityScore(queryList, facetList);
 
-                    // Collect the result in a sorted list and throw away garbage
+		    // Collect the result in a sorted list and throw away garbage
                     if (score > 0) {
-                        facetMapPrefixScored.put(entry, score);
+				
+			String facetTermsSorted = StringUtils.join(facetList, "/");
+			Map.Entry<String, Object> sortedEntry = new AbstractMap.SimpleEntry<String, Object>(facetTermsSorted, entry.getValue());
+                        facetMapPrefixScored.put(sortedEntry, score);
                     }
                 }
 
@@ -189,7 +204,6 @@ public class FacetPrefixSortComponent extends FacetComponent {
 
 
                 counts.remove("facet_fields");
-                counts.add("facet_fields", facetFieldsNamedList);
                 counts.add("facet_fields", facetFieldsNamedList);
             }
 
