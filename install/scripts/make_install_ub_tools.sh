@@ -6,4 +6,9 @@
 # to the website.
 #
 
+# This is needed to let jetty extract the libraries, which are needed by
+# our solr plugins and co.
+$VUFIND_HOME/vufind.sh start
+$VUFIND_HOME/vufind.sh stop
+
 make -C "$VUFIND_HOME/../ub_tools" root_install
