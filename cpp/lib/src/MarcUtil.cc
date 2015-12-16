@@ -283,7 +283,7 @@ std::string Record::getLanguageCode() const {
 void Record::updateField(const size_t field_index, const std::string &new_field_contents) {
     if (unlikely(field_index >= dir_entries_.size()))
         throw std::runtime_error("in MarcUtil::Record::updateField: \"field_index\" (" + std::to_string(field_index)
-                                 + ") out of range!");
+                                 + ") out of range!  (size: " + std::to_string(dir_entries_.size()) + ")");
     const size_t delta(new_field_contents.length() - fields_[field_index].length());
     leader_.setRecordLength(leader_.getRecordLength() + delta);
     dir_entries_[field_index].setFieldLength(new_field_contents.length() + 1 /* field terminator */);
@@ -337,8 +337,8 @@ void Record::insertField(const std::string &new_field_tag, const std::string &ne
 
 void Record::deleteField(const size_t field_index) {
     if (unlikely(field_index >= dir_entries_.size()))
-        throw std::runtime_error("in MarcUtil::DeleteField: \"field_index\" (" + std::to_string(field_index)
-                                 + ") out of range!");
+        throw std::runtime_error("in MarcUtil::deleteField: \"field_index\" (" + std::to_string(field_index)
+                                 + ") out of range! (size: " + std::to_string(dir_entries_.size()) + ")" );
 
     const size_t deleted_field_size(fields_[field_index].length() + 1 /* field terminator */);
     leader_.setRecordLength(leader_.getRecordLength() - deleted_field_size - DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
