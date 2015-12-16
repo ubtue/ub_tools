@@ -158,5 +158,5 @@ std::string RegexMatcher::operator[](const unsigned group) const throw(std::out_
 
     const unsigned first_index(group * 2);
     const unsigned substring_length(substr_vector_[first_index + 1] - substr_vector_[first_index]);
-    return last_subject_.substr(substr_vector_[first_index], substring_length);
+    return (substring_length == 0) ? "" : last_subject_.substr(substr_vector_[first_index], substring_length);
 }

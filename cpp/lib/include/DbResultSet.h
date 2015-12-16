@@ -22,6 +22,7 @@
 
 
 #include <algorithm>
+#include <map>
 #include <mysql/mysql.h>
 #include "DbRow.h"
 
@@ -29,8 +30,9 @@
 class DbResultSet {
     friend class DbConnection;
     MYSQL_RES *result_set_;
+    std::map<std::string, unsigned> field_name_to_index_map_;
 private:
-    explicit DbResultSet(MYSQL_RES * const result_set): result_set_(result_set) { }
+    explicit DbResultSet(MYSQL_RES * const result_set);
 public:
     DbResultSet(DbResultSet &&other);
     ~DbResultSet();

@@ -20,9 +20,13 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <kchashdb.h>
+#include "Compiler.h"
+#include "DbConnection.h"
 #include "DirectoryEntry.h"
 #include "ExecUtil.h"
 #include "FileLocker.h"
@@ -31,9 +35,11 @@
 #include "MediaTypeUtil.h"
 #include "PdfUtil.h"
 #include "SmartDownloader.h"
+#include "SqlUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
+#include "VuFind.h"
 
 
 static void Usage() __attribute__((noreturn));
@@ -166,6 +172,37 @@ std::string FileLockedWriteDocumentWithMediaType(const std::string &media_type, 
 }
 
 
+bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std::string &url, const std::string &document,
+				  std::string * const extracted_text)
+{
+    const std::string QUERY("SELECT hash,full_text FROM full_text_cache WHERE url=\"" + url + "\"");
+    if (not db_connection->query(QUERY))
+	throw std::runtime_error("Query \"" + QUERY + "\" failed because: " + db_connection->getLastErrorMessage());
+
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.empty())
+	return false;
+
+    assert(result_set.size() == 1);
+    DbRow row(result_set.getNextRow());
+
+    const std::string hash(StringUtil::ToHexString(StringUtil::Sha1(document)));
+    if (unlikely(hash != row["hash"]))
+	return false; // The document must have changed!
+
+    *extracted_text = row["full_text"];
+
+    // Update the timestap:
+    const time_t now(std::time(nullptr));
+    const std::string current_datetime(SqlUtil::TimeTToDatetime(now));
+    const std::string UPDATE_STMT("UPDATE full_text_cache SET last_used=\"" + current_datetime + "\" WHERE url=\"" + url + "\"");
+    if (not db_connection->query(UPDATE_STMT))
+	throw std::runtime_error("Query \"" + UPDATE_STMT + "\" failed because: " + db_connection->getLastErrorMessage());
+
+    return true;
+}
+
+
 // Returns true if text has been successfully extrcated, else false.
 bool ProcessRecord(FILE * const input, const std::string &marc_output_filename,
 		   const std::string &pdf_images_script, const std::string &db_filename)
@@ -196,10 +233,24 @@ bool ProcessRecord(FILE * const input, const std::string &marc_output_filename,
         if (not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type))
             continue;
 
+	std::string mysql_url;
+	VuFind::GetMysqlURL(&mysql_url);
+	DbConnection db_connection(mysql_url);
+
         std::string extracted_text, key;
-        if (GetTextFromImagePDF(document, media_type, url, record, pdf_images_script, &extracted_text))
+	if (GetExtractedTextFromDatabase(&db_connection, url, document, &extracted_text))
             key = FileLockedWriteDocumentWithMediaType("text/plain", extracted_text, db_filename);
-        else
+	else if (GetTextFromImagePDF(document, media_type, url, record, pdf_images_script, &extracted_text)) {
+            key = FileLockedWriteDocumentWithMediaType("text/plain", extracted_text, db_filename);
+            const std::string hash(StringUtil::ToHexString(StringUtil::Sha1(document)));
+	    const time_t now(std::time(nullptr));
+	    const std::string current_datetime(SqlUtil::TimeTToDatetime(now));
+	    const std::string INSERT_STMT("REPLACE INTO full_text_cache SET url=\"" + url + "\", hash=\"" + hash
+					  + "\", full_text=\"" + SqlUtil::EscapeBlob(&extracted_text)
+					  + "\", last_used=\"" + current_datetime + "\"");
+	    if (not db_connection.query(INSERT_STMT))
+		throw std::runtime_error("Query \"" + INSERT_STMT + "\" failed because: " + db_connection.getLastErrorMessage());
+        } else
             key = FileLockedWriteDocumentWithMediaType(media_type, document, db_filename);
 
         subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
