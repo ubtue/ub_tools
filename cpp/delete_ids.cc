@@ -125,15 +125,13 @@ bool DeleteLocalSections(const std::vector<DirectoryEntry> &dir_entries, const s
 	    const Subfields subfields2(fields[end_local_match]);
 	    if (not subfields2.hasSubfield('0'))
 		Error("weird data structure (2)!");
-	    if (StringUtil::StartsWith(subfields2.getFirstSubfieldValue('0'), "000 ")) {
-		--end_local_match;
+	    if (StringUtil::StartsWith(subfields2.getFirstSubfieldValue('0'), "000 "))
 		break;
-	    }
 
 	    ++end_local_match;
 	}
-
-	for (ssize_t dir_entry_index(end_local_match - 1); dir_entry_index >= start_local_match; --dir_entry_index)
+	
+        for (ssize_t dir_entry_index(end_local_match - 1); dir_entry_index >= start_local_match; --dir_entry_index)
 	    record->deleteField(dir_entry_index);
 
 	modified = true;
@@ -145,7 +143,8 @@ bool DeleteLocalSections(const std::vector<DirectoryEntry> &dir_entries, const s
 
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     const std::unordered_set <std::string> &local_deletion_ids, FILE *const input,
-                    FILE *const output) {
+                    FILE *const output)
+{
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
     while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++total_record_count;

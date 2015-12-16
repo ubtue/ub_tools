@@ -48,7 +48,7 @@ public:
     const Leader &getLeader() const { return leader_; }
     Leader &getLeader() { return leader_; }
     const std::vector<DirectoryEntry> &getDirEntries() const { return dir_entries_; }
-    const std::vector<std::string> getFields() const { return fields_; }
+    const std::vector<std::string> &getFields() const { return fields_; }
 
     /** \brief Returns the index of "field_tag" or -1 if the tag is not present. */
     ssize_t getFieldIndex(const std::string &field_tag) const;

@@ -337,8 +337,8 @@ void Record::insertField(const std::string &new_field_tag, const std::string &ne
 
 void Record::deleteField(const size_t field_index) {
     if (unlikely(field_index >= dir_entries_.size()))
-        throw std::runtime_error("in MarcUtil::DeleteField: \"field_index\" (" + std::to_string(field_index)
-                                 + ") out of range!");
+        throw std::runtime_error("in MarcUtil::deleteField: \"field_index\" (" + std::to_string(field_index)
+                                 + ") out of range! (size: " + std::to_string(dir_entries_.size()) + ")" );
 
     const size_t deleted_field_size(fields_[field_index].length() + 1 /* field terminator */);
     leader_.setRecordLength(leader_.getRecordLength() - deleted_field_size - DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
