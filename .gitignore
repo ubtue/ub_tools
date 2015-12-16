@@ -29,6 +29,7 @@ enrich_keywords_with_title_words
 exec_test
 extract_text_from_image_only_pdfs
 fix_article_biblio_levels
+full_text_cache_cleaner
 full_text_lookup
 getfilename_test
 iViaCore-mkdep
@@ -55,6 +56,7 @@ test_auto_temp_file
 update_full_text_db
 update_ixtheo_notations
 urlencode
+vufind_db_test
 xml_parser_test
 
 bsz_daten

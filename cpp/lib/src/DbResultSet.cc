@@ -21,6 +21,14 @@
 #include <stdexcept>
 
 
+DbResultSet::DbResultSet(MYSQL_RES * const result_set): result_set_(result_set) {
+    const MYSQL_FIELD * const fields(::mysql_fetch_fields(result_set_));
+    const int COLUMN_COUNT(::mysql_num_fields(result_set));
+    for (int col_no(0); col_no < COLUMN_COUNT; ++col_no)
+	field_name_to_index_map_.insert(std::pair<std::string, unsigned>(fields[col_no].name, col_no));
+}
+
+
 DbResultSet::DbResultSet(DbResultSet &&other) {
     if (&other != this) {
 	result_set_ = other.result_set_;
@@ -48,5 +56,5 @@ DbRow DbResultSet::getNextRow() {
 	field_count = ::mysql_num_fields(result_set_);
     }
 
-    return DbRow(row, field_sizes, field_count);
+    return DbRow(row, field_sizes, field_count, field_name_to_index_map_);
 }
