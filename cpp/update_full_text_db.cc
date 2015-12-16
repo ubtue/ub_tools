@@ -175,7 +175,7 @@ std::string FileLockedWriteDocumentWithMediaType(const std::string &media_type, 
 bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std::string &url, const std::string &document,
 				  std::string * const extracted_text)
 {
-    const std::string QUERY("SELECT hash,full_text FROM full_text_cache WHERE url=\"" + url);
+    const std::string QUERY("SELECT hash,full_text FROM full_text_cache WHERE url=\"" + url + "\"");
     if (not db_connection->query(QUERY))
 	throw std::runtime_error("Query \"" + QUERY + "\" failed because: " + db_connection->getLastErrorMessage());
 
@@ -186,7 +186,7 @@ bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std:
     assert(result_set.size() == 1);
     DbRow row(result_set.getNextRow());
 
-    const std::string hash(StringUtil::Sha1(document));
+    const std::string hash(StringUtil::ToHexString(StringUtil::Sha1(document)));
     if (unlikely(hash != row["hash"]))
 	return false; // The document must have changed!
 
@@ -242,12 +242,12 @@ bool ProcessRecord(FILE * const input, const std::string &marc_output_filename,
             key = FileLockedWriteDocumentWithMediaType("text/plain", extracted_text, db_filename);
 	else if (GetTextFromImagePDF(document, media_type, url, record, pdf_images_script, &extracted_text)) {
             key = FileLockedWriteDocumentWithMediaType("text/plain", extracted_text, db_filename);
-            const std::string hash(StringUtil::Sha1(document));
+            const std::string hash(StringUtil::ToHexString(StringUtil::Sha1(document)));
 	    const time_t now(std::time(nullptr));
 	    const std::string current_datetime(SqlUtil::TimeTToDatetime(now));
-	    const std::string INSERT_STMT("INSERT INTO full_text_cache SET url=\"" + url + "\", hash=\"" + hash
+	    const std::string INSERT_STMT("REPLACE INTO full_text_cache SET url=\"" + url + "\", hash=\"" + hash
 					  + "\", full_text=\"" + SqlUtil::EscapeBlob(&extracted_text)
-					  + "\", last_used=\"" + current_datetime + "\" ON DUPLICATE KEY UPDATE");
+					  + "\", last_used=\"" + current_datetime + "\"");
 	    if (not db_connection.query(INSERT_STMT))
 		throw std::runtime_error("Query \"" + INSERT_STMT + "\" failed because: " + db_connection.getLastErrorMessage());
         } else
