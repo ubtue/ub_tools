@@ -18,7 +18,6 @@
 //package org.apache.solr.handler.component;
 package de.uni_tuebingen.ub.ixTheo.handler.component;
 
-
 import de.uni_tuebingen.ub.ixTheo.common.params.FacetPrefixSortParams;
 import de.uni_tuebingen.ub.ixTheo.common.util.KeywordChainMetric;
 import de.uni_tuebingen.ub.ixTheo.common.util.KeywordSort;
@@ -33,7 +32,6 @@ import org.apache.solr.handler.component.*;
 
 import org.apache.commons.lang.*;
 
-
 import java.io.IOException;
 import java.net.URL;
 import java.util.*;
@@ -41,9 +39,6 @@ import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.AbstractMap;
-
-
-
 
 /**
  * TODO!
@@ -58,11 +53,11 @@ public class FacetPrefixSortComponent extends FacetComponent {
     // can have internally escaped quotes again. The regex is based on
     // http://www.metaltoad.com/blog/regex-quoted-string-escapable-quotes
     // (2015-12-2) to achieve this.
-    private final static Pattern WHITE_SPACES_WITH_QUOTES_SPLITTING_PATTERN = Pattern.compile("((?<![\\\\])['\"]|\\\\\")((?:.(?!(?<![\\\\])\\1))*.?)\\1|([^\\s]+)");
+    private final static Pattern WHITE_SPACES_WITH_QUOTES_SPLITTING_PATTERN = Pattern
+            .compile("((?<![\\\\])['\"]|\\\\\")((?:.(?!(?<![\\\\])\\1))*.?)\\1|([^\\s]+)");
 
     private final static Comparator<Entry<Entry<String, Object>, Double>> ENTRY_COMPARATOR = new Comparator<Entry<Entry<String, Object>, Double>>() {
-        public int compare(Entry<Entry<String, Object>, Double> e1,
-                           Entry<Entry<String, Object>, Double> e2) {
+        public int compare(Entry<Entry<String, Object>, Double> e1, Entry<Entry<String, Object>, Double> e2) {
             // We would like to score according to the second element
             int compval = e2.getValue().compareTo(e1.getValue());
 
@@ -100,7 +95,8 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 params.add(paramName, deDupe.toArray(new String[deDupe.size()]));
             }
 
-            final SimplePrefixSortFacets facets = new SimplePrefixSortFacets(rb.req, rb.getResults().docSet, params, rb);
+            final SimplePrefixSortFacets facets = new SimplePrefixSortFacets(rb.req, rb.getResults().docSet, params,
+                    rb);
             final NamedList<Object> counts = facets.getFacetCounts();
 
             final String[] pivots = params.getParams(FacetParams.FACET_PIVOT);
@@ -138,8 +134,10 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 final ArrayList<String> queryList = new ArrayList<>(Arrays.asList(queryTerms));
                 final String facetfield = params.get(FacetParams.FACET_FIELD);
 
-                // Get the current facet entry and make it compatible with our metric class
-                // "facet_fields" itself contains a NamedList with the facet.field as key
+                // Get the current facet entry and make it compatible with our
+                // metric class
+                // "facet_fields" itself contains a NamedList with the
+                // facet.field as key
 
                 final NamedList<Object> facetFieldsNamedList = (NamedList<Object>) counts.get("facet_fields");
                 final NamedList<Object> facetFields = (NamedList<Object>) facetFieldsNamedList.get(facetfield);
@@ -152,21 +150,25 @@ public class FacetPrefixSortComponent extends FacetComponent {
 
                     ArrayList<String> facetList = new ArrayList<>(Arrays.asList(facetTerms.split("/")));
 
-		    // For usability reasons sort the result facets according to the order of the search
-		    facetList = KeywordSort.sortToReferenceChain(queryList, facetList);
+                    // For usability reasons sort the result facets according to
+                    // the order of the search
+                    facetList = KeywordSort.sortToReferenceChain(queryList, facetList);
 
                     final double score = KeywordChainMetric.calculateSimilarityScore(queryList, facetList);
 
-		    // Collect the result in a sorted list and throw away garbage
+                    // Collect the result in a sorted list and throw away
+                    // garbage
                     if (score > 0) {
-				
-			String facetTermsSorted = StringUtils.join(facetList, "/");
-			Map.Entry<String, Object> sortedEntry = new AbstractMap.SimpleEntry<String, Object>(facetTermsSorted, entry.getValue());
+
+                        String facetTermsSorted = StringUtils.join(facetList, "/");
+                        Map.Entry<String, Object> sortedEntry = new AbstractMap.SimpleEntry<String, Object>(
+                                facetTermsSorted, entry.getValue());
                         facetMapPrefixScored.put(sortedEntry, score);
                     }
                 }
 
-                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScored = new ArrayList<>(facetMapPrefixScored.entrySet());
+                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScored = new ArrayList<>(
+                        facetMapPrefixScored.entrySet());
                 Collections.sort(facetPrefixListScored, ENTRY_COMPARATOR);
 
                 // Extract all the values wrap it back to NamedList again and
@@ -201,7 +203,6 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 NamedList<Object> countList = new NamedList<>();
                 countList.add("count", facetPrefixListScored.size());
                 facetFieldsNamedList.add(facetfield + "-count", countList);
-
 
                 counts.remove("facet_fields");
                 counts.add("facet_fields", facetFieldsNamedList);

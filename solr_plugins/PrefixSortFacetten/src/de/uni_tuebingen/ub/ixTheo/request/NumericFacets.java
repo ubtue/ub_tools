@@ -39,7 +39,6 @@ import org.apache.solr.search.SolrIndexSearcher;
 import java.io.IOException;
 import java.util.*;
 
-
 /**
  * Utility class to compute facets on numeric fields.
  */
@@ -81,7 +80,7 @@ final class NumericFacets {
                 rehash();
             }
             final int h = hash(value);
-            for (int slot = h; ; slot = (slot + 1) & mask) {
+            for (int slot = h;; slot = (slot + 1) & mask) {
                 if (counts[slot] == 0) {
                     bits[slot] = value;
                     docIDs[slot] = docID;
@@ -122,7 +121,7 @@ final class NumericFacets {
     }
 
     public static NamedList<Integer> getCounts(SolrIndexSearcher searcher, DocSet docs, String fieldName, int offset,
-                                               int limit, int mincount, boolean missing, String sort) throws IOException {
+            int limit, int mincount, boolean missing, String sort) throws IOException {
         final boolean zeros = mincount <= 0;
         mincount = Math.max(mincount, 1);
         final SchemaField sf = searcher.getSchema().getField(fieldName);
@@ -140,7 +139,7 @@ final class NumericFacets {
         FieldCache.Longs longs = null;
         Bits docsWithField = null;
         int missingCount = 0;
-        for (DocIterator docsIt = docs.iterator(); docsIt.hasNext(); ) {
+        for (DocIterator docsIt = docs.iterator(); docsIt.hasNext();) {
             final int doc = docsIt.nextDoc();
             if (ctx == null || doc >= ctx.docBase + ctx.reader().maxDoc()) {
                 do {
@@ -148,38 +147,38 @@ final class NumericFacets {
                 } while (ctx == null || doc >= ctx.docBase + ctx.reader().maxDoc());
                 assert doc >= ctx.docBase;
                 switch (numericType) {
-                    case LONG:
-                        longs = FieldCache.DEFAULT.getLongs(ctx.reader(), fieldName, true);
-                        break;
-                    case INT:
-                        final FieldCache.Ints ints = FieldCache.DEFAULT.getInts(ctx.reader(), fieldName, true);
-                        longs = new FieldCache.Longs() {
-                            @Override
-                            public long get(int docID) {
-                                return ints.get(docID);
-                            }
-                        };
-                        break;
-                    case FLOAT:
-                        final FieldCache.Floats floats = FieldCache.DEFAULT.getFloats(ctx.reader(), fieldName, true);
-                        longs = new FieldCache.Longs() {
-                            @Override
-                            public long get(int docID) {
-                                return NumericUtils.floatToSortableInt(floats.get(docID));
-                            }
-                        };
-                        break;
-                    case DOUBLE:
-                        final FieldCache.Doubles doubles = FieldCache.DEFAULT.getDoubles(ctx.reader(), fieldName, true);
-                        longs = new FieldCache.Longs() {
-                            @Override
-                            public long get(int docID) {
-                                return NumericUtils.doubleToSortableLong(doubles.get(docID));
-                            }
-                        };
-                        break;
-                    default:
-                        throw new AssertionError();
+                case LONG:
+                    longs = FieldCache.DEFAULT.getLongs(ctx.reader(), fieldName, true);
+                    break;
+                case INT:
+                    final FieldCache.Ints ints = FieldCache.DEFAULT.getInts(ctx.reader(), fieldName, true);
+                    longs = new FieldCache.Longs() {
+                        @Override
+                        public long get(int docID) {
+                            return ints.get(docID);
+                        }
+                    };
+                    break;
+                case FLOAT:
+                    final FieldCache.Floats floats = FieldCache.DEFAULT.getFloats(ctx.reader(), fieldName, true);
+                    longs = new FieldCache.Longs() {
+                        @Override
+                        public long get(int docID) {
+                            return NumericUtils.floatToSortableInt(floats.get(docID));
+                        }
+                    };
+                    break;
+                case DOUBLE:
+                    final FieldCache.Doubles doubles = FieldCache.DEFAULT.getDoubles(ctx.reader(), fieldName, true);
+                    longs = new FieldCache.Longs() {
+                        @Override
+                        public long get(int docID) {
+                            return NumericUtils.doubleToSortableLong(doubles.get(docID));
+                        }
+                    };
+                    break;
+                default:
+                    throw new AssertionError();
                 }
                 docsWithField = FieldCache.DEFAULT.getDocsWithField(ctx.reader(), fieldName);
             }
@@ -274,19 +273,19 @@ final class NumericFacets {
                     final TermsEnum termsEnum = terms.iterator(null);
                     BytesRef term;
                     switch (termsEnum.seekCeil(prefix)) {
-                        case FOUND:
-                        case NOT_FOUND:
-                            term = termsEnum.term();
-                            break;
-                        case END:
-                            term = null;
-                            break;
-                        default:
-                            throw new AssertionError();
+                    case FOUND:
+                    case NOT_FOUND:
+                        term = termsEnum.term();
+                        break;
+                    case END:
+                        term = null;
+                        break;
+                    default:
+                        throw new AssertionError();
                     }
                     final CharsRef spare = new CharsRef();
                     for (int skipped = hashTable.size; skipped < offset && term != null
-                            && StringHelper.startsWith(term, prefix); ) {
+                            && StringHelper.startsWith(term, prefix);) {
                         ft.indexedToReadable(term, spare);
                         final String termStr = spare.toString();
                         if (!alreadySeen.contains(termStr)) {
@@ -330,15 +329,15 @@ final class NumericFacets {
                 final TermsEnum termsEnum = terms.iterator(null);
                 BytesRef term;
                 switch (termsEnum.seekCeil(prefix)) {
-                    case FOUND:
-                    case NOT_FOUND:
-                        term = termsEnum.term();
-                        break;
-                    case END:
-                        term = null;
-                        break;
-                    default:
-                        throw new AssertionError();
+                case FOUND:
+                case NOT_FOUND:
+                    term = termsEnum.term();
+                    break;
+                case END:
+                    term = null;
+                    break;
+                default:
+                    throw new AssertionError();
                 }
                 final CharsRef spare = new CharsRef();
                 for (int i = 0; i < offset && term != null && StringHelper.startsWith(term, prefix); ++i) {

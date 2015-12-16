@@ -1,6 +1,5 @@
 package de.uni_tuebingen.ub.ixTheo.request;
 
-
 import de.uni_tuebingen.ub.ixTheo.common.params.FacetPrefixSortParams;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
@@ -64,7 +63,7 @@ public class SimplePrefixSortFacets extends SimpleFacets {
         int limit;
 
         if (params.get(FacetParams.FACET_SORT) == null
-            || params.get(FacetParams.FACET_SORT).equals(FacetPrefixSortParams.FACET_SORT_PREFIX)) {
+                || params.get(FacetParams.FACET_SORT).equals(FacetPrefixSortParams.FACET_SORT_PREFIX)) {
             offset = 0;
             limit = -1;
         } else {
@@ -145,39 +144,39 @@ public class SimplePrefixSortFacets extends SimpleFacets {
                     prefix);
         } else {
             switch (method) {
-                case ENUM:
-                    assert TrieField.getMainValuePrefix(ft) == null;
-                    counts = getFacetTermEnumCounts(searcher, base, field, offset, limit, mincount, missing, sort, prefix);
-                    break;
-                case FCS:
-                    if (ft.getNumericType() != null && !sf.multiValued()) {
-                        // force numeric faceting
-                        if (prefix != null && !prefix.isEmpty()) {
-                            throw new SolrException(ErrorCode.BAD_REQUEST,
-                                    FacetParams.FACET_PREFIX + " is not supported on numeric types");
-                        }
-                        counts = NumericFacets.getCounts(searcher, base, field, offset, limit, mincount, missing, sort);
-                    } else {
-                        PerSegmentSingleValuedFaceting ps = new PerSegmentSingleValuedFaceting(searcher, base, field,
-                                offset, limit, mincount, missing, sort, prefix);
-                        Executor executor = threads == 0 ? directExecutor : facetExecutor;
-                        ps.setNumThreads(threads);
-                        counts = ps.getFacetCounts(executor);
+            case ENUM:
+                assert TrieField.getMainValuePrefix(ft) == null;
+                counts = getFacetTermEnumCounts(searcher, base, field, offset, limit, mincount, missing, sort, prefix);
+                break;
+            case FCS:
+                if (ft.getNumericType() != null && !sf.multiValued()) {
+                    // force numeric faceting
+                    if (prefix != null && !prefix.isEmpty()) {
+                        throw new SolrException(ErrorCode.BAD_REQUEST,
+                                FacetParams.FACET_PREFIX + " is not supported on numeric types");
                     }
-                    break;
-                case FC:
-                    if (sf.hasDocValues()) {
-                        counts = DocValuesFacets.getCounts(searcher, base, field, offset, limit, mincount, missing, sort,
-                                prefix);
-                    } else if (multiToken || TrieField.getMainValuePrefix(ft) != null) {
-                        UnInvertedField uif = UnInvertedField.getUnInvertedField(field, searcher);
-                        counts = uif.getCounts(searcher, base, offset, limit, mincount, missing, sort, prefix);
-                    } else {
-                        counts = getFieldCacheCounts(searcher, base, field, offset, limit, mincount, missing, sort, prefix);
-                    }
-                    break;
-                default:
-                    throw new AssertionError();
+                    counts = NumericFacets.getCounts(searcher, base, field, offset, limit, mincount, missing, sort);
+                } else {
+                    PerSegmentSingleValuedFaceting ps = new PerSegmentSingleValuedFaceting(searcher, base, field,
+                            offset, limit, mincount, missing, sort, prefix);
+                    Executor executor = threads == 0 ? directExecutor : facetExecutor;
+                    ps.setNumThreads(threads);
+                    counts = ps.getFacetCounts(executor);
+                }
+                break;
+            case FC:
+                if (sf.hasDocValues()) {
+                    counts = DocValuesFacets.getCounts(searcher, base, field, offset, limit, mincount, missing, sort,
+                            prefix);
+                } else if (multiToken || TrieField.getMainValuePrefix(ft) != null) {
+                    UnInvertedField uif = UnInvertedField.getUnInvertedField(field, searcher);
+                    counts = uif.getCounts(searcher, base, offset, limit, mincount, missing, sort, prefix);
+                } else {
+                    counts = getFieldCacheCounts(searcher, base, field, offset, limit, mincount, missing, sort, prefix);
+                }
+                break;
+            default:
+                throw new AssertionError();
             }
         }
 
@@ -330,7 +329,12 @@ public class SimplePrefixSortFacets extends SimpleFacets {
         return getTermCounts(field, mincount, base);
     }
 
-    static final Executor facetExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 10, TimeUnit.SECONDS // terminate idle threads after 10 sec
-            , new SynchronousQueue<Runnable>() // directly hand off tasks
-            , new DefaultSolrThreadFactory("facetExecutor"));
+    static final Executor facetExecutor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 10, TimeUnit.SECONDS // terminate
+                                                                                                            // idle
+                                                                                                            // threads
+                                                                                                            // after
+                                                                                                            // 10
+                                                                                                            // sec
+    , new SynchronousQueue<Runnable>() // directly hand off tasks
+    , new DefaultSolrThreadFactory("facetExecutor"));
 };
