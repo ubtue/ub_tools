@@ -10,7 +10,8 @@ public class KeywordSort {
         int commonPrefixLength = 0;
 
         for (/* Intentionally empty! */; commonPrefixLength < minLength; ++commonPrefixLength) {
-            if (Character.toLowerCase(s1.charAt(commonPrefixLength)) != Character.toLowerCase(s2.charAt(commonPrefixLength)))
+            if (Character.toLowerCase(s1.charAt(commonPrefixLength)) != Character
+                    .toLowerCase(s2.charAt(commonPrefixLength)))
                 return commonPrefixLength;
         }
 
@@ -24,40 +25,40 @@ public class KeywordSort {
             components.add(part);
     }
 
+    public static ArrayList<String> sortToReferenceChain(final ArrayList<String> refChainList,
+            ArrayList<String> compChainList) {
 
-   public static ArrayList<String> sortToReferenceChain(final ArrayList<String> refChainList, ArrayList<String> compChainList){
+        String[] refchain = refChainList.toArray(new String[0]);
+        String[] compchain = compChainList.toArray(new String[0]);
 
-	String[] refchain = refChainList.toArray(new String[0]);
-	String[] compchain = compChainList.toArray(new String[0]);
+        for (int i = 0; i < Math.min(refchain.length, compchain.length); i++) {
 
-	for (int i = 0; i < Math.min(refchain.length, compchain.length); i++){
+            String refstring = refchain[i];
 
-		String refstring = refchain[i];
+            int max_prefix_score = 0;
+            int max_prefix_index = i;
 
-		int max_prefix_score = 0;
-		int max_prefix_index = i;
+            for (int k = i; k < compchain.length; k++) {
 
-		for (int k = i; k < compchain.length; k++){
-			
-			String compstring = compchain[k];
-			int prefix_score = calculateCommonPrefixLength(refstring, compstring);
+                String compstring = compchain[k];
+                int prefix_score = calculateCommonPrefixLength(refstring, compstring);
 
-			if ( prefix_score > max_prefix_score ){
-				max_prefix_score = prefix_score;
-				max_prefix_index = k;
-			}
-			
-		}
+                if (prefix_score > max_prefix_score) {
+                    max_prefix_score = prefix_score;
+                    max_prefix_index = k;
+                }
 
-		// Swap elements
+            }
 
-		String tmp = compchain[i];
-		compchain[i] = compchain[max_prefix_index];
-		compchain[max_prefix_index] = tmp;
+            // Swap elements
 
-	}
+            String tmp = compchain[i];
+            compchain[i] = compchain[max_prefix_index];
+            compchain[max_prefix_index] = tmp;
 
-	return new ArrayList<String>(Arrays.asList(compchain));
+        }
+
+        return new ArrayList<String>(Arrays.asList(compchain));
     }
 
 }
