@@ -41,6 +41,7 @@ chmod +xr "$VUFIND_LOCAL_DIR"
 touch "$VUFIND_LOCAL_DIR/logs/record.xml"
 touch "$VUFIND_LOCAL_DIR/logs/search.xml"
 
+mkdir --parents "$VUFIND_LOCAL_DIR/import"
 touch "$VUFIND_LOCAL_DIR/import/solrmarc.log"
 mkdir --parents "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 chmod +xr "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"

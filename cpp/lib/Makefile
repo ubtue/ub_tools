@@ -8,6 +8,7 @@ CCC    = clang++
 CCOPTS = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include -O3 \
          -pedantic -Wno-vla-extension -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) -DETC_DIR='"/var/lib/tuelib"'
 LDOPTS = -O3
+MAKE_DEPS=/usr/local/bin/iViaCore-mkdep
 
 .PHONY: clean
 .PRECIOUS: $(OBJ)/%.o
@@ -28,7 +29,7 @@ libstemmer/libstemmer.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/
 
 -include .deps
 .deps: $(SRCS) $(INC)/*.h Makefile
-	iViaCore-mkdep -I $(INC) $(SRCS)
+	$(MAKE_DEPS) -I $(INC) $(SRCS)
 
 clean:
 	rm -f *~ $(PROGS) $(OBJS) *.a && cd libstemmer && make clean && rm -f libstemmer.a
