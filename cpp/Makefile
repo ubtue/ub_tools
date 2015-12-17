@@ -18,7 +18,7 @@ LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpthread -lpcre -lcrypto 
 
 PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
 CGI_PROGS=full_text_lookup
-INSTALL_PROGS=$(filter-out %_test,$(PROGS))
+INSTALL_PROGS=$(filter-out %_test,$(PROGS)) *.sh
 
 .PHONY: all install root_install clean
 
