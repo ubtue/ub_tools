@@ -25,6 +25,7 @@
 
 #include <iostream>
 #include <unordered_set>
+#include <vector>
 #include <cstdlib>
 #include "DirectoryEntry.h"
 #include "Leader.h"
@@ -36,7 +37,11 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] marc_input marc_output\n";
+    std::cerr << "Usage: " << progname << " [--verbose] marc_input1 [marc_input2 ... marc_inputN] marc_output\n"
+              << "       Collects information about which superior/collective works are serials from the various\n"
+	      << "       MARC inputs and then patches up records in \"marc_input1\" which have been marked as a book\n"
+	      << "       components and changes them to be flagged as an article instead.  The patched up version is\n"
+	      << "       written to \"marc_output\".\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -55,10 +60,12 @@ bool RecordSerialControlNumbers(MarcUtil::Record * const record, std::string * c
 }
 
 
-void CollectSerials(const bool verbose, FILE * const input) {
+void CollectSerials(const bool verbose, const std::vector<FILE *> &inputs) {
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(input, RecordSerialControlNumbers, &err_msg))
-	Error("error while looking for serials: " + err_msg);
+    for (const auto &input : inputs) {
+	if (not MarcUtil::ProcessRecords(input, RecordSerialControlNumbers, &err_msg))
+	    Error("error while looking for serials: " + err_msg);
+    }
 
     if (verbose)
 	std::cout << "Found " << serial_control_numbers.size() << " serial records.\n";
@@ -141,37 +148,38 @@ void PatchUpSerialComponentParts(const bool verbose, FILE * const input, FILE * 
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc != 3 and argc != 4)
-        Usage();
+    if (argc == 1)
+	Usage();
 
-    bool verbose;
-    if (argc == 3)
-	verbose = false;
-    else { // argc == 4
-	if (std::strcmp(argv[1], "--verbose") != 0)
-	    Usage();
-	verbose = true;
+    const bool verbose(std::strcmp(argv[1], "--verbose") != 0);
+
+    if (verbose and argc < 4 or not verbose and argc < 3)
+	Usage();
+
+    std::vector<FILE *> marc_inputs;
+    for (int arg_no(verbose ? 2 : 1); arg_no < (argc - 1) ; ++arg_no) {
+	const std::string marc_input_filename(argv[arg_no]);
+	FILE *marc_input(std::fopen(marc_input_filename.c_str(), "rbm"));
+	if (marc_input == nullptr)
+	    Error("can't open \"" + marc_input_filename + "\" for reading!");
+	marc_inputs.push_back(marc_input);
     }
 
-    const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
-    FILE *marc_input(std::fopen(marc_input_filename.c_str(), "rbm"));
-    if (marc_input == nullptr)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
-    const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
+    const std::string marc_output_filename(argv[argc - 1]);
     FILE *marc_output(std::fopen(marc_output_filename.c_str(), "wb"));
     if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
-	CollectSerials(verbose, marc_input);
+	CollectSerials(verbose, marc_inputs);
 
-	std::rewind(marc_input);
-	PatchUpSerialComponentParts(verbose, marc_input, marc_output);
+	std::rewind(marc_inputs[0]);
+	PatchUpSerialComponentParts(verbose, marc_inputs[0], marc_output);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
 
-    std::fclose(marc_input);
+    for (const auto &marc_input : marc_inputs)
+	std::fclose(marc_input);
     std::fclose(marc_output);
 }
