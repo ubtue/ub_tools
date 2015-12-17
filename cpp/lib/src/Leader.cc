@@ -86,8 +86,9 @@ bool Leader::setRecordLength(const unsigned new_record_length, std::string * con
         err_msg->clear();
 
     if (new_record_length > 99999) {
-        *err_msg = "new record length (" + std::to_string(new_record_length)
-                   + ") exceeds valid maximum (99999)!";
+        if (err_msg != nullptr)
+            *err_msg = "new record length (" + std::to_string(new_record_length)
+                       + ") exceeds valid maximum (99999)!";
         return false;
     }
 
