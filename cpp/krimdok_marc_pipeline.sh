@@ -49,25 +49,12 @@ krimdok_filter --normalise-urls ÜbergeordneteTitelUndLokaldaten-post-phase"$((P
 P=3
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
-create_child_refs.sh TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
-                     ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc >> "${log}" 2>&1
-add_child_refs ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
-               ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
-               child_refs child_titles >> "${log}" 2>&1
-add_child_refs TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
-               TitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
-               child_refs child_titles >> "${log}" 2>&1
-
-# Phase 4:
-P=4
-echo "*** Phase $P ***"
-echo "*** Phase $P ***" >> "${log}"
 add_isbns_or_issns_to_articles TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
                                ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
                                TitelUndLokaldaten-post-phase"$P"-"${date}".mrc >> "${log}" 2>&1
 
-# Phase 5:
-P=5
+# Phase 4:
+P=4
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
 create_full_text_db --process-count-low-and-high-watermarks \
@@ -78,8 +65,8 @@ create_full_text_db --process-count-low-and-high-watermarks \
                     full_text.db >> "${log}" 2>&1
 cp full_text.db /var/lib/tuelib/
 
-# Phase 6:
-P=6
+# Phase 5:
+P=5
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
 fix_article_biblio_levels --verbose \
@@ -89,8 +76,8 @@ fix_article_biblio_levels --verbose \
                           ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-3))"-"${date}".mrc \
                           ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc 2>&1
 
-# Phase 7:
-P=7
+# Phase 6:
+P=6
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
 populate_in_tuebingen_available --verbose \
@@ -98,8 +85,8 @@ populate_in_tuebingen_available --verbose \
                                 ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
                                 TitelUndLokaldaten-post-phase"$P"-"${date}".mrc 2>&1
 
-# Phase 8:
-P=8
+# Phase 7:
+P=7
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
 fix_article_biblio_levels --verbose \
@@ -115,4 +102,4 @@ for p in $(seq "$((P-1))"); do
     rm -f ÜbergeordneteTitelUndLokaldaten-post-"$p"-"${date}".mrc
     rm -f TitelUndLokaldaten-post-"$p"-"${date}".mrc
 done
-rm -f child_refs child_titles parent_refs full_text.db
+rm -f full_text.db
