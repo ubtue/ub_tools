@@ -31,75 +31,88 @@ log=/tmp/krimdok_marc_pipeline.log
 rm -f "${log}"
 
 # Phase 1:
-echo "*** Phase 1 ***"
-echo "*** Phase 1 ***" >> "${log}"
-krimdok_filter --bibliotheks-sigel-filtern "$2" ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc \
+P=1
+echo "*** Phase $P ***"
+echo "*** Phase $P ***" >> "${log}"
+krimdok_filter --bibliotheks-sigel-filtern "$2" ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
                >> "${log}" 2>&1
 
 # Phase 2:
-echo "*** Phase 2 ***"
-echo "*** Phase 2 ***" >> "${log}"
-krimdok_filter --normalise-urls "$1" TitelUndLokaldaten-normalised-"${date}".mrc >> "${log}" 2>&1
-krimdok_filter --normalise-urls ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc \
-               ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc >> "${log}" 2>&1
-rm -f ÜbergeordneteTitelundLokaldaten-filtered-"${date}".mrc
+P=2
+echo "*** Phase $P ***"
+echo "*** Phase $P ***" >> "${log}"
+krimdok_filter --normalise-urls "$1" TitelUndLokaldaten-post-phase"$P"-"${date}".mrc >> "${log}" 2>&1
+krimdok_filter --normalise-urls ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+               ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc >> "${log}" 2>&1
 
 # Phase 3:
-echo "*** Phase 3 ***"
-echo "*** Phase 3 ***" >> "${log}"
-create_child_refs.sh TitelUndLokaldaten-normalised-"${date}".mrc \
-                     ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc >> "${log}" 2>&1
-add_child_refs ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc \
-               ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
+P=3
+echo "*** Phase $P ***"
+echo "*** Phase $P ***" >> "${log}"
+create_child_refs.sh TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+                     ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc >> "${log}" 2>&1
+add_child_refs ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+               ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
                child_refs child_titles >> "${log}" 2>&1
-add_child_refs TitelUndLokaldaten-normalised-"${date}".mrc \
-               TitelUndLokaldaten-normalised-with-child-refs-"${date}".mrc \
+add_child_refs TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+               TitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
                child_refs child_titles >> "${log}" 2>&1
-rm -f ÜbergeordneteTitelundLokaldaten-filtered-and-normalised-"${date}".mrc
-rm -r TitelUndLokaldaten-normalised-"${date}".mrc
-rm -f child_refs child_titles parent_refs
 
 # Phase 4:
-echo "*** Phase 4 ***"
-echo "*** Phase 4 ***" >> "${log}"
-add_isbns_or_issns_to_articles TitelUndLokaldaten-normalised-with-child-refs-"${date}".mrc \
-                               ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
-                               TitelUndLokaldaten-normalised-with-child-refs-and-issns-"${date}".mrc >> "${log}" 2>&1
-rm -f TitelUndLokaldaten-normalised-with-child-refs-"${date}".mrc
+P=4
+echo "*** Phase $P ***"
+echo "*** Phase $P ***" >> "${log}"
+add_isbns_or_issns_to_articles TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+                               ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+                               TitelUndLokaldaten-post-phase"$P"-"${date}".mrc >> "${log}" 2>&1
 
 # Phase 5:
-echo "*** Phase 5 ***"
-echo "*** Phase 5 ***" >> "${log}"
+P=5
+echo "*** Phase $P ***"
+echo "*** Phase $P ***" >> "${log}"
 create_full_text_db --process-count-low-and-high-watermarks \
                     $(get_config_file_entry.py krimdok_marc_pipeline.conf \
                       create_full_text_db process_count_low_and_high_watermarks) \
-                    TitelUndLokaldaten-normalised-with-child-refs-and-issns-"${date}".mrc \
-                    TitelUndLokaldaten-normalised-with-child-refs-issns-and-full-text-links-"${date}".mrc \
+                    TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+                    TitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
                     full_text.db >> "${log}" 2>&1
 cp full_text.db /var/lib/tuelib/
-rm -f TitelUndLokaldaten-normalised-with-child-refs-and-issns-"${date}".mrc
-rm -f full_text.db
 
 # Phase 6:
-echo "*** Phase 6 ***"
-echo "*** Phase 6 ***" >> "${log}"
+P=6
+echo "*** Phase $P ***"
+echo "*** Phase $P ***" >> "${log}"
 fix_article_biblio_levels --verbose \
-    TitelUndLokaldaten-normalised-with-child-refs-issns-and-full-text-links-"${date}".mrc \
-    TitelUndLokaldaten-normalised-with-child-refs-issns-full-text-links-and-fixed-articles-"${date}".mrc
+                          TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+                          TitelUndLokaldaten-post-phase"$P"-"${date}".mrc 2>&1
 fix_article_biblio_levels --verbose \
-    ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc \
-    ÜbergeordneteTitelUndLokaldaten-filtered-normalised-with-child-refs-and-fixed-articles-"${date}".mrc
-rm -f TitelUndLokaldaten-normalised-with-child-refs-issns-and-full-text-links-"${date}".mrc
-rm -f ÜbergeordneteTitelUndLokaldaten-filtered-and-normalised-with-child-refs-"${date}".mrc
+                          ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-3))"-"${date}".mrc \
+                          ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc 2>&1
 
 # Phase 7:
-echo "*** Phase 7 ***"
-echo "*** Phase 7 ***" >> "${log}"
+P=7
+echo "*** Phase $P ***"
+echo "*** Phase $P ***" >> "${log}"
 populate_in_tuebingen_available --verbose \
-    TitelUndLokaldaten-normalised-with-child-refs-issns-full-text-links-and-fixed-articles-"${date}".mrc \
-    TitelUndLokaldaten-normalised-with-child-refs-issns-full-text-links-fixed-articles-and-availability-"${date}".mrc
-populate_in_tuebingen_available --verbose \
-    ÜbergeordneteTitelUndLokaldaten-filtered-normalised-with-child-refs-and-fixed-articles-"${date}".mrc \
-    ÜbergeordneteTitelUndLokaldaten-filtered-normalised-with-child-refs-fixed-articles-and-availability-"${date}".mrc
-rm -f TitelUndLokaldaten-normalised-with-child-refs-issns-full-text-links-and-fixed-articles-"${date}".mrc
-rm -f ÜbergeordneteTitelUndLokaldaten-filtered-normalised-with-child-refs-and-fixed-articles-"${date}".mrc
+                                TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+                                ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+                                TitelUndLokaldaten-post-phase"$P"-"${date}".mrc 2>&1
+
+# Phase 8:
+P=8
+echo "*** Phase $P ***"
+echo "*** Phase $P ***" >> "${log}"
+fix_article_biblio_levels --verbose \
+    TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-2))"-"${date}".mrc \
+    TitelUndLokaldaten-post-pipeline-"${date}".mrc
+fix_article_biblio_levels --verbose \
+    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-2))"-"${date}".mrc \
+    ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".mrc
+
+# Cleanup of intermediate files:
+for p in $(seq "$((P-1))"); do
+    rm -f ÜbergeordneteTitelUndLokaldaten-post-"$p"-"${date}".mrc
+    rm -f TitelUndLokaldaten-post-"$p"-"${date}".mrc
+done
+rm -f child_refs child_titles parent_refs full_text.db
