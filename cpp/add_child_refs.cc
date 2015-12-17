@@ -70,7 +70,10 @@ void ProcessRecord(FILE * const output, MarcUtil::Record * const record) {
             subfields.addSubfield('a', child_id);
             subfields.addSubfield('b', id_and_title_iter->second);
 
-            record->insertField("CLD", subfields.toString());
+            if (not record->insertField("CLD", subfields.toString())) {
+               Warning("Not enough room to add a CLD field! (Control number: " + field_data[0] + ")");
+               break;
+            }
         }
 	++modified_count;
     }
