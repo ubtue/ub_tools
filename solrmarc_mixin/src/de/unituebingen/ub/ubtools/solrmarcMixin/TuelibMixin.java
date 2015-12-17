@@ -40,12 +40,30 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (title_a == null && title_b == null)
             return null;
 
+	StringBuilder complete_title = new StringBuilder();
         if (title_a == null)
-            return Utils.cleanData(title_b);
+            complete_title.append(Utils.cleanData(title_b));
         else if (title_b == null)
-            return Utils.cleanData(title_a);
-        else // Neither title_a nor title_b are null.
-            return Utils.cleanData(title_a) + " " + Utils.cleanData(title_b);
+            complete_title.append(Utils.cleanData(title_a));
+        else { // Neither title_a nor title_b are null.
+            complete_title.append(Utils.cleanData(title_a));
+	    complete_title.append(' ');
+	    complete_title.append(Utils.cleanData(title_b));
+	}
+
+	final String title_c = (title.getSubfield('c') == null) ? null : title.getSubfield('c').getData();
+	if (title_c != null) {
+	    complete_title.append(' ');
+	    complete_title.append(Utils.cleanData(title_c));
+	}
+
+	final String title_n = (title.getSubfield('n') == null) ? null : title.getSubfield('n').getData();
+	if (title_n != null) {
+	    complete_title.append(' ');
+	    complete_title.append(Utils.cleanData(title_n));
+	}
+
+	return complete_title.toString();
     }
 
     /**
