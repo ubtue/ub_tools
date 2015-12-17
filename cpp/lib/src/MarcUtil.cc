@@ -297,12 +297,13 @@ void Record::updateField(const size_t field_index, const std::string &new_field_
 }
 
 
-void Record::insertField(const std::string &new_field_tag, const std::string &new_field_value) {
+bool Record::insertField(const std::string &new_field_tag, const std::string &new_field_value) {
     if (new_field_tag.length() != 3)
 	throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of 3!");
 
-    leader_.setRecordLength(leader_.getRecordLength() + new_field_value.length()
-                            + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1 /* For new field separator. */);
+    if (not leader_.setRecordLength(leader_.getRecordLength() + new_field_value.length()
+                                    + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1 /* For new field separator. */))
+       return false;
     leader_.setBaseAddressOfData(leader_.getBaseAddressOfData() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
 
     // Find the insertion location:
@@ -315,7 +316,7 @@ void Record::insertField(const std::string &new_field_tag, const std::string &ne
         const size_t offset = previous_dir_entry->getFieldOffset() + previous_dir_entry->getFieldLength();
         dir_entries_.emplace_back(new_field_tag, new_field_value.length() + 1, offset);
         fields_.emplace_back(new_field_value);
-        return;
+        return true;
     }
 
     const auto insertion_location(dir_entry);
@@ -332,6 +333,8 @@ void Record::insertField(const std::string &new_field_tag, const std::string &ne
     fields_.emplace(field, new_field_value);
 
     raw_record_is_out_of_date_ = true;
+
+    return true;
 }
 
 
