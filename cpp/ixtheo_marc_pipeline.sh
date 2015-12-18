@@ -44,14 +44,14 @@ P=2
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
 add_isbns_or_issns_to_articles TitelUndLokaldaten-"${date}".mrc \
-                               ÜbergeordneteTitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
+                               ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
                                TitelUndLokaldaten-post-phase"$P"-"${date}".mrc >> "${log}" 2>&1
 
 # Phase 3:
 P=3
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
-enrich_keywords_with_title_words TitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
+enrich_keywords_with_title_words TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
                                  TitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
                                  ../cpp/data/stopwords.???
 
@@ -59,7 +59,7 @@ enrich_keywords_with_title_words TitelUndLokaldaten-post-phase$((P-1))-"${date}"
 P=4
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
-augment_bible_references TitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
+augment_bible_references TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
                          Normdaten-"${date}".mrc \
                          TitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
                          ../cpp/data/BibleOrder.map >> "${log}" 2>&1
@@ -70,7 +70,7 @@ P=5
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
 update_ixtheo_notations \
-    TitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
+    TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
     TitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
 update_ixtheo_notations \
@@ -84,11 +84,11 @@ P=6
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
 map_ddc_and_rvk_to_ixtheo_notations \
-    TitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
+    TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
     TitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
     ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map
 map_ddc_and_rvk_to_ixtheo_notations \
-    ÜbergeordneteTitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
+    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
     ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc \
     ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map
 
@@ -98,14 +98,15 @@ P=7
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
 fix_article_biblio_levels --verbose \
-    TitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
+    TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
+    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
     TitelUndLokaldaten-post-pipeline-"${date}".mrc
 fix_article_biblio_levels --verbose \
-    ÜbergeordneteTitelUndLokaldaten-post-phase$((P-1))-"${date}".mrc \
+    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
     ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".mrc
 
 # Cleanup of intermediate files:
-for p in $(seq $((P-1))); do
+for p in $(seq "$((P-1))"); do
     rm -f ÜbergeordneteTitelUndLokaldaten-post-"$p"-"${date}".mrc
     rm -f TitelUndLokaldaten-post-"$p"-"${date}".mrc
 done
