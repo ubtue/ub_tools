@@ -68,7 +68,7 @@ def Main():
     util.default_email_recipient = sys.argv[1]
     pipeline_script_name = sys.argv[2]
     if not os.access(pipeline_script_name, os.X_OK):
-         util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)", "Pipeline script not found or not executable!\n")
+         util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)", "Pipeline script not found or not executable: \"" + pipeline_script_name + "\"\n")
          sys.exit(-1)
     conf = util.LoadConfigFile()
     link_name = conf.get("Misc", "link_name")
