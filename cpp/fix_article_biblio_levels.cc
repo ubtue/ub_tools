@@ -40,7 +40,7 @@ void Usage() {
     std::cerr << "Usage: " << progname << " [--verbose] marc_input1 [marc_input2 ... marc_inputN] marc_output\n"
               << "       Collects information about which superior/collective works are serials from the various\n"
 	      << "       MARC inputs and then patches up records in \"marc_input1\" which have been marked as a book\n"
-	      << "       components and changes them to be flagged as an article instead.  The patched up version is\n"
+	      << "       component and changes them to be flagged as an article instead.  The patched up version is\n"
 	      << "       written to \"marc_output\".\n";
     std::exit(EXIT_FAILURE);
 }
@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
     }
 
     const std::string marc_output_filename(argv[argc - 1]);
-    FILE *marc_output(std::fopen(marc_output_filename.c_str(), "wb"));
+    FILE * const marc_output(std::fopen(marc_output_filename.c_str(), "wb"));
     if (marc_output == nullptr)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
