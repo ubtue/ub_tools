@@ -1,4 +1,4 @@
-#!/bin/bash
+r#!/bin/bash
 #
 # $VUFIND_HOME and $VUFIND_LOCAL_DIR have to be set!
 #
@@ -72,7 +72,7 @@ if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
     semanage fcontext --add --type httpd_config_t "$VUFIND_HOME/local/httpd-vufind(.*).conf"
     semanage fcontext --add --type httpd_sys_rw_content_t "$VUFIND_HOME/logs/(.*).xml"
     semanage fcontext --add --type httpd_log_t "/var/log/vufind.log"
-
+    
     restorecon -R "/var/lib/tuelib"
     restorecon -R "$VUFIND_HOME"
     restorecon -R "/var/log/vufind.log"
