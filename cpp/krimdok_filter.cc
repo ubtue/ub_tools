@@ -315,6 +315,8 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) 
 		    std::string new_http_replacement_link;
 		    if (StringUtil::StartsWith(u_subfield, "urn:"))
 			new_http_replacement_link = "https://nbn-resolving.org/" + u_subfield;
+		    else if (StringUtil::StartsWith(u_subfield, "10900/"))
+			new_http_replacement_link = "https://publikationen.uni-tuebingen.de/xmlui/handle/" + u_subfield;
 		    else
 			new_http_replacement_link = "http://" + u_subfield;
 		    if (already_seen_links.find(new_http_replacement_link) == already_seen_links.cend()) {
