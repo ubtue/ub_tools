@@ -40,12 +40,30 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (title_a == null && title_b == null)
             return null;
 
+	StringBuilder complete_title = new StringBuilder();
         if (title_a == null)
-            return Utils.cleanData(title_b);
+            complete_title.append(Utils.cleanData(title_b));
         else if (title_b == null)
-            return Utils.cleanData(title_a);
-        else // Neither title_a nor title_b are null.
-            return Utils.cleanData(title_a) + " " + Utils.cleanData(title_b);
+            complete_title.append(Utils.cleanData(title_a));
+        else { // Neither title_a nor title_b are null.
+            complete_title.append(Utils.cleanData(title_a));
+	    complete_title.append(' ');
+	    complete_title.append(Utils.cleanData(title_b));
+	}
+
+	final String title_c = (title.getSubfield('c') == null) ? null : title.getSubfield('c').getData();
+	if (title_c != null) {
+	    complete_title.append(' ');
+	    complete_title.append(Utils.cleanData(title_c));
+	}
+
+	final String title_n = (title.getSubfield('n') == null) ? null : title.getSubfield('n').getData();
+	if (title_n != null) {
+	    complete_title.append(' ');
+	    complete_title.append(Utils.cleanData(title_n));
+	}
+
+	return complete_title.toString();
     }
 
     /**
@@ -177,6 +195,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         return urls_and_material_types;
     }
 
+    private final static Pattern EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(\\.+)$");
+
     /**
      * Returns either a Set<String> of parent (ID + colon + parent title).  Only IDs w/o titles will not be returned,
      * instead a warning will be emitted on stderr.
@@ -189,49 +209,27 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @param optionalFieldExtractionRegex
      * @return A, possibly empty, Set<String> containing the ID/title pairs.
      */
-    public Set<String> getContainerIdsWithTitles(final Record record, final String fields_and_subfields, final String optionalFieldExtractionRegex) {
-        final String[] fieldsAndSubfieldsArray = fields_and_subfields.split(":");
-        if (fieldsAndSubfieldsArray.length == 0) {
-            logger.fine("in getContainerIdsOrTitles(): missing fields and subfields to select!");
-            System.exit(-2);
-        }
+    public Set<String> getContainerIdsWithTitles(final Record record) {
 
-        Pattern extractionPattern = null;
-        if (!optionalFieldExtractionRegex.isEmpty())
-            extractionPattern = Pattern.compile(optionalFieldExtractionRegex);
+	final Set<String> containerIdsAndTitles = new TreeSet<String>();
 
-        final Set<String> containerIdsAndTitles = new LinkedHashSet<>();
-        for (final String fieldsAndSubfield : fieldsAndSubfieldsArray) {
-            final char titleSubfieldCode = fieldsAndSubfield.charAt(3);
-            final char idSubfieldCode = fieldsAndSubfield.charAt(4);
-            final String tag = fieldsAndSubfield.substring(0, 3);
+        for (final String tag : new String[] { "800", "810", "830", "773" }) {
             for (final VariableField variableField : record.getVariableFields(tag)) {
                 final DataField field = (DataField) variableField;
-                final List<Subfield> titleSubfields = field.getSubfields(titleSubfieldCode);
-                final List<Subfield> idSubfields = field.getSubfields(idSubfieldCode);
+                final Subfield titleSubfield = field.getSubfield('t');
+                final Subfield volumeSubfield = field.getSubfield('v');
+                final Subfield idSubfield = field.getSubfield('w');
 
-                if (titleSubfields.size() != idSubfields.size()) {
-                    logger.fine("Size # of title subfields (" + titleSubfields.size() + ") != # of id subfields (" + idSubfields.size() + ")!");
-                    continue;
-                }
+		if (titleSubfield == null || idSubfield == null)
+		    continue;
 
-                final Iterator<Subfield> titleIter = field.getSubfields(titleSubfieldCode).iterator();
-                for (final Subfield idSubfield : field.getSubfields(idSubfieldCode)) {
-                    String parentId = idSubfield.getData();
+		final Matcher matcher = EXTRACTION_PATTERN.matcher(idSubfield.getData());
+		if (!matcher.matches())
+		    continue;
+		final String parentId = matcher.group(1);
 
-                    if (extractionPattern != null) {
-                        final Matcher matcher = extractionPattern.matcher(parentId);
-                        if (!matcher.matches()) {
-                            logger.fine("Parent ID \"" + parentId + "\"did not match the pattern \""
-                                    + extractionPattern.pattern() + "\"!");
-                            titleIter.next();
-                            continue;
-                        }
-                        parentId = matcher.group(1);
-                    }
-
-                    containerIdsAndTitles.add(parentId + ":" + titleIter.next().getData());
-                }
+		containerIdsAndTitles.add(parentId + "\u001F" + titleSubfield.getData() + "\u001F"
+					  + (volumeSubfield == null ? "" : volumeSubfield.getData()));
             }
         }
 
