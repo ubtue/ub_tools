@@ -281,56 +281,8 @@ found_match:
 }
 
 
-struct Record856uEntry {
-    unsigned index_;
-    std::string link_;
-public:
-    Record856uEntry(unsigned index, const std::string &link): index_(index), link_(link) { }
-};
-
-
-class MatchAnyLink {
-    std::string link_to_match_;
-public:
-    explicit MatchAnyLink(const std::string &link_to_match): link_to_match_(link_to_match) { }
-    inline bool operator()(const Record856uEntry &entry) const { return entry.link_ == link_to_match_; }
-};
-
-
 inline bool IsHttpOrHttpsURL(const std::string &url_candidate) {
     return StringUtil::StartsWith(url_candidate, "http://") or StringUtil::StartsWith(url_candidate, "https://");
-}
-
-
-bool All856uLinksAreHttpOrHttpsLinks(const std::vector<Record856uEntry> &entries) {
-    for (auto const &entry : entries) {
-        if (not IsHttpOrHttpsURL(entry.link_))
-            return false;
-    }
-
-    return true;
-}
-
-
-void SelectHttpAndHttpsURLs(const std::vector<Record856uEntry> &entries,
-                            std::unordered_set<std::string> * const http_urls)
-{
-    http_urls->clear();
-    for (auto const &entry : entries) {
-        if (IsHttpOrHttpsURL(entry.link_))
-            http_urls->insert(entry.link_);
-    }
-}
-
-
-void SelectNonHttpAndHttpsLinkEntries(const std::vector<Record856uEntry> &entries,
-                                      std::vector<Record856uEntry> * const non_http_link_entries)
-{
-    non_http_link_entries->clear();
-    for (auto const &entry : entries) {
-        if (not IsHttpOrHttpsURL(entry.link_))
-            non_http_link_entries->push_back(entry);
-    }
 }
 
 
@@ -338,65 +290,51 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) 
     unsigned count(0), modified_count(0);
     while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
-        std::vector<Record856uEntry> _856u_entries;
+
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
 	const std::vector<std::string> &fields(record.getFields());
-        for (unsigned i(0); i < dir_entries.size(); ++i) {
-            if (dir_entries[i].getTag() != "856")
-                continue;
-
-            std::vector<std::string> links;
-            Subfields _856_subfields(fields[i]);
-            if (_856_subfields.hasSubfield('u')) {
-                const std::pair<Subfields::ConstIterator, Subfields::ConstIterator> begin_end(
-                    _856_subfields.getIterators('u'));
-
-                for (Subfields::ConstIterator code_and_value(begin_end.first);
-                     code_and_value != begin_end.second; ++code_and_value)
-                {
-                    _856u_entries.push_back(Record856uEntry(i, code_and_value->second));
-                    break;
-                }
-            }
-        }
-
         bool modified_record(false);
-        if (not All856uLinksAreHttpOrHttpsLinks(_856u_entries)) {
-            std::unordered_set<std::string> http_urls;
-            SelectHttpAndHttpsURLs(_856u_entries, &http_urls);
-            std::vector<Record856uEntry> non_http_link_entries;
-            SelectNonHttpAndHttpsLinkEntries(_856u_entries, &non_http_link_entries);
-            for (const auto &non_http_link_entry : non_http_link_entries) {
-                bool is_suffix(false);
-                for (const auto &http_url : http_urls) {
-                    if (StringUtil::EndsWith(http_url, non_http_link_entry.link_)) {
-                        is_suffix = true;
-                        if (verbose)
-                            std::cout << "Deleting tag " << dir_entries[non_http_link_entry.index_].getTag()
-                                      << " with link \"" << fields[non_http_link_entry.index_]
-                                      << "\" because it is probably a duplicate of \"" << http_url << "\".\n";
-                        record.deleteField(non_http_link_entry.index_);
-                        modified_record = true;
-                        break;
-                    }
-                }
-                if (not is_suffix) { // Replace non a HTTP URL with an HTTP URL.
-                    Subfields subfields(fields[non_http_link_entry.index_]);
+	std::unordered_set<std::string> already_seen_links;
+        for (unsigned field_no(0); field_no < dir_entries.size(); /* Intentionally empty! */) {
+            if (dir_entries[field_no].getTag() != "856") {
+		++field_no;
+                continue;
+	    }
 
-                    std::string new_http_url;
-                    if (StringUtil::StartsWith(non_http_link_entry.link_, "urn:"))
-                        new_http_url = "https://nbn-resolving.org/" + non_http_link_entry.link_;
-                    else // Ever the optimist.
-                        new_http_url = "http://" + non_http_link_entry.link_;
-                    if (verbose)
-                        std::cout << "Replacing \"" << non_http_link_entry.link_ << "\" with \""
-                                  << new_http_url << "\".\n";
-                    subfields.replace('u', non_http_link_entry.link_, new_http_url);
+            Subfields _856_subfields(fields[field_no]);
+	    bool duplicate_link(false);
+            if (_856_subfields.hasSubfield('u')) {
+		const std::string u_subfield(_856_subfields.getFirstSubfieldValue('u'));
 
-                    record.updateField(non_http_link_entry.index_, subfields.toString());
-                    modified_record = true;
-                }
-            }
+		if (IsHttpOrHttpsURL(u_subfield)) {
+		    if (already_seen_links.find(u_subfield) == already_seen_links.cend())
+			already_seen_links.insert(u_subfield);
+		    else
+			duplicate_link = true;
+		} else {
+		    std::string new_http_replacement_link;
+		    if (StringUtil::StartsWith(u_subfield, "urn:"))
+			new_http_replacement_link = "https://nbn-resolving.org/" + u_subfield;
+		    else
+			new_http_replacement_link = "http://" + u_subfield;
+		    if (already_seen_links.find(new_http_replacement_link) == already_seen_links.cend()) {
+			_856_subfields.replace('u', u_subfield, new_http_replacement_link);
+			if (verbose)
+			    std::cout << "Replaced \"" << u_subfield << "\" with \"" << new_http_replacement_link
+				      << "\". (PPN: " << fields[0] << ")\n";
+			already_seen_links.insert(new_http_replacement_link);
+			modified_record = true;
+		    } else
+			duplicate_link = true;
+		}
+	    }
+
+	    if (not duplicate_link)
+		++field_no;
+	    else {
+		record.deleteField(field_no);
+		modified_record = true;
+	    }
         }
 
         if (modified_record)
