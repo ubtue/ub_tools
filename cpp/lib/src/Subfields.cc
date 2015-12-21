@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Subfields.h"
+#include <stdexcept>
 #include "util.h"
 
 
@@ -33,19 +34,19 @@ Subfields::Subfields(const std::string &field_data) {
     
     while (ch != field_data.end()) {
         if (*ch != '\x1F')
-            Error("Expected subfield code delimiter not found! Found " + std::string(1, *ch) + " in " + field_data
-                  + " indicators: " + std::string(1, indicator1_) + ", " + std::string(1, indicator2_));
+	    std::runtime_error("Expected subfield code delimiter not found! Found " + std::string(1, *ch) + " in " + field_data
+			       + " indicators: " + std::string(1, indicator1_) + ", " + std::string(1, indicator2_));
 
         ++ch;
         if (ch == field_data.end())
-            Error("Unexpected subfield data end while expecting a subfield code!");
+	    std::runtime_error("Unexpected subfield data end while expecting a subfield code!");
         const char subfield_code = *ch++;
 
         std::string subfield_data;
         while (ch != field_data.end() and *ch != '\x1F')
             subfield_data += *ch++;
         if (subfield_data.empty())
-            Error("Empty subfield for code '" + std::to_string(subfield_code) + "'!");
+            throw std::runtime_error("Empty subfield for code '" + std::to_string(subfield_code) + "'!");
 
         subfield_code_to_data_map_.insert(std::make_pair(subfield_code, subfield_data));
     }
@@ -85,8 +86,8 @@ void Subfields::replace(const char subfield_code, const std::string &old_value, 
     }
 
     if (not found)
-        Error("Unexpected: tried to replace \"" + old_value + "\" with \"" + new_value + "\" in subfield '"
-              + subfield_code + "' but did not find the original value!");
+        throw std::runtime_error("Unexpected: tried to replace \"" + old_value + "\" with \"" + new_value + "\" in subfield '"
+				 + subfield_code + "' but did not find the original value!");
 }
 
 
