@@ -58,7 +58,7 @@ public:
      *  \param  text_conversion_type  What kind, if any, of text conversion to apply on output.
      */
     explicit XmlWriter(File * const output_file, const unsigned indent_amount = 2,
-		       const TextConversionType text_conversion_type = ConvertFromIso8859_15);
+		       const TextConversionType text_conversion_type = NoConversion);
 
     /** \brief  Instantiate an XmlWriter object.
      *  \param  output_string    Where to write the generated XML to.
@@ -66,7 +66,7 @@ public:
      *  \param  text_conversion_type  What kind, if any, of text conversion to apply on output.
      */
     explicit XmlWriter(std::string * const output_string, const unsigned indent_amount = 2,
-		       const TextConversionType text_conversion_type = ConvertFromIso8859_15);
+		       const TextConversionType text_conversion_type = NoConversion);
 
     /** Destroyes an XmlWriter object, closing any still open tags. */
     ~XmlWriter() { closeAllTags(); }
@@ -76,21 +76,27 @@ public:
      *            ignored!
      */
     void addAttrib(const std::string &name, const std::string &value = "")
-    { next_attributes_.push_back(std::make_pair(name, value) ); }
+        { next_attributes_.push_back(std::make_pair(name, value) ); }
 
     /** Writes an open tag at the current indentation level. Uses the attributes queued up by calls to addAttrib(),
 	if any. */
-    void openTag(const std::string &tag_name);
+    void openTag(const std::string &tag_name, const bool suppress_newline = false);
 
     /**  Writes an open tag at the current indentation level. Does not use the attributes queued up by calls to
 	 addAttrib(). */
-    void openTag(const std::string &tag_name, const Attributes &attribs);
+    void openTag(const std::string &tag_name, const Attributes &attribs, const bool suppress_newline = false);
 
     /** \brief  Writes a closing tag at the approriate indentation level.
-     *  \param  tag_name  If empty, we close the last open tag otherwise we close tags until we find a tag that
-     *                    matches tag_name which we also close.
+     *  \param  tag_name         If empty, we close the last open tag otherwise we close tags until we find a tag that
+     *                           matches tag_name which we also close.
+     *  \param  suppress_indent  If true we don't emit any leading spaces o/w we indent to the previous indentation level.
      */
-    void closeTag(const std::string &tag_name = "");
+    void closeTag(const std::string &tag_name = "", const bool suppress_indent = false);
+
+    /** \brief  Writes a closing tag for the last open tag.
+     *  \param  suppress_indent  If true we don't emit any leading spaces o/w we indent to the previous indentation level.
+     */
+    void closeTag(const bool suppress_indent) { closeTag("", suppress_indent); }
 
     /** Calls closeTag() until all open tags are closed. */
     void closeAllTags();

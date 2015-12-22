@@ -71,7 +71,7 @@ std::string EscapeAttribValue(const std::string &value, const XmlWriter::TextCon
 } // unnamed namespace
 
 
-void XmlWriter::openTag(const std::string &tag_name) {
+void XmlWriter::openTag(const std::string &tag_name, const bool suppress_newline) {
     active_tags_.push(tag_name);
     indent();
     ++nesting_level_;
@@ -105,22 +105,22 @@ void XmlWriter::openTag(const std::string &tag_name) {
     }
 
     if (output_file_ != NULL)
-	*output_file_ << '>' << '\n';
+	*output_file_ << (suppress_newline ? ">" : ">\n");
     else
-	*output_string_ += ">\n";
+	*output_string_ += (suppress_newline ? ">" : ">\n");
 
     next_attributes_.clear();
 }
 
 
-void XmlWriter::openTag(const std::string &tag_name, const Attributes &attribs) {
+void XmlWriter::openTag(const std::string &tag_name, const Attributes &attribs, const bool suppress_newline) {
     next_attributes_.clear();
     next_attributes_ = attribs;
-    openTag(tag_name);
+    openTag(tag_name, suppress_newline);
 }
 
 
-void XmlWriter::closeTag(const std::string &tag_name) {
+void XmlWriter::closeTag(const std::string &tag_name, const bool suppress_indent) {
     std::string last_closed_tag;
     do {
 	if (unlikely(active_tags_.empty())) {
@@ -131,7 +131,8 @@ void XmlWriter::closeTag(const std::string &tag_name) {
 	}
 
 	--nesting_level_;
-	indent();
+	if (not suppress_indent)
+	    indent();
 	last_closed_tag = active_tags_.top();
 
 	if (output_file_ != NULL)
