@@ -114,7 +114,7 @@ public:
     FILE *getFilePointer() { return file_; }
 
     /** Returns the pathname of an open File or an empty string if the File is not open. */
-    std::string getPath() const { return path_; }
+    const std::string &getPath() const { return path_; }
 
     /** Returns a File's size in bytes. */
     off_t size() const;
