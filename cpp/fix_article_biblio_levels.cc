@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
 	Usage();
 
-    const bool verbose(std::strcmp(argv[1], "--verbose") != 0);
+    const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
 
     if (verbose and argc < 4 or not verbose and argc < 3)
 	Usage();
