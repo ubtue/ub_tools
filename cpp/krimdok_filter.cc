@@ -287,7 +287,7 @@ inline bool IsHttpOrHttpsURL(const std::string &url_candidate) {
 
 
 void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) {
-    unsigned count(0), modified_count(0);
+    unsigned count(0), modified_count(0), duplicate_skip_count(0);
     while (MarcUtil::Record record = MarcUtil::Record(input)) {
         ++count;
 
@@ -334,6 +334,9 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) 
 	    if (not duplicate_link)
 		++field_no;
 	    else {
+		++duplicate_skip_count;
+		if (verbose)
+		    std::cout << "Skipping duplicate, control numbers is " << fields[0] << ".\n";
 		record.deleteField(field_no);
 		modified_record = true;
 	    }
@@ -347,6 +350,7 @@ void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) 
 
     std::cerr << "Read " << count << " records.\n";
     std::cerr << "Modified " << modified_count << " record(s).\n";
+    std::cerr << "Skipped " << duplicate_skip_count << " duplicate links.\n";
 }
 
 
