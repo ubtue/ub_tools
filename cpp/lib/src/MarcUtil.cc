@@ -4,10 +4,10 @@
 #include <iterator>
 #include <memory>
 #include <stdexcept>
-#include "FileUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 // Creates a binary, a.k.a. "raw" representation of a MARC21 record.
@@ -82,8 +82,8 @@ static bool ReadFields(const std::string &raw_fields, const std::vector<Director
 namespace MarcUtil {
 
 
-Record::Record(FILE * const input) {
-    if (std::feof(input))
+Record::Record(File * const input) {
+    if (input->eof())
 	return; // Create an empty instance!
 
     //
@@ -92,12 +92,12 @@ Record::Record(FILE * const input) {
 
     char leader_buf[Leader::LEADER_LENGTH];
     ssize_t read_count;
-    const long record_start_pos(std::ftell(input));
-    if ((read_count = std::fread(leader_buf, sizeof leader_buf, 1, input)) != 1) {
+    const off_t record_start_pos(input->tell());
+    if ((read_count = input->read(leader_buf, sizeof leader_buf)) != sizeof leader_buf) {
 	if (read_count == 0)
 	    return;
         throw std::runtime_error("in MarcUtil::Record::Record: failed to read leader bytes from \""
-				 + FileUtil::GetFileName(input) + "\"! (read count was " + std::to_string(read_count)
+				 + input->getPath() + "\"! (read count was " + std::to_string(read_count)
 				 + ", record_start_pos was " + std::to_string(record_start_pos) + ")");
     }
 
@@ -118,7 +118,7 @@ Record::Record(FILE * const input) {
     const ssize_t directory_length(leader_.getBaseAddressOfData() - Leader::LEADER_LENGTH);
     char directory_buf[directory_length];
     #pragma GCC diagnostic warning "-Wvla"
-    if ((read_count = std::fread(directory_buf, 1, directory_length, input)) != directory_length)
+    if ((read_count = input->read(directory_buf, directory_length)) != directory_length)
         throw std::runtime_error("in MarcUtil::Record::Record: Short read for a directory or premature EOF!");
 
     if (not DirectoryEntry::ParseDirEntries(std::string(directory_buf, directory_length), &dir_entries_, &err_msg))
@@ -134,8 +134,7 @@ Record::Record(FILE * const input) {
     #pragma GCC diagnostic ignored "-Wvla"
     char raw_field_data[field_data_size];
     #pragma GCC diagnostic warning "-Wvla"
-    if ((read_count = std::fread(raw_field_data, 1, field_data_size, input))
-        != static_cast<ssize_t>(field_data_size))
+    if ((read_count = input->read(raw_field_data, field_data_size)) != static_cast<ssize_t>(field_data_size))
         throw std::runtime_error("in MarcUtil::Record::Record: Short read for field data or premature EOF! (Expected "
 				 + std::to_string(field_data_size) + " bytes, got "+ std::to_string(read_count) +" bytes.)");
 
@@ -525,12 +524,63 @@ size_t Record::findFieldsInLocalBlock(const std::string &field_tag, const std::s
 }
 
 
-void Record::write(FILE * const output) const {
+void Record::writeBinary(File * const output) const {
     const std::string &raw_record(getRawRecord());
 
-    const size_t write_count(std::fwrite(raw_record.data(), 1, raw_record.size(), output));
+    const size_t write_count(output->write(raw_record.data(), raw_record.size()));
     if (write_count != raw_record.size())
-        Error("Failed to write " + std::to_string(raw_record.size()) + " bytes to MARC output!");
+	throw std::runtime_error("Failed to write " + std::to_string(raw_record.size()) + " bytes to MARC output!");
+}
+
+
+void Record::writeXML(File * const output, XmlWriter * const xml_writer) const {
+    xml_writer->openTag("record");
+
+    xml_writer->openTag("leader", /* suppress_newline = */ true);
+    (*output) << leader_.toString();
+    xml_writer->closeTag(/* suppress_indent = */ true);
+
+    for (unsigned entry_no(0); entry_no < dir_entries_.size(); ++entry_no) {
+	const DirectoryEntry &dir_entry(dir_entries_[entry_no]);
+	if (dir_entry.isControlFieldEntry()) {
+	    xml_writer->openTag("controlfield", { std::make_pair("tag", dir_entry.getTag()) }, /* suppress_newline = */ true);
+	    (*xml_writer) << fields_[entry_no];
+	    xml_writer->closeTag(/* suppress_indent = */ true);
+	} else { // We have a data field.
+	    xml_writer->openTag("datafield",
+				{ std::make_pair("tag", dir_entry.getTag()),
+				  std::make_pair("ind1", std::string(1, fields_[entry_no][0])),
+				  std::make_pair("ind2", std::string(1, fields_[entry_no][1]))
+				});
+
+	    std::string::const_iterator ch(fields_[entry_no].cbegin() + 2 /* Skip over the indicators. */);
+    
+	    while (ch != fields_[entry_no].cend()) {
+		if (*ch != '\x1F')
+		    std::runtime_error("in Record::write: expected subfield code delimiter not found! Found "
+				       + std::string(1, *ch) + "! (Control number is " + fields_[0] + ".)");
+
+		++ch;
+		if (ch == fields_[entry_no].cend())
+		    std::runtime_error("in Record::write: unexpected subfield data end while expecting a subfield code!");
+		const std::string subfield_code(1, *ch++);
+
+		std::string subfield_data;
+		while (ch != fields_[entry_no].cend() and *ch != '\x1F')
+		    subfield_data += *ch++;
+		if (subfield_data.empty())
+		    throw std::runtime_error("in Record::write: empty subfield for code '" + subfield_code + "'!");
+
+		xml_writer->openTag("subfield", { std::make_pair("code", subfield_code) }, /* suppress_newline = */ true);
+		(*xml_writer) << subfield_data;
+		xml_writer->closeTag(/* suppress_indent = */ true);
+	    }
+
+	    xml_writer->closeTag(); // Close "datafield".
+	}
+    }
+
+    xml_writer->closeTag(); // Close "record".
 }
 
 
@@ -540,10 +590,18 @@ void Record::UpdateRawRecord() const {
 }
 
 
-bool ProcessRecords(FILE * const input, RecordFunc process_record, std::string * const err_msg) {
+Record Record::XmlFactory(File * const /*input*/) {
+    Leader leader;
+    std::vector<DirectoryEntry> dir_entries;
+    std::vector<std::string> fields;
+    return Record(leader, dir_entries, fields);
+}
+    
+
+bool ProcessRecords(File * const input, RecordFunc process_record, std::string * const err_msg) {
     err_msg->clear();
 
-    while (std::feof(input) == 0) {
+    while (not input->eof()) {
 	Record record(input);
         if (not (*process_record)(&record, err_msg))
             return false;
