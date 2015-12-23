@@ -95,12 +95,12 @@ public:
 	bool getAttribute(const std::string &attrib_name, std::string * const attrib_value) const;
     };
 public:
-    explicit XmlParser(const std::string &filename, const bool convert_to_iso8859_15 = true,
+    explicit XmlParser(const std::string &filename, const bool convert_to_iso8859_15 = false,
 		       unsigned notification_mask = EVERYTHING)
 	: filename_(filename.c_str()), memory_(nullptr), memory_size_(0),
 	  convert_to_iso8859_15_(convert_to_iso8859_15), notification_mask_(notification_mask),
 	  lineno_(1), current_xml_text_(nullptr) { }
-    XmlParser(const char * const memory, const size_t memory_size, const bool convert_to_iso8859_15 = true,
+    XmlParser(const char * const memory, const size_t memory_size, const bool convert_to_iso8859_15 = false,
 	      unsigned notification_mask = EVERYTHING)
 	: filename_(nullptr), memory_(memory), memory_size_(memory_size),
 	  convert_to_iso8859_15_(convert_to_iso8859_15), notification_mask_(notification_mask),
