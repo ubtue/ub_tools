@@ -31,7 +31,7 @@
 
 
 XmlWriter::XmlWriter(File * const output_file, const unsigned indent_amount, const TextConversionType text_conversion_type)
-    : output_file_(output_file), output_string_(NULL), indent_amount_(indent_amount), nesting_level_(0),
+    : output_file_(output_file), output_string_(nullptr), indent_amount_(indent_amount), nesting_level_(0),
       text_conversion_type_(text_conversion_type)
 {
     *output_file_ << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
@@ -40,7 +40,7 @@ XmlWriter::XmlWriter(File * const output_file, const unsigned indent_amount, con
 
 XmlWriter::XmlWriter(std::string * const output_string, const unsigned indent_amount,
 		     const TextConversionType text_conversion_type)
-    : output_file_(NULL), output_string_(output_string), indent_amount_(indent_amount), nesting_level_(0),
+    : output_file_(nullptr), output_string_(output_string), indent_amount_(indent_amount), nesting_level_(0),
       text_conversion_type_(text_conversion_type)
 {
     *output_string_ = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
@@ -76,35 +76,35 @@ void XmlWriter::openTag(const std::string &tag_name, const bool suppress_newline
     indent();
     ++nesting_level_;
 
-    if (output_file_ != NULL)
+    if (output_file_ != nullptr)
 	*output_file_ << '<' << tag_name;
     else
 	*output_string_ += "<" + tag_name;
     for (Attributes::const_iterator attrib(next_attributes_.begin()); attrib != next_attributes_.end(); ++attrib) {
-	if (output_file_ != NULL)
+	if (output_file_ != nullptr)
 	    *output_file_ << ' ' << attrib->first << '=' << '"';
 	else
 	    *output_string_ += " " + attrib->first + "=\"";
 
 	if (attrib->second.empty()) {
-	    if (output_file_ != NULL)
+	    if (output_file_ != nullptr)
 		*output_file_ << attrib->first;
 	    else
 		*output_string_ += attrib->first;
 	} else {
-	    if (output_file_ != NULL)
+	    if (output_file_ != nullptr)
 		*output_file_ << EscapeAttribValue(attrib->second, text_conversion_type_);
 	    else
 		*output_string_ += EscapeAttribValue(attrib->second, text_conversion_type_);
 	}
 
-	if (output_file_ != NULL)
+	if (output_file_ != nullptr)
 	    *output_file_ << '"';
 	else
 	    *output_string_ += '"';
     }
 
-    if (output_file_ != NULL)
+    if (output_file_ != nullptr)
 	*output_file_ << (suppress_newline ? ">" : ">\n");
     else
 	*output_string_ += (suppress_newline ? ">" : ">\n");
@@ -135,7 +135,7 @@ void XmlWriter::closeTag(const std::string &tag_name, const bool suppress_indent
 	    indent();
 	last_closed_tag = active_tags_.top();
 
-	if (output_file_ != NULL)
+	if (output_file_ != nullptr)
 	    *output_file_ << "</" << last_closed_tag << ">\n";
 	else
 	    *output_string_ += "</" + last_closed_tag + ">\n";
@@ -150,7 +150,7 @@ void XmlWriter::closeAllTags() {
 	--nesting_level_;
 	indent();
 
-	if (output_file_ != NULL)
+	if (output_file_ != nullptr)
 	    *output_file_ << "</" << active_tags_.top() << ">\n";
 	else
 	    *output_string_ += "</" + active_tags_.top() + ">\n";
@@ -161,7 +161,7 @@ void XmlWriter::closeAllTags() {
 
 
 void XmlWriter::indent() {
-    if (output_file_ != NULL)
+    if (output_file_ != nullptr)
 	*output_file_ << std::string(indent_amount_ * nesting_level_, ' ');
     else
 	*output_string_ += std::string(indent_amount_ * nesting_level_, ' ');
@@ -169,7 +169,7 @@ void XmlWriter::indent() {
 
 
 XmlWriter &XmlWriter::operator<<(const std::string &s) {
-    if (output_file_ != NULL)
+    if (output_file_ != nullptr)
 	*output_file_ << XmlWriter::XmlEscape(s, text_conversion_type_);
     else
 	*output_string_ += XmlWriter::XmlEscape(s, text_conversion_type_);
@@ -180,24 +180,24 @@ XmlWriter &XmlWriter::operator<<(const std::string &s) {
 
 XmlWriter &XmlWriter::operator<<(const char ch) {
     if (ch == '<') {
-	if (output_file_ != NULL)
+	if (output_file_ != nullptr)
 	    *output_file_ << "&lt;";
 	else
 	    *output_string_ += "&lt;";
     } else if (ch == '>') {
-	if (output_file_ != NULL)
+	if (output_file_ != nullptr)
 	    *output_file_ << "&gt;";
 	else
 	    *output_string_ += "&gt;";
     } else {
 	if (text_conversion_type_ == ConvertFromIso8859_15) {
 	    const char zero_terminated_string[] = { ch, '\0' };
-	    if (output_file_ != NULL)
+	    if (output_file_ != nullptr)
 		*output_file_ << StringUtil::ISO8859_15ToUTF8(std::string(zero_terminated_string));
 	    else
 		*output_string_ += StringUtil::ISO8859_15ToUTF8(std::string(zero_terminated_string));
 	} else {
-	    if (output_file_ != NULL)
+	    if (output_file_ != nullptr)
 		*output_file_ << ch;
 	    else
 		*output_string_ += ch;
@@ -209,7 +209,7 @@ XmlWriter &XmlWriter::operator<<(const char ch) {
 
 
 XmlWriter &XmlWriter::operator<<(const int i) {
-    if (output_file_ != NULL)
+    if (output_file_ != nullptr)
 	*output_file_ << i;
     else
 	*output_string_ += StringUtil::ToString(i);
@@ -219,7 +219,7 @@ XmlWriter &XmlWriter::operator<<(const int i) {
 
 
 XmlWriter &XmlWriter::operator<<(const unsigned u) {
-    if (output_file_ != NULL)
+    if (output_file_ != nullptr)
 	*output_file_ << u;
     else
 	*output_string_ += StringUtil::ToString(u);
@@ -229,7 +229,7 @@ XmlWriter &XmlWriter::operator<<(const unsigned u) {
 
 
 XmlWriter &XmlWriter::operator<<(const double d) {
-    if (output_file_ != NULL)
+    if (output_file_ != nullptr)
 	*output_file_ << d;
     else
 	*output_string_ += StringUtil::ToString(d);
@@ -239,7 +239,7 @@ XmlWriter &XmlWriter::operator<<(const double d) {
 
 
 XmlWriter &XmlWriter::indent(XmlWriter &xml_writer) {
-    if (xml_writer.output_file_ != NULL)
+    if (xml_writer.output_file_ != nullptr)
 	*xml_writer.output_file_ << std::string(xml_writer.indent_amount_ * xml_writer.nesting_level_, ' ');
     else
 	*xml_writer.output_string_ += std::string(xml_writer.indent_amount_ * xml_writer.nesting_level_, ' ');
@@ -249,7 +249,7 @@ XmlWriter &XmlWriter::indent(XmlWriter &xml_writer) {
 
 
 XmlWriter &XmlWriter::endl(XmlWriter &xml_writer) {
-    if (xml_writer.output_file_ != NULL)
+    if (xml_writer.output_file_ != nullptr)
 	xml_writer.output_file_->appendNewlineAndFlush();
     else
 	*xml_writer.output_string_ += '\n';
@@ -278,7 +278,7 @@ std::string XmlWriter::XmlEscape(const std::string &s, const TextConversionType 
 	else if (ch == '\'')
 	    escaped_string += "&apos;";
 	else if (additional and additional_escapes.find(ch) != std::string::npos)
-	    escaped_string += StringUtil::Format("&#%d;", ch);
+	    escaped_string += StringUtil::Format("&#%04d;", ch);
 	else
 	    escaped_string += ch;
     }
