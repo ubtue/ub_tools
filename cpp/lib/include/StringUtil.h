@@ -164,12 +164,12 @@ inline bool IsWhitespace(const char ch)
 bool IsWhitespace(const std::string &s);
 
 
-/** \brief  Converts an unsigned number to a hex characters.
- *  \param  u  An unsigned number that must be in the range [0..15].
- *  \return The hexadecimal character representation of u.
+/** \brief  Converts an unsigned number to a hex character.
+ *  \param  nibble  An unsigned number that must be in the range [0..15].
+ *  \return The hexadecimal character representation of nibble.
  *  \note   If "u" is not in the range [0..15] this function throws an exception.
  */
-char ToHex(const unsigned u);
+char ToHex(const unsigned nibble);
 
 
 /** \brief   Remove all occurences of a character from the end of a string.
