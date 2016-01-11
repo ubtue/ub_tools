@@ -1,4 +1,4 @@
-r#!/bin/bash
+#!/bin/bash
 #
 # $VUFIND_HOME and $VUFIND_LOCAL_DIR have to be set!
 #
