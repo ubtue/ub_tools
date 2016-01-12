@@ -94,3 +94,6 @@ for p in $(seq "$((P-1))"); do
     rm -f TitelUndLokaldaten-post-"$p"-"${date}".mrc
 done
 rm -f full_text.db
+
+echo "*** KRIMDOK MARC PIPELINE DONE ***"
+echo "*** KRIMDOK MARC PIPELINE DONE ***" >> "${log}"

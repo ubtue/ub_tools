@@ -111,3 +111,6 @@ for p in $(seq "$((P-1))"); do
     rm -f TitelUndLokaldaten-post-"$p"-"${date}".mrc
 done
 rm -f child_refs child_titles parent_refs
+
+echo "*** IXTHEO MARC PIPELINE DONE ***"
+echo "*** IXTHEO MARC PIPELINE DONE ***" >> "${log}"
