@@ -69,17 +69,6 @@ cp full_text.db /var/lib/tuelib/
 P=5
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
-fix_article_biblio_levels --verbose \
-                          TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
-                          TitelUndLokaldaten-post-phase"$P"-"${date}".mrc  >> "${log}" 2>&1
-fix_article_biblio_levels --verbose \
-                          ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-3))"-"${date}".mrc \
-                          ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc  >> "${log}" 2>&1
-
-# Phase 6:
-P=6
-echo "*** Phase $P ***"
-echo "*** Phase $P ***" >> "${log}"
 populate_in_tuebingen_available --verbose \
                                 TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
                                 TitelUndLokaldaten-post-phase"$P"-"${date}".mrc >> "${log}" 2>&1
@@ -87,8 +76,8 @@ populate_in_tuebingen_available --verbose \
                                 ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".mrc \
                                 ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".mrc >> "${log}" 2>&1
 
-# Phase 7:
-P=7
+# Phase 6:
+P=6
 echo "*** Phase $P ***"
 echo "*** Phase $P ***" >> "${log}"
 fix_article_biblio_levels --verbose \
