@@ -47,23 +47,23 @@ int main(int argc, char *argv[]) {
 	case SimpleXmlParser::UNINITIALISED:
 	    Error("we should never get here as UNINITIALISED should never be returned!");
 	case SimpleXmlParser::START_OF_DOCUMENT:
-	    std::cout << "START_OF_DOCUMENT()\n";
+	    std::cout << xml_parser.getLineNo() << ":START_OF_DOCUMENT()\n";
 	    break;
 	case SimpleXmlParser::END_OF_DOCUMENT:
 	    break;
 	case SimpleXmlParser::ERROR:
 	    Error("we should never get here because SimpleXmlParser::getNext() should have returned false!");
 	case SimpleXmlParser::OPENING_TAG:
-	    std::cout << "OPENING_TAG(" << data;
+	    std::cout << xml_parser.getLineNo() << ":OPENING_TAG(" << data;
 	    for (const auto &name_and_value : attrib_map)
 		std::cout << ' ' << name_and_value.first << '=' << name_and_value.second;
 	    std::cout << ")\n";
 	    break;
 	case SimpleXmlParser::CLOSING_TAG:
-	    std::cout << "CLOSING_TAG(" << data << ")\n";
+	    std::cout << xml_parser.getLineNo() << ":CLOSING_TAG(" << data << ")\n";
 	    break;
 	case SimpleXmlParser::CHARACTERS:
-	    std::cout << "CHARACTERS(" << data << ")\n";
+	    std::cout << xml_parser.getLineNo() << ":CHARACTERS(" << data << ")\n";
 	    break;
 	}
     }
