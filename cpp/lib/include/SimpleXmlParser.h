@@ -42,6 +42,10 @@ public:
     bool getNext(Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data);
 
     const std::string &getLastErrorMessage() const { return last_error_message_; }
+    unsigned getLineNo() const { return line_no_; }
+    File *getInputFile() const { return input_; }
+
+    static std::string TypeToString(const Type type);
 private:
     void skipWhiteSpace();
     bool extractName(std::string * const name);

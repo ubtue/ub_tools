@@ -32,27 +32,34 @@
 #       include <string>
 #       define STRING
 #endif
+#include "File.h"
 
 
 /** \class  FileLocker
  *  \brief  Provides advisory (i.e. requires cooperating processes) file locking.
  */
 class FileLocker {
-	const std::string filename_; /**< The file we're locking.  (Used for error messages). */
-	int lock_fd_;                /**< File descriptor for the file we're locking. */
+    const std::string filename_; /**< The file we're locking.  (Used for error messages). */
+    int lock_fd_;                /**< File descriptor for the file we're locking. */
 public:
-	enum LockType { READ_ONLY, WRITE_ONLY };
+    enum LockType { READ_ONLY, WRITE_ONLY };
 private:
-	LockType lock_type_;
+    LockType lock_type_;
 public:
-	/** \brief  Construct a FileLocker.  Blocks until we gain access.
-	 *  \param  filename   The file that we want to lock.
-	 *  \param  lock_type  The type of lock that we request.
-	 */
-	FileLocker(const std::string &filename, const LockType &lock_type);
+    /** \brief  Construct a FileLocker.  Blocks until we gain access.
+     *  \param  filename   The file that we want to lock.
+     *  \param  lock_type  The type of lock that we request.
+     */
+    FileLocker(const std::string &filename, const LockType &lock_type);
 
-	/** Unlocks our file. */
-	~FileLocker();
+    /** \brief  Construct a FileLocker.  Blocks until we gain access.
+     *  \param  file       The file that we want to lock.
+     *  \param  lock_type  The type of lock that we request.
+     */
+    FileLocker(File * const file, const LockType &lock_type): FileLocker(file->getPath(), lock_type) { }
+
+    /** Unlocks our file. */
+    ~FileLocker();
 };
 
 

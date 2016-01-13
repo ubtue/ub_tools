@@ -163,6 +163,8 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
 		last_error_message_ = "Error while parsing a closing tag on line " + std::to_string(line_no_) + "!";
 		return false;
 	    }
+
+	    last_type_ = *type = CLOSING_TAG;
 	} else { // An opening tag.
 	    input_->putback(ch);
 	
@@ -319,4 +321,17 @@ bool SimpleXmlParser::parseClosingTag(std::string * const tag_name) {
 
     skipWhiteSpace();
     return input_->get() == '>';
+}
+
+
+std::string SimpleXmlParser::TypeToString(const Type type) {
+    switch (type) {
+    case UNINITIALISED:     return "UNINITIALISED";
+    case START_OF_DOCUMENT: return "START_OF_DOCUMENT";
+    case END_OF_DOCUMENT:   return "END_OF_DOCUMENT";
+    case ERROR:             return "ERROR";
+    case OPENING_TAG:       return "OPENING_TAG";
+    case CLOSING_TAG:       return "CLOSING_TAG";
+    case CHARACTERS:        return "CHARACTERS";
+    }
 }

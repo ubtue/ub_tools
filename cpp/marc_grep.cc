@@ -29,11 +29,13 @@
 #include <utility>
 #include <vector>
 #include <cstring>
+#include <unistd.h>
 #include "Compiler.h"
 #include "DirectoryEntry.h"
 #include "Leader.h"
 #include "MarcQueryParser.h"
 #include "MarcUtil.h"
+#include "MediaTypeUtil.h"
 #include "Subfields.h"
 #include "util.h"
 
@@ -70,10 +72,10 @@ char help_text[] =
   "\n"
   "  Output label format:\n"
   "    label_format = matched_field_or_subfield | control_number | control_number_and_matched_field_or_subfield\n"
-  "                   | no_label | marc_binary | control_number_and_traditional\n"
+  "                   | no_label | marc_binary | marc_xml | control_number_and_traditional\n"
   "\n"
   "  The default output label is the control number followed by a colon followed by the matched field or \n"
-  "  subfield followed by a colon.  When the format is \"marc_binary\" entire records will always be copied.\n";
+  "  subfield followed by a colon.  When the formats are \"marc_binary\" or \"marc_xml\" entire records will always be copied.\n";
 
 
 void Usage() {
@@ -84,7 +86,7 @@ void Usage() {
 
 
 enum OutputLabel { MATCHED_FIELD_OR_SUBFIELD_ONLY, CONTROL_NUMBER_ONLY, CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD,
-                   TRADITIONAL, NO_LABEL, MARC_BINARY, CONTROL_NUMBER_AND_TRADITIONAL };
+                   TRADITIONAL, NO_LABEL, MARC_BINARY, MARC_XML, CONTROL_NUMBER_AND_TRADITIONAL };
 
 
 OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
@@ -100,6 +102,8 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
         return NO_LABEL;
     if (label_format_candidate == "marc_binary")
         return MARC_BINARY;
+    if (label_format_candidate == "marc_xml")
+        return MARC_XML;
     if (label_format_candidate == "control_number_and_traditional")
 	return CONTROL_NUMBER_AND_TRADITIONAL;
 
@@ -128,7 +132,8 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
         std::cout << contents << '\n';
         return;
     case MARC_BINARY:
-	Error("MARC_BINARY should never be passed into Emit(0!");
+    case MARC_XML:
+	Error("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
     case CONTROL_NUMBER_AND_TRADITIONAL:
         std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':'
 		  << StringUtil::Map(contents, '\x1F', '$') << '\n';
@@ -360,14 +365,28 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
 void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_desc,
                const OutputLabel output_format)
 {
-    FILE *input = std::fopen(input_filename.c_str(), "rbm");
-    if (input == nullptr)
+    const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
+    if (unlikely(media_type.empty()))
+	Error("can't determine media type of \"" + input_filename + "\"!");
+    if (media_type != "application/xml" and media_type != "application/marc")
+	Error("\"input_filename\" is neither XML nor MARC-21 data!");
+    const bool input_is_xml(media_type == "application/xml");
+
+    File input(input_filename, "rbm");
+    if (not input)
         Error("can't open \"" + input_filename + "\" for reading!");
 
+    File output(STDOUT_FILENO);
     std::string err_msg;
     unsigned count(0), matched_count(0);
 
-    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
+    std::unique_ptr<XmlWriter> xml_writer;
+    if (output_format == MARC_XML) {
+	xml_writer.reset(new XmlWriter(&output));
+	xml_writer->openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+    }
+
+    while (const MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(&input) : MarcUtil::Record(&input)) {
         ++count;
 
         if (query_desc.hasLeaderCondition()) {
@@ -399,7 +418,9 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
             ++matched_count;
 
 	    if (output_format == MARC_BINARY)
-		record.write(stdout);
+		record.write(&output);
+	    else if (output_format == MARC_XML)
+		record.write(xml_writer.get());
 	    else {
 		// Determine the control number:
 		const auto &control_number_iter(field_to_content_map.find("001"));
@@ -412,12 +433,13 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
 	}
     }
 
+    if (xml_writer != nullptr)
+	xml_writer->closeTag();
+
     if (not err_msg.empty())
         Error(err_msg);
     std::cerr << "Matched " << matched_count << (matched_count == 1 ? " record of " :  " records of ") << count
               << " overall records.\n";
-
-    std::fclose(input);
 }
 
 
@@ -427,12 +449,16 @@ int main(int argc, char *argv[]) {
     if (argc < 3 or argc > 4)
         Usage();
 
-    QueryDescriptor query_desc;
-    std::string err_msg;
-    if (not ParseQuery(argv[2], &query_desc, &err_msg))
-        Error("Query parsing failed: " + err_msg);
+    try {
+	QueryDescriptor query_desc;
+	std::string err_msg;
+	if (not ParseQuery(argv[2], &query_desc, &err_msg))
+	    Error("Query parsing failed: " + err_msg);
 
-    const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
-                                                 : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
-    FieldGrep(argv[1], query_desc, output_label);
+	const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
+	    : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
+	FieldGrep(argv[1], query_desc, output_label);
+    } catch (const std::exception &x) {
+	Error("caught exception: " + std::string(x.what()));
+    }
 }

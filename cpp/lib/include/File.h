@@ -220,6 +220,13 @@ public:
     /** Looks at the next character in the input stream without actually removing from the stream. May return EOF. */
     int peek() const;
 
+    /** Resets the file pointer to the beginning of the file. */
+    void rewind() {
+	if (unlikely(file_ == nullptr))
+	    throw std::runtime_error("in File::rewind: can't rewind a non-open file!");
+	std::rewind(file_);
+    }
+
     /** \brief  Skips over input characters.
      *  \param  max_skip_count  Up to how many characters to skip.
      *  \param  delimiter       Last character to skip.

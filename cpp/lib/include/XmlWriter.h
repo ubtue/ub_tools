@@ -71,19 +71,21 @@ public:
     /** Destroyes an XmlWriter object, closing any still open tags. */
     ~XmlWriter() { closeAllTags(); }
 
+    File *getFile() { return output_file_; }
+
     /** \brief    Adds another attribute to be used the next time the one-argument version of openTag() gets called.
      *  \warning  If the two-argument version of openTag() gets called all prior calls to this function will be
      *            ignored!
      */
-    void addAttrib(const std::string &name, const std::string &value = "")
+    void addAttribute(const std::string &name, const std::string &value = "")
         { next_attributes_.push_back(std::make_pair(name, value) ); }
 
-    /** Writes an open tag at the current indentation level. Uses the attributes queued up by calls to addAttrib(),
+    /** Writes an open tag at the current indentation level. Uses the attributes queued up by calls to addAttribute(),
 	if any. */
     void openTag(const std::string &tag_name, const bool suppress_newline = false);
 
     /**  Writes an open tag at the current indentation level. Does not use the attributes queued up by calls to
-	 addAttrib(). */
+	 addAttribute(). */
     void openTag(const std::string &tag_name, const Attributes &attribs, const bool suppress_newline = false);
 
     /** \brief  Writes a closing tag at the approriate indentation level.
