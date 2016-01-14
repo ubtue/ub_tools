@@ -474,11 +474,10 @@ void Record::write(XmlWriter * const xml_writer) const {
 
     for (unsigned entry_no(0); entry_no < dir_entries_.size(); ++entry_no) {
 	const DirectoryEntry &dir_entry(dir_entries_[entry_no]);
-	if (dir_entry.isControlFieldEntry()) {
-	    xml_writer->openTag("controlfield", { std::make_pair("tag", dir_entry.getTag()) }, /* suppress_newline = */ true);
-	    (*xml_writer) << fields_[entry_no];
-	    xml_writer->closeTag(/* suppress_indent = */ true);
-	} else { // We have a data field.
+	if (dir_entry.isControlFieldEntry())
+	    xml_writer->writeTagsWithData("controlfield", { std::make_pair("tag", dir_entry.getTag()) }, fields_[entry_no],
+					  /* suppress_newline = */ true);
+	else { // We have a data field.
 	    xml_writer->openTag("datafield",
 				{ std::make_pair("tag", dir_entry.getTag()),
 				  std::make_pair("ind1", std::string(1, fields_[entry_no][0])),
@@ -504,9 +503,8 @@ void Record::write(XmlWriter * const xml_writer) const {
 		    Warning("in Record::write: empty subfield for code '" + subfield_code + "'! (Control number is "
 			    + fields_[0] + ", tag is " + dir_entry.getTag() + ".)");
 
-		xml_writer->openTag("subfield", { std::make_pair("code", subfield_code) }, /* suppress_newline = */ true);
-		(*xml_writer) << subfield_data;
-		xml_writer->closeTag(/* suppress_indent = */ true);
+		xml_writer->writeTagsWithData("subfield", { std::make_pair("code", subfield_code) }, subfield_data,
+					      /* suppress_newline = */ true);
 	    }
 
 	    xml_writer->closeTag(); // Close "datafield".
