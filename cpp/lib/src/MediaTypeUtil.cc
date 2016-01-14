@@ -7,6 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
+ *  Copyright 2016 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -95,6 +96,41 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
     // 3. If the libmagic could not determine the document's MIME type, test for XML:
     if (media_type.empty() and document.size() > 5)
 	return std::strncmp(document.c_str(), "<?xml", 5) == 0 ? "text/xml" : "";
+
+    if (auto_simplify)
+	SimplifyMediaType(&media_type);
+
+    return media_type;
+}
+
+
+std::string GetFileMediaType(const std::string &filename, const bool auto_simplify) {
+    const magic_t cookie = ::magic_open(MAGIC_MIME);
+    if (unlikely(cookie == nullptr))
+	throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
+
+    // Load the default "magic" definitions file:
+    if (unlikely(::magic_load(cookie, nullptr /* use default magic file */) != 0)) {
+	::magic_close(cookie);
+	throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not load libmagic ("
+	                         + std::string(::magic_error(cookie)) + ").");
+    }
+
+    // Use magic to get the mime type of the buffer:
+    const char *magic_mime_type(::magic_file(cookie, filename.c_str()));
+    if (unlikely(magic_mime_type == nullptr)) {
+	::magic_close(cookie);
+	throw std::runtime_error("in MediaTypeUtil::GetFileMediaType: error in libmagic ("
+	                         + std::string(::magic_error(cookie)) + ").");
+    }
+
+    // Attempt to remove possible leading junk (no idea why libmagic behaves in this manner every now and then):
+    if (std::strncmp(magic_mime_type, "\\012- ", 6) == 0)
+	magic_mime_type += 6;
+
+    // Close the library:
+    std::string media_type(magic_mime_type);
+    ::magic_close(cookie);
 
     if (auto_simplify)
 	SimplifyMediaType(&media_type);

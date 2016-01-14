@@ -62,7 +62,7 @@ void ExtractDDCsFromField(const std::string &tag, const std::vector<DirectoryEnt
 }
 
 
-void ExtractDDCsFromNormdata(const bool verbose, FILE * const norm_input,
+void ExtractDDCsFromNormdata(const bool verbose, File * const norm_input,
 			     std::unordered_map<std::string, std::set<std::string>> * const norm_ids_to_ddcs_map)
 {
     norm_ids_to_ddcs_map->clear();
@@ -70,7 +70,7 @@ void ExtractDDCsFromNormdata(const bool verbose, FILE * const norm_input,
         std::cerr << "Starting loading of norm data.\n";
 
     unsigned count(0), ddc_record_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record(norm_input)) {
+    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(norm_input)) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -128,14 +128,14 @@ void ExtractTopicIDs(const std::string &tags, const MarcUtil::Record &record, co
 }
 
 
-void AugmentRecordsWithDDCs(const bool verbose, FILE * const title_input, FILE * const title_output,
+void AugmentRecordsWithDDCs(const bool verbose, File * const title_input, File * const title_output,
 			    const std::unordered_map<std::string, std::set<std::string>> &norm_ids_to_ddcs_map)
 {
     if (verbose)
         std::cerr << "Starting augmenting of data.\n";
 
     unsigned count(0), augmented_count(0), already_had_ddcs(0), never_had_ddcs_and_now_have_ddcs(0);
-    while (MarcUtil::Record record = MarcUtil::Record(title_input)) {
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(title_input)) {
         ++count;
 
 	// Extract already existing DDCs:
@@ -203,18 +203,18 @@ int main(int argc, char *argv[]) {
     }
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
-    FILE *title_input = std::fopen(title_input_filename.c_str(), "rbm");
-    if (title_input == nullptr)
+    File title_input(title_input_filename, "rm");
+    if (not title_input)
         Error("can't open \"" + title_input_filename + "\" for reading!");
 
     const std::string norm_input_filename(argv[verbose ? 3 : 2]);
-    FILE *norm_input = std::fopen(norm_input_filename.c_str(), "rbm");
-    if (norm_input == nullptr)
+    File norm_input(norm_input_filename, "rm");
+    if (not norm_input)
         Error("can't open \"" + norm_input_filename + "\" for reading!");
 
     const std::string title_output_filename(argv[verbose ? 4 : 3]);
-    FILE *title_output = std::fopen(title_output_filename.c_str(), "wb");
-    if (title_output == nullptr)
+    File title_output(title_output_filename, "w");
+    if (not title_output)
         Error("can't open \"" + title_output_filename + "\" for writing!");
 
     if (unlikely(title_input_filename == title_output_filename))
@@ -225,12 +225,9 @@ int main(int argc, char *argv[]) {
 
     try {
 	std::unordered_map<std::string, std::set<std::string>> norm_ids_to_ddcs_map;
-	ExtractDDCsFromNormdata(verbose, norm_input, &norm_ids_to_ddcs_map);
-	std::fclose(norm_input);
-	AugmentRecordsWithDDCs(verbose, title_input, title_output, norm_ids_to_ddcs_map);
+	ExtractDDCsFromNormdata(verbose, &norm_input, &norm_ids_to_ddcs_map);
+	AugmentRecordsWithDDCs(verbose, &title_input, &title_output, norm_ids_to_ddcs_map);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
-
-    std::fclose(title_input);
 }

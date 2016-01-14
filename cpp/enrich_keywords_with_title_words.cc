@@ -31,30 +31,21 @@ void Usage() {
 }
 
 
-void LoadStopwords(const bool verbose, FILE * const input, const std::string &language_code,
+void LoadStopwords(const bool verbose, File * const input, const std::string &language_code,
                    std::unordered_set<std::string> * const stopwords_set)
 {
     if (verbose)
         std::cout << "Starting loading of stopwords for language: " << language_code << "\n";
 
     unsigned count(0);
-    while (not std::feof(input)) {
-        char buf[1024];
-        if (std::fgets(buf, sizeof buf, input) == nullptr)
-            break;
-        if (buf[0] == '\0' or buf[0] == ';') // Empty or comment line?
+    while (not input->eof()) {
+	const std::string line(input->getline());
+	if (line.empty() or line[0] == ';') // Empty or comment line?
             continue;
 
-        size_t len(std::strlen(buf));
-        if (buf[len - 1] == '\n')
-            --len;
-
-        stopwords_set->insert(StringUtil::ToLower(std::string(buf, len)));
+        stopwords_set->insert(StringUtil::ToLower(line));
         ++count;
     }
-
-    if (std::ferror(input))
-        Error("Read error while trying to read the stopwords file.");
 
     if (verbose)
         std::cerr << "Read " << count << " stopwords.\n";
@@ -225,7 +216,7 @@ size_t ExtractAllKeywords(
 
 
 void ExtractStemmedKeywords(
-    const bool verbose, FILE * const input,
+    const bool verbose, File * const input,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
 {
@@ -233,7 +224,7 @@ void ExtractStemmedKeywords(
         std::cerr << "Starting extraction and stemming of pre-existing keywords.\n";
 
     unsigned total_count(0), records_with_keywords_count(0), keywords_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++total_count;
 
 	const size_t extracted_count(
@@ -276,7 +267,7 @@ constexpr auto MIN_SINGLE_STEMMED_KEYWORD_LENGTH(7);
 
 
 void AugmentRecordsWithTitleKeywords(
-    const bool verbose, FILE * const input, FILE * const output,
+    const bool verbose, File * const input, File * const output,
     const std::unordered_map<std::string, std::set<std::string>> &stemmed_keyword_to_stemmed_keyphrases_map,
     const std::unordered_map<std::string, std::string> &stemmed_keyphrases_to_unstemmed_keyphrases_map,
     const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
@@ -285,7 +276,7 @@ void AugmentRecordsWithTitleKeywords(
         std::cerr << "Starting augmentation of stopwords.\n";
 
     unsigned total_count(0), augmented_record_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++total_count;
 
 	// Look for a title...
@@ -401,13 +392,13 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[verbose ? 2 : 1]);
-    FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rm");
-    if (marc_input == nullptr)
+    File marc_input(marc_input_filename, "rm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[verbose ? 3 : 2]);
-    FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "wb");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     if (unlikely(marc_input_filename == marc_output_filename))
@@ -422,13 +413,12 @@ int main(int argc, char **argv) {
         if (not matcher->matched(stopwords_filename, &err_msg))
             Error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(stopwords_filename.length() - 3));
-        FILE *stopwords = std::fopen(stopwords_filename.c_str(), "rm");
-        if (stopwords == nullptr)
+        File stopwords(stopwords_filename, "rm");
+        if (not stopwords)
             Error("can't open \"" + stopwords_filename + "\" for reading!");
         std::unordered_set<std::string> stopwords_set;
-        LoadStopwords(verbose, stopwords, language_code, &stopwords_set);
+        LoadStopwords(verbose, &stopwords, language_code, &stopwords_set);
         language_codes_to_stopword_sets[language_code] = stopwords_set;
-        std::fclose(stopwords);
     }
 
     // We always need English because librarians suck at specifying English:
@@ -438,16 +428,12 @@ int main(int argc, char **argv) {
     try {
 	std::unordered_map<std::string, std::set<std::string>> stemmed_keyword_to_stemmed_keyphrases_map;
 	std::unordered_map<std::string, std::string> stemmed_keyphrases_to_unstemmed_keyphrases_map;
-	ExtractStemmedKeywords(verbose, marc_input, &stemmed_keyword_to_stemmed_keyphrases_map,
+	ExtractStemmedKeywords(verbose, &marc_input, &stemmed_keyword_to_stemmed_keyphrases_map,
 			       &stemmed_keyphrases_to_unstemmed_keyphrases_map);
 
-	std::rewind(marc_input);
-	AugmentRecordsWithTitleKeywords(verbose, marc_input, marc_output, stemmed_keyword_to_stemmed_keyphrases_map,
+	AugmentRecordsWithTitleKeywords(verbose, &marc_input, &marc_output, stemmed_keyword_to_stemmed_keyphrases_map,
 					stemmed_keyphrases_to_unstemmed_keyphrases_map, language_codes_to_stopword_sets);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
-
-    std::fclose(marc_input);
-    std::fclose(marc_output);
 }
