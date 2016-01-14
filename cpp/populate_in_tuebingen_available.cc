@@ -37,7 +37,7 @@ void Usage() {
 }
 
 
-static FILE *output_ptr;
+static File *output_ptr;
 static unsigned modified_record_count;
 static unsigned add_sig_count;
 
@@ -82,7 +82,7 @@ bool ProcessRecord(MarcUtil::Record * const record, std::string * const /*err_ms
 }
 
 
-void PopulateTheInTuebingenAvailableField(const bool verbose, FILE * const input, FILE * const output) {
+void PopulateTheInTuebingenAvailableField(const bool verbose, File * const input, File * const output) {
     output_ptr = output;
 
     std::string err_msg;
@@ -112,17 +112,14 @@ int main(int argc, char **argv) {
     }
 
     const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
-    FILE * const marc_input(std::fopen(marc_input_filename.c_str(), "rbm"));
-    if (marc_input == nullptr)
+    File marc_input(marc_input_filename, "rm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
-    FILE * const marc_output(std::fopen(marc_output_filename.c_str(), "wb"));
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "w");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
-    PopulateTheInTuebingenAvailableField(verbose, marc_input, marc_output);
-
-    std::fclose(marc_input);
-    std::fclose(marc_output);
+    PopulateTheInTuebingenAvailableField(verbose, &marc_input, &marc_output);
 }

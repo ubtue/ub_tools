@@ -60,9 +60,9 @@ bool RecordSerialControlNumbers(MarcUtil::Record * const record, std::string * c
 }
 
 
-void CollectSerials(const bool verbose, const std::vector<FILE *> &inputs) {
+void CollectSerials(const bool verbose, const std::vector<File *> &inputs) {
     std::string err_msg;
-    for (const auto &input : inputs) {
+    for (auto &input : inputs) {
 	if (not MarcUtil::ProcessRecords(input, RecordSerialControlNumbers, &err_msg))
 	    Error("error while looking for serials: " + err_msg);
     }
@@ -72,7 +72,7 @@ void CollectSerials(const bool verbose, const std::vector<FILE *> &inputs) {
 }
 
 
-static FILE *output_ptr;
+static File *output_ptr;
 static unsigned patch_count;
 
 
@@ -112,8 +112,7 @@ bool HasAtLeastOneSerialParent(const std::string &subfield_list, const MarcUtil:
 
 // Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is a serial.
 // Also writes all records to "output_ptr".
-bool PatchUpArticle(MarcUtil::Record * const record, std::string * const /*err_msg*/)
-{
+bool PatchUpArticle(MarcUtil::Record * const record, std::string * const /*err_msg*/) {
     Leader &leader(record->getLeader());
     if (leader[7] != 'a') {
 	record->write(output_ptr);
@@ -133,7 +132,7 @@ bool PatchUpArticle(MarcUtil::Record * const record, std::string * const /*err_m
 }
 
 
-void PatchUpSerialComponentParts(const bool verbose, FILE * const input, FILE * const output) {
+void PatchUpSerialComponentParts(const bool verbose, File * const input, File * const output) {
     output_ptr = output;
 
     std::string err_msg;
@@ -156,30 +155,29 @@ int main(int argc, char **argv) {
     if (verbose and argc < 4 or not verbose and argc < 3)
 	Usage();
 
-    std::vector<FILE *> marc_inputs;
+    std::vector<File *> marc_inputs;
     for (int arg_no(verbose ? 2 : 1); arg_no < (argc - 1) ; ++arg_no) {
 	const std::string marc_input_filename(argv[arg_no]);
-	FILE *marc_input(std::fopen(marc_input_filename.c_str(), "rbm"));
-	if (marc_input == nullptr)
+	File *marc_input = new File(marc_input_filename, "rbm");
+	if (not *marc_input)
 	    Error("can't open \"" + marc_input_filename + "\" for reading!");
 	marc_inputs.push_back(marc_input);
     }
 
     const std::string marc_output_filename(argv[argc - 1]);
-    FILE * const marc_output(std::fopen(marc_output_filename.c_str(), "wb"));
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "wb");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
 	CollectSerials(verbose, marc_inputs);
 
-	std::rewind(marc_inputs[0]);
-	PatchUpSerialComponentParts(verbose, marc_inputs[0], marc_output);
+	marc_inputs[0]->rewind();
+	PatchUpSerialComponentParts(verbose, marc_inputs[0], &marc_output);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
 
     for (const auto &marc_input : marc_inputs)
-	std::fclose(marc_input);
-    std::fclose(marc_output);
+	marc_input->close();
 }
