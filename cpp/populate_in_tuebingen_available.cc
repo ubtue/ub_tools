@@ -59,6 +59,23 @@ bool ProcessRecord(MarcUtil::Record * const record, std::string * const /*err_ms
             if (isil_subfield != "DE-21" and isil_subfield != "DE-21-110")
                 continue;
 
+	    std::string detailed_availability;
+	    std::vector <size_t> _866_field_indices;
+	    if (record->findFieldsInLocalBlock("866", "30", block_start_and_end, &_866_field_indices) > 0) {
+		for (const size_t _866_index : _866_field_indices) {
+		    const Subfields subfields2(fields[_866_index]);   
+		    const std::string subfield_a(subfields2.getFirstSubfieldValue('a'));
+		    if (not subfield_a.empty()) {
+			if (not detailed_availability.empty())
+			    detailed_availability += "; ";
+			detailed_availability += subfield_a;
+			const std::string subfield_z(subfields2.getFirstSubfieldValue('z'));
+			if (not subfield_z.empty())
+			    detailed_availability += " " + subfield_z;
+		    }
+		}
+	    }
+
             const std::string institution(isil_subfield == "DE-21" ? "UB: " : "IFK: ");
             if (_852_index + 1 < block_start_and_end.second) {
                 const Subfields subfields2(fields[_852_index + 1]);
@@ -67,7 +84,9 @@ bool ProcessRecord(MarcUtil::Record * const record, std::string * const /*err_ms
                     const std::string institution_and_call_number(institution + call_number_subfield);
                     ++add_sig_count;
                     modified_record = true;
-                    record->insertField("SIG", "  ""\x1F""a" + institution_and_call_number);
+                    record->insertField("SIG",
+					"  ""\x1F""a" + institution_and_call_number
+					+ (detailed_availability.empty() ? "" : "(" + detailed_availability + ")"));
                 }
             }
             break;
