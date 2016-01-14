@@ -386,7 +386,9 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
 	xml_writer->openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
     }
 
-    while (const MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(&input) : MarcUtil::Record(&input)) {
+    while (const MarcUtil::Record record =
+	       input_is_xml ? MarcUtil::Record::XmlFactory(&input) : MarcUtil::Record::BinaryFactory(&input))
+    {
         ++count;
 
         if (query_desc.hasLeaderCondition()) {
