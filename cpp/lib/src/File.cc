@@ -573,7 +573,7 @@ File &File::appendNewlineAndFlush() {
 
 
 File::const_iterator File::begin() const {
-    rewind(file_);
+    std::rewind(file_);
     return const_iterator(file_);
 }
 

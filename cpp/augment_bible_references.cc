@@ -136,21 +136,19 @@ const std::string BIB_REF_RANGE_TAG("801");
 const std::string BIB_BROWSE_TAG("802");
 
 
-void LoadBibleOrderMap(const bool verbose, FILE * const input,
+void LoadBibleOrderMap(const bool verbose, File * const input,
 		       std::unordered_map<std::string, std::string> * const bible_order_map)
 {
     if (verbose)
 	std::cerr << "Started loading of the bible-order map.\n";
 
-    char line_buf[1024];
     unsigned line_no(0);
-    while (std::fgets(line_buf, sizeof line_buf, input) != nullptr) {
+    while (not input->eof()) {
+	const std::string line(input->getline());
 	++line_no;
 
-	size_t line_length(std::strlen(line_buf));
-	if (line_length == 1)
+	if (line.empty())
 	    continue;
-	const std::string line(line_buf, line_length - 2 /* Do not include the trailing newline. */);
 	const size_t equal_pos(line.find('='));
 	if (equal_pos == std::string::npos)
 	    Error("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
@@ -474,7 +472,7 @@ void FindPericopes(const std::string &pericope_field, const std::string &book_na
 }
 
 
-void LoadNormData(const bool verbose, FILE * const norm_input,
+void LoadNormData(const bool verbose, File * const norm_input,
                   std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
                       gnd_codes_to_bible_ref_codes_map)
 {
@@ -491,7 +489,7 @@ void LoadNormData(const bool verbose, FILE * const norm_input,
     unsigned bible_book_code(0);
     std::unordered_map<std::string, std::string> bible_book_to_code_map;
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
-    while (const MarcUtil::Record record = MarcUtil::Record(norm_input)) {
+    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(norm_input)) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -650,7 +648,7 @@ bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record,
 }
 
 
-void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const output,
+void AugmentBibleRefs(const bool verbose, File * const input, File * const output,
                       const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
                           &gnd_codes_to_bible_ref_codes_map)
 {
@@ -658,7 +656,7 @@ void AugmentBibleRefs(const bool verbose, FILE * const input, FILE * const outpu
         std::cerr << "Starting augmentation of title records.\n";
 
     unsigned total_count(0), augment_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++total_count;
 
         // Make sure that we don't use a bible reference tag that is already in use for another
@@ -703,18 +701,18 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
-    FILE *title_input = std::fopen(title_input_filename.c_str(), "rbm");
-    if (title_input == nullptr)
+    File title_input(title_input_filename, "rm");
+    if (not title_input)
         Error("can't open \"" + title_input_filename + "\" for reading!");
 
     const std::string norm_input_filename(argv[verbose ? 3 : 2]);
-    FILE *norm_input(std::fopen(norm_input_filename.c_str(), "rbm"));
-    if (norm_input == nullptr)
+    File norm_input(norm_input_filename, "rm");
+    if (not norm_input)
         Error("can't open \"" + norm_input_filename + "\" for reading!");
 
     const std::string title_output_filename(argv[verbose ? 4 : 3]);
-    FILE *title_output(std::fopen(title_output_filename.c_str(), "wb"));
-    if (title_output == nullptr)
+    File title_output(title_output_filename, "w");
+    if (not title_output)
         Error("can't open \"" + title_output_filename + "\" for writing!");
 
     if (unlikely(title_input_filename == title_output_filename))
@@ -724,22 +722,18 @@ int main(int argc, char **argv) {
         Error("Norm data input file name equals title output file name!");
 
     const std::string bible_order_map_filename(argv[verbose ? 5 : 4]);
-    FILE *bible_order_map_file(std::fopen(bible_order_map_filename.c_str(), "rbm"));
-    if (bible_order_map_file == nullptr)
+    File bible_order_map_file(bible_order_map_filename, "rm");
+    if (not bible_order_map_file)
         Error("can't open \"" + bible_order_map_filename + "\" for reading!");
 
     try {
 	std::unordered_map<std::string, std::string> bible_order_map;
-	LoadBibleOrderMap(verbose, bible_order_map_file, &bible_order_map);
+	LoadBibleOrderMap(verbose, &bible_order_map_file, &bible_order_map);
 
 	std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_codes_to_bible_ref_codes_map;
-	LoadNormData(verbose, norm_input, &gnd_codes_to_bible_ref_codes_map);
-	AugmentBibleRefs(verbose, title_input, title_output, gnd_codes_to_bible_ref_codes_map);
+	LoadNormData(verbose, &norm_input, &gnd_codes_to_bible_ref_codes_map);
+	AugmentBibleRefs(verbose, &title_input, &title_output, gnd_codes_to_bible_ref_codes_map);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
-
-    std::fclose(title_input);
-    std::fclose(norm_input);
-    std::fclose(title_output);
 }

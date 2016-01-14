@@ -36,6 +36,13 @@ private:
     unsigned record_length_;
     unsigned base_address_of_data_;
 public:
+    Leader() = default;
+
+    Leader(Leader &&other) noexcept
+        : raw_leader_(std::move(other.raw_leader_)), record_length_(other.record_length_),
+          base_address_of_data_(other.base_address_of_data_) 
+        { other.record_length_ = 0; }
+
     /** \brief Creates a "Leader" instance from a binary MARC-21 leader blob.
      *  \param leader_string  The binary blob that should be a leader from a MARC-21 record.
      *  \param leader         Must be the address of a "Leader*" (pointer-to-Leader). ParseLeader will allocate a

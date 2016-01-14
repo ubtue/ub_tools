@@ -7,6 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
+ *  Copyright 2016 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -63,6 +64,17 @@ std::string GetHtmlMediaType(const std::string &document);
  *  fails it will test for XML by comparing the document's first five characters against "&lt;?xml".
  */
 std::string GetMediaType(const std::string &document, const bool auto_simplify = true);
+
+
+/** \brief  Get the media type of a document.
+ *  \param  filename       The file to analyse.
+ *  \param  auto_simplify  If "true", calls SimplifyMediaType() before returning the type.
+ *  \return The media type of the document, or an empty string if it is unknown.
+ *
+ *  This function will attempt to get the media type of the document, first by using GetHtmlMediaType, then by using libmagic, and, if that
+ *  fails it will test for XML by comparing the document's first five characters against "&lt;?xml".
+ */
+std::string GetFileMediaType(const std::string &filename, const bool auto_simplify = true);
 
 
 /** \brief  Get the media type of a Web document given its HTTP header and body.

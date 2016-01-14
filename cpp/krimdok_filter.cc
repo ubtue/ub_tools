@@ -91,12 +91,12 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
 
 void Filter(const std::string &input_filename, const std::string &output_filename,
             std::vector<std::string> &patterns, const bool verbose) {
-    FILE *input = std::fopen(input_filename.c_str(), "rb");
-    if (input == nullptr)
+    File input(input_filename, "rm");
+    if (not input)
         Error("can't open \"" + input_filename + "\" for reading!");
 
-    FILE *output = std::fopen(output_filename.c_str(), "wb");
-    if (output == nullptr)
+    File output(output_filename, "wb");
+    if (not output)
         Error("can't open \"" + output_filename + "\" for writing!");
 
     std::vector<CompiledPattern> compiled_patterns;
@@ -105,7 +105,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
         Error("Error while compiling patterns: " + err_msg);
 
     unsigned count(0), matched_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -125,7 +125,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     found:
         if (matched) {
             ++matched_count;
-	    record.write(output);
+	    record.write(&output);
         }
     }
 
@@ -133,19 +133,16 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
         Error(err_msg);
     std::cerr << "Read " << count << " records.\n";
     std::cerr << "Matched " << matched_count << " records.\n";
-
-    std::fclose(input);
-    std::fclose(output);
 }
 
 
 void DumpEditFormat(const std::string &input_filename, const std::string &output_filename) {
     std::ofstream output(output_filename);
-    if (!output)
+    if (not output)
         Error("can't open \"" + output_filename + "\" for writing!");
 
-    FILE *input = std::fopen(input_filename.c_str(), "rb");
-    if (input == nullptr)
+    File input(input_filename, "rm");
+    if (not input)
         Error("can't open \"" + input_filename + "\" for reading!");
 
     std::shared_ptr<Leader> leader;
@@ -153,7 +150,7 @@ void DumpEditFormat(const std::string &input_filename, const std::string &output
     std::vector<std::string> field_data;
     std::string err_msg;
     unsigned count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
         ++count;
 
         output << "=LDR  ....." << leader->toString().substr(5) << '\n';
@@ -177,8 +174,6 @@ void DumpEditFormat(const std::string &input_filename, const std::string &output
         Error(err_msg);
 
     std::cerr << "Read " << count << " records.\n";
-
-    std::fclose(input);
 }
 
 
@@ -226,7 +221,7 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
 
 
 void DeleteMatched(const std::string &tags_list, const std::vector<std::string> &patterns, const bool invert,
-                   FILE * const input, FILE * const output)
+                   File * const input, File * const output)
 {
     std::vector<CompiledPattern> compiled_patterns;
     std::string err_msg;
@@ -245,7 +240,7 @@ void DeleteMatched(const std::string &tags_list, const std::vector<std::string> 
     }
 
     unsigned count(0), modified_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
 
         bool matched(false);
@@ -286,9 +281,9 @@ inline bool IsHttpOrHttpsURL(const std::string &url_candidate) {
 }
 
 
-void NormaliseURLs(const bool verbose, FILE * const input, FILE * const output) {
+void NormaliseURLs(const bool verbose, File * const input, File * const output) {
     unsigned count(0), modified_count(0), duplicate_skip_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -428,27 +423,24 @@ int main(int argc, char **argv) {
     }
 
     const std::string input_filename(argv[0]);
-    FILE *input = std::fopen(input_filename.c_str(), "rb");
-    if (input == nullptr)
+    File input(input_filename, "rm");
+    if (not input)
         Error("can't open \"" + input_filename + "\" for reading!");
 
     const std::string output_filename(argv[1]);
-    FILE *output = std::fopen(output_filename.c_str(), "wb");
-    if (output == nullptr)
+    File output(output_filename, "w");
+    if (not output)
         Error("can't open \"" + output_filename + "\" for writing!");
 
     try {
 	if (bibliotheks_sigel_filtern) {
 	    std::vector<std::string> patterns = { "LOK:^.*[a]DE-21 *$|^.*[a]DE-21-24 *$|^.*[a]DE-21-110 *$" };
-	    DeleteMatched("LOK", patterns, /* invert = */ true, input, output);
+	    DeleteMatched("LOK", patterns, /* invert = */ true, &input, &output);
 	} else if (normalise_urls)
-	    NormaliseURLs(verbose, input, output);
+	    NormaliseURLs(verbose, &input, &output);
 	else
 	    Usage();
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
-
-    std::fclose(input);
-    std::fclose(output);
 }
