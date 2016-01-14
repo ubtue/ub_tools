@@ -470,10 +470,7 @@ void Record::write(File * const output) const {
 
 void Record::write(XmlWriter * const xml_writer) const {
     xml_writer->openTag("record");
-
-    xml_writer->openTag("leader", /* suppress_newline = */ true);
-    (*xml_writer->getFile()) << leader_.toString();
-    xml_writer->closeTag(/* suppress_indent = */ true);
+    xml_writer->writeTagsWithData("leader", leader_.toString(), /* suppress_newline = */ true);
 
     for (unsigned entry_no(0); entry_no < dir_entries_.size(); ++entry_no) {
 	const DirectoryEntry &dir_entry(dir_entries_[entry_no]);
