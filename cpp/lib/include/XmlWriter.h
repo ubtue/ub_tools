@@ -87,12 +87,12 @@ public:
     void openTag(const std::string &tag_name, const Attributes &attribs, const bool suppress_newline = false);
 
     /** Write character data. */
-    void write(std::string &characters) { (*output_file_) << characters; }
+    void write(std::string &characters) { (*this) << characters; }
 
     /** Write character data between an opening and closing tag pair. */
     void writeTagsWithData(const std::string &tag_name, const std::string &characters, const bool suppress_indent = false) {
 	openTag(tag_name, suppress_indent);
-	(*output_file_) << characters;
+	write(characters);
 	closeTag(tag_name, suppress_indent);
     }
 
@@ -101,7 +101,7 @@ public:
 			   const bool suppress_indent = false)
     {
 	openTag(tag_name, attribs, suppress_indent);
-	(*output_file_) << characters;
+	write(characters);
 	closeTag(tag_name, suppress_indent);
     }
 
