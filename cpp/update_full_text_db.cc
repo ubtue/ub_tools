@@ -40,6 +40,7 @@
 #include "Subfields.h"
 #include "util.h"
 #include "VuFind.h"
+#include "XmlWriter.h"
 
 
 static void Usage() __attribute__((noreturn));
@@ -204,7 +205,7 @@ bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std:
 
 
 // Returns true if text has been successfully extrcated, else false.
-bool ProcessRecord(FILE * const input, const std::string &marc_output_filename,
+bool ProcessRecord(File * const input, const std::string &marc_output_filename,
 		   const std::string &pdf_images_script, const std::string &db_filename)
 {
     MarcUtil::Record record(input);
@@ -262,11 +263,11 @@ bool ProcessRecord(FILE * const input, const std::string &marc_output_filename,
 
     // Safely append the modified MARC data to the MARC output file:
     FileLocker file_locker(marc_output_filename, FileLocker::WRITE_ONLY);
-    FILE * const marc_output(std::fopen(marc_output_filename.c_str(), "ab"));
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "ab");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for appending!");
-    record.write(marc_output);
-    std::fclose(marc_output);
+    XmlWriter xml_writer(&marc_output);
+    record.write(&xml_writer);
 
     return succeeded;
 }
@@ -298,18 +299,18 @@ int main(int argc, char *argv[]) {
 	Error("file offset must be a number!");
     
     const std::string marc_input_filename(argv[2]);
-    FILE * const marc_input(std::fopen(marc_input_filename.c_str(), "rb"));
-    if (marc_input == nullptr)
+    File marc_input(marc_input_filename, "rm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[3]);
 
-    if (std::fseek(marc_input, offset, SEEK_SET) == -1)
+    if (not marc_input.seek(offset, SEEK_SET))
 	Error("failed to position " + marc_input_filename + " at offset " + std::to_string(offset)
 	      + "! (" + std::to_string(errno) + ")");
 
     try {
-        return ProcessRecord(marc_input, marc_output_filename, GetPathToPdfImagesScript(argv[0]), argv[4])
+        return ProcessRecord(&marc_input, marc_output_filename, GetPathToPdfImagesScript(argv[0]), argv[4])
 	       ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));

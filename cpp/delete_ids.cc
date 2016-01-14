@@ -40,29 +40,22 @@ static void Usage() {
 }
 
 
-void ExtractDeletionIds(FILE *const deletion_list, std::unordered_set <std::string> *const title_deletion_ids,
+void ExtractDeletionIds(File *const deletion_list, std::unordered_set <std::string> * const title_deletion_ids,
                         std::unordered_set <std::string> *const local_deletion_ids) {
     unsigned line_no(0);
-    char line[100];
-    while (std::fgets(line, sizeof(line), deletion_list) != nullptr) {
+    while (not deletion_list->eof()) {
+	const std::string line(deletion_list->getline());
         ++line_no;
-        size_t line_length(std::strlen(line));
-        if (line_length < 13)
-            Error("short line in deletion list file: \"" + std::string(line) + "\"!");
-        if (line[line_length - 1] == '\n') {
-            line[line_length - 1] = '\0';
-            --line_length;
-        }
+        if (line.length() < 12)
+            Error("short line in deletion list file: \"" + line + "\"!");
         if (line[11] == 'A')
-            title_deletion_ids->insert(line + 12); // extract PPN
+            title_deletion_ids->insert(line.substr(12)); // extract PPN
         else if (line[11] == '9') {
-            if (line_length != 25)
+            if (line.length() != 25)
                 Error("unexpected line length for local entry on line " + std::to_string(line_no) + "!");
-            local_deletion_ids->insert(std::string(line).substr(12, 9)); // extract ELN
+            local_deletion_ids->insert(line.substr(12, 9)); // extract ELN
         }
     }
-
-    std::fclose(deletion_list);
 }
 
 
@@ -142,11 +135,11 @@ bool DeleteLocalSections(const std::vector<DirectoryEntry> &dir_entries, const s
 
 
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
-                    const std::unordered_set <std::string> &local_deletion_ids, FILE *const input,
-                    FILE *const output)
+                    const std::unordered_set <std::string> &local_deletion_ids, File *const input,
+                    File *const output)
 {
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++total_record_count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -175,9 +168,6 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Deleted " << deleted_record_count << " records.\n";
     std::cerr << "Modified " << modified_record_count << " records.\n";
-
-    std::fclose(input);
-    std::fclose(output);
 }
 
 
@@ -188,25 +178,25 @@ int main(int argc, char *argv[]) {
         Usage();
 
     const std::string deletion_list_filename(argv[1]);
-    FILE *deletion_list = std::fopen(deletion_list_filename.c_str(), "rb");
-    if (deletion_list == nullptr)
+    File deletion_list(deletion_list_filename, "rm");
+    if (not deletion_list)
         Error("can't open \"" + deletion_list_filename + "\" for reading!");
 
     std::unordered_set <std::string> title_deletion_ids, local_deletion_ids;
-    ExtractDeletionIds(deletion_list, &title_deletion_ids, &local_deletion_ids);
+    ExtractDeletionIds(&deletion_list, &title_deletion_ids, &local_deletion_ids);
 
     const std::string marc_input_filename(argv[2]);
-    FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rb");
-    if (marc_input == nullptr)
+    File marc_input(marc_input_filename, "rm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[3]);
-    FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "w");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
-        ProcessRecords(title_deletion_ids, local_deletion_ids, marc_input, marc_output);
+        ProcessRecords(title_deletion_ids, local_deletion_ids, &marc_input, &marc_output);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }

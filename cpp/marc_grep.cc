@@ -372,7 +372,7 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
 	Error("\"input_filename\" is neither XML nor MARC-21 data!");
     const bool input_is_xml(media_type == "application/xml");
 
-    File input(input_filename, "rbm");
+    File input(input_filename, input_is_xml ? "rm" : "rbm");
     if (not input)
         Error("can't open \"" + input_filename + "\" for reading!");
 

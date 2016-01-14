@@ -167,9 +167,13 @@ bool Record::recordSeemsCorrect(std::string * const err_msg) const {
     }
 
     if (raw_record_.length() > 99999) {
+	/*
         *err_msg = "record length (" + std::to_string(raw_record_.length())
                    + ") exceeds maxium legal record length (99999)!";
+	*/
         return false;
+	Warning("record length (" + std::to_string(raw_record_.length())                                                         
+		+ ") exceeds maxium legal record length (99999)!");
     }
 
     if (leader_.getBaseAddressOfData() <= Leader::LEADER_LENGTH) {
