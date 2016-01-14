@@ -45,7 +45,9 @@ void ProcessRecords(const bool input_is_xml, File * const input) {
     unsigned record_count(0), max_record_length(0), max_local_block_count(0);
     std::unordered_set<std::string> control_numbers;
 
-    while (const MarcUtil::Record record = (input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record(input))) {
+    while (const MarcUtil::Record record =
+	       input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
+    {
         ++record_count;
 
 	std::string err_msg;
