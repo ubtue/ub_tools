@@ -662,15 +662,19 @@ static void SkipOverStartOfDocument(SimpleXmlParser * const xml_parser) {
 }
 
 
+static std::map<File *, SimpleXmlParser *> file_to_parser_map;
+
+
 Record Record::XmlFactory(File * const input) {
-    static SimpleXmlParser *xml_parser;
-    static File *last_input;
-    if (unlikely(xml_parser == nullptr)) {
+    SimpleXmlParser *xml_parser;
+    const auto file_and_parser(file_to_parser_map.find(input));
+    if (file_and_parser != file_to_parser_map.cend())
+	xml_parser = file_and_parser->second;
+    else {
 	xml_parser = new SimpleXmlParser(input);
-	last_input = input;
+	file_to_parser_map.insert(std::make_pair(input, xml_parser));
 	SkipOverStartOfDocument(xml_parser);
-    } else if (unlikely(last_input != input))
-	throw std::runtime_error("in Record::XmlFactory: we can only read from a single file!");
+    }
 
     Leader leader;
     std::vector<DirectoryEntry> dir_entries;
