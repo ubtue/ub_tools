@@ -10,18 +10,15 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Created by quboo01 on 12.08.15.
- */
 public class SearchTests {
     private final static String URL_PATTERN = "http://ptah.ub.uni-tuebingen.de:8080/solr/biblio/select?q={!bibleRangeParser}%s&wt=xml&indent=true";
 
     public String search(String bibleRangeString) throws UnsupportedEncodingException {
         String url = String.format(URL_PATTERN, URLEncoder.encode(bibleRangeString, "UTF-8"));
-
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(50_000);
 
         try {
             URLConnection connection = new URL(url).openConnection();
@@ -41,13 +38,15 @@ public class SearchTests {
     @Test
     public void testSearch() throws UnsupportedEncodingException {
         String result = search("*");
-        assertTrue(result.contains(" numFound=\"23221\""));
+        assertEquals("23394", result.replaceAll(".*numFound=\"([0-9]*)\".*", "$1"));
     }
 
     @Test
     public void testJesusAndHisMother() throws UnsupportedEncodingException {
-        String result = search("2700320_2700321,2700331_2700335");
-        assertTrue(result.contains("numFound=\"1669\""));
-        assertTrue(result.contains("<str name=\"title\">Jesus and his mother according to Mk 3.20.21, 31-35 /</str>"));
+        String result = search("3000320_3000321,3000331_3000335");
+        System.out.println();
+        System.out.println();
+        assertEquals("1077", result.replaceAll(".*numFound=\"([0-9]*)\".*", "$1"));
+        assertTrue(result.contains("<str name=\"title\">Jesus and his mother according to Mk 3.20.21, 31-35</str>"));
     }
 }

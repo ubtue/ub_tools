@@ -7,6 +7,10 @@ import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
 
+import java.util.HashSet;
+import java.util.Set;
+
+
 public class BibleRangeParser extends QParser {
     private final static String QUERY_SEPARATOR = ",";
     private final static String DB_FIELD_SEPARATOR = ",";
@@ -25,23 +29,30 @@ public class BibleRangeParser extends QParser {
         }
     }
 
-    //*
-    // Tries to extract the book index of a search query.
-    // Then creates a query string only matching bible references starting with the book index.
-    // If no book index is found, only '*' will be returned.
-    //
-    // The first two digits of a range are the book index. 
-    // See /var/lib/tuelib/books_of_the_bible_to_code.map
-    //
-    // @param queryString The search string from user
-    // @return e.g. "/.*12[0-9]{5}.*/" (NB. the SOLR query parser anchors regular expressions at the
-    //         beginning and at the end) or "*"
-    //
+    /**
+     Tries to extract the book index of a search query.
+     Then creates a query string only matching bible references starting with the book index.
+     If no book index is found, only '*' will be returned.
+
+     The first two digits of a range are the book index.
+     See /var/lib/tuelib/books_of_the_bible_to_code.map
+     @param queryString The search string from user
+     @return e.g.  ".*(11|12|12|03)[0-9]{5}.*" (NB. the SOLR query parser anchors regular expressions at the
+             beginning and at the end) or "*"
+    */
     private String getBookPrefixQueryString(final String queryString) {
         if (queryString == null || queryString.length() < 2) {
             return "*";
         }
-        return "/.*" + queryString.substring(0, 2) + "[0-9]{5}.*/";
+        final String[] ranges = getFieldsFromQuery();
+        // Capacity of buffer: (number of ranges) times (two digits of book and one delimiter)
+        StringBuilder buffer = new StringBuilder(ranges.length * 3);
+        for(String range : ranges) {
+            buffer.append('|');
+            buffer.append(range.substring(0, 2));
+        }
+        final String bookRegex = "(" + buffer.toString().substring(1) + ")";
+        return "/.*" + bookRegex + "[0-9]{5}.*/";
     }
 
     @Override
