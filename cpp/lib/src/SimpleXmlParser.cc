@@ -168,9 +168,11 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
 	} else { // An opening tag.
 	    input_->putback(ch);
 	
-	    if (unlikely(not parseOpeningTag(data, attrib_map))) {
+	    std::string error_message;
+	    if (unlikely(not parseOpeningTag(data, attrib_map, &error_message))) {
 		last_type_ = *type = ERROR;
-		last_error_message_ = "Error while parsing an opening tag on line " + std::to_string(line_no_) + "!";
+		last_error_message_ = "Error while parsing an opening tag on line " + std::to_string(line_no_) + "! ("
+		                      + error_message + ")";
 		return false;
 	    }
 
@@ -182,7 +184,8 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
 
 	    if (unlikely(ch != '>')) {
 		last_type_ = *type = ERROR;
-		last_error_message_ = "Error while parsing a closing tag on line " + std::to_string(line_no_) + "!";
+		last_error_message_ = "Error while parsing a opening tag on line " + std::to_string(line_no_) + "! ("
+                                      "Closing angle bracket not found.)";
 		return false;
 	    }
 
@@ -198,7 +201,8 @@ void SimpleXmlParser::skipWhiteSpace() {
     while (not input_->eof()) {
 	const int ch(input_->get());
 	if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
-	    input_->putback(ch);
+	    if (unlikely(ch != EOF))
+		input_->putback(ch);
 	    return;
 	} else if (ch == '\n')
 	    ++line_no_;
@@ -250,8 +254,9 @@ bool SimpleXmlParser::parseProlog() {
 
     std::string prolog_tag_name;
     std::map<std::string, std::string> prolog_attrib_map;
-    if (not parseOpeningTag(&prolog_tag_name, &prolog_attrib_map)) {
-	last_error_message_ = "Error in prolog! (1)";
+    std::string error_message;
+    if (not parseOpeningTag(&prolog_tag_name, &prolog_attrib_map, &error_message)) {
+	last_error_message_ = "Error in prolog! (" + error_message + ")";
 	return false;
     }
 
@@ -263,7 +268,7 @@ bool SimpleXmlParser::parseProlog() {
 
     ch = input_->get();
     if (unlikely(ch != '>')) {
-	last_error_message_ = "Error in prolog! (3)";
+	last_error_message_ = "Error in prolog, closing angle bracket not found!";
 	return false;
     }
 
@@ -279,30 +284,43 @@ bool SimpleXmlParser::parseProlog() {
 }
 
 
-bool SimpleXmlParser::parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map) {
+bool SimpleXmlParser::parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
+				      std::string * const error_message)
+{
     attrib_map->clear();
+    error_message->clear();
 
-    if (unlikely(not extractName(tag_name)))
+    if (unlikely(not extractName(tag_name))) {
+	*error_message = "Failed to extract the tag name.";
 	return false;
+    }
     skipWhiteSpace();
 
     std::string attrib_name;
     while (extractName(&attrib_name)) {
-	if (unlikely(attrib_map->find(attrib_name) != attrib_map->cend())) // Duplicate attribute name?
+	if (unlikely(attrib_map->find(attrib_name) != attrib_map->cend())) { // Duplicate attribute name?
+	    *error_message = "Found a duplicate tag name.";
 	    return false;
+	}
 
 	skipWhiteSpace();
 	const int ch(input_->get());
-	if (unlikely(ch != '='))
+	if (unlikely(ch != '=')) {
+	    *error_message = "Could not find an equal sign as part of an attribute.";
 	    return false;
+	}
 
 	skipWhiteSpace();
 	const int quote(input_->get());
-	if (unlikely(quote != '"' and quote != '\''))
+	if (unlikely(quote != '"' and quote != '\'')) {
+	    *error_message = "Found neither a single- nor a double-quote starting an attribute value.";
 	    return false;
+	}
 	std::string attrib_value;
-	if (unlikely(not extractQuotedString(quote, &attrib_value)))
+	if (unlikely(not extractQuotedString(quote, &attrib_value))) {
+	    *error_message = "Failed to extract the attribute value.";
 	    return false;
+	}
 
 	(*attrib_map)[attrib_name] = attrib_value;
 

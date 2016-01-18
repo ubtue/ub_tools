@@ -51,7 +51,8 @@ private:
     bool extractName(std::string * const name);
     bool extractQuotedString(const int closing_quote, std::string * const s);
     bool parseProlog();
-    bool parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map);
+    bool parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
+			 std::string * const error_message);
     bool parseClosingTag(std::string * const tag_name);
 };
 
