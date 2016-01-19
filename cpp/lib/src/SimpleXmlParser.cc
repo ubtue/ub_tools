@@ -198,11 +198,12 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
 
 
 void SimpleXmlParser::skipWhiteSpace() {
-    while (not input_->eof()) {
+    for (;;) {
 	const int ch(input_->get());
+	if (unlikely(ch == EOF))
+	    return;
 	if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
-	    if (unlikely(ch != EOF))
-		input_->putback(ch);
+	    input_->putback(ch);
 	    return;
 	} else if (ch == '\n')
 	    ++line_no_;
