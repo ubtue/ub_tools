@@ -1,3 +1,22 @@
+/** \file   MarcUtil.cc
+ *  \brief  Implementation of various utility functions related to the processing of MARC-21 and MARC-XML records.
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *
+ *  \copyright 2014-2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 #include "MarcUtil.h"
 #include <algorithm>
 #include <iterator>
@@ -685,8 +704,10 @@ Record Record::XmlFactory(File * const input) {
     std::string data;
     while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
 	/* Intentionally empty! */;
-    if (unlikely(type == SimpleXmlParser::CLOSING_TAG and data == "collection"))
+    if (unlikely(type == SimpleXmlParser::CLOSING_TAG and data == "collection")) {
+	file_to_parser_map.erase(input); // This is necessary as we sometimes read "File" a 2nd time, after a rewind().
 	return Record(leader, dir_entries, fields);
+    }
 
     //
     // Now parse a <record>:
@@ -694,9 +715,14 @@ Record Record::XmlFactory(File * const input) {
 
     if (unlikely(type != SimpleXmlParser::OPENING_TAG or data !="record")) {
 	const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-	throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <record> tag expected while parsing \""
-				 + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "! (Found: "
-				 + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : ""));
+	if (type == SimpleXmlParser::ERROR)
+	    throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <record> tag expected while parsing \""
+				     + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "! ("
+				     + xml_parser->getLastErrorMessage() + ")");
+	else
+	    throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <record> tag expected while parsing \""
+				     + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "! (Found: "
+				     + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data + ")") : ")"));
     }
 
     ParseLeader(input->getPath(), &leader, xml_parser);
