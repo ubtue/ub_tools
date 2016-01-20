@@ -118,6 +118,7 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
 {
     XmlWriter xml_writer(output);
     unsigned count(0), records_with_ixtheo_notations(0), records_with_new_notations(0), skipped_group_count(0);
+    xml_writer.openTag("collection");
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
 
@@ -180,6 +181,7 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
 
 	record.write(&xml_writer);
     }
+    xml_writer.closeTag("collection");
 
     if (verbose) {
 	std::cerr << "Read " << count << " records.\n";

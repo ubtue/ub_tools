@@ -117,6 +117,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
     XmlWriter xml_writer(output);
     unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0),
              missing_isbn_or_issn_count(0);
+    xml_writer.openTag("collection");
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
 
@@ -175,6 +176,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
 
 	record.write(&xml_writer);
     }
+    xml_writer.closeTag("collection");
 
     if (verbose) {
         std::cerr << "Read " << count << " records.\n";
