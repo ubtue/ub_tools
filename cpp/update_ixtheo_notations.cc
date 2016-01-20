@@ -111,6 +111,7 @@ void ProcessRecords(File * const input, File * const output,
 {
     XmlWriter xml_writer(output);
     unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0);
+    xml_writer.openTag("collection");
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
 
@@ -141,6 +142,7 @@ void ProcessRecords(File * const input, File * const output,
 	    record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list);
 	record.write(&xml_writer);
     }
+    xml_writer.closeTag("collection");
 
     std::cerr << "Read " << count << " records.\n";
     std::cerr << records_with_ixtheo_notations << " records had ixTheo notations.\n";
