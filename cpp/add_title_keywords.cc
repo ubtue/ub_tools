@@ -99,6 +99,7 @@ void AugmentStopwordsWithTitleWords(
 
     XmlWriter xml_writer(output);
     unsigned total_count(0), augment_count(0), title_count(0);
+    xml_writer.openTag("collection");
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++total_count;
 
@@ -147,6 +148,7 @@ void AugmentStopwordsWithTitleWords(
 
         ++augment_count;
     }
+    xml_writer.closeTag("collection");
 
     if (verbose) {
         std::cerr << title_count << " records had titles in 245a.\n";
