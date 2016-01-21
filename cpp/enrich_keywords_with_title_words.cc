@@ -430,7 +430,7 @@ int main(int argc, char **argv) {
 	std::unordered_map<std::string, std::string> stemmed_keyphrases_to_unstemmed_keyphrases_map;
 	ExtractStemmedKeywords(verbose, &marc_input, &stemmed_keyword_to_stemmed_keyphrases_map,
 			       &stemmed_keyphrases_to_unstemmed_keyphrases_map);
-
+	marc_input.rewind();
 	AugmentRecordsWithTitleKeywords(verbose, &marc_input, &marc_output, stemmed_keyword_to_stemmed_keyphrases_map,
 					stemmed_keyphrases_to_unstemmed_keyphrases_map, language_codes_to_stopword_sets);
     } catch (const std::exception &x) {
