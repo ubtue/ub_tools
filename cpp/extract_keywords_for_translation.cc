@@ -49,7 +49,9 @@ void Usage() {
 static std::unordered_set<std::string> *shared_norm_data_control_numbers;
 
 
-bool RecordKeywordControlNumbers(MarcUtil::Record * const record, std::string * const /* err_msg */) {
+bool RecordKeywordControlNumbers(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
+				 std::string * const /* err_msg */)
+{
     std::vector<std::string> keyword_tags;
     StringUtil::Split("600:610:611:630:650:653:656", ':', &keyword_tags);
     const std::vector<std::string> &fields(record->getFields());
@@ -83,10 +85,10 @@ void ExtractKeywordNormdataControlNumbers(File * const marc_input,
 
     shared_norm_data_control_numbers = norm_data_control_numbers;
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(marc_input, RecordKeywordControlNumbers, &err_msg))
+    if (not MarcUtil::ProcessRecords(marc_input, RecordKeywordControlNumbers, nullptr, &err_msg))
 	Error("error while extracting keyword control numbers for \"" + marc_input->getPath() + "\": " + err_msg);
 
-    std::cerr << "Found " << (norm_data_control_numbers->size() - orig_size) << " new ord control numbers in "
+    std::cerr << "Found " << (norm_data_control_numbers->size() - orig_size) << " new keyword control numbers in "
 	      << marc_input->getPath() << '\n';
 }
 
@@ -95,7 +97,7 @@ static unsigned keyword_count, translation_count;
 static DbConnection *shared_connection;
 
 
-bool ExtractTranslations(MarcUtil::Record * const record, std::string * const /* err_msg */) {
+bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/, std::string * const /* err_msg */) {
     const std::vector<std::string> &fields(record->getFields());
     if (shared_norm_data_control_numbers->find(fields[0]) == shared_norm_data_control_numbers->cend())
 	return true; // Not one of the records w/ a keyword used in our title data.
@@ -154,14 +156,17 @@ bool ExtractTranslations(MarcUtil::Record * const record, std::string * const /*
 	DbResultSet max_id_result_set(shared_connection->getLastResultSet());
 	if (max_id_result_set.empty())
 	    id = "1";
-	else
-	    id = std::to_string(StringUtil::ToUnsigned(max_id_result_set.getNextRow()["id"]) + 1);
+	else {
+	    const std::string max_id(max_id_result_set.getNextRow()["MAX(id)"]); // Apparently SQL NULL can be  returned
+	                                                                         // which leads to an empty string here.
+	    id = std::to_string(max_id.empty() ? 1 : StringUtil::ToUnsigned(max_id) + 1);
+	}
     }
 
     // 2. Insert the terms in the various languages:
     for (const auto &text_and_language_code : text_and_language_codes) {
-	const std::string INSERT_STMT("INSERT IGNORE INTO translations id=" + id + ", language_code="
-				      + text_and_language_code.second + ", text=\"" + text_and_language_code.first + "\"");
+	const std::string INSERT_STMT("INSERT IGNORE INTO translations SET id=" + id + ", language_code=\""
+				      + text_and_language_code.second + "\", text=\"" + text_and_language_code.first + "\"");
 	if (not shared_connection->query(INSERT_STMT))
 	    Error("Insert failed: " + INSERT_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
     }
@@ -174,7 +179,7 @@ void ExtractTranslationTerms(File * const norm_data_input, DbConnection * const 
     shared_connection = connection;
 
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(norm_data_input, ExtractTranslations, &err_msg))
+    if (not MarcUtil::ProcessRecords(norm_data_input, ExtractTranslations, nullptr, &err_msg))
 	Error("error while extracting translations from \"" + norm_data_input->getPath() + "\": " + err_msg);
 
     std::cerr << "Added " << keyword_count << " to the translation database.\n";
