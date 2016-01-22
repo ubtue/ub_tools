@@ -173,7 +173,7 @@ using XmlRecordFunc = bool (&)(Record * const record, XmlWriter * const xml_writ
 // Each record read from "input" will be parsed and the directory entries and field data will be passed into
 // "process_record".  If "process_record" returns false, ProcessRecords will be aborted and the error message will
 // be passed up to the caller.
-bool ProcessRecords(File * const input, XmlRecordFunc process_record, std::string * const err_msg);
+bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer, std::string * const err_msg);
 
 
 } // namespace MarcUtil
