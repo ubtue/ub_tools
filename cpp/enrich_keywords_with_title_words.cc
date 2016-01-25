@@ -277,6 +277,7 @@ void AugmentRecordsWithTitleKeywords(
 
     XmlWriter xml_writer(output);
     unsigned total_count(0), augmented_record_count(0);
+    xml_writer.openTag("collection");
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++total_count;
 
@@ -375,6 +376,7 @@ void AugmentRecordsWithTitleKeywords(
 	record.write(&xml_writer);
         ++augmented_record_count;
     }
+    xml_writer.closeTag("collection");
 
     if (verbose)
         std::cerr << augmented_record_count << " records of " << total_count
