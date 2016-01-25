@@ -683,7 +683,7 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
             record.insertField(BIB_REF_RANGE_TAG, range_string);
         }
 
-	record.write(output);
+	record.write(&xml_writer);
     }
     xml_writer.closeTag("collection");
 
