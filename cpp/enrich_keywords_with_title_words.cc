@@ -275,7 +275,9 @@ void AugmentRecordsWithTitleKeywords(
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
+    XmlWriter xml_writer(output);
     unsigned total_count(0), augmented_record_count(0);
+    xml_writer.openTag("collection");
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++total_count;
 
@@ -283,7 +285,7 @@ void AugmentRecordsWithTitleKeywords(
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
         if (entry_iterator == dir_entries.end()) {
-            record.write(output);
+            record.write(&xml_writer);
             continue;
         }
 
@@ -292,7 +294,7 @@ void AugmentRecordsWithTitleKeywords(
 	const std::vector<std::string> &fields(record.getFields());
         Subfields subfields(fields[title_index]);
         if (not subfields.hasSubfield('a')) {
-            record.write(output);
+            record.write(&xml_writer);
             continue;
         }
 	std::string title;
@@ -317,7 +319,7 @@ void AugmentRecordsWithTitleKeywords(
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-            record.write(output);
+            record.write(&xml_writer);
             continue;
         }
 
@@ -361,7 +363,7 @@ void AugmentRecordsWithTitleKeywords(
 	}
 
         if (new_keyphrases.empty()) {
-            record.write(output);
+            record.write(&xml_writer);
             continue;
         }
 
@@ -371,9 +373,10 @@ void AugmentRecordsWithTitleKeywords(
 	    record.insertField("601", field_contents);
 	}
 
-	record.write(output);
+	record.write(&xml_writer);
         ++augmented_record_count;
     }
+    xml_writer.closeTag("collection");
 
     if (verbose)
         std::cerr << augmented_record_count << " records of " << total_count
