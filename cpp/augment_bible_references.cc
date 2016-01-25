@@ -655,7 +655,9 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
     if (verbose)
         std::cerr << "Starting augmentation of title records.\n";
 
+    XmlWriter xml_writer(output);
     unsigned total_count(0), augment_count(0);
+    xml_writer.openTag("collection");
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++total_count;
 
@@ -683,6 +685,7 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
 
 	record.write(output);
     }
+    xml_writer.closeTag("collection");
 
     if (verbose)
         std::cerr << "Augmented the " << BIB_REF_RANGE_TAG << "$a field of " << augment_count
