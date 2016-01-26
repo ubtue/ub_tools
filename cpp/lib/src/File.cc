@@ -99,7 +99,7 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 	} else if (unlikely(std::strchr(mode.c_str(), 'm') != nullptr)) {
 	    if (throw_on_error_behaviour != THROW_ON_ERROR)\
 		return;
-	    throw std::runtime_error("in File::File: open mode contains a 'u' and an 'm'!");
+	    throw std::runtime_error("in File::File: open mode contains a 'u' and an 'm' which are incompatible!");
 	} else {
 	    // Remove the 'u'.
 	    const size_t u_pos(mode.find('u'));
@@ -133,7 +133,7 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 	} else if (unlikely(std::strchr(mode.c_str(), 'm') != nullptr)) {
 	    if (throw_on_error_behaviour != THROW_ON_ERROR)\
 		return;
-	    throw std::runtime_error("in File::File: open mode contains a 'c' and an 'm'!");
+	    throw std::runtime_error("in File::File: open mode contains a 'c' and an 'm' which are incompatible!");
 	} else {
 	    // Remove the 'c':
 	    const size_t c_pos(mode.find('c'));
@@ -436,6 +436,8 @@ bool File::deserialize(bool * const b) {
 bool File::seek(const off_t offset, const int whence) {
     if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::seek: can't seek on non-open file \"" + path_ + "\"!");
+    if (unlikely(not fifo_path_.empty()))
+	throw std::runtime_error("in File::seek: can't seek on a file that was opened with a 'u' or 'c' mode!");
 
     return ::fseeko(file_, offset, whence) == 0;
 }
