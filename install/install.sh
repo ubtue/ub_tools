@@ -25,7 +25,7 @@ CONFIG_FILE     A config file for this installation.
 EOF
 }
 
-VERBOSE=false
+VERBOSE=""
 CONFIG_FILE=""
 
 if [ "$#" -ne 1 ] || [ "$#" -eq 2 ] && [ "$1" != "-v" ] ; then
@@ -97,17 +97,6 @@ if [[ "$VERBOSE" ]] ; then
   echo "create_user.sh $USER_NAME $USER_GROUP"
 fi
 "$SCRIPT_DIR/create_user.sh" "$USER_NAME" "$USER_GROUP"
-
-##############################################################################
-# Setup mysql database
-##############################################################################
-
-if [[ "$VERBOSE" ]] ; then
-  echo ""
-  echo ""
-  echo "create_mysql.sh PASSWORD PASSWORD"
-fi
-"$SCRIPT_DIR/create_mysql.sh" "$ROOT_PASSWORD" "$VUFIND_PASSWORD"
 
 ##############################################################################
 # Clone repositories
@@ -298,6 +287,18 @@ if [[ "$VERBOSE" ]] ; then
   echo "make_install_ub_tools.sh"
 fi
 "$SCRIPT_DIR/make_install_ub_tools.sh"
+
+
+##############################################################################
+# Setup mysql database
+##############################################################################
+
+if [[ "$VERBOSE" ]] ; then
+  echo ""
+  echo ""
+  echo "create_mysql.sh PASSWORD PASSWORD"
+fi
+"$SCRIPT_DIR/create_mysql.sh" "$ROOT_PASSWORD" "$VUFIND_PASSWORD"
 
 ##############################################################################
 # start server
