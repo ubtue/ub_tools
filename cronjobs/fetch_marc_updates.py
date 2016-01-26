@@ -21,8 +21,10 @@ directory_on_ftp_server = /001
 [Loeschlisten]
 filename_pattern = LOEPPN-(\d\d\d\d\d\d)
 directory_on_ftp_server = /sekkor
-"""
 
+[Kumulierte Abzuege]
+output_directory = /tmp
+"""
 
 from __future__ import print_function
 from ftplib import FTP
@@ -32,7 +34,7 @@ import sys
 import time
 import traceback
 import util
-
+import shutil
 
 def Login(ftp_host, ftp_user, ftp_passwd):
     try:
@@ -113,6 +115,23 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
         return None
 
 
+def AddToCumulativeCollection(downloaded_file, config):
+    try:
+       output_directory = config.get("Kumulierte Abzuege", "output_directory")
+    except Exception as e:
+        util.Error("Extracting output directory failed! (" + str(e) + ")")
+    if not os.path.exists(output_directory):
+        try:
+            os.makedirs(output_directory)
+        except Exception as e:
+            util.Error("Unable to create output directory! (" + str(e) + ")")
+    try:
+        shutil.copy(downloaded_file, output_directory)
+    except Exception as e:
+        util.Error("Adding file to cumulative collection failed! (" + str(e) + ")")
+    return None;
+
+
 def Main():
     util.default_email_sender = "fetch_marc_updates@ub.uni-tuebingen.de"
     if len(sys.argv) != 2:
@@ -131,7 +150,7 @@ def Main():
     ftp = Login(ftp_host, ftp_user, ftp_passwd)
     msg = ""
     for section in config.sections():
-        if section == "FTP" or section == "SMTPServer":
+        if section == "FTP" or section == "SMTPServer" or section == "Kumulierte Abzuege":
             continue
 
         print("Processing section " + section)
@@ -151,6 +170,7 @@ def Main():
             msg += "No more recent file for pattern \"" + filename_pattern + "\"!\n"
         else:
             msg += "Successfully downloaded \"" + downloaded_file + "\".\n"
+            AddToCumulativeCollection(downloaded_file, config)
     util.SendEmail("BSZ File Update", msg)
 
 
