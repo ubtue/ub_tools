@@ -27,7 +27,7 @@
 
 
 __attribute__((noreturn)) void Usage() {
-    std::cerr << "usage: " << ::progname << " filename\n";
+    std::cerr << "usage: " << ::progname << " [--no-simplify] filename\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -36,10 +36,17 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     try {
-	if (argc != 2)
+	if (argc != 2 and argc != 3)
 	    Usage();
 
-	std::cout << MediaTypeUtil::GetFileMediaType(argv[1]) << '\n';
+	bool simplify(true);
+	if (argc == 3) {
+	    if (std::strcmp(argv[1], "--no-simplify") != 0)
+		Usage();
+	    simplify = false;
+	}
+
+	std::cout << MediaTypeUtil::GetFileMediaType(argv[argc == 2 ? 1 : 2], simplify) << '\n';
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
