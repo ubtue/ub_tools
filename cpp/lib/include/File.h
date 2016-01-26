@@ -234,6 +234,8 @@ public:
     void rewind() {
 	if (unlikely(file_ == nullptr))
 	    throw std::runtime_error("in File::rewind: can't rewind a non-open file!");
+	if (unlikely(not fifo_path_.empty()))
+	    throw std::runtime_error("in File::rewind: can't rewind a file that was opened with a 'c' or 'u' flag!");
 	std::rewind(file_);
     }
 
