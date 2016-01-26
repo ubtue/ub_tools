@@ -114,7 +114,14 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 		throw std::runtime_error("in File::File: mkfifo(3) of \"" + fifo_path_ + "\" failed! ("
 					 + std::string(::strerror(errno)) + ")");
 	    }
-	    fifo_process_pid_ = ExecUtil::Spawn(GUNZIP_PATH, { }, /* new_stdin = */ path, /* new_stdout = */ fifo_path_);
+
+	    // Create a process that reads the FIFO and decompresses the data:
+	    if (ExecUtil::Spawn(GUNZIP_PATH, { }, /* new_stdin = */ path, /* new_stdout = */ fifo_path_) < 0) {
+		if (throw_on_error_behaviour != THROW_ON_ERROR)\
+		    return;
+		throw std::runtime_error("in File::File: failed to spawn \"" + GUNZIP_PATH +"\"!");
+	    }
+
 	    file_ = ::fopen(fifo_path_.c_str(), mode_.c_str());
 	}
 
@@ -141,7 +148,14 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 		throw std::runtime_error("in File::File: mkfifo(3) of \"" + fifo_path_ + "\" failed! ("
 					 + std::string(::strerror(errno)) + ")");
 	    }
-	    fifo_process_pid_ = ExecUtil::Spawn(GZIP_PATH, { "-9" }, /* new_stdin = */ fifo_path_, /* new_stdout = */ path);
+
+	    // Create a process that reads the FIFO and compresses the data:
+	    if (ExecUtil::Spawn(GZIP_PATH, { "-9" }, /* new_stdin = */ fifo_path_, /* new_stdout = */ path) < 1) {
+		if (throw_on_error_behaviour != THROW_ON_ERROR)\
+		    return;
+		throw std::runtime_error("in File::File: failed to spawn \"" + GUNZIP_PATH +"\"!");
+	    }
+
 	    file_ = ::fopen(fifo_path_.c_str(), mode_.c_str());
 	}
 

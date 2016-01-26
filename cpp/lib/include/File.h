@@ -51,7 +51,6 @@ class File {
     FILE *file_;
     std::string path_;
     std::string fifo_path_;
-    pid_t fifo_process_pid_;
     std::string mode_;
     aiocb read_control_block_, write_control_block_;
     int precision_;
