@@ -35,6 +35,7 @@
 #include <climits>
 #include <cstdio>
 #include <aio.h>
+#include <sys/types.h>
 #include "Compiler.h"
 #include "ThreadUtil.h"
 
@@ -49,6 +50,7 @@
 class File {
     FILE *file_;
     std::string path_;
+    std::string fifo_path_;
     std::string mode_;
     aiocb read_control_block_, write_control_block_;
     int precision_;
@@ -87,7 +89,10 @@ public:
 
     /** \brief  Creates and initalises a File object.
      *  \param  path                       The pathname for the file (see fopen(3) for details).
-     *  \param  mode                       The open mode (see fopen(3) for details).
+     *  \param  mode                       The open mode (see fopen(3) for details).  An extension to the fopen modes
+     *                                     are either "c" or "u".  "c" meaning "compress" can only be combined with "w"
+     *                                     and "u" meaning "uncompress" with "r".  Using either flag makes seeking or
+     *                                     rewinding impossible.
      *  \param  throw_on_error_behaviour   If true, any open failure will cause an exception to be thrown.  If not true
      *                                     you must use the fail() member function.
      *  \param  delete_on_close_behaviour  Determines if "path" will be deleted on close or not.
@@ -206,6 +211,11 @@ public:
     /** Returns the next character from the input stream or EOF at the end of the input stream. */
     int get();
 
+    /** \brief Write a character. */
+    int put(const char ch) {
+	return std::fputc(ch, file_);
+    }
+
     void putback(const char ch);
 
     /** \brief  Read some data from a file.
@@ -224,6 +234,8 @@ public:
     void rewind() {
 	if (unlikely(file_ == nullptr))
 	    throw std::runtime_error("in File::rewind: can't rewind a non-open file!");
+	if (unlikely(not fifo_path_.empty()))
+	    throw std::runtime_error("in File::rewind: can't rewind a file that was opened with a 'c' or 'u' flag!");
 	std::rewind(file_);
     }
 
