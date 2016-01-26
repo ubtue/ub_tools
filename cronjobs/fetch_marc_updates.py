@@ -114,8 +114,8 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
     else:
         return None
 
-# Cumulatively saves downloaded data to external location to have complete trace of 
-# downloaded data. Thus, a complete data should be resconstructible  
+# Cumulatively saves downloaded data to an external location to have complete trace of 
+# downloaded data. Thus, the complete data should be resconstructible  
 def AddToCumulativeCollection(downloaded_file, config):
     try:
        output_directory = config.get("Kumulierte Abzuege", "output_directory")
@@ -136,20 +136,18 @@ def AddToCumulativeCollection(downloaded_file, config):
 def CumulativeFilenameGenerator(output_directory):
      return os.listdir(output_directory)
 
-# We try to keep all differential update up to the last complete data
+# We try to keep all differential updates up and including the last complete data
 
 def CleanUpCumulativeCollection(config):
-  
-    #Check config   
+    # Check config   
  
     try:
-        output_directory =  config.get("Kumulierte Abzuege", "output_directory")
+        directory =  config.get("Kumulierte Abzuege", "output_directory")
     except Exception as e:
-        util.Error("Could not determine output directory ("+ str(e) + ")")
+        util.Error("Could not determine output directory (" + str(e) + ")")
 
     # We are done if there is not even the directory    
-
-    if not os.path.exists(output_directory):
+    if not os.path.exists(directory):
         return None    
  
     try:
@@ -163,7 +161,7 @@ def CleanUpCumulativeCollection(config):
 
     # Find the latest complete data file
     try:
-        most_recent_complete_data_filename = GetMostRecentFile(filename_complete_data_regex, CumulativeFilenameGenerator(output_directory))
+        most_recent_complete_data_filename = GetMostRecentFile(filename_complete_data_regex, CumulativeFilenameGenerator(directory))
     except Exception as e:
         util.Error("Unable to to determine the most recent complete data file (" + str(e) + ")")
 
@@ -173,25 +171,24 @@ def CleanUpCumulativeCollection(config):
     # Extract the date
     match = filename_complete_data_regex.match(most_recent_complete_data_filename)
     if match and match.group(1):
-	 most_recent_complete_data_date = match.group(1)
-         DeleteAllFilesOlderThan(most_recent_complete_data_date, output_directory)
+        most_recent_complete_data_date = match.group(1)
+        DeleteAllFilesOlderThan(most_recent_complete_data_date, directory)
     
     return None
 
-
 # Delete all files that are older than a given date 
     
-def DeleteAllFilesOlderThan(date, output_directory):
+def DeleteAllFilesOlderThan(date, directory):
      filename_pattern = '\\D*?-(\\d{6}).*'
      try:
          filename_regex = re.compile(filename_pattern)
      except Exception as e:
            util.Error("File name pattern \"" + filename_to_delete_pattern + "\" failed to compile! (" + str(e) + ")")
 
-     for filename in CumulativeFilenameGenerator(output_directory):
+     for filename in CumulativeFilenameGenerator(directory):
          match = filename_regex.match(filename)
          if match and match.group(1) < date:
-            os.remove(output_directory + "/" +  match.group())
+            os.remove(directory + "/" +  match.group())
 
      return None
 
