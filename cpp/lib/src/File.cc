@@ -210,6 +210,8 @@ off_t File::size() const {
     if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::size: can't obtain the size of non-open File \"" + path_
 				 + "\"!");
+    if (unlikely(not fifo_path_.empty()))
+	throw std::runtime_error("in File::size: can't obtain the size of file that is being read or written through a FIFO!");
 
     struct stat stat_buf;
     if (unlikely(::fstat(fileno(file_), &stat_buf) == -1))
@@ -223,7 +225,7 @@ off_t File::size() const {
 bool File::reopen(const std::string &filepath, const std::string &openmode) {
     // need some non-const values
     std::string path(filepath);
-    std::string mode(openmode + "m");
+    std::string mode(openmode);
 
     // Allow a reopen without arguments. If "" specified, reuse the previous values
     if (path.empty())
@@ -445,8 +447,9 @@ bool File::seek(const off_t offset, const int whence) {
 
 off_t File::tell() const {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::tell: can't get a file offset on non-open file \"" + path_
-				 + "\"!");
+	throw std::runtime_error("in File::tell: can't get a file offset on non-open file \"" + path_ + "\"!");
+    if (unlikely(not fifo_path_.empty()))
+	throw std::runtime_error("in File::tell: can't get the file position on a file that was opened with a 'u' or 'c' mode!");
 
     return ::ftello(file_);
 }
@@ -455,6 +458,8 @@ off_t File::tell() const {
 bool File::truncate(const off_t new_length) {
     if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::setNewSize: can't get non-open file's size \"" + path_ + "\"!");
+    if (unlikely(not fifo_path_.empty()))
+	throw std::runtime_error("in File::truncate: can't truncate a file that was opened with a 'u' or 'c' mode!");
 
     ::fflush(file_);
     return ::ftruncate(fileno(file_), new_length) == 0;
@@ -484,6 +489,9 @@ bool File::append(const int fd) {
 
 
 bool File::append(const File &file) {
+    if (unlikely(not file.fifo_path_.empty()))
+	throw std::runtime_error("in File::append: can't append a file that was opened with a 'u' or 'c' mode to another file!");
+
     if (unlikely(not file.flush()))
 	return false;
     return append(fileno(file.file_));
