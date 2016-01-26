@@ -90,7 +90,9 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
     : precision_(6), unique_id_(next_unique_id_++), delete_on_close_(delete_on_close_behaviour == DELETE_ON_CLOSE)
 {
     file_ = nullptr;
-    if (std::strchr(mode.c_str(), 'u') != nullptr) { // Deal w/ decompression piping the output through a FIFO to a process.
+
+    // Deal w/ decompression piping the output through a FIFO to a process?
+    if (std::strchr(mode.c_str(), 'u') != nullptr) {
 	if (unlikely(std::strchr(mode.c_str(), 'r') == nullptr)) {
 	    if (throw_on_error_behaviour == THROW_ON_ERROR)
 		throw std::runtime_error("in File::File: open mode contains a 'u' but no 'r'!");
@@ -99,8 +101,10 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 		return;
 	    throw std::runtime_error("in File::File: open mode contains a 'u' and an 'm'!");
 	} else {
+	    // Remove the 'u'.
 	    const size_t u_pos(mode.find('u'));
-	    mode_ = mode.substr(0, u_pos) + mode.substr(u_pos + 1); // Remove the 'u'.
+	    mode_ = mode.substr(0, u_pos) + mode.substr(u_pos + 1);
+
 	    path_ = fifo_path_ = "/tmp/p" + std::to_string(::getpid()) + "t" + std::to_string(::pthread_self()) + "u"
 		                 + std::to_string(unique_id_);
 	    ::unlink(fifo_path_.c_str());
@@ -113,7 +117,9 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 	    fifo_process_pid_ = ExecUtil::Spawn(GUNZIP_PATH, { }, /* new_stdin = */ path, /* new_stdout = */ fifo_path_);
 	    file_ = ::fopen(fifo_path_.c_str(), mode_.c_str());
 	}
-    } else if (std::strchr(mode.c_str(), 'c') != nullptr) { // Deal w/ compression piping the output through a FIFO to a process.
+
+    // Deal w/ compression piping the output through a FIFO to a process?
+    } else if (std::strchr(mode.c_str(), 'c') != nullptr) {
 	if (unlikely(std::strchr(mode.c_str(), 'w') == nullptr)) {
 	    if (throw_on_error_behaviour == THROW_ON_ERROR)
 		throw std::runtime_error("in File::File: open mode contains a 'c' but no 'w'!");
@@ -122,8 +128,10 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 		return;
 	    throw std::runtime_error("in File::File: open mode contains a 'c' and an 'm'!");
 	} else {
+	    // Remove the 'c':
 	    const size_t c_pos(mode.find('c'));
-	    mode_ = mode.substr(0, c_pos) + mode.substr(c_pos + 1); // Remove the 'c'.
+	    mode_ = mode.substr(0, c_pos) + mode.substr(c_pos + 1);
+
 	    path_ = fifo_path_ = "/tmp/p" + std::to_string(::getpid()) + "t" + std::to_string(::pthread_self()) + "u"
 		                 + std::to_string(unique_id_);
 	    ::unlink(fifo_path_.c_str());
@@ -136,6 +144,8 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 	    fifo_process_pid_ = ExecUtil::Spawn(GZIP_PATH, { "-9" }, /* new_stdin = */ fifo_path_, /* new_stdout = */ path);
 	    file_ = ::fopen(fifo_path_.c_str(), mode_.c_str());
 	}
+
+    // Neither compression nor decompression:
     } else {
 	file_ = ::fopen(path.c_str(), mode.c_str());
 	path_ = path;
