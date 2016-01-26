@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "FileUtil.h"
+#include "ExecUtil.h"
 #include "TimeUtil.h"
 
 
@@ -80,14 +81,94 @@ File::const_iterator::const_iterator(FILE *file)
 }
 
 
+static const std::string GZIP_PATH("/bin/gzip");
+static const std::string GUNZIP_PATH("/bin/gunzip");
+
+
 File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBehaviour throw_on_error_behaviour,
 	   const DeleteOnCloseBehaviour delete_on_close_behaviour)
-	: file_(::fopen(path.c_str(), (mode + "m").c_str())), path_(path), mode_(mode), precision_(6),
-	  unique_id_(next_unique_id_++), delete_on_close_(delete_on_close_behaviour == DELETE_ON_CLOSE)
+    : precision_(6), unique_id_(next_unique_id_++), delete_on_close_(delete_on_close_behaviour == DELETE_ON_CLOSE)
 {
+    file_ = nullptr;
+
+    // Deal w/ decompression piping the output through a FIFO to a process?
+    if (std::strchr(mode.c_str(), 'u') != nullptr) {
+	if (unlikely(std::strchr(mode.c_str(), 'r') == nullptr)) {
+	    if (throw_on_error_behaviour == THROW_ON_ERROR)
+		throw std::runtime_error("in File::File: open mode contains a 'u' but no 'r'!");
+	} else if (unlikely(std::strchr(mode.c_str(), 'm') != nullptr)) {
+	    if (throw_on_error_behaviour != THROW_ON_ERROR)\
+		return;
+	    throw std::runtime_error("in File::File: open mode contains a 'u' and an 'm' which are incompatible!");
+	} else {
+	    // Remove the 'u'.
+	    const size_t u_pos(mode.find('u'));
+	    mode_ = mode.substr(0, u_pos) + mode.substr(u_pos + 1);
+
+	    path_ = fifo_path_ = "/tmp/p" + std::to_string(::getpid()) + "t" + std::to_string(::pthread_self()) + "u"
+		                 + std::to_string(unique_id_);
+	    ::unlink(fifo_path_.c_str());
+	    if (unlikely(::mkfifo(fifo_path_.c_str(), S_IRUSR | S_IWUSR) != 0)) {
+		if (throw_on_error_behaviour != THROW_ON_ERROR)
+		    return;
+		throw std::runtime_error("in File::File: mkfifo(3) of \"" + fifo_path_ + "\" failed! ("
+					 + std::string(::strerror(errno)) + ")");
+	    }
+
+	    // Create a process that reads the FIFO and decompresses the data:
+	    if (ExecUtil::Spawn(GUNZIP_PATH, { }, /* new_stdin = */ path, /* new_stdout = */ fifo_path_) < 0) {
+		if (throw_on_error_behaviour != THROW_ON_ERROR)\
+		    return;
+		throw std::runtime_error("in File::File: failed to spawn \"" + GUNZIP_PATH +"\"!");
+	    }
+
+	    file_ = ::fopen(fifo_path_.c_str(), mode_.c_str());
+	}
+
+    // Deal w/ compression piping the output through a FIFO to a process?
+    } else if (std::strchr(mode.c_str(), 'c') != nullptr) {
+	if (unlikely(std::strchr(mode.c_str(), 'w') == nullptr)) {
+	    if (throw_on_error_behaviour == THROW_ON_ERROR)
+		throw std::runtime_error("in File::File: open mode contains a 'c' but no 'w'!");
+	} else if (unlikely(std::strchr(mode.c_str(), 'm') != nullptr)) {
+	    if (throw_on_error_behaviour != THROW_ON_ERROR)\
+		return;
+	    throw std::runtime_error("in File::File: open mode contains a 'c' and an 'm' which are incompatible!");
+	} else {
+	    // Remove the 'c':
+	    const size_t c_pos(mode.find('c'));
+	    mode_ = mode.substr(0, c_pos) + mode.substr(c_pos + 1);
+
+	    path_ = fifo_path_ = "/tmp/p" + std::to_string(::getpid()) + "t" + std::to_string(::pthread_self()) + "u"
+		                 + std::to_string(unique_id_);
+	    ::unlink(fifo_path_.c_str());
+	    if (unlikely(::mkfifo(fifo_path_.c_str(), S_IRUSR | S_IWUSR) != 0)) {
+		if (throw_on_error_behaviour != THROW_ON_ERROR)
+		    return;
+		throw std::runtime_error("in File::File: mkfifo(3) of \"" + fifo_path_ + "\" failed! ("
+					 + std::string(::strerror(errno)) + ")");
+	    }
+
+	    // Create a process that reads the FIFO and compresses the data:
+	    if (ExecUtil::Spawn(GZIP_PATH, { "-9" }, /* new_stdin = */ fifo_path_, /* new_stdout = */ path) < 1) {
+		if (throw_on_error_behaviour != THROW_ON_ERROR)\
+		    return;
+		throw std::runtime_error("in File::File: failed to spawn \"" + GUNZIP_PATH +"\"!");
+	    }
+
+	    file_ = ::fopen(fifo_path_.c_str(), mode_.c_str());
+	}
+
+    // Neither compression nor decompression:
+    } else {
+	file_ = ::fopen(path.c_str(), mode.c_str());
+	path_ = path;
+	mode_ = mode;
+    }
+
     if (unlikely(file_ == nullptr) and throw_on_error_behaviour == THROW_ON_ERROR)
 	throw std::runtime_error("in File::File: fopen(3) on \"" + std::string(path) + "\" with mode \"" + mode
-				 + "m\" failed (" + std::to_string(errno) + ") (1)!");
+				 + "\" failed (" + std::string(::strerror(errno)) + ") (1)!");
 }
 
 
@@ -100,7 +181,7 @@ File::File(const int fd, const std::string &mode)
 	// Determine the mode from "fd":
 	int flags;
 	if (unlikely((flags = ::fcntl(fd, F_GETFL, &flags)) == -1))
-	    throw std::runtime_error("in File::File: fcntl(2) failed (" + std::to_string(errno) + ")!");
+	    throw std::runtime_error("in File::File: fcntl(2) failed (" + std::string(::strerror(errno)) + ")!");
 	flags &= O_ACCMODE;
 	if (flags == O_RDONLY)
 	    mode_ = "rm";
@@ -114,23 +195,28 @@ File::File(const int fd, const std::string &mode)
     file_ = ::fdopen(fd, mode_.c_str());
     if (unlikely(file_ == nullptr))
 	throw std::runtime_error("in File::File: fdopen(3) on \"" + std::to_string(fd) + "\" with mode \""
-				 + mode_ + "\" failed (" + std::to_string(errno) + ") (3)!");
+				 + mode_ + "\" failed (" + std::string(::strerror(errno)) + ") (3)!");
 }
 
 
 File::~File() {
     close();
+    if (not fifo_path_.empty())
+	::unlink(fifo_path_.c_str());
 }
 
 
 off_t File::size() const {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::size: can't obtain the size of non-open File \"" + (path_.empty() ? "" : path_) + "\"!");
+	throw std::runtime_error("in File::size: can't obtain the size of non-open File \"" + path_
+				 + "\"!");
+    if (unlikely(not fifo_path_.empty()))
+	throw std::runtime_error("in File::size: can't obtain the size of file that is being read or written through a FIFO!");
 
     struct stat stat_buf;
     if (unlikely(::fstat(fileno(file_), &stat_buf) == -1))
 	throw std::runtime_error("in File::size: fstat(2) failed on \"" + path_ + "\" ("
-				 + std::to_string(errno) + ")!");
+				 + std::string(::strerror(errno)) + ")!");
 
     return stat_buf.st_size;
 }
@@ -139,7 +225,7 @@ off_t File::size() const {
 bool File::reopen(const std::string &filepath, const std::string &openmode) {
     // need some non-const values
     std::string path(filepath);
-    std::string mode(openmode + "m");
+    std::string mode(openmode);
 
     // Allow a reopen without arguments. If "" specified, reuse the previous values
     if (path.empty())
@@ -190,7 +276,7 @@ bool File::close() {
 
 bool File::flush() const {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::flush: can't flush non-open file \"" + (path_.empty() ? "" : path_) + "\"!");
+	throw std::runtime_error("in File::flush: can't flush non-open file \"" + path_ + "\"!");
 
     return ::fflush(file_) == 0;
 }
@@ -229,7 +315,7 @@ std::string File::getline(const char terminator) {
 
 size_t File::write(const void * const buf, const size_t buf_size) {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::write: can't write to non-open file (1) \"" + (path_.empty() ? "" : path_) + "\"!");
+	throw std::runtime_error("in File::write: can't write to non-open file (1) \"" + path_ + "\"!");
 
     return ::fwrite(buf, 1, buf_size, file_);
 }
@@ -237,7 +323,7 @@ size_t File::write(const void * const buf, const size_t buf_size) {
 
 bool File::serialize(const std::string &s) {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::serialize: can't serialize to non-open file (2) \"" + (path_.empty() ? "" : path_)
+	throw std::runtime_error("in File::serialize: can't serialize to non-open file (2) \"" + path_
 				 + "\"!");
 
     const std::string::size_type length(s.size());
@@ -253,7 +339,7 @@ bool File::serialize(const std::string &s) {
 
 bool File::serialize(const char * const s) {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::serialize: can't serialize to non-open file (3) \"" + (path_.empty() ? "" : path_)
+	throw std::runtime_error("in File::serialize: can't serialize to non-open file (3) \"" + path_
 				 + "\"!");
 
     const size_t length(std::strlen(s));
@@ -269,7 +355,7 @@ bool File::serialize(const char * const s) {
 
 bool File::serialize(const bool b) {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::serialize: can't serialize to non-open file (4) \"" + (path_.empty() ? "" : path_)
+	throw std::runtime_error("in File::serialize: can't serialize to non-open file (4) \"" + path_
 				 + "\"!");
 
     return write(reinterpret_cast<const char *>(&b), sizeof b) == sizeof b;
@@ -277,6 +363,8 @@ bool File::serialize(const bool b) {
 
 
 int File::get() {
+    if (unlikely(file_ == nullptr))
+	throw std::runtime_error("in File::get: can't read from a non-open file \"" + path_ + "\"!");
     return std::fgetc(file_);
 }
 
@@ -290,7 +378,7 @@ void File::putback(const char ch) {
 
 size_t File::read(void * const buf, const size_t buf_size) {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::read: can't read from non-open file (1) \"" + (path_.empty() ? "" : path_) + "\"!");
+	throw std::runtime_error("in File::read: can't read from non-open file (1) \"" + path_ + "\"!");
 
     return ::fread(buf, 1, buf_size, file_);
 }
@@ -319,7 +407,7 @@ uint64_t File::ignore(const uint64_t max_skip_count, const int delimiter) {
 
 bool File::deserialize(std::string * const s) {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::deserialize: can't deserialize from non-open file (2) \"" + (path_.empty() ? "" : path_)
+	throw std::runtime_error("in File::deserialize: can't deserialize from non-open file (2) \"" + path_
 				 + "\"!");
 
     std::string::size_type length;
@@ -340,7 +428,7 @@ bool File::deserialize(std::string * const s) {
 
 bool File::deserialize(bool * const b) {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::deserialize: can't deserialize from non-open file (3) \"" + (path_.empty() ? "" : path_)
+	throw std::runtime_error("in File::deserialize: can't deserialize from non-open file (3) \"" + path_
 				 + "\"!");
 
     return read(reinterpret_cast<char *>(b), sizeof *b) == sizeof *b;
@@ -349,7 +437,9 @@ bool File::deserialize(bool * const b) {
 
 bool File::seek(const off_t offset, const int whence) {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::seek: can't seek on non-open file \"" + (path_.empty() ? "" : path_) + "\"!");
+	throw std::runtime_error("in File::seek: can't seek on non-open file \"" + path_ + "\"!");
+    if (unlikely(not fifo_path_.empty()))
+	throw std::runtime_error("in File::seek: can't seek on a file that was opened with a 'u' or 'c' mode!");
 
     return ::fseeko(file_, offset, whence) == 0;
 }
@@ -357,8 +447,9 @@ bool File::seek(const off_t offset, const int whence) {
 
 off_t File::tell() const {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::tell: can't get a file offset on non-open file \"" + (path_.empty() ? "" : path_)
-				 + "\"!");
+	throw std::runtime_error("in File::tell: can't get a file offset on non-open file \"" + path_ + "\"!");
+    if (unlikely(not fifo_path_.empty()))
+	throw std::runtime_error("in File::tell: can't get the file position on a file that was opened with a 'u' or 'c' mode!");
 
     return ::ftello(file_);
 }
@@ -366,7 +457,9 @@ off_t File::tell() const {
 
 bool File::truncate(const off_t new_length) {
     if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::setNewSize: can't get non-open file's size \"" + (path_.empty() ? "" : path_) + "\"!");
+	throw std::runtime_error("in File::setNewSize: can't get non-open file's size \"" + path_ + "\"!");
+    if (unlikely(not fifo_path_.empty()))
+	throw std::runtime_error("in File::truncate: can't truncate a file that was opened with a 'u' or 'c' mode!");
 
     ::fflush(file_);
     return ::ftruncate(fileno(file_), new_length) == 0;
@@ -396,6 +489,9 @@ bool File::append(const int fd) {
 
 
 bool File::append(const File &file) {
+    if (unlikely(not file.fifo_path_.empty()))
+	throw std::runtime_error("in File::append: can't append a file that was opened with a 'u' or 'c' mode to another file!");
+
     if (unlikely(not file.flush()))
 	return false;
     return append(fileno(file.file_));
@@ -477,7 +573,7 @@ void File::lock(const LockType lock_type, const short whence, const off_t start,
     lock_params.l_len    = length;
 
     if (unlikely(::fcntl(fileno(file_), F_SETLKW, &lock_params) == -1))
-	throw std::runtime_error("in File::lock: fcntl(2) failed (" + std::to_string(errno) + ")!");
+	throw std::runtime_error("in File::lock: fcntl(2) failed (" + std::string(::strerror(errno)) + ")!");
 }
 
 
@@ -495,7 +591,7 @@ bool File::tryLock(const LockType lock_type, const short whence, const off_t sta
     if (errno == EACCES or errno == EAGAIN)
 	return false;
 
-    throw std::runtime_error("in File::tryLock: fcntl(2) failed (" + std::to_string(errno) + ")!");
+    throw std::runtime_error("in File::tryLock: fcntl(2) failed (" + std::string(::strerror(errno)) + ")!");
 }
 
 
@@ -507,7 +603,7 @@ void File::unlock(const short whence, const off_t start, const off_t length) {
     lock_params.l_len    = length;
 
     if (unlikely(::fcntl(fileno(file_), F_SETLK, &lock_params) == -1))
-	throw std::runtime_error("in File::unlock: fcntl(2) failed (" + std::to_string(errno) + ")!");
+	throw std::runtime_error("in File::unlock: fcntl(2) failed (" + std::string(::strerror(errno)) + ")!");
 }
 
 
@@ -615,7 +711,7 @@ bool File::cancelAsyncRequest(aiocb * const control_block_ptr) {
 	::aio_return(control_block_ptr);
 	return true;
     case -1: // Some error occurred.
-	throw std::runtime_error("in File::cancelAsyncRequest: aio_cancel(3) failed (" + std::to_string(errno) + ")!");
+	throw std::runtime_error("in File::cancelAsyncRequest: aio_cancel(3) failed (" + std::string(::strerror(errno)) + ")!");
     default: // Request couldn't be cancelled.
 	return false;
     }
