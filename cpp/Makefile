@@ -1,4 +1,5 @@
 INC             = lib/include
+LIB_SRCS        = lib/src
 CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include -Ilib/libstemmer/include \
                   -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
                   -I/usr/include/libxml2
@@ -39,6 +40,8 @@ $(PROGS): % : %.o lib/libmarc.a
 lib/libmarc.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
 	$(MAKE) -C lib
 
+tests: $(patsubst %.cc,%,$(wildcard *test.cc))
+
 install: $(INSTALL_PROGS)
 	@echo "Installing programs..."
 	cp $(INSTALL_PROGS) ~/bin/
@@ -51,6 +54,8 @@ cgi_install: $(CGI_PROGS)
 	mkdir --parents /var/www/cgi-bin
 	cp full_text_lookup /var/www/cgi-bin/
 
-clean:
+local_clean:
 	rm -f *.o *~ $(PROGS) .deps
+
+clean: local_clean
 	make -C lib clean

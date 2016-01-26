@@ -21,7 +21,6 @@
 */
 
 #include <iostream>
-#include <memory>
 #include <unordered_map>
 #include <cctype>
 #include <cstdlib>
@@ -30,6 +29,7 @@
 #include "MarcUtil.h"
 #include "Subfields.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 void Usage() {
@@ -38,36 +38,25 @@ void Usage() {
 }
 
 
-void LoadCodeToDescriptionMap(const std::shared_ptr<FILE> &code_to_description_map_file,
-			      const std::string &code_to_description_map_filename,
+void LoadCodeToDescriptionMap(File * const code_to_description_map_file,
 			      std::unordered_map<std::string, std::string> * const code_to_description_map)
 {
-    char line[1024];
     unsigned line_no(0);
-    while (std::fgets(line, sizeof line, code_to_description_map_file.get())) {
+    while (not code_to_description_map_file->eof()) {
+	const std::string line(code_to_description_map_file->getline());
 	++line_no;
-	size_t line_length(std::strlen(line));
-	if (line_length < 5) // Need at least a 2 character code, a comma, some text and a newline at the end.
+	if (line.length() < 4) // Need at least a 2 character code, a comma and some text.
 	    continue;
 
-	// Zap the newline at the end:
-	line[line_length] = '\0';
-	--line_length;
+	const size_t comma_pos(line.find(','));
+	if (comma_pos == std::string::npos)
+	    Error("malformed line " + std::to_string(line_no) + " in \"" + code_to_description_map_file->getPath() + "\"! (1)");
 
-	char *line_end(line + line_length);
-	char *comma(std::find(line, line_end, ','));
-	if (comma == line_end)
-	    Error("malformed line " + std::to_string(line_no) + " in \"" + code_to_description_map_filename
-		  + "\"! (1)");
-
-	*comma = '\0';
-	const std::string code(line);
+	const std::string code(line.substr(0, comma_pos));
 	if (code.length() != 2 and code.length() != 3)
-	    Error("malformed line " + std::to_string(line_no) + " in \"" + code_to_description_map_filename
-		  + "\"! (2)");
+	    Error("malformed line " + std::to_string(line_no) + " in \"" + code_to_description_map_file->getPath() + "\"! (2)");
 
-	const std::string  description(comma + 1);
-	(*code_to_description_map)[code] = description;
+	(*code_to_description_map)[code] = line.substr(comma_pos + 1);
     }
 
     std::cerr << "Found " << code_to_description_map->size() << " code to description mappings.\n";
@@ -117,11 +106,13 @@ unsigned ExtractIxTheoNotations(const std::pair<size_t, size_t> &local_block_beg
 }
 
 
-void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FILE> &output,
+void ProcessRecords(File * const input, File * const output,
 		    const std::unordered_map<std::string, std::string> &code_to_description_map)
 {
+    XmlWriter xml_writer(output);
     unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0);
-    while (MarcUtil::Record record = MarcUtil::Record(input.get())) {
+    xml_writer.openTag("collection");
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -130,7 +121,7 @@ void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FI
 
 	std::vector<std::pair<size_t, size_t>> local_block_boundaries;
 	if (record.findAllLocalDataBlocks(&local_block_boundaries) == 0) {
-	    record.write(output.get());
+	    record.write(&xml_writer);
 	    continue;
 	}
 
@@ -149,8 +140,9 @@ void ProcessRecords(const std::shared_ptr<FILE> &input, const std::shared_ptr<FI
 
 	if (not ixtheo_notations_list.empty()) // Insert a new 652 field w/ a $a subfield.
 	    record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list);
-	record.write(output.get());
+	record.write(&xml_writer);
     }
+    xml_writer.closeTag("collection");
 
     std::cerr << "Read " << count << " records.\n";
     std::cerr << records_with_ixtheo_notations << " records had ixTheo notations.\n";
@@ -165,26 +157,24 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    std::shared_ptr<FILE> marc_input(std::fopen(marc_input_filename.c_str(), "rbm"), std::fclose);
-    if (marc_input == nullptr)
+    File marc_input(marc_input_filename, "rm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[2]);
-    std::shared_ptr<FILE> marc_output(std::fopen(marc_output_filename.c_str(), "wb"), std::fclose);
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "w");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     const std::string code_to_description_map_filename(argv[3]);
-    std::shared_ptr<FILE> code_to_description_map_file(std::fopen(code_to_description_map_filename.c_str(), "rbm"),
-						       std::fclose);
-    if (code_to_description_map_file == nullptr)
+    File code_to_description_map_file(code_to_description_map_filename, "rm");
+    if (not code_to_description_map_file)
         Error("can't open \"" + code_to_description_map_filename + "\" for reading!");
 
     try {
 	std::unordered_map<std::string, std::string> code_to_description_map;
-	LoadCodeToDescriptionMap(code_to_description_map_file, code_to_description_map_filename,
-				 &code_to_description_map);
-	ProcessRecords(marc_input, marc_output, code_to_description_map);
+	LoadCodeToDescriptionMap(&code_to_description_map_file, &code_to_description_map);
+	ProcessRecords(&marc_input, &marc_output, code_to_description_map);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }

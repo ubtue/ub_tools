@@ -58,14 +58,12 @@ static void Usage() {
 }
 
 
-void FileLockedComposeAndWriteRecord(FILE * const output, const std::string &output_filename,
-				     const MarcUtil::Record &record)
-{
-    FileLocker file_locker(output_filename, FileLocker::WRITE_ONLY);
-    if (std::fseek(output, 0, SEEK_END) == -1)
-        Error("failed to seek to the end of \"" + output_filename + "\"!");
+void FileLockedComposeAndWriteRecord(File * const output, const MarcUtil::Record &record) {
+    FileLocker file_locker(output, FileLocker::WRITE_ONLY);
+    if (not output->seek(0, SEEK_END))
+        Error("failed to seek to the end of \"" + output->getPath() + "\"!");
     record.write(output);
-    std::fflush(output);
+    output->flush();
 }
 
 
@@ -122,9 +120,8 @@ unsigned CleanUpZombies(const unsigned zombies_to_collect) {
 }
 
 
-void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, FILE * const input,
-                    const std::string &input_filename, FILE * const output, const std::string &output_filename,
-                    const std::string &db_filename, const unsigned process_count_low_watermark,
+void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, File * const input,
+                    File * const output, const std::string &db_filename, const unsigned process_count_low_watermark,
                     const unsigned process_count_high_watermark)
 {
     std::string err_msg;
@@ -137,7 +134,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     std::cout << "Skip " << skip_count << " records\n";
 
-    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         last_offset = offset;
 	const Leader &leader(record.getLeader());
         offset += leader.getRecordLength();
@@ -149,12 +146,12 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             continue;
 
         if (not FoundAtLeastOneNonReviewLink(record)) {
-            FileLockedComposeAndWriteRecord(output, output_filename, record);
+            FileLockedComposeAndWriteRecord(output, record);
             continue;
         }
 
         ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
-                        { std::to_string(last_offset), input_filename, output_filename, db_filename });
+                        { std::to_string(last_offset), input->getPath(), output->getPath(), db_filename });
         ++active_child_count;
         ++spawn_count;
 
@@ -172,9 +169,6 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Spawned " << spawn_count << " subprocesses.\n";
     std::cerr << child_reported_failure_count << " children reported a failure!\n";
-
-    std::fclose(input);
-    std::fclose(output);
 }
 
 
@@ -227,13 +221,13 @@ int main(int argc, char **argv) {
     }
 
     const std::string marc_input_filename(*argv++);
-    FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rb");
-    if (marc_input == nullptr)
+    File marc_input(marc_input_filename, "rb");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(*argv++);
-    FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "wb");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     const std::string db_filename(*argv);
@@ -245,8 +239,7 @@ int main(int argc, char **argv) {
     db.close();
 
     try {
-        ProcessRecords(max_record_count, skip_count, marc_input, marc_input_filename, marc_output,
-                       marc_output_filename, db_filename, process_count_low_watermark,
+        ProcessRecords(max_record_count, skip_count, &marc_input, &marc_output, db_filename, process_count_low_watermark,
                        process_count_high_watermark);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));

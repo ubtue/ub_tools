@@ -30,11 +30,13 @@
 #include <cstdlib>
 #include <cstring>
 #include "DirectoryEntry.h"
+#include "File.h"
 #include "Leader.h"
 #include "MarcUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 static unsigned modified_count(0);
@@ -49,7 +51,7 @@ void Usage() {
 }
 
 
-void ProcessRecord(FILE * const output, MarcUtil::Record * const record) {
+void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record) {
     const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
     if (dir_entries.at(0).getTag() != "001")
         Error("First field of record is not \"001\"!");
@@ -78,13 +80,18 @@ void ProcessRecord(FILE * const output, MarcUtil::Record * const record) {
 	++modified_count;
     }
 
-    record->write(output);
+    record->write(xml_writer);
 }
 
 
-void AddChildRefs(FILE * const input, FILE * const output) {
-    while (MarcUtil::Record record = MarcUtil::Record(input))
-	ProcessRecord(output, &record);
+void AddChildRefs(File * const input, File * const output) {
+    XmlWriter xml_writer(output);
+    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input))
+	ProcessRecord(&xml_writer, &record);
+
+    xml_writer.closeTag();
 
     std::cerr << "Modified " << modified_count << " record(s).\n";
 }
@@ -175,13 +182,13 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rb");
-    if (marc_input == nullptr)
+    File marc_input(marc_input_filename, "rm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[2]);
-    FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "w");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
@@ -191,8 +198,5 @@ int main(int argc, char **argv) {
 	Error("caught exception: " + std::string(x.what()));
     }
 
-    AddChildRefs(marc_input, marc_output);
-
-    std::fclose(marc_input);
-    std::fclose(marc_output);
+    AddChildRefs(&marc_input, &marc_output);
 }

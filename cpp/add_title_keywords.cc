@@ -43,30 +43,19 @@ void Usage() {
 }
 
 
-void LoadStopwords(const bool verbose, FILE * const input,
-                   std::unordered_set<std::string> * const stopwords_set)
-{
+void LoadStopwords(const bool verbose, File * const input, std::unordered_set<std::string> * const stopwords_set) {
     if (verbose)
         std::cout << "Starting loading of stopwords.\n";
 
     unsigned count(0);
-    while (not std::feof(input)) {
-        char buf[1024];
-        if (std::fgets(buf, sizeof buf, input) == nullptr)
-            break;
-        if (buf[0] == '\0' or buf[0] == ';') // Empty or comment line?
+    while (not input->eof()) {
+        const std::string line(input->getline());
+        if (line.empty() or line[0] == ';') // Empty or comment line?
             continue;
 
-        size_t len(std::strlen(buf));
-        if (buf[len - 1] == '\n')
-            --len;
-
-        stopwords_set->insert(StringUtil::ToLower(std::string(buf, len)));
+        stopwords_set->insert(StringUtil::ToLower(line));
         ++count;
     }
-
-    if (std::ferror(input))
-        Error("Read error while trying to read the stopwords file.");
 
     if (verbose)
         std::cerr << "Read " << count << " stopwords.\n";
@@ -102,20 +91,22 @@ std::string ConcatSet(const std::unordered_set<std::string> &words) {
 
 
 void AugmentStopwordsWithTitleWords(
-    const bool verbose, FILE * const input, FILE * const output,
+    const bool verbose, File * const input, File * const output,
     const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
 {
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
+    XmlWriter xml_writer(output);
     unsigned total_count(0), augment_count(0), title_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
+    xml_writer.openTag("collection");
+    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++total_count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
         if (entry_iterator == dir_entries.end()) {
-	    record.write(output);
+	    record.write(&xml_writer);
             continue;
         }
 
@@ -123,7 +114,7 @@ void AugmentStopwordsWithTitleWords(
 	const std::vector<std::string> &fields(record.getFields());
         Subfields subfields(fields[title_index]);
         if (not subfields.hasSubfield('a')) {
-	    record.write(output);
+	    record.write(&xml_writer);
             continue;
         }
 
@@ -148,7 +139,7 @@ void AugmentStopwordsWithTitleWords(
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-	    record.write(output);
+	    record.write(&xml_writer);
             continue;
         }
 
@@ -157,6 +148,7 @@ void AugmentStopwordsWithTitleWords(
 
         ++augment_count;
     }
+    xml_writer.closeTag("collection");
 
     if (verbose) {
         std::cerr << title_count << " records had titles in 245a.\n";
@@ -177,13 +169,13 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[verbose ? 2 : 1]);
-    FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rm");
-    if (marc_input == nullptr)
+    File marc_input(marc_input_filename, "rm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[verbose ? 3 : 2]);
-    FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "wb");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     if (unlikely(marc_input_filename == marc_output_filename))
@@ -197,21 +189,17 @@ int main(int argc, char **argv) {
             not StringUtil::StartsWith(stopwords_filename, "stopwords."))
             Error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(10));
-        FILE *stopwords = std::fopen(stopwords_filename.c_str(), "rm");
-        if (stopwords == nullptr)
+        File stopwords(stopwords_filename, "rm");
+        if (not stopwords)
             Error("can't open \"" + stopwords_filename + "\" for reading!");
         std::unordered_set<std::string> stopwords_set;
-        LoadStopwords(verbose, stopwords, &stopwords_set);
+        LoadStopwords(verbose, &stopwords, &stopwords_set);
         language_codes_to_stopword_sets[language_code] = stopwords_set;
-        std::fclose(stopwords);
     }
 
     // We always need English because librarians suck at specifying English:
     if (language_codes_to_stopword_sets.find("eng") == language_codes_to_stopword_sets.end())
         Error("You always need to provide \"stopwords.eng\"!");
 
-    AugmentStopwordsWithTitleWords(verbose, marc_input, marc_output, language_codes_to_stopword_sets);
-
-    std::fclose(marc_input);
-    std::fclose(marc_output);
+    AugmentStopwordsWithTitleWords(verbose, &marc_input, &marc_output, language_codes_to_stopword_sets);
 }
