@@ -115,7 +115,7 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
         return None
 
 # Cumulatively saves downloaded data to an external location to have complete trace of 
-# downloaded data. Thus, the complete data should be resconstructible  
+# downloaded data. Thus, the complete data should be reconstructible  
 def AddToCumulativeCollection(downloaded_file, config):
     try:
        output_directory = config.get("Kumulierte Abzuege", "output_directory")
@@ -136,7 +136,7 @@ def AddToCumulativeCollection(downloaded_file, config):
 def CumulativeFilenameGenerator(output_directory):
      return os.listdir(output_directory)
 
-# We try to keep all differential updates up and including the last complete data
+# We try to keep all differential updates up to and including the last complete data
 
 def CleanUpCumulativeCollection(config):
     # Check config   
