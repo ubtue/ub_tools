@@ -90,7 +90,7 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
     : precision_(6), unique_id_(next_unique_id_++), delete_on_close_(delete_on_close_behaviour == DELETE_ON_CLOSE)
 {
     file_ = nullptr;
-    if (std::strchr(mode.c_str(), 'u') != nullptr) {
+    if (std::strchr(mode.c_str(), 'u') != nullptr) { // Deal w/ decompression piping the output through a FIFO to a process.
 	if (unlikely(std::strchr(mode.c_str(), 'r') == nullptr)) {
 	    if (throw_on_error_behaviour == THROW_ON_ERROR)
 		throw std::runtime_error("in File::File: open mode contains a 'u' but no 'r'!");
@@ -100,7 +100,7 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 	    throw std::runtime_error("in File::File: open mode contains a 'u' and an 'm'!");
 	} else {
 	    const size_t u_pos(mode.find('u'));
-	    mode_ = mode.substr(0, u_pos) + mode.substr(u_pos + 1);
+	    mode_ = mode.substr(0, u_pos) + mode.substr(u_pos + 1); // Remove the 'u'.
 	    path_ = fifo_path_ = "/tmp/p" + std::to_string(::getpid()) + "t" + std::to_string(::pthread_self()) + "u"
 		                 + std::to_string(unique_id_);
 	    ::unlink(fifo_path_.c_str());
@@ -113,7 +113,7 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 	    fifo_process_pid_ = ExecUtil::Spawn(GUNZIP_PATH, { }, /* new_stdin = */ path, /* new_stdout = */ fifo_path_);
 	    file_ = ::fopen(fifo_path_.c_str(), mode_.c_str());
 	}
-    } else if (std::strchr(mode.c_str(), 'c') != nullptr) {
+    } else if (std::strchr(mode.c_str(), 'c') != nullptr) { // Deal w/ compression piping the output through a FIFO to a process.
 	if (unlikely(std::strchr(mode.c_str(), 'w') == nullptr)) {
 	    if (throw_on_error_behaviour == THROW_ON_ERROR)
 		throw std::runtime_error("in File::File: open mode contains a 'c' but no 'w'!");
@@ -123,7 +123,7 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 	    throw std::runtime_error("in File::File: open mode contains a 'c' and an 'm'!");
 	} else {
 	    const size_t c_pos(mode.find('c'));
-	    mode_ = mode.substr(0, c_pos) + mode.substr(c_pos + 1);
+	    mode_ = mode.substr(0, c_pos) + mode.substr(c_pos + 1); // Remove the 'c'.
 	    path_ = fifo_path_ = "/tmp/p" + std::to_string(::getpid()) + "t" + std::to_string(::pthread_self()) + "u"
 		                 + std::to_string(unique_id_);
 	    ::unlink(fifo_path_.c_str());
