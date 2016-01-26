@@ -81,10 +81,6 @@ File::const_iterator::const_iterator(FILE *file)
 }
 
 
-static const std::string GZIP_PATH("/bin/gzip");
-static const std::string GUNZIP_PATH("/bin/gunzip");
-
-
 File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBehaviour throw_on_error_behaviour,
 	   const DeleteOnCloseBehaviour delete_on_close_behaviour)
     : precision_(6), unique_id_(next_unique_id_++), delete_on_close_(delete_on_close_behaviour == DELETE_ON_CLOSE)
@@ -116,10 +112,10 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 	    }
 
 	    // Create a process that reads the FIFO and decompresses the data:
-	    if (ExecUtil::Spawn(GUNZIP_PATH, { }, /* new_stdin = */ path, /* new_stdout = */ fifo_path_) < 0) {
+	    if (ExecUtil::Spawn(LZ4_PATH, { "-d" }, /* new_stdin = */path, /* new_stdout = */fifo_path_) < 0) {
 		if (throw_on_error_behaviour != THROW_ON_ERROR)\
 		    return;
-		throw std::runtime_error("in File::File: failed to spawn \"" + GUNZIP_PATH +"\"!");
+		throw std::runtime_error("in File::File: failed to spawn \"" + std::string(LZ4_PATH) +"\"! (1)");
 	    }
 
 	    file_ = ::fopen(fifo_path_.c_str(), mode_.c_str());
@@ -150,10 +146,10 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 	    }
 
 	    // Create a process that reads the FIFO and compresses the data:
-	    if (ExecUtil::Spawn(GZIP_PATH, { "-9" }, /* new_stdin = */ fifo_path_, /* new_stdout = */ path) < 1) {
+	    if (ExecUtil::Spawn(LZ4_PATH, { "-z" }, /* new_stdin = */fifo_path_, /* new_stdout = */path) < 1) {
 		if (throw_on_error_behaviour != THROW_ON_ERROR)\
 		    return;
-		throw std::runtime_error("in File::File: failed to spawn \"" + GUNZIP_PATH +"\"!");
+		throw std::runtime_error("in File::File: failed to spawn \"" + std::string(LZ4_PATH) +"\"! (2)");
 	    }
 
 	    file_ = ::fopen(fifo_path_.c_str(), mode_.c_str());
