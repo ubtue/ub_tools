@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include "Leader.h"
 #include "MarcUtil.h"
+#include "MediaTypeUtil.h"
 #include "util.h"
 
 
@@ -39,12 +40,14 @@ static void Usage() {
 }
 
 
-void ProcessRecords(FILE * const input) {
+void ProcessRecords(const bool input_is_xml, File * const input) {
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0);
     std::unordered_set<std::string> control_numbers;
 
-    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (const MarcUtil::Record record =
+	       input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
+    {
         ++record_count;
 
 	std::string err_msg;
@@ -82,15 +85,20 @@ int main(int argc, char *argv[]) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    FILE *marc_input(std::fopen(marc_input_filename.c_str(), "rb"));
-    if (marc_input == nullptr)
+    const std::string media_type(MediaTypeUtil::GetFileMediaType(marc_input_filename));
+    if (unlikely(media_type.empty()))
+	Error("can't determine media type of \"" + marc_input_filename + "\"!");
+    if (media_type != "application/xml" and media_type != "application/marc")
+	Error("\"input_filename\" is neither XML nor MARC-21 data!");
+    const bool input_is_xml(media_type == "application/xml");
+
+    File marc_input(marc_input_filename, input_is_xml ? "rm" : "rbm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     try {
-        ProcessRecords(marc_input);
+        ProcessRecords(input_is_xml, &marc_input);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
-
-    std::fclose(marc_input);
 }

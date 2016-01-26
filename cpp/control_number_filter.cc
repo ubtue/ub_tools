@@ -40,7 +40,7 @@ void Usage() {
 }
 
 
-void FilterMarcRecords(const bool keep, const std::string &regex_pattern, FILE * const input, FILE * const output) {
+void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File * const input, File * const output) {
     std::string err_msg;
     const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)
@@ -48,7 +48,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, FILE *
 
     unsigned count(0), kept_or_deleted_count(0);
 
-    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -85,20 +85,17 @@ int main(int argc, char **argv) {
     const std::string regex_pattern(argv[2]);
 
     const std::string marc_input_filename(argv[3]);
-    FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rm");
-    if (marc_input == nullptr)
+    File marc_input(marc_input_filename, "rm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[4]);
-    FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "wb");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Master input file name equals output file name!");
 
-    FilterMarcRecords(keep, regex_pattern, marc_input, marc_output);
-
-    std::fclose(marc_input);
-    std::fclose(marc_output);
+    FilterMarcRecords(keep, regex_pattern, &marc_input, &marc_output);
 }

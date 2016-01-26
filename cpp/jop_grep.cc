@@ -25,7 +25,6 @@
 #include <memory>
 #include <unordered_set>
 #include <climits>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <getopt.h>
@@ -45,12 +44,12 @@ void Usage() {
 
 
 void JOP_Grep(const std::string &input_filename, const unsigned max_result_count) {
-    FILE *input = std::fopen(input_filename.c_str(), "rb");
-    if (input == nullptr)
+    File input(input_filename, "r");
+    if (not input)
         Error("can't open \"" + input_filename + "\" for reading!");
 
     unsigned count(0), result_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
         ++count;
 
 	const Leader &leader(record.getLeader());
@@ -101,8 +100,6 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
 
 done:
     std::cerr << "Matched " << result_count << " records of " << count << " overall records.\n";
-
-    std::fclose(input);
 }
 
 

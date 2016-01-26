@@ -63,7 +63,7 @@ bool IsPossibleISSN(const std::string &issn_candidate) {
 
 
 void PopulateParentIdToISBNAndISSNMap(
-    const bool verbose, FILE * const input,
+    const bool verbose, File * const input,
     std::unordered_map<std::string, std::string> * const parent_id_to_isbn_and_issn_map)
 {
     if (verbose)
@@ -71,7 +71,7 @@ void PopulateParentIdToISBNAndISSNMap(
 
     unsigned count(0), extracted_isbn_count(0), extracted_issn_count(0);
     std::string err_msg;
-    while (const MarcUtil::Record record = MarcUtil::Record(input)) {
+    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
 
 	const Leader &leader(record.getLeader());
@@ -107,21 +107,23 @@ void PopulateParentIdToISBNAndISSNMap(
 }
 
 
-void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const input, FILE * const output,
+void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const input, File * const output,
                                             const std::unordered_map<std::string,
                                             std::string> &parent_id_to_isbn_and_issn_map)
 {
     if (verbose)
         std::cout << "Starting augmentation of article entries.\n";
 
+    XmlWriter xml_writer(output);
     unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0),
              missing_isbn_or_issn_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record(input)) {
+    xml_writer.openTag("collection");
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
 
 	const Leader &leader(record.getLeader());
         if (not leader.isArticle()) {
-	    record.write(output);
+	    record.write(&xml_writer);
             continue;
         }
 
@@ -131,7 +133,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
 
         auto entry_iterator(DirectoryEntry::FindField("773", dir_entries));
         if (entry_iterator == dir_entries.end()) {
-	    record.write(output);
+	    record.write(&xml_writer);
             continue;
         }
 
@@ -139,13 +141,13 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
 	const std::vector<std::string> &fields(record.getFields());
         Subfields subfields(fields[index_773]);
         if (subfields.hasSubfield('x')) {
-	    record.write(output);
+	    record.write(&xml_writer);
             continue;
         }
 
         auto begin_end = subfields.getIterators('w'); // Record control number of Host Item Entry.
         if (begin_end.first == begin_end.second) {
-	    record.write(output);
+	    record.write(&xml_writer);
             ++missing_host_record_ctrl_num_count;
             continue;
         }
@@ -155,7 +157,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
             host_id = host_id.substr(8);
         auto const parent_isbn_or_issn_iter(parent_id_to_isbn_and_issn_map.find(host_id));
         if (parent_isbn_or_issn_iter == parent_id_to_isbn_and_issn_map.end()) {
-	    record.write(output);
+	    record.write(&xml_writer);
             ++missing_isbn_or_issn_count;
             continue;
         }
@@ -172,8 +174,9 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, FILE * const inp
             ++isbns_added;
         }
 
-	record.write(output);
+	record.write(&xml_writer);
     }
+    xml_writer.closeTag("collection");
 
     if (verbose) {
         std::cerr << "Read " << count << " records.\n";
@@ -193,18 +196,18 @@ int main(int argc, char **argv) {
     const bool verbose(argc == 5);
 
     const std::string marc_input_filename(argv[argc == 4 ? 1 : 2]);
-    FILE *marc_input = std::fopen(marc_input_filename.c_str(), "rm");
-    if (marc_input == nullptr)
+    File marc_input(marc_input_filename, "rm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_aux_input_filename(argv[argc == 4 ? 2 : 3]);
-    FILE *marc_aux_input = std::fopen(marc_aux_input_filename.c_str(), "rm");
-    if (marc_input == nullptr)
+    File marc_aux_input(marc_aux_input_filename, "rm");
+    if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[argc == 4 ? 3 : 4]);
-    FILE *marc_output = std::fopen(marc_output_filename.c_str(), "wb");
-    if (marc_output == nullptr)
+    File marc_output(marc_output_filename, "wb");
+    if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     if (unlikely(marc_input_filename == marc_output_filename))
@@ -215,16 +218,12 @@ int main(int argc, char **argv) {
 
     try {
 	std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
-	PopulateParentIdToISBNAndISSNMap(verbose, marc_input, &parent_id_to_isbn_and_issn_map);
-	PopulateParentIdToISBNAndISSNMap(verbose, marc_aux_input, &parent_id_to_isbn_and_issn_map);
+	PopulateParentIdToISBNAndISSNMap(verbose, &marc_input, &parent_id_to_isbn_and_issn_map);
+	PopulateParentIdToISBNAndISSNMap(verbose, &marc_aux_input, &parent_id_to_isbn_and_issn_map);
 
-	std::rewind(marc_input);
-	AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_input, marc_output, parent_id_to_isbn_and_issn_map);
+	marc_input.rewind();
+	AddMissingISBNsOrISSNsToArticleEntries(verbose, &marc_input, &marc_output, parent_id_to_isbn_and_issn_map);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
-
-    std::fclose(marc_input);
-    std::fclose(marc_aux_input);
-    std::fclose(marc_output);
 }

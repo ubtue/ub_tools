@@ -26,12 +26,13 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include <cstdio>
 
 #include "DirectoryEntry.h"
+#include "File.h"
 #include "Leader.h"
+#include "XmlWriter.h"
 
-    
+
 namespace MarcUtil {
 
 
@@ -41,8 +42,16 @@ class Record {
     mutable bool raw_record_is_out_of_date_;
     mutable std::vector<DirectoryEntry> dir_entries_;
     mutable std::vector<std::string> fields_;
+private:
+    Record() = default;
+    Record(Leader &leader, std::vector<DirectoryEntry> &dir_entries, std::vector<std::string> &fields) noexcept
+        : leader_(std::move(leader)), raw_record_is_out_of_date_(true), dir_entries_(std::move(dir_entries)),
+          fields_(std::move(fields)) { }
 public:
-    explicit Record(FILE * const input);
+    Record(Record &&other) noexcept
+        : leader_(std::move(other.leader_)), raw_record_(std::move(other.raw_record_)),
+          raw_record_is_out_of_date_(other.raw_record_is_out_of_date_), dir_entries_(std::move(other.dir_entries_)),
+	fields_(std::move(other.fields_)) { }
 
     operator bool () const { return not dir_entries_.empty(); }
     const Leader &getLeader() const { return leader_; }
@@ -126,7 +135,14 @@ public:
     /** \brief Performs a few sanity checks. */
     bool recordSeemsCorrect(std::string * const err_msg) const;
 
-    void write(FILE * const output) const;
+    /** Write MARC-21-style data. */
+    void write(File * const output) const;
+
+    /* Write MARC-XML-style data. */
+    void write(XmlWriter * const xml_writer) const;
+
+    static Record XmlFactory(File * const input);
+    static Record BinaryFactory(File * const input);
 private:
     void UpdateRawRecord() const;
 
@@ -136,7 +152,7 @@ private:
 	return raw_record_;
     }
 };
-    
+
 
 using RecordFunc = bool (&)(Record * const record, std::string * const err_msg);
 
@@ -146,7 +162,18 @@ using RecordFunc = bool (&)(Record * const record, std::string * const err_msg);
 // Each record read from "input" will be parsed and the directory entries and field data will be passed into
 // "process_record".  If "process_record" returns false, ProcessRecords will be aborted and the error message will
 // be passed up to the caller.
-bool ProcessRecords(FILE * const input, RecordFunc process_record, std::string * const err_msg);
+bool ProcessRecords(File * const input, RecordFunc process_record, std::string * const err_msg);
+
+
+using XmlRecordFunc = bool (&)(Record * const record, XmlWriter * const xml_writer, std::string * const err_msg);
+
+
+// Returns false on error and EOF.  To distinguish between the two: on EOF "err_msg" is empty but not when an
+// error has been detected.  For each entry in "dir_entries" there will be a corresponding entry in "field_data".
+// Each record read from "input" will be parsed and the directory entries and field data will be passed into
+// "process_record".  If "process_record" returns false, ProcessRecords will be aborted and the error message will
+// be passed up to the caller.
+bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer, std::string * const err_msg);
 
 
 } // namespace MarcUtil
