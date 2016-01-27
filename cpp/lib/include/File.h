@@ -124,6 +124,8 @@ public:
     /** Returns a File's size in bytes. */
     off_t size() const;
 
+    bool isCompressingOrUncompressing() const { return not fifo_path_.empty(); }
+
     /** \brief  Closes the currently open file if any and reinitalises a File object.
      *  \param  filepath   The pathname for the file (see fopen(3) for details).
      *  \param  openmode   The open mode (see fopen(3) for details).
