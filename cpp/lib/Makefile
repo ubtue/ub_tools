@@ -10,13 +10,18 @@ CCOPTS = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -marc
 LDOPTS = -O3
 MAKE_DEPS=/usr/local/bin/iViaCore-mkdep
 
+ifneq ("$(wildcard /etc/centos-release)","")
+  LZ4_PATH=/bin/lz4
+else # Ubuntu version
+  LZ4_PATH=/usr/bin/lz4
+endif
+
 .PHONY: clean
 .PRECIOUS: $(OBJ)/%.o
 
 # Rule for building:
 $(OBJ)/%.o: $(SRC)/%.cc
-	$(CCC) $(CCOPTS) $< -c -o $@
-
+	$(CCC) $(CCOPTS) $< -c -o $@ -DLZ4_PATH=\"$(LZ4_PATH)\"
 
 all: .deps libstemmer/libstemmer.a libmarc.a
 
