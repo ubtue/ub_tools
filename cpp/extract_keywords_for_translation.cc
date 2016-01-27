@@ -187,7 +187,7 @@ void ExtractTranslationTerms(File * const norm_data_input, DbConnection * const 
 }
 
 			     
-const std::string CONF_FILE_PATH("/var/lib/tuelib/translation_tool.conf");
+const std::string CONF_FILE_PATH("/var/lib/tuelib/extract_keywords_for_translation.conf");
 
 
 int main(int argc, char **argv) {
@@ -213,9 +213,10 @@ int main(int argc, char **argv) {
 
     try {
 	const IniFile ini_file(CONF_FILE_PATH);
+	const std::string sql_database(ini_file.getString("", "sql_database"));
 	const std::string sql_username(ini_file.getString("", "sql_username"));
 	const std::string sql_password(ini_file.getString("", "sql_password"));
-	DbConnection db_connection("vufind", sql_username, sql_password);
+	DbConnection db_connection(sql_database, sql_username, sql_password);
 
 	std::unordered_set<std::string> norm_data_control_numbers;
 	ExtractKeywordNormdataControlNumbers(&inferior_marc_input, &norm_data_control_numbers);

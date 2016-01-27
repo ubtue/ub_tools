@@ -49,7 +49,8 @@ void Usage() {
 static std::unordered_set<std::string> serial_control_numbers;
 
 
-bool RecordSerialControlNumbers(MarcUtil::Record * const record, std::string * const /* err_msg */) {
+bool RecordSerialControlNumbers(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
+				std::string * const /* err_msg */) {
     const Leader &leader(record->getLeader());
     if (leader[7] == 's') {
 	const std::vector<std::string> &fields(record->getFields());
@@ -63,7 +64,7 @@ bool RecordSerialControlNumbers(MarcUtil::Record * const record, std::string * c
 void CollectSerials(const bool verbose, const std::vector<File *> &inputs) {
     std::string err_msg;
     for (auto &input : inputs) {
-	if (not MarcUtil::ProcessRecords(input, RecordSerialControlNumbers, &err_msg))
+	if (not MarcUtil::ProcessRecords(input, RecordSerialControlNumbers, /* xml_writer = */nullptr, &err_msg))
 	    Error("error while looking for serials: " + err_msg);
     }
 
@@ -72,7 +73,6 @@ void CollectSerials(const bool verbose, const std::vector<File *> &inputs) {
 }
 
 
-static File *output_ptr;
 static unsigned patch_count;
 
 
@@ -112,31 +112,30 @@ bool HasAtLeastOneSerialParent(const std::string &subfield_list, const MarcUtil:
 
 // Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is a serial.
 // Also writes all records to "output_ptr".
-bool PatchUpArticle(MarcUtil::Record * const record, std::string * const /*err_msg*/) {
+bool PatchUpArticle(MarcUtil::Record * const record, XmlWriter * const xml_writer, std::string * const /*err_msg*/) {
     Leader &leader(record->getLeader());
     if (leader[7] != 'a') {
-	record->write(output_ptr);
+	record->write(xml_writer);
 	return true;
     }
 
     if (not HasAtLeastOneSerialParent("800w:810w:830w:773w", *record)) {
-	record->write(output_ptr);
+	record->write(xml_writer);
 	return true;
     }
 
     leader[7] = 'b';
     ++patch_count;
-    record->write(output_ptr);
+    record->write(xml_writer);
 
     return true;
 }
 
 
 void PatchUpSerialComponentParts(const bool verbose, File * const input, File * const output) {
-    output_ptr = output;
-
+    XmlWriter xml_writer(output);
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(input, PatchUpArticle, &err_msg))
+    if (not MarcUtil::ProcessRecords(input, PatchUpArticle, &xml_writer, &err_msg))
 	Error("error while patching up article records: " + err_msg);
 
     if (verbose)
