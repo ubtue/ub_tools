@@ -28,6 +28,7 @@ dsv_reader
 enrich_ddcs
 enrich_keywords_with_title_words
 exec_test
+extract_keywords_for_translation
 extract_text_from_image_only_pdfs
 fix_article_biblio_levels
 full_text_cache_cleaner
