@@ -13,7 +13,9 @@
 WAR_FILE="$VUFIND_HOME/solr/jetty/webapps/solr.war"
 WAR_TARGET="$VUFIND_HOME/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/"
 
-mkdir --parent "$WAR_TARGET"
-unzip "$WAR_FILE" -d "$WAR_TARGET"
+if [ ! -d "$WAR_TARGET" ] ; then
+	mkdir --parent "$WAR_TARGET"
+	unzip "$WAR_FILE" -d "$WAR_TARGET"
+fi
 
 make -C "$VUFIND_HOME/../ub_tools" root_install
