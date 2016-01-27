@@ -1,6 +1,6 @@
 #! /bin/bash
 #
-# This script drops the vufind-user and the vufind-database and creates both from scratch.
+# This script configures the database.
 #
 set -o errexit -o nounset
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
@@ -41,6 +41,13 @@ if [ "$userExists" ] ; then
 	mysql --user=root --password="$ROOT_PASSWORD" --execute="DROP USER 'vufind'@'localhost';"
 fi
 
-mysql --user=root --password="$ROOT_PASSWORD" --execute="DROP DATABASE IF EXISTS vufind;"
-mysql --user=root --password="$ROOT_PASSWORD" < "$SCRIPT_DIR/create_mysql_database.sql"
+RESULT=$(mysql --user=root --password="$ROOT_PASSWORD" --execute="SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'vufind';")
+if [[ -z "$RESULT" ]] ; then
+	CREATE_VUFIND_STATEMENT=$(cat "$VUFIND_HOME/module/VuFind/sql/mysql.sql")
+	mysql --user=root --password="$ROOT_PASSWORD" --execute="CREATE DATABASE IF NOT EXISTS vufind; USE vufind; $CREATE_VUFIND_STATEMENT"
+
+	CREATE_IXTHEO_STATEMENT=$(cat "$SCRIPT_DIR/../../cpp/data/create_translation_table.sql")
+	mysql --user=root --password="$ROOT_PASSWORD" --execute="CREATE DATABASE IF NOT EXISTS ixtheo; USE ixtheo; $CREATE_IXTHEO_STATEMENT"
+fi
+
 mysql --user=root --password="$ROOT_PASSWORD" --execute="GRANT SELECT,INSERT,UPDATE,DELETE ON vufind.* TO 'vufind'@'localhost' IDENTIFIED BY '$VUFIND_PASSWORD' WITH GRANT OPTION; FLUSH PRIVILEGES;"
