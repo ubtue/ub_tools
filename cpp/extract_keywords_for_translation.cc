@@ -37,6 +37,7 @@
 #include "MarcUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
+#include "TranslationUtil.h"
 #include "util.h"
 
 
@@ -137,38 +138,14 @@ bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xm
         }
     }
 
-    //
     // Update the database.
-    //
-
-    // 1. Determine the ID:
-    const std::string SELECT_EXISTING("SELECT id FROM translations WHERE text=\"" + german_text + "\" AND language_code=\"deu\"");
-    if (not shared_connection->query(SELECT_EXISTING))
-        Error("Select failed: " + SELECT_EXISTING + " (" + shared_connection->getLastErrorMessage() + ")");
-    DbResultSet id_result_set(shared_connection->getLastResultSet());
-    std::string id;
-    if (not id_result_set.empty())
-	id = id_result_set.getNextRow()["id"];
-    else { // We don't have any entries for this German term yet.
-	const std::string SELECT_MAX_ID("SELECT MAX(id) FROM translations");
-	if (not shared_connection->query(SELECT_MAX_ID))
-	    Error("Select failed: " + SELECT_MAX_ID + " (" + shared_connection->getLastErrorMessage() + ")");
-	DbResultSet max_id_result_set(shared_connection->getLastResultSet());
-	if (max_id_result_set.empty())
-	    id = "1";
-	else {
-	    const std::string max_id(max_id_result_set.getNextRow()["MAX(id)"]); // Apparently SQL NULL can be  returned
-	                                                                         // which leads to an empty string here.
-	    id = std::to_string(max_id.empty() ? 1 : StringUtil::ToUnsigned(max_id) + 1);
-	}
-    }
-
-    // 2. Insert the terms in the various languages:
+    const std::string id(TranslationUtil::GetId(shared_connection, german_text));
     for (const auto &text_and_language_code : text_and_language_codes) {
-	const std::string INSERT_STMT("INSERT IGNORE INTO translations SET id=" + id + ", language_code=\""
-				      + text_and_language_code.second + "\", text=\"" + text_and_language_code.first + "\"");
-	if (not shared_connection->query(INSERT_STMT))
-	    Error("Insert failed: " + INSERT_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
+	const std::string REPLACE_STMT("REPLACE INTO translations SET id=" + id + ", language_code=\""
+				       + text_and_language_code.second + "\", category=\"keywords\", preexists=TRUE, text=\""
+				       + shared_connection->escapeString(text_and_language_code.first) + "\"");
+	if (not shared_connection->query(REPLACE_STMT))
+	    Error("Insert failed: " + REPLACE_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
     }
 
     return true;
@@ -187,7 +164,7 @@ void ExtractTranslationTerms(File * const norm_data_input, DbConnection * const 
 }
 
 			     
-const std::string CONF_FILE_PATH("/var/lib/tuelib/extract_keywords_for_translation.conf");
+const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
 int main(int argc, char **argv) {
