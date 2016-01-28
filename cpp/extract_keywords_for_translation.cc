@@ -142,7 +142,7 @@ bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xm
     const std::string id(TranslationUtil::GetId(shared_connection, german_text));
     for (const auto &text_and_language_code : text_and_language_codes) {
 	const std::string REPLACE_STMT("REPLACE INTO translations SET id=" + id + ", language_code=\""
-				       + text_and_language_code.second + "category=\"keywords\", preexists=TRUE, \", text=\""
+				       + text_and_language_code.second + "\", category=\"keywords\", preexists=TRUE, \", text=\""
 				       + shared_connection->escapeString(text_and_language_code.first) + "\"");
 	if (not shared_connection->query(REPLACE_STMT))
 	    Error("Insert failed: " + REPLACE_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
