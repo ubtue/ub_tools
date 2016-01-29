@@ -25,6 +25,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include "Compiler.h"
 #include "MarcUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -44,8 +45,10 @@ void ExtractDeletionIds(File *const deletion_list, std::unordered_set <std::stri
                         std::unordered_set <std::string> *const local_deletion_ids) {
     unsigned line_no(0);
     while (not deletion_list->eof()) {
-	const std::string line(deletion_list->getline());
+	const std::string line(StringUtil::Trim(deletion_list->getline()));
         ++line_no;
+	if (unlikely(line.empty())) // Ignore empty lines.
+	    continue;
         if (line.length() < 12)
             Error("short line in deletion list file: \"" + line + "\"!");
         if (line[11] == 'A')
