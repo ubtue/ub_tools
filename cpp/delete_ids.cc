@@ -142,7 +142,7 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     File *const output)
 {
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+    while (MarcUtil::Record record = MarcUtil::Record::BinaryFactory(input)) {
         ++total_record_count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
