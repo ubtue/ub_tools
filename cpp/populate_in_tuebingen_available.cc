@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015,2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -29,6 +29,7 @@
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 void Usage() {
@@ -37,12 +38,11 @@ void Usage() {
 }
 
 
-static File *output_ptr;
 static unsigned modified_record_count;
 static unsigned add_sig_count;
 
 
-bool ProcessRecord(MarcUtil::Record * const record, std::string * const /*err_msg*/) {
+bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer, std::string * const /*err_msg*/) {
     std::vector <std::pair<size_t, size_t>> local_block_boundaries;
     record->findAllLocalDataBlocks(&local_block_boundaries);
 
@@ -96,22 +96,25 @@ bool ProcessRecord(MarcUtil::Record * const record, std::string * const /*err_ms
     if (modified_record)
         ++modified_record_count;
 
-    record->write(output_ptr);
+    record->write(xml_writer);
     return true;
 }
 
 
 void PopulateTheInTuebingenAvailableField(const bool verbose, File * const input, File * const output) {
-    output_ptr = output;
+    XmlWriter xml_writer(output);
+    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
 
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(input, ProcessRecord, &err_msg))
+    if (not MarcUtil::ProcessRecords(input, ProcessRecord, &xml_writer , &err_msg))
         Error("error while processing records: " + err_msg);
 
     if (verbose) {
         std::cout << "Modified " << modified_record_count << " records.\n";
         std::cout << "Added " << add_sig_count << " signature fields.\n";
     }
+
+    xml_writer.closeTag();
 }
 
 
