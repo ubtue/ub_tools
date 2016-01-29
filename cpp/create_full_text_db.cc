@@ -1,7 +1,7 @@
 /** \brief Utility for augmenting MARC records with links to a local full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -41,6 +41,7 @@
 #include "Subfields.h"
 #include "TimeLimit.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 static void Usage() __attribute__((noreturn));
@@ -58,11 +59,12 @@ static void Usage() {
 }
 
 
-void FileLockedComposeAndWriteRecord(File * const output, const MarcUtil::Record &record) {
+void FileLockedComposeAndWriteRecord(XmlWriter * const xml_writer, const MarcUtil::Record &record) {
+    File *output(xml_writer->getAssociatedOutputFile());
     FileLocker file_locker(output, FileLocker::WRITE_ONLY);
     if (not output->seek(0, SEEK_END))
         Error("failed to seek to the end of \"" + output->getPath() + "\"!");
-    record.write(output);
+    record.write(xml_writer);
     output->flush();
 }
 
@@ -124,6 +126,9 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
                     File * const output, const std::string &db_filename, const unsigned process_count_low_watermark,
                     const unsigned process_count_high_watermark)
 {
+    XmlWriter xml_writer(output);
+    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
     long offset(0L), last_offset;
@@ -146,7 +151,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             continue;
 
         if (not FoundAtLeastOneNonReviewLink(record)) {
-            FileLockedComposeAndWriteRecord(output, record);
+            FileLockedComposeAndWriteRecord(&xml_writer, record);
             continue;
         }
 
@@ -163,6 +168,8 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     // Wait for stragglers:
     child_reported_failure_count += CleanUpZombies(active_child_count);
+
+    xml_writer.closeTag();
 
     if (not err_msg.empty())
         Error(err_msg);
