@@ -113,7 +113,7 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 
 
 std::string GetFileMediaType(const std::string &filename, const bool auto_simplify) {
-    const magic_t cookie = ::magic_open(MAGIC_MIME);
+    const magic_t cookie = ::magic_open(MAGIC_MIME | MAGIC_SYMLINK);
     if (unlikely(cookie == nullptr))
 	throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
 
