@@ -30,10 +30,9 @@ fi
 log=/tmp/krimdok_marc_pipeline.log
 rm -f "${log}"
 
-# Phase 0:
 P=0
-echo "*** Phase $P ***"
-echo "*** Phase $P ***" >> "${log}"
+echo "*** Phase $P: Convert MARC-21 to MARC-XML ***"
+echo "*** Phase $P: Convert MARC-21 to MARC-XML ***" >> "${log}"
 marc_grep TitelUndLokaldaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
     > TitelUndLokaldaten-"${date}".xml 2>> "${log}"
 marc_grep ÜbergeordneteTitelUndLokaldaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
@@ -41,33 +40,30 @@ marc_grep ÜbergeordneteTitelUndLokaldaten-"${date}".mrc 'if "001" == ".*" extra
 marc_grep Normdaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
     > Normdaten-"${date}".xml 2>> "${log}"
 
-# Phase 1:
-P=1
-echo "*** Phase $P ***"
-echo "*** Phase $P ***" >> "${log}"
-krimdok_filter --bibliotheks-sigel-filtern "$2" ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml \
-               >> "${log}" 2>&1
+((++P))
+echo "*** Phase $P: Filter out Records of Other Institutions ***"
+echo "*** Phase $P: Filter out Records of Other Institutions ***" >> "${log}"
+krimdok_filter --bibliotheks-sigel-filtern ÜbergeordneteTitelUndLokaldaten-"${date}".xml \
+                                           ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml \
+                                           >> "${log}" 2>&1
 
-# Phase 2:
-P=2
-echo "*** Phase $P ***"
-echo "*** Phase $P ***" >> "${log}"
+((++P))
+echo "*** Phase $P: Normalise URL's ***"
+echo "*** Phase $P: Normalise URL's ***" >> "${log}"
 krimdok_filter --normalise-urls "$1" TitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 krimdok_filter --normalise-urls ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
                ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 
-# Phase 3:
-P=3
-echo "*** Phase $P ***"
-echo "*** Phase $P ***" >> "${log}"
+((++P))
+echo "*** Phase $P: Add ISBN's or ISSN's to Articles ***"
+echo "*** Phase $P: Add ISBN's or ISSN's to Articles ***" >> "${log}"
 add_isbns_or_issns_to_articles TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
                                ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
                                TitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 
-# Phase 4:
-P=4
-echo "*** Phase $P ***"
-echo "*** Phase $P ***" >> "${log}"
+((++P))
+echo "*** Phase $P: Create Full-Text Database ***"
+echo "*** Phase $P: Create Full-Text Database ***" >> "${log}"
 create_full_text_db --process-count-low-and-high-watermarks \
                     $(get_config_file_entry.py krimdok_marc_pipeline.conf \
                       create_full_text_db process_count_low_and_high_watermarks) \
@@ -76,10 +72,9 @@ create_full_text_db --process-count-low-and-high-watermarks \
                     full_text.db >> "${log}" 2>&1
 cp full_text.db /var/lib/tuelib/
 
-# Phase 5:
-P=5
-echo "*** Phase $P ***"
-echo "*** Phase $P ***" >> "${log}"
+((++P))
+echo "*** Phase $P: Fill in the \"in_tuebingen_available\" Field ***"
+echo "*** Phase $P: Fill in the \"in_tuebingen_available\" Field ***" >> "${log}"
 populate_in_tuebingen_available --verbose \
                                 TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
                                 TitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
@@ -87,10 +82,9 @@ populate_in_tuebingen_available --verbose \
                                 ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
                                 ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 
-# Phase 6:
-P=6
-echo "*** Phase $P ***"
-echo "*** Phase $P ***" >> "${log}"
+((++P))
+echo "*** Phase $P: Fix Article Biblio Levels ***"
+echo "*** Phase $P: Fix Article Biblio Levels ***" >> "${log}"
 fix_article_biblio_levels --verbose \
     TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
     ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-2))"-"${date}".xml \
@@ -99,7 +93,8 @@ fix_article_biblio_levels --verbose \
     ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-2))"-"${date}".xml \
     ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
 
-# Cleanup of intermediate files:
+echo "*** Cleanup of Intermediate Files ***"
+echo "*** Cleanup of Intermediate Files ***" >> "${log}"
 for p in $(seq "$((P-1))"); do
     rm -f ÜbergeordneteTitelUndLokaldaten-post-"$p"-"${date}".xml
     rm -f TitelUndLokaldaten-post-"$p"-"${date}".xml
