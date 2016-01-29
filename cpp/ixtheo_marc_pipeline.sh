@@ -85,7 +85,7 @@ update_ixtheo_notations \
     TitelUndLokaldaten-post-phase"$P"-"${date}".xml \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
 update_ixtheo_notations \
-    ÜbergeordneteTitelUndLokaldaten-post-phase1-"${date}".xml \
+    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-4))"-"${date}".xml \
     ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
 
