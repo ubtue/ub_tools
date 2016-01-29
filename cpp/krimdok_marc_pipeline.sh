@@ -87,10 +87,10 @@ echo "*** Phase $P: Fix Article Biblio Levels ***"
 echo "*** Phase $P: Fix Article Biblio Levels ***" >> "${log}"
 fix_article_biblio_levels --verbose \
     TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-2))"-"${date}".xml \
+    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
     TitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
 fix_article_biblio_levels --verbose \
-    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-2))"-"${date}".xml \
+    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
     ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
 
 echo "*** Cleanup of Intermediate Files ***"
