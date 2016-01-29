@@ -79,7 +79,7 @@ populate_in_tuebingen_available --verbose \
                                 TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
                                 TitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 populate_in_tuebingen_available --verbose \
-                                ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
+                                ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-3))"-"${date}".xml \
                                 ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 
 ((++P))
