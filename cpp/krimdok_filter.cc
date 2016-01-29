@@ -100,6 +100,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     if (not output)
         Error("can't open \"" + output_filename + "\" for writing!");
     XmlWriter xml_writer(&output);
+    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
 
     std::vector<CompiledPattern> compiled_patterns;
     std::string err_msg;
@@ -130,6 +131,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
 	    record.write(&xml_writer);
         }
     }
+    xml_writer.closeTag();
 
     if (not err_msg.empty())
         Error(err_msg);
