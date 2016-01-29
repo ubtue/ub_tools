@@ -227,6 +227,9 @@ bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) 
 void DeleteMatched(const std::string &tags_list, const std::vector<std::string> &patterns, const bool invert,
                    File * const input, File * const output)
 {
+    XmlWriter xml_writer(output);
+    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+
     std::vector<CompiledPattern> compiled_patterns;
     std::string err_msg;
     if (not CompilePatterns(patterns, &compiled_patterns, &err_msg))
@@ -269,8 +272,9 @@ found_match:
             record.filterTags(drop_tags);
         }
 
-        record.write(output);
+        record.write(&xml_writer);
     }
+    xml_writer.closeTag();
 
     if (not err_msg.empty())
         Error(err_msg);
@@ -286,6 +290,9 @@ inline bool IsHttpOrHttpsURL(const std::string &url_candidate) {
 
 
 void NormaliseURLs(const bool verbose, File * const input, File * const output) {
+    XmlWriter xml_writer(output);
+    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+
     unsigned count(0), modified_count(0), duplicate_skip_count(0);
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
@@ -344,8 +351,9 @@ void NormaliseURLs(const bool verbose, File * const input, File * const output) 
         if (modified_record)
             ++modified_count;
 
-	record.write(output);
+	record.write(&xml_writer);
     }
+    xml_writer.closeTag();
 
     std::cerr << "Read " << count << " records.\n";
     std::cerr << "Modified " << modified_count << " record(s).\n";
