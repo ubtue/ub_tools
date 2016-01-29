@@ -31,6 +31,7 @@
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 class CompiledPattern {
@@ -98,6 +99,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     File output(output_filename, "wb");
     if (not output)
         Error("can't open \"" + output_filename + "\" for writing!");
+    XmlWriter xml_writer(&output);
 
     std::vector<CompiledPattern> compiled_patterns;
     std::string err_msg;
@@ -125,7 +127,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     found:
         if (matched) {
             ++matched_count;
-	    record.write(&output);
+	    record.write(&xml_writer);
         }
     }
 
