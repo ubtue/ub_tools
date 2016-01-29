@@ -50,7 +50,7 @@ krimdok_filter --bibliotheks-sigel-filtern ÜbergeordneteTitelUndLokaldaten-"${d
 ((++P))
 echo "*** Phase $P: Normalise URL's ***"
 echo "*** Phase $P: Normalise URL's ***" >> "${log}"
-krimdok_filter --normalise-urls "$1" TitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
+krimdok_filter --normalise-urls TitelUndLokaldaten-"${date}".xml TitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 krimdok_filter --normalise-urls ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
                ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 
