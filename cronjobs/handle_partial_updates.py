@@ -31,6 +31,17 @@ import traceback
 import util
 
 
+def EnsureFileIsEmptyOrEndsWithNewline(filename):
+    with open(filename, "rb+") as file:
+        try:
+            file.seek(-1, 2)
+            if file.read(1) != "\n":
+                file.seek(0, 2)
+                file.write("\n")
+        except:
+            pass # File was probably empty
+
+
 # Create a new deletion list "augmented_list" which consists of a copy of "orig_list" and the
 # list of extracted control numbers from "changed_marc_data".
 def AugmentDeletionList(orig_list, changed_marc_data, augmented_list):
@@ -94,6 +105,7 @@ def UpdateAllMarcFiles(orig_deletion_list):
             pass
     else:
         shutil.copyfile("../" + orig_deletion_list, "augmented_deletion_list")
+        EnsureFileIsEmptyOrEndsWithNewline("augmented_deletion_list")
     extract_IDs_script_path = GetPathOrDie("extract_IDs_in_erase_format.sh")
     for marc_file_name in glob.glob("*.mrc"):
         if not marc_file_name.startswith("Diff"):
