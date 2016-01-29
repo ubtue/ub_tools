@@ -71,6 +71,8 @@ public:
     /** Destroyes an XmlWriter object, closing any still open tags. */
     ~XmlWriter() { closeAllTags(); }
 
+    File *getAssociatedOutputFile() const { return output_file_; }
+
     /** \brief    Adds another attribute to be used the next time the one-argument version of openTag() gets called.
      *  \warning  If the two-argument version of openTag() gets called all prior calls to this function will be
      *            ignored!
