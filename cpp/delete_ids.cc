@@ -41,7 +41,7 @@ static void Usage() {
 }
 
 
-void ExtractDeletionIds(File *const deletion_list, std::unordered_set <std::string> * const title_deletion_ids,
+void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const title_deletion_ids,
                         std::unordered_set <std::string> *const local_deletion_ids) {
     unsigned line_no(0);
     while (not deletion_list->eof()) {
@@ -50,7 +50,8 @@ void ExtractDeletionIds(File *const deletion_list, std::unordered_set <std::stri
 	if (unlikely(line.empty())) // Ignore empty lines.
 	    continue;
         if (line.length() < 12)
-            Error("short line in deletion list file: \"" + line + "\"!");
+            Error("short line " + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath()
+		  + "\": \"" + line + "\"!");
         if (line[11] == 'A')
             title_deletion_ids->insert(line.substr(12)); // extract PPN
         else if (line[11] == '9') {
