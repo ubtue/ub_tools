@@ -37,7 +37,7 @@ def SendEmail(subject, msg, sender=None, recipient=None):
         server_user     = config.get("SMTPServer", "server_user")
         server_password = config.get("SMTPServer", "server_password")
     except Exception as e:
-        print("failed to read config file! (" + str(e) + ")", file=sys.stderr)
+        print("failed to read config file! (" + str(e) + ")", file=sys.stderr, flush=True)
         sys.exit(-1)
 
     message = MIMEText(msg, 'plain', 'utf-8')
@@ -51,7 +51,7 @@ def SendEmail(subject, msg, sender=None, recipient=None):
         server.login(server_user, server_password)
         server.sendmail(sender, [recipient], message.as_string())
     except Exception as e:
-        print("Failed to send your email: " + str(e), file=sys.stderr)
+        print("Failed to send your email: " + str(e), file=sys.stderr, flush=True)
         sys.exit(-1)
     server.quit()
 
@@ -65,7 +65,7 @@ def Error(msg):
 
 def Warning(msg):
     msg = os.path.basename(inspect.stack()[1][1]) + "." + inspect.stack()[1][3] + ": " + msg
-    print(sys.argv[0] + ": " + msg, file=sys.stderr)
+    print(sys.argv[0] + ": " + msg, file=sys.stderr, flush=True)
 
 
 # @brief Copy the contents, in order, of "files" into "target".

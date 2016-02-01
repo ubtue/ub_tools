@@ -80,7 +80,7 @@ def Exec(cmd_path, args = None, timeout = 0, env = None, new_stdout = None, new_
 
     else: # We're the child.
         if os.setsid() == -1:
-            print("in exec.Exec: os.setsid() failed!", file=sys.stderr)
+            print("in exec.Exec: os.setsid() failed!", file=sys.stderr, flush=True)
             sys.exit(-1)
 
         if new_stdout is not None:
@@ -108,4 +108,4 @@ if __name__ == '__main__':
     print("hello.sh returned " + str(Exec("./cpp/hello.sh")))
     print("fail.sh returned " + str(Exec("./fail.sh")))
     print("more_than_5_seconds.sh returned " + str(Exec("./more_than_5_seconds.sh", timeout=5)))
-    print("\"echo_args.sh a b c\" returned " + str(Exec("./echo_args.sh", ['a', 'b', 'c'])))
+    print("\"echo_args.sh a b c\" returned " + str(Exec("./echo_args.sh", ['a', 'b', 'c'])), flush=True)
