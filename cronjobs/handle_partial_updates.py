@@ -17,7 +17,6 @@ server_password = XXXXXX
 """
 
 
-from __future__ import print_function
 from ftplib import FTP
 import datetime
 import glob
@@ -50,7 +49,7 @@ def AugmentDeletionList(orig_list, changed_marc_data, augmented_list):
     if process_util.Exec("extract_IDs_in_erase_format.sh", args=[changed_marc_data, augmented_list],
                          timeout=100) != 0:
         util.Error("failed to create \"" + augmented_list + "\" from \"" + changed_marc_data + "\"!")
-    print("Successfully created \"" + augmented_list + "\".", flush=True)
+    util.Info("Successfully created \"" + augmented_list + "\".")
 
 
 def DeleteMarcRecords(original_marc_file, deletion_list, processed_marc_file):
@@ -59,7 +58,7 @@ def DeleteMarcRecords(original_marc_file, deletion_list, processed_marc_file):
                          timeout=200) != 0:
         util.Error("failed to create \"" + processed_marc_file + "\" from \"" + deletion_list + "\" and \""
                    + original_marc_file + "\"!")
-    print("Successfully created \"" + processed_marc_file + "\".", flush=True)
+    util.Info("Successfully created \"" + processed_marc_file + "\".")
 
 
 # Creates our empty data directory and changes into it.
@@ -115,7 +114,7 @@ def UpdateAllMarcFiles(orig_deletion_list):
                              timeout=100) != 0:
             util.Error("failed to append ID's from \"" + marc_file_name
                        + "\" to \"augmented_deletion_list\"!")
-    print("Created an augmented deletion list.", flush=True)
+    util.Info("Created an augmented deletion list.")
 
     # Now delete ID's from the augmented deletion list from all MARC-21 files:
     delete_ids_path = GetPathOrDie("delete_ids")
@@ -129,7 +128,7 @@ def UpdateAllMarcFiles(orig_deletion_list):
                        "\"" + marc_file_name + "\"!")
         RemoveOrDie(marc_file_name)
     RemoveOrDie("augmented_deletion_list")
-    print("Deleted ID's from MARC files.", flush=True)
+    util.Info("Deleted ID's from MARC files.")
 
     # Now concatenate the changed MARC records with the trimmed data sets:
     for marc_file_name in glob.glob("*-trimmed.mrc"):
@@ -139,7 +138,7 @@ def UpdateAllMarcFiles(orig_deletion_list):
             util.Error("We failed to concatenate \"" + marc_file_name + "\" and \"" + diff_name + "\"!")
         RemoveOrDie(marc_file_name)
         RemoveOrDie(diff_name)
-    print("Created concatenated MARC files.", flush=True)
+    util.Info("Created concatenated MARC files.")
 
     # Rename files to include the current date and move them up a directory:
     current_date_str = datetime.datetime.now().strftime("%y%m%d")
@@ -147,13 +146,13 @@ def UpdateAllMarcFiles(orig_deletion_list):
     for marc_file_name in marc_files:
         RenameOrDie(marc_file_name, "../" + marc_file_name[:-4] + "-" + current_date_str + ".mrc")
     os.chdir("..")
-    print("Renamed and moved files.", flush=True)
+    util.Info("Renamed and moved files.")
 
     # Create symlinks with "current" instead of "YYMMDD" in the orginal files:
     for marc_file in marc_files:
         new_name = marc_file[:-4] + "-" + current_date_str + ".mrc"
         util.SafeSymlink(new_name, re.sub("\\d\\d\\d\\d\\d\\d", "current", new_name))
-    print("Symlinked files.", flush=True)
+    util.Info("Symlinked files.")
     return ("TitelUndLokaldaten-current.mrc", "ÜbergeordneteTitelUndLokaldaten-current.mrc",
             "Normdaten-current.mrc")
 
@@ -228,7 +227,7 @@ def Main():
     util.RemoveLinkTargetAndLink(title_superior_norm_tuple[0])
     util.RemoveLinkTargetAndLink(title_superior_norm_tuple[1])
     util.RemoveLinkTargetAndLink(title_superior_norm_tuple[2])
-    print("Successfully created updated MARC files.", flush=True)
+    util.Info("Successfully created updated MARC files.")
 
 
 try:
