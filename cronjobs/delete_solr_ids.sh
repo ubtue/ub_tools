@@ -14,7 +14,7 @@ fi
 EMAIL_ADDRESS="$1"
 INPUT_FILE="$2"
 DELETION_LOG="/tmp/deletion.log"
-MAX_IDS_PER_CALL=10000
+MAX_IDS_PER_CALL=1000
 
 function ExecCurl() {
     local id_list
