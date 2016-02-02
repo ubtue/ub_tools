@@ -21,6 +21,8 @@ public class KeywordChainMetric {
         double similarityScore = 0.0;
         for (String referenceComponentMixedCase : referenceChain) {
             final String referenceComponent = referenceComponentMixedCase.toLowerCase();
+	    // Throw away wildcards since they butch up our results
+            //referenceComponent = referenceComponent.replace("*", "");
             double maxComponentSimilarity = 0.0;
             for (String comparisonComponentMixedCase : comparisonChain) {
                 final String comparisonComponent = comparisonComponentMixedCase.toLowerCase();
@@ -32,12 +34,6 @@ public class KeywordChainMetric {
             }
             similarityScore += maxComponentSimilarity;
         }
-
-        /**
-         * Take differences in chain lengths into account. The greater the
-         * difference in chain lengths, the lower the similarity score.
-         */
-        similarityScore -= Math.abs(referenceChain.size() - comparisonChain.size()) * 1e-10;
 
         return similarityScore;
     }
