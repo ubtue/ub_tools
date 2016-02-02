@@ -20,7 +20,7 @@ public class KeywordChainMetric {
             final ArrayList<String> comparisonChain) {
         double similarityScore = 0.0;
         for (String referenceComponentMixedCase : referenceChain) {
-            String referenceComponent = referenceComponentMixedCase.toLowerCase();
+            final String referenceComponent = referenceComponentMixedCase.toLowerCase();
 	    // Throw away wildcards since they butch up our results
             //referenceComponent = referenceComponent.replace("*", "");
             double maxComponentSimilarity = 0.0;
