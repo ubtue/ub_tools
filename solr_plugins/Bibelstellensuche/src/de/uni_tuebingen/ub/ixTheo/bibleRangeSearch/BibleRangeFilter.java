@@ -1,6 +1,5 @@
 package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
 
-import java.io.IOException;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.BinaryDocValues;
@@ -10,6 +9,9 @@ import org.apache.lucene.search.FieldCacheDocIdSet;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
+
+import java.io.IOException;
+
 
 public class BibleRangeFilter extends Filter {
 
@@ -43,8 +45,7 @@ public class BibleRangeFilter extends Filter {
                 return false;
             }
             final Range[] fieldRanges = BibleRangeParser.getRangesFromDatabaseField(dbField);
-            return Range.doAllSourceRangesIntersectsSomeTargetRanges(
-                    ranges, fieldRanges);
+            return Range.hasIntersections(ranges, fieldRanges);
         }
     }
 }
