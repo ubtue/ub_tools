@@ -14,7 +14,6 @@ generations_to_keep = 2
 """
 
 
-from __future__ import print_function
 from ftplib import FTP
 import glob
 import os

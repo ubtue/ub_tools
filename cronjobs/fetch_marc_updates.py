@@ -26,7 +26,6 @@ directory_on_ftp_server = /sekkor
 output_directory = /tmp
 """
 
-from __future__ import print_function
 from ftplib import FTP
 import os
 import re
@@ -90,10 +89,10 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
     most_recent_remote_file = GetMostRecentRemoteFile(ftp, filename_regex, remote_directory)
     if most_recent_remote_file is None:
         return None
-    print("Found recent remote file:", most_recent_remote_file, flush=True)
+    util.Info("Found recent remote file:", most_recent_remote_file)
     most_recent_local_file = GetMostRecentLocalFile(filename_regex)
     if most_recent_local_file is not None:
-        print("Found recent local file:", most_recent_local_file, flush=True)
+        util.Info("Found recent local file:", most_recent_local_file)
     if (most_recent_local_file is None) or (most_recent_remote_file > most_recent_local_file):
         try:
             output = open(most_recent_remote_file, "wb")
@@ -214,7 +213,7 @@ def Main():
         if section == "FTP" or section == "SMTPServer" or section == "Kumulierte Abzuege":
             continue
 
-        print("Processing section " + section, flush=True)
+        util.Info("Processing section " + section)
         try:
             filename_pattern = config.get(section, "filename_pattern")
             directory_on_ftp_server = config.get(section, "directory_on_ftp_server")

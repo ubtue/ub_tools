@@ -21,7 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from __future__ import print_function
 import errno
 import os
 import signal
@@ -80,7 +79,7 @@ def Exec(cmd_path, args = None, timeout = 0, env = None, new_stdout = None, new_
 
     else: # We're the child.
         if os.setsid() == -1:
-            print("in exec.Exec: os.setsid() failed!", file=sys.stderr, flush=True)
+            util.Info("in exec.Exec: os.setsid() failed!", file=sys.stderr)
             sys.exit(-1)
 
         if new_stdout is not None:
@@ -104,8 +103,8 @@ if __name__ == '__main__':
     try:
         Exec("Non-existent")
     except Exception as e:
-        print(str(e))
-    print("hello.sh returned " + str(Exec("./cpp/hello.sh")))
-    print("fail.sh returned " + str(Exec("./fail.sh")))
-    print("more_than_5_seconds.sh returned " + str(Exec("./more_than_5_seconds.sh", timeout=5)))
-    print("\"echo_args.sh a b c\" returned " + str(Exec("./echo_args.sh", ['a', 'b', 'c'])), flush=True)
+        util.Info(str(e))
+    util.Info("hello.sh returned " + str(Exec("./cpp/hello.sh")))
+    util.Info("fail.sh returned " + str(Exec("./fail.sh")))
+    util.Info("more_than_5_seconds.sh returned " + str(Exec("./more_than_5_seconds.sh", timeout=5)))
+    util.Info("\"echo_args.sh a b c\" returned " + str(Exec("./echo_args.sh", ['a', 'b', 'c'])))
