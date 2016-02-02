@@ -8,11 +8,11 @@ error message.
 """
 
 
-from __future__ import print_function
 import ConfigParser
 import os
 import socket
 import sys
+import util
 
 
 DEFAULT_CONFIG_FILE_LOCATION = "/var/lib/tuelib/cronjobs/"
@@ -20,7 +20,7 @@ DEFAULT_CONFIG_FILE_LOCATION = "/var/lib/tuelib/cronjobs/"
 
 def Main():
     if len(sys.argv) != 4:
-        print("usage: " + sys.argv[0] + " config_file section entry", file=sys.stderr)
+        util.Info("usage: " + sys.argv[0] + " config_file section entry", file=sys.stderr)
         sys.exit(-1)
 
     config_file = sys.argv[1]
@@ -30,12 +30,12 @@ def Main():
         else:
             config_file = DEFAULT_CONFIG_FILE_LOCATION + config_file
     if not os.access(config_file, os.R_OK):
-        print(sys.argv[0] + ": can't read \"" + config_file + "\"!", file=sys.stderr)
+        util.Info(sys.argv[0] + ": can't read \"" + config_file + "\"!", file=sys.stderr)
         sys.exit(-1)
 
     config = ConfigParser.ConfigParser()
     config.read(config_file)
-    print(config.get(sys.argv[2], sys.argv[3]))
+    util.Info(config.get(sys.argv[2], sys.argv[3]))
 
 
 Main()

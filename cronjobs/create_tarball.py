@@ -3,16 +3,15 @@
 #
 # Test harness for util.CreateTarball().
 
-from __future__ import print_function
 import sys
 import util
 
 
 def Usage():
-    print("usage: " + sys.argv[0] + " archive_name file_name1:member_name1 "
+    util.Info("usage: " + sys.argv[0] + " archive_name file_name1:member_name1 "
           + "[file_name2:member_name2 .. file_nameN:member_nameN]")
-    print("       The colons and member names can be left out in which case the files will be stored under")
-    print("       their original names.")
+    util.Info("       The colons and member names can be left out in which case the files will be stored under")
+    util.Info("       their original names.")
     sys.exit(-1)
 
 
