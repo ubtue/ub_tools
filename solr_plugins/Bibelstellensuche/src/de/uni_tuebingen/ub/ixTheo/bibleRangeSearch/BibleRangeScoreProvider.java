@@ -1,7 +1,6 @@
 package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
 
 
-import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.IndexReader;
@@ -30,6 +29,6 @@ public class BibleRangeScoreProvider extends CustomScoreProvider {
         }
 
         final Range[] field_ranges = BibleRangeParser.getRangesFromDatabaseField(dbField);
-        return Range.getDistance(field_ranges, ranges);
+        return Range.getMatchingScore(field_ranges, ranges);
     }
 }

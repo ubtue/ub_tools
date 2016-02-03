@@ -8,10 +8,10 @@ class Range {
     private final int lower;
     private final int upper;
 
-    public static float getDistance(final Range[] fieldRanges, final Range[] queryRanges) {
+    public static float getMatchingScore(final Range[] fieldRanges, final Range[] queryRanges) {
         float distance = 0;
-        for (final Range queryRange : queryRanges) {
-            distance += queryRange.getMaximumDistance(fieldRanges);
+        for (final Range fieldRange : fieldRanges) {
+            distance += fieldRange.getBestMatchingScore(queryRanges);
         }
         return distance;
     }
@@ -40,7 +40,7 @@ class Range {
         return upper;
     }
 
-    public float getDistance(final Range other) {
+    public float getMatchingScore(final Range other) {
         final float numerator = Math.min(upper, other.upper) - Math.max(lower, other.lower);
         final float denominator = Math.max(upper, other.upper) - Math.min(lower, other.lower);
         return numerator / denominator;
@@ -50,10 +50,10 @@ class Range {
         return other.upper >= lower && other.lower <= upper;
     }
 
-    public float getMaximumDistance(Range[] targets) {
+    public float getBestMatchingScore(Range[] targets) {
         float queryDistance = 0;
         for (final Range target : targets) {
-                queryDistance = Math.max(getDistance(target), queryDistance);
+                queryDistance = Math.max(getMatchingScore(target), queryDistance);
         }
         return queryDistance;
     }
