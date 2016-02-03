@@ -7,6 +7,8 @@
 *.log
 *.tar.gz
 *.timestamp
+*.class
+out
 .deps
 LOEPPN-*
 \#*\#

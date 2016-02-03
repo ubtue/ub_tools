@@ -51,3 +51,6 @@ if [[ -z "$RESULT" ]] ; then
 fi
 
 mysql --user=root --password="$ROOT_PASSWORD" --execute="GRANT SELECT,INSERT,UPDATE,DELETE ON vufind.* TO 'vufind'@'localhost' IDENTIFIED BY '$VUFIND_PASSWORD' WITH GRANT OPTION; FLUSH PRIVILEGES;"
+
+IXTHEO_PASSWORD=$(cat "/var/lib/tuelib/translations.conf" | grep sql_password | sed -e 's/.*sql_password.*"\(.*\)"/\1/g')
+mysql --user=root --password="$ROOT_PASSWORD" --execute="GRANT SELECT,INSERT,UPDATE,DELETE ON ixtheo.* TO 'ixtheo'@'localhost' IDENTIFIED BY '$IXTHEO_PASSWORD' WITH GRANT OPTION; FLUSH PRIVILEGES;"
