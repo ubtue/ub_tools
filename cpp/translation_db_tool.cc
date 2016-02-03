@@ -60,14 +60,26 @@ void GetMissing(DbConnection * const connection, const std::string &language_cod
 
 
 void Insert(DbConnection * const connection, const unsigned index, const std::string &language_code, const std::string &text) {
-    const std::string INSERT_STMT("INSERT INTO translations SET id=" + std::to_string(index) + ",language_code=\""
-				  + language_code + "\",text=\"" + connection->escapeString(text) + "\"");
-    if (unlikely(not connection->query(INSERT_STMT)))
-	Error("Insert failed: " + INSERT_STMT + " (" + connection->getLastErrorMessage() + ")");
+    // First get all the categories for which we must insert the translation:
+    const std::string ID(std::to_string(index));
+    const std::string SELECT_CATEGORIES_STMT("SELECT categories FROM translations WHERE id=" + ID + ", and language=\"deu\"");
+    if (unlikely(not connection->query(SELECT_CATEGORIES_STMT)))
+	Error("Select failed: " + SELECT_CATEGORIES_STMT + " (" + connection->getLastErrorMessage() + ")");
+    DbResultSet categories_result_set(connection->getLastResultSet());
+    if (unlikely(categories_result_set.empty()))
+	Error("no categories found, expected at least 1!");
+
+    while (DbRow row = categories_result_set.getNextRow()) {
+	const std::string INSERT_STMT("INSERT INTO translations SET id=" + ID + ",language_code=\"" + language_code + "\",text=\""
+				      + connection->escapeString(text) + "\", category='" + row["category"]
+				      + "', preexists=FALSE");
+	if (unlikely(not connection->query(INSERT_STMT)))
+	    Error("Insert failed: " + INSERT_STMT + " (" + connection->getLastErrorMessage() + ")");
+    }
 }
 
 
-const std::string CONF_FILE_PATH("/var/lib/tuelib/translation_tool.conf");
+const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
 int main(int argc, char *argv[]) {
@@ -79,6 +91,7 @@ int main(int argc, char *argv[]) {
 	    Usage();
 
 	const IniFile ini_file(CONF_FILE_PATH);
+	const std::string sql_database(ini_file.getString("", "sql_database"));
 	const std::string sql_username(ini_file.getString("", "sql_username"));
 	const std::string sql_password(ini_file.getString("", "sql_password"));
 	DbConnection db_connection("vufind", sql_username, sql_password);
