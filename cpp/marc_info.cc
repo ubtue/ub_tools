@@ -46,12 +46,12 @@ void ProcessRecords(const bool input_is_xml, File * const input) {
     std::unordered_set<std::string> control_numbers;
 
     while (const MarcUtil::Record record =
-	       input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
+	   input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
     {
         ++record_count;
 
 	std::string err_msg;
-	if (not record.recordSeemsCorrect(&err_msg))
+	if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
 	    Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
 
 	const std::vector<std::string> &fields(record.getFields());

@@ -41,6 +41,8 @@
 
 
 char help_text[] =
+  "  \"--limit\"  Only process the first \"count\" records.\n"
+  "\n"
   "  Query syntax:\n"
   "    query                                    = [ leader_condition ] simple_query\n"
   "    leader_condition                         = \"leader[\" offset_range \"]=\" string_constant\n"
@@ -79,7 +81,7 @@ char help_text[] =
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " marc_filename query [output_label_format]\n\n";
+    std::cerr << "Usage: " << progname << " [--limit count] marc_filename query [output_label_format]\n\n";
     std::cerr << help_text << '\n';
     std::exit(EXIT_FAILURE);
 }
@@ -362,7 +364,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
 }
 
 
-void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_desc,
+void FieldGrep(const unsigned max_records, const std::string &input_filename, const QueryDescriptor &query_desc,
                const OutputLabel output_format)
 {
     const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
@@ -390,6 +392,8 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
 	       input_is_xml ? MarcUtil::Record::XmlFactory(&input) : MarcUtil::Record::BinaryFactory(&input))
     {
         ++count;
+	if (count > max_records)
+	    break;
 
         if (query_desc.hasLeaderCondition()) {
             const LeaderCondition &leader_cond(query_desc.getLeaderCondition());
@@ -448,6 +452,18 @@ void FieldGrep(const std::string &input_filename, const QueryDescriptor &query_d
 int main(int argc, char *argv[]) {
     progname = argv[0];
 
+    // Limit the number of records that we will process:
+    unsigned max_records(UINT_MAX);
+    if (argc > 1 and std::strcmp(argv[1], "--limit") == 0) {
+	if (argc <= 3)
+	    Usage();
+
+	if (not StringUtil::ToUnsigned(argv[2], &max_records))
+	    Error("bad record count limit: \"" + std::string(argv[2]) + "\"!");
+	argc -= 2;
+	argv += 2;
+    }
+
     if (argc < 3 or argc > 4)
         Usage();
 
@@ -459,7 +475,7 @@ int main(int argc, char *argv[]) {
 
 	const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
 	    : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
-	FieldGrep(argv[1], query_desc, output_label);
+	FieldGrep(max_records, argv[1], query_desc, output_label);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }

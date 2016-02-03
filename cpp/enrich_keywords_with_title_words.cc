@@ -43,6 +43,7 @@ void LoadStopwords(const bool verbose, File * const input, const std::string &la
 	if (line.empty() or line[0] == ';') // Empty or comment line?
             continue;
 
+	std::string word(StringUtil::ToLower(line));
         stopwords_set->insert(StringUtil::ToLower(line));
         ++count;
     }
