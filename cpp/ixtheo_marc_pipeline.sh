@@ -31,8 +31,8 @@ log=/tmp/ixtheo_marc_pipeline.log
 rm -f "${log}"
 
 P=0
-echo "*** Phase $P: Translate MARC-21 to MARC_XML ***"
-echo "*** Phase $P: Translate MARC-21 to MARC_XML ***" >> "${log}"
+echo "*** Phase $P: Translate MARC-21 to MARC_XML - $(date) ***"
+echo "*** Phase $P: Translate MARC-21 to MARC_XML - $(date) ***" >> "${log}"
 marc_grep TitelUndLokaldaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
     > TitelUndLokaldaten-"${date}".xml 2>> "${log}"
 marc_grep ÜbergeordneteTitelUndLokaldaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
@@ -41,36 +41,36 @@ marc_grep Normdaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
     > Normdaten-"${date}".xml 2>> "${log}"
 
 ((++P))
-echo "*** Phase $P: Extract Translation Keywords ***"
-echo "*** Phase $P: Extract Translation Keywords ***" >> "${log}"
+echo "*** Phase $P: Extract Translation Keywords - $(date) ***"
+echo "*** Phase $P: Extract Translation Keywords - $(date) ***" >> "${log}"
 extract_keywords_for_translation TitelUndLokaldaten-"${date}".xml ÜbergeordneteTitelUndLokaldaten-"${date}".xml \
                                  Normdaten-"${date}".xml >> "${log}" 2>&1
 
 ((++P))
-echo "*** Phase $P: Parent-to-Child Linking ***"
-echo "*** Phase $P: Parent-to-Child Linking ***" >> "${log}"
+echo "*** Phase $P: Parent-to-Child Linking - $(date) ***"
+echo "*** Phase $P: Parent-to-Child Linking - $(date) ***" >> "${log}"
 create_child_refs.sh TitelUndLokaldaten-"${date}".xml ÜbergeordneteTitelUndLokaldaten-"${date}".xml >> "${log}" 2>&1
 add_child_refs ÜbergeordneteTitelUndLokaldaten-"${date}".xml \
                ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml \
                child_refs child_titles >> "${log}" 2>&1
 
 ((++P))
-echo "*** Phase $P: Adding of ISBN'S and ISSN's to Component Parts ***"
-echo "*** Phase $P: Adding of ISBN'S and ISSN's to Component Parts ***" >> "${log}"
+echo "*** Phase $P: Adding of ISBN'S and ISSN's to Component Parts - $(date) ***"
+echo "*** Phase $P: Adding of ISBN'S and ISSN's to Component Parts - $(date) ***" >> "${log}"
 add_isbns_or_issns_to_articles TitelUndLokaldaten-"${date}".xml \
                                ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
                                TitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 
 ((++P))
-echo "*** Phase $P: Extracting Keywords from Titles ***"
-echo "*** Phase $P: Extracting Keywords from Titles ***" >> "${log}"
+echo "*** Phase $P: Extracting Keywords from Titles - $(date) ***"
+echo "*** Phase $P: Extracting Keywords from Titles - $(date) ***" >> "${log}"
 enrich_keywords_with_title_words TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
                                  TitelUndLokaldaten-post-phase"$P"-"${date}".xml \
                                  ../cpp/data/stopwords.???
 
 ((++P))
-echo "*** Phase $P: Augment Bible References ***"
-echo "*** Phase $P: Augment Bible References ***" >> "${log}"
+echo "*** Phase $P: Augment Bible References - $(date) ***"
+echo "*** Phase $P: Augment Bible References - $(date) ***" >> "${log}"
 augment_bible_references TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
                          Normdaten-"${date}".xml \
                          TitelUndLokaldaten-post-phase"$P"-"${date}".xml \
@@ -78,8 +78,8 @@ augment_bible_references TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
 cp *.map /var/lib/tuelib/bibleRef/
 
 ((++P))
-echo "*** Phase $P: Update IxTheo Notations ***"
-echo "*** Phase $P: Update IxTheo Notations ***" >> "${log}"
+echo "*** Phase $P: Update IxTheo Notations - $(date) ***"
+echo "*** Phase $P: Update IxTheo Notations - $(date) ***" >> "${log}"
 update_ixtheo_notations \
     TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
     TitelUndLokaldaten-post-phase"$P"-"${date}".xml \
@@ -91,8 +91,8 @@ update_ixtheo_notations \
 
 
 ((++P))
-echo "*** Phase $P: Map DDC and RVK to IxTheo Notations ***"
-echo "*** Phase $P: Map DDC and RVK to IxTheo Notations ***" >> "${log}"
+echo "*** Phase $P: Map DDC and RVK to IxTheo Notations - $(date) ***"
+echo "*** Phase $P: Map DDC and RVK to IxTheo Notations - $(date) ***" >> "${log}"
 map_ddc_and_rvk_to_ixtheo_notations \
     TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
     TitelUndLokaldaten-post-phase"$P"-"${date}".xml \
@@ -104,8 +104,8 @@ map_ddc_and_rvk_to_ixtheo_notations \
 
 
 ((++P))
-echo "*** Phase $P: Fix Article Biblio-Levels ***"
-echo "*** Phase $P: Fix Article Biblio-Levels ***" >> "${log}"
+echo "*** Phase $P: Fix Article Biblio-Levels - $(date) ***"
+echo "*** Phase $P: Fix Article Biblio-Levels - $(date) ***" >> "${log}"
 fix_article_biblio_levels --verbose \
     TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
     ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
@@ -114,13 +114,13 @@ fix_article_biblio_levels --verbose \
     ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
     ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
 
-echo "*** Cleanup of Intermediate Files ***"
-echo "*** Cleanup of Intermediate Files ***" >> "${log}"
+echo "*** Cleanup of Intermediate Files - $(date) ***"
+echo "*** Cleanup of Intermediate Files - $(date) ***" >> "${log}"
 for p in $(seq "$((P-1))"); do
     rm -f ÜbergeordneteTitelUndLokaldaten-post-"$p"-"${date}".xml
     rm -f TitelUndLokaldaten-post-"$p"-"${date}".xml
 done
 rm -f child_refs child_titles parent_refs
 
-echo "*** IXTHEO MARC PIPELINE DONE ***"
-echo "*** IXTHEO MARC PIPELINE DONE ***" >> "${log}"
+echo "*** IXTHEO MARC PIPELINE DONE - $(date) ***"
+echo "*** IXTHEO MARC PIPELINE DONE - $(date) ***" >> "${log}"
