@@ -158,6 +158,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return A, possibly empty, Set<String> containing the URL/material-type pairs.
      */
     public Set<String> getUrlsAndMaterialTypes(final Record record) {
+	final Map<String, Set<String>> materialTypeToURLsMap = new TreeMap<String, Set<String>>();
         final Set<String> urls_and_material_types = new LinkedHashSet<>();
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
@@ -175,9 +176,42 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
 
-            for (final Subfield subfield_u : field.getSubfields('u'))
-                urls_and_material_types.add(subfield_u.getData() + ":" + material_type);
+	    // Extract all links from u-subfields and resolve URNs:
+            for (final Subfield subfield_u : field.getSubfields('u')) {
+		Set<String> URLs = materialTypeToURLsMap.get(material_type);
+		if (URLs == null) {
+		    URLs = new HashSet<String>();
+		    materialTypeToURLsMap.put(material_type, URLs);
+		}
+		final String link = subfield_u.getData();
+		URLs.add(link.startsWith("urn:") ? "https://nbn-resolving.org/" + link : link);
+            }
         }
+
+	// Remove duplicates while favouring SWB and, if not present, DNB links:
+	for (final String material_type : materialTypeToURLsMap.keySet()) {
+	    if (material_type.equals("Unbekanntes Material")) {
+		for (final String url : materialTypeToURLsMap.get(material_type))
+		    urls_and_material_types.add(url + ":Unbekanntes Material");
+	    } else {
+		// Locate SWB and DNB URLs, if present:
+		String preferredURL = null;
+		for (final String url : materialTypeToURLsMap.get(material_type)) {
+		    if (url.startsWith("http://swbplus.bsz-bw.de")) {
+			preferredURL = url;
+			break;
+		    } else if (url.startsWith("http://d-nb.info"))
+			preferredURL = url;
+		}
+
+		if (preferredURL != null)
+		    urls_and_material_types.add(preferredURL + ":" + material_type);
+		else { // Add the kitchen sink.
+		    for (final String url : materialTypeToURLsMap.get(material_type))
+			urls_and_material_types.add(url + ":" + material_type);
+		}
+	    }
+	}
 
         // Handle DOI's:
         for (final VariableField variableField : record.getVariableFields("024")) {
