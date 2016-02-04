@@ -195,18 +195,16 @@ public class TuelibMixin extends SolrIndexerMixin {
 		    urls_and_material_types.add(url + ":Unbekanntes Material");
 	    } else {
 		// Locate SWB and DNB URLs, if present:
-		String swbURL = null;
 		String dnbURL = null;
 		for (final String url : materialTypeToURLsMap.get(material_type)) {
-		    if (url.startsWith("http://swbplus.bsz-bw.de"))
-			swbURL = url;
-		    else if (url.startsWith("http://d-nb.info"))
+		    if (url.startsWith("http://swbplus.bsz-bw.de")) {
+			urls_and_material_types.add(url + ":" + material_type);
+			break;
+		    } else if (url.startsWith("http://d-nb.info"))
 			dnbURL = url;
 		}
 
-		if (swbURL != null)
-		    urls_and_material_types.add(swbURL + ":" + material_type);
-		else if (dnbURL != null)
+		if (dnbURL != null)
 		    urls_and_material_types.add(dnbURL + ":" + material_type);
 		else { // Add the kitchen sink.
 		    for (final String url : materialTypeToURLsMap.get(material_type))
