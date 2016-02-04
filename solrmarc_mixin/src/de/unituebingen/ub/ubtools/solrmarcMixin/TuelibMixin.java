@@ -40,7 +40,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (title_a == null && title_b == null)
             return null;
 
-        StringBuilder complete_title = new StringBuilder();
+        final StringBuilder complete_title = new StringBuilder();
         if (title_a == null)
             complete_title.append(Utils.cleanData(title_b));
         else if (title_b == null)
@@ -240,7 +240,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     public Set<String> getContainerIdsWithTitles(final Record record) {
 
-        final Set<String> containerIdsAndTitles = new TreeSet<String>();
+        final Set<String> containerIdsAndTitles = new TreeSet<>();
 
         for (final String tag : new String[]{"800", "810", "830", "773"}) {
             for (final VariableField variableField : record.getVariableFields(tag)) {

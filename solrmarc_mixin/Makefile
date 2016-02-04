@@ -2,7 +2,7 @@
 VUFIND_HOME=/usr/local/vufind2
 PROJECT_NAME=SolrmarcMixin
 JAR_FILE=$(PROJECT_NAME)-1.0.0.jar
-TARGET_JAR_FILE=$(VUFIND_HOME)/import/Tuelib$(PROJECT_NAME).jar
+TARGET_JAR_FILE=$(VUFIND_HOME)/import/lib/Tuelib$(PROJECT_NAME).jar
 RESOURCES=resources
 BIN=bin
 SRC=src
