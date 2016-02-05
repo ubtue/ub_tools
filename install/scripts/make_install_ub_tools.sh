@@ -11,7 +11,7 @@
 
 
 WAR_FILE="$VUFIND_HOME/solr/jetty/webapps/solr.war"
-WAR_TARGET="$VUFIND_HOME/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/"
+WAR_TARGET="$VUFIND_HOME/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/WEB-INF/lib"
 
 if [ ! -d "$WAR_TARGET" ] ; then
 	mkdir --parent "$WAR_TARGET"
