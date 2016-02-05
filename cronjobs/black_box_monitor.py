@@ -61,7 +61,7 @@ def Main():
         if not RunTest(section, url, timeout, expected):
             util.SendEmail("Black Box Test Failed!",
                            "Test " + section + " failed!\n\n--Your friendly black box monitor",
-                           "no_reply@uni-tuebingen.de")
+                           "no_reply@uni-tuebingen.de", priority=1)
 
 
 try:
