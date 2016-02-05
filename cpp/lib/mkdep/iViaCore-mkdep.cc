@@ -299,12 +299,12 @@ void Directory::const_iterator::advance() {
     do {
 	errno = 0;
 	dirent = ::readdir(dir_);
-	if (dirent == NULL and errno == EBADF)
+	if (dirent == nullptr and errno == EBADF)
 	    throw std::runtime_error("in Directory::const_iterator::advance: readdir(3) returned "
 				     "an error (" + std::string(std::strerror(errno)) + ")!");
-    } while (dirent != NULL and not match(dirent->d_name));
+    } while (dirent != nullptr and not match(dirent->d_name));
 
-    if (dirent != NULL)
+    if (dirent != nullptr)
 	current_entry_ = Entry(dirent->d_name);
     else
 	current_entry_ = Entry();
@@ -321,12 +321,12 @@ bool Directory::const_iterator::match(const char * const filename) const {
 
 
 Directory::const_iterator::const_iterator(const std::string &path, const std::list<std::string> &patterns)
-    : dir_(NULL), path_(path), patterns_(patterns)
+    : dir_(nullptr), path_(path), patterns_(patterns)
 {
     if (path_.empty())
 	return;
 
-    if ((dir_ = ::opendir(path_.c_str())) == NULL)
+    if ((dir_ = ::opendir(path_.c_str())) == nullptr)
 	throw std::runtime_error("In const_iterator::const_iterator(1): opendir(3) on \""
 				 + path_ + "\" failed (" + std::string(std::strerror(errno)) + ")!");
 
@@ -335,12 +335,12 @@ Directory::const_iterator::const_iterator(const std::string &path, const std::li
 
 
 Directory::const_iterator::const_iterator(const const_iterator &rhs)
-    : dir_(NULL), path_(rhs.path_), patterns_(rhs.patterns_)
+    : dir_(nullptr), path_(rhs.path_), patterns_(rhs.patterns_)
 {
     if (path_.empty())
 	return;
 
-    if ((dir_ = ::opendir(path_.c_str())) == NULL)
+    if ((dir_ = ::opendir(path_.c_str())) == nullptr)
 	throw std::runtime_error("In const_iterator::const_iterator(2): opendir(3) on \""
 				 + path_ + "\" failed (" + std::string(std::strerror(errno)) + ")!");
 
@@ -383,7 +383,7 @@ typedef std::map<std::string, std::string> StrMap;
 class ExternalIncludes: public StrMap {
 public:
     void insert(const std::string &include_filename, const std::string &path)
-    { StrMap::insert(std::make_pair<std::string, std::string>(include_filename, path)); }
+        { StrMap::insert(std::make_pair(include_filename, path)); }
     bool find(const std::string &include_filename, std::string * const path) const;
     friend std::ostream &operator<<(std::ostream &stream, const ExternalIncludes &external_includes);
 };
@@ -517,7 +517,7 @@ std::string RemoveFileSuffix(std::string * const filename) {
 
 std::string ProcessUtil_GetWorkingDirectory() {
     char buf[20 * PATH_MAX];
-    if (::getcwd(buf, sizeof buf) != NULL)
+    if (::getcwd(buf, sizeof buf) != nullptr)
 	return buf;
     throw std::runtime_error("in ProcessUtil_GetWorkingDirectory: getcwd(3) failed ("
 			     + std::string(std::strerror(errno)) + ")!");
@@ -538,11 +538,11 @@ void PrintUsage() {
 
 
 static struct option options[] = {
-    { "include",            required_argument, NULL, 'I' },
-    { "ignore-nostdinc",      no_argument,       NULL, 'g' },
-    { "use-relative-paths",   optional_argument, NULL, 'r' },
-    { "output-program-rules", optional_argument, NULL, 'p' },
-    { NULL,                   no_argument,       NULL,  0  }
+    { "include",            required_argument, nullptr, 'I' },
+    { "ignore-nostdinc",      no_argument,       nullptr, 'g' },
+    { "use-relative-paths",   optional_argument, nullptr, 'r' },
+    { "output-program-rules", optional_argument, nullptr, 'p' },
+    { nullptr,                   no_argument,       nullptr,  0  }
 };
 
 
@@ -576,7 +576,7 @@ int main(int argc, char *argv[]) {
 	    break;
 	case 'r':
 	    use_relative_paths = true;
-	    cwd = optarg == NULL ? ProcessUtil_GetWorkingDirectory() : std::string(optarg);
+	    cwd = optarg == nullptr ? ProcessUtil_GetWorkingDirectory() : std::string(optarg);
 	    break;
 	case 'p':
 	    output_program_rules = true;
