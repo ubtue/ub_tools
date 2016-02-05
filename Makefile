@@ -1,3 +1,5 @@
+.PHONY: install
+
 all: 
 	$(MAKE) -C cpp/lib/mkdep;
 	$(MAKE) -C cpp;
