@@ -64,6 +64,8 @@ bool RecordSerialControlNumbers(MarcUtil::Record * const record, XmlWriter * con
 void CollectSerials(const bool verbose, const std::vector<File *> &inputs) {
     std::string err_msg;
     for (auto &input : inputs) {
+	if (verbose)
+	    std::cout << "Extracting serial control numbers from \"" << input->getPath() << "\".\n";
 	if (not MarcUtil::ProcessRecords(input, RecordSerialControlNumbers, /* xml_writer = */nullptr, &err_msg))
 	    Error("error while looking for serials: " + err_msg);
     }
@@ -134,9 +136,13 @@ bool PatchUpArticle(MarcUtil::Record * const record, XmlWriter * const xml_write
 
 void PatchUpSerialComponentParts(const bool verbose, File * const input, File * const output) {
     XmlWriter xml_writer(output);
+    xml_writer.openTag("collection");
+
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(input, PatchUpArticle, &xml_writer, &err_msg))
 	Error("error while patching up article records: " + err_msg);
+
+    xml_writer.closeTag();
 
     if (verbose)
 	std::cout << "Fixed the bibliographic level of " << patch_count << " article records.\n";
