@@ -196,7 +196,7 @@ def Main():
     util.default_email_sender = "fetch_marc_updates@ub.uni-tuebingen.de"
     if len(sys.argv) != 2:
          util.SendEmail(os.path.basename(sys.argv[0]),
-                        "This script needs to be called with an email address as the only argument!\n")
+                        "This script needs to be called with an email address as the only argument!\n", priority=1)
          sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
     try:
@@ -232,11 +232,11 @@ def Main():
             msg += "Successfully downloaded \"" + downloaded_file + "\".\n"
             AddToCumulativeCollection(downloaded_file, config)
     CleanUpCumulativeCollection(config)
-    util.SendEmail("BSZ File Update", msg)
+    util.SendEmail("BSZ File Update", msg, priority=5)
 
 
 try:
     Main()
 except Exception as e:
     util.SendEmail("BSZ File Update", "An unexpected error occurred: "
-                   + str(e) + "\n\n" + traceback.format_exc(20))
+                   + str(e) + "\n\n" + traceback.format_exc(20), priority=1)

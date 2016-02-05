@@ -212,7 +212,7 @@ def Main():
         differential_data_mtime = os.path.getmtime(differential_data)
     if ((deletion_list_mtime is not None and complete_data_mtime >= deletion_list_mtime)
         or (differential_data_mtime is not None and complete_data_mtime >= differential_data_mtime)):
-        util.SendEmail("Nichts zu tun!", "Komplettabzug ist neu.\n")
+        util.SendEmail("Nichts zu tun!", "Komplettabzug ist neu.\n", priority=5)
         sys.exit(0)
 
     data_dir = PrepareDataDirectory() # After this we're in the data directory...
@@ -234,4 +234,4 @@ try:
     Main()
 except Exception as e:
     util.SendEmail("Incremental File Update", "An unexpected error occurred: "
-                   + str(e) + "\n\n" + traceback.format_exc(20))
+                   + str(e) + "\n\n" + traceback.format_exc(20), priority=1)
