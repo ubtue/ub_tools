@@ -25,12 +25,18 @@ default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
 default_config_file_dir = "/var/lib/tuelib/cronjobs/"
 
 
-def SendEmail(subject, msg, sender=None, recipient=None):
+# @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the highest priority.
+def SendEmail(subject, msg, sender=None, recipient=None, priority=None):
     subject += " (from: " + socket.gethostname() + ")"
     if sender is None:
         sender = default_email_sender
     if recipient is None:
         recipient = default_email_recipient
+    if priority is not None:
+        if type(priority) is not int:
+            Error("util.Sendmail called with a non-int priority!")
+        if priority < 1 or priority > 5:
+            Error("util.Sendmail called with a prioity that is not in [1..5]!")
     try:
         config = LoadConfigFile(no_error=True)
         server_address  = config.get("SMTPServer", "server_address")
@@ -44,6 +50,8 @@ def SendEmail(subject, msg, sender=None, recipient=None):
     message["Subject"] = subject
     message["From"] = sender
     message["To"] = recipient
+    if priority is not None:
+        message["X-Priority"] = str(priority)
     server = smtplib.SMTP(server_address)
     try:
         server.ehlo()
@@ -59,7 +67,7 @@ def SendEmail(subject, msg, sender=None, recipient=None):
 def Error(msg):
     msg = os.path.basename(inspect.stack()[1][1]) + "." + inspect.stack()[1][3] + ": " + msg
     Info(sys.argv[0] + ": " + msg, file=sys.stderr)
-    SendEmail("Script error (script: " + os.path.basename(sys.argv[0]) + ")!", msg)
+    SendEmail("Script error (script: " + os.path.basename(sys.argv[0]) + ")!", msg, priority=1)
     sys.exit(1)
 
 
