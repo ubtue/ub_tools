@@ -83,10 +83,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 		gnd_seen = true;
 	}
 
-	if (keyword.length() > 0) {
-	    System.err.println(keyword.toString());
+	if (keyword.length() > 0)
 	    keyWordChain.add(keyword.toString());
-	}
     }
 
     /**
