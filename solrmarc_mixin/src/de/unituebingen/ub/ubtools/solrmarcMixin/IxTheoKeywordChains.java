@@ -13,7 +13,7 @@ import java.util.*;
 public class IxTheoKeywordChains extends SolrIndexerMixin {
 
     private final static String KEYWORD_DELIMITER = "/";
-    private final static String SUBFIELD_CODES = "at";
+    private final static String SUBFIELD_CODES = "abct";
 
     public Set<String> getKeyWordChain(final Record record, final String fieldSpec) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
@@ -66,18 +66,25 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         final char chainID = dataField.getIndicator1();
         final List<String> keyWordChain = getKeyWordChain(keyWordChains, chainID);
 
-        for (int i = 0; i < SUBFIELD_CODES.length(); ++i) {
-            final char subfieldCode = SUBFIELD_CODES.charAt(i);
-            final List<Subfield> subfields = dataField.getSubfields(subfieldCode);
+	boolean gnd_seen = false;
+	StringBuilder keyword = new StringBuilder();
+	for (final Subfield subfield :  dataField.getSubfields()) {
+	    if (gnd_seen) {
+		if (SUBFIELD_CODES.indexOf(subfield.getCode()) != -1) {
+		    if (keyword.length() > 0)
+			keyword.append(", ");
+		    keyword.append(subfield.getData());
+		} else if (subfield.getCode() == '9' && keyword.length() > 0 && subfield.getData().startsWith("g:")) {
+		    keyword.append(" (");
+		    keyword.append(subfield.getData().substring(2));
+		    keyword.append(')');
+		}
+	    } else if (subfield.getCode() == '2' && subfield.getData().equals("gnd"))
+		gnd_seen = true;
+	}
 
-            for (final Subfield subfield : subfields) {
-                if (subfield.getData().length() > 1) {
-                    final String keyWord = subfield.getData();
-                    keyWordChain.add(keyWord);
-                    return;
-                }
-            }
-        }
+	if (keyword.length() > 0)
+	    keyWordChain.add(keyword.toString());
     }
 
     /**
