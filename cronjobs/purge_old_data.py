@@ -46,9 +46,9 @@ def PurgeFiles(generations_to_keep, all_files):
             deleted_names += name_to_delete + "\n"
 
     if deleted_names:
-        util.SendEmail("File Purge", "Deleted:\n" + deleted_names)
+        util.SendEmail("File Purge", "Deleted:\n" + deleted_names, priority=5)
     else:
-        util.SendEmail("File Purge", "Found no files to purge.\n")
+        util.SendEmail("File Purge", "Found no files to purge.\n", priority=5)
 
 
 def Main():
@@ -67,7 +67,7 @@ def Main():
 
     all_timestamped_files = glob.glob("*[0-9][0-9][0-9][0-9][0-9][0-9]*")
     if not all_timestamped_files:
-        util.SendEmail("File Purge Failed", "No timestamped files found!")
+        util.SendEmail("File Purge Failed", "No timestamped files found!", priority=1)
     PurgeFiles(generations_to_keep, all_timestamped_files)
 
 
@@ -75,4 +75,4 @@ try:
     Main()
 except Exception as e:
     util.SendEmail("File Purge Failed", "An unexpected error occurred: "
-                   + str(e) + "\n\n" + traceback.format_exc(20))
+                   + str(e) + "\n\n" + traceback.format_exc(20), priority=1)
