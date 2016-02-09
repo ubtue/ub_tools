@@ -711,4 +711,55 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Matcher matcher = VOLUME_PATTERN.matcher(field_value);
         return matcher.matches() ? matcher.group(1) : null;
     }
+
+    // Map used by getPhysicalType().
+    private static final Map<String, String> phys_code_to_full_name_map;
+    static {
+        Map<String, String> tempMap = new HashMap<>();
+        tempMap.put("arbtrans",  "Transparency");
+        tempMap.put("blindendr", "Braille");
+        tempMap.put("bray",      "Blu-ray Disc");
+        tempMap.put("cdda",      "CD");
+        tempMap.put("ckop",      "Microfiche");
+        tempMap.put("cofz",      "Online Resource");
+        tempMap.put("crom",      "CD-ROM");
+        tempMap.put("dias",      "Slides");
+        tempMap.put("disk",      "Diskette");
+        tempMap.put("druck",     "Printed Material");
+        tempMap.put("dvda",      "Audio DVD");
+        tempMap.put("dvdr",      "DVD-ROM");
+        tempMap.put("dvdv",      "Video DVD");
+        tempMap.put("gegenst",   "Physical Object");
+        tempMap.put("handschr",  "Longhand Text");
+        tempMap.put("kunstbl",   "Artistic Works on Paper");
+        tempMap.put("lkop",      "Mircofilm");
+        tempMap.put("medi",      "Multiple Media Types");
+        tempMap.put("scha",      "Record");
+        tempMap.put("skop",      "Microform");
+        tempMap.put("sobildtt",  "Audiovisual Carriers");
+        tempMap.put("soerd",     "Carriers of Other Electronic Data");
+        tempMap.put("sott",      "Carriers of Other Audiodata");
+        tempMap.put("tonbd",     "Audiotape");
+        tempMap.put("tonks",     "Audiocasette");
+        tempMap.put("vika",      "Videocasette");
+        phys_code_to_full_name_map = Collections.unmodifiableMap(tempMap);
+    }
+    
+    /**
+     * @param record the record
+     */
+    public Set<String> getPhysicalType(final Record record) {
+	final Set<String> results = new TreeSet<>();
+	final DataField _935_field = (DataField)record.getVariableField("935");
+	final List<Subfield> physical_code_subfields = _935_field.getSubfields('b');
+	for (final Subfield physical_code_subfield : physical_code_subfields) {
+	    final String physical_code = physical_code_subfield.getData();
+	    if (phys_code_to_full_name_map.containsKey(physical_code))
+		results.add(phys_code_to_full_name_map.get(physical_code));
+	    else
+		System.err.println("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
+        }
+
+	return results;
+    }
 }
