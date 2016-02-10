@@ -15,7 +15,7 @@ import util
 def ExecOrDie(cmd_name, args, log_file_name):
     if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
                              new_stderr=log_file_name) == 0:
-        util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logs in /tmp for the reason.")
+        util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logs in /tmp for the reason.", priority=1)
         sys.exit(-1)
 
 
@@ -35,7 +35,7 @@ def StartPipeline(pipeline_script_name, data_files, conf):
     deletion_list_glob = "LOEPPN-[0-9][0-9][0-9][0-9][0-9][0-9]"
     most_recent_deletion_list = util.getMostRecentFileMatchingGlob(deletion_list_glob)
     if not most_recent_deletion_list:
-        util.SendEmail("MARC-21 Pipeline",  "Did not find any files matching \"" + deletion_list_glob + "\".")
+        util.SendEmail("MARC-21 Pipeline", "Did not find any files matching \"" + deletion_list_glob + "\".", priority=5)
     delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
     ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
 
@@ -61,13 +61,14 @@ def Main():
          util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)",
                         "This script needs to be called with two arguments,\n"
                         + "the default email recipient and the name of the MARC-21\n"
-                        + "pipeline script to be executed.\n")
+                        + "pipeline script to be executed.\n", priority=1)
          sys.exit(-1)
 
     util.default_email_recipient = sys.argv[1]
     pipeline_script_name = sys.argv[2]
     if not os.access(pipeline_script_name, os.X_OK):
-         util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)", "Pipeline script not found or not executable: \"" + pipeline_script_name + "\"\n")
+         util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)", "Pipeline script not found or not executable: \""
+                        + pipeline_script_name + "\"\n", priority=1)
          sys.exit(-1)
     conf = util.LoadConfigFile()
     link_name = conf.get("Misc", "link_name")
@@ -78,14 +79,14 @@ def Main():
         file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
         
         StartPipeline(pipeline_script_name, file_name_list, conf)
-        util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.")
+        util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5)
         util.WriteTimestamp()
     else:
-        util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.")
+        util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.", priority=5)
 
 
 try:
     Main()
 except Exception as e:
     util.SendEmail("MARC-21 Pipeline Kick-Off", "An unexpected error occurred: " + str(e)
-                   + "\n\n" + traceback.format_exc(20))
+                   + "\n\n" + traceback.format_exc(20), priority=1)
