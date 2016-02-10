@@ -750,15 +750,19 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     public Set<String> getPhysicalType(final Record record) {
 	final Set<String> results = new TreeSet<>();
-	final DataField _935_field = (DataField)record.getVariableField("935");
-	final List<Subfield> physical_code_subfields = _935_field.getSubfields('b');
-	for (final Subfield physical_code_subfield : physical_code_subfields) {
-	    final String physical_code = physical_code_subfield.getData();
-	    if (phys_code_to_full_name_map.containsKey(physical_code))
-		results.add(phys_code_to_full_name_map.get(physical_code));
-	    else
-		System.err.println("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
-        }
+	for (final DataField data_field : record.getDataFields()) {
+	    if (!data_field.getTag().equals("935"))
+		continue;
+
+	    final List<Subfield> physical_code_subfields = data_field.getSubfields('b');
+	    for (final Subfield physical_code_subfield : physical_code_subfields) {
+                final String physical_code = physical_code_subfield.getData();
+		if (phys_code_to_full_name_map.containsKey(physical_code))
+		    results.add(phys_code_to_full_name_map.get(physical_code));
+		else
+		    System.err.println("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
+	    }
+	}
 
 	return results;
     }
