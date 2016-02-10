@@ -59,6 +59,8 @@ public:
     const std::vector<DirectoryEntry> &getDirEntries() const { return dir_entries_; }
     const std::vector<std::string> &getFields() const { return fields_; }
 
+    std::string getControlNumber() const { return fields_.empty() ? "" : fields_[0]; }
+
     /** \brief Returns the index of "field_tag" or -1 if the tag is not present. */
     ssize_t getFieldIndex(const std::string &field_tag) const;
 
