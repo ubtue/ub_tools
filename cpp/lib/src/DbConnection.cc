@@ -57,7 +57,8 @@ DbConnection::~DbConnection() {
 DbResultSet DbConnection::getLastResultSet() {
     MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
     if (result_set == nullptr)
-	throw std::runtime_error("in DbConnection::getLastResultSet: mysql_store_result() failed!");
+        throw std::runtime_error("in DbConnection::getLastResultSet: mysql_store_result() failed! ("
+				 + getLastErrorMessage() + ")");
 
     return DbResultSet(result_set);
 }
@@ -83,7 +84,7 @@ void DbConnection::init(const std::string &database_name, const std::string &use
 
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), database_name.c_str(), port,
 			     /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
-	throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed!");
+        throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage() + ")");
 
     initialised_ = true;
 }
