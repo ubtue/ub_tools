@@ -149,6 +149,24 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
+     * Finds the first subfield which is nonempty.
+     *
+     * @param dataField the data field
+     * @param subfieldIDs the subfield identifiers to search for
+     * @return a nonempty subfield or null
+     */
+    private Subfield getFirstNonEmptySubfield(final DataField dataField, final char... subfieldIDs) {
+        for (final char subfieldID : subfieldIDs) {
+            for (final Subfield subfield : dataField.getSubfields(subfieldID)) {
+                if (subfield != null && subfield.getData() != null && !subfield.getData().isEmpty()) {
+                    return subfield;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Returns either a Set<String> of parent (URL + colon + material type).  URLs are taken from 856$u and material
      * types from 856$3, 856$z or 856$x.  For missing type subfields the text "Unbekanntes Material" will be used.
      * Furthermore 024$2 will be checked for "doi".  If we find this we generate a URL with a DOI resolver from the
@@ -158,60 +176,49 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return A, possibly empty, Set<String> containing the URL/material-type pairs.
      */
     public Set<String> getUrlsAndMaterialTypes(final Record record) {
-	final Map<String, Set<String>> materialTypeToURLsMap = new TreeMap<String, Set<String>>();
+        final Map<String, Set<String>> materialTypeToURLsMap = new TreeMap<String, Set<String>>();
         final Set<String> urls_and_material_types = new LinkedHashSet<>();
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
-            final Subfield subfield_3 = field.getSubfield('3');
-            final String material_type;
-            if (subfield_3 != null)
-                material_type = subfield_3.getData();
-            else {
-                final Subfield subfield_z = field.getSubfield('z');
-                if (subfield_z != null)
-                    material_type = subfield_z.getData();
-                else {
-                    final Subfield subfield_x = field.getSubfield('x');
-                    material_type = (subfield_x == null) ? "Unbekanntes Material" : subfield_x.getData();
-                }
-            }
+            final Subfield materialTypeSubfield = getFirstNonEmptySubfield(field, '3', 'z', 'y', 'x');
+            final String materialType = (materialTypeSubfield == null) ? "Unbekanntes Material" : materialTypeSubfield.getData();
 
-	    // Extract all links from u-subfields and resolve URNs:
+            // Extract all links from u-subfields and resolve URNs:
             for (final Subfield subfield_u : field.getSubfields('u')) {
-		Set<String> URLs = materialTypeToURLsMap.get(material_type);
-		if (URLs == null) {
-		    URLs = new HashSet<String>();
-		    materialTypeToURLsMap.put(material_type, URLs);
-		}
-		final String link = subfield_u.getData();
-		URLs.add(link.startsWith("urn:") ? "https://nbn-resolving.org/" + link : link);
+                Set<String> URLs = materialTypeToURLsMap.get(materialType);
+                if (URLs == null) {
+                    URLs = new HashSet<String>();
+                    materialTypeToURLsMap.put(materialType, URLs);
+                }
+                final String link = subfield_u.getData();
+                URLs.add(link.startsWith("urn:") ? "https://nbn-resolving.org/" + link : link);
             }
         }
 
-	// Remove duplicates while favouring SWB and, if not present, DNB links:
-	for (final String material_type : materialTypeToURLsMap.keySet()) {
-	    if (material_type.equals("Unbekanntes Material")) {
-		for (final String url : materialTypeToURLsMap.get(material_type))
-		    urls_and_material_types.add(url + ":Unbekanntes Material");
-	    } else {
-		// Locate SWB and DNB URLs, if present:
-		String preferredURL = null;
-		for (final String url : materialTypeToURLsMap.get(material_type)) {
-		    if (url.startsWith("http://swbplus.bsz-bw.de")) {
-			preferredURL = url;
-			break;
-		    } else if (url.startsWith("http://d-nb.info"))
-			preferredURL = url;
-		}
+        // Remove duplicates while favouring SWB and, if not present, DNB links:
+        for (final String material_type : materialTypeToURLsMap.keySet()) {
+            if (material_type.equals("Unbekanntes Material")) {
+                for (final String url : materialTypeToURLsMap.get(material_type))
+                    urls_and_material_types.add(url + ":Unbekanntes Material");
+            } else {
+                // Locate SWB and DNB URLs, if present:
+                String preferredURL = null;
+                for (final String url : materialTypeToURLsMap.get(material_type)) {
+                    if (url.startsWith("http://swbplus.bsz-bw.de")) {
+                        preferredURL = url;
+                        break;
+                    } else if (url.startsWith("http://d-nb.info"))
+                        preferredURL = url;
+                }
 
-		if (preferredURL != null)
-		    urls_and_material_types.add(preferredURL + ":" + material_type);
-		else { // Add the kitchen sink.
-		    for (final String url : materialTypeToURLsMap.get(material_type))
-			urls_and_material_types.add(url + ":" + material_type);
-		}
-	    }
-	}
+                if (preferredURL != null)
+                    urls_and_material_types.add(preferredURL + ":" + material_type);
+                else { // Add the kitchen sink.
+                    for (final String url : materialTypeToURLsMap.get(material_type))
+                        urls_and_material_types.add(url + ":" + material_type);
+                }
+            }
+        }
 
         // Handle DOI's:
         for (final VariableField variableField : record.getVariableFields("024")) {
@@ -714,56 +721,57 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     // Map used by getPhysicalType().
     private static final Map<String, String> phys_code_to_full_name_map;
+
     static {
         Map<String, String> tempMap = new HashMap<>();
-        tempMap.put("arbtrans",  "Transparency");
+        tempMap.put("arbtrans", "Transparency");
         tempMap.put("blindendr", "Braille");
-        tempMap.put("bray",      "Blu-ray Disc");
-        tempMap.put("cdda",      "CD");
-        tempMap.put("ckop",      "Microfiche");
-        tempMap.put("cofz",      "Online Resource");
-        tempMap.put("crom",      "CD-ROM");
-        tempMap.put("dias",      "Slides");
-        tempMap.put("disk",      "Diskette");
-        tempMap.put("druck",     "Printed Material");
-        tempMap.put("dvda",      "Audio DVD");
-        tempMap.put("dvdr",      "DVD-ROM");
-        tempMap.put("dvdv",      "Video DVD");
-        tempMap.put("gegenst",   "Physical Object");
-        tempMap.put("handschr",  "Longhand Text");
-        tempMap.put("kunstbl",   "Artistic Works on Paper");
-        tempMap.put("lkop",      "Mircofilm");
-        tempMap.put("medi",      "Multiple Media Types");
-        tempMap.put("scha",      "Record");
-        tempMap.put("skop",      "Microform");
-        tempMap.put("sobildtt",  "Audiovisual Carriers");
-        tempMap.put("soerd",     "Carriers of Other Electronic Data");
-        tempMap.put("sott",      "Carriers of Other Audiodata");
-        tempMap.put("tonbd",     "Audiotape");
-        tempMap.put("tonks",     "Audiocasette");
-        tempMap.put("vika",      "Videocasette");
+        tempMap.put("bray", "Blu-ray Disc");
+        tempMap.put("cdda", "CD");
+        tempMap.put("ckop", "Microfiche");
+        tempMap.put("cofz", "Online Resource");
+        tempMap.put("crom", "CD-ROM");
+        tempMap.put("dias", "Slides");
+        tempMap.put("disk", "Diskette");
+        tempMap.put("druck", "Printed Material");
+        tempMap.put("dvda", "Audio DVD");
+        tempMap.put("dvdr", "DVD-ROM");
+        tempMap.put("dvdv", "Video DVD");
+        tempMap.put("gegenst", "Physical Object");
+        tempMap.put("handschr", "Longhand Text");
+        tempMap.put("kunstbl", "Artistic Works on Paper");
+        tempMap.put("lkop", "Mircofilm");
+        tempMap.put("medi", "Multiple Media Types");
+        tempMap.put("scha", "Record");
+        tempMap.put("skop", "Microform");
+        tempMap.put("sobildtt", "Audiovisual Carriers");
+        tempMap.put("soerd", "Carriers of Other Electronic Data");
+        tempMap.put("sott", "Carriers of Other Audiodata");
+        tempMap.put("tonbd", "Audiotape");
+        tempMap.put("tonks", "Audiocasette");
+        tempMap.put("vika", "Videocasette");
         phys_code_to_full_name_map = Collections.unmodifiableMap(tempMap);
     }
-    
+
     /**
      * @param record the record
      */
     public Set<String> getPhysicalType(final Record record) {
-	final Set<String> results = new TreeSet<>();
-	for (final DataField data_field : record.getDataFields()) {
-	    if (!data_field.getTag().equals("935"))
-		continue;
+        final Set<String> results = new TreeSet<>();
+        for (final DataField data_field : record.getDataFields()) {
+            if (!data_field.getTag().equals("935"))
+                continue;
 
-	    final List<Subfield> physical_code_subfields = data_field.getSubfields('b');
-	    for (final Subfield physical_code_subfield : physical_code_subfields) {
+            final List<Subfield> physical_code_subfields = data_field.getSubfields('b');
+            for (final Subfield physical_code_subfield : physical_code_subfields) {
                 final String physical_code = physical_code_subfield.getData();
-		if (phys_code_to_full_name_map.containsKey(physical_code))
-		    results.add(phys_code_to_full_name_map.get(physical_code));
-		else
-		    System.err.println("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
-	    }
-	}
+                if (phys_code_to_full_name_map.containsKey(physical_code))
+                    results.add(phys_code_to_full_name_map.get(physical_code));
+                else
+                    System.err.println("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
+            }
+        }
 
-	return results;
+        return results;
     }
 }
