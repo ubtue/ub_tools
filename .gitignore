@@ -66,6 +66,9 @@ update_ixtheo_notations
 urlencode
 vufind_db_test
 xml_parser_test
+chop_into_words_test
+find_substring_test
+get_file_media_type_test
 
 bsz_daten
 KeywordChainParser-*.jar
