@@ -197,8 +197,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final String rawLink = subfield_u.getData();
                 final String link;
                 if (rawLink.startsWith("urn:"))
-                    link = "https://nbn-resolving.org/" + rawLink;
-                else if (rawLink.startsWith("http://nbn-resolving.org/"))
+                    link = "https://nbn-resolving.de/" + rawLink;
+                else if (rawLink.startsWith("http://nbn-resolving."))
                     link = "https" + rawLink.substring(4); // Replace HTTP w/ HTTPS.
                 else
                     link = rawLink;
