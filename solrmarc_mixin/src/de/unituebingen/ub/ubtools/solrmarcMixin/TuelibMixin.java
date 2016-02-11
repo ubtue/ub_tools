@@ -190,8 +190,14 @@ public class TuelibMixin extends SolrIndexerMixin {
                     URLs = new HashSet<String>();
                     materialTypeToURLsMap.put(materialType, URLs);
                 }
+
                 final String link = subfield_u.getData();
-                URLs.add(link.startsWith("urn:") ? "https://nbn-resolving.org/" + link : link);
+                if (link.startsWith("urn:"))
+                    URLs.add("https://nbn-resolving.org/" + link);
+                else if (link.startsWith("http://nbn-resolving.org/"))
+                    URLs.add("https" + link.substring(4)); // Replace HTTP w/ HTTPS.
+                else
+                    URLs.add(link);
             }
         }
 
