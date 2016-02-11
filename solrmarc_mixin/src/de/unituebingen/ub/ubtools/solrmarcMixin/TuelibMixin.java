@@ -151,7 +151,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Finds the first subfield which is nonempty.
      *
-     * @param dataField the data field
+     * @param dataField   the data field
      * @param subfieldIDs the subfield identifiers to search for
      * @return a nonempty subfield or null
      */
@@ -175,13 +175,16 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @param record the record
      * @return A, possibly empty, Set<String> containing the URL/material-type pairs.
      */
+    private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
+
     public Set<String> getUrlsAndMaterialTypes(final Record record) {
+        final Set<String> nonUnknownMaterialTypeURLs = new HashSet<String>();
         final Map<String, Set<String>> materialTypeToURLsMap = new TreeMap<String, Set<String>>();
         final Set<String> urls_and_material_types = new LinkedHashSet<>();
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
             final Subfield materialTypeSubfield = getFirstNonEmptySubfield(field, '3', 'z', 'y', 'x');
-            final String materialType = (materialTypeSubfield == null) ? "Unbekanntes Material" : materialTypeSubfield.getData();
+            final String materialType = (materialTypeSubfield == null) ? UNKNOWN_MATERIAL_TYPE : materialTypeSubfield.getData();
 
             // Extract all links from u-subfields and resolve URNs:
             for (final Subfield subfield_u : field.getSubfields('u')) {
@@ -191,21 +194,29 @@ public class TuelibMixin extends SolrIndexerMixin {
                     materialTypeToURLsMap.put(materialType, URLs);
                 }
 
-                final String link = subfield_u.getData();
-                if (link.startsWith("urn:"))
-                    URLs.add("https://nbn-resolving.org/" + link);
-                else if (link.startsWith("http://nbn-resolving.org/"))
-                    URLs.add("https" + link.substring(4)); // Replace HTTP w/ HTTPS.
+                final String rawLink = subfield_u.getData();
+                final String link;
+                if (rawLink.startsWith("urn:"))
+                    link = "https://nbn-resolving.org/" + rawLink;
+                else if (rawLink.startsWith("http://nbn-resolving.org/"))
+                    link = "https" + rawLink.substring(4); // Replace HTTP w/ HTTPS.
                 else
-                    URLs.add(link);
+                    link = rawLink;
+                URLs.add(link);
+                if (!materialType.equals(UNKNOWN_MATERIAL_TYPE)) {
+                    nonUnknownMaterialTypeURLs.add(link);
+                }
             }
         }
 
         // Remove duplicates while favouring SWB and, if not present, DNB links:
         for (final String material_type : materialTypeToURLsMap.keySet()) {
-            if (material_type.equals("Unbekanntes Material")) {
-                for (final String url : materialTypeToURLsMap.get(material_type))
-                    urls_and_material_types.add(url + ":Unbekanntes Material");
+            if (material_type.equals(UNKNOWN_MATERIAL_TYPE)) {
+                for (final String url : materialTypeToURLsMap.get(material_type)) {
+                    if (!nonUnknownMaterialTypeURLs.contains(url)) {
+                        urls_and_material_types.add(url + ":" + UNKNOWN_MATERIAL_TYPE);
+                    }
+                }
             } else {
                 // Locate SWB and DNB URLs, if present:
                 String preferredURL = null;
