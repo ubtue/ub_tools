@@ -95,24 +95,13 @@ echo "*** Phase $P: Map DDC and RVK to IxTheo Notations - $(date) ***"
 echo "*** Phase $P: Map DDC and RVK to IxTheo Notations - $(date) ***" >> "${log}"
 map_ddc_and_rvk_to_ixtheo_notations \
     TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-    TitelUndLokaldaten-post-phase"$P"-"${date}".xml \
+    TitelUndLokaldaten-post-pipeline-"${date}".xml \
     ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1
 map_ddc_and_rvk_to_ixtheo_notations \
     ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-    ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml \
+    ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".xml \
     ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1
 
-
-((++P))
-echo "*** Phase $P: Fix Article Biblio-Levels - $(date) ***"
-echo "*** Phase $P: Fix Article Biblio-Levels - $(date) ***" >> "${log}"
-fix_article_biblio_levels --verbose \
-    TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-    TitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
-fix_article_biblio_levels --verbose \
-    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-    ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
 
 echo "*** Cleanup of Intermediate Files - $(date) ***"
 echo "*** Cleanup of Intermediate Files - $(date) ***" >> "${log}"
