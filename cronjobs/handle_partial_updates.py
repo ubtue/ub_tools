@@ -181,7 +181,6 @@ def CreateNewTarballAndDeletePreviousTarball(new_tar_file_name, title_superior_n
 
 
 def Main():
-    util.default_email_sender = "handle_partial_updates@ub.uni-tuebingen.de"
     if len(sys.argv) != 2:
         util.Error("This script expects one argument: default_email_recipient")
     util.default_email_recipient = sys.argv[1]

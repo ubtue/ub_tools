@@ -20,16 +20,13 @@ import tarfile
 import time
 
 
-default_email_sender = "unset_email_sender@ub.uni-tuebingen.de"
 default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
 default_config_file_dir = "/var/lib/tuelib/cronjobs/"
 
 
 # @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the highest priority.
 def SendEmail(subject, msg, sender=None, recipient=None, priority=None):
-    subject += " (from: " + socket.gethostname() + ")"
-    if sender is None:
-        sender = default_email_sender
+    subject = os.path.basename(sys.arv[0]) + subject + " (from: " + socket.gethostname() + ")"
     if recipient is None:
         recipient = default_email_recipient
     if priority is not None:
@@ -41,6 +38,8 @@ def SendEmail(subject, msg, sender=None, recipient=None, priority=None):
         config = LoadConfigFile(no_error=True)
         server_address  = config.get("SMTPServer", "server_address")
         server_user     = config.get("SMTPServer", "server_user")
+        if sender is None:
+            sender = server_user
         server_password = config.get("SMTPServer", "server_password")
     except Exception as e:
         Info("failed to read config file! (" + str(e) + ")", file=sys.stderr)
