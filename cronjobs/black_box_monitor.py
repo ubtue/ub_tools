@@ -44,7 +44,6 @@ def RunTest(test_name, url, timeout, expected):
 
 
 def Main():
-    util.default_email_sender = "black_box_monitor@ub.uni-tuebingen.de"
     util.default_email_recipient = sys.argv[1]
     config = util.LoadConfigFile()
 
