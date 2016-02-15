@@ -52,7 +52,6 @@ def PurgeFiles(generations_to_keep, all_files):
 
 
 def Main():
-    util.default_email_sender = "purge_old_data@ub.uni-tuebingen.de"
     if len(sys.argv) != 2:
         util.Error("This script expects one argument: default_email_recipient")
     util.default_email_recipient = sys.argv[1]
