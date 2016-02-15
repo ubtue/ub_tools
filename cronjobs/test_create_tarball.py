@@ -16,7 +16,6 @@ def Usage():
 
 
 def Main():
-    util.default_email_sender = "create_tarball@ub.uni-tuebingen.de"
     if len(sys.argv) < 2:
         Usage()
 
