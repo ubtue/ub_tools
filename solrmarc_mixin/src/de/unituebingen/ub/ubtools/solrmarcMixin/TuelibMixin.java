@@ -249,7 +249,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return urls_and_material_types;
     }
 
-    private final static Pattern EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(\\.+)$");
+    private final static Pattern EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
 
     /**
      * Returns either a Set<String> of parent (ID + colon + parent title).  Only IDs w/o titles will not be returned,
@@ -265,7 +265,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final String tag : new String[]{"800", "810", "830", "773"}) {
             for (final VariableField variableField : record.getVariableFields(tag)) {
                 final DataField field = (DataField) variableField;
-                final Subfield titleSubfield = field.getSubfield('t');
+                final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't', 'a');
                 final Subfield volumeSubfield = field.getSubfield('v');
                 final Subfield idSubfield = field.getSubfield('w');
 
