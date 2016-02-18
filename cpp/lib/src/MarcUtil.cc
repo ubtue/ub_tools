@@ -548,28 +548,32 @@ static void ParseLeader(const std::string &input_filename, Leader * const leader
     while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
 	/* Intentionally empty! */;
     if (unlikely(type != SimpleXmlParser::OPENING_TAG or data !="leader"))
-	throw std::runtime_error("in MarcUtil::ProcessLeader: opening <leader> tag expected while parsing \"" + input_filename
+	throw std::runtime_error("in MarcUtil::ParseLeader: opening <leader> tag expected while parsing \"" + input_filename
 				 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ".");
 
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
-	throw std::runtime_error("in MarcUtil::ProcessLeader: error while parsing \"" + input_filename + "\": "
+	throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing \"" + input_filename + "\": "
 				 + xml_parser->getLastErrorMessage() + " on line "
 				 + std::to_string(xml_parser->getLineNo()) + ".");
     if (unlikely(type != SimpleXmlParser::CHARACTERS or data.length() != Leader::LEADER_LENGTH))
-	throw std::runtime_error("in MarcUtil::ProcessLeader: leader data expected while parsing \"" + input_filename
+	throw std::runtime_error("in MarcUtil::ParseLeader: leader data expected while parsing \"" + input_filename
 				 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ".");
 
+    if (data.substr(0, 5) == "     ") // record length
+	data = "00000" + data.substr(5);
+    if (data.substr(12, 5) == "     ") // base address of data
+	data = data.substr(0, 12) + "00000" + data.substr(12 + 5);
     std::string err_msg;
     if (unlikely(not Leader::ParseLeader(data, leader, &err_msg)))
-	throw std::runtime_error("in MarcUtil::ProcessLeader: error while parsing leader data: " + err_msg);
+	throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing leader data: " + err_msg);
 
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
-	throw std::runtime_error("in MarcUtil::ProcessLeader: error while parsing \"" + input_filename + "\": "
+	throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing \"" + input_filename + "\": "
 				 + xml_parser->getLastErrorMessage() + " on line "
 				 + std::to_string(xml_parser->getLineNo()) + ".");
     if (unlikely(type != SimpleXmlParser::CLOSING_TAG or data !="leader")) {
 	const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-	throw std::runtime_error("in MarcUtil::ProcessLeader: closing </leader> tag expected while parsing \"" + input_filename
+	throw std::runtime_error("in MarcUtil::ParseLeader: closing </leader> tag expected while parsing \"" + input_filename
 				 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ". (Found: "
 				 + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : ""));
     }
