@@ -26,7 +26,7 @@ default_config_file_dir = "/var/lib/tuelib/cronjobs/"
 
 # @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the highest priority.
 def SendEmail(subject, msg, sender=None, recipient=None, priority=None):
-    subject = os.path.basename(sys.argv[0]) + + ": " + subject + " (from: " + socket.gethostname() + ")"
+    subject = os.path.basename(sys.argv[0]) +  ": " + subject + " (from: " + socket.gethostname() + ")"
     if recipient is None:
         recipient = default_email_recipient
     if priority is not None:
