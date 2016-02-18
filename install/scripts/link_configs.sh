@@ -32,5 +32,5 @@ if [ "$#" -ne 1 ]; then
 fi
 
 CONFIGS_DIRECTORY=$1
-echo "ln --symbolic --force --no-target-directory" "$CONFIGS_DIRECTORY/cronjobs" "/var/lib/tuelib/cronjobs"
 ln --symbolic --force --no-target-directory "$CONFIGS_DIRECTORY/cronjobs" "/var/lib/tuelib/cronjobs"
+ln --symbolic --force --no-target-directory "$CONFIGS_DIRECTORY/translations.conf" "/var/lib/tuelib/translations.conf"
