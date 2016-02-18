@@ -32,17 +32,17 @@ bool DecodeEnity(const std::string &entity_string, std::string * const decoded_c
 	return false;
 
     if (entity_string[0] == '#') {
-	if (entity_string.length() < 5)
+	if (entity_string.length() < 2)
 	    return false;
 
 	unsigned code_point;
 	if (entity_string[1] == 'x') {
-	    if (entity_string.length() != 6)
+	    if (entity_string.length() < 3 or entity_string.length() > 6)
 		return false;
-	    if (not StringUtil::ToUnsigned(entity_string.substr(1), &code_point, 16))
+	    if (not StringUtil::ToUnsigned(entity_string.substr(2), &code_point, 16))
 		return false;
 	} else {
-	    if (entity_string.length() != 5)
+	    if (entity_string.length() < 2 or entity_string.length() > 6)
 		return false;
 	    if (not StringUtil::ToUnsigned(entity_string.substr(1), &code_point))
 		return false;
