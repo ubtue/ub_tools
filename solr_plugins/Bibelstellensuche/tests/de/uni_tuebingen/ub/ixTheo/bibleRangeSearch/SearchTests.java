@@ -11,13 +11,15 @@ import java.net.URLConnection;
 import java.net.URLEncoder;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class SearchTests {
-    private final static String URL_PATTERN = "http://ptah.ub.uni-tuebingen.de:8080/solr/biblio/select?q={!bibleRangeParser}%s&wt=xml&indent=true";
+    private final static String URL_PATTERN = "http://localhost:8080/solr/biblio/select?q={!bibleRangeParser}%s&wt=xml&indent=true";
 
     public String search(String bibleRangeString) throws UnsupportedEncodingException {
         String url = String.format(URL_PATTERN, URLEncoder.encode(bibleRangeString, "UTF-8"));
+        System.out.println(url);
         StringBuilder sb = new StringBuilder(50_000);
 
         try {
@@ -25,7 +27,7 @@ public class SearchTests {
             BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
             String line;
             while ((line = in.readLine()) != null) {
-                sb.append(line);
+                sb.append(line).append('\n');
             }
             in.close();
         } catch (IOException e) {
@@ -33,6 +35,12 @@ public class SearchTests {
         }
 
         return sb.toString();
+    }
+    @Test
+    public void testSearchPsalm_22_17() throws UnsupportedEncodingException {
+        String result = search("6800000_6899999");
+        System.out.println(result);
+        assertFalse(result.isEmpty());
     }
 
     @Test
