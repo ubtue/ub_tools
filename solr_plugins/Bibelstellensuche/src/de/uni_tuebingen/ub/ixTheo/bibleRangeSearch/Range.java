@@ -51,7 +51,7 @@ class Range {
     }
 
     public float getBestMatchingScore(Range[] targets) {
-        float queryDistance = 0;
+        float queryDistance = Float.NEGATIVE_INFINITY;
         for (final Range target : targets) {
                 queryDistance = Math.max(getMatchingScore(target), queryDistance);
         }
