@@ -17,9 +17,20 @@ public class BibleRangeFilter extends Filter {
 
     private final static String FIELD = "bible_ranges";
     private final Range[] ranges;
+    private final boolean isSearchingForBooks;
 
-    public BibleRangeFilter(final Range[] ranges) {
+    public BibleRangeFilter(final BibleRange[] ranges) {
         this.ranges = ranges;
+        boolean isSearchingForBooks = false;
+        for (final BibleRange range : ranges) {
+            isSearchingForBooks |= range.isBook();
+        }
+        this.isSearchingForBooks = isSearchingForBooks;
+    }
+
+    public boolean matches(final BibleRange[] documentRanges) {
+        final BibleRange[] fieldRanges = isSearchingForBooks ? documentRanges : BibleRange.removeBooks(documentRanges);
+        return fieldRanges.length != 0 && Range.hasIntersections(ranges, fieldRanges);
     }
 
     @Override
@@ -29,14 +40,13 @@ public class BibleRangeFilter extends Filter {
         return new FastDocIdSet(context.reader().maxDoc(), acceptDocs, values);
     }
 
-    class FastDocIdSet extends FieldCacheDocIdSet {
+    public class FastDocIdSet extends FieldCacheDocIdSet {
         private final BinaryDocValues values;
 
         public FastDocIdSet(final int maxDoc, final Bits acceptDocs, final BinaryDocValues values) {
             super(maxDoc, acceptDocs);
             this.values = values;
         }
-
         @Override
         protected final boolean matchDoc(final int docId) {
             final BytesRef ref = values.get(docId);
@@ -44,8 +54,8 @@ public class BibleRangeFilter extends Filter {
             if (dbField.isEmpty()) {
                 return false;
             }
-            final Range[] fieldRanges = BibleRangeParser.getRangesFromDatabaseField(dbField);
-            return Range.hasIntersections(ranges, fieldRanges);
+            final BibleRange[] documentRanges = BibleRangeParser.getRangesFromDatabaseField(dbField);
+            return matches(documentRanges);
         }
     }
 }

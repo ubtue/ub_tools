@@ -7,6 +7,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queries.CustomScoreProvider;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 
 public class BibleRangeScoreProvider extends CustomScoreProvider {
