@@ -14,18 +14,22 @@ public class BibleRangeTests {
     public void testGetMatchingScore() {
         r1 = new Range(0, 2);
         r2 = new Range(2, 4);
+        assertTrue(r1.intersects(r2));
         assertEquals(0f, r1.getMatchingScore(r2), 0.001);
 
         r1 = new Range(0, 2);
         r2 = new Range(1, 2);
+        assertTrue(r1.intersects(r2));
         assertEquals(0.5f, r1.getMatchingScore(r2), 0.001);
 
         r1 = new Range(0, 3);
         r2 = new Range(1, 2);
+        assertTrue(r1.intersects(r2));
         assertEquals(0.33333f, r1.getMatchingScore(r2), 0.001);
 
         r1 = new Range(0, 2);
         r2 = new Range(5, 7);
+        assertFalse(r1.intersects(r2));
         assertEquals(-0.4286f, r1.getMatchingScore(r2), 0.001);
     }
 
@@ -39,6 +43,7 @@ public class BibleRangeTests {
                 new Range(2700320, 2700321),
                 new Range(2700331, 2700335),
         };
+        assertTrue(BibleRange.hasIntersections(rs1, rs2));
         assertEquals(2f, Range.getMatchingScore(rs1, rs2), 0.001);
 
         rs1 = new Range[]{
@@ -49,6 +54,7 @@ public class BibleRangeTests {
                 new Range(100000, 199999),
                 new Range(2700000, 2799999),
         };
+        assertTrue(BibleRange.hasIntersections(rs1, rs2));
         assertEquals(5E-5f, Range.getMatchingScore(rs1, rs2), 0.001);
 
         rs1 = new Range[]{
@@ -58,7 +64,8 @@ public class BibleRangeTests {
         rs2 = new Range[]{
                 new Range(2700424, 2700424)
         };
-        assertEquals(0f, Range.getMatchingScore(rs1, rs2), 0.001);
+        assertFalse(BibleRange.hasIntersections(rs1, rs2));
+        assertEquals(-1.94737, Range.getMatchingScore(rs1, rs2), 0.001);
     }
 
     @Test
@@ -83,6 +90,14 @@ public class BibleRangeTests {
 
         r1 = new Range(0, 2);
         r2 = new Range(2, 4);
+        assertTrue(r1.intersects(r2));
+
+        r1 = new Range(2, 2);
+        r2 = new Range(2, 4);
+        assertTrue(r1.intersects(r2));
+
+        r1 = new Range(2, 4);
+        r2 = new Range(2, 2);
         assertTrue(r1.intersects(r2));
 
         r1 = new Range(0, 2);
@@ -126,6 +141,26 @@ public class BibleRangeTests {
         rs1 = new Range[]{new Range(1, 2), new Range(5, 6)};
         rs2 = new Range[]{new Range(10, 13)};
         assertFalse(Range.hasIntersections(rs1, rs2));
+
+        rs1 = new Range[]{new Range(1, 1)};
+        rs2 = new Range[]{new Range(0, 2)};
+        assertTrue(Range.hasIntersections(rs1, rs2));
+
+        rs1 = new Range[]{new Range(0, 2)};
+        rs2 = new Range[]{new Range(1, 1)};
+        assertTrue(Range.hasIntersections(rs1, rs2));
+
+        rs1 = new Range[]{new Range(0, 2)};
+        rs2 = new Range[]{};
+        assertFalse(Range.hasIntersections(rs1, rs2));
+
+        rs1 = new Range[]{};
+        rs2 = new Range[]{new Range(0, 2)};
+        assertFalse(Range.hasIntersections(rs1, rs2));
+
+        rs1 = new Range[]{};
+        rs2 = new Range[]{};
+        assertFalse(Range.hasIntersections(rs1, rs2));
     }
 
     @Test
@@ -154,5 +189,31 @@ public class BibleRangeTests {
         r1 = ranges[1];
         assertEquals(10, r1.getLower());
         assertEquals(20, r1.getUpper());
+    }
+
+    @Test
+    public void testIsVerse() {
+        assertTrue(new BibleRange("2700320_2700321").isVerse());
+        assertTrue(new BibleRange("2700000_2700321").isVerse());
+        assertFalse(new BibleRange("6810700_6815099").isVerse());
+        assertFalse(new BibleRange("6810000_6899999").isVerse());
+    }
+
+    @Test
+    public void testIsChepter() {
+        assertFalse(new BibleRange("2700320_2700321").isChepter());
+        assertFalse(new BibleRange("2700000_2700321").isChepter());
+        assertTrue(new BibleRange("6800300_6800399").isChepter());
+        assertTrue(new BibleRange("6810700_6815099").isChepter());
+        assertFalse(new BibleRange("6800000_6899999").isChepter());
+    }
+
+    @Test
+    public void testIsBook() {
+        assertFalse(new BibleRange("2700320_2700321").isBook());
+        assertFalse(new BibleRange("2700000_2700321").isBook());
+        assertFalse(new BibleRange("6800300_6800399").isBook());
+        assertFalse(new BibleRange("6810700_6815099").isBook());
+        assertTrue(new BibleRange("6800000_6899999").isBook());
     }
 }

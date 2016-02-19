@@ -18,10 +18,11 @@ public class BibleRangeParser extends QParser {
     public BibleRangeParser(final String searchString, final SolrParams localParams, final SolrParams params, final SolrQueryRequest request) {
         super(searchString, localParams, params, request);
         try {
-            final String queryString = "+bible_ranges:" + getBookPrefixQueryString(searchString);
+            final String queryString = "bible_ranges:" + getBookPrefixQueryString(searchString);
+            System.out.println(queryString);
             final QParser parser = getParser(queryString, "lucene", getReq());
-            final Range[] ranges = getRangesFromQuery();
-            this.innerQuery = new FilteredQuery(new BibleRangeQuery(parser.parse(), ranges), new BibleRangeFilter(ranges));
+            final BibleRange[] ranges = getRangesFromQuery();
+            this.innerQuery = new BibleRangeQuery(new FilteredQuery(parser.parse(), new BibleRangeFilter(ranges)), ranges);
         } catch (SyntaxError ex) {
             throw new RuntimeException("error parsing query", ex);
         }
@@ -50,8 +51,7 @@ public class BibleRangeParser extends QParser {
             buffer.append('|');
             buffer.append(range.substring(0, 2));
         }
-        final String bookRegex = "(" + buffer.toString().substring(1) + ")";
-        return "/.*" + bookRegex + "[0-9]{5}.*/";
+        return "/.*(" + buffer.toString().substring(1) + ")[0-9]{5}.*/";
     }
 
     @Override
@@ -59,7 +59,7 @@ public class BibleRangeParser extends QParser {
         return this.innerQuery;
     }
 
-    private Range[] getRangesFromQuery() {
+    private BibleRange[] getRangesFromQuery() {
         return BibleRange.getRanges(getFieldsFromQuery());
     }
 
@@ -67,7 +67,7 @@ public class BibleRangeParser extends QParser {
         return qstr.split(QUERY_SEPARATOR);
     }
 
-    public static Range[] getRangesFromDatabaseField(final String db_field) {
+    public static BibleRange[] getRangesFromDatabaseField(final String db_field) {
         return BibleRange.getRanges(db_field, DB_FIELD_SEPARATOR);
     }
 }

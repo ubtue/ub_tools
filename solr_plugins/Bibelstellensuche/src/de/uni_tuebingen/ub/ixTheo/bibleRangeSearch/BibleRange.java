@@ -1,6 +1,10 @@
 package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
 
 
+import java.util.ArrayList;
+import java.util.List;
+
+
 public class BibleRange extends Range {
 
     public BibleRange(final String range) {
@@ -23,16 +27,39 @@ public class BibleRange extends Range {
         }
     }
 
-    public static Range[] getRanges(final String[] ranges) {
-        final Range[] queryRanges = new Range[ranges.length];
+    public static BibleRange[] getRanges(final String[] ranges) {
+        final BibleRange[] queryRanges = new BibleRange[ranges.length];
         for (int i = 0; i < queryRanges.length; i++) {
             queryRanges[i] = new BibleRange(ranges[i]);
         }
         return queryRanges;
     }
 
-    public static Range[] getRanges(final String input, String separator) {
+    public static BibleRange[] getRanges(final String input, String separator) {
         final String[] fields = input.split(separator);
         return getRanges(fields);
     }
+
+    public static BibleRange[] removeBooks(BibleRange[] ranges) {
+        List<BibleRange> filteredRanges = new ArrayList<>(ranges.length);
+        for (final BibleRange range : ranges) {
+            if (!range.isBook()) {
+                filteredRanges.add(range);
+            }
+        }
+        return filteredRanges.toArray(new BibleRange[filteredRanges.size()]);
+    }
+
+    public boolean isVerse() {
+        return !isChepter();
+    }
+
+    public boolean isChepter() {
+        return (getLower() % 100) == 0 && (getUpper() % 100) == 99 && !isBook();
+    }
+
+    public boolean isBook() {
+        return (getLower() % 100000) == 0 && (getUpper() % 100000) == 99999;
+    }
+
 }
