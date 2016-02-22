@@ -15,7 +15,7 @@ else # Ubuntu version
   LIBCURL=-lcurl
 endif
 LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpthread -lpcre -lcrypto -lkyotocabinet -lmagic -lz -lrt -lssl \
-       $(LIBCURL) $(LIBMARIADB)
+       -larchive $(LIBCURL) $(LIBMARIADB)
 
 PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
 CGI_PROGS=full_text_lookup
