@@ -107,6 +107,15 @@ public:
      */
     size_t extractSubfield(const std::string &tag, const char subfield_code, std::vector<std::string> * const values) const;
 
+    /** \brief Extract values from possibly repeated, subfields.
+     *  \param tag             A field tag.
+     *  \param subfield_codes  The "list" of subfield codes.
+     *  \param values          The extracted subfield values will be returned here.
+     *  \return The number of values that have been extracted.
+     */
+    size_t extractSubfields(const std::string &tag, const std::string &subfield_codes, std::vector<std::string> * const values)
+	const;
+
     /** \brief Remove matching tags and corresponding fields. */
     void filterTags(const std::unordered_set<std::string> &drop_tags);
 
