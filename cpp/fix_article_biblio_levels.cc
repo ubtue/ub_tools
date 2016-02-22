@@ -3,7 +3,7 @@
  *
  *  A tool for patching up the bibliographic level of article records.
  *  Many, possibly all, article records that we get have an 'a' in leader position 7 instead of a 'b'.
- *  If the referenced parent is a serial this tool changes the 'a' to a 'b'.
+ *  If the referenced parent is no a monograph this tool changes the 'a' to a 'b'.
  */
 
 /*
@@ -46,39 +46,40 @@ void Usage() {
 }
 
 
-static std::unordered_set<std::string> serial_control_numbers;
+static std::unordered_set<std::string> monograph_control_numbers;
 
 
-bool RecordSerialControlNumbers(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
-				std::string * const /* err_msg */) {
+bool RecordMonographControlNumbers(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
+				   std::string * const /* err_msg */)
+{
     const Leader &leader(record->getLeader());
-    if (leader[7] == 's') {
+    if (leader[7] == 'm') {
 	const std::vector<std::string> &fields(record->getFields());
-	serial_control_numbers.insert(fields[0]);
+	monograph_control_numbers.insert(fields[0]);
     }
 
     return true;
 }
 
 
-void CollectSerials(const bool verbose, const std::vector<File *> &inputs) {
+void CollectMonographs(const bool verbose, const std::vector<File *> &inputs) {
     std::string err_msg;
     for (auto &input : inputs) {
 	if (verbose)
 	    std::cout << "Extracting serial control numbers from \"" << input->getPath() << "\".\n";
-	if (not MarcUtil::ProcessRecords(input, RecordSerialControlNumbers, /* xml_writer = */nullptr, &err_msg))
+	if (not MarcUtil::ProcessRecords(input, RecordMonographControlNumbers, /* xml_writer = */nullptr, &err_msg))
 	    Error("error while looking for serials: " + err_msg);
     }
 
     if (verbose)
-	std::cout << "Found " << serial_control_numbers.size() << " serial records.\n";
+	std::cout << "Found " << monograph_control_numbers.size() << " serial records.\n";
 }
 
 
 static unsigned patch_count;
 
 
-bool HasSerialParent(const std::string &subfield, const MarcUtil::Record &record) {
+bool HasMonographParent(const std::string &subfield, const MarcUtil::Record &record) {
     const std::string tag(subfield.substr(0, 3));
     const char subfield_code(subfield[3]);
     const ssize_t field_index(record.getFieldIndex(tag));
@@ -96,15 +97,15 @@ bool HasSerialParent(const std::string &subfield, const MarcUtil::Record &record
 	return false;
 
     const std::string parent_id((*matcher)[1]);
-    return serial_control_numbers.find(parent_id) != serial_control_numbers.cend();
+    return monograph_control_numbers.find(parent_id) != monograph_control_numbers.cend();
 }
 
 
-bool HasAtLeastOneSerialParent(const std::string &subfield_list, const MarcUtil::Record &record) {
+bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MarcUtil::Record &record) {
     std::vector<std::string> subfields;
     StringUtil::Split(subfield_list, ':', &subfields);
     for (const auto &subfield : subfields) {
-	if (HasSerialParent(subfield, record))
+	if (HasMonographParent(subfield, record))
 	    return true;
     }
 
@@ -112,7 +113,7 @@ bool HasAtLeastOneSerialParent(const std::string &subfield_list, const MarcUtil:
 }
 
 
-// Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is a serial.
+// Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is not a monograph.
 // Also writes all records to "output_ptr".
 bool PatchUpArticle(MarcUtil::Record * const record, XmlWriter * const xml_writer, std::string * const /*err_msg*/) {
     Leader &leader(record->getLeader());
@@ -121,7 +122,7 @@ bool PatchUpArticle(MarcUtil::Record * const record, XmlWriter * const xml_write
 	return true;
     }
 
-    if (not HasAtLeastOneSerialParent("800w:810w:830w:773w", *record)) {
+    if (HasAtLeastOneMonographParent("800w:810w:830w:773w", *record)) {
 	record->write(xml_writer);
 	return true;
     }
@@ -134,7 +135,9 @@ bool PatchUpArticle(MarcUtil::Record * const record, XmlWriter * const xml_write
 }
 
 
-void PatchUpSerialComponentParts(const bool verbose, File * const input, File * const output) {
+// Iterates over all records in a collection and retags all book component parts as artcles
+// unless the object has a monograph as a parent.
+void PatchUpBookComponentParts(const bool verbose, File * const input, File * const output) {
     XmlWriter xml_writer(output);
     xml_writer.openTag("collection");
 
@@ -175,10 +178,10 @@ int main(int argc, char **argv) {
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
-	CollectSerials(verbose, marc_inputs);
+	CollectMonographs(verbose, marc_inputs);
 
 	marc_inputs[0]->rewind();
-	PatchUpSerialComponentParts(verbose, marc_inputs[0], &marc_output);
+	PatchUpBookComponentParts(verbose, marc_inputs[0], &marc_output);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
