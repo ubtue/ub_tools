@@ -35,7 +35,7 @@ public class IxTheo extends SolrIndexerMixin {
         final Set<String> formats = new HashSet<>();
         final Set<String> rawFormats = indexer.getFormat(record);
         for (final String rawFormat : rawFormats) {
-            if (rawFormat.equals("Book Chapter")) {
+            if (rawFormat.equals("BookComponentPart") || rawFormat.equals("SerialComponentPart")) {
                 formats.add("Article");
             } else {
                 formats.add(rawFormat);
