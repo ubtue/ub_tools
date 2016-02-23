@@ -11,7 +11,7 @@ class Range {
     public static float getMatchingScore(final Range[] fieldRanges, final Range[] queryRanges) {
         float distance = 0;
         for (final Range fieldRange : fieldRanges) {
-            distance += fieldRange.getBestMatchingScore(queryRanges);
+            distance += Math.max(0, fieldRange.getBestMatchingScore(queryRanges));
         }
         return distance;
     }
@@ -53,7 +53,7 @@ class Range {
     public float getBestMatchingScore(Range[] targets) {
         float queryDistance = Float.NEGATIVE_INFINITY;
         for (final Range target : targets) {
-                queryDistance = Math.max(getMatchingScore(target), queryDistance);
+            queryDistance = Math.max(getMatchingScore(target), queryDistance);
         }
         return queryDistance;
     }
