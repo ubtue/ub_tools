@@ -29,6 +29,7 @@
 #include "MediaTypeUtil.h"
 #include <stdexcept>
 #include <cctype>
+#include <alloca.h>
 #include <magic.h>
 #include "File.h"
 #include "HttpHeader.h"
@@ -145,9 +146,9 @@ std::string GetFileMediaType(const std::string &filename, const bool auto_simpli
 
     if (StringUtil::StartsWith(media_type, "application/octet-stream")) {
 	File input(filename, "rb");
-	    char buf[LZ4_MAGIC.size()];
-	    if ((input.read(buf, sizeof(buf)) == sizeof(buf)) and std::strncmp(LZ4_MAGIC.c_str(), buf, LZ4_MAGIC.size()) == 0)
-		return "application/lz4";
+	char *buf = reinterpret_cast<char *>(::alloca(LZ4_MAGIC.size()));
+	if ((input.read(buf, sizeof(buf)) == sizeof(buf)) and std::strncmp(LZ4_MAGIC.c_str(), buf, LZ4_MAGIC.size()) == 0)
+	    return "application/lz4";
     }
 
     return media_type;
