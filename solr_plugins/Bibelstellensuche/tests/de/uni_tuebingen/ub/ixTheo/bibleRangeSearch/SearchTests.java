@@ -36,6 +36,7 @@ public class SearchTests {
 
         return sb.toString();
     }
+
     @Test
     public void testSearchPsalm_22_17() throws UnsupportedEncodingException {
         String result = search("6800000_6899999");
