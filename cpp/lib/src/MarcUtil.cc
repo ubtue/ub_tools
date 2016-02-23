@@ -393,6 +393,7 @@ size_t Record::extractSubfields(const std::string &tag, const std::string &subfi
 	    if (subfield_codes.find(code_and_value.first) != std::string::npos)
 		values->emplace_back(code_and_value.second);
 	}
+	++field_index;
     }
 
     return values->size();
