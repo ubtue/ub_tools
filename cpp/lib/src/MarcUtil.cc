@@ -730,8 +730,10 @@ Record Record::XmlFactory(File * const input) {
     std::string data;
     while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
 	/* Intentionally empty! */;
+
     if (unlikely(type == SimpleXmlParser::CLOSING_TAG and data == "collection")) {
 	file_to_parser_map.erase(input); // This is necessary as we sometimes read "File" a 2nd time, after a rewind().
+	delete xml_parser;
 	return Record(leader, dir_entries, fields);
     }
 
@@ -761,7 +763,7 @@ Record Record::XmlFactory(File * const input) {
 				     + std::to_string(xml_parser->getLineNo()) + "!");
 
 	if (type == SimpleXmlParser::CLOSING_TAG) {
-	    if (unlikely(data !="record"))
+	    if (unlikely(data != "record"))
 		throw std::runtime_error("in MarcUtil::Record::XmlFactory: closing </record> tag expected while parsing \""
 					 + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "!");
 	    return Record(leader, dir_entries, fields);
