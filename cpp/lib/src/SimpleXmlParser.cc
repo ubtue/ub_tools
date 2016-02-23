@@ -353,4 +353,6 @@ std::string SimpleXmlParser::TypeToString(const Type type) {
     case CLOSING_TAG:       return "CLOSING_TAG";
     case CHARACTERS:        return "CHARACTERS";
     }
+
+    __builtin_unreachable();
 }
