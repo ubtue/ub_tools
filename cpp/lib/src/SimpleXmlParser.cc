@@ -179,6 +179,7 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
 	    ch = input_->get();
 	    if (ch == '/') {
 		last_element_was_empty_ = true;
+		last_tag_name_ = *data;
 		ch = input_->get();
 	    }
 
