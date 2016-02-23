@@ -58,7 +58,8 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
             if (line.length() != 25)
                 Error("unexpected line length for local entry on line " + std::to_string(line_no) + "!");
             local_deletion_ids->insert(line.substr(12, 9)); // extract ELN
-        }
+        } else
+	    Warning("Unknown type '" + line.substr(11, 1) + "'.");
     }
 }
 
