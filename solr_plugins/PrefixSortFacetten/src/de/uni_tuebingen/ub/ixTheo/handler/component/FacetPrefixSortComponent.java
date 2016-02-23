@@ -39,6 +39,8 @@ import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.AbstractMap;
+import java.util.Locale;
+import java.text.Collator;
 
 /**
  * TODO!
@@ -58,13 +60,16 @@ public class FacetPrefixSortComponent extends FacetComponent {
 
     private final static Comparator<Entry<Entry<String, Object>, Double>> ENTRY_COMPARATOR = new Comparator<Entry<Entry<String, Object>, Double>>() {
         public int compare(Entry<Entry<String, Object>, Double> e1, Entry<Entry<String, Object>, Double> e2) {
+
             // We would like to score according to the second element
             int compval = e2.getValue().compareTo(e1.getValue());
 
             if (compval != 0) {
                 return compval;
             } else {
-                return e1.getKey().getKey().compareTo(e2.getKey().getKey());
+                // Make sure Umlauts are sorted correctly
+                Collator germanCollator = Collator.getInstance(Locale.GERMAN);            
+                return germanCollator.compare(e1.getKey().getKey(), e2.getKey().getKey());
             }
         }
     };
