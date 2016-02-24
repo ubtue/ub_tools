@@ -21,6 +21,7 @@ bib_ref_parser_test
 bib_ref_to_codes_tool
 compress_test
 control_number_filter
+create_author_synonym_map
 create_full_text_db
 db_lookup
 delete_ids
@@ -54,6 +55,7 @@ regex_matcher
 resolve_in_path_test
 send_email_test
 shared_buffer_test
+simple_file_test
 simple_xml_parser_test
 stemmer_test
 stemwords

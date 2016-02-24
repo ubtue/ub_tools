@@ -23,7 +23,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " xml_input\n";
+    std::cerr << "Usage: " << progname << " [--silent] xml_input\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -31,10 +31,17 @@ void Usage() {
 int main(int argc, char *argv[]) {
     progname = argv[0];
 
-    if (argc != 2)
+    if (argc != 2 and argc != 3)
         Usage();
 
-    const std::string input_filename(argv[1]);
+    bool silent(false);
+    if (argc == 3) {
+	if (std::strcmp(argv[1], "--silent") != 0)
+	    Usage();
+	silent = true;
+    }
+
+    const std::string input_filename(argv[silent ? 2 : 1]);
     File input(input_filename, "rm");
     if (not input)
 	Error("can't open \"" + input_filename + "\" for reading!");
@@ -49,23 +56,28 @@ int main(int argc, char *argv[]) {
 	    case SimpleXmlParser::UNINITIALISED:
 		Error("we should never get here as UNINITIALISED should never be returned!");
 	    case SimpleXmlParser::START_OF_DOCUMENT:
-		std::cout << xml_parser.getLineNo() << ":START_OF_DOCUMENT()\n";
+		if (not silent)
+		    std::cout << xml_parser.getLineNo() << ":START_OF_DOCUMENT()\n";
 		break;
 	    case SimpleXmlParser::END_OF_DOCUMENT:
 		return EXIT_SUCCESS;
 	    case SimpleXmlParser::ERROR:
 		Error("we should never get here because SimpleXmlParser::getNext() should have returned false!");
 	    case SimpleXmlParser::OPENING_TAG:
-		std::cout << xml_parser.getLineNo() << ":OPENING_TAG(" << data;
-		for (const auto &name_and_value : attrib_map)
-		    std::cout << ' ' << name_and_value.first << '=' << name_and_value.second;
-		std::cout << ")\n";
+		if (not silent) {
+		    std::cout << xml_parser.getLineNo() << ":OPENING_TAG(" << data;
+		    for (const auto &name_and_value : attrib_map)
+			std::cout << ' ' << name_and_value.first << '=' << name_and_value.second;
+		    std::cout << ")\n";
+		}
 		break;
 	    case SimpleXmlParser::CLOSING_TAG:
-		std::cout << xml_parser.getLineNo() << ":CLOSING_TAG(" << data << ")\n";
+		if (not silent)
+		    std::cout << xml_parser.getLineNo() << ":CLOSING_TAG(" << data << ")\n";
 		break;
 	    case SimpleXmlParser::CHARACTERS:
-		std::cout << xml_parser.getLineNo() << ":CHARACTERS(" << data << ")\n";
+		if (not silent)
+		    std::cout << xml_parser.getLineNo() << ":CHARACTERS(" << data << ")\n";
 		break;
 	    }
 	}

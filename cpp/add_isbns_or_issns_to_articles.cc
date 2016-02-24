@@ -30,6 +30,7 @@
 #include "DirectoryEntry.h"
 #include "Leader.h"
 #include "MarcUtil.h"
+#include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -188,6 +189,17 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
 }
 
 
+std::unique_ptr<File> OpenInputFile(const std::string &filename) {
+    std::string mode("r");
+    mode += MediaTypeUtil::GetFileMediaType(filename) == "application/lz4" ? "u" : "m";
+    std::unique_ptr<File> file(new File(filename, mode));
+    if (file == nullptr)
+        Error("can't open \"" + filename + "\" for reading!");
+
+    return file;
+}
+
+
 int main(int argc, char **argv) {
     progname = argv[0];
 
@@ -196,33 +208,32 @@ int main(int argc, char **argv) {
     const bool verbose(argc == 5);
 
     const std::string marc_input_filename(argv[argc == 4 ? 1 : 2]);
-    File marc_input(marc_input_filename, "rm");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
+    std::unique_ptr<File> marc_input(OpenInputFile(marc_input_filename));
 
     const std::string marc_aux_input_filename(argv[argc == 4 ? 2 : 3]);
-    File marc_aux_input(marc_aux_input_filename, "rm");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
+    std::unique_ptr<File> marc_aux_input(OpenInputFile(marc_aux_input_filename));
 
     const std::string marc_output_filename(argv[argc == 4 ? 3 : 4]);
-    File marc_output(marc_output_filename, "wb");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
-
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Master input file name equals output file name!");
-
     if (unlikely(marc_aux_input_filename == marc_output_filename))
         Error("Auxiallary input file name equals output file name!");
 
+    std::string output_mode("w");
+    if (marc_input->isCompressingOrUncompressing())
+	output_mode += "c";
+    File marc_output(marc_output_filename, output_mode);
+    if (not marc_output)
+        Error("can't open \"" + marc_output_filename + "\" for writing!");
+
     try {
 	std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
-	PopulateParentIdToISBNAndISSNMap(verbose, &marc_input, &parent_id_to_isbn_and_issn_map);
-	PopulateParentIdToISBNAndISSNMap(verbose, &marc_aux_input, &parent_id_to_isbn_and_issn_map);
-
-	marc_input.rewind();
-	AddMissingISBNsOrISSNsToArticleEntries(verbose, &marc_input, &marc_output, parent_id_to_isbn_and_issn_map);
+	PopulateParentIdToISBNAndISSNMap(verbose, marc_input.get(), &parent_id_to_isbn_and_issn_map);
+	PopulateParentIdToISBNAndISSNMap(verbose, marc_aux_input.get(), &parent_id_to_isbn_and_issn_map);
+	marc_input->close();
+	
+	std::unique_ptr<File> marc_input2(OpenInputFile(marc_input_filename));
+	AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_input2.get(), &marc_output, parent_id_to_isbn_and_issn_map);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
