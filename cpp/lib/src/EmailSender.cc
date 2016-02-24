@@ -70,23 +70,32 @@ namespace EmailSender {
 
 
 bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
-	       const std::string &message_body)
+	       const std::string &message_body, const Priority priority)
 {
-    static std::string mailx_path;
-    if (mailx_path.empty()) {
+    static std::string mutt_path;
+    if (mutt_path.empty()) {
 	ReplaceEnvVar replace_env_var("PATH", "/bin:/usr/bin");
-	mailx_path = ExecUtil::Which("mailx");
-	if (unlikely(mailx_path.empty()))
-	    Error("in EmailSender::SendEmail: can't find \"mailx\"!");
+	mutt_path = ExecUtil::Which("mutt");
+	if (unlikely(mutt_path.empty()))
+	    Error("in EmailSender::SendEmail: can't find \"mutt\"!");
     }
 
     FileUtil::AutoTempFile auto_temp_file;
-    const std::string &stdin_replacement_for_mailx(auto_temp_file.getFilePath());
-    if (not FileUtil::WriteString(stdin_replacement_for_mailx, message_body))
+    const std::string &stdin_replacement_for_mutt(auto_temp_file.getFilePath());
+
+    std::string message;
+    message += "From: " + sender + "\n";
+    message += "To: " + recipient + "\n";
+    message += "Subject: " + subject + "\n";
+    if (priority != DO_NOT_SET_PRIORITY)
+	message += "X-Priority: " + std::to_string(priority) + "\n";
+    message += '\n';
+    message += message_body;
+    
+    if (not FileUtil::WriteString(stdin_replacement_for_mutt, message))
 	Error("in EmailSender::SendEmail: can't write the message body into a temporary file!");
 
-    return ExecUtil::Exec(mailx_path, { "-a", "Reply-To: " + sender, "-s", subject, recipient },
-			  stdin_replacement_for_mailx) == 0;
+    return ExecUtil::Exec(mutt_path, { "-H", "-" }, stdin_replacement_for_mutt) == 0;
 }
 
 
