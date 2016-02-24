@@ -41,8 +41,8 @@ class Range {
     }
 
     public float getMatchingScore(final Range other) {
-        final float numerator = Math.min(upper, other.upper) - Math.max(lower, other.lower);
-        final float denominator = Math.max(upper, other.upper) - Math.min(lower, other.lower);
+        final float numerator = Math.min(upper, other.upper) - Math.max(lower, other.lower) + 1;
+        final float denominator = Math.max(upper, other.upper) - Math.min(lower, other.lower) + 1;
         return numerator / denominator;
     }
 
