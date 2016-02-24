@@ -40,6 +40,13 @@ marc_grep ÜbergeordneteTitelUndLokaldaten-"${date}".mrc 'if "001" == ".*" extra
 marc_grep Normdaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
     > Normdaten-"${date}".xml 2>> "${log}"
 
+
+((++P))
+echo "*** Phase $P: Create Author Synonym Map - $(date) ***"
+echo "*** Phase $P: Create Author Synonym Map - $(date) ***" >> "${log}"
+mkdir --parents /usr/local/vufind2/import/synonym_maps
+create_author_synonym_map Normdaten-"${date}".xml /usr/local/vufind2/import/synonym_maps/author_synonyms.map
+
 ((++P))
 echo "*** Phase $P: Extract Translation Keywords - $(date) ***"
 echo "*** Phase $P: Extract Translation Keywords - $(date) ***" >> "${log}"
