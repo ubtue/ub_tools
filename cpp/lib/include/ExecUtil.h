@@ -55,7 +55,7 @@ public:
  *  \param  new_stdout          An optional replacement file path for stdout.
  *  \param  new_stderr          An optional replacement file path for stderr.
  *  \param  timeout_in_seconds  If not zero, the subprocess will be killed if the timeout expires before
- *                              the process terminates.  SIGKILL will be used.
+ *                              the process terminates.
  *  \param  tardy_child_signal  The signal to send to our offspring if there was a timeout.
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
