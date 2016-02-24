@@ -60,6 +60,28 @@ public class ScoreTest {
         assertRanking(expectedRanking, ranges);
     }
 
+
+    @Test
+    public void testPsalm_22_2() {
+        final BibleRange[] queryRanges = BibleRange.getRanges(new String[]{"6802202_6802202"});
+
+        BibleRange[] r0 = BibleRange.getRanges(new String[]{"6800100_6805099"});
+        BibleRange[] r1 = BibleRange.getRanges(new String[]{"6802200_6802299"});
+        BibleRange[] r2 = BibleRange.getRanges(new String[]{"6800100_6804199"});
+        BibleRange[] r3 = BibleRange.getRanges(new String[]{"6800100_6807299"});
+
+        HashMap<BibleRange[], Integer> expectedRanking = new HashMap<>();
+        expectedRanking.put(r0, 2);
+        expectedRanking.put(r1, 0);
+        expectedRanking.put(r2, 1);
+        expectedRanking.put(r3, 3);
+
+        BibleRange[][] ranges = new BibleRange[][]{r0, r1, r2, r3};
+        printScoring(ranges, queryRanges);
+        sortBySoring(ranges, queryRanges);
+        assertRanking(expectedRanking, ranges);
+    }
+
     /**
      * Prints the scoring for each list of bible ranges of fieldRanges.
      *
