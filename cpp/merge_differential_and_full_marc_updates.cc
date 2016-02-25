@@ -34,6 +34,7 @@ server_user     = qubob16@uni-tuebingen.de
 server_password = vv:*i%Nk
 */
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -43,8 +44,11 @@ server_password = vv:*i%Nk
 #include <dirent.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "Archive.h"
 #include "Compiler.h"
 #include "EmailSender.h"
+#include "File.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "RegexMatcher.h"
 #include "util.h"
@@ -68,6 +72,11 @@ std::string email_server_password;
 } // unnamed namespace
 
 
+void Log(const std::string &log_message) {
+    std::cerr << ::progname << ": " << log_message << '\n';
+}
+
+
 std::string GetHostname() {
     char buf[1024];
     if (unlikely(::gethostname(buf, sizeof buf) != 0))
@@ -85,7 +94,7 @@ void SendEmail(const std::string &subject, const std::string &message_body, cons
 
 
 void LogSendEmailAndDie(const std::string &one_line_message) {
-    std::cerr << one_line_message << '\n';
+    Log(one_line_message);
     SendEmail(std::string(::progname) + " failed! (from " + GetHostname() + ")",
 	      "Please have a look at the log for details.\n", EmailSender::VERY_HIGH);
     std::exit(EXIT_FAILURE);
@@ -93,8 +102,8 @@ void LogSendEmailAndDie(const std::string &one_line_message) {
 
 
 // Populates "filenames" with a list of regular files and returns the number of matching filenames that were found
-// in the current working directory.
-unsigned GetListOfRegularFiles(const std::string &filename_regex, std::vector<std::string> * const filenames) {
+// in the current working directory.  The list will be sorted in alphanumerical order.
+unsigned GetSortedListOfRegularFiles(const std::string &filename_regex, std::vector<std::string> * const filenames) {
     filenames->clear();
 
     std::string err_msg;
@@ -113,11 +122,112 @@ unsigned GetListOfRegularFiles(const std::string &filename_regex, std::vector<st
     }
     ::closedir(directory_stream);
 
+    std::sort(filenames->begin(), filenames->end());
+
     return filenames->size();
 }
 
 
-const std::string CONF_FILE_PATH("/var/lib/tuelib/cronjobs/handle_partial_updates.conf");
+std::string PickCompleteDumpFilename(const std::string &complete_dump_pattern) {
+    std::vector<std::string> complete_dump_filenames;
+    GetSortedListOfRegularFiles(complete_dump_pattern, &complete_dump_filenames);
+    if (unlikely(complete_dump_filenames.empty()))
+	LogSendEmailAndDie("did not find a complete MARC dump matching \"" + complete_dump_pattern + "\"!");
+
+    const std::string &chosen_filename(complete_dump_filenames.back());
+    Log("picking \"" + chosen_filename + "\" as the complete MARC dump.");
+
+    return chosen_filename;
+}
+
+
+std::string ExtractDateFromFilename(const std::string &filename) {
+    static const std::string DATE_EXTRACTION_REGEX(".*(\\d{6}).*");
+    static RegexMatcher *matcher;
+    if (matcher == nullptr) {
+	std::string err_msg;
+	matcher = RegexMatcher::RegexMatcherFactory(DATE_EXTRACTION_REGEX, &err_msg);
+	if (unlikely(not err_msg.empty()))
+	    LogSendEmailAndDie("in ExtractDate: failed to compile regex: \"" + DATE_EXTRACTION_REGEX +"\".");
+    }
+
+    if (unlikely(not matcher->matched(filename)))
+	LogSendEmailAndDie("in ExtractDate: \"" + filename + "\" failed to match the regex \"" + DATE_EXTRACTION_REGEX + "\"!");
+
+    return (*matcher)[1];
+}
+
+
+void GetFilesMoreRecentThan(const std::string &cutoff_date, const std::string &filename_pattern,
+			    std::vector<std::string> * const filenames)
+{
+    GetSortedListOfRegularFiles(filename_pattern, filenames);
+
+    const auto first_deletion_position(filenames->begin());
+    auto last_deletion_position(filenames->begin());
+    while (last_deletion_position < filenames->end() and ExtractDateFromFilename(*last_deletion_position) <= cutoff_date)
+	++last_deletion_position;
+
+    const auto erase_count(std::distance(first_deletion_position, last_deletion_position));
+    if (unlikely(erase_count > 0)) {
+	Log("Warning: ignoring " + std::to_string(erase_count) + " files matching \"" + filename_pattern
+	    + "\" because they are too old for the cut-off date " + cutoff_date + "!");
+	filenames->erase(first_deletion_position, last_deletion_position);
+    }
+}
+
+
+std::string GetWorkingDirectoryName() {
+    std::string dirname, basename;
+    FileUtil::DirnameAndBasename(::progname, &dirname, &basename);
+    return basename + ".working_directory";
+}
+
+
+void ChangeDirectoryOrDie(const std::string &directory) {
+    if (unlikely(::chdir(directory.c_str()) != 0))
+	LogSendEmailAndDie("failed to change directory to \"" + directory + "\"! " + std::string(::strerror(errno)) + ")");
+}
+
+
+void CreateAndChangeIntoTheWorkingDirectory() {
+    const std::string working_directory(GetWorkingDirectoryName());
+    if (not FileUtil::MakeDirectory(working_directory))
+	LogSendEmailAndDie("in CreateAndChangeIntoTheWorkingDirectory failed to create \"" + working_directory + "\"!");
+
+    ChangeDirectoryOrDie(working_directory);
+}
+
+
+void ExtractMarcFilesFromArchive(const std::string &archive_name, const std::string &name_prefix = "") {
+    ArchiveReader reader(archive_name);
+    ArchiveReader::EntryInfo file_info;
+    while (reader.getNext(&file_info)) {
+	if (unlikely(not file_info.isRegularFile()))
+	    LogSendEmailAndDie("in ExtractMarcFilesFromArchive: unexpectedly, the entry \"" + file_info.getFilename()
+			       + "\" in \"" + archive_name + "\" is not a regular file!");
+	const std::string output_filename(name_prefix + file_info.getFilename());
+	File disc_file(output_filename, "w");
+
+	char buf[8192];
+	size_t read_count;
+	while ((read_count = reader.read(buf, sizeof buf)) > 0) {
+	    if (unlikely(disc_file.write(buf, read_count) != read_count))
+		LogSendEmailAndDie("in ExtractMarcFilesFromArchive: failed to write data to \"" + output_filename
+				   + "\"! (No room?)");
+	}
+    }
+}
+
+
+void ExtractAndCombineMarcFilesFromArchive(const std::string &complete_dump_filename) {
+    CreateAndChangeIntoTheWorkingDirectory();
+
+    ExtractMarcFilesFromArchive("../" + complete_dump_filename);
+}
+
+
+const std::string CONF_FILE_PATH("/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
 
 
 int main(int argc, char *argv[]) {
@@ -134,13 +244,34 @@ int main(int argc, char *argv[]) {
 	::email_server_user     = ini_file.getString("SMTPServer", "server_user");
 	::email_server_password = ini_file.getString("SMTPServer", "server_password");
 
-	std::vector<std::string> filenames;
-	GetListOfRegularFiles(".*\\.cc", &filenames);
-	for (const auto &filename : filenames)
-	    std::cout << filename << '\n';
+	const std::string deletion_list_pattern(ini_file.getString("Files", "deletion_list"));
+	const std::string complete_dump_pattern(ini_file.getString("Files", "complete_dump"));
+	const std::string incremental_dump_pattern(ini_file.getString("Files", "incremental_dump"));
+
+	const std::string complete_dump_filename(PickCompleteDumpFilename(complete_dump_pattern));
+	const std::string complete_dump_filename_date(ExtractDateFromFilename(complete_dump_filename));
+
+	std::vector<std::string> deletion_list_filenames;
+	GetFilesMoreRecentThan(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
+	if (not deletion_list_filenames.empty())
+	    Log("identified " + std::to_string(deletion_list_filenames.size()) + " deletion list filenames for application.");
+
+	std::vector<std::string> incremental_dump_filenames;
+	GetFilesMoreRecentThan(complete_dump_filename_date, incremental_dump_pattern, &incremental_dump_filenames);
+	if (not incremental_dump_filenames.empty())
+	    Log("identified " + std::to_string(incremental_dump_filenames.size())
+		+ " incremental dump filenames for application.");
+
+	if (deletion_list_filenames.empty() and incremental_dump_filenames.empty())
+	    SendEmail(std::string(::progname),
+		      "No recent deletion lists nor incremental dump filenames.\nTherefore we have nothing to do!\n",
+		      EmailSender::VERY_LOW);
+
+	CreateAndChangeIntoTheWorkingDirectory();
+	ExtractAndCombineMarcFilesFromArchive(complete_dump_filename);
 
 	SendEmail(std::string(::progname), "Succeeded.\n", EmailSender::VERY_LOW);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+	LogSendEmailAndDie("caught exception: " + std::string(x.what()));
     }
 }
