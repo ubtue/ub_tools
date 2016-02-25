@@ -211,14 +211,6 @@ void CreateAndChangeIntoTheWorkingDirectory() {
 }
 
 
-/*
-void ApplyUpdate(const std::string &old_full_archive, const std::string &new_full_archive,
-		 const std::string &deletion_list_filename, const std::string &differential_archive)
-{
-}
-*/
-
-
 void ExtractMarcFilesFromArchive(const std::string &archive_name, const std::string &name_prefix = "") {
     ArchiveReader reader(archive_name);
     ArchiveReader::EntryInfo file_info;
@@ -260,9 +252,32 @@ std::string ReplaceString(const std::string &original, const std::string &replac
 }
 
 
+void ApplyUpdate(const std::string &old_full_archive, const std::string &new_full_archive,
+		 const std::string &deletion_list_filename, const std::string &differential_archive)
+{
+    if (deletion_list_filename.empty())
+	Log("Applying \"" + differential_archive + "\" to \"" + old_full_archive + "\" in order to create \""
+	    + new_full_archive + "\".");
+    else if (differential_archive.empty())
+	Log("Applying \"" + deletion_list_filename + "\" to \"" + old_full_archive + "\" in order to create \""
+	    + new_full_archive + "\".");
+    else
+	Log("Applying \"" + deletion_list_filename + "\" and \"" + differential_archive
+	    + "\" to \"" + old_full_archive + "\" in order to create \"" + new_full_archive + "\".");
+}
+
+
+void RenameOrDie(const std::string &old_filename, const std::string &new_filename) {
+    if (unlikely(::rename(old_filename.c_str(), new_filename.c_str()) != 0))
+	LogSendEmailAndDie("in RenameOrDie: rename from \"" + old_filename + "\" to \"" + new_filename
+			   + "\" failed! (" + std::string(::strerror(errno)) + ")");
+}
+
+
+// Creates a new full MARC archive from an old full archive as well as deltion lists and differential updates.
 void ExtractAndCombineMarcFilesFromArchives(const std::string &complete_dump_filename,
-					    const std::vector<std::string> &/*deletion_list_filenames*/,
-					    const std::vector<std::string> &/*incremental_dump_filenames*/)
+					    const std::vector<std::string> &deletion_list_filenames,
+					    const std::vector<std::string> &incremental_dump_filenames)
 {
     ExtractMarcFilesFromArchive("../" + complete_dump_filename);
 
@@ -273,7 +288,34 @@ void ExtractAndCombineMarcFilesFromArchives(const std::string &complete_dump_fil
     if (unlikely(new_complete_dump_filename == complete_dump_filename))
 	LogSendEmailAndDie("in ExtractAndCombineMarcFilesFromArchives: new complete MARC dump name \""
 			   + new_complete_dump_filename + "\" is the same as the name of the existing complete MARC dump!");
-    std::cerr << "new_complete_dump_filename: " << new_complete_dump_filename << '\n';
+    Log("About to create new complete MARC dump file: " + new_complete_dump_filename);
+
+    // Iterate over the deletion list and incremental dump filename lists and apply one or both as appropriate:
+    auto deletion_list_filename(deletion_list_filenames.cbegin());
+    auto incremental_dump_filename(incremental_dump_filenames.cbegin());
+    std::string old_archive_name(complete_dump_filename);
+    unsigned apply_count(0);
+    while (deletion_list_filename != deletion_list_filenames.cend()
+	   or incremental_dump_filename != incremental_dump_filenames.cend())
+    {
+	++apply_count;
+
+	std::string temp_archive_name(new_complete_dump_filename + "." + std::to_string(apply_count));
+	if (deletion_list_filename == deletion_list_filenames.cend()) {
+	    ApplyUpdate(old_archive_name, temp_archive_name, "", *incremental_dump_filename);
+	    ++incremental_dump_filename;
+	} else if (incremental_dump_filename == incremental_dump_filenames.cend()) {
+	    ApplyUpdate(old_archive_name, temp_archive_name, *deletion_list_filename, "");
+	    ++deletion_list_filename;
+	} else {
+	    ApplyUpdate(old_archive_name, temp_archive_name, *deletion_list_filename, *incremental_dump_filename);
+	    ++deletion_list_filename;
+	    ++incremental_dump_filename;
+	}
+
+	old_archive_name = temp_archive_name;
+    }
+    RenameOrDie(old_archive_name, new_complete_dump_filename);
 }
 
 
