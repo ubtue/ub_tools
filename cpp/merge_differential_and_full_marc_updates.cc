@@ -41,6 +41,7 @@ server_password = vv:*i%Nk
 #include <vector>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <dirent.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -210,6 +211,14 @@ void CreateAndChangeIntoTheWorkingDirectory() {
 }
 
 
+/*
+void ApplyUpdate(const std::string &old_full_archive, const std::string &new_full_archive,
+		 const std::string &deletion_list_filename, const std::string &differential_archive)
+{
+}
+*/
+
+
 void ExtractMarcFilesFromArchive(const std::string &archive_name, const std::string &name_prefix = "") {
     ArchiveReader reader(archive_name);
     ArchiveReader::EntryInfo file_info;
@@ -231,8 +240,40 @@ void ExtractMarcFilesFromArchive(const std::string &archive_name, const std::str
 }
 
 
-void ExtractAndCombineMarcFilesFromArchive(const std::string &complete_dump_filename) {
+// Returns the current date in the DDMMYY format.
+std::string GetCurrentDate() {
+    const time_t now(std::time(nullptr));
+    const struct tm * const local_time(std::localtime(&now));
+    char buffer[6 + 1];
+    if (unlikely(std::strftime(buffer, sizeof buffer, "%d%m%y", local_time) != 6))
+	LogSendEmailAndDie("in GetCurrentDate: strftime(3) failed! (This should never happen!)");
+
+    return buffer;
+}
+
+
+std::string ReplaceString(const std::string &original, const std::string &replacement, const std::string &s) {
+    const size_t original_start(s.find(original));
+    if (unlikely(original_start == std::string::npos))
+	LogSendEmailAndDie("in ReplaceString: can't replace \"" + original + "\" with \"" + replacement + " in \"" + s + "\"!");
+    return s.substr(0, original_start) + replacement + s.substr(original_start + original.length());
+}
+
+
+void ExtractAndCombineMarcFilesFromArchives(const std::string &complete_dump_filename,
+					    const std::vector<std::string> &/*deletion_list_filenames*/,
+					    const std::vector<std::string> &/*incremental_dump_filenames*/)
+{
     ExtractMarcFilesFromArchive("../" + complete_dump_filename);
+
+    // Construct the name of the new complete archive:
+    const std::string current_date(GetCurrentDate());
+    const std::string old_archive_date(ExtractDateFromFilename(complete_dump_filename));
+    const std::string new_complete_dump_filename(ReplaceString(old_archive_date, current_date, complete_dump_filename));
+    if (unlikely(new_complete_dump_filename == complete_dump_filename))
+	LogSendEmailAndDie("in ExtractAndCombineMarcFilesFromArchives: new complete MARC dump name \""
+			   + new_complete_dump_filename + "\" is the same as the name of the existing complete MARC dump!");
+    std::cerr << "new_complete_dump_filename: " << new_complete_dump_filename << '\n';
 }
 
 
@@ -277,7 +318,7 @@ int main(int argc, char *argv[]) {
 		      EmailSender::VERY_LOW);
 
 	CreateAndChangeIntoTheWorkingDirectory();
-	ExtractAndCombineMarcFilesFromArchive(complete_dump_filename);
+	ExtractAndCombineMarcFilesFromArchives(complete_dump_filename, deletion_list_filenames, incremental_dump_filenames);
 
 	SendEmail(std::string(::progname), "Succeeded.\n", EmailSender::VERY_LOW);
     } catch (const std::exception &x) {
