@@ -75,6 +75,16 @@ bool ArchiveReader::getNext(EntryInfo * const info) {
 }
 
 
+ssize_t ArchiveReader::read(char * const buffer, const size_t size) {
+    ssize_t retval;
+    do
+	retval = ::archive_read_data(archive_handle_, reinterpret_cast<void * const>(buffer), size);
+    while (retval == ARCHIVE_RETRY);
+
+    return (retval == ARCHIVE_FATAL or retval == ARCHIVE_WARN) ? -1 : retval;
+}
+
+
 ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const FileType file_type): archive_entry_(nullptr) {
     archive_handle_ = ::archive_write_new();
 
