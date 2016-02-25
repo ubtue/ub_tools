@@ -36,9 +36,11 @@ server_password = vv:*i%Nk
 
 #include <algorithm>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <vector>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -121,7 +123,8 @@ unsigned GetSortedListOfRegularFiles(const std::string &filename_regex, std::vec
     std::string err_msg;
     std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(filename_regex, &err_msg));
     if (unlikely(not err_msg.empty()))
-	LogSendEmailAndDie("in GetListOfRegularFiles: bad file regex: \"" + filename_regex +"\".");
+	LogSendEmailAndDie("in GetListOfRegularFiles: failed to compile file name regex: \"" + filename_regex
+			   + "\". (" + err_msg + ")");
 
     DIR * const directory_stream(::opendir("."));
     if (unlikely(directory_stream == nullptr))
@@ -211,15 +214,58 @@ void CreateAndChangeIntoTheWorkingDirectory() {
 }
 
 
+/** \brief Based on the name of the archive entry "archive_entry_name", this function generates a disc file name.
+ *
+ * The strategy used is to return identify an earlier entry name that only differed in positions that are digits.
+ * If such a name can be identified then "disc_filename" will be set to that name, o/w "disc_filename" will be
+ * set to "archive_entry_name".  The "open_mode" will be set to "a" for append if we found a similar earlier entry and
+ * to "w" for write if this is the first occurrence of a name pattern.
+ */
+void GetOutputNameAndMode(const std::string &archive_entry_name,
+			  std::map<std::shared_ptr<RegexMatcher>, std::string> * const regex_to_first_file_map,
+			  std::string * const disc_filename, std::string * const open_mode)
+{
+    for (const auto &reg_ex_and_first_name : *regex_to_first_file_map) {
+	if (reg_ex_and_first_name.first->matched(archive_entry_name)) {
+	    *disc_filename = reg_ex_and_first_name.second;
+	    *open_mode = "a"; // append
+	    return;
+	}
+    }
+
+    std::string regex_pattern;
+    for (char ch : archive_entry_name)
+	regex_pattern += isdigit(ch) ? "\\d" : std::to_string(ch);
+
+    std::string err_msg;
+    regex_to_first_file_map->emplace(std::shared_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg)),
+				     archive_entry_name);
+    if (unlikely(not err_msg.empty()))
+	LogSendEmailAndDie("in GetOutputNameAndMode: failed to compile regex \"" + regex_pattern + "\"! ("
+			   + err_msg + ")");
+
+    *disc_filename = archive_entry_name;
+    *open_mode = "w"; // create new
+}
+
+
+// Extracts files from a MARC archive, typically a gzipped tar file, and combines files matching the same pattern.
+// For example, if the archive contains "SA-MARC-ixtheoa001.raw" and "SA-MARC-ixtheoa002.raw", "SA-MARC-ixtheoa002.raw"
+// will be concatenated onto "SA-MARC-ixtheoa001.raw" do that only a single disc file will result.
 void ExtractMarcFilesFromArchive(const std::string &archive_name, const std::string &name_prefix = "") {
+    std::map<std::shared_ptr<RegexMatcher>, std::string> regex_to_first_file_map;
+
     ArchiveReader reader(archive_name);
     ArchiveReader::EntryInfo file_info;
     while (reader.getNext(&file_info)) {
 	if (unlikely(not file_info.isRegularFile()))
 	    LogSendEmailAndDie("in ExtractMarcFilesFromArchive: unexpectedly, the entry \"" + file_info.getFilename()
 			       + "\" in \"" + archive_name + "\" is not a regular file!");
-	const std::string output_filename(name_prefix + file_info.getFilename());
-	File disc_file(output_filename, "w");
+
+	std::string output_filename, open_mode;
+	GetOutputNameAndMode(file_info.getFilename(), &regex_to_first_file_map, &output_filename, &open_mode);
+	output_filename = name_prefix + output_filename;
+	File disc_file(output_filename, open_mode);
 
 	char buf[8192];
 	size_t read_count;
