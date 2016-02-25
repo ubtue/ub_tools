@@ -72,8 +72,19 @@ std::string email_server_password;
 } // unnamed namespace
 
 
+std::string GetProgramBasename() {
+    static std::string basename;
+    if (basename.empty()) {
+	std::string dirname;
+	FileUtil::DirnameAndBasename(::progname, &dirname, &basename);
+    }
+
+    return basename;
+}
+
+
 void Log(const std::string &log_message) {
-    std::cerr << ::progname << ": " << log_message << '\n';
+    std::cerr << GetProgramBasename() << ": " << log_message << '\n';
 }
 
 
@@ -95,7 +106,7 @@ void SendEmail(const std::string &subject, const std::string &message_body, cons
 
 void LogSendEmailAndDie(const std::string &one_line_message) {
     Log(one_line_message);
-    SendEmail(std::string(::progname) + " failed! (from " + GetHostname() + ")",
+    SendEmail(GetProgramBasename() + " failed! (from " + GetHostname() + ")",
 	      "Please have a look at the log for details.\n", EmailSender::VERY_HIGH);
     std::exit(EXIT_FAILURE);
 }
@@ -221,8 +232,6 @@ void ExtractMarcFilesFromArchive(const std::string &archive_name, const std::str
 
 
 void ExtractAndCombineMarcFilesFromArchive(const std::string &complete_dump_filename) {
-    CreateAndChangeIntoTheWorkingDirectory();
-
     ExtractMarcFilesFromArchive("../" + complete_dump_filename);
 }
 
