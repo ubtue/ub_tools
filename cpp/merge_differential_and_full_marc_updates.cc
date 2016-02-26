@@ -35,6 +35,7 @@ server_password = vv:*i%Nk
 */
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -45,11 +46,14 @@ server_password = vv:*i%Nk
 #include <cstring>
 #include <ctime>
 #include <dirent.h>
+#include <fcntl.h>
+#include <sys/sendfile.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "Archive.h"
 #include "Compiler.h"
 #include "EmailSender.h"
+#include "ExecUtil.h"
 #include "File.h"
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -298,6 +302,96 @@ std::string ReplaceString(const std::string &original, const std::string &replac
 }
 
 
+// Creates an previously not existing empty file with read and write permission for the owner only.
+void CreateEmptyFileOrDie(const std::string &filename) {
+    const int fd(::open(filename.c_str(), O_CREAT | O_EXCL, 0600));
+    if (unlikely(fd == -1))
+	LogSendEmailAndDie("failed to create the empty file \"" + filename + "\"! (" + std::string(::strerror(errno)) + ")");
+    ::close(fd);
+}
+
+
+void RenameOrDie(const std::string &old_filename, const std::string &new_filename) {
+    if (unlikely(::rename(old_filename.c_str(), new_filename.c_str()) != 0))
+	LogSendEmailAndDie("in RenameOrDie: rename from \"" + old_filename + "\" to \"" + new_filename
+			   + "\" failed! (" + std::string(::strerror(errno)) + ")");
+}
+
+
+void CopyFileOrDie(const std::string &from, const std::string &to) {
+    struct stat stat_buf;
+    if (unlikely(::stat(from.c_str(), &stat_buf) != 0))
+	LogSendEmailAndDie("in CopyFileOrDie: stat(2) on \"" + from + "\" failed! (" + std::string(::strerror(errno)) + ")");
+
+    const int from_fd(::open(from.c_str(), O_RDONLY));
+    if (unlikely(from_fd == -1))
+	LogSendEmailAndDie("in CopyFileOrDie: open(2) on \"" + from + "\" failed! (" + std::string(::strerror(errno)) + ")");
+
+    const int to_fd(::open(to.c_str(), O_WRONLY, stat_buf.st_mode));
+    if (unlikely(to_fd == -1))
+	LogSendEmailAndDie("in CopyFileOrDie: open(2) on \"" + to + "\" failed! (" + std::string(::strerror(errno)) + ")");
+
+    if (unlikely(::sendfile(to_fd, from_fd, /* offset = */nullptr, stat_buf.st_size) == -1))
+	LogSendEmailAndDie("in CopyFileOrDie: sendfile(2) on \"" + from + "\" and \"" + to + "\" failed! ("
+			   + std::string(::strerror(errno)) + ")");
+
+    ::close(from_fd);
+    ::close(to_fd);
+}
+
+
+const std::string COMPLETE_DELETION_LIST("complete_deletion_list");
+const std::string EXTRACT_IDS_COMMAND("extract_IDs_in_erase_format.sh");
+
+
+void CreateCompleteDeletionList(const std::string &deletion_list_filename, const std::string &differential_archive) {
+    if (not deletion_list_filename.empty())
+	CopyFileOrDie(deletion_list_filename, COMPLETE_DELETION_LIST);
+    else
+	CreateEmptyFileOrDie(COMPLETE_DELETION_LIST);
+
+    if (unlikely(not differential_archive.empty()
+	         and ExecUtil::Exec(EXTRACT_IDS_COMMAND, { differential_archive, COMPLETE_DELETION_LIST }) != 0))
+	LogSendEmailAndDie("in CreateCompleteDeletionList: \"" + EXTRACT_IDS_COMMAND +"\" failed!");
+
+    Log("successfully created the complete deletion list file \"" + COMPLETE_DELETION_LIST + "\".");
+}
+
+
+// Appends "append_source" onto "append_target".
+void AppendFileOrDie(const std::string &append_target, const std::string &append_source) {
+    File append_target_file(append_target, "w");
+    if (unlikely(append_target_file.fail()))
+	LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_target + "\" for writing! ("
+			   + std::string(::strerror(errno)) + ")");
+    File append_source_file(append_source, "rm");
+    if (unlikely(append_source_file.fail()))
+	LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_source + "\" for reading! ("
+			   + std::string(::strerror(errno)) + ")");
+    if (unlikely(not append_target_file.append(append_source_file)))
+	LogSendEmailAndDie("in AppendFileOrDie: failed to append \"" + append_source + "\" to \"" + append_target + "\"! ("
+			   + std::string(::strerror(errno)) + ")");
+}
+
+
+const std::string DELETE_IDS_COMMAND("delete_ids");
+
+
+void UpdateOneFile(const std::string &old_marc_filename, const std::string &new_marc_filename,
+		   const std::string &deletion_list_marc_filename, const std::string &differential_marc_file)
+{
+    Log("creating \"" + new_marc_filename + "\" from \"" + old_marc_filename
+	+ "\" and an optional deletion list and difference file.");
+
+    CreateCompleteDeletionList(deletion_list_marc_filename, differential_marc_file);
+
+    if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND, { COMPLETE_DELETION_LIST, old_marc_filename, new_marc_filename }) != 0))
+	LogSendEmailAndDie("in UpdateOneFile: \"" + DELETE_IDS_COMMAND + "\" failed!");
+
+    AppendFileOrDie(new_marc_filename, differential_marc_file);
+}
+
+
 void ApplyUpdate(const std::string &old_full_archive, const std::string &new_full_archive,
 		 const std::string &deletion_list_filename, const std::string &differential_archive)
 {
@@ -310,13 +404,6 @@ void ApplyUpdate(const std::string &old_full_archive, const std::string &new_ful
     else
 	Log("Applying \"" + deletion_list_filename + "\" and \"" + differential_archive
 	    + "\" to \"" + old_full_archive + "\" in order to create \"" + new_full_archive + "\".");
-}
-
-
-void RenameOrDie(const std::string &old_filename, const std::string &new_filename) {
-    if (unlikely(::rename(old_filename.c_str(), new_filename.c_str()) != 0))
-	LogSendEmailAndDie("in RenameOrDie: rename from \"" + old_filename + "\" to \"" + new_filename
-			   + "\" failed! (" + std::string(::strerror(errno)) + ")");
 }
 
 
