@@ -235,7 +235,7 @@ void GetOutputNameAndMode(const std::string &archive_entry_name,
 
     std::string regex_pattern;
     for (char ch : archive_entry_name)
-	regex_pattern += isdigit(ch) ? "\\d" : std::to_string(ch);
+	regex_pattern += isdigit(ch) ? "\\d" : std::string(1, ch);
 
     std::string err_msg;
     regex_to_first_file_map->emplace(std::shared_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg)),
