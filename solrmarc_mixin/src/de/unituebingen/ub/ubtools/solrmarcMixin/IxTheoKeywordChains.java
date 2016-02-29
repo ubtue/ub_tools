@@ -13,7 +13,7 @@ import java.util.*;
 public class IxTheoKeywordChains extends SolrIndexerMixin {
 
     private final static String KEYWORD_DELIMITER = "/";
-    private final static String SUBFIELD_CODES = "abct";
+    private final static String SUBFIELD_CODES = "abctnp";
 
     public Set<String> getKeyWordChain(final Record record, final String fieldSpec) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
@@ -71,8 +71,14 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 	for (final Subfield subfield :  dataField.getSubfields()) {
 	    if (gnd_seen) {
 		if (SUBFIELD_CODES.indexOf(subfield.getCode()) != -1) {
-		    if (keyword.length() > 0)
-			keyword.append(", ");
+		    if (keyword.length() > 0){
+                        if(subfield.getCode() == 'n') {
+                           keyword.append(" ");
+                        }   
+                        else { 
+			  keyword.append(", ");
+                        }
+                    }
 		    keyword.append(subfield.getData());
 		} else if (subfield.getCode() == '9' && keyword.length() > 0 && subfield.getData().startsWith("g:")) {
 		    keyword.append(" (");
