@@ -25,6 +25,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -354,6 +355,45 @@ bool MakeDirectory(const std::string &path, const bool recursive, const mode_t m
     }
 
     return true;
+}
+
+
+bool RemoveDirectory(const std::string &dir_name) {
+    DIR *dir_handle(::opendir(dir_name.c_str()));
+    if (unlikely(dir_handle == nullptr))
+	return false;
+
+    struct dirent *entry;
+    while ((entry = ::readdir(dir_handle)) != nullptr) {
+	if (std::strcmp(entry->d_name, ".") == 0 or std::strcmp(entry->d_name, "..") == 0)
+	    continue;
+
+	const std::string path(dir_name + "/" + std::string(entry->d_name));
+	if (entry->d_type == DT_DIR) {
+	    if (unlikely(not RemoveDirectory(path))) {
+		const int old_errno(errno);
+		::closedir(dir_handle);
+		errno = old_errno;
+		return false;
+	    }
+	} else { // Not a directory.
+	    if (unlikely(::unlink(path.c_str()) != 0)) {
+		const int old_errno(errno);
+		::closedir(dir_handle);
+		errno =old_errno;
+		return false;
+	    }
+	}
+    }
+
+    if (::unlikely(::rmdir(dir_name.c_str()) != 0)) {
+	const int old_errno(errno);
+	::closedir(dir_handle);
+	errno = old_errno;
+	return false;
+    }
+
+    return likely(::closedir(dir_handle) == 0);
 }
 
 
