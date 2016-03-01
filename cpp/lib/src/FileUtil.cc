@@ -356,6 +356,13 @@ bool MakeDirectory(const std::string &path, const bool recursive, const mode_t m
 
     return true;
 }
+    
+
+static void CloseDirWhilePreservingErrno(DIR * const dir_handle) {
+    const int old_errno(errno);
+    ::closedir(dir_handle);
+    errno = old_errno;
+}
 
 
 bool RemoveDirectory(const std::string &dir_name) {
@@ -369,27 +376,20 @@ bool RemoveDirectory(const std::string &dir_name) {
 	    continue;
 
 	const std::string path(dir_name + "/" + std::string(entry->d_name));
-	if (entry->d_type == DT_DIR) {
-	    if (unlikely(not RemoveDirectory(path))) {
-		const int old_errno(errno);
-		::closedir(dir_handle);
-		errno = old_errno;
-		return false;
-	    }
-	} else { // Not a directory.
-	    if (unlikely(::unlink(path.c_str()) != 0)) {
-		const int old_errno(errno);
-		::closedir(dir_handle);
-		errno =old_errno;
-		return false;
-	    }
+ 
+	if (entry->d_type == DT_DIR)
+	    RemoveDirectory(path);
+	else
+	    ::unlink(path.c_str());
+
+	if (unlikely(errno != 0)) {
+	    CloseDirWhilePreservingErrno(dir_handle);
+	    return false;
 	}
     }
 
     if (::unlikely(::rmdir(dir_name.c_str()) != 0)) {
-	const int old_errno(errno);
-	::closedir(dir_handle);
-	errno = old_errno;
+	CloseDirWhilePreservingErrno(dir_handle);
 	return false;
     }
 
