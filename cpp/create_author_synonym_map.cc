@@ -41,17 +41,36 @@ void RemoveCommasDuplicatesAndEmptyEntries(std::vector<std::string> * const vect
     std::set<std::string> uniqe_entries;
 
     for (auto &entry : *vector) {
+        std::cout << "- " << entry << "\n";
 	StringUtil::RemoveChars(",", &entry);
 
         if (entry.empty())
             continue;
 
-        bool isNewEntry = uniqe_entries.insert(entry).second;
-        if (isNewEntry)
+        const bool is_new_entry(uniqe_entries.emplace(entry).second);
+        if (is_new_entry)
             cleaned_up_vector.emplace_back(std::move(entry));
     }
 
+    for (auto entry : cleaned_up_vector) {
+        std::cout << "+ " << entry << "\n";
+    }
+
     vector->swap(cleaned_up_vector);
+}
+
+
+std::string ExtractName(const MarcUtil::Record &record, const std::string &field) {
+    std::vector<std::string> subfield_values;
+
+    record.extractSubfields(field.substr(0, 3), field.substr(3), &subfield_values);
+    RemoveCommasDuplicatesAndEmptyEntries(&subfield_values);
+
+    if (subfield_values.empty())
+        return "";
+
+    std::sort(subfield_values.begin(), subfield_values.end());
+    return StringUtil::Join(subfield_values, ' ');
 }
 
 
@@ -67,39 +86,25 @@ void ExtractSynonymsAndWriteSynonymMap(File * const marc_input, File * const syn
 	if (record.getFieldIndex(fields[0].substr(0, 3)) == -1)
 	    continue;
 
-	std::vector<std::string> subfield_values;
-	record.extractSubfields(fields[0].substr(0, 3), fields[0].substr(3), &subfield_values);
-        RemoveCommasDuplicatesAndEmptyEntries(&subfield_values);
-
-	if (subfield_values.empty())
-	    continue;
-
-        std::sort(subfield_values.begin(), subfield_values.end());
-
 	std::vector<std::string> alternatives;
-	alternatives.emplace_back(StringUtil::Join(subfield_values, ' '));
-
-	for (auto field(fields.cbegin() + 1); field != fields.cend(); ++field) {
-	    record.extractSubfields(field->substr(0, 3), field->substr(3), &subfield_values);
-            RemoveCommasDuplicatesAndEmptyEntries(&subfield_values);
-
-	    if (subfield_values.empty())
-                continue;
-
-            std::sort(subfield_values.begin(), subfield_values.end());
-            alternatives.emplace_back(StringUtil::Join(subfield_values, ' '));
-	}
+	for (const auto &field : fields)
+            alternatives.emplace_back(ExtractName(record, field));
 
         RemoveCommasDuplicatesAndEmptyEntries(&alternatives);
         if (alternatives.size() <= 1)
             continue;
 
         std::string synonym(StringUtil::Join(alternatives, ','));
-        if (not synonyms.insert(synonym).second)
+
+        const bool is_new_entry(synonyms.emplace(synonym).second);
+        if (not is_new_entry)
             continue;
 
         (*synonym_output) << synonym << '\n';
 	++synomym_line_count;
+
+        if (synomym_line_count == 5)
+            break;
     }
 
     std::cout << "Created " << synomym_line_count << " lines in the synonym map while processing " << count
