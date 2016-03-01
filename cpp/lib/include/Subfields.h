@@ -23,6 +23,7 @@
 
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 
 /** \class Subfields
@@ -75,6 +76,12 @@ public:
 
     /** \return A map from subfield codes to subfield data. */
     const std::unordered_multimap<char, std::string> &getAllSubfields() const { return subfield_code_to_data_map_; }
+
+    /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
+     *  \return The number of fields that were extracted or, equivalently, the size of "subfield_values" after the call
+     *          to this function.
+     */
+    size_t extractSubfields(const std::string &subfield_codes, std::vector<std::string> * const subfield_values) const;
 
     /** Returns true if the two indicators have valid, i.e. non-NUL, data and at least one subfield exists. */
     bool isValid() const
