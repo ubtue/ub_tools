@@ -43,7 +43,16 @@ public:
     ~ArchiveReader();
 
     bool getNext(EntryInfo * const info);
-    size_t read(char * const buffer, const size_t size);
+
+    /** \brief Reads data from the current entry.
+     *  \param buffer  Where to return the read data.
+     *  \param size    How much to read.
+     *  \return -1 is being returned if a failure occurred, 0 if there is no more data to read o/w the
+     *          the number of bytes read will be returned.
+     */
+    ssize_t read(char * const buffer, const size_t size);
+
+    std::string getLastErrorMessage() const { return ::archive_error_string(archive_handle_); }
 };
 
 
