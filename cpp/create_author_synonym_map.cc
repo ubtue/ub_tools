@@ -27,6 +27,7 @@
 #include "MarcUtil.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"
+#include "Subfields.h"
 #include "util.h"
 
 
@@ -60,13 +61,10 @@ void RemoveCommasDuplicatesAndEmptyEntries(std::vector<std::string> * const vect
 }
 
 
-std::string ExtractName(const MarcUtil::Record &record, const std::string &field) {
+std::string ExtractNameFromSubfields(const std::string &field_contents, const std::string &subfield_codes) {
+    const Subfields subfields(field_contents);
     std::vector<std::string> subfield_values;
-
-    record.extractSubfields(field.substr(0, 3), field.substr(3), &subfield_values);
-    RemoveCommasDuplicatesAndEmptyEntries(&subfield_values);
-
-    if (subfield_values.empty())
+    if (subfields.extractSubfields(subfield_codes, &subfield_values) == 0)
         return "";
 
     std::sort(subfield_values.begin(), subfield_values.end());
@@ -76,19 +74,43 @@ std::string ExtractName(const MarcUtil::Record &record, const std::string &field
 
 void ExtractSynonymsAndWriteSynonymMap(File * const marc_input, File * const synonym_output, const std::string &field_list) {
     std::set<std::string> synonyms;
-    std::vector<std::string> fields;
-    if (unlikely(StringUtil::Split(field_list, ':', &fields) < 2))
+    std::vector<std::string> tags_and_subfield_codes;
+    if (unlikely(StringUtil::Split(field_list, ':', &tags_and_subfield_codes) < 2))
 	Error("in ExtractSynonymsAndWriteSynonymMap: need at least two fields!");
 
     unsigned synomym_line_count(0), count(0);
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_input)) {
         ++count;
-	if (record.getFieldIndex(fields[0].substr(0, 3)) == -1)
+
+	const int primary_name_field_index(record.getFieldIndex(tags_and_subfield_codes[0].substr(0, 3)));
+	if (primary_name_field_index == -1)
+	    continue;
+
+	const std::vector<std::string> &fields(record.getFields());
+	const std::string primary_field_subfield_codes(tags_and_subfield_codes[primary_name_field_index].substr(3));
+	const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index], primary_field_subfield_codes));
+	if (unlikely(primary_name.empty()))
 	    continue;
 
 	std::vector<std::string> alternatives;
-	for (const auto &field : fields)
-            alternatives.emplace_back(ExtractName(record, field));
+	alternatives.emplace_back(primary_name);
+
+	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+
+	for (unsigned i(1); i < tags_and_subfield_codes.size(); ++i) {
+	    const std::string tag(tags_and_subfield_codes[i].substr(0, 3));
+	    const std::string secondary_field_subfield_codes(tags_and_subfield_codes[i].substr(3));
+	    int secondary_name_field_index(record.getFieldIndex(tag));
+	    while (secondary_name_field_index != -1 and static_cast<size_t>(secondary_name_field_index) < dir_entries.size()
+		   and dir_entries[secondary_name_field_index].getTag() == tag)
+	    {
+		const std::string secondary_name(ExtractNameFromSubfields(fields[secondary_name_field_index],
+									  secondary_field_subfield_codes));
+		if (not secondary_name.empty())
+		    alternatives.emplace_back(secondary_name);
+		++secondary_name_field_index;
+	    }
+	}
 
         RemoveCommasDuplicatesAndEmptyEntries(&alternatives);
         if (alternatives.size() <= 1)

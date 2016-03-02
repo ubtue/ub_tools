@@ -106,6 +106,17 @@ void Subfields::erase(const char subfield_code, const std::string &value) {
 }
 
 
+size_t Subfields::extractSubfields(const std::string &subfield_codes, std::vector<std::string> * const subfield_values) const {
+    for (char subfield_code : subfield_codes) {
+	const auto begin_end(subfield_code_to_data_map_.equal_range(subfield_code));
+	for (auto code_and_value(begin_end.first); code_and_value != begin_end.second; ++code_and_value)
+	    subfield_values->emplace_back(code_and_value->second);
+    }
+
+    return subfield_values->size();
+}
+
+
 std::string Subfields::toString() const {
     std::string as_string;
 
