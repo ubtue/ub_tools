@@ -719,7 +719,8 @@ Record Record::XmlFactory(File * const input) {
     else {
 	xml_parser = new SimpleXmlParser(input);
 	file_to_parser_map.insert(std::make_pair(input, xml_parser));
-	SkipOverStartOfDocument(xml_parser);
+	if (input->tell() == 0)
+	    SkipOverStartOfDocument(xml_parser);
     }
 
     const off_t record_start_offset(input->tell());

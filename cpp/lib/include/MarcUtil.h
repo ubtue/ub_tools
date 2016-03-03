@@ -156,7 +156,11 @@ public:
     /* Write MARC-XML-style data. */
     void write(XmlWriter * const xml_writer) const;
 
+    /** \brief Creates a Record instance by parsing a single <record> entry in a MARC-XML file.
+     *  \param input                The file to read the XML data from.
+     */
     static Record XmlFactory(File * const input);
+
     static Record BinaryFactory(File * const input);
 private:
     void UpdateRawRecord() const;
