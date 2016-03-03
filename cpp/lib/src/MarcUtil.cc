@@ -719,7 +719,7 @@ Record Record::XmlFactory(File * const input) {
     else {
 	xml_parser = new SimpleXmlParser(input);
 	file_to_parser_map.insert(std::make_pair(input, xml_parser));
-	if (file->tell() == 0)
+	if (input->tell() == 0)
 	    SkipOverStartOfDocument(xml_parser);
     }
 
