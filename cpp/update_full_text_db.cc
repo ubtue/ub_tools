@@ -154,7 +154,7 @@ bool IsProbablyAReview(const Subfields &subfields) {
 
 
 /** Writes "media_type" and "document" to "db" and returns the unique key that was generated for the write. */
-std::string FileLockedWriteDocumentWithMediaType(const std::string &media_type, const std::string &document,
+std::string DbLockedWriteDocumentWithMediaType(const std::string &media_type, const std::string &document,
                                                  const std::string &db_filename)
 {
     FileLocker file_locker(db_filename, FileLocker::WRITE_ONLY);
@@ -240,9 +240,9 @@ bool ProcessRecord(File * const input, const std::string &marc_output_filename,
 
         std::string extracted_text, key;
 	if (GetExtractedTextFromDatabase(&db_connection, url, document, &extracted_text))
-            key = FileLockedWriteDocumentWithMediaType("text/plain", extracted_text, db_filename);
+            key = DbLockedWriteDocumentWithMediaType("text/plain", extracted_text, db_filename);
 	else if (GetTextFromImagePDF(document, media_type, url, record, pdf_images_script, &extracted_text)) {
-            key = FileLockedWriteDocumentWithMediaType("text/plain", extracted_text, db_filename);
+            key = DbLockedWriteDocumentWithMediaType("text/plain", extracted_text, db_filename);
             const std::string hash(StringUtil::ToHexString(StringUtil::Sha1(document)));
 	    const time_t now(std::time(nullptr));
 	    const std::string current_datetime(SqlUtil::TimeTToDatetime(now));
@@ -252,7 +252,7 @@ bool ProcessRecord(File * const input, const std::string &marc_output_filename,
 	    if (not db_connection.query(INSERT_STMT))
 		throw std::runtime_error("Query \"" + INSERT_STMT + "\" failed because: " + db_connection.getLastErrorMessage());
         } else
-            key = FileLockedWriteDocumentWithMediaType(media_type, document, db_filename);
+            key = DbLockedWriteDocumentWithMediaType(media_type, document, db_filename);
 
         subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
         const std::string new_856_field(subfields.toString());
@@ -313,6 +313,7 @@ int main(int argc, char *argv[]) {
         return ProcessRecord(&marc_input, marc_output_filename, GetPathToPdfImagesScript(argv[0]), argv[4])
 	       ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        Error("While reading \"" + marc_input_filename + "\" starting at offset \"" + std::string(argv[1])
+	      + "\", caught exception: " + std::string(e.what()));
     }
 }
