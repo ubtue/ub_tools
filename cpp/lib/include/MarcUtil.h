@@ -158,12 +158,8 @@ public:
 
     /** \brief Creates a Record instance by parsing a single <record> entry in a MARC-XML file.
      *  \param input                The file to read the XML data from.
-     *  \param skip_document_start  A MARC-XML file has a <collection> wrapper around the <record> entries and
-     *                              therefore we have to skip that when we read the first <record>.  But, if we
-     *                              are opening "input" with an offset into the file, we don't want this to happen.
-     *                              In that latter case you must set "skip_document_start" to true.
      */
-    static Record XmlFactory(File * const input, const bool skip_document_start = false);
+    static Record XmlFactory(File * const input);
 
     static Record BinaryFactory(File * const input);
 private:
