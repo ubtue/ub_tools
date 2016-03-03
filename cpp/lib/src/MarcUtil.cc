@@ -711,7 +711,7 @@ static void SkipOverStartOfDocument(SimpleXmlParser * const xml_parser) {
 static std::map<File *, SimpleXmlParser *> file_to_parser_map;
 
 
-Record Record::XmlFactory(File * const input) {
+Record Record::XmlFactory(File * const input, const bool skip_document_start) {
     SimpleXmlParser *xml_parser;
     const auto file_and_parser(file_to_parser_map.find(input));
     if (file_and_parser != file_to_parser_map.cend())
@@ -719,7 +719,8 @@ Record Record::XmlFactory(File * const input) {
     else {
 	xml_parser = new SimpleXmlParser(input);
 	file_to_parser_map.insert(std::make_pair(input, xml_parser));
-	SkipOverStartOfDocument(xml_parser);
+	if (not skip_document_start)
+	    SkipOverStartOfDocument(xml_parser);
     }
 
     const off_t record_start_offset(input->tell());

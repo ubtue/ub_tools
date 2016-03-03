@@ -208,7 +208,7 @@ bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std:
 bool ProcessRecord(File * const input, const std::string &marc_output_filename,
 		   const std::string &pdf_images_script, const std::string &db_filename)
 {
-    MarcUtil::Record record = MarcUtil::Record::XmlFactory(input);
+    MarcUtil::Record record = MarcUtil::Record::XmlFactory(input, /* skip_document_start = */ true);
 
     ssize_t _856_index(record.getFieldIndex("856"));
     if (_856_index == -1)
