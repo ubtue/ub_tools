@@ -31,8 +31,10 @@
 class SmartDownloader {
     std::unique_ptr<RegexMatcher> matcher_;
     unsigned success_count_;
+protected:
+    bool trace_;
 public:
-    explicit SmartDownloader(const std::string &regex);
+    explicit SmartDownloader(const std::string &regex, const bool trace = false);
     virtual ~SmartDownloader() { }
 
     virtual std::string getName() const = 0;
@@ -63,8 +65,8 @@ protected:
 class SimpleSuffixDownloader: public SmartDownloader {
     const std::vector<std::string> suffixes_;
 public:
-    explicit SimpleSuffixDownloader(std::vector<std::string> &&suffixes)
-        : SmartDownloader(""), suffixes_(suffixes) { }
+    explicit SimpleSuffixDownloader(std::vector<std::string> &&suffixes, const bool trace = false)
+        : SmartDownloader("", trace), suffixes_(suffixes) { }
 
     virtual std::string getName() const { return "SimpleSuffixDownloader"; }
     virtual bool canHandleThis(const std::string &url) const;
@@ -79,8 +81,8 @@ protected:
 class SimplePrefixDownloader: public SmartDownloader {
     const std::vector<std::string> prefixes_;
 public:
-    explicit SimplePrefixDownloader(std::vector<std::string> &&prefixes)
-        : SmartDownloader(""), prefixes_(prefixes) { }
+    explicit SimplePrefixDownloader(std::vector<std::string> &&prefixes, const bool trace = false)
+        : SmartDownloader("", trace), prefixes_(prefixes) { }
 
     virtual std::string getName() const { return "SimplePrefixDownloader"; }
     virtual bool canHandleThis(const std::string &url) const;
@@ -91,8 +93,8 @@ protected:
 
 class DigiToolSmartDownloader: public SmartDownloader {
 public:
-    DigiToolSmartDownloader()
-        : SmartDownloader("^http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager\\?pid=\\d+.*$") { }
+    explicit DigiToolSmartDownloader(const bool trace = false)
+        : SmartDownloader("^http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager\\?pid=\\d+.*$", trace) { }
     virtual std::string getName() const { return "DigiToolSmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
@@ -101,8 +103,9 @@ protected:
 
 class DiglitSmartDownloader: public SmartDownloader {
 public:
-    DiglitSmartDownloader(): SmartDownloader("^http://idb.ub.uni-tuebingen.de/diglit/.+$"
-                                             "|^http://nbn-resolving.de/urn:nbn:de:bsz:21-dt-\\d+$") { }
+    explicit DiglitSmartDownloader(const bool trace = false)
+	: SmartDownloader("^http://idb.ub.uni-tuebingen.de/diglit/.+$|^http://nbn-resolving.de/urn:nbn:de:bsz:21-dt-\\d+$",
+			  trace) { }
     virtual std::string getName() const { return "DiglitSmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
@@ -111,7 +114,7 @@ protected:
 
 class BszSmartDownloader: public SmartDownloader {
 public:
-    BszSmartDownloader(): SmartDownloader("http://swbplus.bsz-bw.de/bsz.*\\.htm") { }
+    explicit BszSmartDownloader(const bool trace = false): SmartDownloader("http://swbplus.bsz-bw.de/bsz.*\\.htm", trace) { }
     virtual std::string getName() const { return "BszSmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
@@ -120,7 +123,7 @@ protected:
 
 class BvbrSmartDownloader: public SmartDownloader {
 public:
-    BvbrSmartDownloader(): SmartDownloader("http://bvbr.bib-bvb.de:8991/.+") { }
+    explicit BvbrSmartDownloader(const bool trace = false): SmartDownloader("http://bvbr.bib-bvb.de:8991/.+", trace) { }
     virtual std::string getName() const { return "BvbrSmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
@@ -129,7 +132,8 @@ protected:
 
 class Bsz21SmartDownloader: public SmartDownloader {
 public:
-    Bsz21SmartDownloader(): SmartDownloader("http://nbn-resolving.de/urn:nbn:de:bsz:21.+") { }
+    explicit Bsz21SmartDownloader(const bool trace = false)
+	: SmartDownloader("http://nbn-resolving.de/urn:nbn:de:bsz:21.+", trace) { }
     virtual std::string getName() const { return "Bsz21SmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
@@ -138,7 +142,7 @@ protected:
 
 class LocGovSmartDownloader: public SmartDownloader {
 public:
-    LocGovSmartDownloader(): SmartDownloader("http://www.loc.gov/catdir/.+") { }
+    explicit LocGovSmartDownloader(const bool trace = false): SmartDownloader("http://www.loc.gov/catdir/.+", trace) { }
     virtual std::string getName() const { return "LocGovSmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
@@ -146,7 +150,8 @@ protected:
 
 
 /** \brief Tries to download "document" from "url".  Returns if the download succeeded or not. */
-bool SmartDownload(const std::string &url, const unsigned max_download_time, std::string * const document);
+bool SmartDownload(const std::string &url, const unsigned max_download_time, std::string * const document,
+		   const bool trace = false);
 
 
 #endif // ifndef SMART_DOWNLOADER_H
