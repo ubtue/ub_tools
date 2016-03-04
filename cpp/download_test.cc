@@ -47,7 +47,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--timeout seconds] url output_filename\n";
+    std::cerr << "Usage: " << progname << " [--timeout seconds] [--trace] url output_filename\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -55,26 +55,37 @@ void Usage() {
 int main(int argc, char *argv[]) {
     progname = argv[0];
 
-    if (argc != 5 and argc != 3)
-        Usage();
-    const std::string url(argv[argc == 5 ? 3 : 1]);
-    const std::string output_filename(argv[argc == 5 ? 4 : 2]);
+    if (argc < 3)
+	Usage();
 
     const unsigned DEFAULT_TIMEOUT(20); // seconds
-
-    unsigned timeout;
-    if (argc == 3)
-        timeout = DEFAULT_TIMEOUT;
-    else {
-        if (std::strcmp(argv[1], "--timeout") != 0)
-            Usage();
-        if (not StringUtil::ToUnsigned(argv[2], &timeout))
+    unsigned timeout(DEFAULT_TIMEOUT);
+    if (std::strcmp(argv[1], "--timeout") == 0) {
+	if (not StringUtil::ToUnsigned(argv[2], &timeout))
             Error("bad timeout \"" + std::string(argv[2]) + "\"!");
+	argc -= 2;
+	argv += 2;
     }
+
+    if (argc < 3)
+	Usage();
+
+    bool trace(false);
+    if (std::strcmp(argv[1], "--trace") == 0) {
+	trace = true;
+	--argc;
+	++argv;
+    }
+
+    if (argc != 3)
+	Usage();
+
+    const std::string url(argv[1]);
+    const std::string output_filename(argv[2]);
 
     try {
         std::string document;
-        if (not SmartDownload(url, timeout, &document)) {
+        if (not SmartDownload(url, timeout, &document, trace)) {
             std::cerr << progname << ": Download failed!\n";
             std::exit(EXIT_FAILURE);
         }
