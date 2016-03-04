@@ -55,6 +55,8 @@ void ProcessRecords(const bool input_is_xml, File * const input) {
 	    Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
 
 	const std::vector<std::string> &fields(record.getFields());
+	if (unlikely(fields.empty()))
+	  Error("record #" + std::to_string(record_count) + " has zero fields!");
 	const std::string &control_number(fields[0]);
 	if (control_numbers.find(control_number) != control_numbers.end())
 	    Error("found at least one duplicate control number: " + control_number);
