@@ -788,34 +788,47 @@ public class TuelibMixin extends SolrIndexerMixin {
         return results;
     }
 
-
-   /**
-    * param record the record
-    */
-   public Set<String> getAuthor2AndRole(final Record record) {
-     final Set<String> results = new TreeSet<>();
-     for (final DataField data_field : record.getDataFields()) {
-         if (!data_field.getTag().equals("700"))
-            continue;
+    /**
+     * param record the record
+     */
+    public Set<String> getAuthor2AndRole(final Record record) {
+        final Set<String> results = new TreeSet<>();
+        for (final DataField data_field : record.getDataFields()) {
+            if (!data_field.getTag().equals("700"))
+                continue;
 // Fixme: Query other author2 fields
 
-         final String author2 = (data_field.getSubfield('a') != null) ? 
-              data_field.getSubfield('a').getData() : "";
-         final String author2role = (data_field.getSubfield('e') != null) ?
-              data_field.getSubfield('e').getData() : "";
-    
-         final StringBuilder author2AndRole =  new StringBuilder();
-         if(author2 != ""  && author2role != ""){
-             author2AndRole.append(author2);
-             author2AndRole.append("$");
-             author2AndRole.append(author2role);
-             results.add(author2AndRole.toString());
-         }
+            final String author2 = (data_field.getSubfield('a') != null) ?
+                    data_field.getSubfield('a').getData() : "";
+            final String author2role = (data_field.getSubfield('e') != null) ?
+                    data_field.getSubfield('e').getData() : "";
 
-     }
-    
-    return results;
+            final StringBuilder author2AndRole = new StringBuilder();
+            if (author2 != "" && author2role != "") {
+                author2AndRole.append(author2);
+                author2AndRole.append("$");
+                author2AndRole.append(author2role);
+                results.add(author2AndRole.toString());
+            }
+        }
 
-  }
+        return results;
+    }
+
+    public Set<String> getValuesOrUnassigned(final Record record, final String fieldSpecs) {
+        final Set<String> values = SolrIndexer.getFieldList(record, fieldSpecs);
+        if (values.isEmpty()) {
+            values.add("[Unassigned]");
+        }
+        return values;
+    }
+
+    public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
+        final Set<String> values = SolrIndexer.getFieldList(record, fieldSpecs);
+        if (values.isEmpty()) {
+            values.add("[Unassigned]");
+        }
+        return values.iterator().next();
+    }
 
 }
