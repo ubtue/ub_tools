@@ -27,7 +27,10 @@ if [[ "$date" != "$date2" ]]; then
     exit 1
 fi
 
-log=/tmp/krimdok_marc_pipeline.log
+# Set up the log file:
+logdir=/var/log/krimdok
+mkdir --parents "${logdir}"
+log="${logdir}/krimdok_marc_pipeline.log"
 rm -f "${log}"
 
 P=0
