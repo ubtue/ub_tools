@@ -131,7 +131,6 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
-    long offset(0L), last_offset;
 
     const std::string UPDATE_FULL_TEXT_DB_PATH(ExecUtil::Which("update_full_text_db"));
     if (UPDATE_FULL_TEXT_DB_PATH.empty())
@@ -140,10 +139,6 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
     std::cout << "Skip " << skip_count << " records\n";
 
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        last_offset = offset;
-	const Leader &leader(record.getLeader());
-        offset += leader.getRecordLength();
-
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;
@@ -156,7 +151,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
         }
 
         ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
-                        { std::to_string(last_offset), input->getPath(), output->getPath(), db_filename });
+                        { std::to_string(record.getXmlFileStartOffset()), input->getPath(), output->getPath(), db_filename });
         ++active_child_count;
         ++spawn_count;
 

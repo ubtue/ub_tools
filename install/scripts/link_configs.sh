@@ -34,3 +34,4 @@ fi
 CONFIGS_DIRECTORY=$1
 ln --symbolic --force --no-target-directory "$CONFIGS_DIRECTORY/cronjobs" "/var/lib/tuelib/cronjobs"
 ln --symbolic --force --no-target-directory "$CONFIGS_DIRECTORY/translations.conf" "/var/lib/tuelib/translations.conf"
+ln --symbolic --force --no-target-directory "$CONFIGS_DIRECTORY/logrotate.conf" "/var/lib/tuelib/logrotate.conf"
