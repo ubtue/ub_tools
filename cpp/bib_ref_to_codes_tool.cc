@@ -139,8 +139,7 @@ int main(int argc, char **argv) {
     std::unordered_multimap<std::string, std::string> pericopes_to_codes_map;
     MapIO::DeserialiseMap(argv[4], &pericopes_to_codes_map);
 
-    std::string bib_ref_candidate(CanoniseLeadingNumber(
-        InsertSpaceAtFirstLetterDigitBoundary(StringUtil::Trim(StringUtil::ToLower(argv[1])))));
+    std::string bib_ref_candidate(StringUtil::Trim(StringUtil::ToLower(argv[1])));
     StringUtil::CollapseWhitespace(&bib_ref_candidate);
 
     const auto begin_end(pericopes_to_codes_map.equal_range(bib_ref_candidate));
@@ -166,6 +165,8 @@ int main(int argc, char **argv) {
     // ...now deal w/ ordinary references.
     //
 
+    bib_ref_candidate = CanoniseLeadingNumber(InsertSpaceAtFirstLetterDigitBoundary(
+                            StringUtil::RemoveChars(" \t", &bib_ref_candidate)));
     std::string book_candidate, chapters_and_verses_candidate;
     SplitIntoBookAndChaptersAndVerses(bib_ref_candidate, &book_candidate, &chapters_and_verses_candidate);
     if (verbose) {
