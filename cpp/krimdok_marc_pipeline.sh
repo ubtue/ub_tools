@@ -29,7 +29,6 @@ fi
 
 # Set up the log file:
 logdir=/var/log/krimdok
-mkdir --parents "${logdir}"
 log="${logdir}/krimdok_marc_pipeline.log"
 rm -f "${log}"
 
