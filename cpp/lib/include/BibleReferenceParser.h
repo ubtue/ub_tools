@@ -14,7 +14,7 @@
  *  \param start_end          The successfully extracted bible ranges.
  *  \return If the parse succeded or not.
  */
-bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string &book_code,
+bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_code,
                          std::set<std::pair<std::string, std::string>> * const start_end);
 
 
