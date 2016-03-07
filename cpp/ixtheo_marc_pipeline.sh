@@ -30,7 +30,6 @@ fi
 
 # Set up the log file:
 logdir=/var/log/ixtheo
-mkdir --parents "${logdir}"
 log="${logdir}/ixtheo_marc_pipeline.log"
 rm -f "${log}"
 
