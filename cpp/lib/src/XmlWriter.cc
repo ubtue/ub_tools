@@ -34,7 +34,8 @@ XmlWriter::XmlWriter(File * const output_file, const unsigned indent_amount, con
     : output_file_(output_file), output_string_(nullptr), indent_amount_(indent_amount), nesting_level_(0),
       text_conversion_type_(text_conversion_type)
 {
-    *output_file_ << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+    if (output_file->tell() == 0)
+        *output_file_ << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 }
 
 

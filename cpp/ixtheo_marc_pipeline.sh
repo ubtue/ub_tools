@@ -27,7 +27,11 @@ if [[ "$date" != "$date2" ]]; then
     exit 1
 fi
 
-log=/tmp/ixtheo_marc_pipeline.log
+
+# Set up the log file:
+logdir=/var/log/ixtheo
+mkdir --parents "${logdir}"
+log="${logdir}/ixtheo_marc_pipeline.log"
 rm -f "${log}"
 
 P=0

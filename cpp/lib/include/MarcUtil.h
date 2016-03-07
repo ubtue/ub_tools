@@ -2,7 +2,7 @@
  *  \brief  Various utility functions related to the processing of MARC-21 records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -26,7 +26,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
+#include <sys/types.h>
 #include "DirectoryEntry.h"
 #include "File.h"
 #include "Leader.h"
@@ -42,11 +42,13 @@ class Record {
     mutable bool raw_record_is_out_of_date_;
     mutable std::vector<DirectoryEntry> dir_entries_;
     mutable std::vector<std::string> fields_;
+    mutable off_t xml_file_start_offset_;
 private:
     Record() = default;
-    Record(Leader &leader, std::vector<DirectoryEntry> &dir_entries, std::vector<std::string> &fields) noexcept
+    Record(Leader &leader, std::vector<DirectoryEntry> &dir_entries, std::vector<std::string> &fields,
+	   const off_t xml_file_start_offset) noexcept
         : leader_(std::move(leader)), raw_record_is_out_of_date_(true), dir_entries_(std::move(dir_entries)),
-          fields_(std::move(fields)) { }
+          fields_(std::move(fields)), xml_file_start_offset_(xml_file_start_offset) { }
 public:
     Record(Record &&other) noexcept
         : leader_(std::move(other.leader_)), raw_record_(std::move(other.raw_record_)),
@@ -71,6 +73,8 @@ public:
      *  \return The extracted language code or the empty string if no language code was found.
      */
     std::string getLanguageCode() const;
+
+    off_t getXmlFileStartOffset() const { return xml_file_start_offset_; }
 
     /** \brief Updates the field at index "field_index" and adjusts various field and records lengths. */
     void updateField(const size_t field_index, const std::string &new_field_contents);
@@ -152,7 +156,11 @@ public:
     /* Write MARC-XML-style data. */
     void write(XmlWriter * const xml_writer) const;
 
+    /** \brief Creates a Record instance by parsing a single <record> entry in a MARC-XML file.
+     *  \param input                The file to read the XML data from.
+     */
     static Record XmlFactory(File * const input);
+
     static Record BinaryFactory(File * const input);
 private:
     void UpdateRawRecord() const;

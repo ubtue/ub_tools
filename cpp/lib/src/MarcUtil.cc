@@ -691,16 +691,16 @@ static void SkipOverStartOfDocument(SimpleXmlParser * const xml_parser) {
     std::map<std::string, std::string> attrib_map;
     std::string data;
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data) and type != SimpleXmlParser::START_OF_DOCUMENT))
-	throw std::runtime_error("in MarcUtil::Record::XmlFactory: error while parsing start of \""
+	throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: error while parsing start of \""
 				 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage() + " on line "
 				 + std::to_string(xml_parser->getLineNo()) + "! (Expected start-of-document.)");
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
-	throw std::runtime_error("in MarcUtil::Record::XmlFactory: error while parsing start of \""
+	throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: error while parsing start of \""
 				 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage() + " on line "
 				 + std::to_string(xml_parser->getLineNo()) + "!");
     if (unlikely(type != SimpleXmlParser::OPENING_TAG or data !="collection")) {
 	const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-	throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <collection> tag expected while parsing \""
+	throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: opening <collection> tag expected while parsing \""
 				 + xml_parser->getInputFile()->getPath() + "\" on line "
 				 + std::to_string(xml_parser->getLineNo()) + "! (Found: " + SimpleXmlParser::TypeToString(type)
 				 + (tag_found ? (":" + data) : ""));
@@ -719,8 +719,11 @@ Record Record::XmlFactory(File * const input) {
     else {
 	xml_parser = new SimpleXmlParser(input);
 	file_to_parser_map.insert(std::make_pair(input, xml_parser));
-	SkipOverStartOfDocument(xml_parser);
+	if (input->tell() == 0)
+	    SkipOverStartOfDocument(xml_parser);
     }
+
+    const off_t record_start_offset(input->tell());
 
     Leader leader;
     std::vector<DirectoryEntry> dir_entries;
@@ -735,7 +738,7 @@ Record Record::XmlFactory(File * const input) {
     if (unlikely(type == SimpleXmlParser::CLOSING_TAG and data == "collection")) {
 	file_to_parser_map.erase(input); // This is necessary as we sometimes read "File" a 2nd time, after a rewind().
 	delete xml_parser;
-	return Record(leader, dir_entries, fields);
+	return Record(leader, dir_entries, fields, record_start_offset);
     }
 
     //
@@ -767,7 +770,7 @@ Record Record::XmlFactory(File * const input) {
 	    if (unlikely(data != "record"))
 		throw std::runtime_error("in MarcUtil::Record::XmlFactory: closing </record> tag expected while parsing \""
 					 + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "!");
-	    return Record(leader, dir_entries, fields);
+	    return Record(leader, dir_entries, fields, record_start_offset);
 	}
 
 	if (type != SimpleXmlParser::OPENING_TAG or (data != "datafield" and data != "controlfield"))

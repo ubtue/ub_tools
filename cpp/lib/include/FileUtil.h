@@ -158,6 +158,15 @@ bool IsDirectory(const std::string &dir_name);
 bool MakeDirectory(const std::string &path, const bool recursive = false, const mode_t mode = 0775);
 
 
+/** \brief Recursively delete a directory and all the files and subdirectories contained in it.
+ *  \param dir_name  The root of the directory tree that we wish to delete.
+ *  \return True if we succeeded in removing the directory tree, else false.
+ *  \note If the function returns false, it sets errno which you can consult to determine the reason
+ *        for the failure.
+ */
+bool RemoveDirectory(const std::string &dir_name);
+
+
 /** Repositions the offset of the open file associated with the file descriptor "fd" to the start of the file.
  *  If this function fails it returns false and sets errno to an appropriate error code.
  */
