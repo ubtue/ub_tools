@@ -74,6 +74,17 @@ HTPASSWD=""
 USER_NAME="vufind"
 USER_GROUP="vufind"
 CRONJOBS=""
+SYSTEM_TYPE=""
+
+if [[  "$CONFIG_FILE" =~ krimdok ]]; then
+    SYSTEM_TYPE="krimdok"
+elif [[  "$CONFIG_FILE" =~ ixtheo ]]; then
+    SYSTEM_TYPE="ixtheo"
+else
+    echo 'ERROR: config file name must contain either "krimdok" or "ixtheo"!'
+    exit 1
+fi
+
 
 source "$CONFIG_FILE"
 
