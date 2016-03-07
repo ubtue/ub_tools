@@ -19,6 +19,7 @@ function expect_failure_cpp() {
 
 expect_success_cpp "22" "0102200:0102299"         # A single chapter.
 expect_success_cpp "1,2" "0100102:0100102"        # A single chapter with a single verse.
+expect_success_cpp "1,  2" "0100102:0100102"      # A single chapter with a single verse and embedded spaces.
 expect_success_cpp "1,2b" "0100102:0100102"       # A single chapter with a single verse.
 expect_success_cpp "1-3" "0100100:0100399"        # A chapter range w/o verses.
 expect_failure_cpp "3-1" "0100399:0100100"        # An inverted chapter range w/o verses.
