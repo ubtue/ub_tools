@@ -18,15 +18,16 @@ show_help() {
   cat << EOF
 Creates all directories and the vufind user. Sets all file privileges of VuFind and all other needed files.
 
-USAGE: ${0##*/} CLONE_DIRECTORY USER_NAME USER_GROUP
+USAGE: ${0##*/} CLONE_DIRECTORY USER_NAME USER_GROUP SYSTEM_TYPE
 
 CLONE_DIRECTORY  The name of the subdirectory for the cloned repository
-USER_NAME    The user name of the vufind user
-USER_GROUP   The user group of the vufind user
+USER_NAME        The user name of the vufind user
+USER_GROUP       The user group of the vufind user
+SYSTEM_TYPE      Should be either "krimdok" or "ixtheo".
 EOF
 }
 
-if [ "$#" -ne 3 ] ; then
+if [ "$#" -ne 4 ] ; then
   show_help
   exit 1
 fi
@@ -57,6 +58,9 @@ chown -R "$OWNER" "/tmp/vufind_sessions/"
 
 mkdir --parents "/var/lib/tuelib/bibleRef"
 chown -R "$OWNER" "/var/lib/tuelib"
+
+mkdir --parents "/var/log/$SYSTEM_TYPE"
+chcon -t system_u:object_r:var_log_t:s0
 
 if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
 
