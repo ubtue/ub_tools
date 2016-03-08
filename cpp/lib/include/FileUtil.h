@@ -230,6 +230,16 @@ std::string FileTypeToString(FileType const file_type);
 size_t GetFileNameList(const std::string &filename_regex, std::vector<std::string> * const matched_filenames,
 		       const std::string &directory_to_scan = ".");
 
+/** \brief Rename a file or directory.
+ *  \param old_name       The original name.
+ *  \param new_name       The target name.
+ *  \param remove_target  If "new_name" already exists and this is set to true we will attempt to delete the existing
+ *                        renaming target before attempting to rename "old_name".
+ *  \return True, upon success, else false.
+ *  \note Sets errno if there was a failure.
+ */
+bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target = false);
+
 
 } // namespace FileUtil
 
