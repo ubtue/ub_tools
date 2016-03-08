@@ -660,4 +660,28 @@ size_t GetFileNameList(const std::string &filename_regex, std::vector<std::strin
 }
 
 
+bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target) {
+    struct stat stat_buf;
+    if (::stat(new_name.c_str(), &stat_buf) == -1) {
+	if (errno != ENOENT)
+	    throw std::runtime_error("in FileUtil::: stat(2) failed: " + std::string(::strerror(errno)));
+    } else { // Target file or directory already exists!
+	if (not remove_target) {
+	    errno = EEXIST;
+	    return false;
+	}
+
+	if (S_ISDIR(stat_buf.st_mode)) {
+	    if (unlikely(not RemoveDirectory(new_name)))
+		return false;
+	} else {
+	    if (unlikely(::unlink(new_name.c_str()) == -1))
+		throw std::runtime_error("in FileUtil::: unlink(2) failed: " + std::string(::strerror(errno)));
+	}
+    }
+
+    return ::rename(old_name.c_str(), new_name.c_str()) == 0;
+}
+
+
 } // namespace FileUtil
