@@ -98,7 +98,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final VariableField variableField : record.getVariableFields("LOK")) {
             final DataField lokfield = (DataField) variableField;
             final Subfield subfield0 = lokfield.getSubfield('0');
-            if (subfield0 == null || !subfield0.getData().equals("689")) {
+            if (subfield0 == null || !subfield0.getData().equals("689  ")) {
                 continue;
             }
             final Subfield subfieldA = lokfield.getSubfield('a');
