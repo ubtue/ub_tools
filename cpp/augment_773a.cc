@@ -74,7 +74,7 @@ void CollectControlNumberToTitleMappings(const bool verbose, const std::vector<F
     }
 
     if (verbose)
-	std::cout << "Found " << control_numbers_to_titles_map.size() << " control numbers to title mappings.\n";
+	std::cout << "Found " << control_numbers_to_titles_map.size() << " control number to title mappings.\n";
 }
 
 
