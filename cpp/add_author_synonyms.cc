@@ -202,11 +202,11 @@ int main(int argc, char **argv) {
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Master input file name equals output file name!");
     if (unlikely(norm_data_marc_input_filename == marc_output_filename))
-        Error("Auxiallary input file name equals output file name!");
+        Error("Auxillary input file name equals output file name!");
 
     std::string output_mode("w");
     if (marc_input->isCompressingOrUncompressing())
-        output_mode += "c";
+        output_mode += 'c';
     File marc_output(marc_output_filename, output_mode);
     if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
