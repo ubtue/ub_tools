@@ -215,14 +215,11 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
     tar_file = tarfile.open(gzipped_tar_archive, "r:gz")
     TarFileMemberNamesAreOkOrDie(tar_file, gzipped_tar_archive)
     current_date_str = datetime.datetime.now().strftime("%y%m%d")
-    ExtractAndRenameMembers(tar_file, ".+a00\\d.raw$",
-                            name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc")
-    ExtractAndRenameMembers(tar_file, ".+b00\\d.raw$",
-                            name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc")
+    ExtractAndRenameMembers(tar_file, ".+[ab]00\\d.raw$",
+                            name_prefix + "GesamtTiteldaten-" + current_date_str + ".mrc")
     ExtractAndRenameMembers(tar_file, ".+c00\\d.raw$", name_prefix + "Normdaten-" + current_date_str + ".mrc")
 
-    return [name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc",
-            name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc",
+    return [name_prefix + "GesamtTiteldaten-" + current_date_str + ".mrc",
             name_prefix + "Normdaten-" + current_date_str + ".mrc"]
 
 
