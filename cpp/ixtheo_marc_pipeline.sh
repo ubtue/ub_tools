@@ -1,8 +1,8 @@
 #!/bin/bash
-# Runs through the phases of the ixTheo MARC processing pipeline.
+Runs through the phases of the ixTheo MARC processing pipeline.
 set -o errexit -o nounset
 
-if [ $# != 2 ]; then
+if [ $!= 2 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc" \
          "Normdaten-YYMMDD.mrc"
     exit 1
@@ -13,10 +13,10 @@ if [[ ! "$1" =~ GesamtTiteldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
     exit 1
 fi
 
-# Extract date:
+Extract date:
 date=$(echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1)
 
-# Set up the log file:
+Set up the log file:
 logdir=/var/log/ixtheo
 log="${logdir}/ixtheo_marc_pipeline.log"
 rm -f "${log}"
@@ -26,7 +26,7 @@ echo "*** Phase $P: Convert MARC-21 to MARC-XML ***" | tee --append "${log}"
 marc_grep GesamtTiteldaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
     > GesamtTiteldaten-"${date}".xml 2>> "${log}"
 marc_grep Normdaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
-    > Normdaten-"${date}".xml 2>> "${log}"
+     > Normdaten-"${date}".xml 2>> "${log}"
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
@@ -50,7 +50,7 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
 ((++P)); START=$(date +%s.%N)
 echo "*** Phase $P: Parent-to-Child Linking - $(date) ***" | tee --append "${log}"
-create_child_refs.sh GesamtTiteldaten-"${date}".xml >> "${log}" 2>&1
+create_child_refs.sh GesamtTiteldaten-post-phase"$((P-2))"-"${date}".xml >> "${log}" 2>&1
 add_child_refs GesamtTiteldaten-post-phase"$((P-2))"-"${date}".xml \
                GesamtTiteldaten-post-phase"$P"-"${date}".xml \
                child_refs child_titles >> "${log}" 2>&1
@@ -61,7 +61,7 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 ((++P)); START=$(date +%s.%N)
 echo "*** Phase $P: Adding of ISBN'S and ISSN's to Component Parts - $(date) ***" | tee --append "${log}"
 add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-                               TitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
+                               GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
