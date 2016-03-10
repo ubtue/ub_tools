@@ -3,8 +3,8 @@
 set -o errexit -o nounset
 
 if [ $# != 2 ]; then
-    echo "usage: $0 GesamtTiteldaten-DDMMYY.mrc" \
-         "Normdaten-DDMMYY.mrc"
+    echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc" \
+         "Normdaten-YYMMDD.mrc"
     exit 1
 fi
 
