@@ -8,7 +8,7 @@ set -o errexit -o nounset
 # "child_titles".  This too will be used by the add_child_refs tool.
 
 if [ $# -ne 1 ]; then
-    echo "usage: $0 GesamtTiteldaten-*.mrc"
+    echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
     exit 1
 fi
 
