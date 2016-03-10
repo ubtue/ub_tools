@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
-    const std::string norm_data_marc_input_filename(argv[3]);
+    const std::string norm_data_marc_input_filename(argv[2]);
     File norm_data_marc_input(norm_data_marc_input_filename, "rm");
     if (not norm_data_marc_input)
         Error("can't open \"" + norm_data_marc_input_filename + "\" for reading!");
