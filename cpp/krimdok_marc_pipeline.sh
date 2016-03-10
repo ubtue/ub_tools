@@ -27,7 +27,9 @@ if [[ "$date" != "$date2" ]]; then
     exit 1
 fi
 
-log=/tmp/krimdok_marc_pipeline.log
+# Set up the log file:
+logdir=/var/log/krimdok
+log="${logdir}/krimdok_marc_pipeline.log"
 rm -f "${log}"
 
 P=0
@@ -77,21 +79,11 @@ echo "*** Phase $P: Fill in the \"in_tuebingen_available\" Field ***"
 echo "*** Phase $P: Fill in the \"in_tuebingen_available\" Field ***" >> "${log}"
 populate_in_tuebingen_available --verbose \
                                 TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-                                TitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
+                                TitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
 populate_in_tuebingen_available --verbose \
                                 ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-3))"-"${date}".xml \
-                                ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
+                                ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
 
-((++P))
-echo "*** Phase $P: Fix Article Biblio Levels ***"
-echo "*** Phase $P: Fix Article Biblio Levels ***" >> "${log}"
-fix_article_biblio_levels --verbose \
-    TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-    TitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
-fix_article_biblio_levels --verbose \
-    ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-    ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
 
 echo "*** Cleanup of Intermediate Files ***"
 echo "*** Cleanup of Intermediate Files ***" >> "${log}"

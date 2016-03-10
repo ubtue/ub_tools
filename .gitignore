@@ -55,6 +55,8 @@ notify_users
 populate_in_tuebingen_available
 regex_matcher
 remove_directory_test
+remove_matching_files_test
+rename_file_test
 resolve_in_path_test
 send_email_test
 shared_buffer_test
