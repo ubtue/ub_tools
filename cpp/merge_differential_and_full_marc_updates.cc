@@ -58,6 +58,7 @@ server_password = vv:*i%Nk
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "RegexMatcher.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -92,6 +93,11 @@ std::string GetProgramBasename() {
 
 void Log(const std::string &log_message) {
     std::cerr << GetProgramBasename() << ": " << log_message << '\n';
+}
+
+
+void LogWarning(const std::string &log_message) {
+    Log("WARNING: " + log_message);
 }
 
 
@@ -160,7 +166,7 @@ std::string PickCompleteDumpFilename(const std::string &complete_dump_pattern) {
 }
 
 
-std::string ExtractDateFromFilename(const std::string &filename) {
+std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
     static const std::string DATE_EXTRACTION_REGEX(".*(\\d{6}).*");
     static RegexMatcher *matcher;
     if (matcher == nullptr) {
@@ -184,7 +190,7 @@ void GetFilesMoreRecentThan(const std::string &cutoff_date, const std::string &f
 
     const auto first_deletion_position(filenames->begin());
     auto last_deletion_position(filenames->begin());
-    while (last_deletion_position < filenames->end() and ExtractDateFromFilename(*last_deletion_position) <= cutoff_date)
+    while (last_deletion_position < filenames->end() and ExtractDateFromFilenameOrDie(*last_deletion_position) <= cutoff_date)
 	++last_deletion_position;
 
     const auto erase_count(std::distance(first_deletion_position, last_deletion_position));
@@ -256,7 +262,11 @@ void GetOutputNameAndMode(const std::string &archive_entry_name,
 // Extracts files from a MARC archive, typically a gzipped tar file, and combines files matching the same pattern.
 // For example, if the archive contains "SA-MARC-ixtheoa001.raw" and "SA-MARC-ixtheoa002.raw", "SA-MARC-ixtheoa002.raw"
 // will be concatenated onto "SA-MARC-ixtheoa001.raw" do that only a single disc file will result.
-void ExtractMarcFilesFromArchive(const std::string &archive_name, const std::string &name_prefix = "") {
+void ExtractMarcFilesFromArchive(const std::string &archive_name, std::vector<std::string> * const extracted_names,
+				 const std::string &name_prefix = "", const std::string &name_suffix = "")
+{
+    extracted_names->clear();
+
     std::map<std::shared_ptr<RegexMatcher>, std::string> regex_to_first_file_map;
 
     ArchiveReader reader(archive_name);
@@ -268,8 +278,11 @@ void ExtractMarcFilesFromArchive(const std::string &archive_name, const std::str
 
 	std::string output_filename, open_mode;
 	GetOutputNameAndMode(file_info.getFilename(), &regex_to_first_file_map, &output_filename, &open_mode);
-	output_filename = name_prefix + output_filename;
+	output_filename = name_prefix + output_filename + name_suffix;
 	File disc_file(output_filename, open_mode);
+
+	if (open_mode != "a")
+	    extracted_names->emplace_back(output_filename);
 
 	char buf[8192];
 	size_t read_count;
@@ -340,24 +353,6 @@ void CopyFileOrDie(const std::string &from, const std::string &to) {
 }
 
 
-const std::string COMPLETE_DELETION_LIST("complete_deletion_list");
-const std::string EXTRACT_IDS_COMMAND("extract_IDs_in_erase_format.sh");
-
-
-void CreateCompleteDeletionList(const std::string &deletion_list_filename, const std::string &differential_archive) {
-    if (not deletion_list_filename.empty())
-	CopyFileOrDie(deletion_list_filename, COMPLETE_DELETION_LIST);
-    else
-	CreateEmptyFileOrDie(COMPLETE_DELETION_LIST);
-
-    if (unlikely(not differential_archive.empty()
-	         and ExecUtil::Exec(EXTRACT_IDS_COMMAND, { differential_archive, COMPLETE_DELETION_LIST }) != 0))
-	LogSendEmailAndDie("in CreateCompleteDeletionList: \"" + EXTRACT_IDS_COMMAND +"\" failed!");
-
-    Log("successfully created the complete deletion list file \"" + COMPLETE_DELETION_LIST + "\".");
-}
-
-
 // Appends "append_source" onto "append_target".
 void AppendFileOrDie(const std::string &append_target, const std::string &append_source) {
     File append_target_file(append_target, "w");
@@ -374,54 +369,213 @@ void AppendFileOrDie(const std::string &append_target, const std::string &append
 }
 
 
+void DeleteFileOrDie(const std::string &filename) {
+    Log("about to delete \"" + filename + "\".");
+    if (unlikely(::unlink(filename.c_str()) != 0))
+	LogSendEmailAndDie("in DeleteFileOrDie: unlink(2) on \"" + filename + "\" failed! (" + std::string(::strerror(errno))
+			   + ")");
+}
+
+
 const std::string DELETE_IDS_COMMAND("delete_ids");
 
 
 void UpdateOneFile(const std::string &old_marc_filename, const std::string &new_marc_filename,
-		   const std::string &deletion_list_marc_filename, const std::string &differential_marc_file)
+		   const std::string &deletion_list_filename, const std::string &differential_marc_file)
 {
     Log("creating \"" + new_marc_filename + "\" from \"" + old_marc_filename
 	+ "\" and an optional deletion list and difference file.");
 
-    CreateCompleteDeletionList(deletion_list_marc_filename, differential_marc_file);
-
-    if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND, { COMPLETE_DELETION_LIST, old_marc_filename, new_marc_filename }) != 0))
+    if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND, { deletion_list_filename, old_marc_filename, new_marc_filename }) != 0))
 	LogSendEmailAndDie("in UpdateOneFile: \"" + DELETE_IDS_COMMAND + "\" failed!");
 
-    AppendFileOrDie(new_marc_filename, differential_marc_file);
+    if (FileUtil::Exists(differential_marc_file))
+	AppendFileOrDie(new_marc_filename, differential_marc_file);
 }
 
 
-void ApplyUpdate(const std::string &old_full_archive, const std::string &new_full_archive,
-		 const std::string &deletion_list_filename, const std::string &differential_archive)
-{
-    if (deletion_list_filename.empty())
-	Log("Applying \"" + differential_archive + "\" to \"" + old_full_archive + "\" in order to create \""
-	    + new_full_archive + "\".");
-    else if (differential_archive.empty())
-	Log("Applying \"" + deletion_list_filename + "\" to \"" + old_full_archive + "\" in order to create \""
-	    + new_full_archive + "\".");
-    else
-	Log("Applying \"" + deletion_list_filename + "\" and \"" + differential_archive
-	    + "\" to \"" + old_full_archive + "\" in order to create \"" + new_full_archive + "\".");
+/** \brief  Returns a pathname that matches "regex".
+ *  \param  regex     The PCRE regex that is the name pattern.
+ *  \param  pathname  Where to return the matched name, if we had exactly one match.
+ *  \return True if there is precisely one match, else false.
+ *  \note   If no match was found "pathname" will be cleared.
+ */
+bool GetMatchingFilename(const std::string &regex, std::string * const pathname) {
+    pathname->clear();
+
+    std::vector<std::string> matched_pathnames;
+    size_t count;
+    if ((count = FileUtil::GetFileNameList(regex, &matched_pathnames)) != 1) {
+	if (count == 0)
+	    pathname->clear();
+	return false;
+    }
+
+    pathname->swap(matched_pathnames[0]);
+
+    return true;
 }
 
 
-// Creates a new full MARC archive from an old full archive as well as deltion lists and differential updates.
-void ExtractAndCombineMarcFilesFromArchives(const std::string &complete_dump_filename,
-					    const std::vector<std::string> &deletion_list_filenames,
-					    const std::vector<std::string> &incremental_dump_filenames)
+void GetBasenamesOrDie(std::string * const title_marc_basename, std::string * const superior_marc_basename,
+		       std::string * const normdata_marc_basename, const std::string &suffix = "")
 {
-    ExtractMarcFilesFromArchive("../" + complete_dump_filename);
+    if (unlikely(not GetMatchingFilename("a001.raw" + suffix + "$", title_marc_basename)))
+	LogSendEmailAndDie("did not find precisely one file matching \"a001.raw" + suffix + "$\"!");
 
-    // Construct the name of the new complete archive:
-    const std::string current_date(GetCurrentDate());
-    const std::string old_archive_date(ExtractDateFromFilename(complete_dump_filename));
-    const std::string new_complete_dump_filename(ReplaceString(old_archive_date, current_date, complete_dump_filename));
-    if (unlikely(new_complete_dump_filename == complete_dump_filename))
-	LogSendEmailAndDie("in ExtractAndCombineMarcFilesFromArchives: new complete MARC dump name \""
-			   + new_complete_dump_filename + "\" is the same as the name of the existing complete MARC dump!");
-    Log("About to create new complete MARC dump file: " + new_complete_dump_filename);
+    if (unlikely(not GetMatchingFilename("b001.raw" + suffix + "$", superior_marc_basename)))
+	LogSendEmailAndDie("did not find precisely one file matching \"b001.raw" + suffix + "$\"!");
+
+    if (unlikely(not GetMatchingFilename("c001.raw" + suffix + "$", normdata_marc_basename)))
+	LogSendEmailAndDie("did not find precisely one file matching \"c001.raw" + suffix + "$\"!");
+}
+
+
+void DeleteFilesOrDie(const std::string &filename_regex) {
+    if (unlikely(FileUtil::RemoveMatchingFiles(filename_regex) == -1))
+	LogSendEmailAndDie("failed to delete files matching \"" + filename_regex + "\"!");
+}
+
+
+// Name of the shell script that extracts control numbers from a MARC file and appends them
+// to a deletion list file.
+const std::string EXTRACT_AND_APPEND_SCRIPT("extract_IDs_in_erase_format.sh");
+
+
+void ExtractAndAppendIDs(const std::string &marc_filename, const std::string &deletion_list_filename) {
+    if (unlikely(ExecUtil::Exec(EXTRACT_AND_APPEND_SCRIPT, { marc_filename, deletion_list_filename }) != 0))
+	LogSendEmailAndDie("\"" + EXTRACT_AND_APPEND_SCRIPT + "\" with arguments \"" + marc_filename + "\" and \""
+			   + deletion_list_filename + "\" failed!");
+}
+
+
+/** \brief If "old_name" is non-empty, rename it to "new_name", o/w create an empty file named "new_name". */
+void MoveOrCreateFileOrDie(const std::string &old_name, const std::string &new_name) {
+    if (old_name.empty()) {
+	if (unlikely(not FileUtil::MakeEmpty(new_name)))
+	    LogSendEmailAndDie("failed to create an empty file named \"" + new_name + "\"! ("
+			       + std::string(::strerror(errno)) + ")");
+    } else if (unlikely(not FileUtil::RenameFile(old_name, new_name, /* remove_target = */ true))) {
+	    LogSendEmailAndDie("failed to rename \"" + old_name + "\" to \"" + new_name + "\"! ("
+			       + std::string(::strerror(errno)) + ")");
+    }
+}
+
+
+/** \brief Replaces "filename"'s ending "old_suffix" with "new_suffix".
+ *  \note Aborts if "filename" does not end with "old_suffix".
+ */
+std::string ReplaceSuffix(const std::string &filename, const std::string &old_suffix, const std::string &new_suffix) {
+    if (unlikely(not StringUtil::EndsWith(filename, old_suffix)))
+	LogSendEmailAndDie("in ReplaceSuffix: \"" + filename + "\" does not end with \"" + old_suffix + "\"!");
+    return filename.substr(0, filename.length() - old_suffix.length()) + new_suffix;
+}
+
+
+const std::string LOCAL_DELETION_LIST_FILENAME("deletions.list");
+
+
+void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_filename, const std::string &differential_archive) {
+    MoveOrCreateFileOrDie(deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
+
+    // Unpack the differential archive and extract control numbers from its members appending them to the
+    // deletion list file:
+    if (not differential_archive.empty()) {
+	Log("updating the deletion list based on control numbers found in the files contained in the differential MARC archive.");
+	std::vector<std::string> extracted_names;
+	ExtractMarcFilesFromArchive(differential_archive, &extracted_names, "diff_");
+	for (const auto &extracted_name : extracted_names)
+	    ExtractAndAppendIDs(extracted_name, LOCAL_DELETION_LIST_FILENAME);
+    }
+
+    const std::string old_name_suffix("." + std::to_string(apply_count - 1));
+    std::string title_marc_basename, superior_marc_basename, normdata_marc_basename;
+    GetBasenamesOrDie(&title_marc_basename, &superior_marc_basename, &normdata_marc_basename, old_name_suffix);
+
+    const std::string new_name_suffix("." + std::to_string(apply_count));
+    std::string diff_filename;
+
+    // Update the title data:
+    std::string diff_filename_pattern("diff_.*a001.raw");
+    if (not differential_archive.empty() and not GetMatchingFilename(diff_filename_pattern, &diff_filename))
+	LogWarning("found no match for \"" + diff_filename_pattern + "\" which might match a file extracted from \""
+		   + differential_archive + "\"!");
+    UpdateOneFile(title_marc_basename, ReplaceSuffix(title_marc_basename, old_name_suffix, new_name_suffix),
+		  LOCAL_DELETION_LIST_FILENAME, diff_filename);
+
+    // Update the superior data:
+    diff_filename_pattern = "diff_.*b001.raw";
+    if (not differential_archive.empty() and not GetMatchingFilename(diff_filename_pattern, &diff_filename))
+	LogWarning("found no match for \"" + diff_filename_pattern + "\" which might match a file extracted from \""
+		   + differential_archive + "\"!");
+    UpdateOneFile(superior_marc_basename, ReplaceSuffix(superior_marc_basename, old_name_suffix, new_name_suffix),
+		  LOCAL_DELETION_LIST_FILENAME, diff_filename);
+
+    // Update the norm data:
+    diff_filename_pattern = "diff_.*c001.raw";
+    if (not differential_archive.empty() and not GetMatchingFilename(diff_filename_pattern, &diff_filename))
+	LogWarning("found no match for \"" + diff_filename_pattern + "\" which might match a file extracted from \""
+		   + differential_archive + "\"!");
+    UpdateOneFile(normdata_marc_basename, ReplaceSuffix(normdata_marc_basename, old_name_suffix, new_name_suffix),
+		  LOCAL_DELETION_LIST_FILENAME, diff_filename);
+
+    DeleteFilesOrDie("diff_.*");
+}
+
+
+// Creates a gzipped tar archive from the 3 component MARC files that have been updated and
+// should exist in our working directory.
+std::string CreateNewCompleteArchive(const std::string &old_complete_dump_filename) {
+    const std::string old_date(ExtractDateFromFilenameOrDie(old_complete_dump_filename));
+    DeleteFileOrDie(old_complete_dump_filename);
+    const std::string new_complete_dump_filename(ReplaceString(old_date, GetCurrentDate(), old_complete_dump_filename));
+    Log("about to create new complete MARC archive \"" + new_complete_dump_filename + "\".");
+
+    // Determines the list of filenames that we would like to include in our new archive:
+    const std::string escaped_working_directory_name(ReplaceString(".", "\\.", GetWorkingDirectoryName()));
+    std::vector<std::string> marc_filenames;
+    GetSortedListOfRegularFiles(escaped_working_directory_name + "/.*\\.raw", &marc_filenames);
+
+    // Create a regex to extract the part of a filename that we want to store in our archive:
+    // We expect files that look like "merge_differential_and_full_marc_updates.working_directory/something.raw.3"
+    // and want to use the archive intername name "something.raw".
+    const std::string NAME_EXTRACTION_REGEX("/([^/]+\\.raw)\\.\\d+$");
+    std::string err_msg;
+    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(NAME_EXTRACTION_REGEX, &err_msg));
+    if (unlikely(matcher == nullptr))
+	LogSendEmailAndDie("in CreateNewCompleteArchive: failed to compile the regex \"" + NAME_EXTRACTION_REGEX + "\"! ("
+			   + err_msg + ")");
+
+    // Create the actual archive:
+    ArchiveWriter archive_writer(new_complete_dump_filename);
+    for (const auto &marc_filename : marc_filenames) {
+	if (unlikely(not matcher->matched(marc_filename)))
+	    LogSendEmailAndDie("in CreateNewCompleteArchive: \"" + marc_filename + "\" failed to match \"" + NAME_EXTRACTION_REGEX
+			       + "\"!");
+	const std::string archive_internal_name((*matcher)[1]);
+	Log("adding \"" + marc_filename + "\" as \"" + archive_internal_name + "\" to the new archive.");
+	archive_writer.add(marc_filename, archive_internal_name);
+    }
+
+    Log("created new archive!");
+
+    return new_complete_dump_filename;
+}
+
+
+inline std::string RemoveFileNameSuffix(const std::string &filename, const std::string &suffix) {
+    return ReplaceSuffix(filename, suffix, "");
+}
+
+
+// Creates a new full MARC archive from an old full archive as well as deletion lists and differential updates.
+std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_dump_filename,
+						   const std::vector<std::string> &deletion_list_filenames,
+						   const std::vector<std::string> &incremental_dump_filenames)
+{
+    std::vector<std::string> extracted_names;
+    ExtractMarcFilesFromArchive("../" + complete_dump_filename, &extracted_names,
+				/* name_prefix = */ "", /* name_suffix = */ ".0");
 
     // Iterate over the deletion list and incremental dump filename lists and apply one or both as appropriate:
     auto deletion_list_filename(deletion_list_filenames.cbegin());
@@ -433,22 +587,59 @@ void ExtractAndCombineMarcFilesFromArchives(const std::string &complete_dump_fil
     {
 	++apply_count;
 
-	std::string temp_archive_name(new_complete_dump_filename + "." + std::to_string(apply_count));
 	if (deletion_list_filename == deletion_list_filenames.cend()) {
-	    ApplyUpdate(old_archive_name, temp_archive_name, "", *incremental_dump_filename);
+	    ApplyUpdate(apply_count, "", *incremental_dump_filename);
 	    ++incremental_dump_filename;
 	} else if (incremental_dump_filename == incremental_dump_filenames.cend()) {
-	    ApplyUpdate(old_archive_name, temp_archive_name, *deletion_list_filename, "");
+	    ApplyUpdate(apply_count, *deletion_list_filename, "");
 	    ++deletion_list_filename;
 	} else {
-	    ApplyUpdate(old_archive_name, temp_archive_name, *deletion_list_filename, *incremental_dump_filename);
-	    ++deletion_list_filename;
-	    ++incremental_dump_filename;
+	    const std::string deletion_list_date(ExtractDateFromFilenameOrDie(*deletion_list_filename));
+	    const std::string incremental_dump_date(ExtractDateFromFilenameOrDie(*incremental_dump_filename));
+	    if (deletion_list_date < incremental_dump_date) {
+		ApplyUpdate(apply_count, *deletion_list_filename, "");
+		++deletion_list_filename;
+	    } else if (incremental_dump_date > deletion_list_date) {
+		ApplyUpdate(apply_count, "", *incremental_dump_filename);
+		++incremental_dump_filename;
+	    } else {
+		ApplyUpdate(apply_count, *deletion_list_filename, *incremental_dump_filename);
+		++deletion_list_filename;
+		++incremental_dump_filename;
+	    }
 	}
-
-	old_archive_name = temp_archive_name;
     }
-    RenameOrDie(old_archive_name, new_complete_dump_filename);
+
+    Log("deleting \"" + complete_dump_filename + "\".");
+    const std::string old_date(ExtractDateFromFilenameOrDie("../" + complete_dump_filename));
+    DeleteFileOrDie("../" + complete_dump_filename);
+
+    // Create new complete MARC archive:
+    const std::string current_date(GetCurrentDate());
+    const std::string new_complete_dump_filename(StringUtil::ReplaceString(old_date, current_date, complete_dump_filename));
+    Log("creating new MARC archive \"" + new_complete_dump_filename + "\".");
+    const std::string filename_suffix("\\." + std::to_string(apply_count));
+    std::vector<std::string> updated_marc_files;
+    FileUtil::GetFileNameList("[abc]00." + filename_suffix, &updated_marc_files);
+    ArchiveWriter archive_writer("../" + new_complete_dump_filename);
+    for (const auto &updated_marc_file : updated_marc_files) {
+	const std::string archive_member_name(RemoveFileNameSuffix(updated_marc_file, filename_suffix));
+	Log("Storing \"" + updated_marc_file + "\" as \"" + archive_member_name + "\" in \"" + new_complete_dump_filename + "\".");
+	archive_writer.add(updated_marc_file, archive_member_name);
+    }
+
+    return new_complete_dump_filename;
+}
+
+
+void RemoveDirectoryOrDie(const std::string &directory_name) {\
+    Log("about to remove subdirectory \"" + directory_name + "\" and any contained files.");
+    if (unlikely(not FileUtil::RemoveDirectory(directory_name)))
+	LogSendEmailAndDie("failed to recursively remove \"" + directory_name + "\"! (" + std::string(::strerror(errno)) + ")");
+}
+
+
+void RemoveDifferentialUpdates() {
 }
 
 
@@ -474,7 +665,7 @@ int main(int argc, char *argv[]) {
 	const std::string incremental_dump_pattern(ini_file.getString("Files", "incremental_dump"));
 
 	const std::string complete_dump_filename(PickCompleteDumpFilename(complete_dump_pattern));
-	const std::string complete_dump_filename_date(ExtractDateFromFilename(complete_dump_filename));
+	const std::string complete_dump_filename_date(ExtractDateFromFilenameOrDie(complete_dump_filename));
 
 	std::vector<std::string> deletion_list_filenames;
 	GetFilesMoreRecentThan(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
@@ -493,9 +684,16 @@ int main(int argc, char *argv[]) {
 		      EmailSender::VERY_LOW);
 
 	CreateAndChangeIntoTheWorkingDirectory();
-	ExtractAndCombineMarcFilesFromArchives(complete_dump_filename, deletion_list_filenames, incremental_dump_filenames);
+	const std::string new_complete_dump_filename(
+            ExtractAndCombineMarcFilesFromArchives(complete_dump_filename, deletion_list_filenames, incremental_dump_filenames));
+	ChangeDirectoryOrDie(".."); // Leave the working directory again.
+	RemoveDirectoryOrDie(GetWorkingDirectoryName());
+	DeleteFilesOrDie(deletion_list_pattern);
+	DeleteFilesOrDie(incremental_dump_pattern);
 
-	SendEmail(std::string(::progname), "Succeeded.\n", EmailSender::VERY_LOW);
+	SendEmail(std::string(::progname) + " (" + GetHostname() + ")",
+		  "Succeeded in creating the new complete archive \"" + new_complete_dump_filename + "\".\n",
+		  EmailSender::VERY_LOW);
     } catch (const std::exception &x) {
 	LogSendEmailAndDie("caught exception: " + std::string(x.what()));
     }
