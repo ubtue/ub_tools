@@ -172,9 +172,10 @@ enum State { INITIAL, CHAPTER1, CHAPTER2, VERSE1, VERSE2 };
 } // unnamed namespace
 
 
-bool ParseBibleReference(const std::string &bib_ref_candidate, const std::string &book_code,
+bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_code,
                          std::set<std::pair<std::string, std::string>> * const start_end)
 {
+    StringUtil::RemoveChars(" \t", &bib_ref_candidate); // Remove embedded spaces and tabs.
     if (bib_ref_candidate.empty()) {
         start_end->insert(std::make_pair(book_code + "00000", book_code + "99999"));
         return true;

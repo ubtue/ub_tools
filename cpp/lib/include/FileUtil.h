@@ -31,6 +31,7 @@
 
 
 #include <string>
+#include <vector>
 #include <cstdio>
 #include <sys/types.h>
 #include <unistd.h>
@@ -138,9 +139,9 @@ bool SetBlocking(const int fd);
 void DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename);
 
 
-/** \brief   Is the given path the name of a directory?
- *  \param   dir_name  The path to test.
- *  \return  True if the path is a directory and can be accessed.
+/** \brief  Is the given path the name of a directory?
+ *  \param  dir_name  The path to test.
+ *  \return True if the path is a directory and can be accessed.
  *
  *  IsDirectory returns false if "dir_name" either doesn't exist, we
  *  don't have sufficient priviledges to stat it or it exists but is
@@ -149,22 +150,34 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
 bool IsDirectory(const std::string &dir_name);
 
 
-/** \brief   Create a directory.
- *  \param   path       The path to create.
- *  \param   recursive  If true, attempt to recursively create parent directoris too.
- *  \param   mode       The access permission for the directory/directories that will be created.
- *  \return  True if the directory already existed or has been created else false.
+/** \brief  Create a directory.
+ *  \param  path       The path to create.
+ *  \param  recursive  If true, attempt to recursively create parent directoris too.
+ *  \param  mode       The access permission for the directory/directories that will be created.
+ *  \return True if the directory already existed or has been created else false.
  */
 bool MakeDirectory(const std::string &path, const bool recursive = false, const mode_t mode = 0775);
 
 
-/** \brief Recursively delete a directory and all the files and subdirectories contained in it.
- *  \param dir_name  The root of the directory tree that we wish to delete.
+/** \brief  Recursively delete a directory and all the files and subdirectories contained in it.
+ *  \param  dir_name  The root of the directory tree that we wish to delete.
  *  \return True if we succeeded in removing the directory tree, else false.
- *  \note If the function returns false, it sets errno which you can consult to determine the reason
- *        for the failure.
+ *  \note   If the function returns false, it sets errno which you can consult to determine the reason
+ *          for the failure.
  */
 bool RemoveDirectory(const std::string &dir_name);
+
+
+/** \brief Removes files and possibly directories matching a regular expression pattern.
+ *  \param  filename_regex       The pattern for the file and possibly the directory names to be deleted.
+ *  \param  include_directories  If true, matching directories will also be deleted, even if non-empty.
+ *                               If false, -1 will be returned should a directory match "filename_regex".
+ *  \note   The pattern must not include a slash.
+ *  \note   If a system call failed, errno will be set to indicate the error.
+ *  \return The number of matched files if all files matching "filename_regex" have been successfully deleted, else -1.
+ */
+ssize_t RemoveMatchingFiles(const std::string &filename_regex, const bool include_directories = true,
+			    const std::string &directory_to_scan = ".");
 
 
 /** Repositions the offset of the open file associated with the file descriptor "fd" to the start of the file.
@@ -208,6 +221,24 @@ FileType GuessFileType(const std::string &filename);
  *  \param  file_type   The type of file that should be converted to a std::string.
  */
 std::string FileTypeToString(FileType const file_type);
+
+
+/** \brief Generates a list of filenames matching a regular expression.
+ *  \note  The pattern must not include a slash.
+ *  \return The number of matched file names.
+ */
+size_t GetFileNameList(const std::string &filename_regex, std::vector<std::string> * const matched_filenames,
+		       const std::string &directory_to_scan = ".");
+
+/** \brief Rename a file or directory.
+ *  \param old_name       The original name.
+ *  \param new_name       The target name.
+ *  \param remove_target  If "new_name" already exists and this is set to true we will attempt to delete the existing
+ *                        renaming target before attempting to rename "old_name".
+ *  \return True, upon success, else false.
+ *  \note Sets errno if there was a failure.
+ */
+bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target = false);
 
 
 } // namespace FileUtil

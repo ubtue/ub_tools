@@ -20,6 +20,7 @@
 #include "FileUtil.h"
 #include <fstream>
 #include <list>
+#include <memory>
 #include <stdexcept>
 #include <cassert>
 #include <climits>
@@ -30,6 +31,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "Compiler.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -377,15 +379,22 @@ bool RemoveDirectory(const std::string &dir_name) {
 
 	const std::string path(dir_name + "/" + std::string(entry->d_name));
  
-	if (entry->d_type == DT_DIR)
-	    RemoveDirectory(path);
-	else
+	if (entry->d_type == DT_DIR) {
+	    if (unlikely(not RemoveDirectory(path))) {
+		CloseDirWhilePreservingErrno(dir_handle);
+		return false;
+	    }
+	} else
 	    ::unlink(path.c_str());
 
 	if (unlikely(errno != 0)) {
 	    CloseDirWhilePreservingErrno(dir_handle);
 	    return false;
 	}
+    }
+    if (unlikely(errno != 0)) { // readdir(2) failed!
+	CloseDirWhilePreservingErrno(dir_handle);
+	return false;
     }
 
     if (::unlikely(::rmdir(dir_name.c_str()) != 0)) {
@@ -394,6 +403,58 @@ bool RemoveDirectory(const std::string &dir_name) {
     }
 
     return likely(::closedir(dir_handle) == 0);
+}
+
+
+ssize_t RemoveMatchingFiles(const std::string &filename_regex, const bool include_directories,
+			    const std::string &directory_to_scan)
+{
+    if (unlikely(filename_regex.find('/') != std::string::npos))
+	throw std::runtime_error("in FileUtil::RemoveMatchingFiles: filename regex contained a slash!");
+
+    std::string err_msg;
+    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(filename_regex, &err_msg));
+    if (unlikely(not err_msg.empty()))
+	throw std::runtime_error("in FileUtil::RemoveMatchingFiles: failed to compile regular expression \"" + filename_regex
+				 + "\"! (" + err_msg + ")");
+
+    DIR *dir_handle(::opendir(directory_to_scan.c_str()));
+    if (unlikely(dir_handle == nullptr))
+	return -1;
+
+    struct dirent *entry;
+    ssize_t match_count(0);
+    while ((entry = ::readdir(dir_handle)) != nullptr) {
+	if (std::strcmp(entry->d_name, ".") == 0 or std::strcmp(entry->d_name, "..") == 0)
+	    continue;
+
+	if (not matcher->matched((entry->d_name)))
+	    continue;
+
+	const std::string path(directory_to_scan + "/" + std::string(entry->d_name));
+	if (entry->d_type == DT_DIR) {
+	    if (unlikely(not include_directories or not RemoveDirectory(path))) {
+		CloseDirWhilePreservingErrno(dir_handle);
+		return -1;
+	    }
+        } else
+	    ::unlink(path.c_str());
+
+	if (unlikely(errno != 0)) {
+	    CloseDirWhilePreservingErrno(dir_handle);
+	    return false;
+	}
+
+	++match_count;
+    }
+    if (unlikely(errno != 0)) { // readdir(2) failed!
+	CloseDirWhilePreservingErrno(dir_handle);
+	return -1;
+    }
+
+    if (unlikely(::closedir(dir_handle) != 0))
+	return -1;
+    return match_count;
 }
 
 
@@ -563,6 +624,63 @@ std::string FileTypeToString(const FileType file_type) {
     default:
 	throw std::runtime_error("in FileUtil::FileTypeToString: Unknown file type!");
     }
+}
+
+
+size_t GetFileNameList(const std::string &filename_regex, std::vector<std::string> * const matched_filenames,
+		       const std::string &directory_to_scan)
+{
+    if (unlikely(filename_regex.find('/') != std::string::npos))
+	throw std::runtime_error("in FileUtil::GetFileNameList: filename regex contained a slash!");
+    std::string err_msg;
+    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(filename_regex, &err_msg));
+    if (unlikely(not err_msg.empty()))
+	throw std::runtime_error("in FileUtil::GetFileNameList: failed to compile regular expression \"" + filename_regex
+				 + "\"! (" + err_msg + ")");
+
+    DIR *dir_handle(::opendir(directory_to_scan.c_str()));
+    if (unlikely(dir_handle == nullptr))
+	throw std::runtime_error("in FileUtil::GetFileNameList: failed to opendir(2) \"" + directory_to_scan + "\"! ("
+				 + std::string(::strerror(errno)) + ")");
+    struct dirent *entry;
+    while ((entry = ::readdir(dir_handle)) != nullptr) {
+	if (matcher->matched(entry->d_name))
+	    matched_filenames->emplace_back(entry->d_name);
+    }
+    if (unlikely(errno != 0)) {
+	CloseDirWhilePreservingErrno(dir_handle);
+	throw std::runtime_error("in FileUtil::GetFileNameList: readdir(2) failed: " + std::string(::strerror(errno)));
+    }
+
+    if (unlikely(::closedir(dir_handle) != 0))
+	throw std::runtime_error("in FileUtil::GetFileNameList: failed to opendir(2) \"" + directory_to_scan + "\"! ("
+				 + std::string(::strerror(errno)) + ")");
+
+    return matched_filenames->size();
+}
+
+
+bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target) {
+    struct stat stat_buf;
+    if (::stat(new_name.c_str(), &stat_buf) == -1) {
+	if (errno != ENOENT)
+	    throw std::runtime_error("in FileUtil::: stat(2) failed: " + std::string(::strerror(errno)));
+    } else { // Target file or directory already exists!
+	if (not remove_target) {
+	    errno = EEXIST;
+	    return false;
+	}
+
+	if (S_ISDIR(stat_buf.st_mode)) {
+	    if (unlikely(not RemoveDirectory(new_name)))
+		return false;
+	} else {
+	    if (unlikely(::unlink(new_name.c_str()) == -1))
+		throw std::runtime_error("in FileUtil::: unlink(2) failed: " + std::string(::strerror(errno)));
+	}
+    }
+
+    return ::rename(old_name.c_str(), new_name.c_str()) == 0;
 }
 
 
