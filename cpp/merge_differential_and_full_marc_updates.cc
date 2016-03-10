@@ -523,46 +523,6 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
 }
 
 
-// Creates a gzipped tar archive from the 3 component MARC files that have been updated and
-// should exist in our working directory.
-std::string CreateNewCompleteArchive(const std::string &old_complete_dump_filename) {
-    const std::string old_date(ExtractDateFromFilenameOrDie(old_complete_dump_filename));
-    DeleteFileOrDie(old_complete_dump_filename);
-    const std::string new_complete_dump_filename(ReplaceStringOrDie(old_date, GetCurrentDate(), old_complete_dump_filename));
-    Log("about to create new complete MARC archive \"" + new_complete_dump_filename + "\".");
-
-    // Determines the list of filenames that we would like to include in our new archive:
-    const std::string escaped_working_directory_name(ReplaceStringOrDie(".", "\\.", GetWorkingDirectoryName()));
-    std::vector<std::string> marc_filenames;
-    GetSortedListOfRegularFiles(escaped_working_directory_name + "/.*\\.raw", &marc_filenames);
-
-    // Create a regex to extract the part of a filename that we want to store in our archive:
-    // We expect files that look like "merge_differential_and_full_marc_updates.working_directory/something.raw.3"
-    // and want to use the archive intername name "something.raw".
-    const std::string NAME_EXTRACTION_REGEX("/([^/]+\\.raw)\\.\\d+$");
-    std::string err_msg;
-    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(NAME_EXTRACTION_REGEX, &err_msg));
-    if (unlikely(matcher == nullptr))
-	LogSendEmailAndDie("in CreateNewCompleteArchive: failed to compile the regex \"" + NAME_EXTRACTION_REGEX + "\"! ("
-			   + err_msg + ")");
-
-    // Create the actual archive:
-    ArchiveWriter archive_writer(new_complete_dump_filename);
-    for (const auto &marc_filename : marc_filenames) {
-	if (unlikely(not matcher->matched(marc_filename)))
-	    LogSendEmailAndDie("in CreateNewCompleteArchive: \"" + marc_filename + "\" failed to match \"" + NAME_EXTRACTION_REGEX
-			       + "\"!");
-	const std::string archive_internal_name((*matcher)[1]);
-	Log("adding \"" + marc_filename + "\" as \"" + archive_internal_name + "\" to the new archive.");
-	archive_writer.add(marc_filename, archive_internal_name);
-    }
-
-    Log("created new archive!");
-
-    return new_complete_dump_filename;
-}
-
-
 inline std::string RemoveFileNameSuffix(const std::string &filename, const std::string &suffix) {
     return ReplaceSuffix(filename, suffix, "");
 }
