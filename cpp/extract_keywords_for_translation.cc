@@ -42,7 +42,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " inferior_title_input superior_title_input norm_data_input\n";
+    std::cerr << "Usage: " << progname << " title_input norm_data_input\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -170,18 +170,13 @@ const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc != 4)
+    if (argc != 3)
         Usage();
 
-    const std::string inferior_marc_input_filename(argv[1]);
-    File inferior_marc_input(inferior_marc_input_filename, "rm");
-    if (not inferior_marc_input)
-        Error("can't open \"" + inferior_marc_input_filename + "\" for reading!");
-
-    const std::string superior_marc_input_filename(argv[2]);
-    File superior_marc_input(superior_marc_input_filename, "rm");
-    if (not superior_marc_input)
-        Error("can't open \"" + superior_marc_input_filename + "\" for reading!");
+    const std::string marc_input_filename(argv[1]);
+    File marc_input(marc_input_filename, "rm");
+    if (not marc_input)
+        Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string norm_data_marc_input_filename(argv[3]);
     File norm_data_marc_input(norm_data_marc_input_filename, "rm");
@@ -196,8 +191,7 @@ int main(int argc, char **argv) {
 	DbConnection db_connection(sql_database, sql_username, sql_password);
 
 	std::unordered_set<std::string> norm_data_control_numbers;
-	ExtractKeywordNormdataControlNumbers(&inferior_marc_input, &norm_data_control_numbers);
-	ExtractKeywordNormdataControlNumbers(&superior_marc_input, &norm_data_control_numbers);
+	ExtractKeywordNormdataControlNumbers(&marc_input, &norm_data_control_numbers);
 	ExtractTranslationTerms(&norm_data_marc_input, &db_connection);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
