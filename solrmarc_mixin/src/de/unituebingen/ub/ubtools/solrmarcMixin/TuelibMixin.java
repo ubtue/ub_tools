@@ -7,6 +7,7 @@ import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
+import org.solrmarc.index.VuFindIndexer;
 import org.solrmarc.tools.Utils;
 
 import java.util.*;
@@ -17,6 +18,130 @@ import java.util.regex.Pattern;
 
 public class TuelibMixin extends SolrIndexerMixin {
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
+    /**
+     * Returns either a Set<String> of parent (URL + colon + material type).  URLs are taken from 856$u and material
+     * types from 856$3, 856$z or 856$x.  For missing type subfields the text "Unbekanntes Material" will be used.
+     * Furthermore 024$2 will be checked for "doi".  If we find this we generate a URL with a DOI resolver from the
+     * DOI in 024$a and set the "material type" to "DOI Link".
+     *
+     * @param record the record
+     * @return A, possibly empty, Set<String> containing the URL/material-type pairs.
+     */
+    private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
+    private final static Pattern EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
+    // TODO: This should be in a translation mapping file
+    private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
+        {
+            this.put("Unknown", "Unknown");
+            this.put("DE-21", "Universit\u00E4tsbibliothek T\u00FCbingen");
+            this.put("DE-21-1", "Universit\u00E4t T\u00FCbingen, Klinik f\u00FCr Psychatrie und Psychologie");
+            this.put("DE-21-3", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Toxikologie und Pharmakologie");
+            this.put("DE-21-4", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Augenklinik");
+            this.put("DE-21-10", "Universit\u00E4tsbibliothek T\u00FCbingen, Bereichsbibliothek Geowissenschaften");
+            this.put("DE-21-11", "Universit\u00E4tsbibliothek T\u00FCbingen, Bereichsbibliothek Schloss Nord");
+            this.put("DE-21-14", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ur- und Fr\u00FChgeschichte und Arch\u00E4ologie des Mittelalters, Abteilung j\u00FCngere Urgeschichte und Fr\u00FChgeschichte + Abteilung f\u00FCr Arch\u00E4ologie des Mittelalters");
+            this.put("DE-21-17", "Universit\u00E4t T\u00FCbingen, Geographisches Institut");
+            this.put("DE-21-18", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Hautklinik");
+            this.put("DE-21-19", "Universit\u00E4t T\u00FCbingen, Wirtschaftswissenschaftliches Seminar");
+            this.put("DE-21-20", "Universit\u00E4t T\u00FCbingen, Frauenklinik");
+            this.put("DE-21-21", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Hals-Nasen-Ohrenklinik, Bibliothek");
+            this.put("DE-21-22", "Universit\u00E4t T\u00FCbingen, Kunsthistorisches Institut");
+            this.put("DE-21-23", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Pathologie");
+            this.put("DE-21-24", "Universit\u00E4t T\u00FCbingen, Juristisches Seminar");
+            this.put("DE-21-25", "Universit\u00E4t T\u00FCbingen, Musikwissenschaftliches Institut");
+            this.put("DE-21-26", "Universit\u00E4t T\u00FCbingen, Anatomisches Institut");
+            this.put("DE-21-27", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Anthropologie und Humangenetik");
+            this.put("DE-21-28", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Astronomie und Astrophysik, Abteilung Astronomie");
+            this.put("DE-21-31", "Universit\u00E4t T\u00FCbingen, Evangelisch-theologische Fakult\u00E4t");
+            this.put("DE-21-32a", "Universit\u00E4t T\u00FCbingen, Historisches Seminar, Abteilung f\u00FCr Alte Geschichte");
+            this.put("DE-21-32b", "Universit\u00E4t T\u00FCbingen, Historisches Seminar, Abteilung f\u00FCr Mittelalterliche Geschichte");
+            this.put("DE-21-32c", "Universit\u00E4t T\u00FCbingen, Historisches Seminar, Abteilung f\u00FCr Neuere Geschichte");
+            this.put("DE-21-34", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Indologie und Vergleichende Religionswissenschaft");
+            this.put("DE-21-35", "Universit\u00E4t T\u00FCbingen, Katholisch-theologische Fakult\u00E4t");
+            this.put("DE-21-39", "Universit\u00E4t T\u00FCbingen, Fachbibliothek Mathematik und Physik / Bereich Mathematik");
+            this.put("DE-21-37", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Sportwissenschaft");
+            this.put("DE-21-42", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Orient- uns Islamwissenschaft");
+            this.put("DE-21-43", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Erziehungswissenschaft");
+            this.put("DE-21-45", "Universit\u00E4t T\u00FCbingen, Philologisches Seminar");
+            this.put("DE-21-46", "Universit\u00E4t T\u00FCbingen, Philosophisches Seminar");
+            this.put("DE-21-50", "Universit\u00E4t T\u00FCbingen, Physiologisches Institut");
+            this.put("DE-21-51", "Universit\u00E4t T\u00FCbingen, Psychologisches Institut");
+            this.put("DE-21-52", "Universit\u00E4t T\u00FCbingen, Ludwig-Uhland-Institut f\u00FCr Empirische Kulturwissenschaft");
+            this.put("DE-21-53", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Ethnologie");
+            this.put("DE-21-54", "Universit\u00E4t T\u00FCbingen, Universit\u00E4tsklinik f\u00FCr Zahn-, Mund- und Kieferheilkunde");
+            this.put("DE-21-58", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Politikwissenschaft");
+            this.put("DE-21-62", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Osteurop\u00E4ische Geschichte und Landeskunde");
+            this.put("DE-21-63", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Tropenmedizin");
+            this.put("DE-21-64", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Geschichtliche Landeskunde und Historische Hilfswissenschaften");
+            this.put("DE-21-65", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Apotheke");
+            this.put("DE-21-74", "Universit\u00E4t T\u00FCbingen, Zentrum f\u00FCr Informations-Technologie");
+            this.put("DE-21-78", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Medizinische Biometrie");
+            this.put("DE-21-81", "Universit\u00E4t T\u00FCbingen, Inst. f. Astronomie und Astrophysik/Abt. Geschichte der Naturwiss.");
+            this.put("DE-21-85", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Soziologie");
+            this.put("DE-21-86", "Universit\u00E4t T\u00FCbingen, Zentrum f\u00FCr Datenverarbeitung");
+            this.put("DE-21-89", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Arbeits- und Sozialmedizin");
+            this.put("DE-21-92", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Gerichtliche Medizin");
+            this.put("DE-21-93", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ethik und Geschichte der Medizin");
+            this.put("DE-21-95", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Hirnforschung");
+            this.put("DE-21-98", "Universit\u00E4t T\u00FCbingen, Fachbibliothek Mathematik und Physik / Bereich Physik");
+            this.put("DE-21-99", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ur- und Fr\u00FChgeschichte und Arch\u00E4ologie des Mittelalters, Abteilung f\u00FCr \u00E4ltere Urgeschichteund Quart\u00E4r\u00F6kologie");
+            this.put("DE-21-106", "Universit\u00E4t T\u00FCbingen, Seminar f\u00FCr Zeitgeschichte");
+            this.put("DE-21-108", "Universit\u00E4t T\u00FCbingen, Fakult\u00E4tsbibliothek Neuphilologie");
+            this.put("DE-21-109", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Sinologie und Koreanistik");
+            this.put("DE-21-110", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Kriminologie");
+            this.put("DE-21-112", "Universit\u00E4t T\u00FCbingen, Fakult\u00E4t f\u00FCr Biologie, Bibliothek");
+            this.put("DE-21-116", "Universit\u00E4t T\u00FCbingen, Zentrum f\u00FCr Molekularbiologie der Pflanzen, Forschungsgruppe Pflanzenbiochemie");
+            this.put("DE-21-117", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Medizinische Informationsverarbeitung");
+            this.put("DE-21-118", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Archiv");
+            this.put("DE-21-119", "Universit\u00E4t T\u00FCbingen, Wilhelm-Schickard-Institut f\u00FCr Informatik");
+            this.put("DE-21-120", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Japanologie");
+            this.put("DE-21-121", "Universit\u00E4t T\u00FCbingen, Internationales Zentrum f\u00FCr Ethik in den Wissenschaften");
+            this.put("DE-21-123", "Universit\u00E4t T\u00FCbingen, Medizinbibliothek");
+            this.put("DE-21-124", "Universit\u00E4t T\u00FCbingen, Institut f. Medizinische Virologie und Epidemiologie d. Viruskrankheiten");
+            this.put("DE-21-126", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Medizinische Mikrobiologie und Hygiene");
+            this.put("DE-21-203", "Universit\u00E4t T\u00FCbingen, Sammlung Werner Schweikert - Archiv der Weltliteratur");
+            this.put("DE-21-205", "Universit\u00E4t T\u00FCbingen, Zentrum f\u00FCr Islamische Theologie");
+        }
+    };
+    private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
+    private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
+    private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
+    private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
+    private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
+    // Map used by getPhysicalType().
+    private static final Map<String, String> phys_code_to_full_name_map;
+
+    static {
+        Map<String, String> tempMap = new HashMap<>();
+        tempMap.put("arbtrans", "Transparency");
+        tempMap.put("blindendr", "Braille");
+        tempMap.put("bray", "Blu-ray Disc");
+        tempMap.put("cdda", "CD");
+        tempMap.put("ckop", "Microfiche");
+        tempMap.put("cofz", "Online Resource");
+        tempMap.put("crom", "CD-ROM");
+        tempMap.put("dias", "Slides");
+        tempMap.put("disk", "Diskette");
+        tempMap.put("druck", "Printed Material");
+        tempMap.put("dvda", "Audio DVD");
+        tempMap.put("dvdr", "DVD-ROM");
+        tempMap.put("dvdv", "Video DVD");
+        tempMap.put("gegenst", "Physical Object");
+        tempMap.put("handschr", "Longhand Text");
+        tempMap.put("kunstbl", "Artistic Works on Paper");
+        tempMap.put("lkop", "Mircofilm");
+        tempMap.put("medi", "Multiple Media Types");
+        tempMap.put("scha", "Record");
+        tempMap.put("skop", "Microform");
+        tempMap.put("sobildtt", "Audiovisual Carriers");
+        tempMap.put("soerd", "Carriers of Other Electronic Data");
+        tempMap.put("sott", "Carriers of Other Audiodata");
+        tempMap.put("tonbd", "Audiotape");
+        tempMap.put("tonks", "Audiocasette");
+        tempMap.put("vika", "Videocasette");
+        phys_code_to_full_name_map = Collections.unmodifiableMap(tempMap);
+    }
+
     private Set<String> isils_cache = null;
 
     @Override
@@ -160,17 +285,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
-    /**
-     * Returns either a Set<String> of parent (URL + colon + material type).  URLs are taken from 856$u and material
-     * types from 856$3, 856$z or 856$x.  For missing type subfields the text "Unbekanntes Material" will be used.
-     * Furthermore 024$2 will be checked for "doi".  If we find this we generate a URL with a DOI resolver from the
-     * DOI in 024$a and set the "material type" to "DOI Link".
-     *
-     * @param record the record
-     * @return A, possibly empty, Set<String> containing the URL/material-type pairs.
-     */
-    private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
-
     public Set<String> getUrlsAndMaterialTypes(final Record record) {
         final Set<String> nonUnknownMaterialTypeURLs = new HashSet<String>();
         final Map<String, Set<String>> materialTypeToURLsMap = new TreeMap<String, Set<String>>();
@@ -248,8 +362,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return urls_and_material_types;
     }
-
-    private final static Pattern EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
 
     /**
      * Returns either a Set<String> of parent (ID + colon + parent title).  Only IDs w/o titles will not be returned,
@@ -510,81 +622,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return Boolean.toString(!record.getVariableFields("SIG").isEmpty());
     }
 
-    // TODO: This should be in a translation mapping file
-    private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
-        {
-            this.put("Unknown", "Unknown");
-            this.put("DE-21", "Universit\u00E4tsbibliothek T\u00FCbingen");
-            this.put("DE-21-1", "Universit\u00E4t T\u00FCbingen, Klinik f\u00FCr Psychatrie und Psychologie");
-            this.put("DE-21-3", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Toxikologie und Pharmakologie");
-            this.put("DE-21-4", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Augenklinik");
-            this.put("DE-21-10", "Universit\u00E4tsbibliothek T\u00FCbingen, Bereichsbibliothek Geowissenschaften");
-            this.put("DE-21-11", "Universit\u00E4tsbibliothek T\u00FCbingen, Bereichsbibliothek Schloss Nord");
-            this.put("DE-21-14", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ur- und Fr\u00FChgeschichte und Arch\u00E4ologie des Mittelalters, Abteilung j\u00FCngere Urgeschichte und Fr\u00FChgeschichte + Abteilung f\u00FCr Arch\u00E4ologie des Mittelalters");
-            this.put("DE-21-17", "Universit\u00E4t T\u00FCbingen, Geographisches Institut");
-            this.put("DE-21-18", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Hautklinik");
-            this.put("DE-21-19", "Universit\u00E4t T\u00FCbingen, Wirtschaftswissenschaftliches Seminar");
-            this.put("DE-21-20", "Universit\u00E4t T\u00FCbingen, Frauenklinik");
-            this.put("DE-21-21", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Hals-Nasen-Ohrenklinik, Bibliothek");
-            this.put("DE-21-22", "Universit\u00E4t T\u00FCbingen, Kunsthistorisches Institut");
-            this.put("DE-21-23", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Pathologie");
-            this.put("DE-21-24", "Universit\u00E4t T\u00FCbingen, Juristisches Seminar");
-            this.put("DE-21-25", "Universit\u00E4t T\u00FCbingen, Musikwissenschaftliches Institut");
-            this.put("DE-21-26", "Universit\u00E4t T\u00FCbingen, Anatomisches Institut");
-            this.put("DE-21-27", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Anthropologie und Humangenetik");
-            this.put("DE-21-28", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Astronomie und Astrophysik, Abteilung Astronomie");
-            this.put("DE-21-31", "Universit\u00E4t T\u00FCbingen, Evangelisch-theologische Fakult\u00E4t");
-            this.put("DE-21-32a", "Universit\u00E4t T\u00FCbingen, Historisches Seminar, Abteilung f\u00FCr Alte Geschichte");
-            this.put("DE-21-32b", "Universit\u00E4t T\u00FCbingen, Historisches Seminar, Abteilung f\u00FCr Mittelalterliche Geschichte");
-            this.put("DE-21-32c", "Universit\u00E4t T\u00FCbingen, Historisches Seminar, Abteilung f\u00FCr Neuere Geschichte");
-            this.put("DE-21-34", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Indologie und Vergleichende Religionswissenschaft");
-            this.put("DE-21-35", "Universit\u00E4t T\u00FCbingen, Katholisch-theologische Fakult\u00E4t");
-            this.put("DE-21-39", "Universit\u00E4t T\u00FCbingen, Fachbibliothek Mathematik und Physik / Bereich Mathematik");
-            this.put("DE-21-37", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Sportwissenschaft");
-            this.put("DE-21-42", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Orient- uns Islamwissenschaft");
-            this.put("DE-21-43", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Erziehungswissenschaft");
-            this.put("DE-21-45", "Universit\u00E4t T\u00FCbingen, Philologisches Seminar");
-            this.put("DE-21-46", "Universit\u00E4t T\u00FCbingen, Philosophisches Seminar");
-            this.put("DE-21-50", "Universit\u00E4t T\u00FCbingen, Physiologisches Institut");
-            this.put("DE-21-51", "Universit\u00E4t T\u00FCbingen, Psychologisches Institut");
-            this.put("DE-21-52", "Universit\u00E4t T\u00FCbingen, Ludwig-Uhland-Institut f\u00FCr Empirische Kulturwissenschaft");
-            this.put("DE-21-53", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Ethnologie");
-            this.put("DE-21-54", "Universit\u00E4t T\u00FCbingen, Universit\u00E4tsklinik f\u00FCr Zahn-, Mund- und Kieferheilkunde");
-            this.put("DE-21-58", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Politikwissenschaft");
-            this.put("DE-21-62", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Osteurop\u00E4ische Geschichte und Landeskunde");
-            this.put("DE-21-63", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Tropenmedizin");
-            this.put("DE-21-64", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Geschichtliche Landeskunde und Historische Hilfswissenschaften");
-            this.put("DE-21-65", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Apotheke");
-            this.put("DE-21-74", "Universit\u00E4t T\u00FCbingen, Zentrum f\u00FCr Informations-Technologie");
-            this.put("DE-21-78", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Medizinische Biometrie");
-            this.put("DE-21-81", "Universit\u00E4t T\u00FCbingen, Inst. f. Astronomie und Astrophysik/Abt. Geschichte der Naturwiss.");
-            this.put("DE-21-85", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Soziologie");
-            this.put("DE-21-86", "Universit\u00E4t T\u00FCbingen, Zentrum f\u00FCr Datenverarbeitung");
-            this.put("DE-21-89", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Arbeits- und Sozialmedizin");
-            this.put("DE-21-92", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Gerichtliche Medizin");
-            this.put("DE-21-93", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ethik und Geschichte der Medizin");
-            this.put("DE-21-95", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Hirnforschung");
-            this.put("DE-21-98", "Universit\u00E4t T\u00FCbingen, Fachbibliothek Mathematik und Physik / Bereich Physik");
-            this.put("DE-21-99", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ur- und Fr\u00FChgeschichte und Arch\u00E4ologie des Mittelalters, Abteilung f\u00FCr \u00E4ltere Urgeschichteund Quart\u00E4r\u00F6kologie");
-            this.put("DE-21-106", "Universit\u00E4t T\u00FCbingen, Seminar f\u00FCr Zeitgeschichte");
-            this.put("DE-21-108", "Universit\u00E4t T\u00FCbingen, Fakult\u00E4tsbibliothek Neuphilologie");
-            this.put("DE-21-109", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Sinologie und Koreanistik");
-            this.put("DE-21-110", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Kriminologie");
-            this.put("DE-21-112", "Universit\u00E4t T\u00FCbingen, Fakult\u00E4t f\u00FCr Biologie, Bibliothek");
-            this.put("DE-21-116", "Universit\u00E4t T\u00FCbingen, Zentrum f\u00FCr Molekularbiologie der Pflanzen, Forschungsgruppe Pflanzenbiochemie");
-            this.put("DE-21-117", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Medizinische Informationsverarbeitung");
-            this.put("DE-21-118", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Archiv");
-            this.put("DE-21-119", "Universit\u00E4t T\u00FCbingen, Wilhelm-Schickard-Institut f\u00FCr Informatik");
-            this.put("DE-21-120", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Japanologie");
-            this.put("DE-21-121", "Universit\u00E4t T\u00FCbingen, Internationales Zentrum f\u00FCr Ethik in den Wissenschaften");
-            this.put("DE-21-123", "Universit\u00E4t T\u00FCbingen, Medizinbibliothek");
-            this.put("DE-21-124", "Universit\u00E4t T\u00FCbingen, Institut f. Medizinische Virologie und Epidemiologie d. Viruskrankheiten");
-            this.put("DE-21-126", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Medizinische Mikrobiologie und Hygiene");
-            this.put("DE-21-203", "Universit\u00E4t T\u00FCbingen, Sammlung Werner Schweikert - Archiv der Weltliteratur");
-            this.put("DE-21-205", "Universit\u00E4t T\u00FCbingen, Zentrum f\u00FCr Islamische Theologie");
-        }
-    };
-
     /**
      * get the collections from LOK-tagged fields
      * <p/>
@@ -679,12 +716,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
-    private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
-    private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
-    private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
-    private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
-    private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
-
     /**
      * @param record the record
      */
@@ -732,40 +763,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return matcher.matches() ? matcher.group(1) : null;
     }
 
-    // Map used by getPhysicalType().
-    private static final Map<String, String> phys_code_to_full_name_map;
-
-    static {
-        Map<String, String> tempMap = new HashMap<>();
-        tempMap.put("arbtrans", "Transparency");
-        tempMap.put("blindendr", "Braille");
-        tempMap.put("bray", "Blu-ray Disc");
-        tempMap.put("cdda", "CD");
-        tempMap.put("ckop", "Microfiche");
-        tempMap.put("cofz", "Online Resource");
-        tempMap.put("crom", "CD-ROM");
-        tempMap.put("dias", "Slides");
-        tempMap.put("disk", "Diskette");
-        tempMap.put("druck", "Printed Material");
-        tempMap.put("dvda", "Audio DVD");
-        tempMap.put("dvdr", "DVD-ROM");
-        tempMap.put("dvdv", "Video DVD");
-        tempMap.put("gegenst", "Physical Object");
-        tempMap.put("handschr", "Longhand Text");
-        tempMap.put("kunstbl", "Artistic Works on Paper");
-        tempMap.put("lkop", "Mircofilm");
-        tempMap.put("medi", "Multiple Media Types");
-        tempMap.put("scha", "Record");
-        tempMap.put("skop", "Microform");
-        tempMap.put("sobildtt", "Audiovisual Carriers");
-        tempMap.put("soerd", "Carriers of Other Electronic Data");
-        tempMap.put("sott", "Carriers of Other Audiodata");
-        tempMap.put("tonbd", "Audiotape");
-        tempMap.put("tonks", "Audiocasette");
-        tempMap.put("vika", "Videocasette");
-        phys_code_to_full_name_map = Collections.unmodifiableMap(tempMap);
-    }
-
     /**
      * @param record the record
      */
@@ -788,34 +785,117 @@ public class TuelibMixin extends SolrIndexerMixin {
         return results;
     }
 
-
-   /**
-    * param record the record
-    */
-   public Set<String> getAuthor2AndRole(final Record record) {
-     final Set<String> results = new TreeSet<>();
-     for (final DataField data_field : record.getDataFields()) {
-         if (!data_field.getTag().equals("700"))
-            continue;
+    /**
+     * param record the record
+     */
+    public Set<String> getAuthor2AndRole(final Record record) {
+        final Set<String> results = new TreeSet<>();
+        for (final DataField data_field : record.getDataFields()) {
+            if (!data_field.getTag().equals("700"))
+                continue;
 // Fixme: Query other author2 fields
 
-         final String author2 = (data_field.getSubfield('a') != null) ? 
-              data_field.getSubfield('a').getData() : "";
-         final String author2role = (data_field.getSubfield('e') != null) ?
-              data_field.getSubfield('e').getData() : "";
-    
-         final StringBuilder author2AndRole =  new StringBuilder();
-         if(author2 != ""  && author2role != ""){
-             author2AndRole.append(author2);
-             author2AndRole.append("$");
-             author2AndRole.append(author2role);
-             results.add(author2AndRole.toString());
-         }
+            final String author2 = (data_field.getSubfield('a') != null) ?
+                    data_field.getSubfield('a').getData() : "";
+            final String author2role = (data_field.getSubfield('e') != null) ?
+                    data_field.getSubfield('e').getData() : "";
 
-     }
-    
-    return results;
+            final StringBuilder author2AndRole = new StringBuilder();
+            if (author2 != "" && author2role != "") {
+                author2AndRole.append(author2);
+                author2AndRole.append("$");
+                author2AndRole.append(author2role);
+                results.add(author2AndRole.toString());
+            }
+        }
 
-  }
+        return results;
+    }
 
+    public Set<String> getValuesOrUnassigned(final Record record, final String fieldSpecs) {
+        final Set<String> values = SolrIndexer.getFieldList(record, fieldSpecs);
+        if (values.isEmpty()) {
+            values.add("[Unassigned]");
+        }
+        return values;
+    }
+
+    public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
+        final Set<String> values = SolrIndexer.getFieldList(record, fieldSpecs);
+        if (values.isEmpty()) {
+            values.add("[Unassigned]");
+        }
+        return values.iterator().next();
+    }
+
+    /**
+     * Get all available dates from the record.
+     *
+     * @param  record MARC record
+     * @return set of dates
+     */
+    public Set<String> getDates(final Record record) {
+        final Set<String> dates = new LinkedHashSet<>();
+
+        // First check old-style 260c date:
+        final List<VariableField> list260 = record.getVariableFields("260");
+        for (final VariableField vf : list260) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates) {
+                final String currentDateStr = Utils.cleanDate(sf.getData());
+                dates.add(currentDateStr);
+            }
+        }
+
+        // Now track down relevant RDA-style 264c dates; we only care about
+        // copyright and publication dates (and ignore copyright dates if
+        // publication dates are present).
+        final Set<String> pubDates = new LinkedHashSet<>();
+        final Set<String> copyDates = new LinkedHashSet<>();
+        final List<VariableField> list264 = record.getVariableFields("264");
+        for (final VariableField vf : list264) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates) {
+                final String currentDateStr = Utils.cleanDate(sf.getData());
+                final char ind2 = df.getIndicator2();
+                switch (ind2)
+                {
+                    case '1':
+                        pubDates.add(currentDateStr);
+                        break;
+                    case '4':
+                        copyDates.add(currentDateStr);
+                        break;
+                }
+            }
+        }
+        if (!pubDates.isEmpty()) {
+            dates.addAll(pubDates);
+        } else if (!copyDates.isEmpty()) {
+            dates.addAll(copyDates);
+        }
+
+        return dates;
+    }
+
+    /**
+     * Get the earliest publication date from the record.
+     *
+     * Fix for NullPointerException!
+     *
+     * @param  record MARC record
+     * @return earliest date
+     */
+    public String getFirstDate(final Record record) {
+        String result = null;
+        final Set<String> dates = getDates(record);
+        for(final String current: dates) {
+            if (result == null || current != null && Integer.parseInt(current) < Integer.parseInt(result)) {
+                result = current;
+            }
+        }
+        return result;
+    }
 }
