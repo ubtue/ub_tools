@@ -36,9 +36,9 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] marc_input aux_marc_input marc_output\n"
+    std::cerr << "Usage: " << progname << " [--verbose] marc_input marc_output\n"
 	      << "       \"marc_input\" is the file that will be augmented and converted.\n"
-	      << "       \"marc_input\" and \"aux_marc_input\" will be scoured for titles that\n"
+	      << "       \"marc_input\" will be scoured for titles that\n"
 	      << "       may be filled into 773$a fields where appropriate.\n"
               << "       Populates 773$a where it is missing and uplinks exist in 773$x.\n";
     std::exit(EXIT_FAILURE);
@@ -64,14 +64,13 @@ bool RecordControlNumberToTitleMapping(MarcUtil::Record * const record, XmlWrite
 }
 
 
-void CollectControlNumberToTitleMappings(const bool verbose, const std::vector<File *> &inputs) {
+void CollectControlNumberToTitleMappings(const bool verbose, File * const input) {
+    if (verbose)
+	std::cout << "Extracting control numbers to title mappings from \"" << input->getPath() << "\".\n";
+
     std::string err_msg;
-    for (auto &input : inputs) {
-	if (verbose)
-	    std::cout << "Extracting control numbers to title mappings from \"" << input->getPath() << "\".\n";
-	if (not MarcUtil::ProcessRecords(input, RecordControlNumberToTitleMapping, /* xml_writer = */nullptr, &err_msg))
-	    Error("error while looking for control numbers to title mappings: " + err_msg);
-    }
+    if (not MarcUtil::ProcessRecords(input, RecordControlNumberToTitleMapping, /* xml_writer = */nullptr, &err_msg))
+	Error("error while looking for control numbers to title mappings: " + err_msg);
 
     if (verbose)
 	std::cout << "Found " << control_numbers_to_titles_map.size() << " control number to title mappings.\n";
@@ -106,8 +105,7 @@ bool PatchUpOne773a(MarcUtil::Record * const record, XmlWriter * const xml_write
 }
 
 
-// Iterates over all records in a collection and retags all book component parts as artcles
-// unless the object has a monograph as a parent.
+// Iterates over all records in a collection and attempts to in 773$a subfields were they are missing.
 void PatchUp773aSubfields(const bool verbose, File * const input, File * const output) {
     XmlWriter xml_writer(output);
     xml_writer.openTag("collection");
@@ -136,32 +134,25 @@ int main(int argc, char **argv) {
 	++argv;
     }
 
-    if (argc != 4)
+    if (argc != 3)
 	Usage();
 
-    std::vector<File *> marc_inputs;
-    for (int arg_no(1); arg_no < 3 ; ++arg_no) {
-	const std::string marc_input_filename(argv[arg_no]);
-	File *marc_input = new File(marc_input_filename, "rbm");
-	if (not *marc_input)
-	    Error("can't open \"" + marc_input_filename + "\" for reading!");
-	marc_inputs.push_back(marc_input);
-    }
+    const std::string marc_input_filename(argv[1]);
+    File marc_input(marc_input_filename, "rbm");
+    if (not marc_input)
+	Error("can't open \"" + marc_input_filename + "\" for reading!");
 
-    const std::string marc_output_filename(argv[argc - 1]);
+    const std::string marc_output_filename(argv[2]);
     File marc_output(marc_output_filename, "wb");
     if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
-	CollectControlNumberToTitleMappings(verbose, marc_inputs);
+	CollectControlNumberToTitleMappings(verbose, &marc_input);
 
-	marc_inputs[0]->rewind();
-	PatchUp773aSubfields(verbose, marc_inputs[0], &marc_output);
+	marc_input.rewind();
+	PatchUp773aSubfields(verbose, &marc_input, &marc_output);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
-
-    for (const auto &marc_input : marc_inputs)
-	marc_input->close();
 }
