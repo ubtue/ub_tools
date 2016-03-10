@@ -295,12 +295,12 @@ void ExtractMarcFilesFromArchive(const std::string &archive_name, std::vector<st
 }
 
 
-// Returns the current date in the DDMMYY format.
+// Returns the current date in the YYMMDD format.
 std::string GetCurrentDate() {
     const time_t now(std::time(nullptr));
     const struct tm * const local_time(std::localtime(&now));
     char buffer[6 + 1];
-    if (unlikely(std::strftime(buffer, sizeof buffer, "%d%m%y", local_time) != 6))
+    if (unlikely(std::strftime(buffer, sizeof buffer, "%y%m%d", local_time) != 6))
 	LogSendEmailAndDie("in GetCurrentDate: strftime(3) failed! (This should never happen!)");
 
     return buffer;
