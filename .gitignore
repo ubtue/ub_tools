@@ -17,6 +17,7 @@ add_isbns_or_issns_to_articles
 add_title_keywords
 archive_reader_test
 archive_writer_test
+augment_773a
 augment_bible_references
 auto_temp_file_test
 bib_ref_parser_test
