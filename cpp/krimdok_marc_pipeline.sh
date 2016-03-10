@@ -79,11 +79,20 @@ echo "*** Phase $P: Fill in the \"in_tuebingen_available\" Field ***"
 echo "*** Phase $P: Fill in the \"in_tuebingen_available\" Field ***" >> "${log}"
 populate_in_tuebingen_available --verbose \
                                 TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
-                                TitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
+                                TitelUndLokaldaten-post-phase-"$P"-"${date}".xml >> "${log}" 2>&1
 populate_in_tuebingen_available --verbose \
                                 ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-3))"-"${date}".xml \
-                                ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
+                                ÜbergeordneteTitelUndLokaldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 
+((++P))
+echo "*** Phase $P: Fill in missing 773\$a Subfields ***"
+echo "*** Phase $P: Fill in missing 773\$a Subfields ***" >> "${log}"
+augment_773a --verbose TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
+                       ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
+                       TitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
+augment_773a --verbose ÜbergeordneteTitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
+                       TitelUndLokaldaten-post-phase"$((P-1))"-"${date}".xml \
+                       ÜbergeordneteTitelUndLokaldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
 
 echo "*** Cleanup of Intermediate Files ***"
 echo "*** Cleanup of Intermediate Files ***" >> "${log}"
