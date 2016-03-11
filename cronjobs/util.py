@@ -324,3 +324,13 @@ def RemoveLinkTargetAndLink(link_name, fail_on_dangling=False):
         if not fail_on_dangling or ctypes.get_errno() != errno.ENOENT:
             Error("in util.RemoveLinkTargetAndLink: can't delete link target of \"" + link_name + "\"!")
     os.unlink(link_name)
+
+
+def GetLogDirectory():
+    if os.access("/var/log/krimdok", os.F_OK):
+        return "/var/log/krimdok"
+    elif os.access("/var/log/ixtheo", os.F_OK):
+        return "/var/log/ixtheo"
+    else:
+        Warning("Can't find the log directory!  Logging to /tmp instead.")
+        return "/tmp"
