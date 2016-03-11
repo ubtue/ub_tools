@@ -295,22 +295,22 @@ void ExtractMarcFilesFromArchive(const std::string &archive_name, std::vector<st
 }
 
 
-// Returns the current date in the DDMMYY format.
+// Returns the current date in the YYMMDD format.
 std::string GetCurrentDate() {
     const time_t now(std::time(nullptr));
     const struct tm * const local_time(std::localtime(&now));
     char buffer[6 + 1];
-    if (unlikely(std::strftime(buffer, sizeof buffer, "%d%m%y", local_time) != 6))
+    if (unlikely(std::strftime(buffer, sizeof buffer, "%y%m%d", local_time) != 6))
 	LogSendEmailAndDie("in GetCurrentDate: strftime(3) failed! (This should never happen!)");
 
     return buffer;
 }
 
 
-std::string ReplaceString(const std::string &original, const std::string &replacement, const std::string &s) {
+std::string ReplaceStringOrDie(const std::string &original, const std::string &replacement, const std::string &s) {
     const size_t original_start(s.find(original));
     if (unlikely(original_start == std::string::npos))
-	LogSendEmailAndDie("in ReplaceString: can't replace \"" + original + "\" with \"" + replacement + " in \"" + s + "\"!");
+	LogSendEmailAndDie("in ReplaceStringOrDie: can't replace \"" + original + "\" with \"" + replacement + " in \"" + s + "\"!");
     return s.substr(0, original_start) + replacement + s.substr(original_start + original.length());
 }
 
@@ -523,46 +523,6 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
 }
 
 
-// Creates a gzipped tar archive from the 3 component MARC files that have been updated and
-// should exist in our working directory.
-std::string CreateNewCompleteArchive(const std::string &old_complete_dump_filename) {
-    const std::string old_date(ExtractDateFromFilenameOrDie(old_complete_dump_filename));
-    DeleteFileOrDie(old_complete_dump_filename);
-    const std::string new_complete_dump_filename(ReplaceString(old_date, GetCurrentDate(), old_complete_dump_filename));
-    Log("about to create new complete MARC archive \"" + new_complete_dump_filename + "\".");
-
-    // Determines the list of filenames that we would like to include in our new archive:
-    const std::string escaped_working_directory_name(ReplaceString(".", "\\.", GetWorkingDirectoryName()));
-    std::vector<std::string> marc_filenames;
-    GetSortedListOfRegularFiles(escaped_working_directory_name + "/.*\\.raw", &marc_filenames);
-
-    // Create a regex to extract the part of a filename that we want to store in our archive:
-    // We expect files that look like "merge_differential_and_full_marc_updates.working_directory/something.raw.3"
-    // and want to use the archive intername name "something.raw".
-    const std::string NAME_EXTRACTION_REGEX("/([^/]+\\.raw)\\.\\d+$");
-    std::string err_msg;
-    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(NAME_EXTRACTION_REGEX, &err_msg));
-    if (unlikely(matcher == nullptr))
-	LogSendEmailAndDie("in CreateNewCompleteArchive: failed to compile the regex \"" + NAME_EXTRACTION_REGEX + "\"! ("
-			   + err_msg + ")");
-
-    // Create the actual archive:
-    ArchiveWriter archive_writer(new_complete_dump_filename);
-    for (const auto &marc_filename : marc_filenames) {
-	if (unlikely(not matcher->matched(marc_filename)))
-	    LogSendEmailAndDie("in CreateNewCompleteArchive: \"" + marc_filename + "\" failed to match \"" + NAME_EXTRACTION_REGEX
-			       + "\"!");
-	const std::string archive_internal_name((*matcher)[1]);
-	Log("adding \"" + marc_filename + "\" as \"" + archive_internal_name + "\" to the new archive.");
-	archive_writer.add(marc_filename, archive_internal_name);
-    }
-
-    Log("created new archive!");
-
-    return new_complete_dump_filename;
-}
-
-
 inline std::string RemoveFileNameSuffix(const std::string &filename, const std::string &suffix) {
     return ReplaceSuffix(filename, suffix, "");
 }
@@ -616,7 +576,7 @@ std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_d
 
     // Create new complete MARC archive:
     const std::string current_date(GetCurrentDate());
-    const std::string new_complete_dump_filename(StringUtil::ReplaceString(old_date, current_date, complete_dump_filename));
+    const std::string new_complete_dump_filename(ReplaceStringOrDie(old_date, current_date, complete_dump_filename));
     Log("creating new MARC archive \"" + new_complete_dump_filename + "\".");
     const std::string filename_suffix("\\." + std::to_string(apply_count));
     std::vector<std::string> updated_marc_files;
@@ -636,10 +596,6 @@ void RemoveDirectoryOrDie(const std::string &directory_name) {\
     Log("about to remove subdirectory \"" + directory_name + "\" and any contained files.");
     if (unlikely(not FileUtil::RemoveDirectory(directory_name)))
 	LogSendEmailAndDie("failed to recursively remove \"" + directory_name + "\"! (" + std::string(::strerror(errno)) + ")");
-}
-
-
-void RemoveDifferentialUpdates() {
 }
 
 
