@@ -91,9 +91,9 @@ def RenameOrDie(old_name, new_name):
 
 # Iterates over norm, title and superior MARC-21 data sets and applies
 # differential updates as well as deletions.  Should this function finish
-# successfully, the three files "Normdaten-YYMMDD.mrc", "TitelUndLokaldaten-YYMMDD.mrc",
-# and "ÜbergeordneteTitelUndLokaldaten-YYMMDD.mrc" will be left in our data
-# directory.  Here YYMMDD is the current date.  Also changes into the parent directory.
+# successfully, the three files "Normdaten-YYMMDD.mrc", "GesamtTiteldaten-YYMMDD.mrc",
+# will be left in our data directory.  Here YYMMDD is the current date.  
+# Also changes into the parent directory. 
 # Returns a tuple of the updated file names in the order (titel_data, superior_data, norm_data).
 def UpdateAllMarcFiles(orig_deletion_list):
     # Create a deletion list that consists of the original list from the
@@ -154,8 +154,7 @@ def UpdateAllMarcFiles(orig_deletion_list):
         new_name = marc_file[:-4] + "-" + current_date_str + ".mrc"
         util.SafeSymlink(new_name, re.sub("\\d\\d\\d\\d\\d\\d", "current", new_name))
     util.Info("Symlinked files.")
-    return ("TitelUndLokaldaten-current.mrc", "ÜbergeordneteTitelUndLokaldaten-current.mrc",
-            "Normdaten-current.mrc")
+    return ("GesamtTiteldaten-current.mrc", "Normdaten-current.mrc")
 
 
 # Creates a new tarball named "new_tar_file_name" and linked from "link_name".
