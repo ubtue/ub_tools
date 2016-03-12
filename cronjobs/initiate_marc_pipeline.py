@@ -15,7 +15,7 @@ import util
 def ExecOrDie(cmd_name, args, log_file_name):
     if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
                              new_stderr=log_file_name) == 0:
-        util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logs in /tmp for the reason.", priority=1)
+        util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logfile \"" + log_file_name + "\" for the reason.", priority=1)
         sys.exit(-1)
 
 
@@ -28,7 +28,7 @@ def ImportIntoVuFind(pattern, log_file_name):
 
     
 def StartPipeline(pipeline_script_name, data_files, conf):
-    log_file_name = util.MakeLogFileName(pipeline_script_name, "/tmp")
+    log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
 
     ExecOrDie(pipeline_script_name, data_files, log_file_name)
 

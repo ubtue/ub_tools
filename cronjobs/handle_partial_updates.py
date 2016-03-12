@@ -123,7 +123,8 @@ def UpdateAllMarcFiles(orig_deletion_list):
             continue
         trimmed_marc_file = marc_file_name[:-4] + "-trimmed.mrc"
         if process_util.Exec(delete_ids_path, args=["augmented_deletion_list", marc_file_name, trimmed_marc_file],
-                             timeout=200, new_stdout="/tmp/trimmed_marc.log", new_stderr="/tmp/trimmed_marc.log") != 0:
+                             timeout=200, new_stdout=util.GetLogDirectory() + "/trimmed_marc.log",
+                             new_stderr=util.GetLogDirectory() + "/trimmed_marc.log") != 0:
             util.Error("failed to create \"" + trimmed_marc_file + " from \"augmented_deletion_list\" and "
                        "\"" + marc_file_name + "\"!")
         RemoveOrDie(marc_file_name)

@@ -60,7 +60,7 @@ mkdir --parents "/var/lib/tuelib/bibleRef"
 chown -R "$OWNER" "/var/lib/tuelib"
 
 mkdir --parents "/var/log/$SYSTEM_TYPE"
-chcon -t system_u:object_r:var_log_t:s0
+chown -R "$OWNER" "/var/log/$SYSTEM_TYPE"
 
 if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
 
@@ -76,10 +76,12 @@ if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
     semanage fcontext --add --type httpd_config_t "$VUFIND_HOME/local/httpd-vufind(.*).conf"
     semanage fcontext --add --type httpd_sys_rw_content_t "$VUFIND_HOME/logs/(.*).xml"
     semanage fcontext --add --type httpd_log_t "/var/log/vufind.log"
+    semanage fcontext --add --type var_log_t "/var/log/$SYSTEM_TYPE"
     
     restorecon -R "/var/lib/tuelib"
     restorecon -R "$VUFIND_HOME"
     restorecon -R "/var/log/vufind.log"
+    restorecon -R "/var/log/$SYSTEM_TYPE"
   fi
 
 else
