@@ -60,7 +60,7 @@ mkdir --parents "/var/lib/tuelib/bibleRef"
 chown -R "$OWNER" "/var/lib/tuelib"
 
 mkdir --parents "/var/log/$SYSTEM_TYPE"
-chcon system_u:object_r:var_log_t:s0 "/var/log/$SYSTEM_TYPE"
+chown -R "$OWNER" "/var/log/$SYSTEM_TYPE"
 
 if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
 
@@ -81,6 +81,7 @@ if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
     restorecon -R "/var/lib/tuelib"
     restorecon -R "$VUFIND_HOME"
     restorecon -R "/var/log/vufind.log"
+    restorecon -R "/var/log/$SYSTEM_TYPE"
   fi
 
 else
