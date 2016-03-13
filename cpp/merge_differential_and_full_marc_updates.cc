@@ -528,6 +528,15 @@ inline std::string RemoveFileNameSuffix(const std::string &filename, const std::
 }
 
 
+void CreateSymlink(const std::string &target_filename, const std::string &link_filename) {
+    if (FileUtil::Exists(link_filename))
+        if (unlikely(::unlink(link_filename.c_str()) == -1))
+            throw std::runtime_error("unlink(2) failed: " + std::string(::strerror(errno)));
+    if (::symlink(target_filename.c_str(), link_filename.c_str()) != 0)
+        LogSendEmailAndDie("failed to create symlink \"" + link_filename + "\" => \"" + target_filename + "\"! (" + std::string(::strerror(errno)) + ")");
+}
+
+
 // Creates a new full MARC archive from an old full archive as well as deletion lists and differential updates.
 std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_dump_filename,
 						   const std::vector<std::string> &deletion_list_filenames,
@@ -618,7 +627,8 @@ int main(int argc, char *argv[]) {
 
 	const std::string deletion_list_pattern(ini_file.getString("Files", "deletion_list"));
 	const std::string complete_dump_pattern(ini_file.getString("Files", "complete_dump"));
-	const std::string incremental_dump_pattern(ini_file.getString("Files", "incremental_dump"));
+        const std::string incremental_dump_pattern(ini_file.getString("Files", "incremental_dump"));
+        const std::string complete_dump_linkname(ini_file.getString("Files", "complete_dump_linkname"));
 
 	const std::string complete_dump_filename(PickCompleteDumpFilename(complete_dump_pattern));
 	const std::string complete_dump_filename_date(ExtractDateFromFilenameOrDie(complete_dump_filename));
@@ -646,6 +656,9 @@ int main(int argc, char *argv[]) {
 	RemoveDirectoryOrDie(GetWorkingDirectoryName());
 	DeleteFilesOrDie(deletion_list_pattern);
 	DeleteFilesOrDie(incremental_dump_pattern);
+
+        Log("creating symlink \"" + new_complete_dump_filename + "\" => \"" + complete_dump_linkname + "\".");
+        CreateSymlink(new_complete_dump_filename, complete_dump_linkname);
 
 	SendEmail(std::string(::progname) + " (" + GetHostname() + ")",
 		  "Succeeded in creating the new complete archive \"" + new_complete_dump_filename + "\".\n",
