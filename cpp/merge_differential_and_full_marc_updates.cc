@@ -142,7 +142,7 @@ unsigned GetSortedListOfRegularFiles(const std::string &filename_regex, std::vec
 
     struct dirent *entry;
     while ((entry = ::readdir(directory_stream)) != nullptr) {
-	if (entry->d_type == DT_REG and matcher->matched(entry->d_name))
+	if ((entry->d_type == DT_REG or entry->d_type == DT_UNKNOWN) and matcher->matched(entry->d_name))
 	    filenames->emplace_back(entry->d_name);
     }
     ::closedir(directory_stream);
@@ -529,10 +529,9 @@ inline std::string RemoveFileNameSuffix(const std::string &filename, const std::
 
 
 void CreateSymlink(const std::string &target_filename, const std::string &link_filename) {
-    if (FileUtil::Exists(link_filename))
-        if (unlikely(::unlink(link_filename.c_str()) == -1))
-            throw std::runtime_error("unlink(2) failed: " + std::string(::strerror(errno)));
-    if (::symlink(target_filename.c_str(), link_filename.c_str()) != 0)
+    if (unlikely(::unlink(link_filename.c_str()) == -1))
+        throw std::runtime_error("unlink(2) failed: " + std::string(::strerror(errno)));
+    if (unlikely(::symlink(target_filename.c_str(), link_filename.c_str()) != 0))
         LogSendEmailAndDie("failed to create symlink \"" + link_filename + "\" => \"" + target_filename + "\"! (" + std::string(::strerror(errno)) + ")");
 }
 
@@ -657,7 +656,6 @@ int main(int argc, char *argv[]) {
 	DeleteFilesOrDie(deletion_list_pattern);
 	DeleteFilesOrDie(incremental_dump_pattern);
 
-        Log("creating symlink \"" + new_complete_dump_filename + "\" => \"" + complete_dump_linkname + "\".");
         CreateSymlink(new_complete_dump_filename, complete_dump_linkname);
 
 	SendEmail(std::string(::progname) + " (" + GetHostname() + ")",
