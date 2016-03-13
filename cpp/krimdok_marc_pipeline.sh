@@ -73,7 +73,7 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 echo "*** Phase $P: Fill in the \"in_tuebingen_available\" Field ***" | tee --append "${log}"
 populate_in_tuebingen_available --verbose \
                                 GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-                                GesamtTiteldaten-post-phase-"$P"-"${date}".xml >> "${log}" 2>&1
+                                GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
