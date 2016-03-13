@@ -24,7 +24,6 @@
 #include "Compiler.h"
 #include "File.h"
 #include "StringUtil.h"
-#include <iostream>
 
 
 const std::string ArchiveReader::EntryInfo::getFilename() const {
