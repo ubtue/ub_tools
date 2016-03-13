@@ -219,7 +219,7 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
                             name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc")
     ExtractAndRenameMembers(tar_file, ".+b00\\d.raw$",
                             name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc")
-     ExtractAndRenameMembers(tar_file, ".+c00\\d.raw$", name_prefix + "Normdaten-" + current_date_str + ".mrc")
+    ExtractAndRenameMembers(tar_file, ".+c00\\d.raw$", name_prefix + "Normdaten-" + current_date_str + ".mrc")
 
     return [name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc",
             name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc",

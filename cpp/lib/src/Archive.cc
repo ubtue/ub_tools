@@ -24,6 +24,7 @@
 #include "Compiler.h"
 #include "File.h"
 #include "StringUtil.h"
+#include <iostream>
 
 
 const std::string ArchiveReader::EntryInfo::getFilename() const {
@@ -148,10 +149,11 @@ void ArchiveWriter::add(const std::string &filename, const std::string &archive_
 				 + std::string(::archive_error_string(archive_handle_)));
 
 
-    File input(filename, "rm");
+    File input(filename, "r");
     char buffer[DEFAULT_BLOCKSIZE];
-    while (const size_t count = input.read(buffer, sizeof buffer) > 0) {
-	if (count < sizeof buffer and input.anErrorOccurred())
+    size_t count;
+    while ((count = input.read(buffer, DEFAULT_BLOCKSIZE)) > 0) {
+	if (count < DEFAULT_BLOCKSIZE and input.anErrorOccurred())
 	    throw std::runtime_error("in ArchiveWriter::add: error reading \"" + filename + "\": "
 				     + std::string(::strerror(errno)));
 	if (unlikely(::archive_write_data(archive_handle_, buffer, count) != static_cast<const ssize_t>(count)))
