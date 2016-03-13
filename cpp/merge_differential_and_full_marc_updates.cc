@@ -340,7 +340,7 @@ void CopyFileOrDie(const std::string &from, const std::string &to) {
     if (unlikely(from_fd == -1))
 	LogSendEmailAndDie("in CopyFileOrDie: open(2) on \"" + from + "\" failed! (" + std::string(::strerror(errno)) + ")");
 
-    const int to_fd(::open(to.c_str(), O_WRONLY, stat_buf.st_mode));
+    const int to_fd(::open(to.c_str(), O_WRONLY | O_CREAT | O_TRUNC, stat_buf.st_mode));
     if (unlikely(to_fd == -1))
 	LogSendEmailAndDie("in CopyFileOrDie: open(2) on \"" + to + "\" failed! (" + std::string(::strerror(errno)) + ")");
 
@@ -355,7 +355,7 @@ void CopyFileOrDie(const std::string &from, const std::string &to) {
 
 // Appends "append_source" onto "append_target".
 void AppendFileOrDie(const std::string &append_target, const std::string &append_source) {
-    File append_target_file(append_target, "w");
+    File append_target_file(append_target, "a");
     if (unlikely(append_target_file.fail()))
 	LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_target + "\" for writing! ("
 			   + std::string(::strerror(errno)) + ")");
@@ -377,7 +377,7 @@ void DeleteFileOrDie(const std::string &filename) {
 }
 
 
-const std::string DELETE_IDS_COMMAND("delete_ids");
+const std::string DELETE_IDS_COMMAND("/usr/local/bin/delete_ids");
 
 
 void UpdateOneFile(const std::string &old_marc_filename, const std::string &new_marc_filename,
@@ -439,7 +439,7 @@ void DeleteFilesOrDie(const std::string &filename_regex) {
 
 // Name of the shell script that extracts control numbers from a MARC file and appends them
 // to a deletion list file.
-const std::string EXTRACT_AND_APPEND_SCRIPT("extract_IDs_in_erase_format.sh");
+const std::string EXTRACT_AND_APPEND_SCRIPT("/usr/local/bin/extract_IDs_in_erase_format.sh");
 
 
 void ExtractAndAppendIDs(const std::string &marc_filename, const std::string &deletion_list_filename) {
@@ -476,14 +476,14 @@ const std::string LOCAL_DELETION_LIST_FILENAME("deletions.list");
 
 
 void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_filename, const std::string &differential_archive) {
-    MoveOrCreateFileOrDie(deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
+    CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
 
     // Unpack the differential archive and extract control numbers from its members appending them to the
     // deletion list file:
     if (not differential_archive.empty()) {
 	Log("updating the deletion list based on control numbers found in the files contained in the differential MARC archive.");
 	std::vector<std::string> extracted_names;
-	ExtractMarcFilesFromArchive(differential_archive, &extracted_names, "diff_");
+	ExtractMarcFilesFromArchive("../" + differential_archive, &extracted_names, "diff_");
 	for (const auto &extracted_name : extracted_names)
 	    ExtractAndAppendIDs(extracted_name, LOCAL_DELETION_LIST_FILENAME);
     }
@@ -578,9 +578,9 @@ std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_d
     const std::string current_date(GetCurrentDate());
     const std::string new_complete_dump_filename(ReplaceStringOrDie(old_date, current_date, complete_dump_filename));
     Log("creating new MARC archive \"" + new_complete_dump_filename + "\".");
-    const std::string filename_suffix("\\." + std::to_string(apply_count));
+    const std::string filename_suffix("." + std::to_string(apply_count));
     std::vector<std::string> updated_marc_files;
-    FileUtil::GetFileNameList("[abc]00." + filename_suffix, &updated_marc_files);
+    FileUtil::GetFileNameList("[abc]00.\\.raw\\" + filename_suffix, &updated_marc_files);
     ArchiveWriter archive_writer("../" + new_complete_dump_filename);
     for (const auto &updated_marc_file : updated_marc_files) {
 	const std::string archive_member_name(RemoveFileNameSuffix(updated_marc_file, filename_suffix));
