@@ -183,7 +183,7 @@ int main(int argc, char *argv[]) {
         Usage();
 
     const std::string deletion_list_filename(argv[1]);
-    File deletion_list(deletion_list_filename, "rm");
+    File deletion_list(deletion_list_filename, "r");
     if (not deletion_list)
         Error("can't open \"" + deletion_list_filename + "\" for reading!");
 
@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
     ExtractDeletionIds(&deletion_list, &title_deletion_ids, &local_deletion_ids);
 
     const std::string marc_input_filename(argv[2]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
