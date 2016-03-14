@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
     const std::string regex_pattern(argv[2]);
 
     const std::string marc_input_filename(argv[3]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
