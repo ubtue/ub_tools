@@ -117,9 +117,13 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
 		    const std::vector<IxTheoMapper> &/*rvk_to_ixtheo_notation_mappers*/)
 {
     XmlWriter xml_writer(output);
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     unsigned count(0), records_with_ixtheo_notations(0), records_with_new_notations(0), skipped_group_count(0);
-    xml_writer.openTag("collection");
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -181,7 +185,7 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
 
 	record.write(&xml_writer);
     }
-    xml_writer.closeTag("collection");
+    xml_writer.closeTag();
 
     if (verbose) {
 	std::cerr << "Read " << count << " records.\n";

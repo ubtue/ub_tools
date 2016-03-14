@@ -43,6 +43,7 @@ class Record {
     mutable std::vector<DirectoryEntry> dir_entries_;
     mutable std::vector<std::string> fields_;
     mutable off_t xml_file_start_offset_;
+    mutable bool record_will_be_written_as_xml_;
 private:
     Record() = default;
     Record(Leader &leader, std::vector<DirectoryEntry> &dir_entries, std::vector<std::string> &fields,
@@ -53,9 +54,13 @@ public:
     Record(Record &&other) noexcept
         : leader_(std::move(other.leader_)), raw_record_(std::move(other.raw_record_)),
           raw_record_is_out_of_date_(other.raw_record_is_out_of_date_), dir_entries_(std::move(other.dir_entries_)),
-	fields_(std::move(other.fields_)) { }
+	fields_(std::move(other.fields_)), xml_file_start_offset_(other.xml_file_start_offset_),
+	record_will_be_written_as_xml_(other.record_will_be_written_as_xml_) { }
 
     operator bool () const { return not dir_entries_.empty(); }
+    bool recordWillBeWrittenAsXml() const { return record_will_be_written_as_xml_; }
+    void setRecordWillBeWrittenAsXml(const bool record_will_be_written_as_xml) 
+        { record_will_be_written_as_xml_ = record_will_be_written_as_xml; }
     const Leader &getLeader() const { return leader_; }
     Leader &getLeader() { return leader_; }
     const std::vector<DirectoryEntry> &getDirEntries() const { return dir_entries_; }
