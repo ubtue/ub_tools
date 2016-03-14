@@ -97,7 +97,7 @@ def SafeSymlink(source, link_name):
         os.lstat(source) # Throws an exception if "source" does not exist.
     except Exception as e:
         Error("in util.SafeSymlink: os.lstat(" + source + ") failed: " + str(e))
-        
+
     if os.path.islink(link_name):
         os.unlink(link_name)
     elif os.path.isfile(link_name):
@@ -215,14 +215,11 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
     tar_file = tarfile.open(gzipped_tar_archive, "r:gz")
     TarFileMemberNamesAreOkOrDie(tar_file, gzipped_tar_archive)
     current_date_str = datetime.datetime.now().strftime("%y%m%d")
-    ExtractAndRenameMembers(tar_file, ".+a00\\d.raw$",
-                            name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc")
-    ExtractAndRenameMembers(tar_file, ".+b00\\d.raw$",
-                            name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc")
+    ExtractAndRenameMembers(tar_file, ".+[ab]00\\d.raw$",
+                            name_prefix + "GesamtTiteldaten-" + current_date_str + ".mrc")
     ExtractAndRenameMembers(tar_file, ".+c00\\d.raw$", name_prefix + "Normdaten-" + current_date_str + ".mrc")
 
-    return [name_prefix + "TitelUndLokaldaten-" + current_date_str + ".mrc",
-            name_prefix + "ÜbergeordneteTitelUndLokaldaten-" + current_date_str + ".mrc",
+    return [name_prefix + "GesamtTiteldaten-" + current_date_str + ".mrc",
             name_prefix + "Normdaten-" + current_date_str + ".mrc"]
 
 
@@ -294,7 +291,7 @@ def CreateTarball(tar_file_name, list_of_members, overwrite=False, delete_input_
         mode = "w:bz"
     else:
         mode = "w"
-    
+
     new_tarfile = tarfile.open(name=tar_file_name, mode=mode)
     for file_and_member_names in list_of_members:
         new_tarfile.add(name=os.path.realpath(file_and_member_names[0]), arcname=file_and_member_names[1])

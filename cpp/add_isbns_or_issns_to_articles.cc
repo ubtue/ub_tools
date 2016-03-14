@@ -38,10 +38,10 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [-v|--verbose] master_marc_input additional_marc_input marc_output\n";
+    std::cerr << "Usage: " << progname << " [-v|--verbose] master_marc_input marc_output\n";
     std::cerr << "  Adds host/parent/journal ISBNs and ISSNs to article entries found in the\n";
     std::cerr << "  master_marc_input and writes this augmented file as marc_output.  The ISBNs and ISSNs are\n";
-    std::cerr << "  extracted from superior entries found in master_marc_input and additional_marc_input.\n";
+    std::cerr << "  extracted from superior entries found in master_marc_input.\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -207,22 +207,16 @@ std::unique_ptr<File> OpenInputFile(const std::string &filename) {
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if ((argc != 4 and argc != 5) or (argc == 5 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
+    if ((argc != 3 and argc != 4) or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
         Usage();
-    const bool verbose(argc == 5);
+    const bool verbose(argc == 4);
 
-    const std::string marc_input_filename(argv[argc == 4 ? 1 : 2]);
+    const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
     std::unique_ptr<File> marc_input(OpenInputFile(marc_input_filename));
 
-    const std::string marc_aux_input_filename(argv[argc == 4 ? 2 : 3]);
-    std::unique_ptr<File> marc_aux_input(OpenInputFile(marc_aux_input_filename));
-
-    const std::string marc_output_filename(argv[argc == 4 ? 3 : 4]);
+    const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Master input file name equals output file name!");
-    if (unlikely(marc_aux_input_filename == marc_output_filename))
-        Error("Auxiallary input file name equals output file name!");
-
     std::string output_mode("w");
     if (marc_input->isCompressingOrUncompressing())
 	output_mode += "c";
@@ -233,7 +227,6 @@ int main(int argc, char **argv) {
     try {
 	std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
 	PopulateParentIdToISBNAndISSNMap(verbose, marc_input.get(), &parent_id_to_isbn_and_issn_map);
-	PopulateParentIdToISBNAndISSNMap(verbose, marc_aux_input.get(), &parent_id_to_isbn_and_issn_map);
 	marc_input->close();
 	
 	std::unique_ptr<File> marc_input2(OpenInputFile(marc_input_filename));
