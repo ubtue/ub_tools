@@ -278,8 +278,12 @@ void AugmentRecordsWithTitleKeywords(
 
     XmlWriter xml_writer(output);
     unsigned total_count(0), augmented_record_count(0);
-    xml_writer.openTag("collection");
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++total_count;
 
 	// Look for a title...
@@ -377,7 +381,7 @@ void AugmentRecordsWithTitleKeywords(
 	record.write(&xml_writer);
         ++augmented_record_count;
     }
-    xml_writer.closeTag("collection");
+    xml_writer.closeTag();
 
     if (verbose)
         std::cerr << augmented_record_count << " records of " << total_count

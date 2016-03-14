@@ -657,8 +657,12 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
 
     XmlWriter xml_writer(output);
     unsigned total_count(0), augment_count(0);
-    xml_writer.openTag("collection");
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++total_count;
 
         // Make sure that we don't use a bible reference tag that is already in use for another
@@ -685,7 +689,7 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
 
 	record.write(&xml_writer);
     }
-    xml_writer.closeTag("collection");
+    xml_writer.closeTag();
 
     if (verbose)
         std::cerr << "Augmented the " << BIB_REF_RANGE_TAG << "$a field of " << augment_count

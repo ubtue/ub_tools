@@ -100,7 +100,10 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     if (not output)
         Error("can't open \"" + output_filename + "\" for writing!");
     XmlWriter xml_writer(&output);
-    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
 
     std::vector<CompiledPattern> compiled_patterns;
     std::string err_msg;
@@ -108,7 +111,8 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
         Error("Error while compiling patterns: " + err_msg);
 
     unsigned count(0), matched_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -228,7 +232,10 @@ void DeleteMatched(const std::string &tags_list, const std::vector<std::string> 
                    File * const input, File * const output)
 {
     XmlWriter xml_writer(output);
-    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
 
     std::vector<CompiledPattern> compiled_patterns;
     std::string err_msg;
@@ -248,6 +255,7 @@ void DeleteMatched(const std::string &tags_list, const std::vector<std::string> 
 
     unsigned count(0), modified_count(0);
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
         bool matched(false);
@@ -291,10 +299,11 @@ inline bool IsHttpOrHttpsURL(const std::string &url_candidate) {
 
 void NormaliseURLs(const bool verbose, File * const input, File * const output) {
     XmlWriter xml_writer(output);
-    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+    xml_writer.openTag("marc:collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
 
     unsigned count(0), modified_count(0), duplicate_skip_count(0);
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
