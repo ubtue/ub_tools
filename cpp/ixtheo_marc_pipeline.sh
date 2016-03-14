@@ -59,6 +59,14 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
 
 ((++P)); START=$(date +%s.%N)
+echo "*** Phase $P: Add Author Synonyms from Norm Data ***" | tee --append "${log}"
+add_author_synonyms GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml Normdaten-"${date}".xml \
+                    GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
+PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
+echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+
+
+((++P)); START=$(date +%s.%N)
 echo "*** Phase $P: Adding of ISBN'S and ISSN's to Component Parts - $(date) ***" | tee --append "${log}"
 add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
                                GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
