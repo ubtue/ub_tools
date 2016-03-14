@@ -238,7 +238,7 @@ if [[ "$VERBOSE" ]] ; then
   echo ""
   echo "set_privileges.sh $VUFIND_CLONE_DIRECTORY $USER_NAME $USER_GROUP"
 fi
-"$SCRIPT_DIR/set_privileges.sh" "$VUFIND_CLONE_DIRECTORY" "$USER_NAME" "$USER_GROUP"
+"$SCRIPT_DIR/set_privileges.sh" "$VUFIND_CLONE_DIRECTORY" "$USER_NAME" "$USER_GROUP" "$SYSTEM_TYPE"
 
 ##############################################################################
 # Linking
@@ -258,7 +258,7 @@ if [[ "$VERBOSE" ]] ; then
   echo ""
   echo "link_configs.sh $CONFIGS_DIRECTORY"
 fi
-"$SCRIPT_DIR/link_configs.sh" "$CONFIGS_DIRECTORY"
+"$SCRIPT_DIR/link_configs.sh" "$CONFIGS_DIRECTORY" "$SYSTEM_TYPE"
 
 ##############################################################################
 

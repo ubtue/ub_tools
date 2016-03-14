@@ -386,12 +386,17 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
     std::unique_ptr<XmlWriter> xml_writer;
     if (output_format == MARC_XML) {
 	xml_writer.reset(new XmlWriter(&output));
-	xml_writer->openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+        xml_writer->openTag("marc:collection",
+                           { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                             std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                             std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     }
 
-    while (const MarcUtil::Record record =
-	       input_is_xml ? MarcUtil::Record::XmlFactory(&input) : MarcUtil::Record::BinaryFactory(&input))
+    while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(&input) : MarcUtil::Record::BinaryFactory(&input))
     {
+	if (output_format == MARC_XML)
+	    record.setRecordWillBeWrittenAsXml(true);
+
         ++count, ++rate_counter;
 	if (count > max_records)
 	    break;

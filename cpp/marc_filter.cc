@@ -1,7 +1,7 @@
 /** \brief A MARC-21 filter uliity that can remove records based on ISILs and replace URNs in 856u-fields with URLs.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as

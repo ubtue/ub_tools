@@ -46,9 +46,15 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File *
     if (matcher == nullptr)
 	Error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
+    XmlWriter xml_writer(output);
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     unsigned count(0), kept_or_deleted_count(0);
 
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -62,9 +68,10 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File *
 
 	if ((keep and matched) or (not keep and not matched)) {
 	    ++kept_or_deleted_count;
-	    record.write(output);
+	    record.write(&xml_writer);
 	}
     }
+    xml_writer.closeTag();
     
     if (not err_msg.empty())
         Error(err_msg);
@@ -85,7 +92,7 @@ int main(int argc, char **argv) {
     const std::string regex_pattern(argv[2]);
 
     const std::string marc_input_filename(argv[3]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 

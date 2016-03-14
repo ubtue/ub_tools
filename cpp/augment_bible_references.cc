@@ -657,8 +657,12 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
 
     XmlWriter xml_writer(output);
     unsigned total_count(0), augment_count(0);
-    xml_writer.openTag("collection");
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++total_count;
 
         // Make sure that we don't use a bible reference tag that is already in use for another
@@ -685,7 +689,7 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
 
 	record.write(&xml_writer);
     }
-    xml_writer.closeTag("collection");
+    xml_writer.closeTag();
 
     if (verbose)
         std::cerr << "Augmented the " << BIB_REF_RANGE_TAG << "$a field of " << augment_count
@@ -704,12 +708,12 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
-    File title_input(title_input_filename, "rm");
+    File title_input(title_input_filename, "r");
     if (not title_input)
         Error("can't open \"" + title_input_filename + "\" for reading!");
 
     const std::string norm_input_filename(argv[verbose ? 3 : 2]);
-    File norm_input(norm_input_filename, "rm");
+    File norm_input(norm_input_filename, "r");
     if (not norm_input)
         Error("can't open \"" + norm_input_filename + "\" for reading!");
 
@@ -725,7 +729,7 @@ int main(int argc, char **argv) {
         Error("Norm data input file name equals title output file name!");
 
     const std::string bible_order_map_filename(argv[verbose ? 5 : 4]);
-    File bible_order_map_file(bible_order_map_filename, "rm");
+    File bible_order_map_file(bible_order_map_filename, "r");
     if (not bible_order_map_file)
         Error("can't open \"" + bible_order_map_filename + "\" for reading!");
 

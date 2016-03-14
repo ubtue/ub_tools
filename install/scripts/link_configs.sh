@@ -17,14 +17,15 @@ show_help() {
     cat << EOF
 Links some configs.
 
-USAGE: ${0##*/} CONFIGS_DIRECTORY
+USAGE: ${0##*/} CONFIGS_DIRECTORY SYSTEM_TYPE
 
 CONFIGS_DIRECTORY    The directory, which holds the configs.
+SYSTEM_TYPE          Should be either krimdok or ixtheo
 
 EOF
 }
 
-if [ "$#" -ne 1 ]; then
+if [ "$#" -ne 2 ]; then
   echo "ERROR: Illegal number of parameters!"
   echo "Parameters: $*"
   show_help
@@ -32,6 +33,9 @@ if [ "$#" -ne 1 ]; then
 fi
 
 CONFIGS_DIRECTORY=$1
+SYSTEM_TYPE=$2
 ln --symbolic --force --no-target-directory "$CONFIGS_DIRECTORY/cronjobs" "/var/lib/tuelib/cronjobs"
-ln --symbolic --force --no-target-directory "$CONFIGS_DIRECTORY/translations.conf" "/var/lib/tuelib/translations.conf"
+if [ $SYSTEM_TYPE == "ixtheo" ]; then
+  ln --symbolic --force --no-target-directory "$CONFIGS_DIRECTORY/translations.conf" "/var/lib/tuelib/translations.conf"
+fi
 ln --symbolic --force --no-target-directory "$CONFIGS_DIRECTORY/logrotate.conf" "/var/lib/tuelib/logrotate.conf"

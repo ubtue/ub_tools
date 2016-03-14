@@ -103,7 +103,10 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
 
 void PopulateTheInTuebingenAvailableField(const bool verbose, File * const input, File * const output) {
     XmlWriter xml_writer(output);
-    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
 
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(input, ProcessRecord, &xml_writer , &err_msg))
@@ -134,7 +137,7 @@ int main(int argc, char **argv) {
     }
 
     const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 

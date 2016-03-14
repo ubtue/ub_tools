@@ -238,7 +238,8 @@ void Record::updateField(const size_t field_index, const std::string &new_field_
         throw std::runtime_error("in MarcUtil::Record::updateField: \"field_index\" (" + std::to_string(field_index)
                                  + ") out of range!  (size: " + std::to_string(dir_entries_.size()) + ")");
     const size_t delta(new_field_contents.length() - fields_[field_index].length());
-    leader_.setRecordLength(leader_.getRecordLength() + delta);
+    if (not record_will_be_written_as_xml_)
+	leader_.setRecordLength(leader_.getRecordLength() + delta);
     dir_entries_[field_index].setFieldLength(new_field_contents.length() + 1 /* field terminator */);
     fields_[field_index] = new_field_contents;
 
@@ -254,9 +255,10 @@ bool Record::insertField(const std::string &new_field_tag, const std::string &ne
     if (new_field_tag.length() != 3)
 	throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of 3!");
 
-    if (not leader_.setRecordLength(leader_.getRecordLength() + new_field_value.length()
-                                    + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1 /* For new field separator. */))
-       return false;
+    if (not record_will_be_written_as_xml_
+	and not leader_.setRecordLength(leader_.getRecordLength() + new_field_value.length()
+					+ DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1 /* For new field separator. */))
+	return false;
     leader_.setBaseAddressOfData(leader_.getBaseAddressOfData() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
 
     // Find the insertion location:
@@ -512,15 +514,18 @@ void Record::write(File * const output) const {
 
 void Record::write(XmlWriter * const xml_writer) const {
     xml_writer->openTag("record");
+
+    leader_.setRecordLength(0);
+    leader_.setBaseAddressOfData(0);
     xml_writer->writeTagsWithData("leader", leader_.toString(), /* suppress_newline = */ true);
 
     for (unsigned entry_no(0); entry_no < dir_entries_.size(); ++entry_no) {
 	const DirectoryEntry &dir_entry(dir_entries_[entry_no]);
 	if (dir_entry.isControlFieldEntry())
-	    xml_writer->writeTagsWithData("controlfield", { std::make_pair("tag", dir_entry.getTag()) }, fields_[entry_no],
+	    xml_writer->writeTagsWithData("marc:controlfield", { std::make_pair("tag", dir_entry.getTag()) }, fields_[entry_no],
 					  /* suppress_newline = */ true);
 	else { // We have a data field.
-	    xml_writer->openTag("datafield",
+	    xml_writer->openTag("marc:datafield",
 				{ std::make_pair("tag", dir_entry.getTag()),
 				  std::make_pair("ind1", std::string(1, fields_[entry_no][0])),
 				  std::make_pair("ind2", std::string(1, fields_[entry_no][1]))
@@ -615,7 +620,7 @@ static void ParseControlfield(const std::string &input_filename, SimpleXmlParser
     fields->emplace_back(data);
 
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data) or type != SimpleXmlParser::CLOSING_TAG
-		 or data != "controlfield"))
+		 or data != "marc:controlfield"))
 	throw std::runtime_error("in MarcUtil::ParseControlfield: </controlfield> expected on line "
 				 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"!");
 }
@@ -648,7 +653,7 @@ static void ParseDatafield(const std::string &input_filename, const std::map<std
 				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\": "
 				     + xml_parser->getLastErrorMessage());
 
-	if (type == SimpleXmlParser::CLOSING_TAG and data == "datafield") {
+	if (type == SimpleXmlParser::CLOSING_TAG and data == "marc:datafield") {
 	    fields->emplace_back(field_data);
 	    return;
 	}
@@ -735,7 +740,7 @@ Record Record::XmlFactory(File * const input) {
     while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
 	/* Intentionally empty! */;
 
-    if (unlikely(type == SimpleXmlParser::CLOSING_TAG and data == "collection")) {
+    if (unlikely(type == SimpleXmlParser::CLOSING_TAG and data == "marc:collection")) {
 	file_to_parser_map.erase(input); // This is necessary as we sometimes read "File" a 2nd time, after a rewind().
 	delete xml_parser;
 	return Record(leader, dir_entries, fields, record_start_offset);
@@ -773,7 +778,7 @@ Record Record::XmlFactory(File * const input) {
 	    return Record(leader, dir_entries, fields, record_start_offset);
 	}
 
-	if (type != SimpleXmlParser::OPENING_TAG or (data != "datafield" and data != "controlfield"))
+	if (type != SimpleXmlParser::OPENING_TAG or (data != "marc:datafield" and data != "marc:controlfield"))
 	    throw std::runtime_error("in MarcUtil::Record::XmlFactory: expected either <controlfield> or <datafield> on line "
 				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input->getPath() + "\"!");
 
@@ -783,7 +788,7 @@ Record Record::XmlFactory(File * const input) {
 				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input->getPath() + "\"!");
 	dir_entries.emplace_back(attrib_map["tag"], 0, 0); // Create a Directory entry w/o a valid field length nor offset.
 
-	if (data == "controlfield") {
+	if (data == "marc:controlfield") {
 	    if (unlikely(datafield_seen))
 		throw std::runtime_error("in MarcUtil::Record::XmlFactory: <controlfield> found after <datafield> on line "
 					 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input->getPath() + "\"!");
@@ -798,6 +803,7 @@ Record Record::XmlFactory(File * const input) {
 
 Record Record::BinaryFactory(File * const input) {
     Record record;
+    record.xml_file_start_offset_ = -1; // Not reading from an XML file.
 
     if (input->eof())
 	return record; // Create an empty instance!

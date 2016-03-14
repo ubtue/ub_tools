@@ -29,15 +29,15 @@ def ImportIntoVuFind(pattern, log_file_name):
     
 def StartPipeline(pipeline_script_name, data_files, conf):
     log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
-
     ExecOrDie(pipeline_script_name, data_files, log_file_name)
 
     deletion_list_glob = "LOEPPN-[0-9][0-9][0-9][0-9][0-9][0-9]"
     most_recent_deletion_list = util.getMostRecentFileMatchingGlob(deletion_list_glob)
     if not most_recent_deletion_list:
         util.SendEmail("MARC-21 Pipeline", "Did not find any files matching \"" + deletion_list_glob + "\".", priority=5)
-    delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
-    ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
+    else:
+        delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
+        ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
 
     ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), log_file_name)
 
@@ -87,5 +87,6 @@ def Main():
 try:
     Main()
 except Exception as e:
-    util.SendEmail("MARC-21 Pipeline Kick-Off", "An unexpected error occurred: " + str(e)
-                   + "\n\n" + traceback.format_exc(20), priority=1)
+    error_msg =  "An unexpected error occurred: " + str(e) + "\n\n" + traceback.format_exc(20)
+    util.SendEmail("MARC-21 Pipeline Kick-Off", error_msg, priority=1)
+    sys.stderr.write(error_msg)

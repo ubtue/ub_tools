@@ -127,7 +127,10 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
                     const unsigned process_count_high_watermark)
 {
     XmlWriter xml_writer(output);
-    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
 
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
@@ -138,7 +141,8 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     std::cout << "Skip " << skip_count << " records\n";
 
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;

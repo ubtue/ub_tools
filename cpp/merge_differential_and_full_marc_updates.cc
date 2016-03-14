@@ -359,7 +359,7 @@ void AppendFileOrDie(const std::string &append_target, const std::string &append
     if (unlikely(append_target_file.fail()))
 	LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_target + "\" for writing! ("
 			   + std::string(::strerror(errno)) + ")");
-    File append_source_file(append_source, "rm");
+    File append_source_file(append_source, "r");
     if (unlikely(append_source_file.fail()))
 	LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_source + "\" for reading! ("
 			   + std::string(::strerror(errno)) + ")");
@@ -643,17 +643,18 @@ int main(int argc, char *argv[]) {
 	    Log("identified " + std::to_string(incremental_dump_filenames.size())
 		+ " incremental dump filenames for application.");
 
-	if (deletion_list_filenames.empty() and incremental_dump_filenames.empty())
-	    SendEmail(std::string(::progname),
-		      "No recent deletion lists nor incremental dump filenames.\nTherefore we have nothing to do!\n",
-		      EmailSender::VERY_LOW);
+	if (deletion_list_filenames.empty() and incremental_dump_filenames.empty()) {
+            SendEmail(std::string(::progname),
+                      "No recent deletion lists nor incremental dump filenames.\nTherefore we have nothing to do!\n",
+                      EmailSender::VERY_LOW);
+            return 0;
+        }
 
 	CreateAndChangeIntoTheWorkingDirectory();
 	const std::string new_complete_dump_filename(
             ExtractAndCombineMarcFilesFromArchives(complete_dump_filename, deletion_list_filenames, incremental_dump_filenames));
 	ChangeDirectoryOrDie(".."); // Leave the working directory again.
 	RemoveDirectoryOrDie(GetWorkingDirectoryName());
-	DeleteFilesOrDie(deletion_list_pattern);
 	DeleteFilesOrDie(incremental_dump_pattern);
 
         CreateSymlink(new_complete_dump_filename, complete_dump_linkname);

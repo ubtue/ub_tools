@@ -111,8 +111,12 @@ void ProcessRecords(File * const input, File * const output,
 {
     XmlWriter xml_writer(output);
     unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0);
-    xml_writer.openTag("collection");
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -142,7 +146,7 @@ void ProcessRecords(File * const input, File * const output,
 	    record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list);
 	record.write(&xml_writer);
     }
-    xml_writer.closeTag("collection");
+    xml_writer.closeTag();
 
     std::cerr << "Read " << count << " records.\n";
     std::cerr << records_with_ixtheo_notations << " records had ixTheo notations.\n";
@@ -157,7 +161,7 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
@@ -167,7 +171,7 @@ int main(int argc, char **argv) {
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     const std::string code_to_description_map_filename(argv[3]);
-    File code_to_description_map_file(code_to_description_map_filename, "rm");
+    File code_to_description_map_file(code_to_description_map_filename, "r");
     if (not code_to_description_map_file)
         Error("can't open \"" + code_to_description_map_filename + "\" for reading!");
 
