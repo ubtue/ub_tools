@@ -87,7 +87,6 @@ def Main():
 try:
     Main()
 except Exception as e:
-    error_msg =  "An unexpected error occurred: " + str(e)
-                   + "\n\n" + traceback.format_exc(20)
+    error_msg =  "An unexpected error occurred: " + str(e) + "\n\n" + traceback.format_exc(20)
     util.SendEmail("MARC-21 Pipeline Kick-Off", error_msg, priority=1)
     system.stderr.write(error_msg)
