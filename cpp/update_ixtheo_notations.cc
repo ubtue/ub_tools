@@ -111,8 +111,12 @@ void ProcessRecords(File * const input, File * const output,
 {
     XmlWriter xml_writer(output);
     unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0);
-    xml_writer.openTag("collection");
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -142,7 +146,7 @@ void ProcessRecords(File * const input, File * const output,
 	    record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list);
 	record.write(&xml_writer);
     }
-    xml_writer.closeTag("collection");
+    xml_writer.closeTag();
 
     std::cerr << "Read " << count << " records.\n";
     std::cerr << records_with_ixtheo_notations << " records had ixTheo notations.\n";

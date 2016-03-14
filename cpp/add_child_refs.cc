@@ -52,6 +52,8 @@ void Usage() {
 
 
 void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record) {
+    record->setRecordWillBeWrittenAsXml(true);
+
     const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
     if (dir_entries.at(0).getTag() != "001")
         Error("First field of record is not \"001\"!");
@@ -86,7 +88,10 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
 
 void AddChildRefs(File * const input, File * const output) {
     XmlWriter xml_writer(output);
-    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
 
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input))
 	ProcessRecord(&xml_writer, &record);

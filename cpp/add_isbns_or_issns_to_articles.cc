@@ -118,8 +118,12 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
     XmlWriter xml_writer(output);
     unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0),
              missing_isbn_or_issn_count(0);
-    xml_writer.openTag("collection");
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
 	const Leader &leader(record.getLeader());
@@ -177,7 +181,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
 
 	record.write(&xml_writer);
     }
-    xml_writer.closeTag("collection");
+    xml_writer.closeTag();
 
     if (verbose) {
         std::cerr << "Read " << count << " records.\n";

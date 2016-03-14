@@ -99,8 +99,12 @@ void AugmentStopwordsWithTitleWords(
 
     XmlWriter xml_writer(output);
     unsigned total_count(0), augment_count(0), title_count(0);
-    xml_writer.openTag("collection");
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
+    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++total_count;
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -148,7 +152,7 @@ void AugmentStopwordsWithTitleWords(
 
         ++augment_count;
     }
-    xml_writer.closeTag("collection");
+    xml_writer.closeTag();
 
     if (verbose) {
         std::cerr << title_count << " records had titles in 245a.\n";
