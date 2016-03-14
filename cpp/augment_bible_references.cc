@@ -708,12 +708,12 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
-    File title_input(title_input_filename, "rm");
+    File title_input(title_input_filename, "r");
     if (not title_input)
         Error("can't open \"" + title_input_filename + "\" for reading!");
 
     const std::string norm_input_filename(argv[verbose ? 3 : 2]);
-    File norm_input(norm_input_filename, "rm");
+    File norm_input(norm_input_filename, "r");
     if (not norm_input)
         Error("can't open \"" + norm_input_filename + "\" for reading!");
 
@@ -729,7 +729,7 @@ int main(int argc, char **argv) {
         Error("Norm data input file name equals title output file name!");
 
     const std::string bible_order_map_filename(argv[verbose ? 5 : 4]);
-    File bible_order_map_file(bible_order_map_filename, "rm");
+    File bible_order_map_file(bible_order_map_filename, "r");
     if (not bible_order_map_file)
         Error("can't open \"" + bible_order_map_filename + "\" for reading!");
 

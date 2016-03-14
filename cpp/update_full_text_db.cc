@@ -300,7 +300,7 @@ int main(int argc, char *argv[]) {
 	Error("file offset must be a number!");
     
     const std::string marc_input_filename(argv[2]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
