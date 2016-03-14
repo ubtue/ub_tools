@@ -44,7 +44,7 @@ void Usage() {
 
 
 void ReadIniFile(const std::string &ini_filename, std::unordered_map<std::string, std::string> * const english_to_other_map) {
-    File input(ini_filename, "rm");
+    File input(ini_filename, "r");
     if (not input)
 	throw std::runtime_error("can't open \"" + ini_filename + "\" for reading!");
 

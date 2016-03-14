@@ -86,7 +86,8 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
             continue;
 
         const std::vector<std::string> &fields(record.getFields());
-        const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index], tags_and_subfield_codes[0].substr(3)));
+        const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index],
+								tags_and_subfield_codes[0].substr(3)));
         if (unlikely(primary_name.empty()))
             continue;
 
@@ -128,6 +129,7 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
 void ProcessRecord(MarcUtil::Record * const record, const std::map<std::string, std::string> &author_to_synonyms_map,
                    const std::string &primary_author_field)
 {
+    record->setRecordWillBeWrittenAsXml(true);
     const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
     if (dir_entries.at(0).getTag() != "001")
         Error("First field of record is not \"001\"!");
@@ -157,11 +159,15 @@ void ProcessRecord(MarcUtil::Record * const record, const std::map<std::string, 
 }
 
 
-void AddAuthorSynonyms(File * const marc_input, File * marc_output, const std::map<std::string, std::string> &author_to_synonyms_map,
+void AddAuthorSynonyms(File * const marc_input, File * marc_output,
+		       const std::map<std::string, std::string> &author_to_synonyms_map,
                        const std::string &primary_author_field)
 {
     XmlWriter xml_writer(marc_output);
-    xml_writer.openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim") });
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
 
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_input)) {
         ProcessRecord(&record, author_to_synonyms_map, primary_author_field);

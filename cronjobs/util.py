@@ -253,8 +253,9 @@ def MakeLogFileName(reference_file_name, log_directory):
     if last_dot_pos == -1:
         log_file_name = log_directory + os.path.basename(reference_file_name) + ".log"
     else:
-        log_file_name = log_directory + os.path.basename(reference_file_name[:last_dot_pos]) + "log"
+        log_file_name = log_directory + os.path.basename(reference_file_name[:last_dot_pos]) + ".log"
 
+    return log_file_name
 
 # @return the most recent file matching "file_name_glob" or None if there were no matching files.
 def getMostRecentFileMatchingGlob(file_name_glob):

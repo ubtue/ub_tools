@@ -204,11 +204,12 @@ bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std:
 }
 
 
-// Returns true if text has been successfully extrcated, else false.
+// Returns true if text has been successfully extracted, else false.
 bool ProcessRecord(File * const input, const std::string &marc_output_filename,
 		   const std::string &pdf_images_script, const std::string &db_filename)
 {
-    MarcUtil::Record record = MarcUtil::Record::XmlFactory(input);
+    MarcUtil::Record record(MarcUtil::Record::XmlFactory(input));
+    record.setRecordWillBeWrittenAsXml(true);
 
     ssize_t _856_index(record.getFieldIndex("856"));
     if (_856_index == -1)
@@ -299,7 +300,7 @@ int main(int argc, char *argv[]) {
 	Error("file offset must be a number!");
     
     const std::string marc_input_filename(argv[2]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 

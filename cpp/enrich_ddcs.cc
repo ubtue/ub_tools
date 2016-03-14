@@ -134,8 +134,14 @@ void AugmentRecordsWithDDCs(const bool verbose, File * const title_input, File *
     if (verbose)
         std::cerr << "Starting augmenting of data.\n";
 
+    XmlWriter xml_writer(title_output);
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     unsigned count(0), augmented_count(0), already_had_ddcs(0), never_had_ddcs_and_now_have_ddcs(0);
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(title_input)) {
+	record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
 	// Extract already existing DDCs:
@@ -150,7 +156,7 @@ void AugmentRecordsWithDDCs(const bool verbose, File * const title_input, File *
 	std::set<std::string> topic_ids; // = the IDs of the corresponding norm data records
 	ExtractTopicIDs("600:610:611:630:650:653:656:689", record, existing_ddcs, &topic_ids);
 	if (topic_ids.empty()) {
-	    record.write(title_output);
+	    record.write(&xml_writer);
 	    continue;
 	}
 
@@ -171,8 +177,9 @@ void AugmentRecordsWithDDCs(const bool verbose, File * const title_input, File *
 	    }
 	}
 
-	record.write(title_output);
+	record.write(&xml_writer);
     }
+    xml_writer.closeTag();
 
     if (verbose) {
         std::cerr << "Read " << count << " title data records.\n";

@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     }
 
     const std::string input_filename(argv[silent ? 2 : 1]);
-    File input(input_filename, "rm");
+    File input(input_filename, "r");
     if (not input)
 	Error("can't open \"" + input_filename + "\" for reading!");
 

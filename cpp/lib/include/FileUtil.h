@@ -101,7 +101,8 @@ inline std::string MakeAbsolutePath(const char * const relative_path)
 
 
 /** \brief Create an empty file or clear an existing file.
- *  \return True upon success, false otherwise.
+ *  \returnTrue upon success, false otherwise.
+ *  \note Sets errno upon failure.
  *  \note If the file does not exist it will be created w/ mode (600 & ~umask).
  */
 bool MakeEmpty(const std::string &path);
