@@ -1,5 +1,6 @@
 /** \file   MarcUtil.cc
- *  \brief  Implementation of various utility functions related to the processing of MARC-21 and MARC-XML records.
+ *  \brief  Implementation of various utility functions related to the processing of MARC-21 and MARC-XML rec%%%%"record"%%%%%%%
+%%ords.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2014-2016 Universitätsbiblothek Tübingen.  All rights reserved.
@@ -299,8 +300,11 @@ void Record::deleteField(const size_t field_index) {
                                  + ") out of range! (size: " + std::to_string(dir_entries_.size()) + ")" );
 
     const size_t deleted_field_size(fields_[field_index].length() + 1 /* field terminator */);
-    leader_.setRecordLength(leader_.getRecordLength() - deleted_field_size - DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
-    leader_.setBaseAddressOfData(leader_.getBaseAddressOfData() - DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
+
+    if (not record_will_be_written_as_xml_) {
+        leader_.setRecordLength(leader_.getRecordLength() - deleted_field_size - DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
+        leader_.setBaseAddressOfData(leader_.getBaseAddressOfData() - DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
+    }
 
     dir_entries_.erase(dir_entries_.begin() + field_index);
     fields_.erase(fields_.begin() + field_index);
@@ -513,11 +517,11 @@ void Record::write(File * const output) const {
 
 
 void Record::write(XmlWriter * const xml_writer) const {
-    xml_writer->openTag("record");
+    xml_writer->openTag("marc:record");
 
     leader_.setRecordLength(0);
     leader_.setBaseAddressOfData(0);
-    xml_writer->writeTagsWithData("leader", leader_.toString(), /* suppress_newline = */ true);
+    xml_writer->writeTagsWithData("marc:leader", leader_.toString(), /* suppress_newline = */ true);
 
     for (unsigned entry_no(0); entry_no < dir_entries_.size(); ++entry_no) {
 	const DirectoryEntry &dir_entry(dir_entries_[entry_no]);
@@ -554,11 +558,11 @@ void Record::write(XmlWriter * const xml_writer) const {
 					      /* suppress_newline = */ true);
 	    }
 
-	    xml_writer->closeTag(); // Close "datafield".
+	    xml_writer->closeTag(); // Close "marc:datafield".
 	}
     }
 
-    xml_writer->closeTag(); // Close "record".
+    xml_writer->closeTag(); // Close "marc:record".
 }
 
 
@@ -575,7 +579,7 @@ static void ParseLeader(const std::string &input_filename, Leader * const leader
 
     while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
 	/* Intentionally empty! */;
-    if (unlikely(type != SimpleXmlParser::OPENING_TAG or data !="leader"))
+    if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:leader"))
 	throw std::runtime_error("in MarcUtil::ParseLeader: opening <leader> tag expected while parsing \"" + input_filename
 				 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ".");
 
@@ -599,7 +603,7 @@ static void ParseLeader(const std::string &input_filename, Leader * const leader
 	throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing \"" + input_filename + "\": "
 				 + xml_parser->getLastErrorMessage() + " on line "
 				 + std::to_string(xml_parser->getLineNo()) + ".");
-    if (unlikely(type != SimpleXmlParser::CLOSING_TAG or data !="leader")) {
+    if (unlikely(type != SimpleXmlParser::CLOSING_TAG or data != "marc:leader")) {
 	const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
 	throw std::runtime_error("in MarcUtil::ParseLeader: closing </leader> tag expected while parsing \"" + input_filename
 				 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ". (Found: "
@@ -703,12 +707,12 @@ static void SkipOverStartOfDocument(SimpleXmlParser * const xml_parser) {
 	throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: error while parsing start of \""
 				 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage() + " on line "
 				 + std::to_string(xml_parser->getLineNo()) + "!");
-    if (unlikely(type != SimpleXmlParser::OPENING_TAG or data !="collection")) {
+    if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:collection")) {
 	const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-	throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: opening <collection> tag expected while parsing \""
+	throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: opening <marc:collection> tag expected while parsing \""
 				 + xml_parser->getInputFile()->getPath() + "\" on line "
 				 + std::to_string(xml_parser->getLineNo()) + "! (Found: " + SimpleXmlParser::TypeToString(type)
-				 + (tag_found ? (":" + data) : ""));
+				 + (tag_found ? (":" + data) : "") + ")");
     }
 }
 
@@ -750,7 +754,7 @@ Record Record::XmlFactory(File * const input) {
     // Now parse a <record>:
     //
 
-    if (unlikely(type != SimpleXmlParser::OPENING_TAG or data !="record")) {
+    if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:record")) {
 	const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
 	if (type == SimpleXmlParser::ERROR)
 	    throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <record> tag expected while parsing \""
@@ -772,7 +776,7 @@ Record Record::XmlFactory(File * const input) {
 				     + std::to_string(xml_parser->getLineNo()) + "!");
 
 	if (type == SimpleXmlParser::CLOSING_TAG) {
-	    if (unlikely(data != "record"))
+	    if (unlikely(data != "marc:record"))
 		throw std::runtime_error("in MarcUtil::Record::XmlFactory: closing </record> tag expected while parsing \""
 					 + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "!");
 	    return Record(leader, dir_entries, fields, record_start_offset);
