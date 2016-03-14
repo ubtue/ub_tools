@@ -139,7 +139,10 @@ bool PatchUpArticle(MarcUtil::Record * const record, XmlWriter * const xml_write
 // unless the object has a monograph as a parent.
 void PatchUpBookComponentParts(const bool verbose, File * const input, File * const output) {
     XmlWriter xml_writer(output);
-    xml_writer.openTag("collection");
+    xml_writer.openTag("marc:collection",
+                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
 
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(input, PatchUpArticle, &xml_writer, &err_msg))
