@@ -359,7 +359,7 @@ void AppendFileOrDie(const std::string &append_target, const std::string &append
     if (unlikely(append_target_file.fail()))
 	LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_target + "\" for writing! ("
 			   + std::string(::strerror(errno)) + ")");
-    File append_source_file(append_source, "rm");
+    File append_source_file(append_source, "r");
     if (unlikely(append_source_file.fail()))
 	LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_source + "\" for reading! ("
 			   + std::string(::strerror(errno)) + ")");

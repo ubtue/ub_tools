@@ -171,21 +171,18 @@ File::File(const std::string &path, const std::string &mode, const ThrowOnOpenBe
 File::File(const int fd, const std::string &mode)
 	: path_("/proc/self/fd/" + std::to_string(fd)), precision_(6), unique_id_(next_unique_id_++), delete_on_close_(false)
 {
-    if (not mode.empty())
-	mode_ = mode + "m";
-    else {
+    if (mode.empty()) {
 	// Determine the mode from "fd":
 	int flags;
 	if (unlikely((flags = ::fcntl(fd, F_GETFL, &flags)) == -1))
 	    throw std::runtime_error("in File::File: fcntl(2) failed (" + std::string(::strerror(errno)) + ")!");
 	flags &= O_ACCMODE;
 	if (flags == O_RDONLY)
-	    mode_ = "rm";
+	    mode_ = "r";
 	else if (flags == O_WRONLY)
-	    mode_ = "wm";
+	    mode_ = "w";
 	else // We assume flags == O_RDWR.
-	    mode_ = "r+m";
-
+	    mode_ = "r+";
     }
 
     file_ = ::fdopen(fd, mode_.c_str());

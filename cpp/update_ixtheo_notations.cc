@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     const std::string code_to_description_map_filename(argv[3]);
-    File code_to_description_map_file(code_to_description_map_filename, "rm");
+    File code_to_description_map_file(code_to_description_map_filename, "r");
     if (not code_to_description_map_file)
         Error("can't open \"" + code_to_description_map_filename + "\" for reading!");
 

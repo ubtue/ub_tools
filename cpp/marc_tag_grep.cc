@@ -35,7 +35,7 @@ void Usage() {
 
 
 void TagGrep(const std::string &regex, const std::string &input_filename) {
-    File input(input_filename, "rm");
+    File input(input_filename, "r");
     if (not input)
         Error("can't open \"" + input_filename + "\" for reading!");
 
