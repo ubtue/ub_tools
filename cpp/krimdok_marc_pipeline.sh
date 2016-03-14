@@ -89,7 +89,7 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 START=$(date +%s.%N)
 echo "*** Cleanup of Intermediate Files ***" | tee --append "${log}"
 for p in $(seq "$((P-1))"); do
-    rm -f GesamtTiteldaten-post-"$p"-"${date}".xml
+    rm -f GesamtTiteldaten-post-phase"$p"-??????.xml
 done
 rm -f full_text.db
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
