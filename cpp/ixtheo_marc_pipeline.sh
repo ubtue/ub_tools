@@ -2,7 +2,7 @@
 #Runs through the phases of the ixTheo MARC processing pipeline.
 set -o errexit -o nounset
 
-if [ $#= 2 ]; then
+if [ $# != 2 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc" \
          "Normdaten-YYMMDD.mrc"
     exit 1
@@ -13,10 +13,10 @@ if [[ ! "$1" =~ GesamtTiteldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
     exit 1
 fi
 
-Extract date:
+#Extract date:
 date=$(echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1)
 
-Set up the log file:
+#Set up the log file:
 logdir=/var/log/ixtheo
 log="${logdir}/ixtheo_marc_pipeline.log"
 rm -f "${log}"
