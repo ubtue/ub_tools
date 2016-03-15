@@ -389,7 +389,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                     continue;
                 final String parentId = matcher.group(1);
 
-                containerIdsAndTitles.add(parentId + "\u001F" + titleSubfield.getData() + "\u001F"
+                containerIdsAndTitles.add(parentId + (char)0x1F + titleSubfield.getData() + (char)0x1F
                         + (volumeSubfield == null ? "" : volumeSubfield.getData()));
             }
         }
