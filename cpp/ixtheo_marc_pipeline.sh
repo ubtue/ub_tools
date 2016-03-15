@@ -1,5 +1,5 @@
 #!/bin/bash
-Runs through the phases of the ixTheo MARC processing pipeline.
+#Runs through the phases of the ixTheo MARC processing pipeline.
 set -o errexit -o nounset
 
 if [ $!= 2 ]; then
