@@ -256,11 +256,12 @@ bool Record::insertField(const std::string &new_field_tag, const std::string &ne
     if (new_field_tag.length() != 3)
 	throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of 3!");
 
-    if (not record_will_be_written_as_xml_
-	and not leader_.setRecordLength(leader_.getRecordLength() + new_field_value.length()
-					+ DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1 /* For new field separator. */))
+    if (not record_will_be_written_as_xml_) {
+       if (not leader_.setRecordLength(leader_.getRecordLength() + new_field_value.length()
+				       + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1 /* For new field separator. */))
 	return false;
-    leader_.setBaseAddressOfData(leader_.getBaseAddressOfData() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
+        leader_.setBaseAddressOfData(leader_.getBaseAddressOfData() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
+    }
 
     // Find the insertion location:
     auto dir_entry(dir_entries_.begin());
