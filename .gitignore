@@ -50,6 +50,7 @@ marc_grep
 marc_grep_tokenizer_test
 marc_info
 marc_tag_grep
+merge_differential_and_full_marc_updates
 mysql_test
 notify_users
 populate_in_tuebingen_available
