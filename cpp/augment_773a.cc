@@ -55,7 +55,10 @@ bool RecordControlNumberToTitleMapping(MarcUtil::Record * const record, XmlWrite
     if (likely((_245_index = record->getFieldIndex("245")) != -1)) {
 	const std::vector<std::string> &fields(record->getFields());
 	const Subfields _245_subfields(fields[_245_index]);
-	const std::string title(_245_subfields.getFirstSubfieldValue('a'));
+	std::string title(_245_subfields.getFirstSubfieldValue('a'));
+	if (_245_subfields.hasSubfield('b'))
+	    title += " " + _245_subfields.getFirstSubfieldValue('b');
+	StringUtil::RightTrim(" \t/", &title);
 	if (likely(not title.empty()))
 	    control_numbers_to_titles_map[record->getControlNumber()] = title;
     }
