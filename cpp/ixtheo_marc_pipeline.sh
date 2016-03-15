@@ -2,7 +2,7 @@
 #Runs through the phases of the ixTheo MARC processing pipeline.
 set -o errexit -o nounset
 
-if [ $!= 2 ]; then
+if [ $#= 2 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc" \
          "Normdaten-YYMMDD.mrc"
     exit 1
