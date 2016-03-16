@@ -172,7 +172,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             complete_title.append(Utils.cleanData(title_a));
         else { // Neither title_a nor title_b are null.
             complete_title.append(Utils.cleanData(title_a));
-            complete_title.append(' ');
+            complete_title.append(" : ");
             complete_title.append(Utils.cleanData(title_b));
         }
 
