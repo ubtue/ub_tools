@@ -121,15 +121,22 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
         author_to_synonyms_map.emplace(primary_name, StringUtil::Join(alternatives, ','));
     }
 
-    std::cout << "Found synonys for " << author_to_synonyms_map.size() << " authors while processing " << count
+    std::cout << "Found synonyms for " << author_to_synonyms_map.size() << " authors while processing " << count
               << " norm data records.\n";
 }
+
+
+const std::string SYNOMYM_FIELD("101"); // This must be an o/w unused field!
 
 
 void ProcessRecord(MarcUtil::Record * const record, const std::map<std::string, std::string> &author_to_synonyms_map,
                    const std::string &primary_author_field)
 {
     record->setRecordWillBeWrittenAsXml(true);
+
+    if (unlikely(record->getFieldIndex(SYNOMYM_FIELD) != -1))
+	Error("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!");
+
     const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
     if (dir_entries.at(0).getTag() != "001")
         Error("First field of record is not \"001\"!");
@@ -151,8 +158,8 @@ void ProcessRecord(MarcUtil::Record * const record, const std::map<std::string, 
     Subfields subfields(/* indicator1 = */' ', /* indicator2 = */' ');
     subfields.addSubfield('a', synonyms);
 
-    if (not record->insertField("101", subfields.toString())) {
-        Warning("Not enough room to add a 101 field! (Control number: " + fields[0] + ")");
+    if (not record->insertField(SYNOMYM_FIELD, subfields.toString())) {
+        Warning("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: " + fields[0] + ")");
         return;
     }
     ++modified_count;
