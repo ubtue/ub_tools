@@ -166,7 +166,6 @@ void BacktraceSignalHandler(int signal_no) {
 
 
 int InstallSegvSignalHandler(void handler(int)) {
-    ::write(STDERR_FILENO, "XX\n", 3);
     ::signal(SIGSEGV, handler);
     return 0;
 }
