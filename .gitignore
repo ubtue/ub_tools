@@ -20,6 +20,7 @@ archive_writer_test
 augment_773a
 augment_bible_references
 auto_temp_file_test
+backtrace_test
 bib_ref_parser_test
 bib_ref_to_codes_tool
 compress_test
@@ -51,6 +52,7 @@ marc_grep
 marc_grep_tokenizer_test
 marc_info
 marc_tag_grep
+merge_differential_and_full_marc_updates
 mysql_test
 notify_users
 populate_in_tuebingen_available
