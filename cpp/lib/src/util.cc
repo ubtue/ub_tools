@@ -25,6 +25,13 @@
 #include <stdexcept>
 #include <cctype>
 #include <cstdio>
+#include <execinfo.h>
+#include <signal.h>
+#include <unistd.h>
+
+
+// Macro to determine the number of entries in a one-dimensional array:
+#define DIM(array) (sizeof(array) / sizeof(array[0]))
 
 
 char *progname; // Must be set in main() with "progname = argv[0];";
@@ -141,6 +148,33 @@ std::string ReadNonQuotedValue(FILE * const input, const char field_separator) {
 }
 
 
+void BacktraceSignalHandler(int signal_no) {
+    void *stack_return_addresses[20];
+    const size_t number_of_addresses(::backtrace(stack_return_addresses, DIM(stack_return_addresses)));
+    char err_msg[1024] = "Caught signal ";
+    char *cp = err_msg + std::strlen(err_msg);
+    if (signal_no > 10)
+	*cp++ = '0' + (signal_no / 10);
+    *cp++ = '0' + (signal_no % 10);
+    *cp++ = '.';
+    *cp++ = '\n';
+    *cp = '\0';
+    ::write(STDERR_FILENO, err_msg, std::strlen(err_msg));
+    ::backtrace_symbols_fd(stack_return_addresses, number_of_addresses, STDERR_FILENO);
+    ::_exit(EXIT_FAILURE);
+}
+
+
+int InstallSegvSignalHandler(void handler(int)) {
+    ::write(STDERR_FILENO, "XX\n", 3);
+    ::signal(SIGSEGV, handler);
+    return 0;
+}
+
+
+volatile int dummy = InstallSegvSignalHandler(BacktraceSignalHandler);
+
+
 } // unnamed namespace
 
 
@@ -180,4 +214,3 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
 	}
     }
 }
-
