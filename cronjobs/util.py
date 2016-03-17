@@ -332,3 +332,11 @@ def GetLogDirectory():
     else:
         Warning("Can't find the log directory!  Logging to /tmp instead.")
         return "/tmp"
+
+
+# Create an empty file, or, if it exists set its access and modification time.
+# If "times" is None, the current time will be used, o/w "times" must be a 2-tuple
+# of the form (atime, mtime).
+def Touch(filename, times=None):
+    with open(filename, "a"):
+        os.utime(filename, times)
