@@ -37,7 +37,9 @@
 #include "MarcUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
+#include "TimeUtil.h"
 #include "TranslationUtil.h"
+#include "WallClockTimer.h"
 #include "util.h"
 
 
@@ -94,7 +96,7 @@ void ExtractKeywordNormdataControlNumbers(File * const marc_input,
 }
 
 
-static unsigned keyword_count, translation_count;
+static unsigned keyword_count, translation_count, additional_hits, synonym_count;
 static DbConnection *shared_connection;
 
 
@@ -103,6 +105,7 @@ bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xm
     if (shared_norm_data_control_numbers->find(fields[0]) == shared_norm_data_control_numbers->cend())
 	return true; // Not one of the records w/ a keyword used in our title data.
 
+    // Extract original German entry:
     const ssize_t _150_index(record->getFieldIndex("150"));
     if (_150_index == -1)
 	return true;
@@ -115,22 +118,43 @@ bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xm
     std::vector<std::pair<std::string, std::string>> text_and_language_codes;
     text_and_language_codes.emplace_back(std::make_pair(german_text, "deu"));
 
+    // Look for German synonyms:
+    const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
+    ssize_t _450_index(record->getFieldIndex("450"));
+    if (_450_index != -1) {
+	for (/* Intentionally empty! */;
+	     static_cast<size_t>(_450_index) < fields.size() and dir_entries[_450_index].getTag() == "450"; ++_450_index)
+        {
+	    const Subfields _450_subfields(fields[_450_index]);
+	    if (_450_subfields.hasSubfield('a')) {
+		text_and_language_codes.emplace_back(std::make_pair(_450_subfields.getFirstSubfieldValue('a'), "deu"));
+		++synonym_count;
+	    }
+	}
+    }
+
     // Find translations:
     const ssize_t first_750_index(record->getFieldIndex("750"));
     if (first_750_index != -1) {
-	const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
         for (size_t index(first_750_index); index < dir_entries.size() and dir_entries[index].getTag() == "750"; ++index) {
 	    const Subfields _750_subfields(fields[index]);
 	    auto start_end(_750_subfields.getIterators('9'));
 	    if (start_end.first == start_end.second)
 		continue;
-	    std::string language_code, association;
+	    std::string language_code;
 	    for (auto code_and_value(start_end.first); code_and_value != start_end.second; ++code_and_value) {
 		if (StringUtil::StartsWith(code_and_value->second, "L:"))
 		    language_code = code_and_value->second.substr(2);
-		else if (StringUtil::StartsWith(code_and_value->second, "Z:"))
-		    association = code_and_value->second.substr(2);
 	    }
+	    if (language_code.empty() and _750_subfields.hasSubfield('2')) {
+		const std::string _750_2(_750_subfields.getFirstSubfieldValue('2'));
+		if (_750_2 == "lcsh")
+		    language_code = "eng";
+		else if (_750_2 == "ram")
+		    language_code ="fra";
+		if (not language_code.empty())
+		    ++additional_hits;
+            }
 	    if (not language_code.empty()) {
 		++translation_count;
 		text_and_language_codes.emplace_back(std::make_pair(_750_subfields.getFirstSubfieldValue('a'), language_code));
@@ -160,7 +184,9 @@ void ExtractTranslationTerms(File * const norm_data_input, DbConnection * const 
 	Error("error while extracting translations from \"" + norm_data_input->getPath() + "\": " + err_msg);
 
     std::cerr << "Added " << keyword_count << " to the translation database.\n";
-    std::cerr << "Found " << translation_count << " translations in the norm data.\n";
+    std::cerr << "Found " << translation_count << " translations in the norm data. (" << additional_hits
+	      << " due to 'ram' and 'lcsh' entries.)\n";
+    std::cerr << "Found " << synonym_count << " synonym entries.\n";
 }
 
 			     
@@ -168,10 +194,12 @@ const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 3)
         Usage();
+
+    WallClockTimer timer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
 
     const std::string marc_input_filename(argv[1]);
     File marc_input(marc_input_filename, "rm");
@@ -193,6 +221,9 @@ int main(int argc, char **argv) {
 	std::unordered_set<std::string> norm_data_control_numbers;
 	ExtractKeywordNormdataControlNumbers(&marc_input, &norm_data_control_numbers);
 	ExtractTranslationTerms(&norm_data_marc_input, &db_connection);
+
+	timer.stop();
+	std::cout << ::progname << ": execution time: " << TimeUtil::FormatTime(timer.getTimeInMilliseconds()) << ".\n";
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
