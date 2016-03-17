@@ -215,7 +215,7 @@ bool ProcessRecord(File * const input, const std::string &marc_output_filename,
     if (_856_index == -1)
 	Error("no 856 tag found!");
 
-    constexpr unsigned PER_DOC_TIMEOUT(20);
+    constexpr unsigned PER_DOC_TIMEOUT(40);
     bool succeeded(false);
 
     const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
