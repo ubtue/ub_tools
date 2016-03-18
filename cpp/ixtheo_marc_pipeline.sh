@@ -1,5 +1,5 @@
 #!/bin/bash
-#Runs through the phases of the ixTheo MARC processing pipeline.
+# Runs through the phases of the IxTheo MARC processing pipeline.
 set -o errexit -o nounset
 
 if [ $# != 2 ]; then
@@ -13,10 +13,10 @@ if [[ ! "$1" =~ GesamtTiteldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
     exit 1
 fi
 
-#Extract date:
+# Determines the current date:
 date=$(echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1)
 
-#Set up the log file:
+# Sets up the log file:
 logdir=/var/log/ixtheo
 log="${logdir}/ixtheo_marc_pipeline.log"
 rm -f "${log}"
@@ -44,6 +44,9 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 echo "*** Phase $P: Extract Translation Keywords - $(date) ***" | tee --append "${log}"
 extract_keywords_for_translation GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
                                  Normdaten-"${date}".xml >> "${log}" 2>&1
+extract_vufind_translations_for_translation \
+    $(ls "$VUFIND_HOME"/local/languages/??.ini | grep 'de.ini$') \
+    $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$')
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
