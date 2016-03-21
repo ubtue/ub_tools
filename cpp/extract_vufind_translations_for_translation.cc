@@ -43,7 +43,7 @@ void Usage() {
 }
 
 
-void ReadIniFile(const std::string &ini_filename, std::unordered_map<std::string, std::string> * const english_to_other_map) {
+void ReadIniFile(const std::string &ini_filename, std::unordered_map<std::string, std::string> * const token_to_other_map) {
     File input(ini_filename, "r");
     if (not input)
 	throw std::runtime_error("can't open \"" + ini_filename + "\" for reading!");
@@ -61,19 +61,20 @@ void ReadIniFile(const std::string &ini_filename, std::unordered_map<std::string
 
 	const std::string key(StringUtil::Trim(line.substr(0, first_equal_pos)));
 	if (unlikely(key.empty()))
-	    throw std::runtime_error("missing English key in \"" + ini_filename + "\" on line " + std::to_string(line_no) + "!");
+	    throw std::runtime_error("missing token or English key in \"" + ini_filename + "\" on line "
+				     + std::to_string(line_no) + "!");
 
-	std::string rest(StringUtil::Trim(line.substr(first_equal_pos + 1)));
+	std::string rest(StringUtil::Trim(StringUtil::Trim(line.substr(first_equal_pos + 1)), '='));
 	if (unlikely(rest.empty()))
 	    throw std::runtime_error("missing translation in \"" + ini_filename + "\" on line " + std::to_string(line_no)
 				     + "! (1)");
 	if (rest[0] == '"') {
 	}
 
-	(*english_to_other_map)[key] = rest;
+	(*token_to_other_map)[key] = rest;
     }
 
-    std::cout << "Read " << english_to_other_map->size() << " mappings from English to another language from \"" << ini_filename
+    std::cout << "Read " << token_to_other_map->size() << " mappings from English to another language from \"" << ini_filename
 	      << "\".\n";
 }
 
@@ -109,13 +110,6 @@ void InsertOther(DbConnection * const connection, const std::string &language_co
 	    Error("Insert failed: " + INSERT_OTHER + " (" + connection->getLastErrorMessage() + ")");
     }
 }
-
-
-static std::map<std::string, std::string> intl_2letter_code_to_german_3letter_code_map{
-    { "de", "deu" },
-    { "en", "eng" },
-    { "fr", "fra" }
-};
 
 
 const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
@@ -157,16 +151,11 @@ int main(int argc, char **argv) {
 		two_letter_code = ini_filename.substr(last_slash_pos + 1, 2);
 	    }
 
-	    // Now map the international 2-letter code to a German 3-letter code:
-	    const auto &two_letter_code_and_german_3letter_code(
-                intl_2letter_code_to_german_3letter_code_map.find(two_letter_code));
-	    if (unlikely(two_letter_code_and_german_3letter_code == intl_2letter_code_to_german_3letter_code_map.cend()))
-		Error("don't know how to map the 2-letter code \"" + two_letter_code + "\" to a German 3-letter code!");
-
+	    const std::string german_3letter_code(
+                TranslationUtil::MapInternational2LetterCodeToGerman3LetterCode(two_letter_code));
 	    std::unordered_map<std::string, std::string> keys_to_other_map;
 	    ReadIniFile(ini_filename, &keys_to_other_map);
-	    InsertOther(&db_connection, two_letter_code_and_german_3letter_code->second, keys_to_german_map,
-			keys_to_other_map);
+	    InsertOther(&db_connection, german_3letter_code, keys_to_german_map, keys_to_other_map);
 	}
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
