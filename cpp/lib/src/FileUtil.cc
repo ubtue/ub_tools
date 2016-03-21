@@ -335,7 +335,10 @@ bool MakeDirectory(const std::string &path, const bool recursive, const mode_t m
 	errno = 0;
 	if (::mkdir(path.c_str(), mode) == 0)
 	    return true;
-	return errno == EEXIST and IsDirectory(path);
+	const bool dir_exists(errno == EEXIST and IsDirectory(path));
+	if (dir_exists)
+	    errno = 0;
+	return dir_exists;
     }
 
     std::vector<std::string> path_components;
