@@ -476,7 +476,8 @@ const std::string LOCAL_DELETION_LIST_FILENAME("deletions.list");
 
 
 void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_filename, const std::string &differential_archive) {
-    CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
+    if (not deletion_list_filename.empty())
+	CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
 
     // Unpack the differential archive and extract control numbers from its members appending them to the
     // deletion list file:
@@ -519,7 +520,8 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     UpdateOneFile(normdata_marc_basename, ReplaceSuffix(normdata_marc_basename, old_name_suffix, new_name_suffix),
 		  LOCAL_DELETION_LIST_FILENAME, diff_filename);
 
-    DeleteFilesOrDie("diff_.*");
+    if (not differential_archive.empty())
+	DeleteFilesOrDie("diff_.*");
 }
 
 
