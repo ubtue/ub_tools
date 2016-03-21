@@ -64,13 +64,9 @@ void ReadIniFile(const std::string &ini_filename, std::unordered_map<std::string
 	    throw std::runtime_error("missing token or English key in \"" + ini_filename + "\" on line "
 				     + std::to_string(line_no) + "!");
 
-	std::string rest(StringUtil::Trim(StringUtil::Trim(line.substr(first_equal_pos + 1)), '='));
+	const std::string rest(StringUtil::Trim(StringUtil::Trim(line.substr(first_equal_pos + 1)), '"'));
 	if (unlikely(rest.empty()))
-	    throw std::runtime_error("missing translation in \"" + ini_filename + "\" on line " + std::to_string(line_no)
-				     + "! (1)");
-	if (rest[0] == '"') {
-	}
-
+	    throw std::runtime_error("missing translation in \"" + ini_filename + "\" on line " + std::to_string(line_no) + "!");
 	(*token_to_other_map)[key] = rest;
     }
 
@@ -85,7 +81,8 @@ void InsertGerman(DbConnection * const connection,
     for (const auto &key_and_german : keys_to_german_map) {
 	const std::string id(TranslationUtil::GetId(connection, key_and_german.second));
 	const std::string INSERT_GERMAN("REPLACE INTO translations SET id=" + id
-					+ ", language_code=\"deu\", category=\"vufind_translations\", preexists=TRUE, text=\""
+					+ ", language_code=\"deu\", category=\"vufind_translations\", preexists=TRUE, token=\""
+					+ connection->escapeString(key_and_german.first) + "\", text=\""
 					+ connection->escapeString(key_and_german.second) + "\"");
 	if (not connection->query(INSERT_GERMAN))
 	    Error("Insert failed: " + INSERT_GERMAN + " (" + connection->getLastErrorMessage() + ")");
@@ -104,7 +101,8 @@ void InsertOther(DbConnection * const connection, const std::string &language_co
 	const std::string id(TranslationUtil::GetId(connection, key_and_german->second));
 
 	const std::string INSERT_OTHER("REPLACE INTO translations SET id=" + id + ", language_code=\""
-				       + language_code + "\", category=\"vufind_translations\", preexists=TRUE, text=\""
+				       + language_code + "\", category=\"vufind_translations\", preexists=TRUE, token=\""
+				       + connection->escapeString(key_and_other.first) + "\", text=\""
 				       + connection->escapeString(key_and_other.second) + "\"");
 	if (not connection->query(INSERT_OTHER))
 	    Error("Insert failed: " + INSERT_OTHER + " (" + connection->getLastErrorMessage() + ")");
