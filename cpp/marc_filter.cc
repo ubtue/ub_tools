@@ -316,9 +316,10 @@ void NormaliseURLs(const bool verbose, File * const input, File * const output) 
                 continue;
 	    }
 
-            Subfields _856_subfields(fields[field_no]);
+	    const std::string &_856_field(fields[field_no]);
+            Subfields _856_subfields(_856_field);
 	    bool duplicate_link(false);
-            if (_856_subfields.hasSubfield('u')) {
+            if (_856_subfields.getIndicator1() != '7' and _856_subfields.hasSubfield('u')) {
 		const std::string u_subfield(_856_subfields.getFirstSubfieldValue('u'));
 
 		if (IsHttpOrHttpsURL(u_subfield)) {
