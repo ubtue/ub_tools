@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Set realname in muttrc  
+# Set realname in .muttrc  
 
 set -o errexit -o nounset
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
@@ -13,11 +13,12 @@ fi
 
 show_help() {
     cat << EOF
-Links some configs.
+Adjust muttrcs
+
 
 USAGE: ${0##*/} MUTT_REAL_NAME
 
-MUTT_REAL_NAME real name that is written to roots muttrc to have a proper sender real name for the C++ programs of the pipeline
+MUTT_REAL_NAME real name that is written to root's .muttrc to have a proper sender real name for the C++ programs of the pipeline
 
 EOF
 }
