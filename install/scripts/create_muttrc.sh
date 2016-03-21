@@ -38,14 +38,3 @@ if fgrep --quiet --recursive --ignore-case 'set realname' $MUTTRC_FILE; then
 else
   echo "set realname='$MUTT_REALNAME'" >> $MUTTRC_FILE
 fi
-
-
-
-
-
-
-
-
-
-
-
