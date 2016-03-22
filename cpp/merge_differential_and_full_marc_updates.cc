@@ -120,7 +120,7 @@ void SendEmail(const std::string &subject, const std::string &message_body, cons
 void LogSendEmailAndDie(const std::string &one_line_message) {
     Log(one_line_message);
     SendEmail(GetProgramBasename() + " failed! (from " + GetHostname() + ")",
-	      "Please have a look at the log for details.\n", EmailSender::VERY_HIGH);
+	      one_line_message + "\n", EmailSender::VERY_HIGH);
     std::exit(EXIT_FAILURE);
 }
 
@@ -476,7 +476,8 @@ const std::string LOCAL_DELETION_LIST_FILENAME("deletions.list");
 
 
 void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_filename, const std::string &differential_archive) {
-    CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
+    if (not deletion_list_filename.empty())
+	CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
 
     // Unpack the differential archive and extract control numbers from its members appending them to the
     // deletion list file:
@@ -519,7 +520,8 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     UpdateOneFile(normdata_marc_basename, ReplaceSuffix(normdata_marc_basename, old_name_suffix, new_name_suffix),
 		  LOCAL_DELETION_LIST_FILENAME, diff_filename);
 
-    DeleteFilesOrDie("diff_.*");
+    if (not differential_archive.empty())
+	DeleteFilesOrDie("diff_.*");
 }
 
 
@@ -528,11 +530,13 @@ inline std::string RemoveFileNameSuffix(const std::string &filename, const std::
 }
 
 
+// Creates a symlink called "link_filename" pointing to "target_filename".
 void CreateSymlink(const std::string &target_filename, const std::string &link_filename) {
-    if (unlikely(::unlink(link_filename.c_str()) == -1))
-        throw std::runtime_error("unlink(2) failed: " + std::string(::strerror(errno)));
+    if (unlikely(::unlink(link_filename.c_str()) == -1 and errno != ENOENT /* "No such file or directory." */))
+        throw std::runtime_error("unlink(2) of \"" + link_filename + "\" failed: " + std::string(::strerror(errno)));
     if (unlikely(::symlink(target_filename.c_str(), link_filename.c_str()) != 0))
-        LogSendEmailAndDie("failed to create symlink \"" + link_filename + "\" => \"" + target_filename + "\"! (" + std::string(::strerror(errno)) + ")");
+        LogSendEmailAndDie("failed to create symlink \"" + link_filename + "\" => \"" + target_filename + "\"! ("
+			   + std::string(::strerror(errno)) + ")");
 }
 
 

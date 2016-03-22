@@ -132,11 +132,12 @@ def AddToCumulativeCollection(downloaded_file, config):
 
     return None;
 
+
 def CumulativeFilenameGenerator(output_directory):
      return os.listdir(output_directory)
 
-# We try to keep all differential updates up to and including the last complete data
 
+# We try to keep all differential updates up to and including the last complete data
 def CleanUpCumulativeCollection(config):
     # Check config   
  
@@ -160,12 +161,16 @@ def CleanUpCumulativeCollection(config):
 
     # Find the latest complete data file
     try:
-        most_recent_complete_data_filename = GetMostRecentFile(filename_complete_data_regex, CumulativeFilenameGenerator(directory))
+        most_recent_complete_data_filename = GetMostRecentFile(filename_complete_data_regex,
+                                                               CumulativeFilenameGenerator(directory))
     except Exception as e:
         util.Error("Unable to to determine the most recent complete data file (" + str(e) + ")")
 
     if most_recent_complete_data_filename is None:
         return None
+
+    # Create a "flag" file used to signal that we had a real new complete data dump:
+    util.Touch("downloaded_a_genuine_full_data_dump")
 
     # Extract the date
     match = filename_complete_data_regex.match(most_recent_complete_data_filename)
@@ -175,8 +180,8 @@ def CleanUpCumulativeCollection(config):
     
     return None
 
-# Delete all files that are older than a given date 
-    
+
+# Delete all files that are older than a given date     
 def DeleteAllFilesOlderThan(date, directory):
      filename_pattern = '\\D*?-(\\d{6}).*'
      try:

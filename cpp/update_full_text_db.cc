@@ -223,15 +223,14 @@ bool ProcessRecord(File * const input, const std::string &marc_output_filename,
     const ssize_t dir_entry_count(static_cast<ssize_t>(dir_entries.size()));
     for (/* Empty! */; _856_index < dir_entry_count and dir_entries[_856_index].getTag() == "856"; ++_856_index) {
         Subfields subfields(fields[_856_index]);
-        const auto u_begin_end(subfields.getIterators('u'));
-        if (u_begin_end.first == u_begin_end.second) // No subfield 'u'.
+	if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;
 
         if (IsProbablyAReview(subfields))
             continue;
 
         std::string document, media_type;
-        const std::string url(u_begin_end.first->second);
+        const std::string url(subfields.getFirstSubfieldValue('u'));
         if (not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type))
             continue;
 
