@@ -120,7 +120,7 @@ void SendEmail(const std::string &subject, const std::string &message_body, cons
 void LogSendEmailAndDie(const std::string &one_line_message) {
     Log(one_line_message);
     SendEmail(GetProgramBasename() + " failed! (from " + GetHostname() + ")",
-	      "Please have a look at the log for details.\n", EmailSender::VERY_HIGH);
+	      one_line_message + "\n", EmailSender::VERY_HIGH);
     std::exit(EXIT_FAILURE);
 }
 
@@ -532,7 +532,7 @@ inline std::string RemoveFileNameSuffix(const std::string &filename, const std::
 
 // Creates a symlink called "link_filename" pointing to "target_filename".
 void CreateSymlink(const std::string &target_filename, const std::string &link_filename) {
-    if (unlikely(::unlink(link_filename.c_str()) == -1 and errno != ENOENT))
+    if (unlikely(::unlink(link_filename.c_str()) == -1 and errno != ENOENT /* "No such file or directory." */))
         throw std::runtime_error("unlink(2) of \"" + link_filename + "\" failed: " + std::string(::strerror(errno)));
     if (unlikely(::symlink(target_filename.c_str(), link_filename.c_str()) != 0))
         LogSendEmailAndDie("failed to create symlink \"" + link_filename + "\" => \"" + target_filename + "\"! ("
