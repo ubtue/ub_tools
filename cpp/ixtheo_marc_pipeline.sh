@@ -3,8 +3,7 @@
 set -o errexit -o nounset
 
 if [ $# != 2 ]; then
-    echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc" \
-         "Normdaten-YYMMDD.mrc"
+    echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc" "Normdaten-YYMMDD.mrc"
     exit 1
 fi
 
@@ -13,7 +12,7 @@ if [[ ! "$1" =~ GesamtTiteldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
     exit 1
 fi
 
-# Determines the current date:
+# Determines the embedded date of the files we're processing:
 date=$(echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1)
 
 # Sets up the log file:
@@ -70,7 +69,7 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
 
 ((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Adding of ISBN'S and ISSN's to Component Parts - $(date) ***" | tee --append "${log}"
+echo "*** Phase $P: Adding of ISBN's and ISSN's to Component Parts - $(date) ***" | tee --append "${log}"
 add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
                                GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
