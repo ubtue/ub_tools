@@ -34,6 +34,14 @@ namespace TranslationUtil {
 std::string GetId(DbConnection * const connection, const std::string &german_text);
 
 
+/** \note Aborts if "international_2letter_code" is unknown. */
+std::string MapInternational2LetterCodeToGerman3LetterCode(const std::string &international_2letter_code);
+
+
+/** \note Aborts if "german_3letter_code" is unknown. */
+std::string MapGerman3LetterCodeToInternational2LetterCode(const std::string &german_3letter_code);
+
+
 } // namespace TranslationUtil
 
    

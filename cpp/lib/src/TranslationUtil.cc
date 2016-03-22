@@ -18,6 +18,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "TranslationUtil.h"
+#include <map>
+#include "Compiler.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -46,6 +48,32 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
 	                                                                     // which leads to an empty string here.
 	return std::to_string(max_id.empty() ? 1 : StringUtil::ToUnsigned(max_id) + 1);
     }
+}
+
+
+static std::map<std::string, std::string> international_2letter_code_to_german_3letter_code{
+    { "de", "deu" },
+    { "en", "eng" },
+    { "fr", "fra" }
+};
+
+
+std::string MapInternational2LetterCodeToGerman3LetterCode(const std::string &international_2letter_code) {
+    const auto _2letter_and_3letter_codes(international_2letter_code_to_german_3letter_code.find(international_2letter_code));
+    if (unlikely(_2letter_and_3letter_codes == international_2letter_code_to_german_3letter_code.cend()))
+	Error("in TranslationUtil::MapInternational2LetterCodeToGerman3LetterCode: unknown international 2-letter code \""
+	      + international_2letter_code + "\"!");
+    return _2letter_and_3letter_codes->second;
+}
+
+
+std::string MapGerman3LetterCodeToInternational2LetterCode(const std::string &german_3letter_code) {
+    for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3letter_code) {
+	if (_2letter_and_3letter_codes.second == german_3letter_code)
+	    return _2letter_and_3letter_codes.first;
+    }
+    Error("in TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode: unknown German 3-letter code \""
+	  + german_3letter_code + "\"!");
 }
 
 

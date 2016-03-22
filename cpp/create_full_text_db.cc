@@ -95,9 +95,9 @@ bool FoundAtLeastOneNonReviewLink(const MarcUtil::Record &record) {
     const ssize_t dir_entry_count(static_cast<ssize_t>(dir_entries.size()));
     for (/* Empty! */; _856_index < dir_entry_count and dir_entries[_856_index].getTag() == "856"; ++_856_index) { 
 	const std::vector<std::string> &fields(record.getFields());
+
         const Subfields subfields(fields[_856_index]);
-        const auto u_begin_end(subfields.getIterators('u'));
-        if (u_begin_end.first == u_begin_end.second) // No subfield 'u'.
+        if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;
 
         if (not IsProbablyAReview(subfields))

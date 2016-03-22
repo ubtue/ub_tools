@@ -5,6 +5,7 @@
 import datetime
 import glob
 import process_util
+import urllib2
 import os
 import struct
 import sys
@@ -19,11 +20,27 @@ def ExecOrDie(cmd_name, args, log_file_name):
         sys.exit(-1)
 
 
+# If had a new complete data dump from the BSZ we first need to clear the SOLR index
+# or we risk old data still remaining in the index.
+def DeleteSolrIndexIfNecessary():
+    if not os.access("downloaded_a_genuine_full_data_dump", os.R_OK):
+        return
+    os.unlink("downloaded_a_genuine_full_data_dump")
+    try:
+        request = urllib2.Request(
+            "http://localhost:8080/solr/biblio/update?stream.body=%3Cdelete%3E%3Cquery%3E*:*%3C/query%3E%3C/delete%3E&commit=true")
+        response = urllib2.urlopen(request, timeout=60)
+    except:
+        util.SendEmail("MARC-21 Pipeline", "Failed to clear the SOLR index!", priority=1)
+        sys.exit(-1)
+
+
 def ImportIntoVuFind(pattern, log_file_name):
     args = [ sorted(glob.glob(pattern), reverse=True)[0] ]
     if len(args) != 1:
         util.Error("\"" + pattern + "\" matched " + str(len(args))
                    + " files! (Should have matched exactly 1 file!)")
+    DeleteSolrIndexIfNecessary()
     ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
 
     
