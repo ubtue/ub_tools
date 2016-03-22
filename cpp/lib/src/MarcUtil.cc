@@ -555,7 +555,7 @@ void Record::write(XmlWriter * const xml_writer) const {
 		    Warning("in Record::write: empty subfield for code '" + subfield_code + "'! (Control number is "
 			    + fields_[0] + ", tag is " + dir_entry.getTag() + ".)");
 
-		xml_writer->writeTagsWithData("subfield", { std::make_pair("code", subfield_code) }, subfield_data,
+		xml_writer->writeTagsWithData("marc:subfield", { std::make_pair("code", subfield_code) }, subfield_data,
 					      /* suppress_newline = */ true);
 	    }
 
@@ -664,7 +664,7 @@ static void ParseDatafield(const std::string &input_filename, const std::map<std
 	}
 
 	// 1. <subfield code=...>
-	if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "subfield")) {
+	if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:subfield")) {
 	    const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
 	    throw std::runtime_error("in MarcUtil::ParseDatafield: expected <subfield> opening tag on line "
 				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"! (Found: "
@@ -686,7 +686,7 @@ static void ParseDatafield(const std::string &input_filename, const std::map<std
 	// 3. </subfield>
 	while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
 	    /* Intentionally empty! */;
-	if (unlikely(type != SimpleXmlParser::CLOSING_TAG or data != "subfield")) {
+	if (unlikely(type != SimpleXmlParser::CLOSING_TAG or data != "marc:subfield")) {
 	    const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
 	    throw std::runtime_error("in MarcUtil::ParseDatafield: expected </subfield> closing tag on line "
 				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"! (Found: "
