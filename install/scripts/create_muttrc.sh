@@ -7,8 +7,8 @@ SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 # Make sure only root can run our script
 if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root" 1>&2
-   exit 1
+    echo "This script must be run as root" 1>&2
+    exit 1
 fi
 
 show_help() {
@@ -23,10 +23,10 @@ EOF
 }
 
 if [ "$#" -ne 1 ]; then
-  echo "ERROR: Illegal number of parameters!"
-  echo "Parameters: $*"
-  show_help
-  exit 1
+    echo "ERROR: Illegal number of parameters!"
+    echo "Parameters: $*"
+    show_help
+    exit 1
 fi
 
 MUTT_REALNAME=$1
@@ -34,7 +34,7 @@ MUTTRC_FILE=~/.muttrc
 
 # Skip if a real name is already set
 if fgrep --quiet --recursive --ignore-case 'set realname' $MUTTRC_FILE; then
-  exit 0
+    exit 0
 else
-  echo "set realname='$MUTT_REALNAME'" >> $MUTTRC_FILE
+    echo "set realname='$MUTT_REALNAME'" >> $MUTTRC_FILE
 fi
