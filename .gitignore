@@ -90,3 +90,4 @@ SolrmarcMixin-*.jar
 FacetPrefixSortComponent-*.jar
 solr_plugins/PrefixSortFacetten/bin/
 solrmarc_mixin/bin/
+go/bin/*
