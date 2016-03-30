@@ -265,6 +265,7 @@ void GetOutputNameAndMode(const std::string &archive_entry_name,
 void ExtractMarcFilesFromArchive(const std::string &archive_name, std::vector<std::string> * const extracted_names,
 				 const std::string &name_prefix = "", const std::string &name_suffix = "")
 {
+    Log("extracting files from archive \"" + archive_name + "\".");
     extracted_names->clear();
 
     std::map<std::shared_ptr<RegexMatcher>, std::string> regex_to_first_file_map;
@@ -378,15 +379,16 @@ void DeleteFileOrDie(const std::string &filename) {
 
 
 const std::string DELETE_IDS_COMMAND("/usr/local/bin/delete_ids");
+const std::string LOCAL_DELETION_LIST_FILENAME("deletions.list");
 
 
 void UpdateOneFile(const std::string &old_marc_filename, const std::string &new_marc_filename,
-		   const std::string &deletion_list_filename, const std::string &differential_marc_file)
+		   const std::string &differential_marc_file)
 {
     Log("creating \"" + new_marc_filename + "\" from \"" + old_marc_filename
 	+ "\" and an optional deletion list and difference file.");
 
-    if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND, { deletion_list_filename, old_marc_filename, new_marc_filename }) != 0))
+    if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND, { LOCAL_DELETION_LIST_FILENAME, old_marc_filename, new_marc_filename }) != 0))
 	LogSendEmailAndDie("in UpdateOneFile: \"" + DELETE_IDS_COMMAND + "\" failed!");
 
     if (FileUtil::Exists(differential_marc_file))
@@ -472,12 +474,36 @@ std::string ReplaceSuffix(const std::string &filename, const std::string &old_su
 }
 
 
-const std::string LOCAL_DELETION_LIST_FILENAME("deletions.list");
+void LogLineCount(const std::string &filename) {
+    if (not FileUtil::Exists(filename)) {
+        LogWarning("\"" + filename + "\" does not exist!");
+        return;
+    }
+
+    File input(filename, "r");
+    unsigned line_count(0);
+    while (not input.eof()) {
+        input.getline();
+        ++line_count;
+    }
+
+    Log("\"" + filename + "\" contains " + std::to_string(line_count) + " lines.");
+}
+
+
+/** \brief Creates an empty file if "pathname" does not exist. */
+void IfNotExistsMakeEmptyOrDie(const std::string &pathname) {
+    if (not FileUtil::Exists(pathname) and not FileUtil::MakeEmpty(pathname))
+        LogSendEmailAndDie("failed to create empty file \"" + pathname + "\"!");
+}
 
 
 void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_filename, const std::string &differential_archive) {
     if (not deletion_list_filename.empty())
 	CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
+    else if (differential_archive.empty())
+        LogSendEmailAndDie("in ApplyUpdate: both, \"deletion_list_filename\" and \"differential_archive\" are empty strings."
+                           "  This should never happen!");
 
     // Unpack the differential archive and extract control numbers from its members appending them to the
     // deletion list file:
@@ -485,9 +511,16 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
 	Log("updating the deletion list based on control numbers found in the files contained in the differential MARC archive.");
 	std::vector<std::string> extracted_names;
 	ExtractMarcFilesFromArchive("../" + differential_archive, &extracted_names, "diff_");
-	for (const auto &extracted_name : extracted_names)
+	for (const auto &extracted_name : extracted_names) {
+            Log("Processing \"" + extracted_name + "\" in order to extract control numbers to append to the deletion list.");
 	    ExtractAndAppendIDs(extracted_name, LOCAL_DELETION_LIST_FILENAME);
+        }
+
+        LogLineCount(LOCAL_DELETION_LIST_FILENAME);
     }
+
+    // If we extracted empty MARC files we would not have a deletion list, thus...
+    IfNotExistsMakeEmptyOrDie(LOCAL_DELETION_LIST_FILENAME);
 
     const std::string old_name_suffix("." + std::to_string(apply_count - 1));
     std::string title_marc_basename, superior_marc_basename, normdata_marc_basename;
@@ -502,7 +535,7 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
 	LogWarning("found no match for \"" + diff_filename_pattern + "\" which might match a file extracted from \""
 		   + differential_archive + "\"!");
     UpdateOneFile(title_marc_basename, ReplaceSuffix(title_marc_basename, old_name_suffix, new_name_suffix),
-		  LOCAL_DELETION_LIST_FILENAME, diff_filename);
+		  diff_filename);
 
     // Update the superior data:
     diff_filename_pattern = "diff_.*b001.raw";
@@ -510,7 +543,7 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
 	LogWarning("found no match for \"" + diff_filename_pattern + "\" which might match a file extracted from \""
 		   + differential_archive + "\"!");
     UpdateOneFile(superior_marc_basename, ReplaceSuffix(superior_marc_basename, old_name_suffix, new_name_suffix),
-		  LOCAL_DELETION_LIST_FILENAME, diff_filename);
+		  diff_filename);
 
     // Update the norm data:
     diff_filename_pattern = "diff_.*c001.raw";
@@ -518,7 +551,7 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
 	LogWarning("found no match for \"" + diff_filename_pattern + "\" which might match a file extracted from \""
 		   + differential_archive + "\"!");
     UpdateOneFile(normdata_marc_basename, ReplaceSuffix(normdata_marc_basename, old_name_suffix, new_name_suffix),
-		  LOCAL_DELETION_LIST_FILENAME, diff_filename);
+		  diff_filename);
 
     if (not differential_archive.empty())
 	DeleteFilesOrDie("diff_.*");
