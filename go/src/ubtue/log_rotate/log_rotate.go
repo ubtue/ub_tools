@@ -25,18 +25,19 @@ import "path/filepath"
 import "strconv"
 
 // Handle command-line arguments.
-func processFlags(maxRotationCount **int) {
+func processFlags(maxRotationCount *int) {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [--max-rotation-count max_rotations] log_base_names\n", path.Base(os.Args[0]))
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
-	*maxRotationCount = flag.Int("max-rotation-count", 5, "The maximum number of log file rotations.")
+	localMaxRotationCount := flag.Int("max-rotation-count", 5, "The maximum number of log file rotations.")
 	flag.Parse()
-	if **maxRotationCount < 1 {
+	if *localMaxRotationCount < 1 {
 		fmt.Fprintf(os.Stderr, "%s: max-rotation-count must be positive!\n", path.Base(os.Args[0]))
 		os.Exit(1)
 	}
+	*maxRotationCount = *localMaxRotationCount
 }
 
 // Either return the log file names provided on the command-line, or, if there are none,
@@ -68,10 +69,11 @@ func processName(logFileName string, maxRotationCount int) {
 }
 
 func main() {
-	var maxRotationCount *int
+	var maxRotationCount int
 	processFlags(&maxRotationCount)
+	fmt.Printf("maxRotationCount = %d\n", maxRotationCount)
 	logNames := getLogNames()
 	for _, name := range logNames {
-		processName(name, *maxRotationCount)
+		processName(name, maxRotationCount)
 	}
 }
