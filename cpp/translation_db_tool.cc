@@ -1,8 +1,8 @@
 /** \file translation_db_tool.cc
- *  \brief A tool for reading/editing of the translation SQL table.
+ *  \brief A tool for reading/editing of the "translations" SQL table.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -17,7 +17,9 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 #include <iostream>
+#include <set>
 #include <cstdlib>
 #include <cstring>
 #include "DbConnection.h"
@@ -26,6 +28,7 @@
 #include "IniFile.h"
 #include "SimpleXmlParser.h"
 #include "StringUtil.h"
+#include "TranslationUtil.h"
 #include "util.h"
 
 
@@ -33,49 +36,66 @@ void Usage() {
     std::cerr << "Usage: " << progname << " command [args]\n\n";
     std::cerr << "       Possible commands are:\n";
     std::cerr << "       get_missing language_code\n";
-    std::cerr << "       insert index language_code text\n";
+    std::cerr << "       insert index language_code category text\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+void ExecSqlOrDie(const std::string &select_statement, DbConnection * const connection) {
+    if (unlikely(not connection->query(select_statement)))
+        Error("SQL Statement failed: " + select_statement + " (" + connection->getLastErrorMessage() + ")");
 }
 
 
 void GetMissing(DbConnection * const connection, const std::string &language_code) {
     // Find an ID where "language_code" is missing:
-    const std::string SELECT_ID_STMT("SELECT id FROM translations WHERE id NOT IN (SELECT id FROM translations "
-				     "WHERE language_code = \"" + language_code + "\") LIMIT 1");
-    if (unlikely(not connection->query(SELECT_ID_STMT)))
-        Error("Select failed: " + SELECT_ID_STMT + " (" + connection->getLastErrorMessage() + ")");
+    ExecSqlOrDie("SELECT id FROM translations WHERE id NOT IN (SELECT id FROM translations "
+		 "WHERE language_code = \"" + language_code + "\") LIMIT 1", connection);
     DbResultSet id_result_set(connection->getLastResultSet());
     if (id_result_set.empty()) // The language code whose absence we're looking for exists for all ID's.!
 	return;
 
     // Print the contents of all rows with the ID from the last query on stdout:
     const std::string matching_id(id_result_set.getNextRow()["id"]);
-    const std::string SELECT_MATCHING_ROW_STMT("SELECT * FROM translations WHERE id=" + matching_id);
-    if (unlikely(not connection->query(SELECT_MATCHING_ROW_STMT)))
-        Error("Select failed: " + SELECT_MATCHING_ROW_STMT + " (" + connection->getLastErrorMessage() + ")");
+    ExecSqlOrDie("SELECT * FROM translations WHERE id=" + matching_id, connection);
     DbResultSet result_set(connection->getLastResultSet());
-    while (const DbRow row = result_set.getNextRow())
-	std::cout << row["id"] << ',' << row["language_code"] << ',' << row["text"] << '\n';
+    if (not result_set.empty()) {
+	const DbRow row = result_set.getNextRow();
+	std::cout << row["id"] << ',' << row["language_code"] << ',' << row["text"] << ',' << row["category"] << '\n';
+    }
 }
 
 
-void Insert(DbConnection * const connection, const unsigned index, const std::string &language_code, const std::string &text) {
-    // First get all the categories for which we must insert the translation:
+void Insert(DbConnection * const connection, const unsigned index, const std::string &language_code,
+	    const std::string &category, const std::string &text)
+{
     const std::string ID(std::to_string(index));
-    const std::string SELECT_CATEGORIES_STMT("SELECT categories FROM translations WHERE id=" + ID + ", and language=\"deu\"");
-    if (unlikely(not connection->query(SELECT_CATEGORIES_STMT)))
-	Error("Select failed: " + SELECT_CATEGORIES_STMT + " (" + connection->getLastErrorMessage() + ")");
-    DbResultSet categories_result_set(connection->getLastResultSet());
-    if (unlikely(categories_result_set.empty()))
-	Error("no categories found, expected at least 1!");
+    if (category == "vufind_translations") {
+	// First get the token that we need for the INSERT:
+	const std::string SELECT_STMT("SELECT token FROM translations WHERE category='vufind_translations' AND id='" + ID + "'");
+	ExecSqlOrDie(SELECT_STMT, connection);
+	DbResultSet result_set(connection->getLastResultSet());
+	if (result_set.empty())
+	    Error("Select unexpectedly returned an empty result set: " + SELECT_STMT);
+	const DbRow row = result_set.getNextRow();
+	const std::string token(row[0]);
 
-    while (DbRow row = categories_result_set.getNextRow()) {
-	const std::string INSERT_STMT("INSERT INTO translations SET id=" + ID + ",language_code=\"" + language_code + "\",text=\""
-				      + connection->escapeString(text) + "\", category='" + row["category"]
-				      + "', preexists=FALSE");
-	if (unlikely(not connection->query(INSERT_STMT)))
-	    Error("Insert failed: " + INSERT_STMT + " (" + connection->getLastErrorMessage() + ")");
-    }
+	ExecSqlOrDie("INSERT INTO translations SET id=" + ID + ",language_code=\"" + language_code + "\",text=\""
+		     + connection->escapeString(text) + "\", category='vufind_translations', token='" + token
+		     + "', preexists=FALSE", connection);
+    } else
+	ExecSqlOrDie("INSERT INTO translations SET id=" + ID + ",language_code=\"" + language_code + "\",text=\""
+		     + connection->escapeString(text) + "\", category='" + category + "', preexists=FALSE", connection);
+}
+
+
+void GetPossibleCategories(DbConnection * const connection, std::set<std::string> * const categories) {
+    categories->clear();
+
+    ExecSqlOrDie("SELECT DISTINCT category FROM translations", connection);
+    DbResultSet categories_result_set(connection->getLastResultSet());
+    while (const DbRow row = categories_result_set.getNextRow())
+	categories->insert(row[0]);
 }
 
 
@@ -84,7 +104,6 @@ const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 int main(int argc, char *argv[]) {
     progname = argv[0];
-
 
     try {
 	if (argc < 2)
@@ -104,15 +123,25 @@ int main(int argc, char *argv[]) {
 		Error("\"" + language_code + "\" is not a valid 3-letter language code!");
 	    GetMissing(&db_connection, language_code);
 	} else if (std::strcmp(argv[1], "insert") == 0) {
-	    if (argc != 5)
-		Error("\"insert\" requires exactly three arguments: index, language_code, and text!");
+	    if (argc != 6)
+		Error("\"insert\" requires exactly four arguments: index, language_code, category, and text!");
+
 	    unsigned index;
 	    if (not StringUtil::ToUnsigned(argv[2], &index))
 		Error("\"" + std::string(argv[2])  + "\" is not a valid index!");
+
 	    const std::string language_code(argv[3]);
-	    if (language_code.length() != 3)
-		Error("\"" + language_code + "\" is not a valid 3-letter language code!");
-	    Insert(&db_connection, index, language_code, argv[4]);
+	    if (TranslationUtil::IsValidGerman3LetterCode(language_code))
+		Error("\"" + language_code + "\" is not a valid German 3-letter language code!");
+
+	    std::set<std::string> valid_categories;
+	    GetPossibleCategories(&db_connection, &valid_categories);
+	    const std::string category(argv[4]);
+	    if (valid_categories.find(category) == valid_categories.cend())
+		Error("\"" + category + "\" is not a valid category, valid categories are: "
+		      + StringUtil::Join(valid_categories, ", ") + ".");
+
+	    Insert(&db_connection, index, language_code, category, argv[5]);
 	} else
 	    Error("unknown command \"" + std::string(argv[1]) + "\"!");
     } catch (const std::exception &x) {

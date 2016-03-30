@@ -42,6 +42,9 @@ std::string MapInternational2LetterCodeToGerman3LetterCode(const std::string &in
 std::string MapGerman3LetterCodeToInternational2LetterCode(const std::string &german_3letter_code);
 
 
+bool IsValidGerman3LetterCode(const std::string &german_3letter_code_candidate);
+
+
 } // namespace TranslationUtil
 
    

@@ -77,4 +77,17 @@ std::string MapGerman3LetterCodeToInternational2LetterCode(const std::string &ge
 }
 
 
+bool IsValidGerman3LetterCode(const std::string &german_3letter_code_candidate) {
+    if (german_3letter_code_candidate.length() != 3)
+	return false;
+
+    for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3letter_code) {
+	if (_2letter_and_3letter_codes.second == german_3letter_code_candidate)
+	    return true;
+    }
+    
+    return false;
+}
+   
+
 } // namespace TranslationUtil
