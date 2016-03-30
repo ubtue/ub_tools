@@ -50,13 +50,13 @@ func getLogNames() []string {
 	return logNames
 }
 
-func Exists(path string) bool {
+func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
 func processName(logFileName string, maxRotationCount int) {
-	if !Exists(logFileName) {
+	if !exists(logFileName) {
 		return
 	} else {
 		os.Remove(logFileName + "." + strconv.Itoa(maxRotationCount))
