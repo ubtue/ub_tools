@@ -71,7 +71,6 @@ func processName(logFileName string, maxRotationCount int) {
 func main() {
 	var maxRotationCount int
 	processFlags(&maxRotationCount)
-	fmt.Printf("maxRotationCount = %d\n", maxRotationCount)
 	logNames := getLogNames()
 	for _, name := range logNames {
 		processName(name, maxRotationCount)
