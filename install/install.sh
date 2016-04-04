@@ -196,15 +196,6 @@ fi
 if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
-  echo "create_logrotate_conf.sh"
-fi
-"$SCRIPT_DIR/create_logrotate_conf.sh"
-
-##############################################################################
-
-if [[ "$VERBOSE" ]] ; then
-  echo ""
-  echo ""
   echo "create_private_server_config.sh $SERVER_URL $SERVER_IP $EMAIL PASSWORD"
 fi
 "$SCRIPT_DIR/create_private_server_config.sh" "$SERVER_IP" "$SERVER_URL" "$EMAIL" "$VUFIND_PASSWORD"
