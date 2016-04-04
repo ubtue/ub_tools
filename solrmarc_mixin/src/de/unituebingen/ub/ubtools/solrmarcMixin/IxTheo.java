@@ -43,6 +43,41 @@ public class IxTheo extends SolrIndexerMixin {
         return ixTheoNotations;
     }
 
+
+   /**
+     * Determine Record Format(s)
+     *
+     * @param record the record
+     * @return format of record
+     */
+
+    public Set<String> getFormatsWithGermanHandling(final Record record){
+
+       // We've been facing the problem that the original SolrMarc cannot deal with 
+       // german descriptions in the 245h and thus assigns a wrong format 
+       // for e.g. electronic resource
+       // Thus we must handle this manually
+
+       Set<String> rawFormats = new LinkedHashSet<String>();
+       DataField title = (DataField) record.getVariableField("245");
+
+       if (title != null) {
+           if (title.getSubfield('h') != null) {
+                if (title.getSubfield('h').getData().toLowerCase().contains("[elektronische ressource]")) {
+                   rawFormats.add("Electronic");
+                   return rawFormats;
+                } else {
+                   return indexer.getFormat(record);
+                }
+           }
+       }
+
+       // Catch case of empty title
+       return indexer.getFormat(record);
+
+    }
+
+
     /**
      * Determine Record Format(s)
      *
@@ -51,7 +86,8 @@ public class IxTheo extends SolrIndexerMixin {
      */
     public Set getFormat(final Record record) {
         final Set<String> formats = new HashSet<>();
-        final Set<String> rawFormats = indexer.getFormat(record);
+        Set<String> rawFormats = getFormatsWithGermanHandling(record);
+        
         for (final String rawFormat : rawFormats) {
             if (rawFormat.equals("BookComponentPart") || rawFormat.equals("SerialComponentPart")) {
                 formats.add("Article");
