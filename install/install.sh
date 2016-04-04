@@ -45,7 +45,7 @@ if  [[ ! -f "$CONFIG_FILE" ]] || [[ ! -r "$CONFIG_FILE" ]] ; then
   # Maybe it is a path relativ to the current working directory. Just try it...
   CONFIG_FILE="$(pwd)/$CONFIG_FILE"
   if  [[ ! -f "$CONFIG_FILE" ]] || [[ ! -r "$CONFIG_FILE" ]] ; then
-    echo "ERROR: configuration file dosen't exist or isn't readable!"
+    echo "ERROR: configuration file doesn't exist or isn't readable!"
     echo "Parameters: $*"
     show_help
     exit 1
@@ -227,7 +227,7 @@ fi
 if [[ "$VERBOSE" ]] ; then
   echo ""
   echo ""
-  echo "set_privileges.sh $VUFIND_CLONE_DIRECTORY $USER_NAME $USER_GROUP"
+  echo "set_privileges.sh $VUFIND_CLONE_DIRECTORY $USER_NAME $USER_GROUP $SYSTEM_TYPE"
 fi
 "$SCRIPT_DIR/set_privileges.sh" "$VUFIND_CLONE_DIRECTORY" "$USER_NAME" "$USER_GROUP" "$SYSTEM_TYPE"
 
