@@ -50,7 +50,7 @@ root_install: $(INSTALL_PROGS)
 	@echo "Installing programs..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
 	mkdir --parents /var/lib/tuelib/bibleRef/
-	cp books_of_the_bible_to_canonical_form_map /var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map
+	cp books_of_the_bible_to_canonical_form.map /var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map
 
 cgi_install: $(CGI_PROGS)
 	mkdir --parents /var/www/cgi-bin
