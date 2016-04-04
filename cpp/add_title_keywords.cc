@@ -90,19 +90,7 @@ std::string ConcatSet(const std::unordered_set<std::string> &words) {
 }
 
 
-bool HasExpertAssignedKeywords(const MarcUtil::Record &record) {
-    const std::vector<std::string> keyword_fields{ "600", "610", "611", "630", "648", "650", "651", "653", "655", "656", "689" };
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-    for (const auto &keyword_field : keyword_fields) {
-	if (DirectoryEntry::FindField(keyword_field, dir_entries) != dir_entries.end())
-	    return true;
-    }
-
-    return false;
-}
-
-
-void AugmentKeywordsWithTitleWords(
+void AugmentStopwordsWithTitleWords(
     const bool verbose, File * const input, File * const output,
     const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
 {
@@ -118,12 +106,6 @@ void AugmentKeywordsWithTitleWords(
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
 	record.setRecordWillBeWrittenAsXml(true);
         ++total_count;
-
-	// Do not attempt to generate title keywords if we have expert-assigned keywords:
-	if (HasExpertAssignedKeywords(record)) {
-	    record.write(&xml_writer);
-	    continue;
-	}
 
 	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
@@ -157,7 +139,7 @@ void AugmentKeywordsWithTitleWords(
         const auto code_and_stopwords(language_codes_to_stopword_sets.find(language_code));
         if (code_and_stopwords != language_codes_to_stopword_sets.end())
             FilterOutStopwords(code_and_stopwords->second, &title_words);
-        if (language_code != "eng") // Hack, because people suck at cataloging!
+        if (language_code != "eng") // Hack because people suck at cataloging!
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
@@ -223,5 +205,5 @@ int main(int argc, char **argv) {
     if (language_codes_to_stopword_sets.find("eng") == language_codes_to_stopword_sets.end())
         Error("You always need to provide \"stopwords.eng\"!");
 
-    AugmentKeywordsWithTitleWords(verbose, &marc_input, &marc_output, language_codes_to_stopword_sets);
+    AugmentStopwordsWithTitleWords(verbose, &marc_input, &marc_output, language_codes_to_stopword_sets);
 }
