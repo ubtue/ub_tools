@@ -7,23 +7,27 @@
 [FTP]
 host     = vftp.bsz-bw.de
 username = swb
-password = XXXXXXX
+password = XXXXXX
 
 [SMTPServer]
 server_address  = smtpserv.uni-tuebingen.de
-server_user     = XXXXXX
+server_user     = qubob16
 server_password = XXXXXX
 
 [Kompletter Abzug]
-filename_pattern = WA-MARC-krimdok-(\d\d\d\d\d\d).tar.gz
-directory_on_ftp_server = /001
+filename_pattern = SA-MARC-ixtheo-(\d\d\d\d\d\d).tar.gz
+directory_on_ftp_server = /ixtheo
+
+[Differenzabzug]
+filename_pattern = TA-MARC-ixtheo-(\d\d\d\d\d\d).tar.gz
+directory_on_ftp_server = /ixtheo
 
 [Loeschlisten]
 filename_pattern = LOEPPN-(\d\d\d\d\d\d)
 directory_on_ftp_server = /sekkor
 
 [Kumulierte Abzuege]
-output_directory = /tmp
+output_directory = /usr/local/ub_tools/bsz_daten_cumulated
 """
 
 from ftplib import FTP
@@ -169,9 +173,6 @@ def CleanUpCumulativeCollection(config):
     if most_recent_complete_data_filename is None:
         return None
 
-    # Create a "flag" file used to signal that we had a real new complete data dump:
-    util.Touch("downloaded_a_genuine_full_data_dump")
-
     # Extract the date
     match = filename_complete_data_regex.match(most_recent_complete_data_filename)
     if match and match.group(1):
@@ -235,6 +236,10 @@ def Main():
         else:
             msg += "Successfully downloaded \"" + downloaded_file + "\".\n"
             AddToCumulativeCollection(downloaded_file, config)
+            if section == "Kompletter Abzug":
+                # Create a "flag" file used to signal that we had a real new complete data dump:
+                util.Touch("downloaded_a_genuine_full_data_dump")
+                
     CleanUpCumulativeCollection(config)
     util.SendEmail("BSZ File Update", msg, priority=5)
 
