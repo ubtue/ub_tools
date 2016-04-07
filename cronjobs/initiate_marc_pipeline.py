@@ -15,7 +15,7 @@ import util
 
 def ExecOrDie(cmd_name, args, log_file_name):
     if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
-                             new_stderr=log_file_name) == 0:
+                             new_stderr=log_file_name, append_stdout=True, append_stderr=True) == 0:
         util.SendEmail("MARC-21 Pipeline",  "Pipeline failed.  See logfile \"" + log_file_name + "\" for the reason.", priority=1)
         sys.exit(-1)
 
