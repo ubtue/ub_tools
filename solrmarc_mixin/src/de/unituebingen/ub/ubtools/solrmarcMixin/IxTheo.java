@@ -2,6 +2,7 @@ package de.unituebingen.ub.ubtools.solrmarcMixin;
 
 
 import org.marc4j.marc.DataField;
+import org.marc4j.marc.VariableField;
 import org.marc4j.marc.Record;
 import org.solrmarc.index.SolrIndexerMixin;
 
@@ -95,6 +96,31 @@ public class IxTheo extends SolrIndexerMixin {
                 formats.add(rawFormat);
             }
         }
+
+        final List<VariableField> _655Fields = record.getVariableFields("655");
+	for (final VariableField _655Field : _655Fields) {
+	    final DataField dataField = (DataField)_655Field;
+	    if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
+		&& dataField.getSubfield('a').getData().startsWith("Rezension"))
+            {
+		formats.clear();
+		formats.add("Review");
+		break;
+	    }
+	}
+
+        final List<VariableField> _935Fields = record.getVariableFields("935");
+	for (final VariableField _935Field : _935Fields) {
+	    final DataField dataField = (DataField)_935Field;
+	    if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
+		&& dataField.getSubfield('c').getData().equals("uwre"))
+            {
+		formats.clear();
+		formats.add("Review");
+		break;
+	    }
+	}
+
         return formats;
     }
 }
