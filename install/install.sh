@@ -300,7 +300,7 @@ if [[ "$VERBOSE" ]] ; then
   echo ""
   echo "create_muttrc.sh"
 fi
-"$SCRIPT_DIR/create_muttrc.sh"
+"$SCRIPT_DIR/create_muttrc.sh" "$EMAIL"
 
 
 
