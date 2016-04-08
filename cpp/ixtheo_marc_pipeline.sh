@@ -45,7 +45,7 @@ extract_keywords_for_translation GesamtTiteldaten-post-phase"$((P-1))"-"${date}"
                                  Normdaten-"${date}".xml >> "${log}" 2>&1
 extract_vufind_translations_for_translation \
     $(ls "$VUFIND_HOME"/local/languages/??.ini | grep 'de.ini$') \
-    $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$')
+    $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 

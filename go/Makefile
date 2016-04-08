@@ -1,4 +1,6 @@
 .PHONY: all
+export GOROOT=$(shell go env GOROOT)
+export GOPATH=${shell readlink --canonicalize "."}
 
 all:
 	go install ubtue/log_rotate
