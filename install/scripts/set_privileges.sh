@@ -77,13 +77,13 @@ if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
   fi
 
   if [[ $(which semanage) ]]; then
-    set_se_perms httpd_config_t "/var/lib/tuelib"
+    set_se_perms httpd_config_t "/var/lib/tuelib(/.*)?"
     set_se_perms httpd_sys_rw_content_t "/usr/local/vufind2(/.*)?"
     set_se_perms httpd_config_t "$VUFIND_HOME/local/httpd-vufind(.*).conf"
     set_se_perms httpd_sys_rw_content_t "$VUFIND_HOME/logs/(.*).xml"
     set_se_perms httpd_log_t "/var/log/vufind.log"
     set_se_perms var_log_t "/var/log/$SYSTEM_TYPE"
-    set_se_perms system_u:object_r:bin_t:s0 "/usr/local/bin"
+    set_se_perms system_u:object_r:bin_t:s0 "/usr/local/bin(/.*)?"
   fi
 
 else
