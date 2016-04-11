@@ -67,6 +67,7 @@ public class IxTheo extends SolrIndexerMixin {
            if (title.getSubfield('h') != null) {
                 if (title.getSubfield('h').getData().toLowerCase().contains("[elektronische ressource]")) {
                    rawFormats.add("Electronic");
+                   rawFormats.addAll(indexer.getFormat(record));
                    return rawFormats;
                 } else {
                    return indexer.getFormat(record);
