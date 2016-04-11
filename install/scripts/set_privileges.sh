@@ -63,6 +63,11 @@ chown -R "$OWNER" "/var/lib/tuelib"
 mkdir --parents "/var/log/$SYSTEM_TYPE"
 chown -R "$OWNER" "/var/log/$SYSTEM_TYPE"
 
+set_se_perms() {
+    semanage fcontext --add --type "$1" "$2"
+    restorecon -R "$2"
+}
+
 if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
 
   if [[ $(which setsebool) ]]; then
@@ -72,17 +77,13 @@ if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
   fi
 
   if [[ $(which semanage) ]]; then
-    semanage fcontext --add --type httpd_config_t /var/lib/tuelib
-    semanage fcontext --add --type httpd_sys_rw_content_t "/usr/local/vufind2(/.*)?"
-    semanage fcontext --add --type httpd_config_t "$VUFIND_HOME/local/httpd-vufind(.*).conf"
-    semanage fcontext --add --type httpd_sys_rw_content_t "$VUFIND_HOME/logs/(.*).xml"
-    semanage fcontext --add --type httpd_log_t "/var/log/vufind.log"
-    semanage fcontext --add --type var_log_t "/var/log/$SYSTEM_TYPE"
-    
-    restorecon -R "/var/lib/tuelib"
-    restorecon -R "$VUFIND_HOME"
-    restorecon -R "/var/log/vufind.log"
-    restorecon -R "/var/log/$SYSTEM_TYPE"
+    set_se_perms httpd_config_t "/var/lib/tuelib"
+    set_se_perms httpd_sys_rw_content_t "/usr/local/vufind2(/.*)?"
+    set_se_perms httpd_config_t "$VUFIND_HOME/local/httpd-vufind(.*).conf"
+    set_se_perms httpd_sys_rw_content_t "$VUFIND_HOME/logs/(.*).xml"
+    set_se_perms httpd_log_t "/var/log/vufind.log"
+    set_se_perms var_log_t "/var/log/$SYSTEM_TYPE"
+    set_se_perms system_u:object_r:bin_t:s0 "/usr/local/bin"
   fi
 
 else
