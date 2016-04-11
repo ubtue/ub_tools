@@ -11,6 +11,7 @@ import java.util.*;
 
 public class IxTheo extends SolrIndexerMixin {
     private Set<String> ixTheoNotations = null;
+    private static Set<String> unassigned = Collections.singleton("[Unassigned]");
 
     @Override
     public void perRecordInit(final Record record) {
@@ -39,7 +40,7 @@ public class IxTheo extends SolrIndexerMixin {
     public Set<String> getIxTheoNotationFacets(final Record record) {
         final Set<String> ixTheoNotations = getIxTheoNotations(record);
         if (ixTheoNotations.isEmpty()) {
-            return Collections.singleton("[Unassigned]");
+            return unassigned;
         }
         return ixTheoNotations;
     }
