@@ -211,11 +211,15 @@ public:
     }
 
     /** Returns the next character from the input stream or EOF at the end of the input stream. */
-    int get();
+    inline int get() {
+	if (unlikely(file_ == nullptr))
+	    throw std::runtime_error("in File::get: can't read from a non-open file \"" + path_ + "\"!");
+	return getc(file_);
+    }
 
     /** \brief Write a character. */
-    int put(const char ch) {
-	return std::fputc(ch, file_);
+    inline int put(const char ch) {
+	return putc(ch, file_);
     }
 
     void putback(const char ch);

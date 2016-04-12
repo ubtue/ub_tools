@@ -57,7 +57,7 @@ public:
      *  \param  indent_amount    How many leading spaces to add per indentation level.
      *  \param  text_conversion_type  What kind, if any, of text conversion to apply on output.
      */
-    explicit XmlWriter(File * const output_file, const unsigned indent_amount = 2,
+    explicit XmlWriter(File * const output_file, const unsigned indent_amount = 0,
 		       const TextConversionType text_conversion_type = NoConversion);
 
     /** \brief  Instantiate an XmlWriter object.
@@ -65,7 +65,7 @@ public:
      *  \param  indent_amount    How many leading spaces to add per indentation level.
      *  \param  text_conversion_type  What kind, if any, of text conversion to apply on output.
      */
-    explicit XmlWriter(std::string * const output_string, const unsigned indent_amount = 2,
+    explicit XmlWriter(std::string * const output_string, const unsigned indent_amount = 0,
 		       const TextConversionType text_conversion_type = NoConversion);
 
     /** Destroyes an XmlWriter object, closing any still open tags. */
