@@ -355,13 +355,6 @@ bool File::serialize(const bool b) {
 }
 
 
-int File::get() {
-    if (unlikely(file_ == nullptr))
-	throw std::runtime_error("in File::get: can't read from a non-open file \"" + path_ + "\"!");
-    return std::fgetc(file_);
-}
-
-
 void File::putback(const char ch) {
     if (unlikely(std::ungetc(ch, file_) == EOF))
 	throw std::runtime_error("in File::putback: failed to push back a character ("
