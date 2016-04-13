@@ -67,7 +67,7 @@ function set_se_perms() {
   for arg_no in $(seq 2 $#); do
     arg="${!arg_no}"
     if [[ -d "$arg" ]]; then # Recursively process all directories.
-       find "$arg" -type d -print0 | xargs -t --null --max-lines semanage fcontext --add --type d "$arg" 
+       find "$arg" -type d -print0 | xargs -t --null --max-lines semanage fcontext --add --type "$1" 
     else # Assume we have an ordinary file.
       semanage fcontext --add --type "$1" "$arg"
     fi
