@@ -13,8 +13,8 @@ if [ $# -ne 1 ]; then
 fi
 
 rm -f parent_refs child_titles
-for s in 800w 810w 830w 773w; do
-    marc_grep $1 '"'$s'"' | sed -r 's/^([^:]+)[^)]+[)](.+)$/\2:\1/' >> parent_refs
+for subfield in 800w 810w 830w 773w; do
+    marc_grep $1 '"'$subfield'"' | grep '(DE-576)' | sed -r 's/^([^:]+)[^)]+[)](.+)$/\2:\1/' >> parent_refs
 done
 marc_grep $1 '"245a"' >> child_titles
 
