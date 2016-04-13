@@ -123,7 +123,7 @@ void LoadRefs(const std::string &child_refs_filename) {
         if (key.empty())
             Error("Empty parent key in \"" + child_refs_filename + "\" on line " + std::to_string(line_no) + "!");
         if (parent_to_children_map.find(key) != parent_to_children_map.end())
-            Error("Duplicate parent key in \"" + child_refs_filename + "\"!");
+            Error("Duplicate parent key \"" + key + "\" in \"" + child_refs_filename + "\"!");
         const std::string value(line.substr(first_colon_pos + 1));
         if (value.empty())
             Error("Empty child refs in \"" + child_refs_filename + "\" on line " + std::to_string(line_no) + "!");
