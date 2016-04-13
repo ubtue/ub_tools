@@ -1,6 +1,5 @@
 /** \file   MarcUtil.cc
- *  \brief  Implementation of various utility functions related to the processing of MARC-21 and MARC-XML rec%%%%"record"%%%%%%%
-%%ords.
+ *  \brief  Implementation of various utility functions related to the processing of MARC-21 and MARC-XML records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2014-2016 Universitätsbiblothek Tübingen.  All rights reserved.
@@ -33,8 +32,8 @@
 
 
 // Creates a binary, a.k.a. "raw" representation of a MARC21 record.
-static std::string ComposeRecord(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &fields,
-				 Leader * const leader)
+static std::string ComposeRecord(const std::vector<DirectoryEntry> &dir_entries,
+				 const std::vector<std::string> &fields, Leader * const leader)
 {
     size_t record_size(Leader::LEADER_LENGTH);
     const size_t directory_size(dir_entries.size() * DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
@@ -666,12 +665,12 @@ static void ParseDatafield(const std::string &input_filename, const std::map<std
 	// 1. <subfield code=...>
 	if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:subfield")) {
 	    const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-	    throw std::runtime_error("in MarcUtil::ParseDatafield: expected <subfield> opening tag on line "
+	    throw std::runtime_error("in MarcUtil::ParseDatafield: expected <marc:subfield> opening tag on line "
 				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"! (Found: "
 				     + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : ""));
 	}
 	if (unlikely(attrib_map.find("code") == attrib_map.cend() or attrib_map["code"].length() != 1))
-	    throw std::runtime_error("in MarcUtil::ParseDatafield: missing or invalid \"code\" attrribute as part of the "
+	    throw std::runtime_error("in MarcUtil::ParseDatafield: missing or invalid \"code\" attribute as part of the "
 				     "<subfield> tag " + std::to_string(xml_parser->getLineNo()) + " in file \""
 				     + input_filename + "\"!");
 	field_data += '\x1F' + attrib_map["code"];
