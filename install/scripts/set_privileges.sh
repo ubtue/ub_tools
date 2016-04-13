@@ -67,13 +67,21 @@ function set_se_perms() {
   for arg_no in $(seq 2 $#); do
     arg="${!arg_no}"
     if [[ -d "$arg" ]]; then # Recursively process all directories.
-       find "$arg" -type d -print0 | xargs --null semanage fcontext --add --type "$1"
-       find "$arg" -type d -print0 | xargs --null restorecon -R 
+       find "$arg" -type d -print0 | xargs -t --null --max-lines semanage fcontext --add --type "$1" 
     else # Assume we have an ordinary file.
       semanage fcontext --add --type "$1" "$arg"
-      restorecon -R "$arg"
     fi
+      restorecon -R "$arg"
   done
+}
+
+function set_se_permissions() {
+  semanage fcontext --add --type "$1" "$2"
+  if [ $# -ne 2 ]; then
+    restorecon -R "$3"
+  else
+    restorecon -R "$2"
+  fi
 }
 
 if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
@@ -83,12 +91,12 @@ if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
   fi
 
   if [[ $(which semanage) ]]; then
-    set_se_perms httpd_config_t /var/lib/tuelib
-    set_se_perms httpd_sys_rw_content_t "$VUFIND_HOME"
-    set_se_perms httpd_config_t "$VUFIND_HOME"/local/httpd-vufind*.conf
-    set_se_perms httpd_log_t /var/log/vufind.log
-    set_se_perms var_log_t /var/log/"$SYSTEM_TYPE"
-    set_se_perms system_u:object_r:bin_t:s0 /usr/local/bin
+    set_se_permissions httpd_config_t /var/lib/tuelib
+    set_se_permissions httpd_sys_rw_content_t "/usr/local/vufind2(/.*)?" "/usr/local/vufind2"
+    set_se_permissions httpd_config_t "$VUFIND_HOME"/local/httpd-vufind*.conf
+    set_se_permissions httpd_log_t /var/log/vufind.log
+    set_se_permissions var_log_t /var/log/"$SYSTEM_TYPE"
+    set_se_permissions bin_t /usr/local/bin
   fi
 
 else
