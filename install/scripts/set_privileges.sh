@@ -10,11 +10,11 @@ SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 # Make sure only root can run our script
 if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root" 1>&2
-   exit 1
+  echo "This script must be run as root" 1>&2
+  exit 1
 fi
 
-show_help() {
+function show_help() {
   cat << EOF
 Creates all directories and the vufind user. Sets all file privileges of VuFind and all other needed files.
 
@@ -63,26 +63,32 @@ chown -R "$OWNER" "/var/lib/tuelib"
 mkdir --parents "/var/log/$SYSTEM_TYPE"
 chown -R "$OWNER" "/var/log/$SYSTEM_TYPE"
 
+function set_se_perms() {
+  for arg_no in $(seq 2 $#); do
+    arg="${!arg_no}"
+    if [[ -d "$arg" ]]; then # Recursively process all directories.
+       find "$arg" -type d -print0 | xargs --null semanage fcontext --add --type "$1"
+       find "$arg" -type d -print0 | xargs --null restorecon -R 
+    else # Assume we have an ordinary file.
+      semanage fcontext --add --type "$1" "$arg"
+      restorecon -R "$arg"
+    fi
+  done
+}
+
 if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
 
   if [[ $(which setsebool) ]]; then
-	  setsebool -P httpd_can_network_connect=1 \
-               httpd_can_network_connect_db=1 \
-               httpd_enable_cgi=1
+    setsebool -P httpd_can_network_connect=1 httpd_can_network_connect_db=1 httpd_enable_cgi=1
   fi
 
   if [[ $(which semanage) ]]; then
-    semanage fcontext --add --type httpd_config_t /var/lib/tuelib
-    semanage fcontext --add --type httpd_sys_rw_content_t "/usr/local/vufind2(/.*)?"
-    semanage fcontext --add --type httpd_config_t "$VUFIND_HOME/local/httpd-vufind(.*).conf"
-    semanage fcontext --add --type httpd_sys_rw_content_t "$VUFIND_HOME/logs/(.*).xml"
-    semanage fcontext --add --type httpd_log_t "/var/log/vufind.log"
-    semanage fcontext --add --type var_log_t "/var/log/$SYSTEM_TYPE"
-    
-    restorecon -R "/var/lib/tuelib"
-    restorecon -R "$VUFIND_HOME"
-    restorecon -R "/var/log/vufind.log"
-    restorecon -R "/var/log/$SYSTEM_TYPE"
+    set_se_perms httpd_config_t /var/lib/tuelib
+    set_se_perms httpd_sys_rw_content_t "$VUFIND_HOME"
+    set_se_perms httpd_config_t "$VUFIND_HOME"/local/httpd-vufind*.conf
+    set_se_perms httpd_log_t /var/log/vufind.log
+    set_se_perms var_log_t /var/log/"$SYSTEM_TYPE"
+    set_se_perms system_u:object_r:bin_t:s0 /usr/local/bin
   fi
 
 else
