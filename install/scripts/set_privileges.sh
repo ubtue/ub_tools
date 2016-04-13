@@ -77,7 +77,7 @@ function set_se_perms() {
 
 function set_se_permissions() {
   semanage fcontext --add --type "$1" "$2"
-  if [ $# -eq 2 ]; then
+  if [ $# -ne 2 ]; then
     restorecon -R "$3"
   else
     restorecon -R "$2"
