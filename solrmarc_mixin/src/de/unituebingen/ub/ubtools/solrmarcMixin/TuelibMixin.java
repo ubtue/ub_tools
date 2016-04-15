@@ -615,10 +615,6 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return
      */
     public String isAvailableInTuebingen(final Record record) {
-        final Set<String> isils = getIsils(record);
-        if (isils.contains("DE-21") || isils.contains("DE-21-110")) {
-            return Boolean.toString(true);
-        }
         return Boolean.toString(!record.getVariableFields("SIG").isEmpty());
     }
 
