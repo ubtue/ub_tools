@@ -57,12 +57,15 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
     _040_subfields.setSubfield('e', "rda");
     record->updateField(static_cast<size_t>(_040_index), _040_subfields.toString());
 
-    if (not _130_subfields.moveSubfield('a', 'p'))
-	return;
-    _130_subfields.setSubfield('a', "Bibel");
-    record->updateField(static_cast<size_t>(_130_index), _130_subfields.toString());
+    if (not (_130_subfields.hasSubfield('p') and _130_subfields.getFirstSubfieldValue('a') == "Bibel")) {
+	if (not _130_subfields.moveSubfield('a', 'p'))
+	    return;
+	_130_subfields.setSubfield('a', "Bibel");
+	record->updateField(static_cast<size_t>(_130_index), _130_subfields.toString());
+    }
 
     record->write(xml_writer);
+
     ++conversion_count;
 }
 
