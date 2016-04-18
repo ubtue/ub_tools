@@ -107,16 +107,17 @@ void Subfields::erase(const char subfield_code, const std::string &value) {
 }
 
 
-void Subfields::moveSubfield(const char from_subfield_code, const char to_subfield_code) {
+bool Subfields::moveSubfield(const char from_subfield_code, const char to_subfield_code) {
     if (unlikely(not hasSubfield(to_subfield_code)))
-	throw std::runtime_error("Subfields::moveSubfield: field has no subfield '"
-				 + std::string(1, from_subfield_code) + "'!");
+	return false;
 
     erase(to_subfield_code);
     const auto begin_end(getIterators(from_subfield_code));
     for (Iterator code_and_value(begin_end.first); code_and_value != begin_end.second; ++code_and_value)
 	subfield_code_to_data_map_.emplace(to_subfield_code, code_and_value->second);
     erase(from_subfield_code);
+
+    return true;
 }
 
 
