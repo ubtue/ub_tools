@@ -73,6 +73,9 @@ public:
     void erase(const char subfield_code, const std::string &value);
     void addSubfield(const char subfield_code, const std::string &subfield_data)
         { subfield_code_to_data_map_.insert(std::make_pair(subfield_code, subfield_data)); }
+    void setSubfield(const char subfield_code, const std::string &subfield_data)
+        { erase(subfield_code); addSubfield(subfield_code, subfield_data); }
+    void moveSubfield(const char from_subfield_code, const char to_subfield_code);
 
     /** \return A map from subfield codes to subfield data. */
     const std::unordered_multimap<char, std::string> &getAllSubfields() const { return subfield_code_to_data_map_; }
