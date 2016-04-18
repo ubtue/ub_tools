@@ -75,7 +75,12 @@ public:
         { subfield_code_to_data_map_.insert(std::make_pair(subfield_code, subfield_data)); }
     void setSubfield(const char subfield_code, const std::string &subfield_data)
         { erase(subfield_code); addSubfield(subfield_code, subfield_data); }
-    void moveSubfield(const char from_subfield_code, const char to_subfield_code);
+
+    /** \brief Moves the contents from the subfield with subfield code "from_subfield_code" to the
+     *         subfield with the subfield code "to_subfield_code".
+     *  \return True if the move succeeded and false if there was no subfield with subfield code "from_subfield_code".
+     */
+    bool moveSubfield(const char from_subfield_code, const char to_subfield_code);
 
     /** \return A map from subfield codes to subfield data. */
     const std::unordered_multimap<char, std::string> &getAllSubfields() const { return subfield_code_to_data_map_; }
