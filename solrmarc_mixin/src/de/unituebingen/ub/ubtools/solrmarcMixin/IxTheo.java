@@ -428,4 +428,151 @@ public class IxTheo extends SolrIndexerMixin {
         return formats;
     }
 
+    /**
+     * Determine Topics
+     *
+     * @param record the record
+     * @return format of record
+     */
+
+    //public Set<String> getTopics(final Record record, String fieldSpec, String[] separators) {
+    public Set<String> getTopics(final Record record, String fieldSpec, String separator) {
+
+       final Set<String> topics = new LinkedHashSet<String>();
+       // It seems to be a general rule that in the fields that the $p fields are converted to a '.'
+       // $n is converted to a space if there is additional information
+
+       //String[] separators = {". ", " "};
+       //String[] separators = {"|", "||", "|||", "||||", "|||||", "|||||||"};
+       //String sspec = "\\::||:|||:||||";
+       //String sspec = "$p \\$xxxx :$t&&:$x&&&:$v&&&&";
+       Map<String, String> separators = parseTopicSeparators(separator);
+
+       //System.out.println("Specs: ");
+       //for (Map.Entry<String, String> entry : separators.entrySet()) {
+       //     System.out.print(entry.getKey() + " is mapped to "  + entry.getValue() + "-----");
+       //}
+
+       getTopicsCollector(record, fieldSpec, separators, topics);
+
+       return topics;
+
+    }
+
+   /**
+    * Parse the field specifications
+    */
+   
+    public Map<String,String> parseTopicSeparators(String separatorSpec){
+  
+       final Map<String,String> separators = new LinkedHashMap<String,String>();
+       
+       // Split the string at unescaped ":"
+       // See http://stackoverflow.com/questions/18677762/handling-delimiter-with-escape-characters-in-java-string-split-method (20160416)
+       
+       final String fieldDelim = ":";
+       final String subfieldDelim = "$";
+       final String esc = "\\";
+       final String regexColon = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(fieldDelim);
+       
+       String[] subfieldSeparatorList = separatorSpec.split(regexColon);
+       for(String s : subfieldSeparatorList) {
+           // System.out.println("separator Spec: " + s);
+           // Create map of subfields and separators
+           final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" +  Pattern.quote(subfieldDelim) + "([a-zA-Z])(.*)";
+           Matcher subfieldMatcher = Pattern.compile(regexSubfield).matcher(s);
+           
+           // Extract the subfield
+           if(subfieldMatcher.find()) {
+               // Get $ and the character
+               String subfield = subfieldMatcher.group(1);
+               String separatorToUse = subfieldMatcher.group(2);
+               //System.out.println("Inserting separators | subfield: " + subfield + " - text: " + separatorToUse);
+               separators.put(subfield, separatorToUse.replace(esc, ""));
+           }
+           // Use an expression that does not specify a subfield as default value
+           else{
+              separators.put("default", s.replace(esc, ""));
+           }
+
+       }
+        
+       return separators;
+
+    }
+    
+
+   /**
+    * Generic function for topics that abstracts from a set or lsit collector
+    * It is based on original SolrIndex.getAllSubfieldsCollector but allows
+    * to specify several different separators to concatenate the single subfields
+    * Moreover Numeric subfields are filtered our since the do not contain data
+    * to be displayed. 
+    * Separators can be defined on a subfield basis as list in the format
+    * separator_spec :== separator | subfield_separator_list
+    * subfield_separator_list :== subfield_separator_spec | 
+    *                             subfield_separator_spec ":" subfield_separator_list | 
+    *                             subfield_separator_spec ":" separator
+    * subfield_separator_spec :== subfield_spec separator 
+    * subfield_spec :== "$" character_subfield
+    * character_subfield :== A character subfield (e.g. p,n,t,x...)
+    * separator :== separator_without_control_characters+ | 
+                    separator "\:" separator | separator "\$" separator
+    * separator_without_control_characters := All characters without ":" and "$" | empty_string
+    */
+
+    public void getTopicsCollector(final Record record, String fieldSpec,
+                                          Map<String,String> separators, Collection<String> collector) {
+
+        String[] fldTags = fieldSpec.split(":");
+
+        for (int i = 0; i < fldTags.length; i++)
+        {
+            // Check to ensure tag length is at least 3 characters
+            if (fldTags[i].length() < 3)
+            {
+                System.err.println("Invalid tag specified: " + fldTags[i]);
+                continue;
+            }
+
+            String fldTag = fldTags[i].substring(0, 3);
+
+            String subfldTags = fldTags[i].substring(3);
+
+            List<VariableField> marcFieldList = record.getVariableFields(fldTag);
+            if (!marcFieldList.isEmpty())
+            {
+                Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
+                for (VariableField vf : marcFieldList)
+                {
+                    int separator_index = 0;
+                    DataField marcField = (DataField) vf;
+                    StringBuffer buffer = new StringBuffer("");
+                    List<Subfield> subfields = marcField.getSubfields();
+                    for (Subfield subfield : subfields)
+                    {
+                        // Skip numeric fields
+                        if (Character.isDigit(subfield.getCode()))
+                            continue;
+                        Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                        if (matcher.matches())
+                        {
+                            if (buffer.length() > 0) {
+                                String subfieldCode = Character.toString(subfield.getCode());
+                                String separator = separators.get(subfieldCode) != null ? 
+                                                     separators.get(subfieldCode) : separators.get("default");
+                                buffer.append(separator);
+                            }
+                            buffer.append(subfield.getData().trim());
+                        }
+                    }
+                    if (buffer.length() > 0)
+                        collector.add(Utils.cleanData(buffer.toString()));
+                }
+            }
+        }
+
+        return;
+   }
+
 }
