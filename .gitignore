@@ -80,6 +80,8 @@ chop_into_words_test
 find_substring_test
 get_file_media_type_test
 add_author_synonyms
+add_superior_flag
+generate_vufind_translation_files
 
 bsz_daten
 KeywordChainParser-*.jar
