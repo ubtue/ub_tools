@@ -500,7 +500,20 @@ public class IxTheo extends SolrIndexerMixin {
        return separators;
 
     }
-    
+
+    /**
+     * Generate Separator according to specification
+     */
+   
+    public String getSubfieldBasedSeparator(Map<String,String> separators, char subfieldCodeChar) {
+        
+        String subfieldCodeString = Character.toString(subfieldCodeChar);
+        String separator = separators.get(subfieldCodeString) != null ?
+                                separators.get(subfieldCodeString) : separators.get("default");
+
+        return separator;
+
+    }
 
    /**
     * Generic function for topics that abstracts from a set or lsit collector
@@ -525,27 +538,92 @@ public class IxTheo extends SolrIndexerMixin {
                                           Map<String,String> separators, Collection<String> collector) {
 
         String[] fldTags = fieldSpec.split(":");
+        String fldTag;
+        String subfldTags;
+        List<VariableField> marcFieldList;
 
         for (int i = 0; i < fldTags.length; i++)
         {
             // Check to ensure tag length is at least 3 characters
-            if (fldTags[i].length() < 3)
-            {
-                System.err.println("Invalid tag specified: " + fldTags[i]);
+            if (fldTags[i].length() < 3) {
+                //System.err.println("Invalid tag specified: " + fldTags[i]);
                 continue;
             }
 
-            String fldTag = fldTags[i].substring(0, 3);
+            // Handle "Lokaldaten" appropriately
+            //System.err.println("FIELDTAGS: " + fldTags[i]);
 
-            String subfldTags = fldTags[i].substring(3);
+            if (fldTags[i].substring(0, 3).equals("LOK")) {
+                //System.err.println("WE ARE ON THE LOK BRANCH");
+                //System.err.println("fldTags[" + i + "]: " + fldTags[i].substring(0,6));
+                //System.err.println("subfldTags[" + i + "]: " + fldTags[i].substring(6));
 
-            List<VariableField> marcFieldList = record.getVariableFields(fldTag);
+                
+                if (fldTags[i].substring(3, 6).length() < 3) {
+                    System.err.println("Invalid tag for \"Lokaldaten\": " + fldTags[i]); 
+                    continue;
+                }
+                // Save LOK-Subfield 
+                // Currently we do not support specifying an indicator
+                fldTag = fldTags[i].substring(0,6);
+                subfldTags = fldTags[i].substring(6);
+            }
+            else {
+                fldTag = fldTags[i].substring(0, 3);
+                subfldTags = fldTags[i].substring(3);
+            }
+                        
+            // Case 1: We have a LOK-Field
+            if (fldTag.startsWith("LOK")) {
+                // Get subfield 0 since the "subtag" is saved here
+                marcFieldList = record.getVariableFields("LOK");
+                if (!marcFieldList.isEmpty()) {
+                    //System.err.println("Iterating over all the LOK fields");
+                    for (VariableField vf : marcFieldList) {
+                        DataField marcField = (DataField) vf; 
+                        //System.err.println("marcfield: " + marcField);
+                        StringBuffer buffer = new StringBuffer("");
+                        Subfield subfield0 = marcField.getSubfield('0');
+                        if (subfield0 == null || !subfield0.getData().startsWith(fldTag.substring(3,6))) {
+                            continue;
+                        }
+                        //System.err.println("We found a LOK with " +  fldTag.substring(3,6));
+                        // Iterate over all given subfield codes
+                        Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
+                        List<Subfield> subfields = marcField.getSubfields();
+                        for (Subfield subfield : subfields) {
+                            // Skip numeric fields   
+                            if (Character.isDigit(subfield.getCode()))
+                                continue;
+                            Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                            if (matcher.matches()) {
+                                if (buffer.length() > 0){
+                                    String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
+                                    if (separator != null) {
+                                        buffer.append(separator);
+                                    }
+                                 }
+                                 buffer.append(subfield.getData().trim());
+                            }
+                            
+                         }
+                        if (buffer.length() > 0)
+                        collector.add(Utils.cleanData(buffer.toString()));
+                    }
+
+                }
+
+            }
+            
+            // Case 2: We have an ordinary MARC field
+            else {
+
+            marcFieldList = record.getVariableFields(fldTag);
             if (!marcFieldList.isEmpty())
             {
                 Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
                 for (VariableField vf : marcFieldList)
                 {
-                    int separator_index = 0;
                     DataField marcField = (DataField) vf;
                     StringBuffer buffer = new StringBuffer("");
                     List<Subfield> subfields = marcField.getSubfields();
@@ -558,10 +636,10 @@ public class IxTheo extends SolrIndexerMixin {
                         if (matcher.matches())
                         {
                             if (buffer.length() > 0) {
-                                String subfieldCode = Character.toString(subfield.getCode());
-                                String separator = separators.get(subfieldCode) != null ? 
-                                                     separators.get(subfieldCode) : separators.get("default");
-                                buffer.append(separator);
+                                String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
+                                if (separator != null) {
+                                    buffer.append(separator);
+                                 }
                             }
                             buffer.append(subfield.getData().trim());
                         }
@@ -569,6 +647,7 @@ public class IxTheo extends SolrIndexerMixin {
                     if (buffer.length() > 0)
                         collector.add(Utils.cleanData(buffer.toString()));
                 }
+            }
             }
         }
 
