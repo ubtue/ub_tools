@@ -43,7 +43,7 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
     if (_130_index == -1)
 	return; // Nothing to do!
 
-    const std::vector<std::string> field_data(record->getFields());
+    const std::vector<std::string> &field_data(record->getFields());
     Subfields _040_subfields(field_data[_040_index]);
     if (not StringUtil::StartsWith(_040_subfields.getFirstSubfieldValue('e'), "rak"))
 	return; // Nothing to do!
