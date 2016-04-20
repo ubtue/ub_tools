@@ -1,9 +1,7 @@
 /** \file    add_child_refs.cc
- *  \author  Dr. Johannes Ruscheinski
+ *  \author  Oliver Obenland
  *
- *  A tool for adding parent->child references to MARC data. In addition to the MARC data that should be
- *  augmented are two files, typically called "child_refs" and "child_titles" which can be generated via
- *  the create_child_refs.sh shell script.
+ *  A tool for marking superior records.
  */
 
 /*
@@ -53,6 +51,7 @@ void Usage() {
 void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record) {
     record->setRecordWillBeWrittenAsXml(true);
 
+    // Don't add the flag twice
     if (record->getFieldIndex("SPR") != -1) {
         record->write(xml_writer);
         return;
@@ -87,9 +86,6 @@ void AddSuperiorFlag(File * const input, File * const output) {
 }
 
 
-// LoadRefs -- reads lines from "child_refs_filename".  Each line is expected to contain at least a single colon.
-//             Each line will be split on the first colon and the part before the colon used as key and the part
-//             after the colon as value and inserted into "*parent_to_children_map".
 void LoadSuperiorPPNs(const std::string &child_refs_filename) {
     std::ifstream child_refs(child_refs_filename.c_str());
     if (not child_refs.is_open())
@@ -102,7 +98,7 @@ void LoadSuperiorPPNs(const std::string &child_refs_filename) {
         superior_ppns.emplace(line);
     }
 
-    if (superior_ppns.empty())
+    if (unlikely(superior_ppns.empty()))
         Error("Found no data in \"" + child_refs_filename + "\"!");
     std::cerr << "Read " << line_no << " superior PPNs.\n";
 }
