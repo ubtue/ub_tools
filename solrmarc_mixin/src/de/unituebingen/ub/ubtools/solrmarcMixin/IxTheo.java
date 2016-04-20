@@ -1,6 +1,5 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
-
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.VariableField;
 import org.marc4j.marc.Record;
@@ -11,7 +10,6 @@ import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
 import java.util.*;
-
 
 public class IxTheo extends SolrIndexerMixin {
     private Set<String> ixTheoNotations = null;
@@ -24,7 +22,8 @@ public class IxTheo extends SolrIndexerMixin {
     }
 
     /**
-     * Split the colon-separated ixTheo notation codes into individual codes and return them.
+     * Split the colon-separated ixTheo notation codes into individual codes and
+     * return them.
      */
     public Set<String> getIxTheoNotations(final Record record) {
         if (ixTheoNotations == null) {
@@ -33,8 +32,10 @@ public class IxTheo extends SolrIndexerMixin {
             if (fields.isEmpty()) {
                 return ixTheoNotations;
             }
-            final DataField data_field = (DataField) fields.iterator().next(); // We should only have one 652 field.
-            final String contents = data_field.getSubfield('a').getData(); // There should always be exactly one $a subfield.
+            // We should only have one 652 field
+            final DataField data_field = (DataField) fields.iterator().next(); 
+            // There should always be exactly one $a subfield
+            final String contents = data_field.getSubfield('a').getData(); 
             final String[] parts = contents.split(":");
             Collections.addAll(ixTheoNotations, parts);
         }
@@ -49,22 +50,22 @@ public class IxTheo extends SolrIndexerMixin {
         return ixTheoNotations;
     }
 
-   /**
+    /**
      * Determine Record Formats
      *
-     * Overwrite the original VuFindIndexer getFormats to do 
-     * away with the single bucket approach, i.e. collect all
-     * formats you find, i.e. this is the original code 
-     * without premature returns which are left in commented out
+     * Overwrite the original VuFindIndexer getFormats to do away with the
+     * single bucket approach, i.e. collect all formats you find, i.e. this is
+     * the original code without premature returns which are left in commented
+     * out
      *
-     * @param  record MARC record
+     * @param record
+     *            MARC record
      * @return set of record format
-     */ 
+     */
 
- public Set<String> getMultipleFormats(final Record record){
+    public Set<String> getMultipleFormats(final Record record) {
         Set<String> result = new LinkedHashSet<String>();
         String leader = record.getLeader().toString();
-        char leaderBit;
         ControlField fixedField = (ControlField) record.getVariableField("008");
         DataField title = (DataField) record.getVariableField("245");
         String formatString;
@@ -74,10 +75,9 @@ public class IxTheo extends SolrIndexerMixin {
 
         // check if there's an h in the 245
         if (title != null) {
-            if (title.getSubfield('h') != null){
+            if (title.getSubfield('h') != null) {
                 if (title.getSubfield('h').getData().toLowerCase().contains("[electronic resource]")) {
                     result.add("Electronic");
-                    //return result;
                 }
             }
         }
@@ -85,7 +85,6 @@ public class IxTheo extends SolrIndexerMixin {
         // check the 007 - this is a repeating field
         List<VariableField> fields = record.getVariableFields("007");
         if (fields != null) {
-            // TODO: update loop to for(:) syntax, but problem with type casting.
             ControlField formatField;
             for (VariableField varField : fields) {
                 formatField = (ControlField) varField;
@@ -95,7 +94,7 @@ public class IxTheo extends SolrIndexerMixin {
                 formatCode4 = formatString.length() > 4 ? formatString.charAt(4) : ' ';
                 switch (formatCode) {
                 case 'A':
-                    switch(formatCode2) {
+                    switch (formatCode2) {
                     case 'D':
                         result.add("Atlas");
                         break;
@@ -103,9 +102,9 @@ public class IxTheo extends SolrIndexerMixin {
                         result.add("Map");
                         break;
                     }
-                break;
+                    break;
                 case 'C':
-                    switch(formatCode2) {
+                    switch (formatCode2) {
                     case 'A':
                         result.add("TapeCartridge");
                         break;
@@ -125,16 +124,16 @@ public class IxTheo extends SolrIndexerMixin {
                         result.add("FloppyDisk");
                         break;
                     case 'M':
-                        case 'O':
-                            result.add("CDROM");
-                            break;
-                        case 'R':
+                    case 'O':
+                        result.add("CDROM");
+                        break;
+                    case 'R':
                         // Do not return - this will cause anything with an
                         // 856 field to be labeled as "Electronic"
-                            break;
-                        default:
-                            result.add("Software");
-                            break;
+                        break;
+                    default:
+                        result.add("Software");
+                        break;
                     }
                     break;
                 case 'D':
@@ -144,7 +143,7 @@ public class IxTheo extends SolrIndexerMixin {
                     result.add("Braille");
                     break;
                 case 'G':
-                    switch(formatCode2) {
+                    switch (formatCode2) {
                     case 'C':
                     case 'D':
                         result.add("Filmstrip");
@@ -161,41 +160,41 @@ public class IxTheo extends SolrIndexerMixin {
                     result.add("Microfilm");
                     break;
                 case 'K':
-                    switch(formatCode2) {
+                    switch (formatCode2) {
                     case 'C':
-                       result.add("Collage");
-                       break;
+                        result.add("Collage");
+                        break;
                     case 'D':
-                       result.add("Drawing");
-                       break;
+                        result.add("Drawing");
+                        break;
                     case 'E':
-                       result.add("Painting");
-                       break;
+                        result.add("Painting");
+                        break;
                     case 'F':
-                       result.add("Print");
-                       break;
+                        result.add("Print");
+                        break;
                     case 'G':
-                       result.add("Photonegative");
-                       break;
+                        result.add("Photonegative");
+                        break;
                     case 'J':
-                       result.add("Print");
-                       break;
+                        result.add("Print");
+                        break;
                     case 'L':
-                       result.add("Drawing");
-                       break;
+                        result.add("Drawing");
+                        break;
                     case 'O':
-                       result.add("FlashCard");
-                       break;
+                        result.add("FlashCard");
+                        break;
                     case 'N':
-                       result.add("Chart");
-                       break;
+                        result.add("Chart");
+                        break;
                     default:
-                       result.add("Photo");
-                       break;
+                        result.add("Photo");
+                        break;
                     }
                     break;
                 case 'M':
-                    switch(formatCode2) {
+                    switch (formatCode2) {
                     case 'F':
                         result.add("VideoCassette");
                         break;
@@ -215,9 +214,9 @@ public class IxTheo extends SolrIndexerMixin {
                     break;
                 case 'R':
                     result.add("SensorImage");
-                break;
+                    break;
                 case 'S':
-                    switch(formatCode2) {
+                    switch (formatCode2) {
                     case 'D':
                         result.add("SoundDisc");
                         break;
@@ -230,12 +229,12 @@ public class IxTheo extends SolrIndexerMixin {
                     }
                     break;
                 case 'V':
-                    switch(formatCode2) {
+                    switch (formatCode2) {
                     case 'C':
                         result.add("VideoCartridge");
                         break;
                     case 'D':
-                        switch(formatCode4) {
+                        switch (formatCode4) {
                         case 'S':
                             result.add("BRDisc");
                             break;
@@ -258,12 +257,9 @@ public class IxTheo extends SolrIndexerMixin {
                     break;
                 }
             }
-//          if (!result.isEmpty()) {
-//              return result;
-//          }
         }
         // check the Leader at position 6
-        leaderBit = leader.charAt(6);
+        char leaderBit = leader.charAt(6);
         switch (Character.toUpperCase(leaderBit)) {
         case 'C':
         case 'D':
@@ -299,9 +295,9 @@ public class IxTheo extends SolrIndexerMixin {
             result.add("Manuscript");
             break;
         }
-//      if (!result.isEmpty()) {
-//            return result;
-//        }
+        // if (!result.isEmpty()) {
+        // return result;
+        // }
 
         // check the Leader at position 7
         leaderBit = leader.charAt(7);
@@ -346,53 +342,53 @@ public class IxTheo extends SolrIndexerMixin {
         return result;
     }
 
-
-
-
-   /**
+    /**
      * Determine Record Format(s)
      *
-     * @param record the record
+     * @param record
+     *            the record
      * @return format of record
      */
 
-    public Set<String> getFormatsWithGermanHandling(final Record record){
+    public Set<String> getFormatsWithGermanHandling(final Record record) {
 
-       // We've been facing the problem that the original SolrMarc cannot deal with 
-       // german descriptions in the 245h and thus assigns a wrong format 
-       // for e.g. electronic resource
-       // Thus we must handle this manually
+        // We've been facing the problem that the original SolrMarc cannot deal
+        // with
+        // german descriptions in the 245h and thus assigns a wrong format
+        // for e.g. electronic resource
+        // Thus we must handle this manually
 
-       Set<String> rawFormats = new LinkedHashSet<String>();
-       DataField title = (DataField) record.getVariableField("245");
+        Set<String> rawFormats = new LinkedHashSet<String>();
+        DataField title = (DataField) record.getVariableField("245");
 
-       if (title != null) {
-           if (title.getSubfield('h') != null) {
+        if (title != null) {
+            if (title.getSubfield('h') != null) {
                 if (title.getSubfield('h').getData().toLowerCase().contains("[elektronische ressource]")) {
-                   rawFormats.add("Electronic");
-                   rawFormats.addAll(getMultipleFormats(record));
-                   return rawFormats;
+                    rawFormats.add("Electronic");
+                    rawFormats.addAll(getMultipleFormats(record));
+                    return rawFormats;
                 } else {
-                   return getMultipleFormats(record);
+                    return getMultipleFormats(record);
                 }
-           }
-       }
+            }
+        }
 
-       // Catch case of empty title
-       return getMultipleFormats(record);
+        // Catch case of empty title
+        return getMultipleFormats(record);
 
     }
 
     /**
      * Determine Record Format(s)
      *
-     * @param record the record
+     * @param record
+     *            the record
      * @return format of record
      */
     public Set getFormat(final Record record) {
         final Set<String> formats = new HashSet<>();
         Set<String> rawFormats = getFormatsWithGermanHandling(record);
-        
+
         for (final String rawFormat : rawFormats) {
             if (rawFormat.equals("BookComponentPart") || rawFormat.equals("SerialComponentPart")) {
                 formats.add("Article");
@@ -402,28 +398,26 @@ public class IxTheo extends SolrIndexerMixin {
         }
 
         final List<VariableField> _655Fields = record.getVariableFields("655");
-	for (final VariableField _655Field : _655Fields) {
-	    final DataField dataField = (DataField)_655Field;
-	    if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
-		&& dataField.getSubfield('a').getData().startsWith("Rezension"))
-            {
-		formats.clear();
-		formats.add("Review");
-		break;
-	    }
-	}
+        for (final VariableField _655Field : _655Fields) {
+            final DataField dataField = (DataField) _655Field;
+            if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
+                    && dataField.getSubfield('a').getData().startsWith("Rezension")) {
+                formats.clear();
+                formats.add("Review");
+                break;
+            }
+        }
 
         final List<VariableField> _935Fields = record.getVariableFields("935");
-	for (final VariableField _935Field : _935Fields) {
-	    final DataField dataField = (DataField)_935Field;
-	    if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
-		&& dataField.getSubfield('c').getData().equals("uwre"))
-            {
-		formats.clear();
-		formats.add("Review");
-		break;
-	    }
-	}
+        for (final VariableField _935Field : _935Fields) {
+            final DataField dataField = (DataField) _935Field;
+            if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
+                    && dataField.getSubfield('c').getData().equals("uwre")) {
+                formats.clear();
+                formats.add("Review");
+                break;
+            }
+        }
 
         return formats;
     }
@@ -431,227 +425,222 @@ public class IxTheo extends SolrIndexerMixin {
     /**
      * Determine Topics
      *
-     * @param record the record
+     * @param record
+     *            the record
      * @return format of record
      */
 
-    //public Set<String> getTopics(final Record record, String fieldSpec, String[] separators) {
+    // public Set<String> getTopics(final Record record, String fieldSpec,
+    // String[] separators) {
     public Set<String> getTopics(final Record record, String fieldSpec, String separator) {
 
-       final Set<String> topics = new LinkedHashSet<String>();
-       // It seems to be a general rule that in the fields that the $p fields are converted to a '.'
-       // $n is converted to a space if there is additional information
+        final Set<String> topics = new LinkedHashSet<String>();
+        // It seems to be a general rule that in the fields that the $p fields
+        // are converted to a '.'
+        // $n is converted to a space if there is additional information
 
-       //String[] separators = {". ", " "};
-       //String[] separators = {"|", "||", "|||", "||||", "|||||", "|||||||"};
-       //String sspec = "\\::||:|||:||||";
-       //String sspec = "$p \\$xxxx :$t&&:$x&&&:$v&&&&";
-       Map<String, String> separators = parseTopicSeparators(separator);
+        // String[] separators = {". ", " "};
+        // String[] separators = {"|", "||", "|||", "||||", "|||||", "|||||||"};
+        // String sspec = "\\::||:|||:||||";
+        // String sspec = "$p \\$xxxx :$t&&:$x&&&:$v&&&&";
+        Map<String, String> separators = parseTopicSeparators(separator);
 
-       //System.out.println("Specs: ");
-       //for (Map.Entry<String, String> entry : separators.entrySet()) {
-       //     System.out.print(entry.getKey() + " is mapped to "  + entry.getValue() + "-----");
-       //}
+        // System.out.println("Specs: ");
+        // for (Map.Entry<String, String> entry : separators.entrySet()) {
+        // System.out.print(entry.getKey() + " is mapped to " + entry.getValue()
+        // + "-----");
+        // }
 
-       getTopicsCollector(record, fieldSpec, separators, topics);
+        getTopicsCollector(record, fieldSpec, separators, topics);
 
-       return topics;
+        return topics;
 
     }
 
-   /**
-    * Parse the field specifications
-    */
-   
-    public Map<String,String> parseTopicSeparators(String separatorSpec){
-  
-       final Map<String,String> separators = new LinkedHashMap<String,String>();
-       
-       // Split the string at unescaped ":"
-       // See http://stackoverflow.com/questions/18677762/handling-delimiter-with-escape-characters-in-java-string-split-method (20160416)
-       
-       final String fieldDelim = ":";
-       final String subfieldDelim = "$";
-       final String esc = "\\";
-       final String regexColon = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(fieldDelim);
-       
-       String[] subfieldSeparatorList = separatorSpec.split(regexColon);
-       for(String s : subfieldSeparatorList) {
-           // System.out.println("separator Spec: " + s);
-           // Create map of subfields and separators
-           final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" +  Pattern.quote(subfieldDelim) + "([a-zA-Z])(.*)";
-           Matcher subfieldMatcher = Pattern.compile(regexSubfield).matcher(s);
-           
-           // Extract the subfield
-           if(subfieldMatcher.find()) {
-               // Get $ and the character
-               String subfield = subfieldMatcher.group(1);
-               String separatorToUse = subfieldMatcher.group(2);
-               //System.out.println("Inserting separators | subfield: " + subfield + " - text: " + separatorToUse);
-               separators.put(subfield, separatorToUse.replace(esc, ""));
-           }
-           // Use an expression that does not specify a subfield as default value
-           else{
-              separators.put("default", s.replace(esc, ""));
-           }
+    /**
+     * Parse the field specifications
+     */
 
-       }
-        
-       return separators;
+    public Map<String, String> parseTopicSeparators(String separatorSpec) {
+
+        final Map<String, String> separators = new LinkedHashMap<String, String>();
+
+        // Split the string at unescaped ":"
+        // See
+        // http://stackoverflow.com/questions/18677762/handling-delimiter-with-escape-characters-in-java-string-split-method
+        // (20160416)
+
+        final String fieldDelim = ":";
+        final String subfieldDelim = "$";
+        final String esc = "\\";
+        final String regexColon = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(fieldDelim);
+
+        String[] subfieldSeparatorList = separatorSpec.split(regexColon);
+        for (String s : subfieldSeparatorList) {
+            // System.out.println("separator Spec: " + s);
+            // Create map of subfields and separators
+            final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim)
+                    + "([a-zA-Z])(.*)";
+            Matcher subfieldMatcher = Pattern.compile(regexSubfield).matcher(s);
+
+            // Extract the subfield
+            if (subfieldMatcher.find()) {
+                // Get $ and the character
+                String subfield = subfieldMatcher.group(1);
+                String separatorToUse = subfieldMatcher.group(2);
+                // System.out.println("Inserting separators | subfield: " +
+                // subfield + " - text: " + separatorToUse);
+                separators.put(subfield, separatorToUse.replace(esc, ""));
+            }
+            // Use an expression that does not specify a subfield as default
+            // value
+            else {
+                separators.put("default", s.replace(esc, ""));
+            }
+
+        }
+
+        return separators;
 
     }
 
     /**
      * Generate Separator according to specification
      */
-   
-    public String getSubfieldBasedSeparator(Map<String,String> separators, char subfieldCodeChar) {
-        
+
+    public String getSubfieldBasedSeparator(Map<String, String> separators, char subfieldCodeChar) {
+
         String subfieldCodeString = Character.toString(subfieldCodeChar);
-        String separator = separators.get(subfieldCodeString) != null ?
-                                separators.get(subfieldCodeString) : separators.get("default");
+        String separator = separators.get(subfieldCodeString) != null ? separators.get(subfieldCodeString)
+                : separators.get("default");
 
         return separator;
 
     }
 
-   /**
-    * Generic function for topics that abstracts from a set or lsit collector
-    * It is based on original SolrIndex.getAllSubfieldsCollector but allows
-    * to specify several different separators to concatenate the single subfields
-    * Moreover Numeric subfields are filtered our since the do not contain data
-    * to be displayed. 
-    * Separators can be defined on a subfield basis as list in the format
-    * separator_spec :== separator | subfield_separator_list
-    * subfield_separator_list :== subfield_separator_spec | 
-    *                             subfield_separator_spec ":" subfield_separator_list | 
-    *                             subfield_separator_spec ":" separator
-    * subfield_separator_spec :== subfield_spec separator 
-    * subfield_spec :== "$" character_subfield
-    * character_subfield :== A character subfield (e.g. p,n,t,x...)
-    * separator :== separator_without_control_characters+ | 
-                    separator "\:" separator | separator "\$" separator
-    * separator_without_control_characters := All characters without ":" and "$" | empty_string
-    */
+    /**
+     * Abstraction for iterating over the subfields
+     */
 
-    public void getTopicsCollector(final Record record, String fieldSpec,
-                                          Map<String,String> separators, Collection<String> collector) {
+    /**
+     * Generic function for topics that abstracts from a set or lsit collector
+     * It is based on original SolrIndex.getAllSubfieldsCollector but allows to
+     * specify several different separators to concatenate the single subfields
+     * Moreover Numeric subfields are filtered our since the do not contain data
+     * to be displayed. Separators can be defined on a subfield basis as list in
+     * the format separator_spec :== separator | subfield_separator_list
+     * subfield_separator_list :== subfield_separator_spec |
+     * subfield_separator_spec ":" subfield_separator_list |
+     * subfield_separator_spec ":" separator subfield_separator_spec :==
+     * subfield_spec separator subfield_spec :== "$" character_subfield
+     * character_subfield :== A character subfield (e.g. p,n,t,x...) separator
+     * :== separator_without_control_characters+ | separator "\:" separator |
+     * separator "\$" separator separator_without_control_characters := All
+     * characters without ":" and "$" | empty_string
+     */
+
+    public void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
+            Collection<String> collector) {
 
         String[] fldTags = fieldSpec.split(":");
         String fldTag;
         String subfldTags;
         List<VariableField> marcFieldList;
 
-        for (int i = 0; i < fldTags.length; i++)
-        {
+        for (int i = 0; i < fldTags.length; i++) {
             // Check to ensure tag length is at least 3 characters
             if (fldTags[i].length() < 3) {
-                //System.err.println("Invalid tag specified: " + fldTags[i]);
                 continue;
             }
 
             // Handle "Lokaldaten" appropriately
-            //System.err.println("FIELDTAGS: " + fldTags[i]);
-
             if (fldTags[i].substring(0, 3).equals("LOK")) {
-                //System.err.println("WE ARE ON THE LOK BRANCH");
-                //System.err.println("fldTags[" + i + "]: " + fldTags[i].substring(0,6));
-                //System.err.println("subfldTags[" + i + "]: " + fldTags[i].substring(6));
 
-                
                 if (fldTags[i].substring(3, 6).length() < 3) {
-                    System.err.println("Invalid tag for \"Lokaldaten\": " + fldTags[i]); 
+                    System.err.println("Invalid tag for \"Lokaldaten\": " + fldTags[i]);
                     continue;
                 }
-                // Save LOK-Subfield 
+                // Save LOK-Subfield
                 // Currently we do not support specifying an indicator
-                fldTag = fldTags[i].substring(0,6);
+                fldTag = fldTags[i].substring(0, 6);
                 subfldTags = fldTags[i].substring(6);
-            }
-            else {
+            } else {
                 fldTag = fldTags[i].substring(0, 3);
                 subfldTags = fldTags[i].substring(3);
             }
-                        
+
             // Case 1: We have a LOK-Field
             if (fldTag.startsWith("LOK")) {
                 // Get subfield 0 since the "subtag" is saved here
                 marcFieldList = record.getVariableFields("LOK");
                 if (!marcFieldList.isEmpty()) {
-                    //System.err.println("Iterating over all the LOK fields");
                     for (VariableField vf : marcFieldList) {
-                        DataField marcField = (DataField) vf; 
-                        //System.err.println("marcfield: " + marcField);
+                        DataField marcField = (DataField) vf;
                         StringBuffer buffer = new StringBuffer("");
                         Subfield subfield0 = marcField.getSubfield('0');
-                        if (subfield0 == null || !subfield0.getData().startsWith(fldTag.substring(3,6))) {
+                        if (subfield0 == null || !subfield0.getData().startsWith(fldTag.substring(3, 6))) {
                             continue;
                         }
-                        //System.err.println("We found a LOK with " +  fldTag.substring(3,6));
                         // Iterate over all given subfield codes
                         Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
                         List<Subfield> subfields = marcField.getSubfields();
                         for (Subfield subfield : subfields) {
-                            // Skip numeric fields   
+                            // Skip numeric fields
                             if (Character.isDigit(subfield.getCode()))
                                 continue;
                             Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
                             if (matcher.matches()) {
-                                if (buffer.length() > 0){
+                                if (buffer.length() > 0) {
                                     String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
                                     if (separator != null) {
                                         buffer.append(separator);
                                     }
-                                 }
-                                 buffer.append(subfield.getData().trim());
+                                }
+                                buffer.append(subfield.getData().trim());
                             }
-                            
-                         }
+
+                        }
                         if (buffer.length() > 0)
-                        collector.add(Utils.cleanData(buffer.toString()));
+                            collector.add(Utils.cleanData(buffer.toString()));
                     }
 
                 }
 
             }
-            
+
             // Case 2: We have an ordinary MARC field
             else {
 
-            marcFieldList = record.getVariableFields(fldTag);
-            if (!marcFieldList.isEmpty())
-            {
-                Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
-                for (VariableField vf : marcFieldList)
-                {
-                    DataField marcField = (DataField) vf;
-                    StringBuffer buffer = new StringBuffer("");
-                    List<Subfield> subfields = marcField.getSubfields();
-                    for (Subfield subfield : subfields)
-                    {
-                        // Skip numeric fields
-                        if (Character.isDigit(subfield.getCode()))
-                            continue;
-                        Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                        if (matcher.matches())
-                        {
-                            if (buffer.length() > 0) {
-                                String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                                if (separator != null) {
-                                    buffer.append(separator);
-                                 }
+                marcFieldList = record.getVariableFields(fldTag);
+                if (!marcFieldList.isEmpty()) {
+                    Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
+                    for (VariableField vf : marcFieldList) {
+                        DataField marcField = (DataField) vf;
+                        StringBuffer buffer = new StringBuffer("");
+                        List<Subfield> subfields = marcField.getSubfields();
+                        for (Subfield subfield : subfields) {
+                            // Skip numeric fields
+                            if (Character.isDigit(subfield.getCode()))
+                                continue;
+                            Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                            if (matcher.matches()) {
+                                if (buffer.length() > 0) {
+                                    String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
+                                    if (separator != null) {
+                                        buffer.append(separator);
+                                    }
+                                }
+                                buffer.append(subfield.getData().trim());
                             }
-                            buffer.append(subfield.getData().trim());
                         }
+                        if (buffer.length() > 0)
+                            collector.add(Utils.cleanData(buffer.toString()));
                     }
-                    if (buffer.length() > 0)
-                        collector.add(Utils.cleanData(buffer.toString()));
                 }
-            }
             }
         }
 
         return;
-   }
+    }
 
 }
