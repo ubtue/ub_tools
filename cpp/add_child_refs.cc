@@ -58,7 +58,7 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
     if (dir_entries.at(0).getTag() != "001")
         Error("First field of record is not \"001\"!");
 
-    const std::vector<std::string> field_data(record->getFields());
+    const std::vector<std::string> &field_data(record->getFields());
     const auto map_iter(parent_to_children_map.find(field_data.at(0)));
     if (map_iter != parent_to_children_map.end()) {
         std::vector<std::string> child_ids;
