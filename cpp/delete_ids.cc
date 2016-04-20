@@ -40,6 +40,8 @@ static void Usage() {
     std::exit(EXIT_FAILURE);
 }
 
+static std::set<std::string> unkown_types;
+
 
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const title_deletion_ids,
                         std::unordered_set <std::string> *const local_deletion_ids) {
@@ -59,7 +61,7 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
                 Error("unexpected line length for local entry on line " + std::to_string(line_no) + "!");
             local_deletion_ids->insert(line.substr(12, 9)); // extract ELN
         } else
-	    Warning("Unknown type '" + line.substr(11, 1) + "'.");
+            unkown_types.emplace(line.substr(11, 1));
     }
 }
 
@@ -154,7 +156,6 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
 	const std::vector<std::string> &fields(record.getFields());
         if (title_deletion_ids.find(fields[0]) != title_deletion_ids.end()) {
             ++deleted_record_count;
-            std::cout << "Deleted record with ID " << fields[0] << '\n';
         } else { // Look for local (LOK) data sets that may need to be deleted.
             if (not DeleteLocalSections(dir_entries, fields, local_deletion_ids, &record))
 		record.write(output);
@@ -204,5 +205,13 @@ int main(int argc, char *argv[]) {
         ProcessRecords(title_deletion_ids, local_deletion_ids, &marc_input, &marc_output);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
+    }
+
+    if (not unkown_types.empty()) {
+        std::string unkown_types_warning("Unknown types:");
+        for (auto iter = unkown_types.begin(); iter != unkown_types.end(); ++iter) {
+            unkown_types_warning += *iter;
+        }
+        Warning(unkown_types_warning);
     }
 }
