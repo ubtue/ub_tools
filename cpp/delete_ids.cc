@@ -40,28 +40,34 @@ static void Usage() {
     std::exit(EXIT_FAILURE);
 }
 
-static std::set<std::string> unkown_types;
+
+static std::set<std::string> unknown_types;
 
 
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const title_deletion_ids,
-                        std::unordered_set <std::string> *const local_deletion_ids) {
+                        std::unordered_set <std::string> *const local_deletion_ids)
+{
+    const size_t PPN_LENGTH = 9;
+    const size_t PPN_START_INDEX = 12;
+    const size_t SEPARATOR_INDEX = PPN_START_INDEX - 1;
+
     unsigned line_no(0);
     while (not deletion_list->eof()) {
 	const std::string line(StringUtil::Trim(deletion_list->getline()));
         ++line_no;
 	if (unlikely(line.empty())) // Ignore empty lines.
 	    continue;
-        if (line.length() < 12)
+        if (line.length() < PPN_START_INDEX)
             Error("short line " + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath()
 		  + "\": \"" + line + "\"!");
-        if (line[11] == 'A')
-            title_deletion_ids->insert(line.substr(12)); // extract PPN
-        else if (line[11] == '9') {
+        if (line[SEPARATOR_INDEX] == 'A')
+            title_deletion_ids->insert(line.substr(PPN_START_INDEX)); // extract PPN
+        else if (line[SEPARATOR_INDEX] == '9') {
             if (line.length() != 25)
                 Error("unexpected line length for local entry on line " + std::to_string(line_no) + "!");
-            local_deletion_ids->insert(line.substr(12, 9)); // extract ELN
+            local_deletion_ids->insert(line.substr(PPN_START_INDEX, PPN_LENGTH)); // extract ELN
         } else
-            unkown_types.emplace(line.substr(11, 1));
+            unknown_types.emplace(line.substr(SEPARATOR_INDEX, 1));
     }
 }
 
@@ -207,11 +213,6 @@ int main(int argc, char *argv[]) {
         Error("Caught exception: " + std::string(e.what()));
     }
 
-    if (not unkown_types.empty()) {
-        std::string unkown_types_warning("Unknown types:");
-        for (auto iter = unkown_types.begin(); iter != unkown_types.end(); ++iter) {
-            unkown_types_warning += *iter;
-        }
-        Warning(unkown_types_warning);
-    }
+    if (not unknown_types.empty())
+        Warning("Unknown types: " + StringUtil::Join(unknown_types, ", "));
 }
