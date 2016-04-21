@@ -57,10 +57,9 @@ bool IsUnusedLocalBlock(const MarcUtil::Record * const record, const std::pair<s
     for (const auto field_index : field_indices) {
         const bool matched = matcher->matched(fields[field_index], &err_msg);
         if (not matched and not err_msg.empty())
-            Error("Unexpected error while trying to match a field in CompiledPattern::fieldMatched(): " + err_msg);
-        if (matched) {
+            Error("Unexpected error while trying to match a field in IsUnusedLocalBlock: " + err_msg);
+        if (matched)
             return false;
-        }
     }
     return true;
 }
