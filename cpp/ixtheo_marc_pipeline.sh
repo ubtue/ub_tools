@@ -31,10 +31,10 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
 
 ((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Filter out Records of Other Institutions ***" | tee --append "${log}"
-marc_filter --bibliotheks-sigel-filtern GesamtTiteldaten-"${date}".xml \
-                                        GesamtTiteldaten-post-phase"$P"-"${date}".xml \
-                                        >> "${log}" 2>&1
+echo "*** Phase $P: Filter out local data of other Institutions ***" | tee --append "${log}"
+delete_unused_local_data GesamtTiteldaten-"${date}".xml \
+                         GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+                         >> "${log}" 2>&1
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
