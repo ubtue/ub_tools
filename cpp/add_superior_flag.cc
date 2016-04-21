@@ -86,20 +86,16 @@ void AddSuperiorFlag(File * const input, File * const output) {
 }
 
 
-void LoadSuperiorPPNs(const std::string &child_refs_filename) {
-    std::ifstream child_refs(child_refs_filename.c_str());
-    if (not child_refs.is_open())
-        Error("Failed to open \"" + child_refs_filename + "\" for reading!");
-
-    std::string line;
+void LoadSuperiorPPNs(File * const input) {
     unsigned line_no(0);
-    while (std::getline(child_refs, line)) {
+    std::string line;
+    while (input->getline(&line)) {
         ++line_no;
         superior_ppns.emplace(line);
     }
 
     if (unlikely(superior_ppns.empty()))
-        Error("Found no data in \"" + child_refs_filename + "\"!");
+        Error("Found no data in \"" + input->getPath() + "\"!");
     std::cerr << "Read " << line_no << " superior PPNs.\n";
 }
 
@@ -111,7 +107,7 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
@@ -120,8 +116,13 @@ int main(int argc, char **argv) {
     if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
+    const std::string superior_ppns_filename(argv[3]);
+    File superior_ppns_input(superior_ppns_filename, "r");
+    if (not superior_ppns_input)
+        Error("can't open \"" + superior_ppns_filename + "\" for reading!");
+
     try {
-        LoadSuperiorPPNs(argv[3]);
+        LoadSuperiorPPNs(&superior_ppns_input);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
     }
