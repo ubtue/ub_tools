@@ -36,6 +36,7 @@
 #include "Leader.h"
 #include "MapIO.h"
 #include "MarcUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "TextUtil.h"
@@ -125,7 +126,7 @@ const std::unordered_set<std::string> explicit_books {
 };
 
 
-// Books of the bible that have ordinal Roman numerals in $130$n:
+// Books of the bible that have ordinal Roman numerals in 130$n:
 const std::unordered_set<std::string> books_with_ordinals {
     "korintherbrief", "thessalonicherbrief", "timotheusbrief", "petrusbrief", "johannesbrief", "samuel", "könige",
     "chronik", "makkabäer"
@@ -145,10 +146,10 @@ void LoadBibleOrderMap(const bool verbose, File * const input,
     unsigned line_no(0);
     while (not input->eof()) {
 	const std::string line(input->getline());
-	++line_no;
-
 	if (line.empty())
 	    continue;
+	++line_no;
+
 	const size_t equal_pos(line.find('='));
 	if (equal_pos == std::string::npos)
 	    Error("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
@@ -200,7 +201,7 @@ bool ExtractRomanOrdinals(const std::string &ordinals, std::set<unsigned> * extr
 }
 
 
-bool EndsWithLowercaseChar(const std::string &s) {
+inline bool EndsWithLowercaseChar(const std::string &s) {
     return std::islower(s[s.length() - 1]);
 }
 
@@ -314,7 +315,7 @@ void SplitNumericReferences(const Subfields &subfields, std::vector<std::string>
 
         if (StartsWithSmallRomanOrdinal(candidate)) {
             std::string roman_numeral, remainder;
-            bool in_roman_numeral(true), in_remainder;
+            bool in_roman_numeral(true), in_remainder(false);
             for (const auto ch : candidate) {
                 if (in_roman_numeral) {
                     if (ch == 'I' or ch == 'V')
@@ -342,10 +343,32 @@ void SplitNumericReferences(const Subfields &subfields, std::vector<std::string>
 }
 
 
+bool ConvertArabicNumeralsToRomanNumerals(const std::string &arabic_numerals_candidate,
+					  std::vector<std::string> * const roman_refs)
+{
+    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("[123]\\."));
+    static std::map<char, std::string> arabic_to_roman_map{{'1', "I"}, {'2', "II"}, {'3', "III"}};
+    std::string replacement_string(arabic_numerals_candidate);
+
+    bool replaced_one_or_more(false);
+    size_t match_start_pos;
+    while (matcher->matched(replacement_string, /* err_msg = */nullptr, &match_start_pos)) {
+	replacement_string = replacement_string.substr(0, match_start_pos)
+                             + arabic_to_roman_map[replacement_string[match_start_pos]]
+                             + replacement_string.substr(match_start_pos + 1);
+	replaced_one_or_more = true;
+    }
+
+    if (replaced_one_or_more)
+	roman_refs->push_back(replacement_string);
+    return replaced_one_or_more;
+}
+
+
 bool ExtractBibleReference(const bool verbose, const std::string &control_number, const std::string &field,
-                           const char subfield_code, std::string * const book_name,
-                           std::unordered_map<std::string, std::string> * const bible_book_to_code_map,
-                           unsigned * const next_bible_book_code, std::ofstream * const bible_book_map,
+                           const char subfield_code,
+			   const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
+			   std::string * const book_name,
                            std::set<std::pair<std::string, std::string>> * const ranges)
 {
     const Subfields subfields(field);
@@ -380,6 +403,10 @@ bool ExtractBibleReference(const bool verbose, const std::string &control_number
     // containing a roman ordinal number in order to qualify:
     std::set<unsigned> book_ordinals;
     if (books_with_ordinals.find(*book_name) != books_with_ordinals.end()) {
+	if (roman_refs.empty() and other_refs.size() == 1) {
+	    if (ConvertArabicNumeralsToRomanNumerals(other_refs[0], &roman_refs))
+		other_refs.clear();
+	}
         if (roman_refs.empty()) {
             if (verbose)
                 std::cerr << "Warning: roman numerals missing for PPN " << control_number << ".\n";
@@ -406,41 +433,44 @@ bool ExtractBibleReference(const bool verbose, const std::string &control_number
     }
 
     // Generate the mapping from books of the bible to numeric codes:
-    std::string current_book_code;
+    std::vector<std::string> current_book_codes;
     if (book_ordinals.empty()) {
-        const auto book_and_code(bible_book_to_code_map->find(*book_name));
-        if (book_and_code != bible_book_to_code_map->end())
-            current_book_code = book_and_code->second;
-        else {
-            ++*next_bible_book_code;
-            current_book_code = StringUtil::PadLeading(std::to_string(*next_bible_book_code), 2, '0');
-            (*bible_book_to_code_map)[*book_name] = current_book_code;
-            *book_name = StringUtil::RemoveChars(" ", book_name);
-            (*bible_book_map) << MapIO::Escape(*book_name) << '=' << MapIO::Escape(current_book_code) << '\n';
-        }
+        const auto book_and_code(bible_book_to_code_map.find(*book_name));
+        if (likely(book_and_code != bible_book_to_code_map.end()))
+	    current_book_codes.emplace_back(book_and_code->second);
+	else  {
+            Warning("norm data record with PPN " + control_number + " contains book name \"" + *book_name
+		    + "\" for which we habe no code!");
+	    return false;
+	}
     } else {
         for (const auto ordinal : book_ordinals) {
             std::string augmented_book_name(std::to_string(ordinal) + *book_name);
-            const auto book_and_code(bible_book_to_code_map->find(augmented_book_name));
-            if (book_and_code != bible_book_to_code_map->end())
-                current_book_code = book_and_code->second;
+            const auto book_and_code(bible_book_to_code_map.find(augmented_book_name));
+            if (book_and_code != bible_book_to_code_map.end())
+                current_book_codes.emplace_back(book_and_code->second);
             else {
-                ++*next_bible_book_code;
-                current_book_code = StringUtil::PadLeading(std::to_string(*next_bible_book_code), 2, '0');
-                (*bible_book_to_code_map)[augmented_book_name] = current_book_code;
-                augmented_book_name = StringUtil::RemoveChars(" ", &augmented_book_name);
-                (*bible_book_map) << MapIO::Escape(augmented_book_name) << '=' << MapIO::Escape(current_book_code)
-                                  << '\n';
+                Warning("norm data record with PPN " + control_number + " contains book name \"" + *book_name
+			+ "\" for which we habe no code!");
+		return false;
             }
         }
     }
 
     // Generate numeric codes:
-    if (other_refs.empty())
-        ranges->insert(std::make_pair(current_book_code + "00000", current_book_code + "99999"));
-    else if (not ParseBibleReference(other_refs.front(), current_book_code, ranges)) {
-        std::cerr << "Bad ranges: " << control_number << ": " << other_refs.front() << '\n';
-        return false;
+    if (other_refs.empty()) {
+	for (const auto &current_book_code : current_book_codes)
+	    ranges->insert(std::make_pair(current_book_code + "00000", current_book_code + "99999"));
+    } else {
+	if (current_book_codes.size() != 1) {
+	    Warning("norm data record with PPN " + control_number + " contains 0 or 2 or more bible book references "
+		    " as well as additional, typical chapter/verse, information which we don't know how to process!");
+	    return false;
+	}
+	if (not ParseBibleReference(other_refs.front(), current_book_codes[0], ranges)) {
+	    std::cerr << "Bad ranges: " << control_number << ": " << other_refs.front() << '\n';
+	    return false;
+	}
     }
 
     return true;
@@ -472,7 +502,8 @@ void FindPericopes(const std::string &pericope_field, const std::string &book_na
 }
 
 
-void LoadNormData(const bool verbose, File * const norm_input,
+void LoadNormData(const bool verbose, const std::unordered_map<std::string, std::string> &bible_order_map,
+		  File * const norm_input,
                   std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
                       gnd_codes_to_bible_ref_codes_map)
 {
@@ -486,8 +517,6 @@ void LoadNormData(const bool verbose, File * const norm_input,
         Error("Failed to open \"" + bible_book_map_filename + "\" for writing!");
 
     unsigned count(0), bible_ref_count(0), _130a_count(0), _100t_count(0), _430a_count(0);
-    unsigned bible_book_code(0);
-    std::unordered_map<std::string, std::string> bible_book_to_code_map;
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(norm_input)) {
         ++count;
@@ -530,8 +559,7 @@ void LoadNormData(const bool verbose, File * const norm_input,
         const auto _130_iter(DirectoryEntry::FindField("130", dir_entries));
         if (_130_iter != dir_entries.end()
             and ExtractBibleReference(verbose, control_number, fields[_130_iter - dir_entries.begin()], 'a',
-                                      &book_name, &bible_book_to_code_map, &bible_book_code,
-                                      &bible_book_map, &ranges))
+                                      bible_order_map, &book_name, &ranges))
         {
             if (gnd_codes_to_bible_ref_codes_map->find(gnd_code) == gnd_codes_to_bible_ref_codes_map->end())
                 (*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
@@ -545,8 +573,7 @@ void LoadNormData(const bool verbose, File * const norm_input,
             const auto _100_iter(DirectoryEntry::FindField("100", dir_entries));
             if (_100_iter != dir_entries.end()
                 and ExtractBibleReference(verbose, control_number, fields[_100_iter - dir_entries.begin()],
-                                          't', &book_name, &bible_book_to_code_map, &bible_book_code,
-                                          &bible_book_map, &ranges))
+                                          't', bible_order_map, &book_name, &ranges))
             {
                 if (gnd_codes_to_bible_ref_codes_map->find(gnd_code) == gnd_codes_to_bible_ref_codes_map->end())
                     (*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
@@ -562,8 +589,7 @@ void LoadNormData(const bool verbose, File * const norm_input,
                  _430_iter != dir_entries.end() and _430_iter->getTag() == "430"; ++_430_iter)
             {
                 if (ExtractBibleReference(verbose, control_number, fields[_430_iter - dir_entries.begin()], 'a',
-                                          &book_name, &bible_book_to_code_map, &bible_book_code,
-                                          &bible_book_map, &ranges))
+                                          bible_order_map, &book_name, &ranges))
                 {
                     if (gnd_codes_to_bible_ref_codes_map->find(gnd_code) == gnd_codes_to_bible_ref_codes_map->end())
                         (*gnd_codes_to_bible_ref_codes_map)[gnd_code] = ranges;
@@ -593,6 +619,8 @@ void LoadNormData(const bool verbose, File * const norm_input,
         ++bible_ref_count;
     }
 
+    if (verbose)
+	std::cerr << "About to write \"pericopes_to_codes.map\".\n";
     MapIO::SerialiseMap("pericopes_to_codes.map", pericopes_to_ranges_map);
 
     if (verbose) {
@@ -738,7 +766,7 @@ int main(int argc, char **argv) {
 	LoadBibleOrderMap(verbose, &bible_order_map_file, &bible_order_map);
 
 	std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_codes_to_bible_ref_codes_map;
-	LoadNormData(verbose, &norm_input, &gnd_codes_to_bible_ref_codes_map);
+	LoadNormData(verbose, bible_order_map, &norm_input, &gnd_codes_to_bible_ref_codes_map);
 	AugmentBibleRefs(verbose, &title_input, &title_output, gnd_codes_to_bible_ref_codes_map);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
