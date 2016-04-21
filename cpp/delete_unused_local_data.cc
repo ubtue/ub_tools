@@ -49,7 +49,6 @@ bool IsUnusedLocalBlock(const MarcUtil::Record * const record, const std::pair<s
             Error(err_msg);
     }
 
-    std::string err_msg;
     std::vector<size_t> field_indices;
     record->findFieldsInLocalBlock("852", "??", block_start_and_end, &field_indices);
 
