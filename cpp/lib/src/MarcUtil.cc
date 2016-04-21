@@ -551,11 +551,10 @@ void Record::write(XmlWriter * const xml_writer) const {
 		while (ch != fields_[entry_no].cend() and *ch != '\x1F')
 		    subfield_data += *ch++;
 		if (subfield_data.empty())
-		    Warning("in Record::write: empty subfield for code '" + subfield_code + "'! (Control number is "
-			    + fields_[0] + ", tag is " + dir_entry.getTag() + ".)");
+		    continue;
 
-		xml_writer->writeTagsWithData("marc:subfield", { std::make_pair("code", subfield_code) }, subfield_data,
-					      /* suppress_newline = */ true);
+		xml_writer->writeTagsWithData("marc:subfield", { std::make_pair("code", subfield_code) },
+					      subfield_data, /* suppress_newline = */ true);
 	    }
 
 	    xml_writer->closeTag(); // Close "marc:datafield".
