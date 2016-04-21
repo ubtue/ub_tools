@@ -1,11 +1,11 @@
-/** \file    add_child_refs.cc
+/** \file    add_superior_flag.cc
  *  \author  Oliver Obenland
  *
- *  A tool for marking superior records.
+ *  A tool for marking superior records that have associated inferior records in our data sets.
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
