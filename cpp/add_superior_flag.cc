@@ -122,13 +122,13 @@ int main(int argc, char **argv) {
 
     try {
         LoadSuperiorPPNs(&superior_ppns_input);
+
+        Subfields superior_subfield(/* indicator1 = */' ', /* indicator2 = */' ');
+        superior_subfield.addSubfield('a', "1");
+        superior_subfield_data = superior_subfield.toString();
+
+        AddSuperiorFlag(&marc_input, &marc_output);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
-
-    Subfields superior_subfield(/* indicator1 = */' ', /* indicator2 = */' ');
-    superior_subfield.addSubfield('a', "1");
-    superior_subfield_data = superior_subfield.toString();
-
-    AddSuperiorFlag(&marc_input, &marc_output);
 }
