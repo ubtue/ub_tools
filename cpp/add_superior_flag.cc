@@ -1,11 +1,11 @@
-/** \file    add_child_refs.cc
+/** \file    add_superior_flag.cc
  *  \author  Oliver Obenland
  *
- *  A tool for marking superior records.
+ *  A tool for marking superior records that have associated inferior records in our data sets.
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -60,9 +60,8 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
     const std::vector<std::string> &field_data(record->getFields());
     const auto iter(superior_ppns.find(field_data.at(0)));
     if (iter != superior_ppns.end()) {
-        if (not record->insertField("UBR", superior_subfield_data)) {
+        if (not record->insertField("SPR", superior_subfield_data))
             Warning("Not enough room to add a SPR field! (Control number: " + field_data[0] + ")");
-        }
 	++modified_count;
     }
 
