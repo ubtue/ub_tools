@@ -60,9 +60,8 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
     const std::vector<std::string> &field_data(record->getFields());
     const auto iter(superior_ppns.find(field_data.at(0)));
     if (iter != superior_ppns.end()) {
-        if (not record->insertField("UBR", superior_subfield_data)) {
+        if (not record->insertField("SPR", superior_subfield_data))
             Warning("Not enough room to add a SPR field! (Control number: " + field_data[0] + ")");
-        }
 	++modified_count;
     }
 
