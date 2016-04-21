@@ -555,6 +555,10 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
 
     if (not differential_archive.empty())
 	DeleteFilesOrDie("diff_.*");
+
+    DeleteFileOrDie(title_marc_basename);
+    DeleteFileOrDie(superior_marc_basename);
+    DeleteFileOrDie(normdata_marc_basename);
 }
 
 
@@ -692,7 +696,8 @@ int main(int argc, char *argv[]) {
             ExtractAndCombineMarcFilesFromArchives(complete_dump_filename, deletion_list_filenames, incremental_dump_filenames));
 	ChangeDirectoryOrDie(".."); // Leave the working directory again.
 	RemoveDirectoryOrDie(GetWorkingDirectoryName());
-	DeleteFilesOrDie(incremental_dump_pattern);
+        DeleteFilesOrDie(incremental_dump_pattern);
+        DeleteFilesOrDie(deletion_list_pattern);
 
         CreateSymlink(new_complete_dump_filename, complete_dump_linkname);
 
