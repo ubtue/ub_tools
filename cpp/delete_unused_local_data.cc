@@ -2,7 +2,7 @@
  *  \author  Oliver Obenland
  *
  *  Local data blocks are embedded marc records inside of a record using LOK-Fields.
- *  Each local data block belongs to an institution and are marked by the institution's sigil.
+ *  Each local data block belongs to an institution and is marked by the institution's sigil.
  *  This tool filters for local data blocks of some institutions of the University of Tübingen
  *  and deletes all other local blocks.
  */
