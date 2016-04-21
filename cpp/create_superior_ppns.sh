@@ -4,11 +4,11 @@ set -o errexit -o nounset
 # Creates a list of PPNs of superior records for later processing by the add_superior_flag tool.
 
 if [ $# -ne 1 ]; then
-    echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
+    echo "usage: $0 marc_input"
     exit 1
 fi
 
-rm -f superior_ppns
+rm --force superior_ppns
 
 marc_grep $1 '"800w:810w:830w:773w"' \
     | grep '(DE-576)' \
