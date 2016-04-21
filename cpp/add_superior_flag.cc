@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
         LoadSuperiorPPNs(&superior_ppns_input);
 
         Subfields superior_subfield(/* indicator1 = */' ', /* indicator2 = */' ');
-        superior_subfield.addSubfield('a', "1");
+        superior_subfield.addSubfield('a', "1"); // Could be anything but we can't have an empty field.
         superior_subfield_data = superior_subfield.toString();
 
         AddSuperiorFlag(&marc_input, &marc_output);
