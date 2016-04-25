@@ -615,10 +615,6 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return
      */
     public String isAvailableInTuebingen(final Record record) {
-        final Set<String> isils = getIsils(record);
-        if (isils.contains("DE-21") || isils.contains("DE-21-110")) {
-            return Boolean.toString(true);
-        }
         return Boolean.toString(!record.getVariableFields("SIG").isEmpty());
     }
 
@@ -837,7 +833,21 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getDates(final Record record) {
         final Set<String> dates = new LinkedHashSet<>();
 
-        // First check old-style 260c date:
+        // Check old-style 260c date:
+        final List<VariableField> list534 = record.getVariableFields("534");
+        for (final VariableField vf : list534) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates) {
+                final String currentDateStr = Utils.cleanDate(sf.getData());
+                dates.add(currentDateStr);
+            }
+        }
+        if (!dates.isEmpty()) {
+            return dates;
+        }
+
+        // Check old-style 260c date:
         final List<VariableField> list260 = record.getVariableFields("260");
         for (final VariableField vf : list260) {
             final DataField df = (DataField) vf;
