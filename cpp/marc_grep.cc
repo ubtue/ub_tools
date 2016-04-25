@@ -372,7 +372,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
     if (unlikely(media_type.empty()))
 	Error("can't determine media type of \"" + input_filename + "\"!");
     if (media_type != "application/xml" and media_type != "application/marc")
-	Error("\"input_filename\" is neither XML nor MARC-21 data!");
+	Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
     const bool input_is_xml(media_type == "application/xml");
 
     File input(input_filename, input_is_xml ? "rm" : "rbm");
