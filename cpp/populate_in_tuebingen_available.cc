@@ -54,8 +54,14 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
             continue;
         for (const size_t _852_index : _852_field_indices) {
             const Subfields subfields1(fields[_852_index]);
-            const std::string isil_subfield(subfields1.getFirstSubfieldValue('a'));
+            const std::string not_available_subfield(subfields1.getFirstSubfieldValue('z'));
+            if (not_available_subfield == "Kein Bestand am IfK; Nachweis für KrimDok") {
+                record->filterTags({"SIG"});
+                record->write(xml_writer);
+                return true;
+            }
 
+            const std::string isil_subfield(subfields1.getFirstSubfieldValue('a'));
             if (isil_subfield != "DE-21" and isil_subfield != "DE-21-110")
                 continue;
 

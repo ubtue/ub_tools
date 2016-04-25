@@ -39,6 +39,7 @@ import traceback
 import util
 import shutil
 
+
 def Login(ftp_host, ftp_user, ftp_passwd):
     try:
         ftp = FTP(host=ftp_host, timeout=120)
@@ -116,6 +117,7 @@ def DownloadMoreRecentFile(ftp, filename_regex, remote_directory):
         return most_recent_remote_file
     else:
         return None
+
 
 # Cumulatively saves downloaded data to an external location to have complete trace of 
 # downloaded data. Thus, the complete data should be reconstructible  
