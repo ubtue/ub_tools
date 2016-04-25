@@ -1,15 +1,14 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.*;
 import org.marc4j.marc.DataField;
-import org.marc4j.marc.VariableField;
 import org.marc4j.marc.Record;
+import org.marc4j.marc.VariableField;
+import org.marc4j.marc.*;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.Utils;
-import org.marc4j.marc.*;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-
-import java.util.*;
 
 public class IxTheo extends SolrIndexerMixin {
     private Set<String> ixTheoNotations = null;
@@ -62,7 +61,6 @@ public class IxTheo extends SolrIndexerMixin {
      *            MARC record
      * @return set of record format
      */
-
     public Set<String> getMultipleFormats(final Record record) {
         Set<String> result = new LinkedHashSet<String>();
         String leader = record.getLeader().toString();
@@ -349,9 +347,7 @@ public class IxTheo extends SolrIndexerMixin {
      *            the record
      * @return format of record
      */
-
     public Set<String> getFormatsWithGermanHandling(final Record record) {
-
         // We've been facing the problem that the original SolrMarc cannot deal
         // with
         // german descriptions in the 245h and thus assigns a wrong format
@@ -375,7 +371,6 @@ public class IxTheo extends SolrIndexerMixin {
 
         // Catch case of empty title
         return getMultipleFormats(record);
-
     }
 
     /**
@@ -438,23 +433,10 @@ public class IxTheo extends SolrIndexerMixin {
         // It seems to be a general rule that in the fields that the $p fields
         // are converted to a '.'
         // $n is converted to a space if there is additional information
-
-        // String[] separators = {". ", " "};
-        // String[] separators = {"|", "||", "|||", "||||", "|||||", "|||||||"};
-        // String sspec = "\\::||:|||:||||";
-        // String sspec = "$p \\$xxxx :$t&&:$x&&&:$v&&&&";
         Map<String, String> separators = parseTopicSeparators(separator);
-
-        // System.out.println("Specs: ");
-        // for (Map.Entry<String, String> entry : separators.entrySet()) {
-        // System.out.print(entry.getKey() + " is mapped to " + entry.getValue()
-        // + "-----");
-        // }
-
         getTopicsCollector(record, fieldSpec, separators, topics);
 
         return topics;
-
     }
 
     /**
@@ -497,11 +479,9 @@ public class IxTheo extends SolrIndexerMixin {
             else {
                 separators.put("default", s.replace(esc, ""));
             }
-
         }
 
         return separators;
-
     }
 
     /**
@@ -598,19 +578,15 @@ public class IxTheo extends SolrIndexerMixin {
                                 }
                                 buffer.append(subfield.getData().trim());
                             }
-
                         }
                         if (buffer.length() > 0)
                             collector.add(Utils.cleanData(buffer.toString()));
                     }
-
                 }
-
             }
 
             // Case 2: We have an ordinary MARC field
             else {
-
                 marcFieldList = record.getVariableFields(fldTag);
                 if (!marcFieldList.isEmpty()) {
                     Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
@@ -642,5 +618,4 @@ public class IxTheo extends SolrIndexerMixin {
 
         return;
     }
-
 }
