@@ -46,9 +46,9 @@ static std::set<std::string> unknown_types;
 // Use the following indicators to select whether to fully delete a record or remove its local data
 // For a description of indicators
 // c.f. https://wiki.bsz-bw.de/doku.php?id=v-team:daten:datendienste:sekkor (20160426)
-const static char full_record_delete_indicators[] = {'A','B','C','D','E'};
-const static char local_data_delete_indicators[] = {'3','4','5','9'};
-
+const char FULL_RECORD_DELETE_INDICATORS[] = { 'A', 'B', 'C', 'D', 'E' };
+const char LOCAL_DATA_DELETE_INDICATORS[] = { '3', '4', '5', '9' };
+const size_t LINE_LENGTH = 25;
 
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
                         std::unordered_set <std::string> *const local_deletion_ids)
@@ -67,15 +67,15 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
         if (line.length() < PPN_START_INDEX)
             Error("short line " + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath()
 		  + "\": \"" + line + "\"!");
-        for (size_t i = 0; i < std::extent<decltype(full_record_delete_indicators)>::value; i++) {
-            if (line[SEPARATOR_INDEX] == full_record_delete_indicators[i]) {
+        for (char indicator : FULL_RECORD_DELETE_INDICATORS) {
+            if (line[SEPARATOR_INDEX] == indicator) {
                 delete_full_record_ids->insert(line.substr(PPN_START_INDEX)); // extract PPN
                 return;
             }
         }
-        for (size_t i = 0; i < std::extent<decltype(local_data_delete_indicators)>::value; i++) {
-            if (line[SEPARATOR_INDEX] == local_data_delete_indicators[i]) {
-                if (line.length() != 25)
+        for (char indicator : LOCAL_DATA_DELETE_INDICATORS) {
+            if (line[SEPARATOR_INDEX] == indicator) {
+                if (line.length() != LINE_LENGTH)
                     Error("unexpected line length for local entry on line " + std::to_string(line_no) + "!");
                 local_deletion_ids->insert(line.substr(PPN_START_INDEX, PPN_LENGTH)); // extract ELN
                 return;
