@@ -47,10 +47,13 @@ install: $(INSTALL_PROGS)
 	cp $(INSTALL_PROGS) ~/bin/
 
 root_install: $(INSTALL_PROGS)
-	@echo "Installing programs..."
+	@echo "Installing programs and data..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
 	mkdir --parents /var/lib/tuelib/bibleRef/
-	cp data/books_of_the_bible_to_canonical_form.map /var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map
+	cp data/books_of_the_bible_to_canonical_form.map \
+            /var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map
+	cp data/books_of_the_bible_to_code.map \
+            /var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map
 
 cgi_install: $(CGI_PROGS)
 	mkdir --parents /var/www/cgi-bin
