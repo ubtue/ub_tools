@@ -63,40 +63,33 @@ chown -R "$OWNER" "/var/lib/tuelib"
 mkdir --parents "/var/log/$SYSTEM_TYPE"
 chown -R "$OWNER" "/var/log/$SYSTEM_TYPE"
 
-function set_se_perms() {
-  for arg_no in $(seq 2 $#); do
-    arg="${!arg_no}"
-    if [[ -d "$arg" ]]; then # Recursively process all directories.
-       find "$arg" -type d -print0 | xargs -t --null --max-lines semanage fcontext --add --type "$1" 
-    else # Assume we have an ordinary file.
-      semanage fcontext --add --type "$1" "$arg"
-    fi
-      restorecon -R "$arg"
-  done
-}
+mkdir --parents "/var/www/cgi-bin"
+# chown isn't necessary here
 
 function set_se_permissions() {
   semanage fcontext --add --type "$1" "$2"
   if [ $# -ne 2 ]; then
     restorecon -R "$3"
-  else
+  elserestorecon -R 
     restorecon -R "$2"
   fi
 }
 
 if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
 
-  if [[ $(which setsebool) ]]; then
+   if [[ $(which setsebool) ]]; then
     setsebool -P httpd_can_network_connect=1 httpd_can_network_connect_db=1 httpd_enable_cgi=1
   fi
 
   if [[ $(which semanage) ]]; then
-    set_se_permissions httpd_config_t /var/lib/tuelib
+    set_se_permissions public_content_t "/var/lib/tuelib"
+    set_se_permissions public_content_t "/var/lib/tuelib/full_text.db"
     set_se_permissions httpd_sys_rw_content_t "/usr/local/vufind2(/.*)?" "/usr/local/vufind2"
-    set_se_permissions httpd_config_t "$VUFIND_HOME"/local/httpd-vufind*.conf
-    set_se_permissions httpd_log_t /var/log/vufind.log
-    set_se_permissions var_log_t /var/log/"$SYSTEM_TYPE"
-    set_se_permissions bin_t /usr/local/bin
+    set_se_permissions httpd_config_t "$VUFIND_HOME/local/httpd-vufind*.conf"
+    set_se_permissions httpd_log_t "/var/log/vufind.log"
+    set_se_permissions var_log_t "/var/log/$SYSTEM_TYPE"
+    set_se_permissions bin_t "/usr/local/bin"
+    set_se_permissions bin_t "/var/www/cgi-bin"
   fi
 
 else
