@@ -2957,4 +2957,17 @@ size_t FindCaseInsensitive(const std::string &haystack, const std::string &needl
 }
 
 
+std::string Filter(const std::string &source, const std::string &remove_set) {
+    std::string filtered_string;
+    filtered_string.reserve(source.size());
+
+    for (const char ch : source) {
+	if (remove_set.find(ch) == std::string::npos)
+	    filtered_string += ch;
+    }
+
+    return filtered_string;
+}
+
+
 } // namespace StringUtil
