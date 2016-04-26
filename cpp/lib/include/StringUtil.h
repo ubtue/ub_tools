@@ -2459,6 +2459,11 @@ std::string PadLeading(const std::string &s, const std::string::size_type min_le
 size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle);
 
 
+/** Removes all occurrences of any of the characters in "remove_set" from "source"
+    and returns the result. */
+std::string Filter(const std::string &source, const std::string &remove_set);
+
+
 } // Namespace StringUtil
 
 

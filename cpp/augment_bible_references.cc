@@ -45,7 +45,7 @@
 
 void Usage() {
     std::cerr << "Usage: " << progname
-	      << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles bible_order_map\n";
+	      << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -71,50 +71,50 @@ const std::unordered_set<std::string> books_of_the_bible { // Found in 130$a:100
     "petrusbrief", // 2 records "I." and "II." in $n
     "johannesbrief", // 3 records "I.", "II." and "III." in $n
     "judasbrief",
-    "johannes-apokalypse", // a.k.a. "Offenbarung des Johannes"
+    "offenbarung des Johannes", // a.k.a. "Johannes Apokalypse"
     "genesis", // -- start Old Testament --
     "exodus",
     "leviticus",
     "numeri",
     "deuteronomium",
-    "josua", // $9g:Buch
-    "richter", // $9g:Buch
-    "rut", // $9g:Buch
-    "samuel", // $9g:Buch, 2 records "I." and "II." in $n
-    "könige", // $9g:Buch, 2 records "I." and "II." in $n
+    "josua",
+    "richter",
+    "rut",
+    "samuel", // 2 records "I." and "II." in $n
+    "könige", // 2 records "I." and "II." in $n
     "chronik", // 2 records "I." and "II." in $n
-    "esra", // $9g:Buch
-    "nehemia", // $9g:Buch
-    "tobit", // $9g:Buch
-    "judit", // $9g:Buch
-    "ester", // $9g:Buch
-    "makkabäer", // $9g:Buch, 4 records "I.", "II.", "III." and "IV." in $n
-    "ijob", // $9g:Buch
+    "esra",
+    "nehemia",
+    "tobit",
+    "judit",
+    "ester",
+    "makkabäer", // 4 records "I.", "II.", "III." and "IV." in $n
+    "ijob",
     "psalmen",
-    "sprichwörter", // $9g:Bibel
+    "sprichwörter",
     "kohelet",
     "hoheslied",
-    "weisheit", // $9g:Buch
-    "sirach", // $9g:Buch
-    "jesaja", // $9g:Buch
-    "jeremia", // $9g:Buch
+    "weisheit",
+    "sirach",
+    "jesaja",
+    "jeremia",
     "klagelieder jeremias", // a.k.a. "Klagelieder"
-    "baruch", // $9g:Buch
+    "baruch",
     "jeremiabrief", // a.k.a. "Epistola Jeremiae"
-    "ezechiel", // $9g:Buch
-    "daniel", // $9g:Buch
-    "hosea", // $9g:Buch
-    "joel", // $9g:Buch
-    "amos", // $9g:Buch
-    "obadja", // $9g:Buch
-    "jona", // $9g:Buch
-    "micha", // $9g:Buch
-    "nahum", // $9g:Buch
-    "habakuk", // $9g:Buch
-    "zefanja", // $9g:Buch
-    "haggai", // $9g:Buch
-    "sacharja", // $9g:Buch
-    "maleachi", // $9g:Buch
+    "ezechiel",
+    "daniel",
+    "hosea",
+    "joel",
+    "amos",
+    "obadja",
+    "jona",
+    "micha",
+    "nahum",
+    "habakuk",
+    "zefanja",
+    "haggai",
+    "sacharja",
+    "maleachi",
 };
 
 
@@ -432,6 +432,9 @@ bool ExtractBibleReference(const bool verbose, const std::string &control_number
             return false;
     }
 
+    // Squeeze out embedded spaces from the book name:
+    *book_name = StringUtil::Filter(*book_name, " ");
+
     // Generate the mapping from books of the bible to numeric codes:
     std::vector<std::string> current_book_codes;
     if (book_ordinals.empty()) {
@@ -488,6 +491,7 @@ void FindPericopes(const std::string &pericope_field, const std::string &book_na
         const Subfields subfields(field_data[field_iter - dir_entries.begin()]);
         std::string a_subfield(subfields.getFirstSubfieldValue('a'));
         StringUtil::ToLower(&a_subfield);
+	StringUtil::CollapseAndTrimWhitespace(&a_subfield);
         if (a_subfield != book_name)
             pericopes.push_back(a_subfield);
         ++field_iter;
@@ -510,11 +514,6 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
     gnd_codes_to_bible_ref_codes_map->clear();
     if (verbose)
         std::cerr << "Starting loading of norm data.\n";
-
-    const std::string bible_book_map_filename("books_of_the_bible_to_code.map");
-    std::ofstream bible_book_map(bible_book_map_filename, std::ofstream::out | std::ofstream::trunc);
-    if (bible_book_map.fail())
-        Error("Failed to open \"" + bible_book_map_filename + "\" for writing!");
 
     unsigned count(0), bible_ref_count(0), _130a_count(0), _100t_count(0), _430a_count(0);
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
@@ -728,11 +727,11 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc != 5 and argc != 6)
+    if (argc != 4 and argc != 5)
         Usage();
 
     const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
-    if (verbose ? (argc != 6) : (argc != 5))
+    if (verbose ? (argc != 5) : (argc != 4))
         Usage();
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
@@ -756,7 +755,7 @@ int main(int argc, char **argv) {
     if (unlikely(norm_input_filename == title_output_filename))
         Error("Norm data input file name equals title output file name!");
 
-    const std::string bible_order_map_filename(argv[verbose ? 5 : 4]);
+    const std::string bible_order_map_filename("/var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map");
     File bible_order_map_file(bible_order_map_filename, "r");
     if (not bible_order_map_file)
         Error("can't open \"" + bible_order_map_filename + "\" for reading!");
