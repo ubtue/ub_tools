@@ -90,7 +90,7 @@ echo "*** Phase $P: Augment Bible References - $(date) ***" | tee --append "${lo
 augment_bible_references GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
                          Normdaten-"${date}".xml \
                          GesamtTiteldaten-post-phase"$P"-"${date}".xml \
-                         /var/lib/tuelib/books_of_the_bible_to_code.map >> "${log}" 2>&1
+                         /var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map >> "${log}" 2>&1
 cp *.map /var/lib/tuelib/bibleRef/
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
