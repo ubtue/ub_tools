@@ -43,10 +43,17 @@ static void Usage() {
 
 static std::set<std::string> unknown_types;
 
+// Use the following indicators to select whether to fully delete a record or remove its local data
+// For a description of indicators
+// c.f. https://wiki.bsz-bw.de/doku.php?id=v-team:daten:datendienste:sekkor (20160426)
+const static char full_record_delete_indicators[] = {'A','B','C','D','E'};
+const static char local_data_delete_indicators[] = {'3','4','5','9'};
 
-void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const title_deletion_ids,
+
+void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
                         std::unordered_set <std::string> *const local_deletion_ids)
 {
+
     const size_t PPN_LENGTH = 9;
     const size_t PPN_START_INDEX = 12;
     const size_t SEPARATOR_INDEX = PPN_START_INDEX - 1;
@@ -60,14 +67,21 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
         if (line.length() < PPN_START_INDEX)
             Error("short line " + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath()
 		  + "\": \"" + line + "\"!");
-        if (line[SEPARATOR_INDEX] == 'A')
-            title_deletion_ids->insert(line.substr(PPN_START_INDEX)); // extract PPN
-        else if (line[SEPARATOR_INDEX] == '9') {
-            if (line.length() != 25)
-                Error("unexpected line length for local entry on line " + std::to_string(line_no) + "!");
-            local_deletion_ids->insert(line.substr(PPN_START_INDEX, PPN_LENGTH)); // extract ELN
-        } else
-            unknown_types.emplace(line.substr(SEPARATOR_INDEX, 1));
+        for (size_t i = 0; i < std::extent<decltype(full_record_delete_indicators)>::value; i++) {
+            if (line[SEPARATOR_INDEX] == full_record_delete_indicators[i]) {
+                delete_full_record_ids->insert(line.substr(PPN_START_INDEX)); // extract PPN
+                return;
+            }
+        }
+        for (size_t i = 0; i < std::extent<decltype(local_data_delete_indicators)>::value; i++) {
+            if (line[SEPARATOR_INDEX] == local_data_delete_indicators[i]) {
+                if (line.length() != 25)
+                    Error("unexpected line length for local entry on line " + std::to_string(line_no) + "!");
+                local_deletion_ids->insert(line.substr(PPN_START_INDEX, PPN_LENGTH)); // extract ELN
+                return;
+            }
+        }
+        unknown_types.emplace(line.substr(SEPARATOR_INDEX, 1));
     }
 }
 
@@ -214,5 +228,5 @@ int main(int argc, char *argv[]) {
     }
 
     if (not unknown_types.empty())
-        Warning("Unknown types: " + StringUtil::Join(unknown_types, ", "));
+        Error("Unknown types: " + StringUtil::Join(unknown_types, ", "));
 }
