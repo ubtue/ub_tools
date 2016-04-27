@@ -519,7 +519,7 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
         LogLineCount(LOCAL_DELETION_LIST_FILENAME);
     }
 
-    // If we extracted empty MARC files we would not have a deletion list, thus...
+    // If we extracted empty MARC files we might not have a deletion list, thus...
     IfNotExistsMakeEmptyOrDie(LOCAL_DELETION_LIST_FILENAME);
 
     const std::string old_name_suffix("." + std::to_string(apply_count - 1));
@@ -559,6 +559,7 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     DeleteFileOrDie(title_marc_basename);
     DeleteFileOrDie(superior_marc_basename);
     DeleteFileOrDie(normdata_marc_basename);
+    DeleteFileOrDie(LOCAL_DELETION_LIST_FILENAME);
 }
 
 
