@@ -519,7 +519,7 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
         LogLineCount(LOCAL_DELETION_LIST_FILENAME);
     }
 
-    // If we extracted empty MARC files we would not have a deletion list, thus...
+    // If we extracted empty MARC files we might not have a deletion list, thus...
     IfNotExistsMakeEmptyOrDie(LOCAL_DELETION_LIST_FILENAME);
 
     const std::string old_name_suffix("." + std::to_string(apply_count - 1));
@@ -559,6 +559,7 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     DeleteFileOrDie(title_marc_basename);
     DeleteFileOrDie(superior_marc_basename);
     DeleteFileOrDie(normdata_marc_basename);
+    DeleteFileOrDie(LOCAL_DELETION_LIST_FILENAME);
 }
 
 
@@ -589,7 +590,6 @@ std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_d
     // Iterate over the deletion list and incremental dump filename lists and apply one or both as appropriate:
     auto deletion_list_filename(deletion_list_filenames.cbegin());
     auto incremental_dump_filename(incremental_dump_filenames.cbegin());
-    std::string old_archive_name(complete_dump_filename);
     unsigned apply_count(0);
     while (deletion_list_filename != deletion_list_filenames.cend()
 	   or incremental_dump_filename != incremental_dump_filenames.cend())
