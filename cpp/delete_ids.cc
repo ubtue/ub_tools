@@ -77,7 +77,8 @@ loop_top:
         for (char indicator : LOCAL_DATA_DELETE_INDICATORS) {
             if (line[SEPARATOR_INDEX] == indicator) {
                 if (line.length() != LINE_LENGTH)
-                    Error("unexpected line length for local entry on line " + std::to_string(line_no) + "!");
+                    Error("unexpected line length " + std::to_string(line.length()) + " for local entry on line "
+                          + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath() + "\"!");
                 local_deletion_ids->insert(line.substr(PPN_START_INDEX, PPN_LENGTH)); // extract ELN
                 goto loop_top;
             }
