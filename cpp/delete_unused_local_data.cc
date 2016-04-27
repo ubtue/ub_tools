@@ -44,7 +44,7 @@ bool IsUnusedLocalBlock(const MarcUtil::Record * const record, const std::pair<s
     static RegexMatcher *matcher(nullptr);
     std::string err_msg;
     if (unlikely(matcher == nullptr)) {
-        matcher = RegexMatcher::RegexMatcherFactory("^.*aDE-21.*$|^.*aDE-21-24.*$|^.*aDE-21-110.*$", &err_msg);
+        matcher = RegexMatcher::RegexMatcherFactory("^.*aDE-21.*$|^.*aDE-21-24.*$|^.*aDE-21-110.*$|^.*aTü 135.*$", &err_msg);
         if (matcher == nullptr)
             Error(err_msg);
     }
