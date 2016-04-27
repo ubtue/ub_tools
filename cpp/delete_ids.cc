@@ -48,7 +48,7 @@ static std::set<std::string> unknown_types;
 // c.f. https://wiki.bsz-bw.de/doku.php?id=v-team:daten:datendienste:sekkor (20160426)
 const char FULL_RECORD_DELETE_INDICATORS[] = { 'A', 'B', 'C', 'D', 'E' };
 const char LOCAL_DATA_DELETE_INDICATORS[] = { '3', '4', '5', '9' };
-const size_t LINE_LENGTH = 25;
+const size_t MIN_LINE_LENGTH = 21;
 
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
                         std::unordered_set <std::string> *const local_deletion_ids)
@@ -76,7 +76,7 @@ loop_top:
         }
         for (char indicator : LOCAL_DATA_DELETE_INDICATORS) {
             if (line[SEPARATOR_INDEX] == indicator) {
-                if (line.length() != LINE_LENGTH)
+                if (line.length() < MIN_LINE_LENGTH)
                     Error("unexpected line length " + std::to_string(line.length()) + " for local entry on line "
                           + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath() + "\"!");
                 local_deletion_ids->insert(line.substr(PPN_START_INDEX, PPN_LENGTH)); // extract ELN
