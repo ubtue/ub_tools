@@ -590,7 +590,6 @@ std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_d
     // Iterate over the deletion list and incremental dump filename lists and apply one or both as appropriate:
     auto deletion_list_filename(deletion_list_filenames.cbegin());
     auto incremental_dump_filename(incremental_dump_filenames.cbegin());
-    std::string old_archive_name(complete_dump_filename);
     unsigned apply_count(0);
     while (deletion_list_filename != deletion_list_filenames.cend()
 	   or incremental_dump_filename != incremental_dump_filenames.cend())
