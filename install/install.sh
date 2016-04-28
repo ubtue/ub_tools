@@ -330,7 +330,7 @@ if [[ $SYSTEM_TYPE == "krimdok" ]]; then
     echo ""
     echo "$SCRIPT_DIR/create_fulltext_ini.sh $UB_TOOLS_CLONE_DIRECTORY"
   fi
-  "$SCRIPT_DIR/create_fulltext_ini.sh" "UB_TOOLS_CLONE_DIRECTORY"
+  "$SCRIPT_DIR/create_fulltext_ini.sh" "$UB_TOOLS_CLONE_DIRECTORY"
 fi
 
 ##############################################################################
