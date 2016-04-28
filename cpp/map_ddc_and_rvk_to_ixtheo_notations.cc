@@ -27,10 +27,10 @@
 #include <cctype>
 #include <cstdlib>
 #include "MarcUtil.h"
+#include "MarcXmlWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 void Usage() {
@@ -116,11 +116,7 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
 		    const std::vector<IxTheoMapper> &ddc_to_ixtheo_notation_mappers,
 		    const std::vector<IxTheoMapper> &/*rvk_to_ixtheo_notation_mappers*/)
 {
-    XmlWriter xml_writer(output);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
+    MarcXmlWriter xml_writer(output);
     unsigned count(0), records_with_ixtheo_notations(0), records_with_new_notations(0), skipped_group_count(0);
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
 	record.setRecordWillBeWrittenAsXml(true);
@@ -185,7 +181,6 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
 
 	record.write(&xml_writer);
     }
-    xml_writer.closeTag();
 
     if (verbose) {
 	std::cerr << "Read " << count << " records.\n";
