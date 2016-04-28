@@ -26,10 +26,10 @@
 #include "DirectoryEntry.h"
 #include "Leader.h"
 #include "MarcUtil.h"
+#include "MarcXmlWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 void Usage() {
@@ -108,11 +108,7 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
 
 
 void PopulateTheInTuebingenAvailableField(const bool verbose, File * const input, File * const output) {
-    XmlWriter xml_writer(output);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
+    MarcXmlWriter xml_writer(output);
 
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(input, ProcessRecord, &xml_writer , &err_msg))
@@ -122,8 +118,6 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, File * const input
         std::cout << "Modified " << modified_record_count << " records.\n";
         std::cout << "Added " << add_sig_count << " signature fields.\n";
     }
-
-    xml_writer.closeTag();
 }
 
 
