@@ -321,6 +321,19 @@ fi
 "$SCRIPT_DIR/create_mysql.sh" "$ROOT_PASSWORD" "$VUFIND_PASSWORD"
 
 ##############################################################################
+# Configure Full-Text Indexing
+##############################################################################
+
+if [[ $SYSTEM_TYPE == "krimdok" ]]; then
+  if [[ "$VERBOSE" ]] ; then
+    echo ""
+    echo ""
+    echo "$SCRIPT_DIR/create_fulltext_ini.sh $UB_TOOLS_CLONE_DIRECTORY"
+  fi
+  "$SCRIPT_DIR/create_fulltext_ini.sh" "UB_TOOLS_CLONE_DIRECTORY"
+fi
+
+##############################################################################
 # start server
 ##############################################################################
 
