@@ -6,6 +6,7 @@
 /*
  *  Copyright 2005-2007 Project iVia.
  *  Copyright 2005-2007 The Regents of The University of California.
+ *  Copyright 2015-2016 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -69,7 +70,7 @@ public:
 		       const TextConversionType text_conversion_type = NoConversion);
 
     /** Destroyes an XmlWriter object, closing any still open tags. */
-    ~XmlWriter() { closeAllTags(); }
+    virtual ~XmlWriter() { closeAllTags(); }
 
     File *getAssociatedOutputFile() const { return output_file_; }
 

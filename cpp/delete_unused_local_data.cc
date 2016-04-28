@@ -26,9 +26,9 @@
 
 #include <iostream>
 #include "MarcUtil.h"
+#include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 static ssize_t count(0), before_count(0), after_count(0), no_local_data_records_count(0);
@@ -89,11 +89,7 @@ bool ProcessRecord(MarcUtil::Record * const record) {
 
 
 void DeleteUnusedLocalData(File * const input, File * const output) {
-    XmlWriter xml_writer(output);
-    xml_writer.openTag("marc:collection",
-                        { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                          std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                          std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
+    MarcXmlWriter xml_writer(output);
 
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
@@ -101,8 +97,6 @@ void DeleteUnusedLocalData(File * const input, File * const output) {
         ProcessRecord(&record);
         record.write(&xml_writer);
     }
-
-    xml_writer.closeTag();
 
     std::cerr << ::progname << ": Deleted " << (before_count - after_count) << " of " << before_count << " local data blocks.\n";
     std::cerr << ::progname << ": Deleted " << no_local_data_records_count << " of " << count << "records without local data.\n";
