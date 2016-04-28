@@ -22,7 +22,7 @@ EOF
 }
 
 
-if [[ "$#" -ne 2 ]]; then
+if [[ "$#" -ne 1 ]]; then
     echo "ERROR: Illegal number of parameters!"
     echo "Parameters: $*"
     show_help
@@ -31,8 +31,10 @@ fi
 UB_TOOLS_CLONE_DIRECTORY=$1
 
 
+# Replaces linesin a file not containing a caret.
+# args: original replacement filename
 function replace_line() {
-    sed --in-place "/$1/c$2" $3
+    sed --in-place "s^$1^$2^" $3
 }
 
 
