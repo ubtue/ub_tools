@@ -36,12 +36,12 @@
 #include "FileLocker.h"
 #include "FileUtil.h"
 #include "MarcUtil.h"
+#include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "TimeLimit.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 static void Usage() __attribute__((noreturn));
@@ -126,11 +126,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
                     File * const output, const std::string &db_filename, const unsigned process_count_low_watermark,
                     const unsigned process_count_high_watermark)
 {
-    XmlWriter xml_writer(output);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
+    MarcXmlWriter xml_writer(output);
 
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
@@ -167,8 +163,6 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     // Wait for stragglers:
     child_reported_failure_count += CleanUpZombies(active_child_count);
-
-    xml_writer.closeTag();
 
     if (not err_msg.empty())
         Error(err_msg);

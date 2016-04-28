@@ -22,10 +22,10 @@
 #include <fstream>
 #include <iostream>
 #include "MarcUtil.h"
+#include "MarcXmlWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 static unsigned conversion_count(0);
@@ -71,16 +71,10 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
 
 
 void ConvertBibleRefs(File * const input, File * const output) {
-    XmlWriter xml_writer(output);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
+    MarcXmlWriter xml_writer(output);
 
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input))
 	ProcessRecord(&xml_writer, &record);
-
-    xml_writer.closeTag();
 
     std::cerr << "Converted " << conversion_count << " record(s).\n";
 }
