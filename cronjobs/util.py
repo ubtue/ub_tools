@@ -168,9 +168,8 @@ def LoadConfigFile(path=None, no_error=False):
     if path is None: # Take script name w/ "py" extension replaced by "conf".
         # Check whether there is a machine specific subdirectory 
         hostname_dir = default_config_file_dir + socket.gethostname() + "/"
-        if os.access(hostname_dir, os.R_OK):
-            path = hostname_dir + os.path.basename(sys.argv[0])[:-2] + "conf"
-        else:
+        path = hostname_dir + os.path.basename(sys.argv[0])[:-2] + "conf"
+        if not os.access(path, os.R_OK):
             path = default_config_file_dir + os.path.basename(sys.argv[0])[:-2] + "conf"
     try:
         if not os.access(path, os.R_OK):
