@@ -909,4 +909,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
         return result;
     }
+
+    public String isSuperiorWork(final Record record) {
+        return Boolean.toString(record.getVariableField("SPR") != null);
+    }
 }
