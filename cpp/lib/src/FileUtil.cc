@@ -123,7 +123,7 @@ bool Exists(const std::string &path, std::string * const error_message) {
     int access_status = ::access(path.c_str(), F_OK);
     if (error_message != nullptr)
         *error_message = AccessErrnoToString(errno, path, "F_OK");
-
+    errno = 0;
     return (access_status == 0);
 }
 
