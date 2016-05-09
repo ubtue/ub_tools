@@ -130,10 +130,13 @@ void LogSendEmailAndDie(const std::string &one_line_message) {
 unsigned GetSortedListOfRegularFiles(const std::string &filename_regex, std::vector<std::string> * const filenames) {
     filenames->clear();
 
+    // Make sure we skip further extensions
+    const std::string filename_regex_precise_ending = filename_regex + "$";
+
     std::string err_msg;
-    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(filename_regex, &err_msg));
+    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(filename_regex_precise_ending, &err_msg));
     if (unlikely(not err_msg.empty()))
-	LogSendEmailAndDie("in GetListOfRegularFiles: failed to compile file name regex: \"" + filename_regex
+	LogSendEmailAndDie("in GetListOfRegularFiles: failed to compile file name regex: \"" + filename_regex_precise_ending
 			   + "\". (" + err_msg + ")");
 
     DIR * const directory_stream(::opendir("."));
