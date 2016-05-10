@@ -412,9 +412,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
             final String parentId = matcher.group(1);
 
-            reviews.add(parentId + (char)0x1F + reviewerSubfield.getData() + (char)0x1F+ titleSubfield.getData());
+            reviews.add(parentId + (char)0x1F + reviewerSubfield.getData() + (char)0x1F + titleSubfield.getData());
         }
-        System.out.println(reviews);
         return reviews;
     }
     /**
