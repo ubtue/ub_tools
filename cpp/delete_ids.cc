@@ -182,13 +182,9 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
             if (not DeleteLocalSections(dir_entries, fields, local_deletion_ids, &record))
 		record.write(output);
             else {
-                // Only keep records that still have at least one "LOK" tag:
-                if (std::find_if(dir_entries.cbegin(), dir_entries.cend(), MatchTag("LOK")) == dir_entries.cend())
-                    ++deleted_record_count;
-                else {
-                    ++modified_record_count;
-		    record.write(output);
-                }
+                // Unlike former versions we no longer delete records without local data
+                ++modified_record_count;
+		record.write(output);
             }
         }
     }
