@@ -372,7 +372,6 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return A, possibly empty, Set<String> containing the ID/title pairs.
      */
     public Set<String> getContainerIdsWithTitles(final Record record) {
-
         final Set<String> containerIdsAndTitles = new TreeSet<>();
 
         for (final String tag : new String[]{"800", "810", "830", "773"}) {
@@ -397,6 +396,27 @@ public class TuelibMixin extends SolrIndexerMixin {
         return containerIdsAndTitles;
     }
 
+    public Set<String> getReviews(final Record record) {
+        final Set<String> reviews = new TreeSet<>();
+        for (final VariableField variableField : record.getVariableFields("787")) {
+            final DataField field = (DataField) variableField;
+            final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
+            final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't');
+            final Subfield idSubfield = field.getSubfield('w');
+
+            if (reviewerSubfield == null || titleSubfield == null || idSubfield == null)
+                continue;
+
+            final Matcher matcher = EXTRACTION_PATTERN.matcher(idSubfield.getData());
+            if (!matcher.matches())
+                continue;
+            final String parentId = matcher.group(1);
+
+            reviews.add(parentId + (char)0x1F + reviewerSubfield.getData() + (char)0x1F+ titleSubfield.getData());
+        }
+        System.out.println(reviews);
+        return reviews;
+    }
     /**
      * @param record    the record
      * @param fieldnums
