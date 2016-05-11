@@ -406,8 +406,8 @@ public class IxTheo extends SolrIndexerMixin {
         final List<VariableField> _935Fields = record.getVariableFields("935");
         for (final VariableField _935Field : _935Fields) {
             final DataField dataField = (DataField) _935Field;
-            if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
-                    && dataField.getSubfield('c').getData().equals("uwre")) {
+            final Subfield cSubfield = dataField.getSubfield('c');
+            if (cSubfield != null && cSubfield.getData().equals("uwre")) {
                 formats.clear();
                 formats.add("Review");
                 break;
