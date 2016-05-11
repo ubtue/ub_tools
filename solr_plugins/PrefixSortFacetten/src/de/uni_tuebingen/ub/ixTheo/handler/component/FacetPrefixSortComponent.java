@@ -134,8 +134,22 @@ public class FacetPrefixSortComponent extends FacetComponent {
                         queryTermsCollection.add(matcher.group().replaceAll("^\"|\"$", ""));
                     }
                 }
-                queryTerms = queryTermsCollection.toArray(new String[queryTermsCollection.size()]);
 
+		// In some contexts, i.e. in KWC that are derived from ordinary keywords or if
+                // wildcards occur, also add all the query terms as a single phrase term
+                // with stripped wildcards
+
+		StringBuilder sb = new StringBuilder();
+                for (String s : queryTermsCollection) {
+                    s = s.replace("*", "");
+                    sb.append(s);
+                    sb.append(" ");
+                }
+
+                queryTermsCollection.add(sb.toString().trim());
+                
+                queryTerms = queryTermsCollection.toArray(new String[queryTermsCollection.size()]);
+               
                 final ArrayList<String> queryList = new ArrayList<>(Arrays.asList(queryTerms));
                 final String facetfield = params.get(FacetParams.FACET_FIELD);
 
