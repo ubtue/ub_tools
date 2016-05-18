@@ -20,9 +20,9 @@
 #include <stdexcept>
 #include <string>
 #include <cstdlib>
-#include <DbConnection.h>
-#include <util.h>
-#include <VuFind.h>
+#include "DbConnection.h"
+#include "util.h"
+#include "VuFind.h"
 
 
 void Usage() {
