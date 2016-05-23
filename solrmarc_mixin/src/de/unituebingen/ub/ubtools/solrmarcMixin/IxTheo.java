@@ -374,13 +374,15 @@ public class IxTheo extends SolrIndexerMixin {
     }
 
     /**
-     * Determine Record Format(s)
+     * Determine Record Format(s) including the electronic tag
+     * The electronic category is filtered out in the actula getFormat function
+     * but needed to determine the media type
      *
      * @param record
      *            the record
      * @return format of record
      */
-    public Set getFormat(final Record record) {
+    public Set getFormatIncludingElectronic(final Record record) {
         final Set<String> formats = new HashSet<>();
         Set<String> rawFormats = getFormatsWithGermanHandling(record);
 
@@ -392,29 +394,94 @@ public class IxTheo extends SolrIndexerMixin {
             }
         }
 
+        // Determine whether an article is in fact a review
         final List<VariableField> _655Fields = record.getVariableFields("655");
         for (final VariableField _655Field : _655Fields) {
             final DataField dataField = (DataField) _655Field;
             if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
                     && dataField.getSubfield('a').getData().startsWith("Rezension")) {
-                formats.clear();
+                formats.remove("Article");
                 formats.add("Review");
                 break;
             }
         }
 
+        // A review can also be indicated if 935$c set to "uwre"
         final List<VariableField> _935Fields = record.getVariableFields("935");
         for (final VariableField _935Field : _935Fields) {
             final DataField dataField = (DataField) _935Field;
             final Subfield cSubfield = dataField.getSubfield('c');
-            if (cSubfield != null && cSubfield.getData().equals("uwre")) {
-                formats.clear();
+            if (cSubfield != null && cSubfield.getData().contains("uwre")) {
+                formats.remove("Article");
                 formats.add("Review");
                 break;
             }
         }
 
+        // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
+        for (final VariableField _935Field : _935Fields) {
+            final DataField dataField = (DataField) _935Field;
+            final Subfield cSubfield = dataField.getSubfield('c');
+            if (cSubfield != null && cSubfield.getData().contains("fe")) {
+               formats.add("Festschrift");
+               break;
+            }
+        }
+
+        // Rewrite all E-Books as electronic Books
+        if (formats.contains("eBook")) {
+            formats.remove("eBook");
+            formats.add("Electronic");
+            formats.add("Book");
+        }
+        
         return formats;
+    }
+
+    /**
+     * Determine Format(s) but do away with the electronic tag
+     *
+     * @param record
+     *            the record
+     * @return mediatype of the record
+     */
+
+
+    public Set getFormat(final Record record) {
+        Set<String> formats = getFormatIncludingElectronic(record);
+
+        // Since we now have an additional facet mediatype we remove the electronic label 
+        formats.remove("Electronic");
+
+        return formats;
+    }
+
+
+
+    /**
+     * Determine Mediatype
+     * For facets we need to differentiate between electronic and non-electronic resources
+     *
+     * @param record
+     *            the record
+     * @return mediatype of the record
+     */
+
+    public Set getMediatype(final Record record) {
+        final Set<String> mediatype = new HashSet<>();
+        final Set<String> formats = getFormatIncludingElectronic(record);
+        
+        final String electronicRessource = "Electronic";
+        final String nonElectronicRessource = "Non-Electronic";
+
+	if (formats.contains(electronicRessource)){
+          mediatype.add(electronicRessource);
+        }
+        else {
+          mediatype.add(nonElectronicRessource);
+        }
+
+        return mediatype;
     }
 
     /**
