@@ -5,9 +5,9 @@ SRCS   = $(SRC)/*.cc
 TEMP   = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
 OBJS   = $(TEMP:.cc=.o)
 CCC    = clang++
-CCOPTS = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include -O3 \
+CCOPTS = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include \
          -pedantic -Wno-vla-extension -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
-         -fsanitize=undefined-trap -fsanitize-undefined-trap-on-error -ftrapv -DETC_DIR='"/var/lib/tuelib"'
+         -ftrapv -DETC_DIR='"/var/lib/tuelib"'
 LDOPTS = -O3
 MAKE_DEPS=/usr/local/bin/iViaCore-mkdep
 
