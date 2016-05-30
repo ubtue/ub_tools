@@ -159,7 +159,8 @@ void BacktraceSignalHandler(int signal_no) {
     *cp++ = '.';
     *cp++ = '\n';
     *cp = '\0';
-    ::write(STDERR_FILENO, err_msg, std::strlen(err_msg));
+    ssize_t unused(::write(STDERR_FILENO, err_msg, std::strlen(err_msg)));
+    (void)unused;
     ::backtrace_symbols_fd(stack_return_addresses, number_of_addresses, STDERR_FILENO);
     ::_exit(EXIT_FAILURE);
 }
