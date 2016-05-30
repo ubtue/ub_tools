@@ -5,10 +5,9 @@ SRCS   = $(SRC)/*.cc
 TEMP   = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
 OBJS   = $(TEMP:.cc=.o)
 CCC    = clang++
-CCOPTS = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include \
+CCOPTS = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include -O3\
          -pedantic -Wno-vla-extension -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
          -ftrapv -DETC_DIR='"/var/lib/tuelib"'
-LDOPTS = -O3
 MAKE_DEPS=/usr/local/bin/iViaCore-mkdep
 
 ifneq ("$(wildcard /etc/centos-release)","")
