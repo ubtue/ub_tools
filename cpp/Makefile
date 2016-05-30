@@ -1,7 +1,7 @@
 INC             = lib/include
 LIB_SRCS        = lib/src
 CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include \
-                  -fsanitize=undefined-trap -fsanitize-undefined-trap-on-error -ftrapv -Ilib/libstemmer/include \
+                  -ftrapv -Ilib/libstemmer/include \
                   -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
                   -I/usr/include/libxml2
 CCC             = clang++
