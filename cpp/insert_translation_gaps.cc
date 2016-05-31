@@ -75,8 +75,8 @@ void ReadIniFile(File * const input, std::vector<std::pair<std::string, std::str
 
         std::string lhs, rhs;
         if (unlikely(not SplitLine(line, &lhs, &rhs)))
-            Error("line with more than one equal sign in \"" + input->getPath() + "\", line #"
-                  + std::to_string(line_no) + "!");
+            Error("line with a confusing structure in \"" + input->getPath() + "\", line #" + std::to_string(line_no)
+                  + "!");
 
         language_mapping->emplace_back(lhs, rhs);
     }
@@ -122,8 +122,8 @@ void ReadIniFileAndCollectEntries(File * const input, StringPairSet * const lhs_
 
         std::string lhs, rhs;
         if (unlikely(not SplitLine(line, &lhs, &rhs)))
-            Error("line with more than one equal sign in \"" + input->getPath() + "\", line #"
-                  + std::to_string(line_no) + "!");
+            Error("line with a confusing structure in \"" + input->getPath() + "\", line #" + std::to_string(line_no)
+                  + "!");
 
         lhs_entries->insert(std::make_pair(lhs, rhs));
     }
