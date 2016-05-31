@@ -7,7 +7,6 @@ import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
-import org.solrmarc.index.VuFindIndexer;
 import org.solrmarc.tools.Utils;
 
 import java.util.*;
@@ -144,10 +143,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     private Set<String> isils_cache = null;
+    private Set<String> reviews_cache = new HashSet<>();
+    private Set<String> reviewedRecords_cache = new HashSet<>();
 
     @Override
     public void perRecordInit(final Record record) {
-        isils_cache = null;
+        reviews_cache = reviewedRecords_cache = isils_cache = null;
     }
 
     /**
@@ -389,22 +390,28 @@ public class TuelibMixin extends SolrIndexerMixin {
                     continue;
                 final String parentId = matcher.group(1);
 
-                containerIdsAndTitles.add(parentId + (char)0x1F + titleSubfield.getData() + (char)0x1F
+                containerIdsAndTitles.add(parentId + (char) 0x1F + titleSubfield.getData() + (char) 0x1F
                         + (volumeSubfield == null ? "" : volumeSubfield.getData()));
             }
         }
         return containerIdsAndTitles;
     }
 
-    public Set<String> getReviews(final Record record) {
-        final Set<String> reviews = new TreeSet<>();
+    private void collectReviewsAndReviewedRecords(final Record record) {
+        if (reviews_cache != null && reviewedRecords_cache != null) {
+            return;
+        }
+
+        reviews_cache = new TreeSet<>();
+        reviewedRecords_cache = new TreeSet<>();
         for (final VariableField variableField : record.getVariableFields("787")) {
             final DataField field = (DataField) variableField;
+            final Subfield reviewTypeSubfield = getFirstNonEmptySubfield(field, 'i');
             final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
             final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't');
             final Subfield idSubfield = field.getSubfield('w');
 
-            if (reviewerSubfield == null || titleSubfield == null || idSubfield == null)
+            if (reviewerSubfield == null || titleSubfield == null || idSubfield == null || reviewTypeSubfield == null)
                 continue;
 
             final Matcher matcher = EXTRACTION_PATTERN.matcher(idSubfield.getData());
@@ -412,11 +419,23 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
             final String parentId = matcher.group(1);
 
-            reviews.add(parentId + (char)0x1F + reviewerSubfield.getData() + (char)0x1F + titleSubfield.getData());
+            if (reviewTypeSubfield.getData().equals("Rezension")) {
+                reviews_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + titleSubfield.getData());
+            } else if (reviewTypeSubfield.getData().equals("Rezension von")) {
+                reviewedRecords_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + titleSubfield.getData());
+            }
         }
-        return reviews;
     }
 
+    public Set<String> getReviews(final Record record) {
+        collectReviewsAndReviewedRecords(record);
+        return reviews_cache;
+    }
+
+    public Set<String> getReviewedRecords(final Record record) {
+        collectReviewsAndReviewedRecords(record);
+        return reviewedRecords_cache;
+    }
 
     /**
      * @param record    the record
@@ -747,7 +766,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Get all available dates from the record.
      *
-     * @param  record MARC record
+     * @param record MARC record
      * @return set of dates
      */
     public Set<String> getDates(final Record record) {
@@ -790,8 +809,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             for (final Subfield sf : currentDates) {
                 final String currentDateStr = Utils.cleanDate(sf.getData());
                 final char ind2 = df.getIndicator2();
-                switch (ind2)
-                {
+                switch (ind2) {
                     case '1':
                         pubDates.add(currentDateStr);
                         break;
@@ -815,13 +833,13 @@ public class TuelibMixin extends SolrIndexerMixin {
      *
      * Fix for NullPointerException!
      *
-     * @param  record MARC record
+     * @param record MARC record
      * @return earliest date
      */
     public String getFirstDate(final Record record) {
         String result = null;
         final Set<String> dates = getDates(record);
-        for(final String current: dates) {
+        for (final String current : dates) {
             if (result == null || current != null && Integer.parseInt(current) < Integer.parseInt(result)) {
                 result = current;
             }
