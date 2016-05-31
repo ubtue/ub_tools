@@ -130,6 +130,26 @@ void ReadIniFileAndCollectEntries(File * const input, StringPairSet * const lhs_
 }
 
 
+// Reports keys that exist in the other language file but not in the reference file.
+void ReportMissingEntriesInTheReferenceFile(
+    const std::vector<std::pair<std::string, std::string>> &reference_language_mapping,
+    const StringPairSet &lhs_entries)
+{
+    std::unordered_set<std::string> reference_keys;
+    for (const auto &ref_pair : reference_language_mapping)
+        reference_keys.insert(ref_pair.first);
+
+    unsigned missing_count(0);
+    for (const auto &lhs_entry : lhs_entries) {
+        if (reference_keys.find(lhs_entry.first) == reference_keys.cend()) {
+            std::cout << lhs_entry.first << " is a missing key in the reference file.\n";
+            ++missing_count;
+        }
+    }
+    std::cout << "Found " << missing_count << " missing entries in the reference file.\n";
+}
+
+
 void InsertMissingTranslations(File * const output,
                                const std::vector<std::pair<std::string, std::string>> &reference_language_mapping,
                                const StringPairSet &lhs_entries)
@@ -191,6 +211,7 @@ int main(int argc, char **argv) {
         StringPairSet lhs_entries;
         ReadIniFileAndCollectEntries(&other_language_file, &lhs_entries);
 
+        ReportMissingEntriesInTheReferenceFile(reference_language_mapping, lhs_entries);
         InsertMissingTranslations(&output, reference_language_mapping, lhs_entries);
     } catch (const std::exception &x) {
 	Error("caught exception: " + std::string(x.what()));
