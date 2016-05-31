@@ -173,15 +173,9 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
 		      const std::string &books_of_the_bible_to_code_map_filename,
 		      const std::string &bible_reference_candidate)
 {
-    const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory("([12])-([23])\\s*([A-Za-z]+)"));
-    if (not matcher->matched(bible_reference_candidate)) {
-	if (bible_reference_candidate.find('-') != std::string::npos) {
-	    if (verbose)
-		std::cerr << "Bad bible book range or random junk: " << bible_reference_candidate << '\n';
-	    std::exit(EXIT_FAILURE);
-	}
+    const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory("^([12])-([23])\\s*([A-Za-z]+)"));
+    if (not matcher->matched(bible_reference_candidate))
 	return;
-    }
 
     unsigned starting_volume;
     if (not StringUtil::ToUnsigned((*matcher)[1], &starting_volume) or starting_volume > 2)
