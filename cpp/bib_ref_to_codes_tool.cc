@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015-2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -106,7 +106,8 @@ void SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candid
 /** \brief Map from noncanonical bible book forms to the canonical ones.
  *  \return The mapped name or, if no mapping was found, "bible_book_candidate".
  */
-std::string CanoniseBibleBook(const bool verbose, const std::string &books_of_the_bible_to_canonical_form_map_filename,
+std::string CanoniseBibleBook(const bool verbose,
+                              const std::string &books_of_the_bible_to_canonical_form_map_filename,
 			      const std::string &bible_book_candidate)
 {
     std::unordered_map<std::string, std::string> books_of_the_bible_to_canonical_form_map;
@@ -187,25 +188,29 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
 	Error("\"" + (*matcher)[1] + "\" is not a valid starting volume!");
 
     unsigned ending_volume;
-    if (not StringUtil::ToUnsigned((*matcher)[2], &ending_volume) or ending_volume > 3 or ending_volume <= starting_volume)
+    if (not StringUtil::ToUnsigned((*matcher)[2], &ending_volume) or ending_volume > 3
+        or ending_volume <= starting_volume)
 	Error("\"" + (*matcher)[2] + "\" is not a valid ending volume!");
 
-    const std::string bible_book_candidate(CanoniseBibleBook(verbose, books_of_the_bible_to_canonical_form_map_filename,
-							     (*matcher)[3]));
+    const std::string non_canonical_book_name((*matcher)[3]);
+    const std::string starting_bible_book_candidate(
+        CanoniseBibleBook(verbose, books_of_the_bible_to_canonical_form_map_filename,
+                          std::to_string(starting_volume) + non_canonical_book_name));
+    const std::string ending_bible_book_candidate(
+        CanoniseBibleBook(verbose, books_of_the_bible_to_canonical_form_map_filename,
+                          std::to_string(ending_volume) + non_canonical_book_name));
     if (verbose) {
 	std::cout << "Identified a bible book range.  Starting volume " << starting_volume << ", ending volume "
-		  << ending_volume << ", book is \"" << bible_book_candidate << "\".\n";
+		  << ending_volume << ", book is \"" << non_canonical_book_name << "\".\n";
     }
 
-    const std::string first_book_code(MapBibleBookToCode(verbose, std::to_string(starting_volume) + bible_book_candidate,
+    const std::string first_book_code(MapBibleBookToCode(verbose, starting_bible_book_candidate,
 							 books_of_the_bible_to_code_map_filename));
-    const std::string second_book_code(MapBibleBookToCode(verbose, std::to_string(ending_volume) + bible_book_candidate,
+    const std::string second_book_code(MapBibleBookToCode(verbose, ending_bible_book_candidate,
 							  books_of_the_bible_to_code_map_filename));
 
-    if (generate_solr_query) {
-            std::cout << (first_book_code + "00000") << '_' << (first_book_code + "99999") << '\n';
-            std::cout << (second_book_code + "00000") << '_' << (second_book_code + "99999") << '\n';
-    }
+    if (generate_solr_query)
+            std::cout << (first_book_code + "00000") << '_' << (second_book_code + "99999") << '\n';
 
     std::exit(EXIT_SUCCESS);
 }
