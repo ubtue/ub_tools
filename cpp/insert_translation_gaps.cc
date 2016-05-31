@@ -83,6 +83,8 @@ void ReadIniFile(File * const input, std::vector<std::pair<std::string, std::str
 }
 
 
+/** A hashing functor for pairs of strings which uses only the first string of a pair to generate
+    the hash value. */
 struct StringPairHash {
     inline size_t operator()(const std::pair<std::string, std::string> &string_pair) const {
         return std::hash<std::string>()(string_pair.first);
@@ -90,6 +92,7 @@ struct StringPairHash {
 };
 
 
+/** An equality functor for pairs of strings which uses only the first string of a pair to determine equality. */
 struct StringPairEqual {
     inline bool operator()(const std::pair<std::string, std::string> &lhs_string_pair,
                            const std::pair<std::string, std::string> &rhs_string_pair) const
