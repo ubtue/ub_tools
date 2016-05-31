@@ -83,7 +83,26 @@ void ReadIniFile(File * const input, std::vector<std::pair<std::string, std::str
 }
 
 
-void ReadIniFileAndCollectEntries(File * const input, std::unordered_set<std::string> * const lhs_entries) {
+struct StringPairHash {
+    inline size_t operator()(const std::pair<std::string, std::string> &string_pair) const {
+        return std::hash<std::string>()(string_pair.first);
+    }
+};
+
+
+struct StringPairEqual {
+    inline bool operator()(const std::pair<std::string, std::string> &lhs_string_pair,
+                           const std::pair<std::string, std::string> &rhs_string_pair) const
+    {
+        return lhs_string_pair.first == rhs_string_pair.first;
+    }
+};
+
+
+using StringPairSet = std::unordered_set<std::pair<std::string, std::string>, StringPairHash, StringPairEqual>;
+
+
+void ReadIniFileAndCollectEntries(File * const input, StringPairSet * const lhs_entries) {
     lhs_entries->clear();
 
     unsigned line_no(0);
@@ -103,28 +122,35 @@ void ReadIniFileAndCollectEntries(File * const input, std::unordered_set<std::st
             Error("line with more than one equal sign in \"" + input->getPath() + "\", line #"
                   + std::to_string(line_no) + "!");
 
-        lhs_entries->insert(lhs);
+        lhs_entries->insert(std::make_pair(lhs, rhs));
     }
 }
 
 
 void InsertMissingTranslations(File * const output,
                                const std::vector<std::pair<std::string, std::string>> &reference_language_mapping,
-                               const std::unordered_set<std::string> &lhs_entries)
+                               const StringPairSet &lhs_entries)
 {
-    unsigned total_count(0), missing_count(0);
+    unsigned total_count(0), missing_count(0), comment_count(0);
     for (const auto &ref_pair : reference_language_mapping) {
         ++total_count;
-        if (lhs_entries.find(ref_pair.first) != lhs_entries.cend())
-            *output << ref_pair.first << " = " << '"' << ref_pair.second << "\"\n";
-        else {
-            *output << ref_pair.first << " = " << "\"\"\n";
+        const auto set_entry(lhs_entries.find(ref_pair));
+        if (set_entry != lhs_entries.cend()) {
+            *output << set_entry->first << " = " << '"' << set_entry->second << "\"\n";
+        } else {
+            *output << ref_pair.first << " = " << "\"\"";
+            if (ref_pair.first != ref_pair.second) {
+                *output << " ; " << ref_pair.second;
+                ++comment_count;
+            }
+            *output << '\n';
             ++missing_count;
         }
     }
 
     std::cout << "Processed " << total_count << " entries.\n";
     std::cout << "Found " << missing_count << " missing entries.\n";
+    std::cout << "Inserted " << comment_count << " comments.\n";
 }
 
 
@@ -159,7 +185,7 @@ int main(int argc, char **argv) {
         std::vector<std::pair<std::string, std::string>> reference_language_mapping;
         ReadIniFile(&reference_file, &reference_language_mapping);
 
-        std::unordered_set<std::string> lhs_entries;
+        StringPairSet lhs_entries;
         ReadIniFileAndCollectEntries(&other_language_file, &lhs_entries);
 
         InsertMissingTranslations(&output, reference_language_mapping, lhs_entries);
