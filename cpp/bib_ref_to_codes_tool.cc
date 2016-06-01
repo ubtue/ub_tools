@@ -156,7 +156,7 @@ void HandlePericopes(const bool verbose, const bool generate_solr_query, const s
             if (generate_solr_query) {
                 if (not query.empty())
                     query += ' ';
-                query += pair->first + "_" + pair->second;
+                query += StringUtil::Map(pair->second, ':', '_');
             } else
                 std::cout << pair->second << '\n';
         }
@@ -295,9 +295,9 @@ int main(int argc, char **argv) {
     std::string bible_reference_candidate(StringUtil::Trim(StringUtil::ToLower(argv[1])));
     StringUtil::CollapseWhitespace(&bible_reference_candidate);
 
-    HandlePericopes(verbose, generate_solr_query, bible_reference_candidate, argv[4]);
     HandleBookRanges(verbose, generate_solr_query, books_of_the_bible_to_canonical_form_map_filename,
 		     books_of_the_bible_to_code_map_filename, bible_reference_candidate);
+    HandlePericopes(verbose, generate_solr_query, bible_reference_candidate, argv[4]);
     HandleOrdinaryReferences(verbose, generate_solr_query, bible_reference_candidate,
 			     books_of_the_bible_to_code_map_filename,
 			     books_of_the_bible_to_canonical_form_map_filename);
