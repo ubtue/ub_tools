@@ -78,7 +78,7 @@ bool IsValidDate(const std::string &date_string) {
 
 void CreateNotificationLog(const bool verbose, File * const marc_input, File * const /*notification_log_output*/) {
     if (verbose)
-        std::cout << "Starting paersing of MARC input.\n";
+        std::cout << "Starting parsing of MARC input.\n";
 
     unsigned count(0), serial_record_count(0), matched_serial_count(0);
     std::string err_msg;
