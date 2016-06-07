@@ -236,6 +236,7 @@ def GetCutoffDateForDownloads(config):
 
 
 def DownloadData(config, section, ftp, download_cutoff_date, msg):
+    # 1. Download the files which include local data:
     try:
         filename_pattern = config.get(section, "filename_pattern")
         directory_on_ftp_server = config.get(section, "directory_on_ftp_server")
@@ -246,10 +247,9 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
         filename_regex = re.compile(filename_pattern)
     except Exception as e:
         util.Error("File name pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
-
     downloaded_files = DownloadRemoteFiles(ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
 
-    # Download files w/o local data:
+    # 2. Download the files w/o local data:
     if config.has_section("AbzugOhneLokalDaten"):
         filename_replacement_old = config.get("AbzugOhneLokalDaten", "filename_replacement_old")
         filename_replacement_new = config.get("AbzugOhneLokalDaten", "filename_replacement_new")
@@ -264,6 +264,7 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
         aux_downloaded_files = DownloadRemoteFiles(ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
         downloaded_files.extend(aux_downloaded_files)
 
+    # 3. Backup the downloaded files:
     if len(downloaded_files) == 0:
         msg.append("No more recent file for pattern \"" + filename_pattern + "\"!\n")
     else:
