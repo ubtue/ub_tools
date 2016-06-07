@@ -219,7 +219,7 @@ def DeleteAllFilesOlderThan(date, directory):
 
 # Extracts the first 6 digit sequence in "filename" hoping it corresponds to a YYMMDD pattern.
 def ExtractDateFromFilename(filename):
-    date_extraction_regex = re.compile("(\\d{6})")
+    date_extraction_regex = re.compile(".+(\\d{6}).+")
     match = date_extraction_regex.match(filename)
     if not match:
         util.Error("\"" + filename + "\" does not contain a date!")
@@ -228,7 +228,7 @@ def ExtractDateFromFilename(filename):
 
 def GetCutoffDateForDownloads(config):
     backup_directory = GetBackupDirectoryPath(config)
-    most_recent_backup_file = GetMostRecentLocalFile(re.compile("/.*\\d{6}.*"), backup_directory)
+    most_recent_backup_file = GetMostRecentLocalFile(re.compile(".+(\\d{6}).+"), backup_directory)
     if most_recent_backup_file is None:
         return "000000"
     else:
