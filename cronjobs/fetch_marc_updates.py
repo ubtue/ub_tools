@@ -19,12 +19,8 @@ filename_pattern = SA-MARC-ixtheo-(\d\d\d\d\d\d).tar.gz
 directory_on_ftp_server = /ixtheo
 
 [Differenzabzug]
-filename_pattern = TA-MARC-ixtheo-(\d\d\d\d\d\d).tar.gz
+filename_pattern = TA-MARC-ixtheo(?:_o)?-(\d\d\d\d\d\d).tar.gz|SA-MARC-ixtheo_o-(\d\d\d\d\d\d).tar.gz
 directory_on_ftp_server = /ixtheo
-
-[AbzugOhneLokalDaten]
-filename_replacement_old = ixtheo
-filename_replacement_new = ixtheo_o
 
 [Loeschlisten]
 filename_pattern = LOEPPN-(\d\d\d\d\d\d)
@@ -35,6 +31,7 @@ output_directory = /usr/local/ub_tools/bsz_daten_cumulated
 """
 
 from ftplib import FTP
+import datetime
 import os
 import re
 import sys
@@ -43,6 +40,15 @@ import traceback
 import util
 import shutil
 import string
+
+
+# Returns "yymmdd_string" incremented by one day unless it equals "000000" (= minus infinity).
+def IncrementStringDate(yymmdd_string):
+    if yymmdd_string == "000000":
+        return yymmdd_string
+    date = datetime.datetime.strptime(yymmdd_string, "%y%m%d")
+    date = date + datetime.timedelta(days=1)
+    return date.strftime("%y%m%d")
 
 
 def Login(ftp_host, ftp_user, ftp_passwd):
@@ -94,7 +100,7 @@ def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
             filename_list = []
             for filename in ftp.nlst():
                  match = filename_regex.match(filename)
-                 if match and match.group(1) > download_cutoff_date:
+                 if match and match.group(1) >= download_cutoff_date:
                      filename_list.append(filename)
             return filename_list
         except Exception as e:
@@ -236,7 +242,6 @@ def GetCutoffDateForDownloads(config):
 
 
 def DownloadData(config, section, ftp, download_cutoff_date, msg):
-    # 1. Download the files which include local data:
     try:
         filename_pattern = config.get(section, "filename_pattern")
         directory_on_ftp_server = config.get(section, "directory_on_ftp_server")
@@ -247,24 +252,8 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
         filename_regex = re.compile(filename_pattern)
     except Exception as e:
         util.Error("File name pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
+
     downloaded_files = DownloadRemoteFiles(ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
-
-    # 2. Download the files w/o local data:
-    if config.has_section("AbzugOhneLokalDaten"):
-        filename_replacement_old = config.get("AbzugOhneLokalDaten", "filename_replacement_old")
-        filename_replacement_new = config.get("AbzugOhneLokalDaten", "filename_replacement_new")
-        new_regex_pattern = filename_regex.pattern.replace(filename_replacement_old, filename_replacement_new)
-        if new_regex_pattern == filename_regex.pattern:
-            util.Error("unexpected: aux. regex pattern is the same as the original pattern!")
-        try:
-            filename_regex = re.compile(new_regex_pattern)
-        except Exception as e:
-            util.Error("File name pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
-            filename_regex = re.compile(filename_pattern)
-        aux_downloaded_files = DownloadRemoteFiles(ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
-        downloaded_files.extend(aux_downloaded_files)
-
-    # 3. Backup the downloaded files:
     if len(downloaded_files) == 0:
         msg.append("No more recent file for pattern \"" + filename_pattern + "\"!\n")
     else:
@@ -286,8 +275,8 @@ def DownloadCompleteData(config, ftp, download_cutoff_date, msg):
         util.Error("downloaded multiple complete date tar files!")
 
 
-def DownloadDifferentialData(config, ftp, download_cutoff_date, msg):
-    DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
+def DownloadOtherData(config, section, ftp, download_cutoff_date, msg):
+    DownloadData(config, section, ftp, download_cutoff_date, msg)
 
 
 def Main():
@@ -307,11 +296,12 @@ def Main():
     ftp = Login(ftp_host, ftp_user, ftp_passwd)
     msg = []
 
-    download_cutoff_date = GetCutoffDateForDownloads(config)
+    download_cutoff_date = IncrementStringDate(GetCutoffDateForDownloads(config))
     complete_data_filename = DownloadCompleteData(config, ftp, download_cutoff_date, msg)
     if complete_data_filename is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filename, msg)
-    DownloadDifferentialData(config, ftp, download_cutoff_date, msg)
+    DownloadOtherData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
+    DownloadOtherData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     CleanUpCumulativeCollection(config)
     util.SendEmail("BSZ File Update", string.join(msg, ""), priority=5)
 
