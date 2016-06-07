@@ -15,15 +15,15 @@ server_user     = qubob16
 server_password = XXXXXX
 
 [Kompletter Abzug]
-filename_pattern = SA-MARC-ixtheo-(\d\d\d\d\d\d).tar.gz
+filename_pattern = ^SA-MARC-ixtheo-(\d\d\d\d\d\d).tar.gz$
 directory_on_ftp_server = /ixtheo
 
 [Differenzabzug]
-filename_pattern = TA-MARC-ixtheo(?:_o)?-(\d\d\d\d\d\d).tar.gz|SA-MARC-ixtheo_o-(\d\d\d\d\d\d).tar.gz
+filename_pattern = ^(?:TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-(\d\d\d\d\d\d).tar.gz$
 directory_on_ftp_server = /ixtheo
 
 [Loeschlisten]
-filename_pattern = LOEPPN-(\d\d\d\d\d\d)
+filename_pattern = ^LOEPPN-(\d\d\d\d\d\d)$
 directory_on_ftp_server = /sekkor
 
 [Kumulierte Abzuege]
