@@ -23,7 +23,7 @@
 
 MarcXmlWriter::MarcXmlWriter(File * const output_file, const unsigned indent_amount,
                              const TextConversionType text_conversion_type)
-    : XmlWriter(output_file, indent_amount, text_conversion_type)
+    : XmlWriter(output_file, XmlWriter::WriteTheXmlDeclaration, indent_amount, text_conversion_type)
 {
     openTag("marc:collection",
             { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
@@ -34,7 +34,7 @@ MarcXmlWriter::MarcXmlWriter(File * const output_file, const unsigned indent_amo
 
 MarcXmlWriter::MarcXmlWriter(std::string * const output_string, const unsigned indent_amount,
                              const TextConversionType text_conversion_type)
-    : XmlWriter(output_string, indent_amount, text_conversion_type)
+    : XmlWriter(output_string, XmlWriter::WriteTheXmlDeclaration, indent_amount, text_conversion_type)
 {
     openTag("marc:collection",
             { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
