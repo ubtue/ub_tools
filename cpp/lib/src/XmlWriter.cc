@@ -30,21 +30,25 @@
 #include "StringUtil.h"
 
 
-XmlWriter::XmlWriter(File * const output_file, const unsigned indent_amount, const TextConversionType text_conversion_type)
+XmlWriter::XmlWriter(File * const output_file,
+                     const XmlDeclarationWriteBehaviour xml_declaration_write_behaviour, const unsigned indent_amount,
+                     const TextConversionType text_conversion_type)
     : output_file_(output_file), output_string_(nullptr), indent_amount_(indent_amount), nesting_level_(0),
       text_conversion_type_(text_conversion_type)
 {
-    if (output_file->tell() == 0)
+    if (xml_declaration_write_behaviour == WriteTheXmlDeclaration)
         *output_file_ << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 }
 
 
-XmlWriter::XmlWriter(std::string * const output_string, const unsigned indent_amount,
+XmlWriter::XmlWriter(std::string * const output_string,
+                     const XmlDeclarationWriteBehaviour xml_declaration_write_behaviour, const unsigned indent_amount,
 		     const TextConversionType text_conversion_type)
     : output_file_(nullptr), output_string_(output_string), indent_amount_(indent_amount), nesting_level_(0),
       text_conversion_type_(text_conversion_type)
 {
-    *output_string_ = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+    if (xml_declaration_write_behaviour == WriteTheXmlDeclaration)
+        *output_string_ = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 }
 
 

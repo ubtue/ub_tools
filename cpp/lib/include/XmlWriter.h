@@ -48,26 +48,33 @@ class XmlWriter {
     unsigned nesting_level_;
 public:
     enum TextConversionType { NoConversion, ConvertFromIso8859_15 };
+    enum XmlDeclarationWriteBehaviour { WriteTheXmlDeclaration, DoNotWriteTheXmlDeclaration };
     typedef std::list< std::pair<std::string, std::string> > Attributes;
 private:
     const TextConversionType text_conversion_type_;
     Attributes next_attributes_;
 public:
     /** \brief  Instantiate an XmlWriter object.
-     *  \param  output_file      Where to write the generated XML to.
-     *  \param  indent_amount    How many leading spaces to add per indentation level.
-     *  \param  text_conversion_type  What kind, if any, of text conversion to apply on output.
+     *  \param  output_file                      Where to write the generated XML to.
+     *  \param  xml_declaration_write_behaviour  Whether to write an XML declaration or not.
+     *  \param  indent_amount                    How many leading spaces to add per indentation level.
+     *  \param  text_conversion_type             What kind, if any, of text conversion to apply on output.
      */
-    explicit XmlWriter(File * const output_file, const unsigned indent_amount = 0,
-		       const TextConversionType text_conversion_type = NoConversion);
+    explicit XmlWriter(File * const output_file,
+                       const XmlDeclarationWriteBehaviour xml_declaration_write_behaviour = WriteTheXmlDeclaration,
+                       const unsigned indent_amount = 0,
+                       const TextConversionType text_conversion_type = NoConversion);
 
     /** \brief  Instantiate an XmlWriter object.
-     *  \param  output_string    Where to write the generated XML to.
-     *  \param  indent_amount    How many leading spaces to add per indentation level.
-     *  \param  text_conversion_type  What kind, if any, of text conversion to apply on output.
+     *  \param  output_string                    Where to write the generated XML to.
+     *  \param  xml_declaration_write_behaviour  Whether to write an XML declaration or not.
+     *  \param  indent_amount                    How many leading spaces to add per indentation level.
+     *  \param  text_conversion_type             What kind, if any, of text conversion to apply on output.
      */
-    explicit XmlWriter(std::string * const output_string, const unsigned indent_amount = 0,
-		       const TextConversionType text_conversion_type = NoConversion);
+    explicit XmlWriter(std::string * const output_string,
+                       const XmlDeclarationWriteBehaviour xml_declaration_write_behaviour = WriteTheXmlDeclaration,
+                       const unsigned indent_amount = 0,
+                       const TextConversionType text_conversion_type = NoConversion);
 
     /** Destroyes an XmlWriter object, closing any still open tags. */
     virtual ~XmlWriter() { closeAllTags(); }
