@@ -26,7 +26,7 @@
 [Files]
 loesch_liste    = LOEPPN-\d{6}
 komplett_abzug  = SA-MARC-ixtheo-\d{6}.tar.gz
-differenz_abzug = TA-MARC-ixtheo-\d{6}.tar.gz
+differenz_abzug = TA-MARC-ixtheo(?:_o)?-\d{6}.tar.gz|SA-MARC-ixtheo_o-\d{6}.tar.gz
 
 [SMTPServer]
 server_address  = smtpserv.uni-tuebingen.de
