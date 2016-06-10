@@ -266,7 +266,7 @@ bool ProcessRecord(File * const input, const std::string &marc_output_filename,
     File marc_output(marc_output_filename, "ab");
     if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for appending!");
-    XmlWriter xml_writer(&marc_output, XmlWriter::WriteTheXmlDeclaration);
+    XmlWriter xml_writer(&marc_output, XmlWriter::DoNotWriteTheXmlDeclaration);
     record.write(&xml_writer);
 
     return succeeded;
