@@ -5,7 +5,7 @@ CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wsha
                   -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
                   -I/usr/include/libxml2
 CCC             = clang++
-MAKE_DEPS=/usr/local/bin/iViaCore-mkdep
+MAKE_DEPS=iViaCore-mkdep
 MAKE_DEPS_FLAGS = --output-program-rules
 
 ifneq ("$(wildcard /etc/centos-release)","")
