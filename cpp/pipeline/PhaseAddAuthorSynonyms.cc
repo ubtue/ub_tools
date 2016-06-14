@@ -1,3 +1,24 @@
+/** \file    PhaseAddAuthorSynonyms.cc
+ *  \brief   Adds author synonyms to each record.
+ *  \author  Oliver Obenland
+ */
+/*
+    Copyright (C) 2016, Library of the University of Tübingen
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "PhaseAddAuthorSynonyms.h"
 #include <iostream>
 #include <vector>
@@ -10,15 +31,16 @@
 #include "util.h"
 
 
+static const std::string SYNOMYM_FIELD("101"); // This must be an o/w unused field!
+static const std::string FIELD_LIST("100abcd:400abcd");
+static const std::string PRIMARY_AUTHOR_FIELD("100abcd");
+
 static unsigned modified_count(0);
 static std::map <std::string, std::string> author_to_synonyms_map;
-static std::string field_list("100abcd:400abcd");
-static std::string primary_author_field("100abcd");
-static std::set <std::string> synonyms;
 static std::vector <std::string> tags_and_subfield_codes;
 
 
-void RemoveCommasDuplicatesAndEmptyEntries(std::vector <std::string> *const vector) {
+void RemoveCommasDuplicatesAndEmptyEntries(std::vector <std::string> * const vector) {
     std::vector <std::string> cleaned_up_vector;
     std::set <std::string> uniqe_entries;
 
@@ -47,17 +69,13 @@ std::string ExtractNameFromSubfields(const std::string &field_contents, const st
 }
 
 
-const std::string SYNOMYM_FIELD("101"); // This must be an o/w unused field!
-
-
-PipelinePhaseState PhaseAddAuthorSynonyms::preprocessNormData(const MarcUtil::Record &record, std::string *const) {
+PipelinePhaseState PhaseAddAuthorSynonyms::preprocessNormData(const MarcUtil::Record &record, std::string * const) {
     const int primary_name_field_index(record.getFieldIndex(tags_and_subfield_codes[0].substr(0, 3)));
     if (primary_name_field_index == -1)
         return SUCCESS;
 
     const std::vector <std::string> &fields(record.getFields());
-    const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index],
-                                                            tags_and_subfield_codes[0].substr(3)));
+    const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index], tags_and_subfield_codes[0].substr(3)));
     if (unlikely(primary_name.empty()))
         return SUCCESS;
 
@@ -73,10 +91,9 @@ PipelinePhaseState PhaseAddAuthorSynonyms::preprocessNormData(const MarcUtil::Re
         const std::string secondary_field_subfield_codes(tags_and_subfield_codes[i].substr(3));
         int secondary_name_field_index(record.getFieldIndex(tag));
         while (secondary_name_field_index != -1 and static_cast<size_t>(secondary_name_field_index) < dir_entries.size()
-                and dir_entries[secondary_name_field_index].getTag() == tag) {
-            const std::string secondary_name(ExtractNameFromSubfields(fields[secondary_name_field_index],
-                                                                      secondary_field_subfield_codes
-            ));
+               and dir_entries[secondary_name_field_index].getTag() == tag)
+        {
+            const std::string secondary_name(ExtractNameFromSubfields(fields[secondary_name_field_index], secondary_field_subfield_codes));
             if (not secondary_name.empty())
                 alternatives.emplace_back(secondary_name);
             ++secondary_name_field_index;
@@ -90,29 +107,29 @@ PipelinePhaseState PhaseAddAuthorSynonyms::preprocessNormData(const MarcUtil::Re
     alternatives.erase(alternatives.begin());
     author_to_synonyms_map.emplace(primary_name, StringUtil::Join(alternatives, ','));
     return SUCCESS;
-};
+}
 
 
-PipelinePhaseState PhaseAddAuthorSynonyms::process(MarcUtil::Record &record, std::string *const error_message) {
+PipelinePhaseState PhaseAddAuthorSynonyms::process(MarcUtil::Record &record, std::string * const error_message) {
     record.setRecordWillBeWrittenAsXml(true);
 
     if (unlikely(record.getFieldIndex(SYNOMYM_FIELD) != -1))
         return MakeError("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!", error_message);
 
-    const int primary_name_field_index(record.getFieldIndex(primary_author_field.substr(0, 3)));
+    const int primary_name_field_index(record.getFieldIndex(PRIMARY_AUTHOR_FIELD.substr(0, 3)));
     if (primary_name_field_index == -1)
         return SUCCESS;
 
     const std::vector <std::string> &fields(record.getFields());
-    const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index], primary_author_field.substr(3)));
+    const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index], PRIMARY_AUTHOR_FIELD.substr(3)));
     if (unlikely(primary_name.empty()))
         return SUCCESS;
 
-    const auto synonyms_iterator = author_to_synonyms_map.find(primary_name);
+    const auto synonyms_iterator(author_to_synonyms_map.find(primary_name));
     if (synonyms_iterator == author_to_synonyms_map.end())
         return SUCCESS;
 
-    const std::string synonyms_data = synonyms_iterator->second;
+    const std::string synonyms_data(synonyms_iterator->second);
     Subfields subfields(/* indicator1 = */' ', /* indicator2 = */' ');
     subfields.addSubfield('a', synonyms_data);
 
@@ -121,12 +138,12 @@ PipelinePhaseState PhaseAddAuthorSynonyms::process(MarcUtil::Record &record, std
 
     ++modified_count;
     return SUCCESS;
-};
+}
 
 
 PhaseAddAuthorSynonyms::PhaseAddAuthorSynonyms() {
-    if (unlikely(StringUtil::Split(field_list, ':', &tags_and_subfield_codes) < 2))
-        Error("PhaseAddAuthorSynonyms: field_list ('" + field_list + "') need at least two fields!");
+    if (unlikely(StringUtil::Split(FIELD_LIST, ':', &tags_and_subfield_codes) < 2))
+        Error("PhaseAddAuthorSynonyms: field_list ('" + FIELD_LIST + "') need at least two fields!");
 }
 
 

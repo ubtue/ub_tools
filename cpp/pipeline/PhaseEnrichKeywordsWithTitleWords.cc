@@ -1,3 +1,24 @@
+/** \file    PhaseEnrichKeywordsWithTitleWords.cc
+ *  \brief   A tool for adding keywords extracted from titles to MARC records.
+ *  \author  Dr. Johannes Ruscheinski
+ */
+/*
+    Copyright (C) 2016, Library of the University of Tübingen
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "PhaseEnrichKeywordsWithTitleWords.h"
 
 #include <algorithm>
@@ -34,7 +55,7 @@ static std::map <std::string, std::unordered_set<std::string>> language_codes_to
 unsigned records_with_keywords_count(0), keywords_count(0), augmented_record_count(0);
 
 
-void LoadStopwords(File *const input, std::unordered_set <std::string> *const stopwords_set) {
+void LoadStopwords(File * const input, std::unordered_set <std::string> * const stopwords_set) {
     unsigned count(0);
     while (not input->eof()) {
         const std::string line(input->getline());
@@ -47,7 +68,7 @@ void LoadStopwords(File *const input, std::unordered_set <std::string> *const st
 }
 
 
-void FilterOutStopwords(const std::unordered_set <std::string> &stopwords, std::vector <std::string> *const words) {
+void FilterOutStopwords(const std::unordered_set <std::string> &stopwords, std::vector <std::string> * const words) {
     std::vector <std::string> filtered_words;
     bool removed_at_least_one_word(false);
     for (const auto &word : *words) {
@@ -88,9 +109,9 @@ inline std::string FilterOutNonwordChars(const std::string &phrase) {
 // The former maps from each individual stemmed word to the entire cleaned up and stemmed key phrase and the
 // latter maps from the cleaned up and stemmed key phrase to the original key phrase.
 void ProcessKeywordPhrase(
-        const std::string &keyword_phrase, const Stemmer *const stemmer,
-        std::unordered_map <std::string, std::set<std::string>> *const stemmed_keyword_to_stemmed_keyphrases_map,
-        std::unordered_map <std::string, std::string> *const stemmed_keyphrases_to_unstemmed_keyphrases_map) {
+        const std::string &keyword_phrase, const Stemmer * const stemmer,
+        std::unordered_map <std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
+        std::unordered_map <std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map) {
     std::string cleaned_up_phrase(keyword_phrase);
 
     // Convert "surname, first_name" to "first_name surname" assuming we only have a comma if the keyphrase
@@ -136,9 +157,9 @@ std::string CanonizeCentury(const std::string &century_candidate) {
 
 size_t ExtractKeywordsFromKeywordChainFields(
         const MarcUtil::Record &record,
-        const Stemmer *const stemmer,
-        std::unordered_map <std::string, std::set<std::string>> *const stemmed_keyword_to_stemmed_keyphrases_map,
-        std::unordered_map <std::string, std::string> *const stemmed_keyphrases_to_unstemmed_keyphrases_map) {
+        const Stemmer * const stemmer,
+        std::unordered_map <std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
+        std::unordered_map <std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map) {
     size_t keyword_count(0);
     // TODO: Update to new MarcUtil API.
     const std::vector <DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -170,9 +191,9 @@ size_t ExtractKeywordsFromKeywordChainFields(
 
 size_t ExtractKeywordsFromIndividualKeywordFields(
         const MarcUtil::Record &record,
-        const Stemmer *const stemmer,
-        std::unordered_map <std::string, std::set<std::string>> *const stemmed_keyword_to_stemmed_keyphrases_map,
-        std::unordered_map <std::string, std::string> *const stemmed_keyphrases_to_unstemmed_keyphrases_map) {
+        const Stemmer * const stemmer,
+        std::unordered_map <std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
+        std::unordered_map <std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map) {
     size_t keyword_count(0);
     std::vector <std::string> keyword_phrases;
     static const std::string SUBFIELD_IGNORE_LIST("02"); // Do not extract $0 and $2.
@@ -190,11 +211,11 @@ size_t ExtractKeywordsFromIndividualKeywordFields(
 
 size_t ExtractAllKeywords(
         const MarcUtil::Record &record,
-        std::unordered_map <std::string, std::set<std::string>> *const stemmed_keyword_to_stemmed_keyphrases_map,
-        std::unordered_map <std::string, std::string> *const stemmed_keyphrases_to_unstemmed_keyphrases_map)
+        std::unordered_map <std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
+        std::unordered_map <std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
 {
     const std::string language_code(record.getLanguage());
-    const Stemmer *const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
+    const Stemmer * const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
 
     size_t extracted_count(ExtractKeywordsFromKeywordChainFields(record, stemmer,
                                                                  stemmed_keyword_to_stemmed_keyphrases_map,
@@ -217,7 +238,7 @@ bool ContainedInMapValues(const std::string &value, const std::unordered_map <st
 }
 
 
-PipelinePhaseState PhaseEnrichKeywordsWithTitleWords::preprocess(const MarcUtil::Record &record, std::string *const) {
+PipelinePhaseState PhaseEnrichKeywordsWithTitleWords::preprocess(const MarcUtil::Record &record, std::string * const) {
     const size_t extracted_count(
             ExtractAllKeywords(record, &stemmed_keyword_to_stemmed_keyphrases_map__GLOBAL, &stemmed_keyphrases_to_unstemmed_keyphrases_map__GLOBAL));
     if (extracted_count > 0) {
@@ -228,7 +249,7 @@ PipelinePhaseState PhaseEnrichKeywordsWithTitleWords::preprocess(const MarcUtil:
 };
 
 
-PipelinePhaseState PhaseEnrichKeywordsWithTitleWords::process(MarcUtil::Record &record, std::string *const) {
+PipelinePhaseState PhaseEnrichKeywordsWithTitleWords::process(MarcUtil::Record &record, std::string * const) {
     // Look for a title...
     // TODO: Update to new MarcUtil API.
     const std::vector <DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -268,7 +289,7 @@ PipelinePhaseState PhaseEnrichKeywordsWithTitleWords::process(MarcUtil::Record &
         return SUCCESS;
 
     // If we have an appropriate stemmer, replace the title words w/ stemmed title words:
-    const Stemmer *const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
+    const Stemmer * const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
     if (stemmer != nullptr) {
         std::vector <std::string> stemmed_title_words;
         for (const auto &title_word : title_words)

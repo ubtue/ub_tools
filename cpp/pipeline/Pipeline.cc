@@ -1,6 +1,19 @@
-//
-// Created by quboo01 on 11.05.16.
-//
+/*
+    Copyright (C) 2016, Library of the University of Tübingen
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <iomanip>
 #include "File.h"
@@ -45,7 +58,7 @@ static std::vector <std::pair<const std::string, std::unique_ptr<PipelinePhase>(
         {"Augment773a",                   &createInstance<PhaseAugment773a>}
 };
 
-static std::map<const PipelinePhase *const, std::string> phase_to_name_map;
+static std::map<const PipelinePhase * const, std::string> phase_to_name_map;
 
 static bool debug = false, verbose = false;
 
@@ -116,14 +129,14 @@ void deletePhases(PipelinePhaseList &phases) {
 }
 
 
-inline MarcUtil::Record read(File *const marc_input, const bool is_xml_marc_input) {
+inline MarcUtil::Record read(File * const marc_input, const bool is_xml_marc_input) {
     return is_xml_marc_input ? MarcUtil::Record::XmlFactory(marc_input) : MarcUtil::Record::BinaryFactory(marc_input);
 }
 
 
 template<typename RecordType>
 bool ProcessRecord(const PipelinePhaseList &phases, MarcUtil::Record &record,
-                   PipelinePhaseState (PipelinePhase::*phaseStep)(RecordType &record, std::string *const)) {
+                   PipelinePhaseState (PipelinePhase::*phaseStep)(RecordType &record, std::string * const)) {
     size_t phase_count(0);
     std::string error_message;
 
@@ -148,8 +161,8 @@ bool ProcessRecord(const PipelinePhaseList &phases, MarcUtil::Record &record,
 }
 
 
-void PreprocessFile(const PipelinePhaseList &phases, File *const norm_data_input, const bool is_xml_norm_input,
-                    PipelinePhaseState (PipelinePhase::*phaseStep)(const MarcUtil::Record &record, std::string *const)) {
+void PreprocessFile(const PipelinePhaseList &phases, File * const norm_data_input, const bool is_xml_norm_input,
+                    PipelinePhaseState (PipelinePhase::*phaseStep)(const MarcUtil::Record &record, std::string * const)) {
     size_t record_count(0);
     while (MarcUtil::Record record = read(norm_data_input, is_xml_norm_input)) {
         if (debug) std::cout << std::setw(8) << ++record_count << " " << std::flush;
@@ -158,8 +171,8 @@ void PreprocessFile(const PipelinePhaseList &phases, File *const norm_data_input
 }
 
 
-void ProcessFile(const PipelinePhaseList &phases, File *const marc_input, File *const marc_output, const bool is_xml_marc_input,
-                 PipelinePhaseState (PipelinePhase::*phaseStep)(MarcUtil::Record &record, std::string *const)) {
+void ProcessFile(const PipelinePhaseList &phases, File * const marc_input, File * const marc_output, const bool is_xml_marc_input,
+                 PipelinePhaseState (PipelinePhase::*phaseStep)(MarcUtil::Record &record, std::string * const)) {
     MarcXmlWriter xml_writer(marc_output);
     while (MarcUtil::Record record = read(marc_input, is_xml_marc_input)) {
         record.setRecordWillBeWrittenAsXml(true);
@@ -170,7 +183,7 @@ void ProcessFile(const PipelinePhaseList &phases, File *const marc_input, File *
 }
 
 
-void RunPipeline(const PipelinePhaseList &phases, File *const marc_input, File *const norm_data_input, File *const marc_output,
+void RunPipeline(const PipelinePhaseList &phases, File * const marc_input, File * const norm_data_input, File * const marc_output,
                  const bool is_xml_marc_input, const bool is_xml_norm_input) {
     std::cout << "Preprocess...\n";
     PreprocessFile(phases, marc_input, is_xml_marc_input, &PipelinePhase::preprocess);

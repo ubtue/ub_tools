@@ -1,3 +1,24 @@
+/** \file    PhaseAugmentBibleReferences.cc
+ *  \brief   A tool for adding numeric bible references to MARC-21 datasets.
+ *  \author  Dr. Johannes Ruscheinski
+ */
+/*
+    Copyright (C) 2016, Library of the University of Tübingen
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "PhaseAugmentBibleReferences.h"
 
 #include <algorithm>
@@ -35,7 +56,7 @@ const std::string BIB_REF_RANGE_TAG("801");
 const std::string BIB_BROWSE_TAG("802");
 
 
-void LoadBibleOrderMap(const bool verbose, File *const input) {
+void LoadBibleOrderMap(const bool verbose, File * const input) {
     if (verbose)
         std::cerr << "Started loading of the bible-order map.\n";
 
@@ -113,8 +134,8 @@ inline bool EndsWithLowercaseChar(const std::string &s) {
  *  \return True if a book of the bible was found in one of the subfields, else false.
  */
 bool FindBibleBookInField(const std::string &fields_and_subfields, const std::vector <DirectoryEntry> &dir_entries,
-                          const std::vector <std::string> &field_data, std::string *const book_candidate,
-                          std::string *const field) {
+                          const std::vector <std::string> &field_data, std::string * const book_candidate,
+                          std::string * const field) {
     std::vector <std::string> fields;
     StringUtil::Split(fields_and_subfields, ':', &fields);
     for (const auto &field_and_subfield : fields) {
@@ -152,7 +173,7 @@ std::string StripRomanNumerals(const std::string &field_contents) {
 
 /** \brief True if a GND code was found in 035$a else false. */
 bool GetGNDCode(const std::vector <DirectoryEntry> &dir_entries, const std::vector <std::string> &field_data,
-                std::string *const gnd_code) {
+                std::string * const gnd_code) {
     gnd_code->clear();
 
     const auto _035_iter(DirectoryEntry::FindField("035", dir_entries));
@@ -168,7 +189,7 @@ bool GetGNDCode(const std::vector <DirectoryEntry> &dir_entries, const std::vect
 
 
 /** Returns true if subfield "n" of "field" is empty or contains a valid chapter/verse reference, else false. */
-bool GetChapterAndVerse(const std::string &field, std::string *const chapters_and_verses) {
+bool GetChapterAndVerse(const std::string &field, std::string * const chapters_and_verses) {
     chapters_and_verses->clear();
 
     const Subfields subfields(field);
@@ -182,8 +203,8 @@ bool GetChapterAndVerse(const std::string &field, std::string *const chapters_an
 
 // Splits numeric references from $n and $9 subfields into an optional roman numeral part and an optional
 // chapter/verse part.
-void SplitNumericReferences(const Subfields &subfields, std::vector <std::string> *const roman_refs,
-                            std::vector <std::string> *const rest) {
+void SplitNumericReferences(const Subfields &subfields, std::vector <std::string> * const roman_refs,
+                            std::vector <std::string> * const rest) {
     roman_refs->clear(), rest->clear();
 
     std::pair <Subfields::ConstIterator, Subfields::ConstIterator> begin_end(subfields.getIterators('n'));
@@ -237,8 +258,8 @@ void SplitNumericReferences(const Subfields &subfields, std::vector <std::string
 
 
 bool ConvertArabicNumeralsToRomanNumerals(const std::string &arabic_numerals_candidate,
-                                          std::vector <std::string> *const roman_refs) {
-    static const RegexMatcher *const matcher(RegexMatcher::RegexMatcherFactory("[123]\\."));
+                                          std::vector <std::string> * const roman_refs) {
+    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("[123]\\."));
     static std::map<char, std::string> arabic_to_roman_map{{'1', "I"},
                                                            {'2', "II"},
                                                            {'3', "III"}};
@@ -260,8 +281,8 @@ bool ConvertArabicNumeralsToRomanNumerals(const std::string &arabic_numerals_can
 
 
 bool ExtractBibleReference(const bool verbose, const std::string &control_number, const std::string &field, const char subfield_code,
-                           const std::unordered_map <std::string, std::string> &bible_book_to_code_map, std::string *const book_name,
-                           std::set <std::pair<std::string, std::string>> *const ranges) {
+                           const std::unordered_map <std::string, std::string> &bible_book_to_code_map, std::string * const book_name,
+                           std::set <std::pair<std::string, std::string>> * const ranges) {
     const Subfields subfields(field);
 
     *book_name = StringUtil::ToLower(subfields.getFirstSubfieldValue(subfield_code));
@@ -398,7 +419,7 @@ void FindPericopes(const std::string &pericope_field, const std::string &book_na
 }
 
 
-bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record, std::set <std::string> *const ranges) {
+bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record, std::set <std::string> * const ranges) {
     ranges->clear();
 
     std::vector <std::string> individual_tags;
@@ -438,7 +459,7 @@ bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record, std::
 }
 
 
-PipelinePhaseState PhaseAugmentBibleReferences::preprocessNormData(const MarcUtil::Record &record, std::string *const) {
+PipelinePhaseState PhaseAugmentBibleReferences::preprocessNormData(const MarcUtil::Record &record, std::string * const) {
     const std::vector <DirectoryEntry> &dir_entries(record.getDirEntries());
     const auto _001_iter(DirectoryEntry::FindField("001", dir_entries));
     if (_001_iter == dir_entries.end())
@@ -530,7 +551,7 @@ PipelinePhaseState PhaseAugmentBibleReferences::preprocessNormData(const MarcUti
 }
 
 
-PipelinePhaseState PhaseAugmentBibleReferences::process(MarcUtil::Record &record, std::string *const) {
+PipelinePhaseState PhaseAugmentBibleReferences::process(MarcUtil::Record &record, std::string * const) {
 // Make sure that we don't use a bible reference tag that is already in use for another
     // purpose:
     const std::vector <DirectoryEntry> &dir_entries(record.getDirEntries());

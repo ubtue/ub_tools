@@ -1,3 +1,25 @@
+/** \file    PhaseExtractKeywordsForTranslation.cc
+ *  \brief   A tool for extracting keywords that need to be translated.  The keywords and any possibly pre-existing
+ *           translations will be stored in a SQL database.
+ *  \author  Dr. Johannes Ruscheinski
+ */
+/*
+    Copyright (C) 2016, Library of the University of Tübingen
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "PhaseExtractKeywordsForTranslation.h"
 
 #include <iostream>
@@ -38,7 +60,7 @@ PhaseExtractKeywordsForTranslation::PhaseExtractKeywordsForTranslation() {
 }
 
 
-PipelinePhaseState PhaseExtractKeywordsForTranslation::preprocess(const MarcUtil::Record &record, std::string *const) {
+PipelinePhaseState PhaseExtractKeywordsForTranslation::preprocess(const MarcUtil::Record &record, std::string * const) {
     std::vector <std::string> keyword_tags;
     StringUtil::Split("600:610:611:630:650:653:656", ':', &keyword_tags);
     const std::vector <std::string> &fields(record.getFields());
@@ -65,7 +87,7 @@ PipelinePhaseState PhaseExtractKeywordsForTranslation::preprocess(const MarcUtil
 }
 
 
-PipelinePhaseState PhaseExtractKeywordsForTranslation::preprocessNormData(const MarcUtil::Record &record, std::string *const) {
+PipelinePhaseState PhaseExtractKeywordsForTranslation::preprocessNormData(const MarcUtil::Record &record, std::string * const) {
     const std::vector <std::string> &fields(record.getFields());
     if (shared_norm_data_control_numbers.find(fields[0]) == shared_norm_data_control_numbers.cend())
         return SUCCESS; // Not one of the records w/ a keyword used in our title data.
@@ -141,7 +163,7 @@ PipelinePhaseState PhaseExtractKeywordsForTranslation::preprocessNormData(const 
 };
 
 
-PipelinePhaseState PhaseExtractKeywordsForTranslation::process(MarcUtil::Record &, std::string *const) {
+PipelinePhaseState PhaseExtractKeywordsForTranslation::process(MarcUtil::Record &, std::string * const) {
     return SUCCESS;
 };
 
