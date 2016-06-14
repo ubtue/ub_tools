@@ -84,6 +84,9 @@ add_superior_flag
 generate_vufind_translation_files
 delete_unused_local_data
 convert_bible_references
+insert_translation_gaps
+new_journal_alert
+Pipeline
 
 bsz_daten
 KeywordChainParser-*.jar
