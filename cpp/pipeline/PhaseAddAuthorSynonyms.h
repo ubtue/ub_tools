@@ -1,9 +1,26 @@
-//
-// Created by quboo01 on 11.05.16.
-//
+/** \file    PhaseAddAuthorSynonyms.h
+ *  \brief   Adds author synonyms to each record.
+ *  \author  Oliver Obenland
+ */
+/*
+    Copyright (C) 2016, Library of the University of Tübingen
 
-#ifndef PHASEADDAUTHORSYNONYMS_H
-#define PHASEADDAUTHORSYNONYMS_H
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#ifndef PHASE_ADD_AUTHOR_SYNONYMS_H
+#define PHASE_ADD_AUTHOR_SYNONYMS_H
 
 #include "PipelinePhase.h"
 
@@ -11,12 +28,11 @@
 class PhaseAddAuthorSynonyms : public PipelinePhase {
 public:
     PhaseAddAuthorSynonyms();
-
     virtual ~PhaseAddAuthorSynonyms();
 
-    virtual PipelinePhaseState preprocessNormData(const MarcUtil::Record &record, std::string *const error_message);
+    virtual PipelinePhaseState preprocessNormData(const MarcUtil::Record &record, std::string * const error_message);
 
-    virtual PipelinePhaseState process(MarcUtil::Record &record, std::string *const error_message);
+    virtual PipelinePhaseState process(MarcUtil::Record &record, std::string * const error_message);
 };
 
 

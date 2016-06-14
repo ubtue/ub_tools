@@ -155,17 +155,24 @@ void InsertMissingTranslations(File * const output,
                                const StringPairSet &lhs_entries)
 {
     unsigned total_count(0), missing_count(0), comment_count(0);
+
+    std::set<std::string> already_seen;
     for (const auto &ref_pair : reference_language_mapping) {
         ++total_count;
         const auto set_entry(lhs_entries.find(ref_pair));
+
+        if (already_seen.find(ref_pair.first) != already_seen.end())
+            continue;
+        already_seen.insert(ref_pair.first);
+
         if (set_entry != lhs_entries.cend()) {
             *output << set_entry->first << " = " << '"' << set_entry->second << "\"\n";
         } else {
             *output << ref_pair.first << " = " << "\"\"";
             if (ref_pair.first != ref_pair.second) {
-                *output << " ; " << ref_pair.second;
-                ++comment_count;
+                *output << "  //** " << ref_pair.second;
             }
+            ++comment_count;
             *output << '\n';
             ++missing_count;
         }
@@ -214,6 +221,6 @@ int main(int argc, char **argv) {
         ReportMissingEntriesInTheReferenceFile(reference_language_mapping, lhs_entries);
         InsertMissingTranslations(&output, reference_language_mapping, lhs_entries);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

@@ -1,9 +1,26 @@
-//
-// Created by quboo01 on 11.05.16.
-//
+/** \file    PhaseAugmentBibleReferences.h
+ *  \brief   A tool for adding numeric bible references to MARC-21 datasets.
+ *  \author  Dr. Johannes Ruscheinski
+ */
+/*
+    Copyright (C) 2016, Library of the University of Tübingen
 
-#ifndef PHASEAUGMENTBIBLEREFERENCES_H
-#define PHASEAUGMENTBIBLEREFERENCES_H
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#ifndef PHASE_AUGMENT_BIBLE_REFERENCES_H
+#define PHASE_AUGMENT_BIBLE_REFERENCES_H
 
 #include "PipelinePhase.h"
 #include <unordered_set>
@@ -96,7 +113,7 @@ public:
     PhaseAugmentBibleReferences();
     virtual ~PhaseAugmentBibleReferences();
 
-    virtual PipelinePhaseState preprocessNormData(const MarcUtil::Record &record, std::string *const error_message);
+    virtual PipelinePhaseState preprocessNormData(const MarcUtil::Record &record, std::string * const error_message);
 
     virtual PipelinePhaseState process(MarcUtil::Record &record, std::string * const error_message);
 };

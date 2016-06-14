@@ -1,3 +1,24 @@
+/** \file    PhaseAddSuperiorFlag.cc
+ *  \brief   A tool for marking superior records that have associated inferior records in our data sets.
+ *  \author  Oliver Obenland
+ */
+/*
+    Copyright (C) 2016, Library of the University of Tübingen
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "PhaseAddSuperiorFlag.h"
 
 #include <fstream>
@@ -22,7 +43,7 @@ static std::set <std::string> superior_ppns;
 static std::string superior_subfield_data;
 
 
-PipelinePhaseState PhaseAddSuperiorFlag::preprocess(const MarcUtil::Record &record, std::string *const) {
+PipelinePhaseState PhaseAddSuperiorFlag::preprocess(const MarcUtil::Record &record, std::string * const) {
     std::vector <std::string> subfields;
     record.extractSubfields("800:810:830:773", "w", &subfields);
 
@@ -34,7 +55,7 @@ PipelinePhaseState PhaseAddSuperiorFlag::preprocess(const MarcUtil::Record &reco
 };
 
 
-PipelinePhaseState PhaseAddSuperiorFlag::process(MarcUtil::Record &record, std::string *const error_message) {
+PipelinePhaseState PhaseAddSuperiorFlag::process(MarcUtil::Record &record, std::string * const error_message) {
     // Don't add the flag twice
     if (record.getFieldIndex("SPR") != -1)
         return SUCCESS;
@@ -61,4 +82,5 @@ PhaseAddSuperiorFlag::PhaseAddSuperiorFlag() {
 PhaseAddSuperiorFlag::~PhaseAddSuperiorFlag() {
     std::cerr << "Add superior flag:\n";
     std::cerr << "\tFound " << superior_ppns.size() << " superior ppns.\n";
+    std::cerr << "\tModified " << modified_count << " records.\n";
 }

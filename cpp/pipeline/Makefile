@@ -23,7 +23,7 @@ OBJS = $(filter-out Pipeline.o,$(SOURCES:.cc=.o))
 PROGS := Pipeline
 INSTALL_PROGS=$(filter-out %_test,$(PROGS)) *.sh
 
-.PHONY: all install root_install clean
+.PHONY: all install root_install local_clean clean
 
 all: ../lib/libmarc.a $(OBJS) $(PROGS)
 
