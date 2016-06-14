@@ -58,7 +58,7 @@ void RemoveCommasDuplicatesAndEmptyEntries(std::vector <std::string> * const vec
 }
 
 
-std::string ExtractNameFromSubfields(const std::string &field_contents, const std::string &subfield_codes) {
+std::string ConcatenateSubfieldValues(const std::string &field_contents, const std::string &subfield_codes) {
     const Subfields subfields(field_contents);
     std::vector <std::string> subfield_values;
     if (subfields.extractSubfields(subfield_codes, &subfield_values) == 0)
@@ -66,6 +66,11 @@ std::string ExtractNameFromSubfields(const std::string &field_contents, const st
 
     std::sort(subfield_values.begin(), subfield_values.end());
     return StringUtil::Join(subfield_values, ' ');
+}
+
+
+std::string ExtractNameFromSubfields(const std::string &field_contents, const std::string &subfield_codes) {
+    return ConcatenateSubfieldValues(field_contents, subfield_codes);
 }
 
 
