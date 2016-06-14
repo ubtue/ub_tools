@@ -1,14 +1,10 @@
 package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
 
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.index.BinaryDocValues;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.DocIdSet;
-import org.apache.lucene.search.FieldCache;
-import org.apache.lucene.search.FieldCacheDocIdSet;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.Bits;
-import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 
@@ -34,12 +30,17 @@ public class BibleRangeFilter extends Filter {
     }
 
     @Override
-    public DocIdSet getDocIdSet(final AtomicReaderContext context, final Bits acceptDocs)
+    public DocIdSet getDocIdSet(final LeafReaderContext context, final Bits acceptDocs)
             throws IOException {
-        final BinaryDocValues values = FieldCache.DEFAULT.getTerms(context.reader(), FIELD, false);
-        return new FastDocIdSet(context.reader().maxDoc(), acceptDocs, values);
+        //final BinaryDocValues values = FieldCache.DEFAULT.getTerms(context.reader(), FIELD, false);
+        return null; //new FastDocIdSet(context.reader().maxDoc(), acceptDocs, values);
     }
 
+    @Override
+    public String toString(final String s) {
+        return s;
+    }
+/*
     public class FastDocIdSet extends FieldCacheDocIdSet {
         private final BinaryDocValues values;
 
@@ -57,5 +58,5 @@ public class BibleRangeFilter extends Filter {
             final BibleRange[] documentRanges = BibleRangeParser.getRangesFromDatabaseField(dbField);
             return matches(documentRanges);
         }
-    }
+    }*/
 }
