@@ -1,6 +1,7 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
 
+import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
@@ -849,5 +850,11 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public String isSuperiorWork(final Record record) {
         return Boolean.toString(record.getVariableField("SPR") != null);
+    }
+
+    /** @brief Extracts the date (YYMMDD) that the record was created from a part of the 008 field. */
+    public String getRecordingDate(final Record record) {
+        final ControlField _008_field = (ControlField)record.getVariableField("008");
+        return _008_field.getData().substring(0, 6);
     }
 }
