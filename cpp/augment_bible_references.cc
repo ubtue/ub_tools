@@ -36,6 +36,7 @@
 #include "Leader.h"
 #include "MapIO.h"
 #include "MarcUtil.h"
+#include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -519,6 +520,10 @@ inline bool IsValidSingleDigitArabicOrdinal(const std::string &ordinal_candidate
 }
 
 
+/** We expect 1 or 2 $n subfields.  The case of having only one is trivial as there is nothing to sort.
+ *  In the case of 2 subfields we expect that one of them contains an arabic ordinal number in one of the
+ *  two subfield.  In that case we sort the two subfields such that the one with the ordinal comes first.
+ */
 bool OrderNSubfields(std::vector<std::string> * const n_subfield_values) {
     if (n_subfield_values->size() < 2)
         return true;
@@ -639,7 +644,7 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
 
         std::vector<std::string> n_subfield_values;
         _130_subfields.extractSubfields("n", &n_subfield_values);
-        if (n_subfield_values.size() > 3) {
+        if (n_subfield_values.size() > 2) {
             std::cerr << "More than 2 $n subfields for PPN " << fields[0] << "!\n";
             continue;
         }
@@ -767,7 +772,7 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
     if (verbose)
         std::cerr << "Starting augmentation of title records.\n";
 
-    XmlWriter xml_writer(output);
+    MarcXmlWriter xml_writer(output);
     unsigned total_count(0), augment_count(0);
     xml_writer.openTag("marc:collection",
                        { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
