@@ -1,6 +1,8 @@
 package de.uni_tuebingen.ub.ixTheo.common.util;
 
 import java.util.ArrayList;
+import java.util.Collections;
+
 
 public class KeywordChainMetric {
 
@@ -21,8 +23,8 @@ public class KeywordChainMetric {
         double similarityScore = 0.0;
         for (String referenceComponentMixedCase : referenceChain) {
             final String referenceComponent = referenceComponentMixedCase.toLowerCase();
-	    // Throw away wildcards since they butch up our results
-            //referenceComponent = referenceComponent.replace("*", "");
+	        // Throw away wildcards since they butch up our results
+            // referenceComponent = referenceComponent.replace("*", "");
             double maxComponentSimilarity = 0.0;
             for (String comparisonComponentMixedCase : comparisonChain) {
                 final String comparisonComponent = comparisonComponentMixedCase.toLowerCase();
@@ -40,9 +42,7 @@ public class KeywordChainMetric {
 
     /** \brief Splits a colon-separated String into individual components. */
     static void parseArg(final String arg, final ArrayList<String> components) {
-        String[] parts = arg.split(":");
-        for (String part : parts)
-            components.add(part);
+        Collections.addAll(components, arg.split(":"));
     }
 
     static void usage() {
