@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2016 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -31,6 +32,7 @@
 #include <algorithm>
 #include <fstream>
 #include <list>
+#include <map>
 #include <set>
 #include <vector>
 #include <stdexcept>
@@ -48,6 +50,22 @@ namespace MiscUtil {
  *  \return The character representing the hexadecimal value.
  */
 char HexDigit(const unsigned value);
+
+
+/** A simple template expander.  Variables look like "$var" or "${var}".  There are two kinds of variables:
+ *  Scalar-values ones and vector-valued ones.  Vector valued ones have more than a single value associated
+ *  with them.  Two varables are special: "$LOOP" and "$ENDLOOP".  They are used as brackets for repeated
+ *  sections.  A repeated section starts with "$LOOP(vvar1,vvar2,..,vvarN)" where vvar1, vvar2, and vvarN are
+ *  vector-valued "loop" variables that all must have the same number of values.  The section up to the $ENDLOOP
+ *  will then be expanded N times where N is the length of each of the loop variables.  On the first iteration
+ *  the 0-th values will be used, then the values with index 1 and so on until the values have been exhausted.
+ *  Should you need to embed a literal $-sign in the expanded template, use a "$$" in the original template.
+ *  Variable names must consist of ASCII letters and underscores only.  Should you need an ASCII letter or an
+ *  underscore immediately following a variable, use the ${var} syntax instead of the $var syntax.  The braces
+ *  are also allowed with ${LOOP} and ${ENDLOOP}.
+ */
+std::string ExpandTemplate(const std::string &original_template,
+                           const std::map<std::string, std::vector<std::string>> &names_to_values_map);
 
 
 } // namespace MiscUtil
