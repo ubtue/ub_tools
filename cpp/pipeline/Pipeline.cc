@@ -42,7 +42,7 @@ using PipelinePhaseList = std::vector <std::unique_ptr<PipelinePhase>>;
 
 
 template<typename T>
-std::unique_ptr<PipelinePhase> createInstance() { return std::unique_ptr<T>(new T); }
+std::unique_ptr<PipelinePhase> createInstance() { return std::unique_ptr<T>(new T()); }
 
 
 static std::vector <std::pair<const std::string, std::unique_ptr<PipelinePhase>(*)(void)>> phase_store{
@@ -61,6 +61,8 @@ static std::vector <std::pair<const std::string, std::unique_ptr<PipelinePhase>(
 static std::map<const PipelinePhase * const, std::string> phase_to_name_map;
 
 static bool debug = false, verbose = false;
+
+static PipelineMonitor monitor;
 
 
 void Usage() {
@@ -92,6 +94,7 @@ void initPhase(PipelinePhaseList &phases, const std::string name, std::unique_pt
     std::unique_ptr <PipelinePhase> phase = createPhase();
     phase->verbose = verbose;
     phase->debug = debug;
+    phase->monitor = &monitor;
     phases.emplace_back(std::move(phase));
     phase_to_name_map[phases.back().get()] = name;
 }
@@ -161,35 +164,42 @@ bool ProcessRecord(const PipelinePhaseList &phases, MarcUtil::Record &record,
 }
 
 
-void PreprocessFile(const PipelinePhaseList &phases, File * const norm_data_input, const bool is_xml_norm_input,
+unsigned PreprocessFile(const PipelinePhaseList &phases, File * const norm_data_input, const bool is_xml_norm_input,
                     PipelinePhaseState (PipelinePhase::*phaseStep)(const MarcUtil::Record &record, std::string * const)) {
-    size_t record_count(0);
+    size_t count(0);
     while (MarcUtil::Record record = read(norm_data_input, is_xml_norm_input)) {
-        if (debug) std::cout << std::setw(8) << ++record_count << " " << std::flush;
+        ++count;
+        if (debug) std::cout << std::setw(8) << count << " " << std::flush;
         ProcessRecord<const MarcUtil::Record>(phases, record, phaseStep);
     }
+    return count;
 }
 
 
-void ProcessFile(const PipelinePhaseList &phases, File * const marc_input, File * const marc_output, const bool is_xml_marc_input,
+unsigned ProcessFile(const PipelinePhaseList &phases, File * const marc_input, File * const marc_output, const bool is_xml_marc_input,
                  PipelinePhaseState (PipelinePhase::*phaseStep)(MarcUtil::Record &record, std::string * const)) {
     MarcXmlWriter xml_writer(marc_output);
+    unsigned count(0);
     while (MarcUtil::Record record = read(marc_input, is_xml_marc_input)) {
+        ++count;
         record.setRecordWillBeWrittenAsXml(true);
         if (ProcessRecord<MarcUtil::Record>(phases, record, phaseStep)) {
             record.write(&xml_writer);
         }
     }
+    return count;
 }
 
 
 void RunPipeline(const PipelinePhaseList &phases, File * const marc_input, File * const norm_data_input, File * const marc_output,
                  const bool is_xml_marc_input, const bool is_xml_norm_input) {
     std::cout << "Preprocess...\n";
-    PreprocessFile(phases, marc_input, is_xml_marc_input, &PipelinePhase::preprocess);
+    unsigned recordCount = PreprocessFile(phases, marc_input, is_xml_marc_input, &PipelinePhase::preprocess);
+    monitor.setCounter("Pipeline", "# records", recordCount);
 
     std::cout << "Preprocess norm data...\n";
-    PreprocessFile(phases, norm_data_input, is_xml_norm_input, &PipelinePhase::preprocessNormData);
+    unsigned normRecordCount = PreprocessFile(phases, norm_data_input, is_xml_norm_input, &PipelinePhase::preprocessNormData);
+    monitor.setCounter("Pipeline", "# norm records", normRecordCount);
 
     if (not marc_input->seek(0))
         Error("Failed to seek.");
@@ -220,12 +230,12 @@ int main(int argc, char **argv) {
         }
     } while (flag_found);
 */
-    if (argc < 4 || argc > 5)
+    if (argc < 3 || argc > 4)
         Usage();
 
     const std::string marc_input_filename(argv[1]);
     const std::string norm_input_filename(argv[2]);
-    const std::string marc_output_filename(argv[3]);
+    const std::string marc_output_filename("GesamtTiteldaten-post-pipeline.xml");
 
     // Tests for file extensions
     if (unlikely(not StringUtil::EndsWith(marc_input_filename, ".mrc") and not StringUtil::EndsWith(marc_input_filename, ".marc")

@@ -102,6 +102,8 @@ unsigned ExtractIxTheoNotations(const std::pair<size_t, size_t> &local_block_beg
 
 
 PipelinePhaseState PhaseUpdateIxtheoNotations::process(MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseUpdateIxtheoNotations", __FUNCTION__));
+
     std::vector<std::pair<size_t, size_t>> local_block_boundaries;
     if (record.findAllLocalDataBlocks(&local_block_boundaries) == 0)
         return SUCCESS;
@@ -131,8 +133,7 @@ PhaseUpdateIxtheoNotations::PhaseUpdateIxtheoNotations() {
 
 
 PhaseUpdateIxtheoNotations::~PhaseUpdateIxtheoNotations() {
-    std::cerr << "Update Ixtheo Notations:\n";
-    std::cerr << "\t" << records_with_ixtheo_notations << " records had ixTheo notations.\n";
-    std::cerr << "\tFound " << code_to_description_map.size() << " code to description mappings.\n";
-    std::cerr << "\tFound " << ixtheo_notation_count << " ixTheo notations overall.\n";
+    monitor->setCounter("PhaseUpdateIxtheoNotations", "records with notation", records_with_ixtheo_notations);
+    monitor->setCounter("PhaseUpdateIxtheoNotations", "codes to description mappings", code_to_description_map.size());
+    monitor->setCounter("PhaseUpdateIxtheoNotations", "notations", ixtheo_notation_count);
 }

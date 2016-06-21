@@ -239,6 +239,8 @@ bool ContainedInMapValues(const std::string &value, const std::unordered_map <st
 
 
 PipelinePhaseState PhaseEnrichKeywordsWithTitleWords::preprocess(const MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseEnrichKeywordsWithTitleWords", __FUNCTION__));
+
     const size_t extracted_count(
             ExtractAllKeywords(record, &stemmed_keyword_to_stemmed_keyphrases_map__GLOBAL, &stemmed_keyphrases_to_unstemmed_keyphrases_map__GLOBAL));
     if (extracted_count > 0) {
@@ -250,6 +252,8 @@ PipelinePhaseState PhaseEnrichKeywordsWithTitleWords::preprocess(const MarcUtil:
 
 
 PipelinePhaseState PhaseEnrichKeywordsWithTitleWords::process(MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseEnrichKeywordsWithTitleWords", __FUNCTION__));
+
     // Look for a title...
     // TODO: Update to new MarcUtil API.
     const std::vector <DirectoryEntry> &dir_entries(record.getDirEntries());
@@ -363,8 +367,8 @@ PhaseEnrichKeywordsWithTitleWords::PhaseEnrichKeywordsWithTitleWords() {
 
 
 PhaseEnrichKeywordsWithTitleWords::~PhaseEnrichKeywordsWithTitleWords() {
-    std::cerr << "Enrich keywords with title words:\n";
-    std::cerr << "\t" << records_with_keywords_count << " records had keywords.\n";
-    std::cerr << "\t" << keywords_count << " keywords were extracted of which " << stemmed_keyword_to_stemmed_keyphrases_map__GLOBAL.size() << " were unique.\n";
-    std::cerr << "\t" << augmented_record_count << " records were augmented w/ additional keywords.\n";
+    monitor->setCounter("PhaseEnrichKeywordsWithTitleWords", "records had keywords", records_with_keywords_count);
+    monitor->setCounter("PhaseEnrichKeywordsWithTitleWords", "keywords", keywords_count);
+    monitor->setCounter("PhaseEnrichKeywordsWithTitleWords", "unique keywords", stemmed_keyword_to_stemmed_keyphrases_map__GLOBAL.size());
+    monitor->setCounter("PhaseEnrichKeywordsWithTitleWords", "modified", augmented_record_count);
 }

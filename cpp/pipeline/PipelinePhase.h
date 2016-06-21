@@ -22,6 +22,7 @@
 #include <cstring>
 #include <iostream>
 #include "MarcUtil.h"
+#include "PipelineMonitor.h"
 
 
 enum PipelinePhaseState {
@@ -35,11 +36,10 @@ class PipelinePhase {
 public:
     bool verbose = false;
     bool debug = false;
+    PipelineMonitor *monitor;
 
 
     PipelinePhase() { };
-
-
     virtual ~PipelinePhase() { };
 
 

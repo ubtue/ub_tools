@@ -75,6 +75,8 @@ std::string ExtractNameFromSubfields(const std::string &field_contents, const st
 
 
 PipelinePhaseState PhaseAddAuthorSynonyms::preprocessNormData(const MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseAddAuthorSynonyms", __FUNCTION__));
+
     const int primary_name_field_index(record.getFieldIndex(tags_and_subfield_codes[0].substr(0, 3)));
     if (primary_name_field_index == -1)
         return SUCCESS;
@@ -116,8 +118,7 @@ PipelinePhaseState PhaseAddAuthorSynonyms::preprocessNormData(const MarcUtil::Re
 
 
 PipelinePhaseState PhaseAddAuthorSynonyms::process(MarcUtil::Record &record, std::string * const error_message) {
-    record.setRecordWillBeWrittenAsXml(true);
-
+    auto messure(monitor->startTiming("PhaseAddAuthorSynonyms", __FUNCTION__));
     if (unlikely(record.getFieldIndex(SYNOMYM_FIELD) != -1))
         return MakeError("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!", error_message);
 
@@ -153,6 +154,5 @@ PhaseAddAuthorSynonyms::PhaseAddAuthorSynonyms() {
 
 
 PhaseAddAuthorSynonyms::~PhaseAddAuthorSynonyms() {
-    std::cerr << "Add author synonyms:\n";
-    std::cerr << "\tFound synonyms for " << author_to_synonyms_map.size() << " authors\n";
+    monitor->setCounter("PhaseAddAuthorSynonyms", "synonyms", author_to_synonyms_map.size());
 }

@@ -63,6 +63,8 @@ void DeleteLocalBlock(MarcUtil::Record &record, const std::pair <size_t, size_t>
 
 
 PipelinePhaseState PhaseDeleteUnusedLocalData::process(MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseDeleteUnusedLocalData", __FUNCTION__));
+
     std::vector <std::pair<size_t, size_t>> local_block_boundaries;
     ssize_t local_data_count = record.findAllLocalDataBlocks(&local_block_boundaries);
     std::reverse(local_block_boundaries.begin(), local_block_boundaries.end());
@@ -81,6 +83,6 @@ PipelinePhaseState PhaseDeleteUnusedLocalData::process(MarcUtil::Record &record,
 
 
 PhaseDeleteUnusedLocalData::~PhaseDeleteUnusedLocalData() {
-    std::cerr << "Delete unused local data:\n";
-    std::cerr << "\t" << ": Deleted " << (before_count - after_count) << " of " << before_count << " local data blocks.\n";
+    monitor->setCounter("PhaseDeleteUnusedLocalData", "deleted", (before_count - after_count));
+    monitor->setCounter("PhaseDeleteUnusedLocalData", "local data blocks", before_count);
 };
