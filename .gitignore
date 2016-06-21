@@ -84,6 +84,11 @@ add_superior_flag
 generate_vufind_translation_files
 delete_unused_local_data
 convert_bible_references
+insert_translation_gaps
+krimdok_filter
+krimdok_marc_pipeline.sh_no_fulltext
+new_journal_alert
+
 
 bsz_daten
 KeywordChainParser-*.jar
