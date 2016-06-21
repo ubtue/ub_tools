@@ -110,6 +110,8 @@ void UpdateIxTheoNotations(const std::vector<IxTheoMapper> &mappers, const std::
 
 
 PipelinePhaseState PhaseMapDdcAndRvkToIxtheoNotations::process(MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseMapDdcAndRvkToIxtheoNotations", __FUNCTION__));
+
     std::string ixtheo_notations_list(record.extractFirstSubfield("652", 'a'));
     if (not ixtheo_notations_list.empty()) {
         ++records_with_ixtheo_notations;
@@ -168,10 +170,9 @@ PhaseMapDdcAndRvkToIxtheoNotations::PhaseMapDdcAndRvkToIxtheoNotations() {
 }
 
 PhaseMapDdcAndRvkToIxtheoNotations::~PhaseMapDdcAndRvkToIxtheoNotations() {
-    std::cerr << "Map DDC and RVK to Ixtheo Notations:\n";
-    std::cerr << "\tRead " << ddc_to_ixtheo_notation_mappers.size() << " mappings from \"" << DDC_TO_IXTHEO_NOTATION_MAPPING_FILENAME << "\".\n";
-    std::cerr << "\tRead " << rvk_to_ixtheo_notation_mappers.size() << " mappings from \"" << RVK_TO_IXTHEO_NOTATION_MAPPING_FILENAME << "\".\n";
-    std::cerr << "\t" << records_with_ixtheo_notations << " records had Ixtheo notations.\n";
-    std::cerr << "\t" << records_with_new_notations << " records received new Ixtheo notations.\n";
-    std::cerr << "\t" << skipped_group_count << " records where skipped because they were in a group that we are not interested in.\n";
+    monitor->setCounter("PhaseMapDdcAndRvkToIxtheoNotations", "ddc", ddc_to_ixtheo_notation_mappers.size());
+    monitor->setCounter("PhaseMapDdcAndRvkToIxtheoNotations", "rvk", rvk_to_ixtheo_notation_mappers.size());
+    monitor->setCounter("PhaseMapDdcAndRvkToIxtheoNotations", "records with notations", records_with_ixtheo_notations);
+    monitor->setCounter("PhaseMapDdcAndRvkToIxtheoNotations", "records with new notations", records_with_new_notations);
+    monitor->setCounter("PhaseMapDdcAndRvkToIxtheoNotations", "skipped", skipped_group_count);
 }

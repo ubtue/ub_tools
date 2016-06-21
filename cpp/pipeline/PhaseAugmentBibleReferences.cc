@@ -460,6 +460,8 @@ bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record, std::
 
 
 PipelinePhaseState PhaseAugmentBibleReferences::preprocessNormData(const MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseAugmentBibleReferences", __FUNCTION__));
+
     const std::vector <DirectoryEntry> &dir_entries(record.getDirEntries());
     const auto _001_iter(DirectoryEntry::FindField("001", dir_entries));
     if (_001_iter == dir_entries.end())
@@ -552,7 +554,9 @@ PipelinePhaseState PhaseAugmentBibleReferences::preprocessNormData(const MarcUti
 
 
 PipelinePhaseState PhaseAugmentBibleReferences::process(MarcUtil::Record &record, std::string * const) {
-// Make sure that we don't use a bible reference tag that is already in use for another
+    auto messure(monitor->startTiming("PhaseAugmentBibleReferences", __FUNCTION__));
+
+    // Make sure that we don't use a bible reference tag that is already in use for another
     // purpose:
     const std::vector <DirectoryEntry> &dir_entries(record.getDirEntries());
     const auto bib_ref_begin_end(DirectoryEntry::FindFields(BIB_REF_RANGE_TAG, dir_entries));
@@ -589,12 +593,11 @@ PhaseAugmentBibleReferences::PhaseAugmentBibleReferences() {
 
 
 PhaseAugmentBibleReferences::~PhaseAugmentBibleReferences() {
-    std::cerr << "Augment bible references:\n";
-    std::cerr << "\tFound " << bible_ref_count << " reference records.\n";
-    std::cerr << "\tFound " << _130a_count << " 130$a reference records.\n";
-    std::cerr << "\tFound " << _100t_count << " 100$t reference records.\n";
-    std::cerr << "\tFound " << _430a_count << " 430$a reference records.\n";
-    std::cerr << "\tAugmented the " << BIB_REF_RANGE_TAG << "$a field of " << augment_count << " records.\n";
+    monitor->setCounter("PhaseAugmentBibleReferences", "count 100t", _100t_count);
+    monitor->setCounter("PhaseAugmentBibleReferences", "count 130a", _130a_count);
+    monitor->setCounter("PhaseAugmentBibleReferences", "count 430", _430a_count);
+    monitor->setCounter("PhaseAugmentBibleReferences", "bible reference", bible_ref_count);
+    monitor->setCounter("PhaseAugmentBibleReferences", "modified", augment_count);
 
     if (not pericopes_to_ranges_map.empty()) {
         if (verbose)
