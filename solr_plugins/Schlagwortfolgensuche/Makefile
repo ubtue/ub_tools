@@ -2,7 +2,7 @@
 VUFIND_HOME=/usr/local/vufind2
 PROJECT_NAME=keywordChainSearch
 JAR_FILE=KeywordChainParser-0.0.1.jar
-SOLR_JAR_FILE=$(VUFIND_HOME)/solr/lib/KeywordChainParser.jar
+SOLR_JAR_FILE=$(VUFIND_HOME)/solr/vufind/jars/KeywordChainParser.jar
 BIN=bin
 SRC=src
 PACKAGE_DIRECOTRY=de/uni_tuebingen/ub/ixTheo/$(PROJECT_NAME)

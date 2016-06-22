@@ -29,6 +29,7 @@
 #include "RegexMatcher.h"
 #include "Subfields.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 bool IsPossibleDDC(const std::string &ddc_candidate) {

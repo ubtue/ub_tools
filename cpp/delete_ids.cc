@@ -51,7 +51,7 @@ const char LOCAL_DATA_DELETE_INDICATORS[] = { '3', '4', '5', '9' };
 const size_t MIN_LINE_LENGTH = 21;
 
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
-                        std::unordered_set <std::string> *const local_deletion_ids)
+                        std::unordered_set <std::string> * const local_deletion_ids)
 {
 
     const size_t PPN_LENGTH = 9;
@@ -164,8 +164,8 @@ bool DeleteLocalSections(const std::vector<DirectoryEntry> &dir_entries, const s
 
 
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
-                    const std::unordered_set <std::string> &local_deletion_ids, File *const input,
-                    File *const output)
+                    const std::unordered_set <std::string> &local_deletion_ids, File * const input,
+                    File * const output)
 {
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
     while (MarcUtil::Record record = MarcUtil::Record::BinaryFactory(input)) {

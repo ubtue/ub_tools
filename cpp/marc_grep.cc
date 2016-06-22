@@ -38,6 +38,7 @@
 #include "MediaTypeUtil.h"
 #include "Subfields.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 char help_text[] =
