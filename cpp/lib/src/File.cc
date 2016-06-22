@@ -490,7 +490,7 @@ void File::registerOnCloseCallback(void (*new_callback)(File &file, void * const
     if (at_close_function_and_userdata == at_close_function_to_userdata_map_.end())
 	at_close_function_to_userdata_map_.insert(std::make_pair(new_callback, user_data));
     else
-	*const_cast<void **>(&at_close_function_and_userdata->second) = user_data;
+	* const_cast<void **>(&at_close_function_and_userdata->second) = user_data;
 }
 
 

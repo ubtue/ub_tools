@@ -2,19 +2,18 @@ package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
 
 
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.queries.CustomScoreProvider;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 
 public class BibleRangeScoreProvider extends CustomScoreProvider {
     private final static float NOT_RELEVANT = Float.NEGATIVE_INFINITY;
     private final Range[] ranges;
 
-    public BibleRangeScoreProvider(final Range[] ranges, final AtomicReaderContext context) {
+    public BibleRangeScoreProvider(final Range[] ranges, final LeafReaderContext context) {
         super(context);
         this.ranges = ranges;
     }

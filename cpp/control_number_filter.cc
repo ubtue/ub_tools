@@ -29,6 +29,7 @@
 #include "MarcUtil.h"
 #include "RegexMatcher.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 void Usage() {
