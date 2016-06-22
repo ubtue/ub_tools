@@ -39,6 +39,8 @@ static unsigned patch_count;
 
 
 PipelinePhaseState PhaseAugment773a::preprocess(const MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseAugment773a", __FUNCTION__));
+
     ssize_t _245_index;
     if (likely((_245_index = record.getFieldIndex("245")) != -1)) {
         const std::vector <std::string> &fields(record.getFields());
@@ -55,6 +57,8 @@ PipelinePhaseState PhaseAugment773a::preprocess(const MarcUtil::Record &record, 
 
 
 PipelinePhaseState PhaseAugment773a::process(MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseAugment773a", __FUNCTION__));
+
     ssize_t _773_index;
     if ((_773_index = record.getFieldIndex("773")) != -1) {
         const std::vector <std::string> &fields(record.getFields());
@@ -76,7 +80,6 @@ PipelinePhaseState PhaseAugment773a::process(MarcUtil::Record &record, std::stri
 
 
 PhaseAugment773a::~PhaseAugment773a() {
-    std::cerr << "Augment 773a:\n";
-    std::cerr << "\tFound " << control_numbers_to_titles_map.size() << " control number to title mappings.\n";
-    std::cerr << "\tAdded 773$a subfields to " << patch_count << " records.\n";
+    monitor->setCounter("PhaseAddAuthorSynonyms", "title mappings", control_numbers_to_titles_map.size());
+    monitor->setCounter("PhaseAddAuthorSynonyms", "modified", patch_count);
 }
