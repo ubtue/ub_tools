@@ -61,6 +61,8 @@ PhaseExtractKeywordsForTranslation::PhaseExtractKeywordsForTranslation() {
 
 
 PipelinePhaseState PhaseExtractKeywordsForTranslation::preprocess(const MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseExtractKeywordsForTranslation", __FUNCTION__));
+
     std::vector <std::string> keyword_tags;
     StringUtil::Split("600:610:611:630:650:653:656", ':', &keyword_tags);
     const std::vector <std::string> &fields(record.getFields());
@@ -88,6 +90,8 @@ PipelinePhaseState PhaseExtractKeywordsForTranslation::preprocess(const MarcUtil
 
 
 PipelinePhaseState PhaseExtractKeywordsForTranslation::preprocessNormData(const MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseExtractKeywordsForTranslation", __FUNCTION__));
+
     const std::vector <std::string> &fields(record.getFields());
     if (shared_norm_data_control_numbers.find(fields[0]) == shared_norm_data_control_numbers.cend())
         return SUCCESS; // Not one of the records w/ a keyword used in our title data.
@@ -164,15 +168,16 @@ PipelinePhaseState PhaseExtractKeywordsForTranslation::preprocessNormData(const 
 
 
 PipelinePhaseState PhaseExtractKeywordsForTranslation::process(MarcUtil::Record &, std::string * const) {
+    auto messure(monitor->startTiming("PhaseExtractKeywordsForTranslation", __FUNCTION__));
     return SUCCESS;
 };
 
 
 PhaseExtractKeywordsForTranslation::~PhaseExtractKeywordsForTranslation() {
-    std::cerr << "Extract keywords for translation:\n";
-    std::cerr << "\tAdded " << keyword_count << " to the translation database.\n";
-    std::cerr << "\tFound " << translation_count << " translations in the norm data. (" << additional_hits << " due to 'ram' and 'lcsh' entries.)\n";
-    std::cerr << "\tFound " << synonym_count << " synonym entries.\n";
+    monitor->setCounter("PhaseExtractKeywordsForTranslation", "keywords", keyword_count);
+    monitor->setCounter("PhaseExtractKeywordsForTranslation", "translations", translation_count);
+    monitor->setCounter("PhaseExtractKeywordsForTranslation", "additional translations", additional_hits);
+    monitor->setCounter("PhaseExtractKeywordsForTranslation", "synonyms", synonym_count);
 
     delete shared_connection;
 }

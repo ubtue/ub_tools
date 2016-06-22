@@ -61,6 +61,8 @@ bool IsPossibleISSN(const std::string &issn_candidate) {
 
 
 PipelinePhaseState PhaseAddIsbnsOrIssnsToArticles::preprocess(const MarcUtil::Record &record, std::string * const) {
+    auto messure(monitor->startTiming("PhaseAddIsbnsOrIssnsToArticles", __FUNCTION__));
+
     const Leader &leader(record.getLeader());
     if (not leader.isSerial())
         return SUCCESS;
@@ -82,6 +84,8 @@ PipelinePhaseState PhaseAddIsbnsOrIssnsToArticles::preprocess(const MarcUtil::Re
 
 
 PipelinePhaseState PhaseAddIsbnsOrIssnsToArticles::process(MarcUtil::Record &record, std::string * const error_message) {
+    auto messure(monitor->startTiming("PhaseAddIsbnsOrIssnsToArticles", __FUNCTION__));
+
     const Leader &leader(record.getLeader());
     if (not leader.isArticle())
         return SUCCESS;
@@ -132,12 +136,10 @@ PipelinePhaseState PhaseAddIsbnsOrIssnsToArticles::process(MarcUtil::Record &rec
 
 
 PhaseAddIsbnsOrIssnsToArticles::~PhaseAddIsbnsOrIssnsToArticles() {
-    std::cerr << "Add ISBNs or ISSNs to articles:\n";
-    std::cerr << "\tPhaseAddIsbnsOrIssnsToArticles:\n";
-    std::cerr << "\tExtracted " << extracted_isbn_count << " ISBNs.\n";
-    std::cerr << "\tExtracted " << extracted_issn_count << " ISSNs.\n";
-    std::cerr << "\tAdded ISBN's to " << isbns_added << " article record(s).\n";
-    std::cerr << "\tAdded ISSN's to " << issns_added << " article record(s).\n";
-    std::cerr << "\t" << missing_host_record_ctrl_num_count << " articles had missing host record control number(s).\n";
-    std::cerr << "\tFor " << missing_isbn_or_issn_count << " articles no host ISBN nor ISSN was found.\n";
+    monitor->setCounter("PhaseAddIsbnsOrIssnsToArticles", "isbn extracted", extracted_isbn_count);
+    monitor->setCounter("PhaseAddIsbnsOrIssnsToArticles", "issn extracted", extracted_isbn_count);
+    monitor->setCounter("PhaseAddIsbnsOrIssnsToArticles", "isbn added", isbns_added);
+    monitor->setCounter("PhaseAddIsbnsOrIssnsToArticles", "issn added", issns_added);
+    monitor->setCounter("PhaseAddIsbnsOrIssnsToArticles", "missing host record control number", missing_host_record_ctrl_num_count);
+    monitor->setCounter("PhaseAddIsbnsOrIssnsToArticles", "records with no host ISBN nor ISSN", missing_isbn_or_issn_count);
 }

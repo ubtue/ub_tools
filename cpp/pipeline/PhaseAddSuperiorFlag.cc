@@ -43,31 +43,43 @@ static std::set <std::string> superior_ppns;
 static std::string superior_subfield_data;
 
 
-PipelinePhaseState PhaseAddSuperiorFlag::preprocess(const MarcUtil::Record &record, std::string * const) {
-    std::vector <std::string> subfields;
-    record.extractSubfields("800:810:830:773", "w", &subfields);
+PipelinePhaseState PhaseAddSuperiorFlag::preprocess(const MarcUtil::Record &record, std::string *const) {
+    monitor->startTiming("PhaseAddSuperiorFlag", __FUNCTION__);
 
-    for (auto subfield : subfields) {
-        if (StringUtil::StartsWith(subfield, "(DE-576)"))
-            superior_ppns.insert(subfield.substr(8));
+    const std::string subfieldTags[4] = {"800", "810", "830", "773"};
+    for (auto subfieldTag : subfieldTags) {
+        std::vector <std::string> subfields;
+        record.extractSubfields(subfieldTag, "w", &subfields);
+
+        for (auto subfield : subfields) {
+            if (StringUtil::StartsWith(subfield, "(DE-576)"))
+                superior_ppns.insert(subfield.substr(8));
+        }
     }
+
     return SUCCESS;
 };
 
 
-PipelinePhaseState PhaseAddSuperiorFlag::process(MarcUtil::Record &record, std::string * const error_message) {
+PipelinePhaseState PhaseAddSuperiorFlag::process(MarcUtil::Record &record, std::string *const error_message) {
+    auto messure(monitor->startTiming("PhaseAddSuperiorFlag", __FUNCTION__));
+
     // Don't add the flag twice
-    if (record.getFieldIndex("SPR") != -1)
+    if (record.getFieldIndex("SPR") != -1) {
         return SUCCESS;
+    }
 
     const std::vector <std::string> &field_data(record.getFields());
     const auto iter(superior_ppns.find(field_data.at(0)));
     if (iter != superior_ppns.end()) {
         if (not record.insertField("SPR", superior_subfield_data)) {
-            return MakeError("Not enough room to add a SPR field! (Control number: " + field_data[0] + ")", error_message);
+            return MakeError("Not enough room to add a SPR field! (Control number: " + field_data[0] + ")",
+                             error_message);
         }
+
         ++modified_count;
     }
+
     return SUCCESS;
 };
 
@@ -80,7 +92,6 @@ PhaseAddSuperiorFlag::PhaseAddSuperiorFlag() {
 
 
 PhaseAddSuperiorFlag::~PhaseAddSuperiorFlag() {
-    std::cerr << "Add superior flag:\n";
-    std::cerr << "\tFound " << superior_ppns.size() << " superior ppns.\n";
-    std::cerr << "\tModified " << modified_count << " records.\n";
+    monitor->setCounter("PhaseAddSuperiorFlag", "superior ppns", superior_ppns.size());
+    monitor->setCounter("PhaseAddSuperiorFlag", "modified", modified_count);
 }

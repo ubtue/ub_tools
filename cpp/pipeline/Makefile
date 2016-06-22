@@ -27,11 +27,11 @@ INSTALL_PROGS=$(filter-out %_test,$(PROGS)) *.sh
 
 all: ../lib/libmarc.a $(OBJS) $(PROGS)
 
-%.o: %.cc
+%.o: %.cc $(wildcard *.h)
 	@echo "Compiling $<..."
 	@$(CCC) $(CCCFLAGS) $< -c -o $@
 
-$(PROGS): % : %.o ../lib/libmarc.a
+$(PROGS): % : %.o ../lib/libmarc.a $(wildcard *.cc) $(wildcard *.h)
 	@echo "Linking $@..."
 	@$(CCC) $< -o $@ $(OBJS) $(LIBS)
 
