@@ -6,7 +6,7 @@ SOLR_JAR_FILE=$(VUFIND_HOME)/solr/vufind/jars/KeywordChainParser.jar
 BIN=bin
 SRC=src
 PACKAGE_DIRECOTRY=de/uni_tuebingen/ub/ixTheo/$(PROJECT_NAME)
-LIB_DIRECTORY=/usr/local/vufind2/solr/lib/*:/usr/local/vufind2/solr/jetty/lib/ext/*:/usr/local/vufind2/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/WEB-INF/lib/*
+LIB_DIRECTORY=/usr/local/vufind2/solr/vendor/server/lib/*:/usr/local/vufind2/solrvendor/server/lib/ext/*:/usr/local/vufind2/solr/vendor/server/solr-webapp/webapp/WEB-INF/lib/*
 JAVA_VERSION=1.7
 
 # Compiler
