@@ -6,7 +6,7 @@ import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexerMixin;
-
+import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 import java.util.*;
 
 
@@ -14,19 +14,20 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 
     private final static String KEYWORD_DELIMITER = "/";
     private final static String SUBFIELD_CODES = "abctnp";
+    private final static IxTheo ixTheoObject = new IxTheo();
 
-    public Set<String> getKeyWordChain(final Record record, final String fieldSpec) {
+    public Set<String> getKeyWordChain(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
         final Map<Character, List<String>> keyWordChains = new HashMap<>();
 
         for (final VariableField variableField : variableFields) {
             final DataField dataField = (DataField) variableField;
-            processField(dataField, keyWordChains);
+            processField(dataField, keyWordChains,lang);
         }
         return concatenateKeyWordsToChains(keyWordChains);
     }
 
-    public Set<String> getKeyWordChainBag(final Record record, final String fieldSpec) {
+    public Set<String> getKeyWordChainBag(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
         final Set<String> keyWordChainsBag = new HashSet<>();
 
@@ -43,13 +44,13 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         return keyWordChainsBag;
     }
 
-    public Set<String> getKeyWordChainSorted(final Record record, final String fieldSpec) {
+    public Set<String> getKeyWordChainSorted(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
         final Map<Character, List<String>> keyWordChains = new HashMap<>();
 
         for (final VariableField variableField : variableFields) {
             final DataField dataField = (DataField) variableField;
-            processField(dataField, keyWordChains);
+            processField(dataField, keyWordChains, lang);
 
             // Sort keyword chain
             final char chainID = dataField.getIndicator1();
@@ -62,7 +63,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
     /**
      * Extracts the keyword from data field and inserts it into the right keyword chain.
      */
-    private void processField(final DataField dataField, final Map<Character, List<String>> keyWordChains) {
+    private void processField(final DataField dataField, final Map<Character, List<String>> keyWordChains, String lang) {
         final char chainID = dataField.getIndicator1();
         final List<String> keyWordChain = getKeyWordChain(keyWordChains, chainID);
 
@@ -89,8 +90,13 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 		gnd_seen = true;
 	}
 
-	if (keyword.length() > 0)
-	    keyWordChain.add(keyword.toString());
+	if (keyword.length() > 0){
+            String keywordString = keyword.toString();
+            Set<String> keywordSet = new LinkedHashSet<String>();
+            keywordSet.add(keyword.toString());
+            keywordSet = ixTheoObject.translateTopics(keywordSet, lang);
+	    keyWordChain.add(keywordSet.toString());
+        }
     }
 
     /**
