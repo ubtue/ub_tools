@@ -3,12 +3,17 @@ package de.unituebingen.ub.ubtools.solrmarcMixin;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.Reader.*;
+import java.io.*;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.VariableField;
 import org.marc4j.marc.*;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.Utils;
+
 
 public class IxTheo extends SolrIndexerMixin {
     private Set<String> ixTheoNotations = null;
@@ -484,6 +489,76 @@ public class IxTheo extends SolrIndexerMixin {
         return mediatype;
     }
 
+    /*
+     * Get the appropriate translation map
+     */
+
+    Map<String,String> translation_map_en = new LinkedHashMap<String, String>();
+    Map<String,String> translation_map_fr = new LinkedHashMap<String, String>();
+ 
+    public Map<String, String> getTranslationMap(String langShortcut) throws IllegalArgumentException {
+  
+         Map<String,String> translation_map;
+
+         switch (langShortcut) {
+             case "en":
+                 translation_map = translation_map_en;
+                 break;
+             case "fr":
+                 translation_map = translation_map_fr;
+                 break;
+             default:
+                 throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
+         }
+
+         // Only read the data from file if necessary
+
+         if (translation_map.isEmpty()) {
+             final String dir = "/usr/local/ub_tools/bsz_daten/";
+             final String ext = "txt";
+             final String basename = "translation_test";
+
+             try {
+                 String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
+                 BufferedReader in = new BufferedReader(new FileReader(translationsFilename));
+                 String line;
+
+                 while ((line = in.readLine()) != null) {
+                     String[] translations = line.split("\\|");
+                     if (!translations[0].equals("")) 
+                         translation_map.put(translations[0], translations[1]);
+                 }
+             }
+             catch(IOException e) {
+                 System.err.println("Could not open file" + e.toString());
+             }
+         }
+         
+         return translation_map;
+
+    }
+
+    /**
+     * Translate Terms to given language if a translation is found
+     */
+
+    public Set<String> translateTopics(Set<String> topics, String langShortcut) {
+         if (langShortcut.equals("de"))
+             return topics;
+
+         Set<String> translated_topics = new LinkedHashSet<String>();
+         Map<String,String> translation_map = getTranslationMap(langShortcut);
+
+         for (String topic : topics) {
+             topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+             translated_topics.add(topic);
+         }
+
+         return translated_topics;
+
+    }
+
+
     /**
      * Determine Topics
      *
@@ -494,7 +569,7 @@ public class IxTheo extends SolrIndexerMixin {
 
     // public Set<String> getTopics(final Record record, String fieldSpec,
     // String[] separators) {
-    public Set<String> getTopics(final Record record, String fieldSpec, String separator) {
+    public Set<String> getTopics(final Record record, String fieldSpec, String separator, String langShortcut) throws FileNotFoundException {
 
         final Set<String> topics = new LinkedHashSet<String>();
         // It seems to be a general rule that in the fields that the $p fields
@@ -503,7 +578,8 @@ public class IxTheo extends SolrIndexerMixin {
         Map<String, String> separators = parseTopicSeparators(separator);
         getTopicsCollector(record, fieldSpec, separators, topics);
 
-        return topics;
+//        return topics;
+        return translateTopics(topics, langShortcut);
     }
 
     /**
