@@ -100,9 +100,31 @@ public:
     void write(const std::string &characters) { (*this) << characters; }
 
     /** Write character data between an opening and closing tag pair. */
-    void writeTagsWithData(const std::string &tag_name, const std::string &characters, const bool suppress_indent = false) {
+    void writeTagsWithData(const std::string &tag_name, const std::string &characters,
+                           const bool suppress_indent = false)
+    {
 	openTag(tag_name, suppress_indent);
 	write(characters);
+	closeTag(tag_name, suppress_indent);
+    }
+
+    /** Write character data between an opening and closing tag pair. */
+    void writeTagsWithEscapedData(const std::string &tag_name, const Attributes &attribs,
+                                  const std::string &characters, const bool suppress_indent = false,
+                                  const XmlWriter::TextConversionType text_conversion_type = NoConversion)
+    {
+	openTag(tag_name, attribs, suppress_indent);
+	write(XmlWriter::XmlEscape(characters, text_conversion_type));
+	closeTag(tag_name, suppress_indent);
+    }
+
+    /** Write character data between an opening and closing tag pair. */
+    void writeTagsWithEscapedData(const std::string &tag_name, const std::string &characters,
+                                  const bool suppress_indent = false,
+                                  const XmlWriter::TextConversionType text_conversion_type = NoConversion)
+    {
+	openTag(tag_name, suppress_indent);
+	write(XmlWriter::XmlEscape(characters, text_conversion_type));
 	closeTag(tag_name, suppress_indent);
     }
 
