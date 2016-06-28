@@ -539,7 +539,7 @@ public class IxTheo extends SolrIndexerMixin {
     }
 
     /**
-     * Translate Terms to given language if a translation is found
+     * Translate set of terms to given language if a translation is found
      */
 
     public Set<String> translateTopics(Set<String> topics, String langShortcut) {
@@ -557,6 +557,20 @@ public class IxTheo extends SolrIndexerMixin {
          return translated_topics;
 
     }
+
+    /**
+     * Translate a single term to given language if a translation is found
+     */
+
+    public String translateTopic(String topic, String langShortcut) {
+        if (langShortcut.equals("de"))
+            return topic;
+
+        Map<String,String> translation_map = getTranslationMap(langShortcut);
+        return (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+
+    }    
+
 
 
     /**
