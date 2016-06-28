@@ -855,6 +855,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /** @brief Extracts the date (YYMMDD) that the record was created from a part of the 008 field. */
     public String getRecordingDate(final Record record) {
         final ControlField _008_field = (ControlField)record.getVariableField("008");
-        return _008_field.getData().substring(0, 6);
+        return "20" + _008_field.getData().substring(0, 2) + "-" + _008_field.getData().substring(2, 4)
+               + "-" +  _008_field.getData().substring(4, 6);
     }
 }
