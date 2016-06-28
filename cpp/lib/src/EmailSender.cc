@@ -70,7 +70,7 @@ namespace EmailSender {
 
 
 bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
-	       const std::string &message_body, const Priority priority)
+	       const std::string &message_body, const Priority priority, const Format format)
 {
     static std::string mutt_path;
     if (mutt_path.empty()) {
@@ -95,7 +95,11 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
     if (not FileUtil::WriteString(stdin_replacement_for_mutt, message))
 	Error("in EmailSender::SendEmail: can't write the message body into a temporary file!");
 
-    return ExecUtil::Exec(mutt_path, { "-H", "-" }, stdin_replacement_for_mutt) == 0;
+    if (format == PLAIN_TEXT)
+        return ExecUtil::Exec(mutt_path, { "-H", "-" }, stdin_replacement_for_mutt) == 0;
+    else // Send icky HTML email.
+        return ExecUtil::Exec(mutt_path, { "-H", "-", "-e \"set content_type=text/html\"" },
+                              stdin_replacement_for_mutt) == 0;
 }
 
 
