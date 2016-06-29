@@ -92,8 +92,6 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 
 	if (keyword.length() > 0){
             String keywordString = keyword.toString();
-//            Set<String> keywordSet = new LinkedHashSet<String>();
-//            keywordSet.add(keyword.toString());
             keywordString = ixTheoObject.translateTopic(keywordString, lang);
 	    keyWordChain.add(keywordString);
         }
