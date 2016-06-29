@@ -122,6 +122,13 @@ augment_773a --verbose GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
+((++P)); START=$(date +%s.%N)
+echo "*** Extract Normdata Translations" | tee --append "${log}"
+extract_normdata_translations Normdaten-"${date}".xml \
+     normdata_translations.txt >> "${log}" 2>&1
+PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
+echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+
 
 START=$(date +%s.%N)
 echo "*** Cleanup of Intermediate Files - $(date) ***" | tee --append "${log}"
