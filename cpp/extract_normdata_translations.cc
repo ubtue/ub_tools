@@ -54,13 +54,11 @@ void augment_ixtheo_tag_with_language(const MarcUtil::Record &record, const std:
         for (auto lang_code : ixtheo_lang_code) {
             if (lang_code.find("eng") != std::string::npos && *ixtheo_pos != "IxTheo_eng")
                *ixtheo_pos = *ixtheo_pos + "_eng";
-            // FIXME: WHAT IS THE CORRECT IDENTIFIER   
+            // FIXME: There are currently no french translations... 
             else if (lang_code.find("fra") != std::string::npos && *ixtheo_pos != "IxTheo_fra")
                *ixtheo_pos = *ixtheo_pos + "_fra";
         }
-        std::cout << "DEBUG in translations: " << *ixtheo_pos << "\n";
     }
-
 }
 
 
