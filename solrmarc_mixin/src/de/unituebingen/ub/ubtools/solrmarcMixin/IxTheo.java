@@ -516,7 +516,7 @@ public class IxTheo extends SolrIndexerMixin {
          if (translation_map.isEmpty()) {
              final String dir = "/usr/local/ub_tools/bsz_daten/";
              final String ext = "txt";
-             final String basename = "translation_test";
+             final String basename = "normdata_translations";
 
              try {
                  String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
@@ -531,6 +531,7 @@ public class IxTheo extends SolrIndexerMixin {
              }
              catch(IOException e) {
                  System.err.println("Could not open file" + e.toString());
+                 System.exit(1);
              }
          }
          
