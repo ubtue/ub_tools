@@ -174,34 +174,30 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
 void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection,
                           const std::string &solr_host_and_port)
 {
-    const std::string SELECT_STMT("SELECT * FROM ixtheo_journal_subscriptions ORDER BY id");
-    if (unlikely(not db_connection->query(SELECT_STMT)))
-	Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    const std::string SELECT_IDS_STMT("SELECT DISTINCT id FROM ixtheo_journal_subscriptions");
+    if (unlikely(not db_connection->query(SELECT_IDS_STMT)))
+        Error("Select failed: " + SELECT_IDS_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
-    std::string current_id;
-    std::vector<SerialControlNumberAndLastIssueDate> control_numbers_and_last_issue_dates;
+    unsigned subscription_count(0);
     DbResultSet id_result_set(db_connection->getLastResultSet());
-    unsigned user_count(0), subscription_count(0);
+    const unsigned user_count(id_result_set.size());
     while (const DbRow id_row = id_result_set.getNextRow()) {
         const std::string user_id(id_row["id"]);
 
-        if (user_id != current_id) {
-            ++user_count;
-            if (not control_numbers_and_last_issue_dates.empty()) {
-                ProcessSingleUser(verbose, db_connection, current_id, solr_host_and_port,
-                                  control_numbers_and_last_issue_dates);
-                control_numbers_and_last_issue_dates.clear();
-            }
-            current_id = user_id;
+        const std::string SELECT_SUBSCRIPTION_INFO("SELECT journal_control_number,last_issue_date FROM "
+                                                   "ixtheo_journal_subscriptions WHERE id=" + user_id);
+        if (unlikely(not db_connection->query(SELECT_SUBSCRIPTION_INFO)))
+            Error("Select failed: " + SELECT_SUBSCRIPTION_INFO + " (" + db_connection->getLastErrorMessage() + ")");
+
+        DbResultSet result_set(db_connection->getLastResultSet());
+        std::vector<SerialControlNumberAndLastIssueDate> control_numbers_and_last_issue_dates;
+        while (const DbRow row = result_set.getNextRow()) {
+            control_numbers_and_last_issue_dates.emplace_back(SerialControlNumberAndLastIssueDate(
+                row["journal_control_number"], row["last_issue_date"]));
+            ++subscription_count;
         }
-
-        control_numbers_and_last_issue_dates.emplace_back(SerialControlNumberAndLastIssueDate(
-            id_row["journal_control_number"], id_row["last_issue_date"]));
-        ++subscription_count;
+        ProcessSingleUser(verbose, db_connection, user_id, solr_host_and_port, control_numbers_and_last_issue_dates);
     }
-
-    if (not control_numbers_and_last_issue_dates.empty())
-        ProcessSingleUser(verbose, db_connection, current_id, solr_host_and_port, control_numbers_and_last_issue_dates);
 
     if (verbose)
         std::cout << "Processed " << user_count << " users and " << subscription_count << " subscriptions.\n";
