@@ -42,6 +42,7 @@
 #include "Subfields.h"
 #include "TextUtil.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 void Usage() {
@@ -227,7 +228,7 @@ void ExtractBooksOfTheBible(const std::unordered_map<std::string, std::string> &
     books_of_the_bible->clear();
 
     for (const auto &book_and_code : bible_book_to_code_map) {
-        books_of_the_bible->insert(IsValidSingleDigitArabicOrdinal(book_and_code.first.substr(0, 1))
+        books_of_the_bible->insert(StringUtil::IsDigit(book_and_code.first[0])
                                    ? book_and_code.first.substr(1) : book_and_code.first);
     }
 }

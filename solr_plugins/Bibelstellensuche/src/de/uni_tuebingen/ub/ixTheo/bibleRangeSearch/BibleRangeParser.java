@@ -19,7 +19,6 @@ public class BibleRangeParser extends QParser {
         super(searchString, localParams, params, request);
         try {
             final String queryString = "bible_ranges:" + getBookPrefixQueryString(searchString);
-            System.out.println(queryString);
             final QParser parser = getParser(queryString, "lucene", getReq());
             final BibleRange[] ranges = getRangesFromQuery();
             this.innerQuery = new BibleRangeQuery(new FilteredQuery(parser.parse(), new BibleRangeFilter(ranges)), ranges);
