@@ -871,7 +871,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final String fieldContents = _008_field.getData();
 
         final StringBuilder iso8601_date = new StringBuilder(10);
-        iso8601_date.append(fieldContents.substring(0, 2).compareTo(currentYear) > 0 ? "19" :"20");
+        iso8601_date.append(fieldContents.substring(0, 2).compareTo(getCurrentYear()) > 0 ? "19" :"20");
         iso8601_date.append(fieldContents.substring(0, 2));
         iso8601_date.append('-');
         iso8601_date.append(fieldContents.substring(2, 4));
