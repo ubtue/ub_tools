@@ -10,6 +10,8 @@ import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.Utils;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -852,10 +854,30 @@ public class TuelibMixin extends SolrIndexerMixin {
         return Boolean.toString(record.getVariableField("SPR") != null);
     }
 
+    private static String currentYear = null;
+
+    /** @return the last two digits of the current year. */
+    private static String getCurrentYear() {
+        if (currentYear == null) {
+            final DateFormat df = new SimpleDateFormat("yy");
+            currentYear = df.format(Calendar.getInstance().getTime());
+        }
+        return currentYear;
+    }
+
     /** @brief Extracts the date (YYMMDD) that the record was created from a part of the 008 field. */
     public String getRecordingDate(final Record record) {
         final ControlField _008_field = (ControlField)record.getVariableField("008");
-        return "20" + _008_field.getData().substring(0, 2) + "-" + _008_field.getData().substring(2, 4)
-               + "-" +  _008_field.getData().substring(4, 6);
+        final String fieldContents = _008_field.getData();
+
+        final StringBuilder iso8601_date = new StringBuilder(10);
+        iso8601_date.append(fieldContents.substring(0, 2).compareTo(currentYear) > 0 ? "19" :"20");
+        iso8601_date.append(fieldContents.substring(0, 2));
+        iso8601_date.append('-');
+        iso8601_date.append(fieldContents.substring(2, 4));
+        iso8601_date.append('-');
+        iso8601_date.append(fieldContents.substring(4, 6));
+
+        return iso8601_date.toString();
     }
 }
