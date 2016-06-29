@@ -33,6 +33,7 @@
 #include "Subfields.h"
 #include "TextUtil.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 void Usage() {

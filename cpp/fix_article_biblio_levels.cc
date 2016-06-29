@@ -34,6 +34,7 @@
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
+#include "XmlWriter.h"
 
 
 void Usage() {
