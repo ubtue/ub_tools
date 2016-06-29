@@ -877,6 +877,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         iso8601_date.append(fieldContents.substring(2, 4));
         iso8601_date.append('-');
         iso8601_date.append(fieldContents.substring(4, 6));
+        iso8601_date.append("T00:00:00Z");
 
         return iso8601_date.toString();
     }
