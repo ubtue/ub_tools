@@ -17,9 +17,7 @@ public class MultiLanguageQueryParser extends QParser {
     protected Query query;
     protected String searchString;
     protected static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
-
     protected String[] SUPPORTED_LANGUAGES = { "de", "en", "fr" };
-
     protected SolrQueryRequest newRequest;
     protected ModifiableSolrParams newParams;
 
@@ -53,7 +51,6 @@ public class MultiLanguageQueryParser extends QParser {
                 if (++i < singleParams.length)
                     sb.append(" ");
             }
-
             newParams.add("qf", sb.toString());
         }
 
@@ -61,7 +58,6 @@ public class MultiLanguageQueryParser extends QParser {
             newParams.remove("facet.field", param);
             newParams.add("facet.field", param + "_" + lang);
         }
-
     }
 
     public Query parse() throws SyntaxError {
@@ -69,5 +65,4 @@ public class MultiLanguageQueryParser extends QParser {
         QParser parser = getParser(this.searchString, "lucene", this.newRequest);
         return parser.parse();
     }
-
 }

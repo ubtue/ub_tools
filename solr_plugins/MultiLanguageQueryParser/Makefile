@@ -1,5 +1,3 @@
-# Compiler
-
 all: 
 	ant compile
 
