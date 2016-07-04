@@ -27,6 +27,9 @@
 namespace Solr {
 
 
+enum QueryResultFormat { XML, JSON };
+
+
 /** \brief Sends a query to a Solr instance.
  *  \param  query          The search query.
  *  \param  fields         The result fields that we want to get back.
@@ -36,7 +39,8 @@ namespace Solr {
  *  \return True if we got a valid response, else false.
  */
 bool Query(const std::string &query, const std::string &fields, std::string * const xml_result,
-           const std::string &host_and_port = "localhost:8080", const unsigned timeout = 10);
+           const std::string &host_and_port = "localhost:8080", const unsigned timeout = 10,
+           const QueryResultFormat query_result_format = XML);
 
 
 } // namespace Solr

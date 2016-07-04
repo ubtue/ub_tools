@@ -15,8 +15,8 @@ else # Ubuntu version
   LIBMARIADB=-lmariadbclient
   LIBCURL=-lcurl
 endif
-LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpthread -lpcre -lcrypto -lkyotocabinet -lmagic -lz -lrt -lssl \
-       -larchive $(LIBCURL) $(LIBMARIADB)
+LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpthread -lpcre -lcrypto -lkyotocabinet -lmagic -lz -lrt \
+       -lssl -larchive -lboost_graph $(LIBCURL) $(LIBMARIADB)
 
 PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
 CGI_PROGS=full_text_lookup
