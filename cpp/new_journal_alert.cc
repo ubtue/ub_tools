@@ -89,11 +89,11 @@ void GetNewIssues(const std::string &solr_host_and_port, const std::string &seri
 {
     if (not StringUtil::EndsWith(last_issue_date, "Z"))
         last_issue_date += "T00:00:00Z"; // Solr does not support the short form of the ISO 8601 date formats.
-    const std::string QUERY("superior_ppn: " + serial_control_number + " AND recording_date:{" + last_issue_date
+    const std::string QUERY("superior_ppn:" + serial_control_number + " AND recording_date:{" + last_issue_date
                             + " TO *}");
     std::string json_result;
-    if (unlikely(not Solr::Query(QUERY, "title,author,recording_date", &json_result, solr_host_and_port,
-                                 /* timeout = */ 5, Solr::XML)))
+    if (unlikely(not Solr::Query(QUERY, "id,title,author,recording_date", &json_result, solr_host_and_port,
+                                 /* timeout = */ 5, Solr::JSON)))
     {
         std::cerr << "Solr query failed or timed-out: \"" << QUERY << "\".\n";
         return;
