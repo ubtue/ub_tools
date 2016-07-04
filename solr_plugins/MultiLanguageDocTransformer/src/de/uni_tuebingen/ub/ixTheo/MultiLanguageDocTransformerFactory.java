@@ -19,15 +19,13 @@ import org.apache.solr.response.transform.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class MultiLanguageDocTransformerFactory extends TransformerFactory {
     private List<String> fieldNames = new ArrayList<String>();
     private List<String> langExtensions = new ArrayList<String>();
     private boolean enabled = false;
     private String reqLang = "de";
-    protected static Logger logger = LoggerFactory
-        .getLogger(MultiLanguageDocTransformerFactory.class);
-    
+    protected static Logger logger = LoggerFactory.getLogger(MultiLanguageDocTransformerFactory.class);
+
     @SuppressWarnings("rawtypes")
     @Override
     public void init(NamedList args) {
@@ -43,14 +41,14 @@ public class MultiLanguageDocTransformerFactory extends TransformerFactory {
             if (langexts != null) {
                 langExtensions = StrUtils.splitSmart(langexts, ',');
             }
-            
-         }
+
+        }
     }
-    
+
     @Override
     public DocTransformer create(String field, SolrParams params, SolrQueryRequest req) {
         reqLang = req.getParams().get("lang", "de");
-        // Throw away language subcode 
+        // Throw away language subcode
         final String subcodeSeparator = "-";
         reqLang = reqLang.contains(subcodeSeparator) ? reqLang.split(subcodeSeparator)[0] : reqLang;
         return new MultiLanguageDocTransformer();
@@ -69,8 +67,8 @@ public class MultiLanguageDocTransformerFactory extends TransformerFactory {
                     // Select extension according to chosen language
                     String reqLangExtension = "_" + reqLang;
                     int i;
-                    String langExtension = ((i = langExtensions.indexOf(reqLangExtension)) != -1) ?  
-                                               langExtensions.get(i) : "_de";
+                    String langExtension = ((i = langExtensions.indexOf(reqLangExtension)) != -1)
+                            ? langExtensions.get(i) : "_de";
 
                     Object srcObj = doc.get(fieldName + langExtension);
                     if (srcObj != null)
@@ -79,4 +77,4 @@ public class MultiLanguageDocTransformerFactory extends TransformerFactory {
             }
         }
     }
-};
+}

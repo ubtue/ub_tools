@@ -14,7 +14,6 @@ import org.marc4j.marc.*;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.Utils;
 
-
 public class IxTheo extends SolrIndexerMixin {
     private Set<String> ixTheoNotations = null;
     private static Set<String> unassigned = Collections.singleton("[Unassigned]");
@@ -37,9 +36,9 @@ public class IxTheo extends SolrIndexerMixin {
                 return ixTheoNotations;
             }
             // We should only have one 652 field
-            final DataField data_field = (DataField) fields.iterator().next(); 
+            final DataField data_field = (DataField) fields.iterator().next();
             // There should always be exactly one $a subfield
-            final String contents = data_field.getSubfield('a').getData(); 
+            final String contents = data_field.getSubfield('a').getData();
             final String[] parts = contents.split(":");
             Collections.addAll(ixTheoNotations, parts);
         }
@@ -379,9 +378,9 @@ public class IxTheo extends SolrIndexerMixin {
     }
 
     /**
-     * Determine Record Format(s) including the electronic tag
-     * The electronic category is filtered out in the actula getFormat function
-     * but needed to determine the media type
+     * Determine Record Format(s) including the electronic tag The electronic
+     * category is filtered out in the actula getFormat function but needed to
+     * determine the media type
      *
      * @param record
      *            the record
@@ -428,8 +427,8 @@ public class IxTheo extends SolrIndexerMixin {
             final DataField dataField = (DataField) _935Field;
             final Subfield cSubfield = dataField.getSubfield('c');
             if (cSubfield != null && cSubfield.getData().contains("fe")) {
-               formats.add("Festschrift");
-               break;
+                formats.add("Festschrift");
+                break;
             }
         }
 
@@ -439,7 +438,7 @@ public class IxTheo extends SolrIndexerMixin {
             formats.add("Electronic");
             formats.add("Book");
         }
-        
+
         return formats;
     }
 
@@ -451,21 +450,19 @@ public class IxTheo extends SolrIndexerMixin {
      * @return mediatype of the record
      */
 
-
     public Set getFormat(final Record record) {
         Set<String> formats = getFormatIncludingElectronic(record);
 
-        // Since we now have an additional facet mediatype we remove the electronic label 
+        // Since we now have an additional facet mediatype we remove the
+        // electronic label
         formats.remove("Electronic");
 
         return formats;
     }
 
-
-
     /**
-     * Determine Mediatype
-     * For facets we need to differentiate between electronic and non-electronic resources
+     * Determine Mediatype For facets we need to differentiate between
+     * electronic and non-electronic resources
      *
      * @param record
      *            the record
@@ -475,15 +472,13 @@ public class IxTheo extends SolrIndexerMixin {
     public Set getMediatype(final Record record) {
         final Set<String> mediatype = new HashSet<>();
         final Set<String> formats = getFormatIncludingElectronic(record);
-        
         final String electronicRessource = "Electronic";
         final String nonElectronicRessource = "Non-Electronic";
 
-	if (formats.contains(electronicRessource)){
-          mediatype.add(electronicRessource);
-        }
-        else {
-          mediatype.add(nonElectronicRessource);
+        if (formats.contains(electronicRessource)) {
+            mediatype.add(electronicRessource);
+        } else {
+            mediatype.add(nonElectronicRessource);
         }
 
         return mediatype;
@@ -493,50 +488,47 @@ public class IxTheo extends SolrIndexerMixin {
      * Get the appropriate translation map
      */
 
-    Map<String,String> translation_map_en = new LinkedHashMap<String, String>();
-    Map<String,String> translation_map_fr = new LinkedHashMap<String, String>();
- 
+    Map<String, String> translation_map_en = new LinkedHashMap<String, String>();
+    Map<String, String> translation_map_fr = new LinkedHashMap<String, String>();
+
     public Map<String, String> getTranslationMap(String langShortcut) throws IllegalArgumentException {
-  
-         Map<String,String> translation_map;
 
-         switch (langShortcut) {
-             case "en":
-                 translation_map = translation_map_en;
-                 break;
-             case "fr":
-                 translation_map = translation_map_fr;
-                 break;
-             default:
-                 throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
-         }
+        Map<String, String> translation_map;
 
-         // Only read the data from file if necessary
+        switch (langShortcut) {
+        case "en":
+            translation_map = translation_map_en;
+            break;
+        case "fr":
+            translation_map = translation_map_fr;
+            break;
+        default:
+            throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
+        }
 
-         if (translation_map.isEmpty()) {
-             final String dir = "/usr/local/ub_tools/bsz_daten/";
-             final String ext = "txt";
-             final String basename = "normdata_translations";
+        // Only read the data from file if necessary
+        if (translation_map.isEmpty()) {
+            final String dir = "/usr/local/ub_tools/bsz_daten/";
+            final String ext = "txt";
+            final String basename = "normdata_translations";
 
-             try {
-                 String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
-                 BufferedReader in = new BufferedReader(new FileReader(translationsFilename));
-                 String line;
+            try {
+                String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
+                BufferedReader in = new BufferedReader(new FileReader(translationsFilename));
+                String line;
 
-                 while ((line = in.readLine()) != null) {
-                     String[] translations = line.split("\\|");
-                     if (!translations[0].equals("")) 
-                         translation_map.put(translations[0], translations[1]);
-                 }
-             }
-             catch(IOException e) {
-                 System.err.println("Could not open file" + e.toString());
-                 System.exit(1);
-             }
-         }
-         
-         return translation_map;
+                while ((line = in.readLine()) != null) {
+                    String[] translations = line.split("\\|");
+                    if (!translations[0].equals(""))
+                        translation_map.put(translations[0], translations[1]);
+                }
+            } catch (IOException e) {
+                System.err.println("Could not open file" + e.toString());
+                System.exit(1);
+            }
+        }
 
+        return translation_map;
     }
 
     /**
@@ -544,19 +536,18 @@ public class IxTheo extends SolrIndexerMixin {
      */
 
     public Set<String> translateTopics(Set<String> topics, String langShortcut) {
-         if (langShortcut.equals("de"))
-             return topics;
+        if (langShortcut.equals("de"))
+            return topics;
 
-         Set<String> translated_topics = new LinkedHashSet<String>();
-         Map<String,String> translation_map = getTranslationMap(langShortcut);
+        Set<String> translated_topics = new LinkedHashSet<String>();
+        Map<String, String> translation_map = getTranslationMap(langShortcut);
 
-         for (String topic : topics) {
-             topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
-             translated_topics.add(topic);
-         }
+        for (String topic : topics) {
+            topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+            translated_topics.add(topic);
+        }
 
-         return translated_topics;
-
+        return translated_topics;
     }
 
     /**
@@ -567,12 +558,9 @@ public class IxTheo extends SolrIndexerMixin {
         if (langShortcut.equals("de"))
             return topic;
 
-        Map<String,String> translation_map = getTranslationMap(langShortcut);
+        Map<String, String> translation_map = getTranslationMap(langShortcut);
         return (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
-
-    }    
-
-
+    }
 
     /**
      * Determine Topics
@@ -582,18 +570,15 @@ public class IxTheo extends SolrIndexerMixin {
      * @return format of record
      */
 
-    // public Set<String> getTopics(final Record record, String fieldSpec,
-    // String[] separators) {
-    public Set<String> getTopics(final Record record, String fieldSpec, String separator, String langShortcut) throws FileNotFoundException {
+    public Set<String> getTopics(final Record record, String fieldSpec, String separator, String langShortcut)
+            throws FileNotFoundException {
 
-        final Set<String> topics = new LinkedHashSet<String>();
+        final Set<String> topics = new HashSet<String>();
         // It seems to be a general rule that in the fields that the $p fields
         // are converted to a '.'
         // $n is converted to a space if there is additional information
         Map<String, String> separators = parseTopicSeparators(separator);
         getTopicsCollector(record, fieldSpec, separators, topics);
-
-//        return topics;
         return translateTopics(topics, langShortcut);
     }
 

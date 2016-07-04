@@ -15,7 +15,6 @@ public class MultiLanguageQueryParserPlugin extends QParserPlugin {
 
     @Override
     public QParser createParser(String queryString, SolrParams localParams, SolrParams params, SolrQueryRequest req) {
-
         return new MultiLanguageQueryParser(queryString, localParams, params, req);
     }
 
