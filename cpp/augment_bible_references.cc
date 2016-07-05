@@ -47,7 +47,7 @@
 
 void Usage() {
     std::cerr << "Usage: " << progname
-	      << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
+              << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -57,27 +57,27 @@ const std::string BIB_BROWSE_TAG("802");
 
 
 void LoadBibleOrderMap(const bool verbose, File * const input,
-		       std::unordered_map<std::string, std::string> * const books_of_the_bible_to_code_map)
+                       std::unordered_map<std::string, std::string> * const books_of_the_bible_to_code_map)
 {
     if (verbose)
-	std::cerr << "Started loading of the bible-order map.\n";
+        std::cerr << "Started loading of the bible-order map.\n";
 
     unsigned line_no(0);
     while (not input->eof()) {
-	const std::string line(input->getline());
-	if (line.empty())
-	    continue;
-	++line_no;
+        const std::string line(input->getline());
+        if (line.empty())
+            continue;
+        ++line_no;
 
-	const size_t equal_pos(line.find('='));
-	if (equal_pos == std::string::npos)
-	    Error("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
-	(*books_of_the_bible_to_code_map)[StringUtil::ToLower(line.substr(0, equal_pos))] =
+        const size_t equal_pos(line.find('='));
+        if (equal_pos == std::string::npos)
+            Error("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
+        (*books_of_the_bible_to_code_map)[StringUtil::ToLower(line.substr(0, equal_pos))] =
             line.substr(equal_pos + 1);
     }
 
     if (verbose)
-	std::cerr << "Loaded " << line_no << " entries from the bible-order map file.\n";
+        std::cerr << "Loaded " << line_no << " entries from the bible-order map file.\n";
 }
 
 
@@ -110,7 +110,7 @@ bool FindPericopes(const std::vector<DirectoryEntry> &dir_entries, const std::ve
         const Subfields subfields(field_data[field_iter - dir_entries.begin()]);
         std::string a_subfield(subfields.getFirstSubfieldValue('a'));
         StringUtil::ToLower(&a_subfield);
-	StringUtil::CollapseAndTrimWhitespace(&a_subfield);
+        StringUtil::CollapseAndTrimWhitespace(&a_subfield);
         pericopes.push_back(a_subfield);
         ++field_iter;
     }
@@ -338,7 +338,7 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
 
 
 void LoadNormData(const bool verbose, const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
-		  File * const norm_input,
+                  File * const norm_input,
                   std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
                       gnd_codes_to_bible_ref_codes_map)
 {
@@ -373,7 +373,7 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
     }
 
     if (verbose)
-	std::cerr << "About to write \"pericopes_to_codes.map\".\n";
+        std::cerr << "About to write \"pericopes_to_codes.map\".\n";
     MapIO::SerialiseMap("pericopes_to_codes.map", pericopes_to_ranges_map);
 
     if (verbose) {
@@ -400,9 +400,9 @@ bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record,
         if (first_index == -1)
             continue;
 
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         for (size_t index(first_index); index < dir_entries.size() and dir_entries[index].getTag() == tag; ++index) {
-	    const std::vector<std::string> &fields(record.getFields());
+            const std::vector<std::string> &fields(record.getFields());
             const Subfields subfields(fields[index]);
             const std::string subfield2(subfields.getFirstSubfieldValue('2'));
             if (subfield2.empty() or subfield2 != "gnd")
@@ -438,12 +438,12 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
     MarcXmlWriter xml_writer(output);
     unsigned total_count(0), augment_count(0);
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+        record.setRecordWillBeWrittenAsXml(true);
         ++total_count;
 
         // Make sure that we don't use a bible reference tag that is already in use for another
         // purpose:
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const auto bib_ref_begin_end(DirectoryEntry::FindFields(BIB_REF_RANGE_TAG, dir_entries));
         if (bib_ref_begin_end.first != bib_ref_begin_end.second)
             Error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
@@ -463,7 +463,7 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
             record.insertField(BIB_REF_RANGE_TAG, range_string);
         }
 
-	record.write(&xml_writer);
+        record.write(&xml_writer);
     }
 
     if (verbose)
@@ -510,14 +510,14 @@ int main(int argc, char **argv) {
         Error("can't open \"" + books_of_the_bible_to_code_map_filename + "\" for reading!");
 
     try {
-	std::unordered_map<std::string, std::string> books_of_the_bible_to_code_map;
-	LoadBibleOrderMap(verbose, &books_of_the_bible_to_code_map_file, &books_of_the_bible_to_code_map);
+        std::unordered_map<std::string, std::string> books_of_the_bible_to_code_map;
+        LoadBibleOrderMap(verbose, &books_of_the_bible_to_code_map_file, &books_of_the_bible_to_code_map);
 
-	std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
+        std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
             gnd_codes_to_bible_ref_codes_map;
-	LoadNormData(verbose, books_of_the_bible_to_code_map, &norm_input, &gnd_codes_to_bible_ref_codes_map);
-	AugmentBibleRefs(verbose, &title_input, &title_output, gnd_codes_to_bible_ref_codes_map);
+        LoadNormData(verbose, books_of_the_bible_to_code_map, &norm_input, &gnd_codes_to_bible_ref_codes_map);
+        AugmentBibleRefs(verbose, &title_input, &title_output, gnd_codes_to_bible_ref_codes_map);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }
