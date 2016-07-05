@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  Copyright 2015-2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -30,11 +30,13 @@
 #define FILE_UTIL_H
 
 
+#include <memory>
 #include <string>
 #include <vector>
 #include <cstdio>
 #include <sys/types.h>
 #include <unistd.h>
+#include "File.h"
 
 
 namespace FileUtil {
@@ -240,6 +242,14 @@ size_t GetFileNameList(const std::string &filename_regex, std::vector<std::strin
  *  \note Sets errno if there was a failure.
  */
 bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target = false);
+
+
+/** \brief Opens a file for reading or aborts. */
+std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename);
+
+
+/** \brief Opens a file for writing or aborts. */
+std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename);
 
 
 } // namespace FileUtil

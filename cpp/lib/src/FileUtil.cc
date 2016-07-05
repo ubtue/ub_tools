@@ -2,7 +2,7 @@
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,6 +31,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "Compiler.h"
+#include "StringUtil.h"
+#include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -684,6 +686,25 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
     }
 
     return ::rename(old_name.c_str(), new_name.c_str()) == 0;
+}
+
+
+std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
+    const std::string mode(MediaTypeUtil::GetFileMediaType(filename) == "application/lz4" ? "ru" : "r");
+    std::unique_ptr<File> file(new File(filename, mode));
+    if (file->fail())
+        Error("can't open \"" + filename + "\" for reading!");
+
+    return file;
+}
+
+
+std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
+    std::unique_ptr<File> file(new File(filename, "w"));
+    if (file->fail())
+        Error("can't open \"" + filename + "\" for reading!");
+
+    return file;
 }
 
 
