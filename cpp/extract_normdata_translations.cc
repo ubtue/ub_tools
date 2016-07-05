@@ -63,7 +63,7 @@ void Usage() {
 }
 
 
-void augmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::string &tag, std::vector<std::string> * const translations) {
+void AugmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::string &tag, std::vector<std::string> * const translations) {
     auto ixtheo_pos = std::find(translations->begin(), translations->end(), "IxTheo");
     if (ixtheo_pos != translations->end()) {
         std::vector<std::string> ixtheo_lang_code;
@@ -125,7 +125,7 @@ void ExtractTranslations(File* const marc_norm_input,
             record.extractSubfields(tag, subfields, &translations);
 
             // For IxTheo-Translations add the language code in the same field
-            augmentIxTheoTagWithLanguage(record, tag, &translations);
+            AugmentIxTheoTagWithLanguage(record, tag, &translations);
             
             all_translations.insert(all_translations.end(), translations.begin(), translations.end());
         }
