@@ -45,19 +45,19 @@ class HttpHeader {
     time_t date_, last_modified_, expires_;
     size_t content_length_;
     std::string content_type_, content_encoding_, location_, etag_, cache_control_, pragma_, server_, accept_ranges_, vary_, connection_,
-	content_languages_, uri_, status_line_;
+        content_languages_, uri_, status_line_;
     bool is_valid_;
     std::vector<std::string> cookies_;
 public:
     HttpHeader()
-	: status_code_(0), date_(TimeUtil::BAD_TIME_T), last_modified_(TimeUtil::BAD_TIME_T), expires_(TimeUtil::BAD_TIME_T),
-	  content_length_(0), is_valid_(false) { }
+        : status_code_(0), date_(TimeUtil::BAD_TIME_T), last_modified_(TimeUtil::BAD_TIME_T), expires_(TimeUtil::BAD_TIME_T),
+          content_length_(0), is_valid_(false) { }
     explicit HttpHeader(const std::string &header) throw(std::exception);
 
     bool isValid() const { return is_valid_; }
 
     /** This will *not* return the original header but instead an anemic approximation.  It will throw an exception
-	if isValid() returns false! */
+        if isValid() returns false! */
     std::string toString() const;
 
     bool isRedirect() const { return status_code_ == 302 and not location_.empty(); }
@@ -124,7 +124,7 @@ public:
     static bool IsProbablyNotEnglish(const std::string &charset, const std::string &content_languages);
 
     /** Strips off the primary subtag from "language_tag".  E.g. given "en-GB" we will return "en".  This
-	function also canonises certain strings. */
+        function also canonises certain strings. */
     static std::string GetLanguagePrimarySubtag(const std::string &language_tag);
 
     static std::string GetCharsetFromContentType(const std::string &content_type);

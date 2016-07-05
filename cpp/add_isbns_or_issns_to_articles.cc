@@ -76,15 +76,15 @@ void PopulateParentIdToISBNAndISSNMap(
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++count;
 
-	const Leader &leader(record.getLeader());
+        const Leader &leader(record.getLeader());
         if (not leader.isSerial())
             continue;
 
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
 
-	const std::vector<std::string> &fields(record.getFields());
+        const std::vector<std::string> &fields(record.getFields());
         const std::string isbn(record.extractFirstSubfield("020", 'a'));
         if (not isbn.empty()) {
             (*parent_id_to_isbn_and_issn_map)[fields[0]] = isbn;
@@ -124,36 +124,36 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
                          std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
                          std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+        record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
-	const Leader &leader(record.getLeader());
+        const Leader &leader(record.getLeader());
         if (not leader.isArticle()) {
-	    record.write(&xml_writer);
+            record.write(&xml_writer);
             continue;
         }
 
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
 
         auto entry_iterator(DirectoryEntry::FindField("773", dir_entries));
         if (entry_iterator == dir_entries.end()) {
-	    record.write(&xml_writer);
+            record.write(&xml_writer);
             continue;
         }
 
         const size_t index_773(entry_iterator - dir_entries.begin());
-	const std::vector<std::string> &fields(record.getFields());
+        const std::vector<std::string> &fields(record.getFields());
         Subfields subfields(fields[index_773]);
         if (subfields.hasSubfield('x')) {
-	    record.write(&xml_writer);
+            record.write(&xml_writer);
             continue;
         }
 
         auto begin_end = subfields.getIterators('w'); // Record control number of Host Item Entry.
         if (begin_end.first == begin_end.second) {
-	    record.write(&xml_writer);
+            record.write(&xml_writer);
             ++missing_host_record_ctrl_num_count;
             continue;
         }
@@ -163,14 +163,14 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
             host_id = host_id.substr(8);
         auto const parent_isbn_or_issn_iter(parent_id_to_isbn_and_issn_map.find(host_id));
         if (parent_isbn_or_issn_iter == parent_id_to_isbn_and_issn_map.end()) {
-	    record.write(&xml_writer);
+            record.write(&xml_writer);
             ++missing_isbn_or_issn_count;
             continue;
         }
 
         if (IsPossibleISSN(parent_isbn_or_issn_iter->second)) {
             subfields.addSubfield('x', parent_isbn_or_issn_iter->second);
-	    record.updateField(index_773, subfields.toString());
+            record.updateField(index_773, subfields.toString());
             ++issns_added;
         } else { // Deal with ISBNs.
             if (not record.extractFirstSubfield("020", 'a').empty())
@@ -180,7 +180,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
             ++isbns_added;
         }
 
-	record.write(&xml_writer);
+        record.write(&xml_writer);
     }
     xml_writer.closeTag();
 
@@ -220,19 +220,19 @@ int main(int argc, char **argv) {
         Error("Master input file name equals output file name!");
     std::string output_mode("w");
     if (marc_input->isCompressingOrUncompressing())
-	output_mode += "c";
+        output_mode += "c";
     File marc_output(marc_output_filename, output_mode);
     if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
-	std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
-	PopulateParentIdToISBNAndISSNMap(verbose, marc_input.get(), &parent_id_to_isbn_and_issn_map);
-	marc_input->close();
-	
-	std::unique_ptr<File> marc_input2(OpenInputFile(marc_input_filename));
-	AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_input2.get(), &marc_output, parent_id_to_isbn_and_issn_map);
+        std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
+        PopulateParentIdToISBNAndISSNMap(verbose, marc_input.get(), &parent_id_to_isbn_and_issn_map);
+        marc_input->close();
+        
+        std::unique_ptr<File> marc_input2(OpenInputFile(marc_input_filename));
+        AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_input2.get(), &marc_output, parent_id_to_isbn_and_issn_map);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

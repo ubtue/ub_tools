@@ -41,80 +41,80 @@ namespace TimeUtil {
 
 std::string FormatTime(const double time_in_millisecs, const std::string &separator) {
     if (time_in_millisecs < 0.0)
-	throw std::runtime_error("in TimeUtil::FormatTime: 'time_in_millisecs' must be non-negative!");
+        throw std::runtime_error("in TimeUtil::FormatTime: 'time_in_millisecs' must be non-negative!");
 
     if (time_in_millisecs == 0.0)
-	return "0ms";
+        return "0ms";
 
     unsigned no_of_non_zero_values(0);
 
     unsigned secs = static_cast<unsigned>(time_in_millisecs / 1000.0);
     const double millis = time_in_millisecs - 1000.0 * secs;
     if (millis > 0)
-	++no_of_non_zero_values;
+        ++no_of_non_zero_values;
 
     unsigned mins = secs / 60;
     secs %= 60;
     if (secs > 0)
-	++no_of_non_zero_values;
+        ++no_of_non_zero_values;
 
     unsigned hours = mins / 60;
     mins %= 60;
     if (mins > 0)
-	++no_of_non_zero_values;
+        ++no_of_non_zero_values;
 
     unsigned days = hours / 24;
     hours %= 24;
     if (hours > 0)
-	++no_of_non_zero_values;
+        ++no_of_non_zero_values;
 
     if (days > 0)
-	++no_of_non_zero_values;
+        ++no_of_non_zero_values;
 
     bool show_millis_when_zero(true);
     std::string output;
 
     if (days != 0) {
-	show_millis_when_zero = false;
-	output += std::to_string(days) + 'd';
-	if (no_of_non_zero_values > 1) {
-	    output += separator;
-	    --no_of_non_zero_values;
-	}
+        show_millis_when_zero = false;
+        output += std::to_string(days) + 'd';
+        if (no_of_non_zero_values > 1) {
+            output += separator;
+            --no_of_non_zero_values;
+        }
     }
 
     if (hours != 0) {
-	show_millis_when_zero = false;
-	output += std::to_string(hours) + 'h';
-	if (no_of_non_zero_values > 1) {
-	    output += separator;
-	    --no_of_non_zero_values;
-	}
+        show_millis_when_zero = false;
+        output += std::to_string(hours) + 'h';
+        if (no_of_non_zero_values > 1) {
+            output += separator;
+            --no_of_non_zero_values;
+        }
     }
 
     if (mins != 0) {
-	show_millis_when_zero = false;
-	output += std::to_string(mins) + 'm';
-	if (no_of_non_zero_values > 1) {
-	    output += separator;
-	    --no_of_non_zero_values;
-	}
+        show_millis_when_zero = false;
+        output += std::to_string(mins) + 'm';
+        if (no_of_non_zero_values > 1) {
+            output += separator;
+            --no_of_non_zero_values;
+        }
     }
 
     if (secs != 0) {
-	show_millis_when_zero = false;
-	output += std::to_string(secs) + 's';
-	if (no_of_non_zero_values > 1) {
-	    output += separator;
-	    --no_of_non_zero_values;
-	}
+        show_millis_when_zero = false;
+        output += std::to_string(secs) + 's';
+        if (no_of_non_zero_values > 1) {
+            output += separator;
+            --no_of_non_zero_values;
+        }
     }
 
     if (show_millis_when_zero or millis != 0.0) {
-	if (millis == static_cast<unsigned>(millis))
-	    output += std::to_string(static_cast<unsigned>(millis)) + "ms";
-	else
-	    output += std::to_string(millis) + "ms";
+        if (millis == static_cast<unsigned>(millis))
+            output += std::to_string(static_cast<unsigned>(millis)) + "ms";
+        else
+            output += std::to_string(millis) + "ms";
     }
 
     return output;
@@ -135,7 +135,7 @@ std::string GetCurrentDateAndTime(const std::string &format, const TimeZone time
 std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone) {
     char time_buf[50 + 1];
     std::strftime(time_buf, sizeof(time_buf), format.c_str(),
-		  (time_zone == LOCAL ? std::localtime(&the_time) : std::gmtime(&the_time)));
+                  (time_zone == LOCAL ? std::localtime(&the_time) : std::gmtime(&the_time)));
     return time_buf;
 }
 
@@ -152,9 +152,9 @@ time_t TimeGm(const struct tm &tm) {
 
     // Restore the original time zone:
     if (saved_time_zone != nullptr)
-	::setenv("TZ", saved_time_zone, 1);
+        ::setenv("TZ", saved_time_zone, 1);
     else
-	::unsetenv("TZ");
+        ::unsetenv("TZ");
     ::tzset();
 
     return ret_val;
@@ -162,26 +162,26 @@ time_t TimeGm(const struct tm &tm) {
 
 
 unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
-				unsigned * const day, unsigned * const hour, unsigned * const minute,
-				unsigned * const second, bool * const is_definitely_zulu_time)
+                                unsigned * const day, unsigned * const hour, unsigned * const minute,
+                                unsigned * const second, bool * const is_definitely_zulu_time)
 {
     // First check for a simple time and date (can be local or UTC):
     if (possible_date.length() == 19 and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u %2u:%2u:%2u", year, month, day, hour, minute, second) == 6) {
-	*is_definitely_zulu_time = false;
-	return 6;
+        *is_definitely_zulu_time = false;
+        return 6;
     }
     // Check for Zulu time format (must be UTC)
     else if (possible_date.length() == 20 and std::sscanf(possible_date.c_str(), "%4u-%2u-%2uT%2u:%2u:%2uZ", year, month, day, hour, minute, second) == 6) {
-	*is_definitely_zulu_time = true;
-	return 6;
+        *is_definitely_zulu_time = true;
+        return 6;
     }
     // Next check a simple date
     else if (possible_date.length() == 10 and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u", year, month, day) == 3) {
-	*hour = *minute = *second = 0;
-	*is_definitely_zulu_time = false;
-	return 3;
+        *hour = *minute = *second = 0;
+        *is_definitely_zulu_time = false;
+        return 3;
     } else
-	return 0;
+        return 0;
 }
 
 
@@ -195,59 +195,59 @@ time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zon
     unsigned year, month, day, hour, minute, second;
     bool is_definitely_zulu_time;
     const unsigned match_count = StringToBrokenDownTime(iso_time, &year, &month, &day, &hour, &minute, &second,
-							&is_definitely_zulu_time);
+                                                        &is_definitely_zulu_time);
 
     // First check for Zulu time format (must be UTC)
     if (match_count == 6 and is_definitely_zulu_time) {
-	if (time_zone == LOCAL)
-	    throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: local time requested in Zulu time format!");
+        if (time_zone == LOCAL)
+            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: local time requested in Zulu time format!");
 
-	tm_struct.tm_year  = year - 1900;
-	tm_struct.tm_mon   = month - 1;
-	tm_struct.tm_mday  = day;
-	tm_struct.tm_hour  = hour;
-	tm_struct.tm_min   = minute;
-	tm_struct.tm_sec   = second;
-	the_time = ::timegm(&tm_struct);
-	if (the_time == static_cast<time_t>(-1))
-	    throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
+        tm_struct.tm_year  = year - 1900;
+        tm_struct.tm_mon   = month - 1;
+        tm_struct.tm_mday  = day;
+        tm_struct.tm_hour  = hour;
+        tm_struct.tm_min   = minute;
+        tm_struct.tm_sec   = second;
+        the_time = ::timegm(&tm_struct);
+        if (the_time == static_cast<time_t>(-1))
+            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
     }
 
     // Check for a simple time and date (can be local or UTC):
     else if (match_count == 6) {
-	tm_struct.tm_year  = year - 1900;
-	tm_struct.tm_mon   = month - 1;
-	tm_struct.tm_mday  = day;
-	tm_struct.tm_hour  = hour;
-	tm_struct.tm_min   = minute;
-	tm_struct.tm_sec   = second;
-	if (time_zone == LOCAL) {
-	    ::tzset();
-	    tm_struct.tm_isdst = -1;
-	    the_time = std::mktime(&tm_struct);
-	}
-	else
-	    the_time = TimeGm(tm_struct);
-	if (the_time == static_cast<time_t>(-1))
-	    throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
+        tm_struct.tm_year  = year - 1900;
+        tm_struct.tm_mon   = month - 1;
+        tm_struct.tm_mday  = day;
+        tm_struct.tm_hour  = hour;
+        tm_struct.tm_min   = minute;
+        tm_struct.tm_sec   = second;
+        if (time_zone == LOCAL) {
+            ::tzset();
+            tm_struct.tm_isdst = -1;
+            the_time = std::mktime(&tm_struct);
+        }
+        else
+            the_time = TimeGm(tm_struct);
+        if (the_time == static_cast<time_t>(-1))
+            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
     }
 
     // Next check a simple date
     else if (match_count == 3) {
-	tm_struct.tm_year  = year - 1900;
-	tm_struct.tm_mon   = month - 1;
-	tm_struct.tm_mday  = day;
-	if (time_zone == LOCAL) {
-	    ::tzset();
-	    tm_struct.tm_isdst = -1;
-	    the_time = std::mktime(&tm_struct);
-	}
-	else
-	    the_time = ::timegm(&tm_struct);
-	if (the_time == static_cast<time_t>(-1))
-	    throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
+        tm_struct.tm_year  = year - 1900;
+        tm_struct.tm_mon   = month - 1;
+        tm_struct.tm_mday  = day;
+        if (time_zone == LOCAL) {
+            ::tzset();
+            tm_struct.tm_isdst = -1;
+            the_time = std::mktime(&tm_struct);
+        }
+        else
+            the_time = ::timegm(&tm_struct);
+        if (the_time == static_cast<time_t>(-1))
+            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
     } else
-	throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
+        throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
 
     return the_time;
 }
@@ -268,7 +268,7 @@ double GetJulianDayNumber(const unsigned year, const unsigned month, const unsig
 // JulianDayNumberToYearMonthAndDay -- based on http://quasar.as.utexas.edu/BillInfo/JulianDatesG.html.
 //
 void JulianDayNumberToYearMonthAndDay(const double julian_day_number, unsigned * const year, unsigned * const month,
-				      unsigned * const day)
+                                      unsigned * const day)
 {
     const unsigned Z = static_cast<unsigned>(julian_day_number + 0.5);
     const unsigned W = static_cast<unsigned>((Z - 1867216.25) / 36524.25);
@@ -283,11 +283,11 @@ void JulianDayNumberToYearMonthAndDay(const double julian_day_number, unsigned *
     *day = B - D - F;
     *month = E - 1;
     if (*month > 12)
-	*month -= 12;
+        *month -= 12;
     if (*month == 1 or *month == 2)
-	*year = C - 4715;
+        *year = C - 4715;
     else
-	* year = C - 4716;
+        * year = C - 4716;
 
 
 }
@@ -316,38 +316,38 @@ time_t ConvertHumanDateTimeToTimeT(const std::string &human_date) {
     // the proper extraction pattern.
     static RegExpMap expressions;
     if (expressions.empty()) {
-	expressions.insert(
+        expressions.insert(
             RegExpMap::value_type("%Y %m %d %H %M %S",
-				  PerlCompatRegExp("[12][0-9]{3}[01][0-9][012][0-9][0-6][0-9][0-6][0-9][0-6][0-9]")));
-	expressions.insert(
+                                  PerlCompatRegExp("[12][0-9]{3}[01][0-9][012][0-9][0-6][0-9][0-6][0-9][0-6][0-9]")));
+        expressions.insert(
             RegExpMap::value_type("%Y-%m-%d %T",
-				  PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9]")));
-	expressions.insert(
+                                  PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9]")));
+        expressions.insert(
             RegExpMap::value_type("%Y-%m-%dT%TZ",
-				  PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9]T[012][0-9]:[0-6][0-9]:[0-6][0-9]Z")));
-	expressions.insert(
+                                  PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9]T[012][0-9]:[0-6][0-9]:[0-6][0-9]Z")));
+        expressions.insert(
             RegExpMap::value_type("%A %b %d, %Y %I:%M%p",
-				  PerlCompatRegExp("[[:alpha:]]+ [ 0123][0-9], [12][0-9]{3} [ 012][0-9]:[0-6][0-9][AP]M")));
-	expressions.insert(
+                                  PerlCompatRegExp("[[:alpha:]]+ [ 0123][0-9], [12][0-9]{3} [ 012][0-9]:[0-6][0-9][AP]M")));
+        expressions.insert(
             RegExpMap::value_type("%a %b %e %T %Y",
-				  PerlCompatRegExp("[[:alpha:]]+ [ 123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9] [12][0-9]{3}")));
+                                  PerlCompatRegExp("[[:alpha:]]+ [ 123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9] [12][0-9]{3}")));
     }
 
     struct tm time_elements;
     bool found(false);
     for (RegExpMap::const_iterator expression = expressions.begin(); expression != expressions.end(); ++expression) {
-	// Debugging statements
-	//std::cout << std::string(expression->first) << "\n";
-	//std::cout << std::string(expression->second.getPattern()) << std::endl;
-	if (expression->second.match(human_date)) {
-	    found = true;
-	    if (::strptime(human_date.c_str(), expression->first.c_str(), &time_elements) == 0)
-		return BAD_TIME_T;
-	    break;
-	}
+        // Debugging statements
+        //std::cout << std::string(expression->first) << "\n";
+        //std::cout << std::string(expression->second.getPattern()) << std::endl;
+        if (expression->second.match(human_date)) {
+            found = true;
+            if (::strptime(human_date.c_str(), expression->first.c_str(), &time_elements) == 0)
+                return BAD_TIME_T;
+            break;
+        }
     }
     if (not found)
-	return BAD_TIME_T;
+        return BAD_TIME_T;
 
     return std::mktime(&time_elements);
 }

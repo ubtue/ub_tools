@@ -38,9 +38,9 @@
 
 void Usage() {
     std::cerr << "Usage: " << progname << " [--verbose] marc_input marc_output\n"
-	      << "       \"marc_input\" is the file that will be augmented and converted.\n"
-	      << "       \"marc_input\" will be scoured for titles that\n"
-	      << "       may be filled into 773$a fields where appropriate.\n"
+              << "       \"marc_input\" is the file that will be augmented and converted.\n"
+              << "       \"marc_input\" will be scoured for titles that\n"
+              << "       may be filled into 773$a fields where appropriate.\n"
               << "       Populates 773$a where it is missing and uplinks exist in 773$x.\n";
     std::exit(EXIT_FAILURE);
 }
@@ -50,18 +50,18 @@ static std::unordered_map<std::string, std::string> control_numbers_to_titles_ma
 
 
 bool RecordControlNumberToTitleMapping(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
-		 std::string * const /* err_msg */)
+                 std::string * const /* err_msg */)
 {
     ssize_t _245_index;
     if (likely((_245_index = record->getFieldIndex("245")) != -1)) {
-	const std::vector<std::string> &fields(record->getFields());
-	const Subfields _245_subfields(fields[_245_index]);
-	std::string title(_245_subfields.getFirstSubfieldValue('a'));
-	if (_245_subfields.hasSubfield('b'))
-	    title += " " + _245_subfields.getFirstSubfieldValue('b');
-	StringUtil::RightTrim(" \t/", &title);
-	if (likely(not title.empty()))
-	    control_numbers_to_titles_map[record->getControlNumber()] = title;
+        const std::vector<std::string> &fields(record->getFields());
+        const Subfields _245_subfields(fields[_245_index]);
+        std::string title(_245_subfields.getFirstSubfieldValue('a'));
+        if (_245_subfields.hasSubfield('b'))
+            title += " " + _245_subfields.getFirstSubfieldValue('b');
+        StringUtil::RightTrim(" \t/", &title);
+        if (likely(not title.empty()))
+            control_numbers_to_titles_map[record->getControlNumber()] = title;
     }
 
     return true;
@@ -70,14 +70,14 @@ bool RecordControlNumberToTitleMapping(MarcUtil::Record * const record, XmlWrite
 
 void CollectControlNumberToTitleMappings(const bool verbose, File * const input) {
     if (verbose)
-	std::cout << "Extracting control numbers to title mappings from \"" << input->getPath() << "\".\n";
+        std::cout << "Extracting control numbers to title mappings from \"" << input->getPath() << "\".\n";
 
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(input, RecordControlNumberToTitleMapping, /* xml_writer = */nullptr, &err_msg))
-	Error("error while looking for control numbers to title mappings: " + err_msg);
+        Error("error while looking for control numbers to title mappings: " + err_msg);
 
     if (verbose)
-	std::cout << "Found " << control_numbers_to_titles_map.size() << " control number to title mappings.\n";
+        std::cout << "Found " << control_numbers_to_titles_map.size() << " control number to title mappings.\n";
 }
 
 
@@ -88,19 +88,19 @@ static unsigned patch_count;
 bool PatchUpOne773a(MarcUtil::Record * const record, XmlWriter * const xml_writer, std::string * const /*err_msg*/) {
     ssize_t _773_index;
     if ((_773_index = record->getFieldIndex("773")) != -1) {
-	const std::vector<std::string> &fields(record->getFields());
+        const std::vector<std::string> &fields(record->getFields());
         const Subfields _773_subfields(fields[_773_index]);
-	if (not _773_subfields.hasSubfield('a') and _773_subfields.hasSubfield('w')) {
-	    const std::string w_subfield(_773_subfields.getFirstSubfieldValue('w'));
-	    if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
-		const std::string parent_control_number(w_subfield.substr(8));
-		const auto control_number_and_title(control_numbers_to_titles_map.find(parent_control_number));
-		if (control_number_and_title != control_numbers_to_titles_map.end()) {
-		    record->updateField(_773_index, fields[_773_index] + "\x1F""a" + control_number_and_title->second);
-		    ++patch_count;
-		}
-	    }
-	}
+        if (not _773_subfields.hasSubfield('a') and _773_subfields.hasSubfield('w')) {
+            const std::string w_subfield(_773_subfields.getFirstSubfieldValue('w'));
+            if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
+                const std::string parent_control_number(w_subfield.substr(8));
+                const auto control_number_and_title(control_numbers_to_titles_map.find(parent_control_number));
+                if (control_number_and_title != control_numbers_to_titles_map.end()) {
+                    record->updateField(_773_index, fields[_773_index] + "\x1F""a" + control_number_and_title->second);
+                    ++patch_count;
+                }
+            }
+        }
     }
 
     record->write(xml_writer);
@@ -119,12 +119,12 @@ void PatchUp773aSubfields(const bool verbose, File * const input, File * const o
 
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(input, PatchUpOne773a, &xml_writer, &err_msg))
-	Error("error while adding 773$a subfields to some records: " + err_msg);
+        Error("error while adding 773$a subfields to some records: " + err_msg);
 
     xml_writer.closeTag();
 
     if (verbose)
-	std::cout << "Added 773$a subfields to " << patch_count << " records.\n";
+        std::cout << "Added 773$a subfields to " << patch_count << " records.\n";
 }
 
 
@@ -132,22 +132,22 @@ int main(int argc, char **argv) {
     progname = argv[0];
 
     if (argc < 2)
-	Usage();
+        Usage();
 
     bool verbose(false);
     if (std::strcmp(argv[1], "--verbose") == 0) {
-	verbose = true;
-	--argc;
-	++argv;
+        verbose = true;
+        --argc;
+        ++argv;
     }
 
     if (argc != 3)
-	Usage();
+        Usage();
 
     const std::string marc_input_filename(argv[1]);
     File marc_input(marc_input_filename, "rbm");
     if (not marc_input)
-	Error("can't open \"" + marc_input_filename + "\" for reading!");
+        Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[2]);
     File marc_output(marc_output_filename, "wb");
@@ -155,11 +155,11 @@ int main(int argc, char **argv) {
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
-	CollectControlNumberToTitleMappings(verbose, &marc_input);
+        CollectControlNumberToTitleMappings(verbose, &marc_input);
 
-	marc_input.rewind();
-	PatchUp773aSubfields(verbose, &marc_input, &marc_output);
+        marc_input.rewind();
+        PatchUp773aSubfields(verbose, &marc_input, &marc_output);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

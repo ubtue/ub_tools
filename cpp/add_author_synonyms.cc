@@ -88,7 +88,7 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
 
         const std::vector<std::string> &fields(record.getFields());
         const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index],
-								tags_and_subfield_codes[0].substr(3)));
+                                                                tags_and_subfield_codes[0].substr(3)));
         if (unlikely(primary_name.empty()))
             continue;
 
@@ -136,7 +136,7 @@ void ProcessRecord(MarcUtil::Record * const record, const std::map<std::string, 
     record->setRecordWillBeWrittenAsXml(true);
 
     if (unlikely(record->getFieldIndex(SYNOMYM_FIELD) != -1))
-	Error("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!");
+        Error("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!");
 
     const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
     if (dir_entries.at(0).getTag() != "001")
@@ -168,7 +168,7 @@ void ProcessRecord(MarcUtil::Record * const record, const std::map<std::string, 
 
 
 void AddAuthorSynonyms(File * const marc_input, File * marc_output,
-		       const std::map<std::string, std::string> &author_to_synonyms_map,
+                       const std::map<std::string, std::string> &author_to_synonyms_map,
                        const std::string &primary_author_field)
 {
     XmlWriter xml_writer(marc_output);

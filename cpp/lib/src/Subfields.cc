@@ -35,14 +35,14 @@ Subfields::Subfields(const std::string &field_data) {
     
     while (ch != field_data.end()) {
         if (*ch != '\x1F')
-	    std::runtime_error("in Subfields::Subfields(const std::string &): expected subfield code delimiter not found! "
-			       "Found " + std::string(1, *ch) + " in " + field_data + " indicators: "
-			       + std::string(1, indicator1_) + ", " + std::string(1, indicator2_));
+            std::runtime_error("in Subfields::Subfields(const std::string &): expected subfield code delimiter not found! "
+                               "Found " + std::string(1, *ch) + " in " + field_data + " indicators: "
+                               + std::string(1, indicator1_) + ", " + std::string(1, indicator2_));
 
         ++ch;
         if (ch == field_data.end())
-	    std::runtime_error("in Subfields::Subfields(const std::string &): unexpected subfield data end while expecting "
-			       "a subfield code!");
+            std::runtime_error("in Subfields::Subfields(const std::string &): unexpected subfield data end while expecting "
+                               "a subfield code!");
         const char subfield_code = *ch++;
 
         std::string subfield_data;
@@ -50,7 +50,7 @@ Subfields::Subfields(const std::string &field_data) {
             subfield_data += *ch++;
         if (subfield_data.empty())
             throw std::runtime_error("in Subfields::Subfields(const std::string &): empty subfield for code '"
-				     + std::to_string(subfield_code) + "'!");
+                                     + std::to_string(subfield_code) + "'!");
 
         subfield_code_to_data_map_.insert(std::make_pair(subfield_code, subfield_data));
     }
@@ -91,7 +91,7 @@ void Subfields::replace(const char subfield_code, const std::string &old_value, 
 
     if (not found)
         throw std::runtime_error("Unexpected: tried to replace \"" + old_value + "\" with \"" + new_value + "\" in subfield '"
-				 + subfield_code + "' but did not find the original value!");
+                                 + subfield_code + "' but did not find the original value!");
 }
 
 
@@ -109,12 +109,12 @@ void Subfields::erase(const char subfield_code, const std::string &value) {
 
 bool Subfields::moveSubfield(const char from_subfield_code, const char to_subfield_code) {
     if (unlikely(not hasSubfield(to_subfield_code)))
-	return false;
+        return false;
 
     erase(to_subfield_code);
     const auto begin_end(getIterators(from_subfield_code));
     for (Iterator code_and_value(begin_end.first); code_and_value != begin_end.second; ++code_and_value)
-	subfield_code_to_data_map_.emplace(to_subfield_code, code_and_value->second);
+        subfield_code_to_data_map_.emplace(to_subfield_code, code_and_value->second);
     erase(from_subfield_code);
 
     return true;
@@ -123,9 +123,9 @@ bool Subfields::moveSubfield(const char from_subfield_code, const char to_subfie
 
 size_t Subfields::extractSubfields(const std::string &subfield_codes, std::vector<std::string> * const subfield_values) const {
     for (char subfield_code : subfield_codes) {
-	const auto begin_end(subfield_code_to_data_map_.equal_range(subfield_code));
-	for (auto code_and_value(begin_end.first); code_and_value != begin_end.second; ++code_and_value)
-	    subfield_values->emplace_back(code_and_value->second);
+        const auto begin_end(subfield_code_to_data_map_.equal_range(subfield_code));
+        for (auto code_and_value(begin_end.first); code_and_value != begin_end.second; ++code_and_value)
+            subfield_values->emplace_back(code_and_value->second);
     }
 
     return subfield_values->size();
