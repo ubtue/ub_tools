@@ -380,6 +380,7 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
             ++pericope_count;
         }
 
+        gnd_codes_to_bible_ref_codes_map->emplace(gnd_code, ranges);
         ++bible_ref_count;
     }
 
