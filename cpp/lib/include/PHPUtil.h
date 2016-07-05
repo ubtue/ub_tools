@@ -34,7 +34,7 @@ namespace PHPUtil {
 
 enum class Type { OBJECT, ARRAY, STRING, INTEGER, FLOAT };
 
-	
+        
 class DataType {
 protected:
     Type type_;
@@ -61,7 +61,7 @@ public:
     const DataType &operator[](const size_t index) const { return *map_[std::to_string(index)]; }
     const DataType &operator[](const std::string &index) const { return *map_[index]; }
     void addEntry(const std::string &key, DataType * const value) {
-	map_[key] = std::shared_ptr<DataType>(value);
+        map_[key] = std::shared_ptr<DataType>(value);
     }
 
     // Iterate over entries:

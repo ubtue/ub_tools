@@ -81,7 +81,7 @@ bool IpAddrToHostnames(const std::string &dotted_quad, std::list<std::string> * 
  *  \return  True for success, else false.
  */
 bool TimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit, in_addr_t * const ip_address,
-			std::string * const error_message);
+                        std::string * const error_message);
 
 
 /** Returns the current system's hostname. */

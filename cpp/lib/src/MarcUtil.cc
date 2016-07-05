@@ -33,7 +33,7 @@
 
 // Creates a binary, a.k.a. "raw" representation of a MARC21 record.
 static std::string ComposeRecord(const std::vector<DirectoryEntry> &dir_entries,
-				 const std::vector<std::string> &fields, Leader * const leader)
+                                 const std::vector<std::string> &fields, Leader * const leader)
 {
     size_t record_size(Leader::LEADER_LENGTH);
     const size_t directory_size(dir_entries.size() * DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
@@ -105,7 +105,7 @@ namespace MarcUtil {
 
 bool Record::recordSeemsCorrect(std::string * const err_msg) const {
     if (raw_record_is_out_of_date_)
-	UpdateRawRecord();
+        UpdateRawRecord();
 
     if (raw_record_.size() < Leader::LEADER_LENGTH) {
         *err_msg = "record too small to contain leader!";
@@ -119,8 +119,8 @@ bool Record::recordSeemsCorrect(std::string * const err_msg) const {
     }
 
     if (raw_record_.length() > 99999) {
-	Warning("record length (" + std::to_string(raw_record_.length())                                                         
-		+ ") exceeds maxium legal record length (99999)!");
+        Warning("record length (" + std::to_string(raw_record_.length())                                                         
+                + ") exceeds maxium legal record length (99999)!");
         return false;
     }
 
@@ -239,7 +239,7 @@ void Record::updateField(const size_t field_index, const std::string &new_field_
                                  + ") out of range!  (size: " + std::to_string(dir_entries_.size()) + ")");
     const size_t delta(new_field_contents.length() - fields_[field_index].length());
     if (not record_will_be_written_as_xml_)
-	leader_.setRecordLength(leader_.getRecordLength() + delta);
+        leader_.setRecordLength(leader_.getRecordLength() + delta);
     dir_entries_[field_index].setFieldLength(new_field_contents.length() + 1 /* field terminator */);
     fields_[field_index] = new_field_contents;
 
@@ -253,12 +253,12 @@ void Record::updateField(const size_t field_index, const std::string &new_field_
 
 bool Record::insertField(const std::string &new_field_tag, const std::string &new_field_value) {
     if (new_field_tag.length() != 3)
-	throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of 3!");
+        throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of 3!");
 
     if (not record_will_be_written_as_xml_) {
        if (not leader_.setRecordLength(leader_.getRecordLength() + new_field_value.length()
-				       + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1 /* For new field separator. */))
-	return false;
+                                       + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1 /* For new field separator. */))
+        return false;
         leader_.setBaseAddressOfData(leader_.getBaseAddressOfData() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
     }
 
@@ -318,7 +318,7 @@ void Record::deleteField(const size_t field_index) {
 
 
 size_t Record::extractAllSubfields(const std::string &tags, std::vector<std::string> * const values,
-				   const std::string &ignore_subfield_codes) const
+                                   const std::string &ignore_subfield_codes) const
 {
     values->clear();
 
@@ -341,8 +341,8 @@ size_t Record::extractAllSubfields(const std::string &tags, std::vector<std::str
 
 
 size_t Record::extractAllSubfields(const std::string &tags,
-				   std::vector<std::pair<char, std::string>> * const subfield_codes_and_values,
-				   const std::string &ignore_subfield_codes) const
+                                   std::vector<std::pair<char, std::string>> * const subfield_codes_and_values,
+                                   const std::string &ignore_subfield_codes) const
 {
     subfield_codes_and_values->clear();
 
@@ -369,14 +369,14 @@ size_t Record::extractSubfield(const std::string &tag, const char subfield_code,
 
     ssize_t field_index(getFieldIndex(tag));
     if (field_index == -1)
-	return 0;
+        return 0;
 
     while (static_cast<size_t>(field_index) < dir_entries_.size() and tag == dir_entries_[field_index].getTag()) {
         const Subfields subfields(fields_[field_index]);
-	const auto begin_end(subfields.getIterators(subfield_code));
-	for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second; ++subfield_code_and_value)
-	    values->emplace_back(subfield_code_and_value->second);
-	++field_index;
+        const auto begin_end(subfields.getIterators(subfield_code));
+        for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second; ++subfield_code_and_value)
+            values->emplace_back(subfield_code_and_value->second);
+        ++field_index;
     }
 
     return values->size();
@@ -390,16 +390,16 @@ size_t Record::extractSubfields(const std::string &tag, const std::string &subfi
 
     ssize_t field_index(getFieldIndex(tag));
     if (field_index == -1)
-	return 0;
+        return 0;
 
     while (static_cast<size_t>(field_index) < dir_entries_.size() and tag == dir_entries_[field_index].getTag()) {
         const Subfields subfields(fields_[field_index]);
-	const std::unordered_multimap<char, std::string> &code_to_data_map(subfields.getAllSubfields());
-	for (const auto &code_and_value : code_to_data_map) {
-	    if (subfield_codes.find(code_and_value.first) != std::string::npos)
-		values->emplace_back(code_and_value.second);
-	}
-	++field_index;
+        const std::unordered_multimap<char, std::string> &code_to_data_map(subfields.getAllSubfields());
+        for (const auto &code_and_value : code_to_data_map) {
+            if (subfield_codes.find(code_and_value.first) != std::string::npos)
+                values->emplace_back(code_and_value.second);
+        }
+        ++field_index;
     }
 
     return values->size();
@@ -485,8 +485,8 @@ static bool IndicatorsMatch(const std::string &indicator_pattern, const std::str
 
 
 size_t Record::findFieldsInLocalBlock(const std::string &field_tag, const std::string &indicators,
-				      const std::pair<size_t, size_t> &block_start_and_end,
-				      std::vector<size_t> * const field_indices) const
+                                      const std::pair<size_t, size_t> &block_start_and_end,
+                                      std::vector<size_t> * const field_indices) const
 {
     field_indices->clear();
 
@@ -512,7 +512,7 @@ void Record::write(File * const output) const {
 
     const size_t write_count(output->write(raw_record.data(), raw_record.size()));
     if (write_count != raw_record.size())
-	throw std::runtime_error("Failed to write " + std::to_string(raw_record.size()) + " bytes to MARC output!");
+        throw std::runtime_error("Failed to write " + std::to_string(raw_record.size()) + " bytes to MARC output!");
 }
 
 
@@ -524,41 +524,41 @@ void Record::write(XmlWriter * const xml_writer) const {
     xml_writer->writeTagsWithData("marc:leader", leader_.toString(), /* suppress_newline = */ true);
 
     for (unsigned entry_no(0); entry_no < dir_entries_.size(); ++entry_no) {
-	const DirectoryEntry &dir_entry(dir_entries_[entry_no]);
-	if (dir_entry.isControlFieldEntry())
-	    xml_writer->writeTagsWithData("marc:controlfield", { std::make_pair("tag", dir_entry.getTag()) }, fields_[entry_no],
-					  /* suppress_newline = */ true);
-	else { // We have a data field.
-	    xml_writer->openTag("marc:datafield",
-				{ std::make_pair("tag", dir_entry.getTag()),
-				  std::make_pair("ind1", std::string(1, fields_[entry_no][0])),
-				  std::make_pair("ind2", std::string(1, fields_[entry_no][1]))
-				});
+        const DirectoryEntry &dir_entry(dir_entries_[entry_no]);
+        if (dir_entry.isControlFieldEntry())
+            xml_writer->writeTagsWithData("marc:controlfield", { std::make_pair("tag", dir_entry.getTag()) }, fields_[entry_no],
+                                          /* suppress_newline = */ true);
+        else { // We have a data field.
+            xml_writer->openTag("marc:datafield",
+                                { std::make_pair("tag", dir_entry.getTag()),
+                                  std::make_pair("ind1", std::string(1, fields_[entry_no][0])),
+                                  std::make_pair("ind2", std::string(1, fields_[entry_no][1]))
+                                });
 
-	    std::string::const_iterator ch(fields_[entry_no].cbegin() + 2 /* Skip over the indicators. */);
+            std::string::const_iterator ch(fields_[entry_no].cbegin() + 2 /* Skip over the indicators. */);
 
-	    while (ch != fields_[entry_no].cend()) {
-		if (*ch != '\x1F')
-		    std::runtime_error("in Record::write: expected subfield code delimiter not found! Found "
-				       + std::string(1, *ch) + "! (Control number is " + fields_[0] + ".)");
+            while (ch != fields_[entry_no].cend()) {
+                if (*ch != '\x1F')
+                    std::runtime_error("in Record::write: expected subfield code delimiter not found! Found "
+                                       + std::string(1, *ch) + "! (Control number is " + fields_[0] + ".)");
 
-		++ch;
-		if (ch == fields_[entry_no].cend())
-		    std::runtime_error("in Record::write: unexpected subfield data end while expecting a subfield code!");
-		const std::string subfield_code(1, *ch++);
+                ++ch;
+                if (ch == fields_[entry_no].cend())
+                    std::runtime_error("in Record::write: unexpected subfield data end while expecting a subfield code!");
+                const std::string subfield_code(1, *ch++);
 
-		std::string subfield_data;
-		while (ch != fields_[entry_no].cend() and *ch != '\x1F')
-		    subfield_data += *ch++;
-		if (subfield_data.empty())
-		    continue;
+                std::string subfield_data;
+                while (ch != fields_[entry_no].cend() and *ch != '\x1F')
+                    subfield_data += *ch++;
+                if (subfield_data.empty())
+                    continue;
 
-		xml_writer->writeTagsWithData("marc:subfield", { std::make_pair("code", subfield_code) },
-					      subfield_data, /* suppress_newline = */ true);
-	    }
+                xml_writer->writeTagsWithData("marc:subfield", { std::make_pair("code", subfield_code) },
+                                              subfield_data, /* suppress_newline = */ true);
+            }
 
-	    xml_writer->closeTag(); // Close "marc:datafield".
-	}
+            xml_writer->closeTag(); // Close "marc:datafield".
+        }
     }
 
     xml_writer->closeTag(); // Close "marc:record".
@@ -577,119 +577,119 @@ static void ParseLeader(const std::string &input_filename, Leader * const leader
     std::string data;
 
     while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
-	/* Intentionally empty! */;
+        /* Intentionally empty! */;
     if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:leader"))
-	throw std::runtime_error("in MarcUtil::ParseLeader: opening <leader> tag expected while parsing \"" + input_filename
-				 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ".");
+        throw std::runtime_error("in MarcUtil::ParseLeader: opening <leader> tag expected while parsing \"" + input_filename
+                                 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ".");
 
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
-	throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing \"" + input_filename + "\": "
-				 + xml_parser->getLastErrorMessage() + " on line "
-				 + std::to_string(xml_parser->getLineNo()) + ".");
+        throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing \"" + input_filename + "\": "
+                                 + xml_parser->getLastErrorMessage() + " on line "
+                                 + std::to_string(xml_parser->getLineNo()) + ".");
     if (unlikely(type != SimpleXmlParser::CHARACTERS or data.length() != Leader::LEADER_LENGTH))
-	throw std::runtime_error("in MarcUtil::ParseLeader: leader data expected while parsing \"" + input_filename
-				 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ".");
+        throw std::runtime_error("in MarcUtil::ParseLeader: leader data expected while parsing \"" + input_filename
+                                 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ".");
 
     if (data.substr(0, 5) == "     ") // record length
-	data = "00000" + data.substr(5);
+        data = "00000" + data.substr(5);
     if (data.substr(12, 5) == "     ") // base address of data
-	data = data.substr(0, 12) + "00000" + data.substr(12 + 5);
+        data = data.substr(0, 12) + "00000" + data.substr(12 + 5);
     std::string err_msg;
     if (unlikely(not Leader::ParseLeader(data, leader, &err_msg)))
-	throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing leader data: " + err_msg);
+        throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing leader data: " + err_msg);
 
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
-	throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing \"" + input_filename + "\": "
-				 + xml_parser->getLastErrorMessage() + " on line "
-				 + std::to_string(xml_parser->getLineNo()) + ".");
+        throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing \"" + input_filename + "\": "
+                                 + xml_parser->getLastErrorMessage() + " on line "
+                                 + std::to_string(xml_parser->getLineNo()) + ".");
     if (unlikely(type != SimpleXmlParser::CLOSING_TAG or data != "marc:leader")) {
-	const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-	throw std::runtime_error("in MarcUtil::ParseLeader: closing </leader> tag expected while parsing \"" + input_filename
-				 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ". (Found: "
-				 + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : ""));
+        const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
+        throw std::runtime_error("in MarcUtil::ParseLeader: closing </leader> tag expected while parsing \"" + input_filename
+                                 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ". (Found: "
+                                 + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : ""));
     }
 }
 
 
 static void ParseControlfield(const std::string &input_filename, SimpleXmlParser * const xml_parser,
-			      std::vector<std::string> * const fields)
+                              std::vector<std::string> * const fields)
 {
     SimpleXmlParser::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data) or type != SimpleXmlParser::CHARACTERS))
-	throw std::runtime_error("in MarcUtil::ParseControlfield: character data expected on line "
-				 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"!");
+        throw std::runtime_error("in MarcUtil::ParseControlfield: character data expected on line "
+                                 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"!");
     fields->emplace_back(data);
 
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data) or type != SimpleXmlParser::CLOSING_TAG
-		 or data != "marc:controlfield"))
-	throw std::runtime_error("in MarcUtil::ParseControlfield: </controlfield> expected on line "
-				 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"!");
+                 or data != "marc:controlfield"))
+        throw std::runtime_error("in MarcUtil::ParseControlfield: </controlfield> expected on line "
+                                 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"!");
 }
 
 
 static void ParseDatafield(const std::string &input_filename, const std::map<std::string, std::string> &datafield_attrib_map,
-			   SimpleXmlParser * const xml_parser, std::vector<std::string> * const fields)
+                           SimpleXmlParser * const xml_parser, std::vector<std::string> * const fields)
 {
     const auto ind1(datafield_attrib_map.find("ind1"));
     if (unlikely(ind1 == datafield_attrib_map.cend() or ind1->second.length() != 1))
-	throw std::runtime_error("in MarcUtil::ParseDatafield: bad or missing \"ind1\" attribute on line "
-				 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"!");
+        throw std::runtime_error("in MarcUtil::ParseDatafield: bad or missing \"ind1\" attribute on line "
+                                 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"!");
     std::string field_data(ind1->second);
 
     const auto ind2(datafield_attrib_map.find("ind2"));
     if (unlikely(ind2 == datafield_attrib_map.cend() or ind2->second.length() != 1))
-	throw std::runtime_error("in MarcUtil::ParseDatafield: bad or missing \"ind2\" attribute on line "
-				 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"!");
+        throw std::runtime_error("in MarcUtil::ParseDatafield: bad or missing \"ind2\" attribute on line "
+                                 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"!");
     field_data += ind2->second;
 
     SimpleXmlParser::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
     for (;;) {
-	while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
-	    /* Intentionally empty! */;
+        while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
+            /* Intentionally empty! */;
 
-	if (type == SimpleXmlParser::ERROR)
-	    throw std::runtime_error("in MarcUtil::ParseDatafield: error while parsing a data field on line "
-				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\": "
-				     + xml_parser->getLastErrorMessage());
+        if (type == SimpleXmlParser::ERROR)
+            throw std::runtime_error("in MarcUtil::ParseDatafield: error while parsing a data field on line "
+                                     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\": "
+                                     + xml_parser->getLastErrorMessage());
 
-	if (type == SimpleXmlParser::CLOSING_TAG and data == "marc:datafield") {
-	    fields->emplace_back(field_data);
-	    return;
-	}
+        if (type == SimpleXmlParser::CLOSING_TAG and data == "marc:datafield") {
+            fields->emplace_back(field_data);
+            return;
+        }
 
-	// 1. <subfield code=...>
-	if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:subfield")) {
-	    const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-	    throw std::runtime_error("in MarcUtil::ParseDatafield: expected <marc:subfield> opening tag on line "
-				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"! (Found: "
-				     + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : ""));
-	}
-	if (unlikely(attrib_map.find("code") == attrib_map.cend() or attrib_map["code"].length() != 1))
-	    throw std::runtime_error("in MarcUtil::ParseDatafield: missing or invalid \"code\" attribute as part of the "
-				     "<subfield> tag " + std::to_string(xml_parser->getLineNo()) + " in file \""
-				     + input_filename + "\"!");
-	field_data += '\x1F' + attrib_map["code"];
+        // 1. <subfield code=...>
+        if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:subfield")) {
+            const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
+            throw std::runtime_error("in MarcUtil::ParseDatafield: expected <marc:subfield> opening tag on line "
+                                     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"! (Found: "
+                                     + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : ""));
+        }
+        if (unlikely(attrib_map.find("code") == attrib_map.cend() or attrib_map["code"].length() != 1))
+            throw std::runtime_error("in MarcUtil::ParseDatafield: missing or invalid \"code\" attribute as part of the "
+                                     "<subfield> tag " + std::to_string(xml_parser->getLineNo()) + " in file \""
+                                     + input_filename + "\"!");
+        field_data += '\x1F' + attrib_map["code"];
 
-	// 2. Subfield data.
-	if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data) or type != SimpleXmlParser::CHARACTERS))
-	    throw std::runtime_error("in MarcUtil::ParseDatafield: error while looking for character data after a <subfield> "
-				     "tag on line " + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename
-				     + "\": " + xml_parser->getLastErrorMessage());
-	field_data += data;
+        // 2. Subfield data.
+        if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data) or type != SimpleXmlParser::CHARACTERS))
+            throw std::runtime_error("in MarcUtil::ParseDatafield: error while looking for character data after a <subfield> "
+                                     "tag on line " + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename
+                                     + "\": " + xml_parser->getLastErrorMessage());
+        field_data += data;
 
-	// 3. </subfield>
-	while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
-	    /* Intentionally empty! */;
-	if (unlikely(type != SimpleXmlParser::CLOSING_TAG or data != "marc:subfield")) {
-	    const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-	    throw std::runtime_error("in MarcUtil::ParseDatafield: expected </subfield> closing tag on line "
-				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"! (Found: "
-				     + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : ""));
-	}
+        // 3. </subfield>
+        while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
+            /* Intentionally empty! */;
+        if (unlikely(type != SimpleXmlParser::CLOSING_TAG or data != "marc:subfield")) {
+            const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
+            throw std::runtime_error("in MarcUtil::ParseDatafield: expected </subfield> closing tag on line "
+                                     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"! (Found: "
+                                     + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : ""));
+        }
     }
 }
 
@@ -699,19 +699,19 @@ static void SkipOverStartOfDocument(SimpleXmlParser * const xml_parser) {
     std::map<std::string, std::string> attrib_map;
     std::string data;
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data) and type != SimpleXmlParser::START_OF_DOCUMENT))
-	throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: error while parsing start of \""
-				 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage() + " on line "
-				 + std::to_string(xml_parser->getLineNo()) + "! (Expected start-of-document.)");
+        throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: error while parsing start of \""
+                                 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage() + " on line "
+                                 + std::to_string(xml_parser->getLineNo()) + "! (Expected start-of-document.)");
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
-	throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: error while parsing start of \""
-				 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage() + " on line "
-				 + std::to_string(xml_parser->getLineNo()) + "!");
+        throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: error while parsing start of \""
+                                 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage() + " on line "
+                                 + std::to_string(xml_parser->getLineNo()) + "!");
     if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:collection")) {
-	const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-	throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: opening <marc:collection> tag expected while parsing \""
-				 + xml_parser->getInputFile()->getPath() + "\" on line "
-				 + std::to_string(xml_parser->getLineNo()) + "! (Found: " + SimpleXmlParser::TypeToString(type)
-				 + (tag_found ? (":" + data) : "") + ")");
+        const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
+        throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: opening <marc:collection> tag expected while parsing \""
+                                 + xml_parser->getInputFile()->getPath() + "\" on line "
+                                 + std::to_string(xml_parser->getLineNo()) + "! (Found: " + SimpleXmlParser::TypeToString(type)
+                                 + (tag_found ? (":" + data) : "") + ")");
     }
 }
 
@@ -723,12 +723,12 @@ Record Record::XmlFactory(File * const input) {
     SimpleXmlParser *xml_parser;
     const auto file_and_parser(file_to_parser_map.find(input));
     if (file_and_parser != file_to_parser_map.cend())
-	xml_parser = file_and_parser->second;
+        xml_parser = file_and_parser->second;
     else {
-	xml_parser = new SimpleXmlParser(input);
-	file_to_parser_map.insert(std::make_pair(input, xml_parser));
-	if (input->tell() == 0)
-	    SkipOverStartOfDocument(xml_parser);
+        xml_parser = new SimpleXmlParser(input);
+        file_to_parser_map.insert(std::make_pair(input, xml_parser));
+        if (input->tell() == 0)
+            SkipOverStartOfDocument(xml_parser);
     }
 
     const off_t record_start_offset(input->tell());
@@ -741,12 +741,12 @@ Record Record::XmlFactory(File * const input) {
     std::map<std::string, std::string> attrib_map;
     std::string data;
     while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
-	/* Intentionally empty! */;
+        /* Intentionally empty! */;
 
     if (unlikely(type == SimpleXmlParser::CLOSING_TAG and data == "marc:collection")) {
-	file_to_parser_map.erase(input); // This is necessary as we sometimes read "File" a 2nd time, after a rewind().
-	delete xml_parser;
-	return Record(leader, dir_entries, fields, record_start_offset);
+        file_to_parser_map.erase(input); // This is necessary as we sometimes read "File" a 2nd time, after a rewind().
+        delete xml_parser;
+        return Record(leader, dir_entries, fields, record_start_offset);
     }
 
     //
@@ -754,52 +754,52 @@ Record Record::XmlFactory(File * const input) {
     //
 
     if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:record")) {
-	const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-	if (type == SimpleXmlParser::ERROR)
-	    throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <record> tag expected while parsing \""
-				     + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "! ("
-				     + xml_parser->getLastErrorMessage() + ")");
-	else
-	    throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <record> tag expected while parsing \""
-				     + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "! (Found: "
-				     + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data + ")") : ")"));
+        const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
+        if (type == SimpleXmlParser::ERROR)
+            throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <record> tag expected while parsing \""
+                                     + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "! ("
+                                     + xml_parser->getLastErrorMessage() + ")");
+        else
+            throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <record> tag expected while parsing \""
+                                     + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "! (Found: "
+                                     + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data + ")") : ")"));
     }
 
     ParseLeader(input->getPath(), &leader, xml_parser);
 
     bool datafield_seen(false);
     for (;;) { // Process "datafield" and "controlfield" sections.
-	if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
-	    throw std::runtime_error("in MarcUtil::Record::XmlFactory: error while parsing \"" + input->getPath() + "\": "
-				     + xml_parser->getLastErrorMessage() + " on line "
-				     + std::to_string(xml_parser->getLineNo()) + "!");
+        if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
+            throw std::runtime_error("in MarcUtil::Record::XmlFactory: error while parsing \"" + input->getPath() + "\": "
+                                     + xml_parser->getLastErrorMessage() + " on line "
+                                     + std::to_string(xml_parser->getLineNo()) + "!");
 
-	if (type == SimpleXmlParser::CLOSING_TAG) {
-	    if (unlikely(data != "marc:record"))
-		throw std::runtime_error("in MarcUtil::Record::XmlFactory: closing </record> tag expected while parsing \""
-					 + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "!");
-	    return Record(leader, dir_entries, fields, record_start_offset);
-	}
+        if (type == SimpleXmlParser::CLOSING_TAG) {
+            if (unlikely(data != "marc:record"))
+                throw std::runtime_error("in MarcUtil::Record::XmlFactory: closing </record> tag expected while parsing \""
+                                         + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "!");
+            return Record(leader, dir_entries, fields, record_start_offset);
+        }
 
-	if (type != SimpleXmlParser::OPENING_TAG or (data != "marc:datafield" and data != "marc:controlfield"))
-	    throw std::runtime_error("in MarcUtil::Record::XmlFactory: expected either <controlfield> or <datafield> on line "
-				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input->getPath() + "\"!");
+        if (type != SimpleXmlParser::OPENING_TAG or (data != "marc:datafield" and data != "marc:controlfield"))
+            throw std::runtime_error("in MarcUtil::Record::XmlFactory: expected either <controlfield> or <datafield> on line "
+                                     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input->getPath() + "\"!");
 
-	if (unlikely(attrib_map.find("tag") == attrib_map.end()))
-	    throw std::runtime_error("in MarcUtil::Record::XmlFactory: expected a \"tag\" attribute as part of an "
-				     "opening <controlfield> or <datafield> tag on line "
-				     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input->getPath() + "\"!");
-	dir_entries.emplace_back(attrib_map["tag"], 0, 0); // Create a Directory entry w/o a valid field length nor offset.
+        if (unlikely(attrib_map.find("tag") == attrib_map.end()))
+            throw std::runtime_error("in MarcUtil::Record::XmlFactory: expected a \"tag\" attribute as part of an "
+                                     "opening <controlfield> or <datafield> tag on line "
+                                     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input->getPath() + "\"!");
+        dir_entries.emplace_back(attrib_map["tag"], 0, 0); // Create a Directory entry w/o a valid field length nor offset.
 
-	if (data == "marc:controlfield") {
-	    if (unlikely(datafield_seen))
-		throw std::runtime_error("in MarcUtil::Record::XmlFactory: <controlfield> found after <datafield> on line "
-					 + std::to_string(xml_parser->getLineNo()) + " in file \"" + input->getPath() + "\"!");
-	    ParseControlfield(input->getPath(), xml_parser, &fields);
-	} else {
-	    datafield_seen = true;
-	    ParseDatafield(input->getPath(), attrib_map, xml_parser, &fields);
-	}
+        if (data == "marc:controlfield") {
+            if (unlikely(datafield_seen))
+                throw std::runtime_error("in MarcUtil::Record::XmlFactory: <controlfield> found after <datafield> on line "
+                                         + std::to_string(xml_parser->getLineNo()) + " in file \"" + input->getPath() + "\"!");
+            ParseControlfield(input->getPath(), xml_parser, &fields);
+        } else {
+            datafield_seen = true;
+            ParseDatafield(input->getPath(), attrib_map, xml_parser, &fields);
+        }
     }
 }
 
@@ -809,7 +809,7 @@ Record Record::BinaryFactory(File * const input) {
     record.xml_file_start_offset_ = -1; // Not reading from an XML file.
 
     if (input->eof())
-	return record; // Create an empty instance!
+        return record; // Create an empty instance!
 
     //
     // Read leader.
@@ -819,11 +819,11 @@ Record Record::BinaryFactory(File * const input) {
     ssize_t read_count;
     const off_t record_start_pos(input->tell());
     if ((read_count = input->read(leader_buf, sizeof leader_buf)) != sizeof leader_buf) {
-	if (read_count == 0)
-	    return record;
+        if (read_count == 0)
+            return record;
         throw std::runtime_error("in MarcUtil::Record::Record: failed to read leader bytes from \""
-				 + input->getPath() + "\"! (read count was " + std::to_string(read_count)
-				 + ", record_start_pos was " + std::to_string(record_start_pos) + ")");
+                                 + input->getPath() + "\"! (read count was " + std::to_string(read_count)
+                                 + ", record_start_pos was " + std::to_string(record_start_pos) + ")");
     }
 
     std::string err_msg;
@@ -861,7 +861,7 @@ Record Record::BinaryFactory(File * const input) {
     #pragma GCC diagnostic warning "-Wvla"
     if ((read_count = input->read(raw_field_data, field_data_size)) != static_cast<ssize_t>(field_data_size))
         throw std::runtime_error("in MarcUtil::Record::Record: Short read for field data or premature EOF! (Expected "
-				 + std::to_string(field_data_size) + " bytes, got "+ std::to_string(read_count) +" bytes.)");
+                                 + std::to_string(field_data_size) + " bytes, got "+ std::to_string(read_count) +" bytes.)");
 
     // Sanity check for record end:
     if (raw_field_data[field_data_size - 1] != '\x1D')
