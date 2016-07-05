@@ -83,7 +83,7 @@ void augmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::str
 void ExtractTranslations(File* const marc_norm_input, 
                          const std::string german_term_field_spec,
                          const std::string translation_field_spec,
-                         std::map<std::string,std::string> term_to_translation_map[]) 
+                         std::map<std::string, std::string> term_to_translation_map[]) 
 {
     std::set<std::string> german_tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(german_term_field_spec, ':', &german_tags_and_subfield_codes) < 1))
