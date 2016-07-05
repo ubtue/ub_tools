@@ -55,7 +55,7 @@ namespace SocketUtil {
  *  \note   This function caches the last successful lookup, so may not reflect recent changes to DNS.
  */
 bool StringToAddress(const std::string &address, const TimeLimit &time_limit, in_addr_t * const inet_addr,
-		     std::string * const error_message, unsigned number_of_retries = 0);
+                     std::string * const error_message, unsigned number_of_retries = 0);
 
 
 /** \brief  Converts a string to an Internet address.
@@ -66,11 +66,11 @@ bool StringToAddress(const std::string &address, const TimeLimit &time_limit, in
  *  \note    This function caches the last successful lookup, so may not reflect recent changes to DNS.
  */
 inline void StringToAddress(const std::string &address, in_addr_t * const inet_addr,
-			    unsigned number_of_retries = 0)
+                            unsigned number_of_retries = 0)
 {
-	std::string error_message;
-	if (not StringToAddress(address, TimeLimit(15000), inet_addr, &error_message, number_of_retries))
-	    throw std::runtime_error("in SocketUtil::StringToAddress: " + error_message);
+        std::string error_message;
+        if (not StringToAddress(address, TimeLimit(15000), inet_addr, &error_message, number_of_retries))
+            throw std::runtime_error("in SocketUtil::StringToAddress: " + error_message);
 }
 
 
@@ -88,8 +88,8 @@ enum ReuseAddrOptionType { DONT_REUSE_ADDR, REUSE_ADDR };
  *  \return -1 on error or a valid socket file descriptor (sets errno or h_errno on most errors).
  */
 int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLimit &time_limit,
-	       std::string * const error_message, const NagleOptionType nagle_option = USE_NAGLE,
-	       const ReuseAddrOptionType reuse_addr_option = DONT_REUSE_ADDR);
+               std::string * const error_message, const NagleOptionType nagle_option = USE_NAGLE,
+               const ReuseAddrOptionType reuse_addr_option = DONT_REUSE_ADDR);
 
 
 /** \brief  Creates and connects a TCP socket.
@@ -102,8 +102,8 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
  *  \return -1 on error or a valid socket file descriptor (sets errno or h_errno on most errors).
  */
 int TcpConnect(const std::string &address, const unsigned short port, const TimeLimit &time_limit,
-	       std::string * const error_message, const NagleOptionType nagle_option = USE_NAGLE,
-	       const ReuseAddrOptionType reuse_addr_option = DONT_REUSE_ADDR);
+               std::string * const error_message, const NagleOptionType nagle_option = USE_NAGLE,
+               const ReuseAddrOptionType reuse_addr_option = DONT_REUSE_ADDR);
 
 
 /** \brief  Allows reading from a socket file descriptor with a given time limit.
@@ -117,7 +117,7 @@ int TcpConnect(const std::string &address, const unsigned short port, const Time
  *          to ETIMEOUT.
  */
 ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data, size_t data_size,
-		  SslConnection * const ssl_connection = nullptr);
+                  SslConnection * const ssl_connection = nullptr);
 
 
 /** \brief  Allows reading from a socket file descriptor with a given time limit.
@@ -128,7 +128,7 @@ ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data,
  *  \return True if EOF was found, otherwise false.
  */
 bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s,
-	       SslConnection * const ssl_connection = nullptr);
+               SslConnection * const ssl_connection = nullptr);
 
 
 /** \brief  Allows writing to a file descriptor with a given time limit.
@@ -141,7 +141,7 @@ bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s
  *           written.
  */
 ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * const data, size_t data_size,
-		   SslConnection * const ssl_connection = nullptr);
+                   SslConnection * const ssl_connection = nullptr);
 
 
 /** \brief  Allows writing to a file descriptor with a given time limit.
@@ -153,9 +153,9 @@ ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * cons
  *           written.
  */
 inline ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const std::string &data,
-			  SslConnection * const ssl_connection = nullptr)
+                          SslConnection * const ssl_connection = nullptr)
 {
-	return TimedWrite(socket_fd, time_limit, data.c_str(), data.size(), ssl_connection);
+        return TimedWrite(socket_fd, time_limit, data.c_str(), data.size(), ssl_connection);
 }
 
 
@@ -169,7 +169,7 @@ inline ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const std:
  *  \return  -1 if a timeout or other error occurred, otherwise the number of bytes received.
  */
 ssize_t TimedRecvFrom(const int socket_fd, const TimeLimit &time_limit, void * const data, const size_t data_size,
-		      struct sockaddr_in *from, const int flags = 0);
+                      struct sockaddr_in *from, const int flags = 0);
 
 
 /** \brief  A wrapper around sendto(2) for sending datagrams over a TCP/IPv4 network, allowing for a timeout.
@@ -183,7 +183,7 @@ ssize_t TimedRecvFrom(const int socket_fd, const TimeLimit &time_limit, void * c
  *  \note    If you're sending UDP datagrams, they are limited to 64 KiB in size.
  */
 ssize_t TimedSendTo(const int socket_fd, const TimeLimit &time_limit, const void * const data, const size_t data_size,
-		    const struct sockaddr_in &to, const int flags = 0);
+                    const struct sockaddr_in &to, const int flags = 0);
 
 
 /** \brief  Sends a UDP request encoded in "packet" to "server_ip_address".
@@ -197,7 +197,7 @@ ssize_t TimedSendTo(const int socket_fd, const TimeLimit &time_limit, const void
  *  \note   If an error occurrs, errno will be set to the appropriate error code.
  */
 bool SendUdpRequest(const int socket_fd, const in_addr_t server_ip_address, const uint16_t port_no,
-		    const unsigned char * const packet, const unsigned packet_size);
+                    const unsigned char * const packet, const unsigned packet_size);
 
 
 } // namespace SocketUtil

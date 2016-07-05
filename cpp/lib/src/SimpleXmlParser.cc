@@ -29,39 +29,39 @@ namespace {
 
 bool DecodeEnity(const std::string &entity_string, std::string * const decoded_char) {
     if (unlikely(entity_string.empty()))
-	return false;
+        return false;
 
     if (entity_string[0] == '#') {
-	if (entity_string.length() < 2)
-	    return false;
+        if (entity_string.length() < 2)
+            return false;
 
-	unsigned code_point;
-	if (entity_string[1] == 'x') {
-	    if (entity_string.length() < 3 or entity_string.length() > 6)
-		return false;
-	    if (not StringUtil::ToUnsigned(entity_string.substr(2), &code_point, 16))
-		return false;
-	} else {
-	    if (entity_string.length() < 2 or entity_string.length() > 6)
-		return false;
-	    if (not StringUtil::ToUnsigned(entity_string.substr(1), &code_point))
-		return false;
-	}
+        unsigned code_point;
+        if (entity_string[1] == 'x') {
+            if (entity_string.length() < 3 or entity_string.length() > 6)
+                return false;
+            if (not StringUtil::ToUnsigned(entity_string.substr(2), &code_point, 16))
+                return false;
+        } else {
+            if (entity_string.length() < 2 or entity_string.length() > 6)
+                return false;
+            if (not StringUtil::ToUnsigned(entity_string.substr(1), &code_point))
+                return false;
+        }
 
-	if (not TextUtil::WCharToUTF8String(std::wstring(1, static_cast<wchar_t>(code_point)), decoded_char))
-	    return false;
+        if (not TextUtil::WCharToUTF8String(std::wstring(1, static_cast<wchar_t>(code_point)), decoded_char))
+            return false;
     } else if (entity_string == "quot")
-	*decoded_char = "\"";
+        *decoded_char = "\"";
     else if (entity_string =="amp")
-	*decoded_char = "&";
+        *decoded_char = "&";
     else if (entity_string =="apos")
-	*decoded_char = "'";
+        *decoded_char = "'";
     else if (entity_string =="lt")
-	*decoded_char = "<";
+        *decoded_char = "<";
     else if (entity_string =="gt")
-	*decoded_char = ">";
+        *decoded_char = ">";
     else
-	return false;
+        return false;
 
     return true;
 }
@@ -71,20 +71,20 @@ bool DecodeEntities(const std::string &raw_string, std::string * const decoded_s
     bool in_entity(false);
     std::string entity;
     for (const auto ch : raw_string) {
-	if (in_entity) {
-	    if (ch == ';') {
-		std::string decoded_char;
-		if (not DecodeEnity(entity, &decoded_char))
-		    return false;
-		*decoded_string += decoded_char;
-		in_entity = false;
-	    } else
-		entity += ch;
-	} else if (ch == '&') {
-	    in_entity = true;
-	    entity.clear();
-	} else
-	    *decoded_string += ch;
+        if (in_entity) {
+            if (ch == ';') {
+                std::string decoded_char;
+                if (not DecodeEnity(entity, &decoded_char))
+                    return false;
+                *decoded_string += decoded_char;
+                in_entity = false;
+            } else
+                entity += ch;
+        } else if (ch == '&') {
+            in_entity = true;
+            entity.clear();
+        } else
+            *decoded_string += ch;
     }
 
     return not in_entity;
@@ -96,102 +96,102 @@ bool DecodeEntities(const std::string &raw_string, std::string * const decoded_s
 
 bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data) {
     if (last_type_ == ERROR)
-	throw std::runtime_error("in SimpleXmlParser::getNext: previous call already indicated an error!");
+        throw std::runtime_error("in SimpleXmlParser::getNext: previous call already indicated an error!");
 
     attrib_map->clear();
     data->clear();
 
     if (last_element_was_empty_) {
-	last_type_ = *type = CLOSING_TAG;
-	data->swap(last_tag_name_);
-	last_element_was_empty_ = false;
-	last_type_ = CLOSING_TAG;
-	return true;
+        last_type_ = *type = CLOSING_TAG;
+        data->swap(last_tag_name_);
+        last_element_was_empty_ = false;
+        last_type_ = CLOSING_TAG;
+        return true;
     }
 
     int ch;
     if (last_type_ == OPENING_TAG) {
-	last_type_ = *type = CHARACTERS;
+        last_type_ = *type = CHARACTERS;
 
-	std::string raw_string;
-	while ((ch = input_->get()) != '<') {
-	    if (unlikely(ch == EOF)) {
-		last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
-		return false;
-	    }
-	    if (ch == '\n')
-		++line_no_;
-	    raw_string += static_cast<char>(ch);
-	}
-	input_->putback(ch); // Putting back the '<'.
+        std::string raw_string;
+        while ((ch = input_->get()) != '<') {
+            if (unlikely(ch == EOF)) {
+                last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
+                return false;
+            }
+            if (ch == '\n')
+                ++line_no_;
+            raw_string += static_cast<char>(ch);
+        }
+        input_->putback(ch); // Putting back the '<'.
 
-	if (not DecodeEntities(raw_string, data)) {
-	    last_type_ = *type = ERROR;
-	    last_error_message_ = "Invalid entity in character data ending on line " + std::to_string(line_no_) + "!";
-	    return false;
-	}
+        if (not DecodeEntities(raw_string, data)) {
+            last_type_ = *type = ERROR;
+            last_error_message_ = "Invalid entity in character data ending on line " + std::to_string(line_no_) + "!";
+            return false;
+        }
     } else { // end-of-document or opening or closing tag
-	skipWhiteSpace();
-	
-	ch = input_->get();
-	if (unlikely(ch == EOF)) {
-	    last_type_ = *type = END_OF_DOCUMENT;
-	    return true;
-	}
+        skipWhiteSpace();
+        
+        ch = input_->get();
+        if (unlikely(ch == EOF)) {
+            last_type_ = *type = END_OF_DOCUMENT;
+            return true;
+        }
 
-	if (ch != '<') {
-	    last_type_ = *type = ERROR;
+        if (ch != '<') {
+            last_type_ = *type = ERROR;
             last_error_message_ = "Expected '<' on line " + std::to_string(line_no_) + ", found '"
                                   + std::string(1, static_cast<char>(ch)) + "' instead!";
-	    return false;
-	}
-	
-	// If we're at the beginning, we may have an XML prolog:
-	if (unlikely(last_type_ == UNINITIALISED) and input_->peek() == '?') {
-	    if (not parseProlog()) {
-		last_type_ = *type = ERROR;
-		return false;
-	    }
-	    last_type_ = *type = START_OF_DOCUMENT;
-	    return true;
-	}
+            return false;
+        }
+        
+        // If we're at the beginning, we may have an XML prolog:
+        if (unlikely(last_type_ == UNINITIALISED) and input_->peek() == '?') {
+            if (not parseProlog()) {
+                last_type_ = *type = ERROR;
+                return false;
+            }
+            last_type_ = *type = START_OF_DOCUMENT;
+            return true;
+        }
 
-	ch = input_->get();
-	if (ch == '/') { // A closing tag.
-	    if (unlikely(not parseClosingTag(data))) {
-		last_type_ = *type = ERROR;
-		last_error_message_ = "Error while parsing a closing tag on line " + std::to_string(line_no_) + "!";
-		return false;
-	    }
+        ch = input_->get();
+        if (ch == '/') { // A closing tag.
+            if (unlikely(not parseClosingTag(data))) {
+                last_type_ = *type = ERROR;
+                last_error_message_ = "Error while parsing a closing tag on line " + std::to_string(line_no_) + "!";
+                return false;
+            }
 
-	    last_type_ = *type = CLOSING_TAG;
-	} else { // An opening tag.
-	    input_->putback(ch);
-	
-	    std::string error_message;
-	    if (unlikely(not parseOpeningTag(data, attrib_map, &error_message))) {
-		last_type_ = *type = ERROR;
-		last_error_message_ = "Error while parsing an opening tag on line " + std::to_string(line_no_) + "! ("
-		                      + error_message + ")";
-		return false;
-	    }
+            last_type_ = *type = CLOSING_TAG;
+        } else { // An opening tag.
+            input_->putback(ch);
+        
+            std::string error_message;
+            if (unlikely(not parseOpeningTag(data, attrib_map, &error_message))) {
+                last_type_ = *type = ERROR;
+                last_error_message_ = "Error while parsing an opening tag on line " + std::to_string(line_no_) + "! ("
+                                      + error_message + ")";
+                return false;
+            }
 
-	    ch = input_->get();
-	    if (ch == '/') {
-		last_element_was_empty_ = true;
-		last_tag_name_ = *data;
-		ch = input_->get();
-	    }
+            ch = input_->get();
+            if (ch == '/') {
+                last_element_was_empty_ = true;
+                last_tag_name_ = *data;
+                ch = input_->get();
+            }
 
-	    if (unlikely(ch != '>')) {
-		last_type_ = *type = ERROR;
-		last_error_message_ = "Error while parsing a opening tag on line " + std::to_string(line_no_) + "! ("
+            if (unlikely(ch != '>')) {
+                last_type_ = *type = ERROR;
+                last_error_message_ = "Error while parsing a opening tag on line " + std::to_string(line_no_) + "! ("
                                       "Closing angle bracket not found.)";
-		return false;
-	    }
+                return false;
+            }
 
-	    last_type_ = *type = OPENING_TAG;
-	}
+            last_type_ = *type = OPENING_TAG;
+        }
     }
 
     return true;
@@ -200,14 +200,14 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
 
 void SimpleXmlParser::skipWhiteSpace() {
     for (;;) {
-	const int ch(input_->get());
-	if (unlikely(ch == EOF))
-	    return;
-	if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
-	    input_->putback(ch);
-	    return;
-	} else if (ch == '\n')
-	    ++line_no_;
+        const int ch(input_->get());
+        if (unlikely(ch == EOF))
+            return;
+        if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
+            input_->putback(ch);
+            return;
+        } else if (ch == '\n')
+            ++line_no_;
     }
 }
 
@@ -217,20 +217,20 @@ bool SimpleXmlParser::extractName(std::string * const name) {
 
     int ch(input_->get());
     if (unlikely(ch == EOF or (not StringUtil::IsAsciiLetter(ch) and ch != '_' and ch != ':'))) {
-	input_->putback(ch);
-	return false;
+        input_->putback(ch);
+        return false;
     }
 
     *name += static_cast<char>(ch);
     for (;;) {
-	ch = input_->get();
-	if (unlikely(ch == EOF))
-	    return false;
-	if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.')) {
-	    input_->putback(ch);
-	    return true;
-	}
-	*name += static_cast<char>(ch);
+        ch = input_->get();
+        if (unlikely(ch == EOF))
+            return false;
+        if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.')) {
+            input_->putback(ch);
+            return true;
+        }
+        *name += static_cast<char>(ch);
     }
 }
 
@@ -239,47 +239,47 @@ bool SimpleXmlParser::extractQuotedString(const int closing_quote, std::string *
     s->clear();
 
     for (;;) {
-	const int ch(input_->get());
-	if (unlikely(ch == EOF))
-	    return false;
-	if (ch == closing_quote)
-	    return true;
-	*s += static_cast<char>(ch);
+        const int ch(input_->get());
+        if (unlikely(ch == EOF))
+            return false;
+        if (ch == closing_quote)
+            return true;
+        *s += static_cast<char>(ch);
     }
 }
 
 
 bool SimpleXmlParser::parseProlog() {
     if (input_->peek() != '?')
-	return true;
+        return true;
     input_->get();
 
     std::string prolog_tag_name;
     std::map<std::string, std::string> prolog_attrib_map;
     std::string error_message;
     if (not parseOpeningTag(&prolog_tag_name, &prolog_attrib_map, &error_message)) {
-	last_error_message_ = "Error in prolog! (" + error_message + ")";
-	return false;
+        last_error_message_ = "Error in prolog! (" + error_message + ")";
+        return false;
     }
 
     int ch(input_->get());
     if (unlikely(ch != '?')) {
-	last_error_message_ = "Error in prolog, expected '?' but found '" + std::string(1, static_cast<char>(ch)) + "'!";
-	return false;
+        last_error_message_ = "Error in prolog, expected '?' but found '" + std::string(1, static_cast<char>(ch)) + "'!";
+        return false;
     }
 
     ch = input_->get();
     if (unlikely(ch != '>')) {
-	last_error_message_ = "Error in prolog, closing angle bracket not found!";
-	return false;
+        last_error_message_ = "Error in prolog, closing angle bracket not found!";
+        return false;
     }
 
     const auto encoding(prolog_attrib_map.find("encoding"));
     if (encoding != prolog_attrib_map.cend()) {
-	if (::strcasecmp(encoding->second.c_str(), "utf-8") != 0) {
-	    last_error_message_ = "Error in prolog: We only support the UTF-8 encoding!";
-	    return false;
-	}
+        if (::strcasecmp(encoding->second.c_str(), "utf-8") != 0) {
+            last_error_message_ = "Error in prolog: We only support the UTF-8 encoding!";
+            return false;
+        }
     }
 
     return true;
@@ -287,46 +287,46 @@ bool SimpleXmlParser::parseProlog() {
 
 
 bool SimpleXmlParser::parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
-				      std::string * const error_message)
+                                      std::string * const error_message)
 {
     attrib_map->clear();
     error_message->clear();
 
     if (unlikely(not extractName(tag_name))) {
-	*error_message = "Failed to extract the tag name.";
-	return false;
+        *error_message = "Failed to extract the tag name.";
+        return false;
     }
     skipWhiteSpace();
 
     std::string attrib_name;
     while (extractName(&attrib_name)) {
-	if (unlikely(attrib_map->find(attrib_name) != attrib_map->cend())) { // Duplicate attribute name?
-	    *error_message = "Found a duplicate tag name.";
-	    return false;
-	}
+        if (unlikely(attrib_map->find(attrib_name) != attrib_map->cend())) { // Duplicate attribute name?
+            *error_message = "Found a duplicate tag name.";
+            return false;
+        }
 
-	skipWhiteSpace();
-	const int ch(input_->get());
-	if (unlikely(ch != '=')) {
-	    *error_message = "Could not find an equal sign as part of an attribute.";
-	    return false;
-	}
+        skipWhiteSpace();
+        const int ch(input_->get());
+        if (unlikely(ch != '=')) {
+            *error_message = "Could not find an equal sign as part of an attribute.";
+            return false;
+        }
 
-	skipWhiteSpace();
-	const int quote(input_->get());
-	if (unlikely(quote != '"' and quote != '\'')) {
-	    *error_message = "Found neither a single- nor a double-quote starting an attribute value.";
-	    return false;
-	}
-	std::string attrib_value;
-	if (unlikely(not extractQuotedString(quote, &attrib_value))) {
-	    *error_message = "Failed to extract the attribute value.";
-	    return false;
-	}
+        skipWhiteSpace();
+        const int quote(input_->get());
+        if (unlikely(quote != '"' and quote != '\'')) {
+            *error_message = "Found neither a single- nor a double-quote starting an attribute value.";
+            return false;
+        }
+        std::string attrib_value;
+        if (unlikely(not extractQuotedString(quote, &attrib_value))) {
+            *error_message = "Failed to extract the attribute value.";
+            return false;
+        }
 
-	(*attrib_map)[attrib_name] = attrib_value;
+        (*attrib_map)[attrib_name] = attrib_value;
 
-	skipWhiteSpace();
+        skipWhiteSpace();
     }
 
     return true;
@@ -337,7 +337,7 @@ bool SimpleXmlParser::parseClosingTag(std::string * const tag_name) {
     tag_name->clear();
 
     if (not extractName(tag_name))
-	return false;
+        return false;
 
     skipWhiteSpace();
     return input_->get() == '>';

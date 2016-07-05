@@ -47,15 +47,15 @@ class Record {
 private:
     Record() = default;
     Record(Leader &leader, std::vector<DirectoryEntry> &dir_entries, std::vector<std::string> &fields,
-	   const off_t xml_file_start_offset) noexcept
+           const off_t xml_file_start_offset) noexcept
         : leader_(std::move(leader)), raw_record_is_out_of_date_(true), dir_entries_(std::move(dir_entries)),
           fields_(std::move(fields)), xml_file_start_offset_(xml_file_start_offset) { }
 public:
     Record(Record &&other) noexcept
         : leader_(std::move(other.leader_)), raw_record_(std::move(other.raw_record_)),
           raw_record_is_out_of_date_(other.raw_record_is_out_of_date_), dir_entries_(std::move(other.dir_entries_)),
-	fields_(std::move(other.fields_)), xml_file_start_offset_(other.xml_file_start_offset_),
-	record_will_be_written_as_xml_(other.record_will_be_written_as_xml_) { }
+        fields_(std::move(other.fields_)), xml_file_start_offset_(other.xml_file_start_offset_),
+        record_will_be_written_as_xml_(other.record_will_be_written_as_xml_) { }
 
     operator bool () const { return not dir_entries_.empty(); }
     bool recordWillBeWrittenAsXml() const { return record_will_be_written_as_xml_; }
@@ -96,7 +96,7 @@ public:
      *  \return The number of values that have been extracted.
      */
     size_t extractAllSubfields(const std::string &tags, std::vector<std::string> * const values,
-			       const std::string &ignore_subfield_codes = "") const;
+                               const std::string &ignore_subfield_codes = "") const;
 
     /** \brief Extract values from all subfields from a list of fields.
      *  \param tags                       A colon-separated list of field tags.
@@ -105,8 +105,8 @@ public:
      *  \return The number of values that have been extracted.
      */
     size_t extractAllSubfields(const std::string &tags,
-			       std::vector<std::pair<char, std::string>> * const subfield_codes_and_values,
-			       const std::string &ignore_subfield_codes = "") const;
+                               std::vector<std::pair<char, std::string>> * const subfield_codes_and_values,
+                               const std::string &ignore_subfield_codes = "") const;
 
     /** \brief Extract values from a, possibly repeated, subfield from a, possibly repeated, field.
      *  \param tag            A field tag.
@@ -123,7 +123,7 @@ public:
      *  \return The number of values that have been extracted.
      */
     size_t extractSubfields(const std::string &tag, const std::string &subfield_codes, std::vector<std::string> * const values)
-	const;
+        const;
 
     /** \brief Remove matching tags and corresponding fields. */
     void filterTags(const std::unordered_set<std::string> &drop_tags);
@@ -149,8 +149,8 @@ public:
      *  \return The number of times the field was found in the block.
      */
     size_t findFieldsInLocalBlock(const std::string &field_tag, const std::string &indicators,
-				  const std::pair<size_t, size_t> &block_start_and_end,
-				  std::vector<size_t> * const field_indices) const;
+                                  const std::pair<size_t, size_t> &block_start_and_end,
+                                  std::vector<size_t> * const field_indices) const;
 
     /** \brief Performs a few sanity checks. */
     bool recordSeemsCorrect(std::string * const err_msg) const;
@@ -171,9 +171,9 @@ private:
     void UpdateRawRecord() const;
 
     const std::string &getRawRecord() const {
-	if (raw_record_is_out_of_date_)
-	    UpdateRawRecord();
-	return raw_record_;
+        if (raw_record_is_out_of_date_)
+            UpdateRawRecord();
+        return raw_record_;
     }
 };
 
