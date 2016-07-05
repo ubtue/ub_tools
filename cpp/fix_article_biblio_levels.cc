@@ -40,9 +40,9 @@
 void Usage() {
     std::cerr << "Usage: " << progname << " [--verbose] marc_input1 [marc_input2 ... marc_inputN] marc_output\n"
               << "       Collects information about which superior/collective works are serials from the various\n"
-	      << "       MARC inputs and then patches up records in \"marc_input1\" which have been marked as a book\n"
-	      << "       component and changes them to be flagged as an article instead.  The patched up version is\n"
-	      << "       written to \"marc_output\".\n";
+              << "       MARC inputs and then patches up records in \"marc_input1\" which have been marked as a book\n"
+              << "       component and changes them to be flagged as an article instead.  The patched up version is\n"
+              << "       written to \"marc_output\".\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -51,12 +51,12 @@ static std::unordered_set<std::string> monograph_control_numbers;
 
 
 bool RecordMonographControlNumbers(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
-				   std::string * const /* err_msg */)
+                                   std::string * const /* err_msg */)
 {
     const Leader &leader(record->getLeader());
     if (leader[7] == 'm') {
-	const std::vector<std::string> &fields(record->getFields());
-	monograph_control_numbers.insert(fields[0]);
+        const std::vector<std::string> &fields(record->getFields());
+        monograph_control_numbers.insert(fields[0]);
     }
 
     return true;
@@ -66,14 +66,14 @@ bool RecordMonographControlNumbers(MarcUtil::Record * const record, XmlWriter * 
 void CollectMonographs(const bool verbose, const std::vector<File *> &inputs) {
     std::string err_msg;
     for (auto &input : inputs) {
-	if (verbose)
-	    std::cout << "Extracting serial control numbers from \"" << input->getPath() << "\".\n";
-	if (not MarcUtil::ProcessRecords(input, RecordMonographControlNumbers, /* xml_writer = */nullptr, &err_msg))
-	    Error("error while looking for serials: " + err_msg);
+        if (verbose)
+            std::cout << "Extracting serial control numbers from \"" << input->getPath() << "\".\n";
+        if (not MarcUtil::ProcessRecords(input, RecordMonographControlNumbers, /* xml_writer = */nullptr, &err_msg))
+            Error("error while looking for serials: " + err_msg);
     }
 
     if (verbose)
-	std::cout << "Found " << monograph_control_numbers.size() << " serial records.\n";
+        std::cout << "Found " << monograph_control_numbers.size() << " serial records.\n";
 }
 
 
@@ -85,17 +85,17 @@ bool HasMonographParent(const std::string &subfield, const MarcUtil::Record &rec
     const char subfield_code(subfield[3]);
     const ssize_t field_index(record.getFieldIndex(tag));
     if (field_index == -1)
-	return false;
+        return false;
 
     const std::vector<std::string> &fields(record.getFields());
     const Subfields subfields(fields[field_index]);
     const std::string subfield_contents(subfields.getFirstSubfieldValue(subfield_code));
     if (subfield_contents.empty())
-	return false;
+        return false;
 
     static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\\(.+\\)(\\d{8}[\\dX])"));
     if (not matcher->matched(subfield_contents))
-	return false;
+        return false;
 
     const std::string parent_id((*matcher)[1]);
     return monograph_control_numbers.find(parent_id) != monograph_control_numbers.cend();
@@ -106,8 +106,8 @@ bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MarcUt
     std::vector<std::string> subfields;
     StringUtil::Split(subfield_list, ':', &subfields);
     for (const auto &subfield : subfields) {
-	if (HasMonographParent(subfield, record))
-	    return true;
+        if (HasMonographParent(subfield, record))
+            return true;
     }
 
     return false;
@@ -119,13 +119,13 @@ bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MarcUt
 bool PatchUpArticle(MarcUtil::Record * const record, XmlWriter * const xml_writer, std::string * const /*err_msg*/) {
     Leader &leader(record->getLeader());
     if (leader[7] != 'a') {
-	record->write(xml_writer);
-	return true;
+        record->write(xml_writer);
+        return true;
     }
 
     if (HasAtLeastOneMonographParent("800w:810w:830w:773w", *record)) {
-	record->write(xml_writer);
-	return true;
+        record->write(xml_writer);
+        return true;
     }
 
     leader[7] = 'b';
@@ -147,12 +147,12 @@ void PatchUpBookComponentParts(const bool verbose, File * const input, File * co
 
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(input, PatchUpArticle, &xml_writer, &err_msg))
-	Error("error while patching up article records: " + err_msg);
+        Error("error while patching up article records: " + err_msg);
 
     xml_writer.closeTag();
 
     if (verbose)
-	std::cout << "Fixed the bibliographic level of " << patch_count << " article records.\n";
+        std::cout << "Fixed the bibliographic level of " << patch_count << " article records.\n";
 }
 
 
@@ -160,20 +160,20 @@ int main(int argc, char **argv) {
     progname = argv[0];
 
     if (argc == 1)
-	Usage();
+        Usage();
 
     const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
 
     if (verbose and argc < 4 or not verbose and argc < 3)
-	Usage();
+        Usage();
 
     std::vector<File *> marc_inputs;
     for (int arg_no(verbose ? 2 : 1); arg_no < (argc - 1) ; ++arg_no) {
-	const std::string marc_input_filename(argv[arg_no]);
-	File *marc_input = new File(marc_input_filename, "rbm");
-	if (not *marc_input)
-	    Error("can't open \"" + marc_input_filename + "\" for reading!");
-	marc_inputs.push_back(marc_input);
+        const std::string marc_input_filename(argv[arg_no]);
+        File *marc_input = new File(marc_input_filename, "rbm");
+        if (not *marc_input)
+            Error("can't open \"" + marc_input_filename + "\" for reading!");
+        marc_inputs.push_back(marc_input);
     }
 
     const std::string marc_output_filename(argv[argc - 1]);
@@ -182,14 +182,14 @@ int main(int argc, char **argv) {
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
-	CollectMonographs(verbose, marc_inputs);
+        CollectMonographs(verbose, marc_inputs);
 
-	marc_inputs[0]->rewind();
-	PatchUpBookComponentParts(verbose, marc_inputs[0], &marc_output);
+        marc_inputs[0]->rewind();
+        PatchUpBookComponentParts(verbose, marc_inputs[0], &marc_output);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 
     for (const auto &marc_input : marc_inputs)
-	marc_input->close();
+        marc_input->close();
 }

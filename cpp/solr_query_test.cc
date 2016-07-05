@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 6)
-	Usage();
+        Usage();
 
     const std::string query(argv[1]);
     const std::string fields(argv[2]);

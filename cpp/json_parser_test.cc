@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc < 2)
-	Usage();
+        Usage();
 
     try {
         const std::string input_filename(argv[1]);
