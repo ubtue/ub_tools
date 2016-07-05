@@ -68,7 +68,7 @@ bool CompiledPattern::subfieldMatched(const std::string &subfield_contents) cons
 }
 
 
-// Expects "patterns" to contain strings that look like TTTS:REGEX where TTT are 3 characters specifying a field tah
+// Expects "patterns" to contain strings that look like TTTS:REGEX where TTT are 3 characters specifying a field,
 // S is a subfield code and REGEX is a PCRE-style regex supporting UTF8 that should match subfield contents.
 bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<CompiledPattern> * const compiled_patterns,
                      std::string * const err_msg)
