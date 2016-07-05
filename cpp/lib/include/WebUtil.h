@@ -69,9 +69,9 @@ std::string WwwFormUrlEncode(const StringMap &post_args, const bool generate_con
  *  \return True if no error occurred, otherwise false.
  */
 bool ProcessPOST(const std::string &username_password, const std::string &address, const unsigned short port,
-		 const TimeLimit &time_limit, const std::string &path, const StringMap &post_args,
-		 std::string * const document_source, std::string * const error_message,
-		 const std::string &accept = "text/html,text/xhtml,text/plain,www/source", const bool include_http_header = false);
+                 const TimeLimit &time_limit, const std::string &path, const StringMap &post_args,
+                 std::string * const document_source, std::string * const error_message,
+                 const std::string &accept = "text/html,text/xhtml,text/plain,www/source", const bool include_http_header = false);
 
 
 /** \brief  Excutes a CGI script via POST.
@@ -87,13 +87,13 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
  *  \return True if no error occurred, otherwise false.
  */
 inline bool ProcessPOST(const std::string &address, const unsigned short port, const TimeLimit &time_limit,
-			const std::string &path, const StringMap &post_args, std::string * const document_source,
-			std::string * const error_message,
-			const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
-			const bool include_http_header = false)
+                        const std::string &path, const StringMap &post_args, std::string * const document_source,
+                        std::string * const error_message,
+                        const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
+                        const bool include_http_header = false)
 {
-	return ProcessPOST("", address, port, time_limit, path, post_args, document_source, error_message, accept,
-			   include_http_header);
+        return ProcessPOST("", address, port, time_limit, path, post_args, document_source, error_message, accept,
+                           include_http_header);
 }
 
 

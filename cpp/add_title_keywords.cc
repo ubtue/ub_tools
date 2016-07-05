@@ -95,8 +95,8 @@ bool HasExpertAssignedKeywords(const MarcUtil::Record &record) {
     const std::vector<std::string> keyword_fields{ "600", "610", "611", "630", "648", "650", "651", "653", "655", "656", "689" };
     const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
     for (const auto &keyword_field : keyword_fields) {
-	if (DirectoryEntry::FindField(keyword_field, dir_entries) != dir_entries.end())
-	    return true;
+        if (DirectoryEntry::FindField(keyword_field, dir_entries) != dir_entries.end())
+            return true;
     }
 
     return false;
@@ -117,27 +117,27 @@ void AugmentKeywordsWithTitleWords(
                          std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
                          std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+        record.setRecordWillBeWrittenAsXml(true);
         ++total_count;
 
-	// Do not attempt to generate title keywords if we have expert-assigned keywords:
-	if (HasExpertAssignedKeywords(record)) {
-	    record.write(&xml_writer);
-	    continue;
-	}
+        // Do not attempt to generate title keywords if we have expert-assigned keywords:
+        if (HasExpertAssignedKeywords(record)) {
+            record.write(&xml_writer);
+            continue;
+        }
 
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
         if (entry_iterator == dir_entries.end()) {
-	    record.write(&xml_writer);
+            record.write(&xml_writer);
             continue;
         }
 
         const size_t title_index(entry_iterator - dir_entries.begin());
-	const std::vector<std::string> &fields(record.getFields());
+        const std::vector<std::string> &fields(record.getFields());
         Subfields subfields(fields[title_index]);
         if (not subfields.hasSubfield('a')) {
-	    record.write(&xml_writer);
+            record.write(&xml_writer);
             continue;
         }
 
@@ -162,7 +162,7 @@ void AugmentKeywordsWithTitleWords(
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-	    record.write(&xml_writer);
+            record.write(&xml_writer);
             continue;
         }
 

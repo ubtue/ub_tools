@@ -108,11 +108,11 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
 
     unsigned count(0), matched_count(0);
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+        record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-	const std::vector<std::string> &fields(record.getFields());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<std::string> &fields(record.getFields());
         bool matched(false);
         for (unsigned i(0); i < dir_entries.size(); ++i) {
             for (const auto &compiled_pattern : compiled_patterns) {
@@ -128,7 +128,7 @@ void Filter(const std::string &input_filename, const std::string &output_filenam
     found:
         if (matched) {
             ++matched_count;
-	    record.write(&xml_writer);
+            record.write(&xml_writer);
         }
     }
 
@@ -246,12 +246,12 @@ void DeleteMatched(const std::string &tags_list, const std::vector<std::string> 
 
     unsigned count(0), modified_count(0);
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+        record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
         bool matched(false);
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-	const std::vector<std::string> &fields(record.getFields());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<std::string> &fields(record.getFields());
         for (unsigned i(0); i < dir_entries.size(); ++i) {
             for (const auto &compiled_pattern : compiled_patterns) {
                 if (compiled_pattern.tagMatched(dir_entries[i].getTag())) {
@@ -292,65 +292,65 @@ void NormaliseURLs(const bool verbose, File * const input, File * const output) 
 
     unsigned count(0), modified_count(0), duplicate_skip_count(0);
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+        record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-	const std::vector<std::string> &fields(record.getFields());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<std::string> &fields(record.getFields());
         bool modified_record(false);
-	std::unordered_set<std::string> already_seen_links;
+        std::unordered_set<std::string> already_seen_links;
         for (unsigned field_no(0); field_no < dir_entries.size(); /* Intentionally empty! */) {
             if (dir_entries[field_no].getTag() != "856") {
-		++field_no;
+                ++field_no;
                 continue;
-	    }
+            }
 
-	    const std::string &_856_field(fields[field_no]);
+            const std::string &_856_field(fields[field_no]);
             Subfields _856_subfields(_856_field);
-	    bool duplicate_link(false);
+            bool duplicate_link(false);
             if (_856_subfields.getIndicator1() != '7' and _856_subfields.hasSubfield('u')) {
-		const std::string u_subfield(_856_subfields.getFirstSubfieldValue('u'));
+                const std::string u_subfield(_856_subfields.getFirstSubfieldValue('u'));
 
-		if (IsHttpOrHttpsURL(u_subfield)) {
-		    if (already_seen_links.find(u_subfield) == already_seen_links.cend())
-			already_seen_links.insert(u_subfield);
-		    else
-			duplicate_link = true;
-		} else {
-		    std::string new_http_replacement_link;
-		    if (StringUtil::StartsWith(u_subfield, "urn:"))
-			new_http_replacement_link = "https://nbn-resolving.org/" + u_subfield;
-		    else if (StringUtil::StartsWith(u_subfield, "10900/"))
-			new_http_replacement_link = "https://publikationen.uni-tuebingen.de/xmlui/handle/" + u_subfield;
-		    else
-			new_http_replacement_link = "http://" + u_subfield;
-		    if (already_seen_links.find(new_http_replacement_link) == already_seen_links.cend()) {
-			_856_subfields.replace('u', u_subfield, new_http_replacement_link);
-			if (verbose)
-			    std::cout << "Replaced \"" << u_subfield << "\" with \"" << new_http_replacement_link
-				      << "\". (PPN: " << fields[0] << ")\n";
-			already_seen_links.insert(new_http_replacement_link);
-			modified_record = true;
-		    } else
-			duplicate_link = true;
-		}
-	    }
+                if (IsHttpOrHttpsURL(u_subfield)) {
+                    if (already_seen_links.find(u_subfield) == already_seen_links.cend())
+                        already_seen_links.insert(u_subfield);
+                    else
+                        duplicate_link = true;
+                } else {
+                    std::string new_http_replacement_link;
+                    if (StringUtil::StartsWith(u_subfield, "urn:"))
+                        new_http_replacement_link = "https://nbn-resolving.org/" + u_subfield;
+                    else if (StringUtil::StartsWith(u_subfield, "10900/"))
+                        new_http_replacement_link = "https://publikationen.uni-tuebingen.de/xmlui/handle/" + u_subfield;
+                    else
+                        new_http_replacement_link = "http://" + u_subfield;
+                    if (already_seen_links.find(new_http_replacement_link) == already_seen_links.cend()) {
+                        _856_subfields.replace('u', u_subfield, new_http_replacement_link);
+                        if (verbose)
+                            std::cout << "Replaced \"" << u_subfield << "\" with \"" << new_http_replacement_link
+                                      << "\". (PPN: " << fields[0] << ")\n";
+                        already_seen_links.insert(new_http_replacement_link);
+                        modified_record = true;
+                    } else
+                        duplicate_link = true;
+                }
+            }
 
-	    if (not duplicate_link)
-		++field_no;
-	    else {
-		++duplicate_skip_count;
-		if (verbose)
-		    std::cout << "Skipping duplicate, control numbers is " << fields[0] << ".\n";
-		record.deleteField(field_no);
-		modified_record = true;
-	    }
+            if (not duplicate_link)
+                ++field_no;
+            else {
+                ++duplicate_skip_count;
+                if (verbose)
+                    std::cout << "Skipping duplicate, control numbers is " << fields[0] << ".\n";
+                record.deleteField(field_no);
+                modified_record = true;
+            }
         }
 
         if (modified_record)
             ++modified_count;
 
-	record.write(&xml_writer);
+        record.write(&xml_writer);
     }
 
     std::cerr << "Read " << count << " records.\n";
@@ -443,14 +443,14 @@ int main(int argc, char **argv) {
         Error("can't open \"" + output_filename + "\" for writing!");
 
     try {
-	if (bibliotheks_sigel_filtern) {
-	    std::vector<std::string> patterns = { "LOK:^.*[a]DE-21 *$|^.*[a]DE-21-24 *$|^.*[a]DE-21-110 *$" };
-	    DeleteMatched("LOK", patterns, /* invert = */ true, &input, &output);
-	} else if (normalise_urls)
-	    NormaliseURLs(verbose, &input, &output);
-	else
-	    Usage();
+        if (bibliotheks_sigel_filtern) {
+            std::vector<std::string> patterns = { "LOK:^.*[a]DE-21 *$|^.*[a]DE-21-24 *$|^.*[a]DE-21-110 *$" };
+            DeleteMatched("LOK", patterns, /* invert = */ true, &input, &output);
+        } else if (normalise_urls)
+            NormaliseURLs(verbose, &input, &output);
+        else
+            Usage();
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

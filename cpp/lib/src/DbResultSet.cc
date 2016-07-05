@@ -25,21 +25,21 @@ DbResultSet::DbResultSet(MYSQL_RES * const result_set): result_set_(result_set) 
     const MYSQL_FIELD * const fields(::mysql_fetch_fields(result_set_));
     const int COLUMN_COUNT(::mysql_num_fields(result_set));
     for (int col_no(0); col_no < COLUMN_COUNT; ++col_no)
-	field_name_to_index_map_.insert(std::pair<std::string, unsigned>(fields[col_no].name, col_no));
+        field_name_to_index_map_.insert(std::pair<std::string, unsigned>(fields[col_no].name, col_no));
 }
 
 
 DbResultSet::DbResultSet(DbResultSet &&other) {
     if (&other != this) {
-	result_set_ = other.result_set_;
-	other.result_set_ = nullptr;
+        result_set_ = other.result_set_;
+        other.result_set_ = nullptr;
     }
 }
 
 
 DbResultSet::~DbResultSet() {
     if (result_set_ != nullptr)
-	::mysql_free_result(result_set_);
+        ::mysql_free_result(result_set_);
 }
 
 
@@ -49,11 +49,11 @@ DbRow DbResultSet::getNextRow() {
     unsigned long *field_sizes;
     unsigned field_count;
     if (row == nullptr) {
-	field_sizes = nullptr;
-	field_count = 0;
+        field_sizes = nullptr;
+        field_count = 0;
     } else {
-	field_sizes = ::mysql_fetch_lengths(result_set_);
-	field_count = ::mysql_num_fields(result_set_);
+        field_sizes = ::mysql_fetch_lengths(result_set_);
+        field_count = ::mysql_num_fields(result_set_);
     }
 
     return DbRow(row, field_sizes, field_count, field_name_to_index_map_);

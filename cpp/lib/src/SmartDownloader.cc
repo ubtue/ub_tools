@@ -91,7 +91,7 @@ bool SimpleSuffixDownloader::downloadDocImpl(const std::string &url, const TimeL
                                              std::string * const document)
 {
     if (trace_)
-	std::cerr << "in SimpleSuffixDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        std::cerr << "in SimpleSuffixDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
     return Download(url, ToNearestSecond(time_limit.getRemainingTime()), document) == 0;
 }
 
@@ -110,7 +110,7 @@ bool SimplePrefixDownloader::downloadDocImpl(const std::string &url, const TimeL
                                              std::string * const document)
 {
     if (trace_)
-	std::cerr << "in SimplePrefixDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        std::cerr << "in SimplePrefixDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
     return Download(url, ToNearestSecond(time_limit.getRemainingTime()), document) == 0;
 }
 
@@ -131,7 +131,7 @@ bool DigiToolSmartDownloader::downloadDocImpl(const std::string &url, const Time
 
 
     if (trace_)
-	std::cerr << "in DigiToolSmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        std::cerr << "in DigiToolSmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
     if (Download(normalised_url, ToNearestSecond(time_limit.getRemainingTime()), document,
                  temp_file.getFilePath()) != 0
         or time_limit.limitExceeded())
@@ -150,7 +150,7 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
                                             std::string * const document)
 {
     if (trace_)
-	std::cerr << "in DiglitSmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        std::cerr << "in DiglitSmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
     if (Download(url, ToNearestSecond(time_limit.getRemainingTime()), document) != 0)
         return false;
     const std::string start_string("<input type=\"hidden\" name=\"projectname\" value=\"");
@@ -190,7 +190,7 @@ bool BszSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit
 {
     const std::string doc_url(url.substr(0, url.size() - 3) + "pdf");
     if (trace_)
-	std::cerr << "in BszSmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
+        std::cerr << "in BszSmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
     return Download(doc_url, ToNearestSecond(time_limit.getRemainingTime()), document) == 0;
 }
 
@@ -200,7 +200,7 @@ bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimi
 {
     std::string html;
     if (trace_)
-	std::cerr << "in BvbrSmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        std::cerr << "in BvbrSmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
     if (Download(url, ToNearestSecond(time_limit.getRemainingTime()), &html) != 0
         or time_limit.limitExceeded())
         return false;
@@ -214,7 +214,7 @@ bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimi
         return false;
     const std::string doc_url("http://bvbr.bib-bvb.de:8991" + html.substr(start_pos, end_pos - start_pos));
     if (trace_)
-	std::cerr << "in BvbrSmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
+        std::cerr << "in BvbrSmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
     return Download(doc_url, ToNearestSecond(time_limit.getRemainingTime()), document) == 0;
 }
 
@@ -223,7 +223,7 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLim
                                            std::string * const document)
 {
     if (trace_)
-	std::cerr << "in Bsz21SmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        std::cerr << "in Bsz21SmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
     if (Download(url, ToNearestSecond(time_limit.getRemainingTime()), document) != 0
         or time_limit.limitExceeded())
         return false;
@@ -260,7 +260,7 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLim
     }
 
     if (trace_)
-	std::cerr << "in Bsz21SmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
+        std::cerr << "in Bsz21SmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
     return Download(doc_url, ToNearestSecond(time_limit.getRemainingTime()), document) == 0;
 }
 
@@ -273,7 +273,7 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
     const std::string doc_url("http://catdir" + url.substr(10));
     std::string html;
     if (trace_)
-	std::cerr << "in LocGovSmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
+        std::cerr << "in LocGovSmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
     const int retcode = Download(doc_url, ToNearestSecond(time_limit.getRemainingTime()), &html);
 
     if (retcode != 0)
@@ -293,16 +293,16 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
 
 
 bool SmartDownload(const std::string &url, const unsigned max_download_time, std::string * const document,
-		   const bool trace)
+                   const bool trace)
 {
     document->clear();
 
     static std::vector<SmartDownloader *> smart_downloaders{
         new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }, trace),
-	    new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }, trace),
-	    new SimplePrefixDownloader({ "http://deposit.d-nb.de/cgi-bin/dokserv?" }, trace),
-	    new SimplePrefixDownloader({ "http://media.obvsg.at/" }, trace),
-	    new SimplePrefixDownloader({ "http://d-nb.info/" }, trace),
+            new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }, trace),
+            new SimplePrefixDownloader({ "http://deposit.d-nb.de/cgi-bin/dokserv?" }, trace),
+            new SimplePrefixDownloader({ "http://media.obvsg.at/" }, trace),
+            new SimplePrefixDownloader({ "http://d-nb.info/" }, trace),
         new DigiToolSmartDownloader(trace),
         new DiglitSmartDownloader(trace),
         new BszSmartDownloader(trace),

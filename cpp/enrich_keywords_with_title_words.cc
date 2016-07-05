@@ -40,11 +40,11 @@ void LoadStopwords(const bool verbose, File * const input, const std::string &la
 
     unsigned count(0);
     while (not input->eof()) {
-	const std::string line(input->getline());
-	if (line.empty() or line[0] == ';') // Empty or comment line?
+        const std::string line(input->getline());
+        if (line.empty() or line[0] == ';') // Empty or comment line?
             continue;
 
-	std::string word(StringUtil::ToLower(line));
+        std::string word(StringUtil::ToLower(line));
         stopwords_set->insert(StringUtil::ToLower(line));
         ++count;
     }
@@ -61,21 +61,21 @@ void FilterOutStopwords(const std::unordered_set<std::string> &stopwords,
     bool removed_at_least_one_word(false);
     for (const auto &word : *words) {
       if (stopwords.find(word) == stopwords.end())
-	  filtered_words.emplace_back(word);
+          filtered_words.emplace_back(word);
       else
-	  removed_at_least_one_word = true;
+          removed_at_least_one_word = true;
     }
     if (removed_at_least_one_word)
-	words->swap(filtered_words);
+        words->swap(filtered_words);
 }
 
 
 std::string VectorToString(const std::vector<std::string> &v) {
     std::string vector_as_string;
     for (std::vector<std::string>::const_iterator entry(v.cbegin()); entry != v.cend(); ++entry) {
-	vector_as_string += *entry;
-	if ((entry + 1) != v.cend())
-	    vector_as_string += ' ';
+        vector_as_string += *entry;
+        if ((entry + 1) != v.cend())
+            vector_as_string += ' ';
     }
     return vector_as_string;
 }
@@ -107,8 +107,8 @@ void ProcessKeywordPhrase(
     // consist of a name:
     const size_t comma_pos(keyword_phrase.find(','));
     if (comma_pos != std::string::npos)
-	cleaned_up_phrase = cleaned_up_phrase.substr(comma_pos + 1) + " "
-	    + cleaned_up_phrase.substr(0, comma_pos);
+        cleaned_up_phrase = cleaned_up_phrase.substr(comma_pos + 1) + " "
+            + cleaned_up_phrase.substr(0, comma_pos);
 
     cleaned_up_phrase = FilterOutNonwordChars(cleaned_up_phrase);
 
@@ -119,12 +119,12 @@ void ProcessKeywordPhrase(
     std::vector<std::string> stemmed_words;
     StringUtil::Split(lowercase_stemmed_phrase, ' ', &stemmed_words);
     for (const auto &stemmed_word : stemmed_words) {
-	auto iter(stemmed_keyword_to_stemmed_keyphrases_map->find(stemmed_word));
-	if (iter == stemmed_keyword_to_stemmed_keyphrases_map->end())
-	    (*stemmed_keyword_to_stemmed_keyphrases_map)[stemmed_word] =
-		std::set<std::string>{ lowercase_stemmed_phrase, };
-	else
-	    (*stemmed_keyword_to_stemmed_keyphrases_map)[stemmed_word].insert(lowercase_stemmed_phrase);
+        auto iter(stemmed_keyword_to_stemmed_keyphrases_map->find(stemmed_word));
+        if (iter == stemmed_keyword_to_stemmed_keyphrases_map->end())
+            (*stemmed_keyword_to_stemmed_keyphrases_map)[stemmed_word] =
+                std::set<std::string>{ lowercase_stemmed_phrase, };
+        else
+            (*stemmed_keyword_to_stemmed_keyphrases_map)[stemmed_word].insert(lowercase_stemmed_phrase);
     }
 }
 
@@ -134,11 +134,11 @@ void ProcessKeywordPhrase(
 std::string CanonizeCentury(const std::string &century_candidate) {
     static RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory("[jJ]ahrhundert (\\d+)\\.?"));
     if (not matcher->matched(century_candidate))
-	return century_candidate;
+        return century_candidate;
 
     std::string ordinal(century_candidate.substr(12));
     if (ordinal[ordinal.size() - 1] != '.')
-	ordinal += '.';
+        ordinal += '.';
 
     return ordinal + " " + century_candidate.substr(0, 12);
 }
@@ -155,22 +155,22 @@ size_t ExtractKeywordsFromKeywordChainFields(
     const std::vector<std::string> &fields(record.getFields());
     const auto _689_iterator(DirectoryEntry::FindField("689", dir_entries));
     if (_689_iterator != dir_entries.end()) {
-	size_t field_index(_689_iterator - dir_entries.begin());
-	while (field_index < fields.size() and dir_entries[field_index].getTag() == "689") {
-	    const Subfields subfields(fields[field_index]);
-	    const std::string subfield_a_value(subfields.getFirstSubfieldValue('a'));
-	    if (not subfield_a_value.empty()) {
-		std::string keyphrase(subfield_a_value);
-		const std::string subfield_c_value(subfields.getFirstSubfieldValue('c'));
-		if (not subfield_c_value.empty())
-		    keyphrase += " " + subfield_c_value;
-		ProcessKeywordPhrase(CanonizeCentury(keyphrase), stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
-				     stemmed_keyphrases_to_unstemmed_keyphrases_map);
-		++keyword_count;
-	    }
+        size_t field_index(_689_iterator - dir_entries.begin());
+        while (field_index < fields.size() and dir_entries[field_index].getTag() == "689") {
+            const Subfields subfields(fields[field_index]);
+            const std::string subfield_a_value(subfields.getFirstSubfieldValue('a'));
+            if (not subfield_a_value.empty()) {
+                std::string keyphrase(subfield_a_value);
+                const std::string subfield_c_value(subfields.getFirstSubfieldValue('c'));
+                if (not subfield_c_value.empty())
+                    keyphrase += " " + subfield_c_value;
+                ProcessKeywordPhrase(CanonizeCentury(keyphrase), stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
+                                     stemmed_keyphrases_to_unstemmed_keyphrases_map);
+                ++keyword_count;
+            }
 
-	    ++field_index;
-	}
+            ++field_index;
+        }
     }
 
     return keyword_count;
@@ -188,9 +188,9 @@ size_t ExtractKeywordsFromIndividualKeywordFields(
     static const std::string SUBFIELD_IGNORE_LIST("02"); // Do not extract $0 and $2.
     record.extractAllSubfields("600:610:611:630:650:653:656", &keyword_phrases, SUBFIELD_IGNORE_LIST);
     for (const auto &keyword_phrase : keyword_phrases) {
-	ProcessKeywordPhrase(CanonizeCentury(keyword_phrase), stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
-			     stemmed_keyphrases_to_unstemmed_keyphrases_map);
-	++keyword_count;
+        ProcessKeywordPhrase(CanonizeCentury(keyword_phrase), stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
+                             stemmed_keyphrases_to_unstemmed_keyphrases_map);
+        ++keyword_count;
     }
 
     return keyword_count;
@@ -206,12 +206,12 @@ size_t ExtractAllKeywords(
     const Stemmer * const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
 
     size_t extracted_count(ExtractKeywordsFromKeywordChainFields(record, stemmer,
-								 stemmed_keyword_to_stemmed_keyphrases_map,
-								 stemmed_keyphrases_to_unstemmed_keyphrases_map));
+                                                                 stemmed_keyword_to_stemmed_keyphrases_map,
+                                                                 stemmed_keyphrases_to_unstemmed_keyphrases_map));
 /*
     extracted_count += ExtractKeywordsFromIndividualKeywordFields(dir_entries, fields, stemmer,
-								  stemmed_keyword_to_stemmed_keyphrases_map,
-								  stemmed_keyphrases_to_unstemmed_keyphrases_map);
+                                                                  stemmed_keyword_to_stemmed_keyphrases_map,
+                                                                  stemmed_keyphrases_to_unstemmed_keyphrases_map);
 */
     return extracted_count;
 }
@@ -229,33 +229,33 @@ void ExtractStemmedKeywords(
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         ++total_count;
 
-	const size_t extracted_count(
+        const size_t extracted_count(
             ExtractAllKeywords(record, stemmed_keyword_to_stemmed_keyphrases_map,
-			       stemmed_keyphrases_to_unstemmed_keyphrases_map));
-	if (extracted_count > 0) {
-	    ++records_with_keywords_count;
-	    keywords_count += extracted_count;
-	}
+                               stemmed_keyphrases_to_unstemmed_keyphrases_map));
+        if (extracted_count > 0) {
+            ++records_with_keywords_count;
+            keywords_count += extracted_count;
+        }
     }
 
     if (verbose) {
         std::cerr << total_count << " records processed.\n";
         std::cerr << records_with_keywords_count << " records had keywords.\n";
-	std::cerr << keywords_count << " keywords were extracted of which "
-		  << stemmed_keyword_to_stemmed_keyphrases_map->size() << " were unique.\n";
+        std::cerr << keywords_count << " keywords were extracted of which "
+                  << stemmed_keyword_to_stemmed_keyphrases_map->size() << " were unique.\n";
     }
 }
 
 
 // Checks to see if "value" is in any of the sets in "key_to_set_map".
 bool ContainedInMapValues(const std::string &value,
-			  const std::unordered_map<std::string, std::set<std::string>> &key_to_set_map)
+                          const std::unordered_map<std::string, std::set<std::string>> &key_to_set_map)
 {
     for (const auto &key_and_set : key_to_set_map) {
-	for (const auto &set_entry : key_and_set.second) {
-	    if (set_entry == value)
-		return true;
-	}
+        for (const auto &set_entry : key_and_set.second) {
+            if (set_entry == value)
+                return true;
+        }
     }
 
     return false;
@@ -284,39 +284,39 @@ void AugmentRecordsWithTitleKeywords(
                          std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
                          std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+        record.setRecordWillBeWrittenAsXml(true);
         ++total_count;
 
-	// Look for a title...
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        // Look for a title...
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
         if (entry_iterator == dir_entries.end()) {
             record.write(&xml_writer);
             continue;
         }
 
-	// ...in subfields 'a', 'b', 'c' and 'p':
+        // ...in subfields 'a', 'b', 'c' and 'p':
         const size_t title_index(entry_iterator - dir_entries.begin());
-	const std::vector<std::string> &fields(record.getFields());
+        const std::vector<std::string> &fields(record.getFields());
         Subfields subfields(fields[title_index]);
         if (not subfields.hasSubfield('a')) {
             record.write(&xml_writer);
             continue;
         }
-	std::string title;
-	for (const char subfield_code : "abp") {
-	    const auto begin_end = subfields.getIterators(subfield_code);
-	    if (begin_end.first != begin_end.second)
+        std::string title;
+        for (const char subfield_code : "abp") {
+            const auto begin_end = subfields.getIterators(subfield_code);
+            if (begin_end.first != begin_end.second)
             title += " " + begin_end.first->second;
-	}
-	assert(not title.empty());
+        }
+        assert(not title.empty());
 
-	std::string lowercase_title;
-	TextUtil::UTF8ToLower(title, &lowercase_title);
+        std::string lowercase_title;
+        TextUtil::UTF8ToLower(title, &lowercase_title);
         std::vector<std::string> title_words;
         TextUtil::ChopIntoWords(lowercase_title, &title_words, MIN_WORD_LENGTH);
 
-	// Remove language-appropriate stop words from the title words:
+        // Remove language-appropriate stop words from the title words:
         const std::string language_code(record.getLanguage());
         const auto code_and_stopwords(language_codes_to_stopword_sets.find(language_code));
         if (code_and_stopwords != language_codes_to_stopword_sets.end())
@@ -329,57 +329,57 @@ void AugmentRecordsWithTitleKeywords(
             continue;
         }
 
-	// If we have an appropriate stemmer, replace the title words w/ stemmed title words:
-	const Stemmer * const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
-	if (stemmer != nullptr) {
-	    std::vector<std::string> stemmed_title_words;
-	    for (const auto &title_word : title_words)
-		stemmed_title_words.emplace_back(stemmer->stem(title_word));
-	    title_words.swap(stemmed_title_words);
-	}
+        // If we have an appropriate stemmer, replace the title words w/ stemmed title words:
+        const Stemmer * const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
+        if (stemmer != nullptr) {
+            std::vector<std::string> stemmed_title_words;
+            for (const auto &title_word : title_words)
+                stemmed_title_words.emplace_back(stemmer->stem(title_word));
+            title_words.swap(stemmed_title_words);
+        }
 
-	std::unordered_map<std::string, std::set<std::string>> local_stemmed_keyword_to_stemmed_keyphrases_map;
-	std::unordered_map<std::string, std::string> local_stemmed_keyphrases_to_unstemmed_keyphrases_map;
-	ExtractAllKeywords(record, &local_stemmed_keyword_to_stemmed_keyphrases_map,
-			   &local_stemmed_keyphrases_to_unstemmed_keyphrases_map);
+        std::unordered_map<std::string, std::set<std::string>> local_stemmed_keyword_to_stemmed_keyphrases_map;
+        std::unordered_map<std::string, std::string> local_stemmed_keyphrases_to_unstemmed_keyphrases_map;
+        ExtractAllKeywords(record, &local_stemmed_keyword_to_stemmed_keyphrases_map,
+                           &local_stemmed_keyphrases_to_unstemmed_keyphrases_map);
 
-	// Find title phrases that match stemmed keyphrases:
-	std::unordered_set<std::string> new_keyphrases;
-	for (const auto &title_word : title_words) {
-	    const auto word_and_set(stemmed_keyword_to_stemmed_keyphrases_map.find(title_word));
-	    if (word_and_set == stemmed_keyword_to_stemmed_keyphrases_map.end())
-		continue;
+        // Find title phrases that match stemmed keyphrases:
+        std::unordered_set<std::string> new_keyphrases;
+        for (const auto &title_word : title_words) {
+            const auto word_and_set(stemmed_keyword_to_stemmed_keyphrases_map.find(title_word));
+            if (word_and_set == stemmed_keyword_to_stemmed_keyphrases_map.end())
+                continue;
 
             for (const std::string &stemmed_phrase : word_and_set->second) {
-		if (ContainedInMapValues(stemmed_phrase, local_stemmed_keyword_to_stemmed_keyphrases_map))
-		    continue; // We already have this in our MARC record.
+                if (ContainedInMapValues(stemmed_phrase, local_stemmed_keyword_to_stemmed_keyphrases_map))
+                    continue; // We already have this in our MARC record.
 
-		std::vector<std::string> stemmed_phrase_as_vector;
-		StringUtil::Split(stemmed_phrase, ' ', &stemmed_phrase_as_vector);
-		if (stemmed_phrase_as_vector.size() == 1
-		    and stemmed_phrase_as_vector[0].length() < MIN_SINGLE_STEMMED_KEYWORD_LENGTH)
-		    continue;
+                std::vector<std::string> stemmed_phrase_as_vector;
+                StringUtil::Split(stemmed_phrase, ' ', &stemmed_phrase_as_vector);
+                if (stemmed_phrase_as_vector.size() == 1
+                    and stemmed_phrase_as_vector[0].length() < MIN_SINGLE_STEMMED_KEYWORD_LENGTH)
+                    continue;
 
-		if (TextUtil::FindSubstring(title_words, stemmed_phrase_as_vector) != title_words.end()) {
-		    const auto stemmed_and_unstemmed_keyphrase(
+                if (TextUtil::FindSubstring(title_words, stemmed_phrase_as_vector) != title_words.end()) {
+                    const auto stemmed_and_unstemmed_keyphrase(
                         stemmed_keyphrases_to_unstemmed_keyphrases_map.find(stemmed_phrase));
-		    new_keyphrases.insert(stemmed_and_unstemmed_keyphrase->second);
-		}
-	    }
-	}
+                    new_keyphrases.insert(stemmed_and_unstemmed_keyphrase->second);
+                }
+            }
+        }
 
         if (new_keyphrases.empty()) {
             record.write(&xml_writer);
             continue;
         }
 
-	// Augment the record with new keywords derived from title words:
-	for (const auto &new_keyword : new_keyphrases) {
-	    const std::string field_contents("  ""\x1F""a" + new_keyword);
-	    record.insertField("601", field_contents);
-	}
+        // Augment the record with new keywords derived from title words:
+        for (const auto &new_keyword : new_keyphrases) {
+            const std::string field_contents("  ""\x1F""a" + new_keyword);
+            record.insertField("601", field_contents);
+        }
 
-	record.write(&xml_writer);
+        record.write(&xml_writer);
         ++augmented_record_count;
     }
     xml_writer.closeTag();
@@ -416,9 +416,9 @@ int main(int argc, char **argv) {
     // Read optional stopword lists:
     std::map<std::string, std::unordered_set<std::string>> language_codes_to_stopword_sets;
     for (int arg_no(verbose ? 4 : 3); arg_no < argc; ++arg_no) {
-	const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("stopwords\\....$"));
+        const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("stopwords\\....$"));
         const std::string stopwords_filename(argv[arg_no]);
-	std::string err_msg;
+        std::string err_msg;
         if (not matcher->matched(stopwords_filename, &err_msg))
             Error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(stopwords_filename.length() - 3));
@@ -435,14 +435,14 @@ int main(int argc, char **argv) {
         Error("You always need to provide \"stopwords.eng\"!");
 
     try {
-	std::unordered_map<std::string, std::set<std::string>> stemmed_keyword_to_stemmed_keyphrases_map;
-	std::unordered_map<std::string, std::string> stemmed_keyphrases_to_unstemmed_keyphrases_map;
-	ExtractStemmedKeywords(verbose, &marc_input, &stemmed_keyword_to_stemmed_keyphrases_map,
-			       &stemmed_keyphrases_to_unstemmed_keyphrases_map);
-	marc_input.rewind();
-	AugmentRecordsWithTitleKeywords(verbose, &marc_input, &marc_output, stemmed_keyword_to_stemmed_keyphrases_map,
-					stemmed_keyphrases_to_unstemmed_keyphrases_map, language_codes_to_stopword_sets);
+        std::unordered_map<std::string, std::set<std::string>> stemmed_keyword_to_stemmed_keyphrases_map;
+        std::unordered_map<std::string, std::string> stemmed_keyphrases_to_unstemmed_keyphrases_map;
+        ExtractStemmedKeywords(verbose, &marc_input, &stemmed_keyword_to_stemmed_keyphrases_map,
+                               &stemmed_keyphrases_to_unstemmed_keyphrases_map);
+        marc_input.rewind();
+        AugmentRecordsWithTitleKeywords(verbose, &marc_input, &marc_output, stemmed_keyword_to_stemmed_keyphrases_map,
+                                        stemmed_keyphrases_to_unstemmed_keyphrases_map, language_codes_to_stopword_sets);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }
