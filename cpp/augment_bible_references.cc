@@ -346,7 +346,7 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
 
 
 /* Scans norm data for records that contain bible references.  Found references are converted to bible book
-   ranges and will in a later processing phase be added to title data.  We also extract pericopes which will
+   ranges and will in a later processing phase be added to title data.  We also extract pericopes which will be
    saved to a file that maps periope names to bible ranges. */
 void LoadNormData(const bool verbose, const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
                   File * const norm_input,
