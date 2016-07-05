@@ -89,11 +89,11 @@ public:
         { next_attributes_.push_back(std::make_pair(name, value) ); }
 
     /** Writes an open tag at the current indentation level. Uses the attributes queued up by calls to addAttribute(),
-	if any. */
+        if any. */
     void openTag(const std::string &tag_name, const bool suppress_newline = false);
 
     /**  Writes an open tag at the current indentation level. Does not use the attributes queued up by calls to
-	 addAttribute(). */
+         addAttribute(). */
     void openTag(const std::string &tag_name, const Attributes &attribs, const bool suppress_newline = false);
 
     /** Write character data. */
@@ -103,9 +103,9 @@ public:
     void writeTagsWithData(const std::string &tag_name, const std::string &characters,
                            const bool suppress_indent = false)
     {
-	openTag(tag_name, suppress_indent);
-	write(characters);
-	closeTag(tag_name, suppress_indent);
+        openTag(tag_name, suppress_indent);
+        write(characters);
+        closeTag(tag_name, suppress_indent);
     }
 
     /** Write character data between an opening and closing tag pair. */
@@ -113,9 +113,9 @@ public:
                                   const std::string &characters, const bool suppress_indent = false,
                                   const XmlWriter::TextConversionType text_conversion_type = NoConversion)
     {
-	openTag(tag_name, attribs, suppress_indent);
-	write(XmlWriter::XmlEscape(characters, text_conversion_type));
-	closeTag(tag_name, suppress_indent);
+        openTag(tag_name, attribs, suppress_indent);
+        write(XmlWriter::XmlEscape(characters, text_conversion_type));
+        closeTag(tag_name, suppress_indent);
     }
 
     /** Write character data between an opening and closing tag pair. */
@@ -123,18 +123,18 @@ public:
                                   const bool suppress_indent = false,
                                   const XmlWriter::TextConversionType text_conversion_type = NoConversion)
     {
-	openTag(tag_name, suppress_indent);
-	write(XmlWriter::XmlEscape(characters, text_conversion_type));
-	closeTag(tag_name, suppress_indent);
+        openTag(tag_name, suppress_indent);
+        write(XmlWriter::XmlEscape(characters, text_conversion_type));
+        closeTag(tag_name, suppress_indent);
     }
 
     /** Write character data between an opening and closing tag pair. */
     void writeTagsWithData(const std::string &tag_name, const Attributes &attribs, const std::string &characters,
-			   const bool suppress_indent = false)
+                           const bool suppress_indent = false)
     {
-	openTag(tag_name, attribs, suppress_indent);
-	write(characters);
-	closeTag(tag_name, suppress_indent);
+        openTag(tag_name, attribs, suppress_indent);
+        write(characters);
+        closeTag(tag_name, suppress_indent);
     }
 
     /** \brief  Writes a closing tag at the approriate indentation level.
@@ -176,7 +176,7 @@ public:
      *  \return The string with the XML metacharacters escaped.
      */
     static std::string XmlEscape(const std::string &unescaped_text, const XmlWriter::TextConversionType text_conversion_type,
-				 const std::string &additional_escapes = "");
+                                 const std::string &additional_escapes = "");
 private:
     XmlWriter();                                // intentionally unimplemented
     XmlWriter(const XmlWriter &rhs);            // intentionally unimplemented

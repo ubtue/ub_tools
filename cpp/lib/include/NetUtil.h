@@ -90,13 +90,13 @@ template<typename Data> struct NetAddrBlockAndData {
     Data data_;
 public:
     NetAddrBlockAndData(const in_addr_t network_address, const in_addr_t mask, const Data &data)
-	: network_address_(network_address & mask), mask_(mask), data_(data)
+        : network_address_(network_address & mask), mask_(mask), data_(data)
     { }
 };
 
 
 template<typename Data> std::ostream &operator<<(std::ostream &output,
-						 const NetAddrBlockAndData<Data> &net_addr_block_and_data)
+                                                 const NetAddrBlockAndData<Data> &net_addr_block_and_data)
 {
     std::string temp;
     NetworkAddressToString(net_addr_block_and_data.network_address_, &temp);
@@ -115,9 +115,9 @@ public:
 
 template<typename Data> Data NetAddrBlocksAndData<Data>::getSelection(const in_addr_t address, const Data &default_data) const {
     for (const auto &net_addr_block_and_data : *this) {
-	if ((address & net_addr_block_and_data.mask_) ==
-	    (net_addr_block_and_data.network_address_ & net_addr_block_and_data.mask_))
-	    return net_addr_block_and_data.data_;
+        if ((address & net_addr_block_and_data.mask_) ==
+            (net_addr_block_and_data.network_address_ & net_addr_block_and_data.mask_))
+            return net_addr_block_and_data.data_;
     }
 
     return default_data;
@@ -125,10 +125,10 @@ template<typename Data> Data NetAddrBlocksAndData<Data>::getSelection(const in_a
 
 
 template<typename Data> std::ostream &operator<<(std::ostream &output,
-						 const NetAddrBlocksAndData<Data> &net_addr_blocks_and_data)
+                                                 const NetAddrBlocksAndData<Data> &net_addr_blocks_and_data)
 {
     for (const auto &netaddr_block_and_data : net_addr_blocks_and_data)
-	output << netaddr_block_and_data << '\n';
+        output << netaddr_block_and_data << '\n';
 
     return output;
 }

@@ -62,7 +62,7 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
     if (iter != superior_ppns.end()) {
         if (not record->insertField("SPR", superior_subfield_data))
             Warning("Not enough room to add a SPR field! (Control number: " + field_data[0] + ")");
-	++modified_count;
+        ++modified_count;
     }
 
     record->write(xml_writer);
@@ -73,7 +73,7 @@ void AddSuperiorFlag(File * const input, File * const output) {
     MarcXmlWriter xml_writer(output);
 
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input))
-	ProcessRecord(&xml_writer, &record);
+        ProcessRecord(&xml_writer, &record);
 
     std::cerr << "Modified " << modified_count << " record(s).\n";
 }

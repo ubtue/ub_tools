@@ -59,7 +59,7 @@ public:
      *  \param  open_mode          Whether to clear the log file upon opening it or not.
      */
     explicit Logger(const std::string &log_filename, const VerbosityLevel default_verbosity = VL_NORMAL,
-		    const OpenMode open_mode = DO_NOT_CLEAR);
+                    const OpenMode open_mode = DO_NOT_CLEAR);
 
     /** \brief  Creates a new Logger object that writes to a log file.
      *  \param  log_filename       The log file name.
@@ -67,7 +67,7 @@ public:
      *  \param  open_mode          Whether to clear the log file upon opening it or not.
      */
     explicit Logger(const char * const log_filename, const VerbosityLevel default_verbosity = VL_NORMAL,
-		    const OpenMode open_mode = DO_NOT_CLEAR);
+                    const OpenMode open_mode = DO_NOT_CLEAR);
 
     /** \brief  Creates a new Logger object that writes to a File.
      *  \param  log_file           The File to write to.
@@ -75,7 +75,7 @@ public:
      *  \param  open_mode          Whether to clear the log file upon opening it or not.
      */
     explicit Logger(File * const log_file, const VerbosityLevel default_verbosity = VL_NORMAL,
-		    const OpenMode open_mode = DO_NOT_CLEAR);
+                    const OpenMode open_mode = DO_NOT_CLEAR);
 
     virtual ~Logger();
 
@@ -100,8 +100,8 @@ public:
     void log(const VerbosityLevel min_verbosity_level, const char *fmt, ...) __attribute__((__format__(printf,3,4)));
 
     void log(const VerbosityLevel min_verbosity_level, const std::string &message) {
-	if (verbosity_ >= min_verbosity_level)
-	    log(message);
+        if (verbosity_ >= min_verbosity_level)
+            log(message);
     }
 
     /** Record a message in the log. */
@@ -127,7 +127,7 @@ public:
 
 protected:
     explicit Logger(const bool destroy_file)
-	: destroy_file_(destroy_file), already_dead_(true), log_file_(nullptr) { }
+        : destroy_file_(destroy_file), already_dead_(true), log_file_(nullptr) { }
 private:
     Logger() = delete;
     Logger(const Logger &rhs) = delete;

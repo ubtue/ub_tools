@@ -90,7 +90,7 @@ bool ChopIntoWords(const std::string &text, std::vector<std::string> * const wor
 /** \return The position at which "needle" starts in "haystack" or "haystack.cend()" if "needle"
     is not in "haystack". */
 std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack,
-						       const std::vector<std::string> &needle);
+                                                       const std::vector<std::string> &needle);
 
 
 /** \brief  Base64 encodes a string.

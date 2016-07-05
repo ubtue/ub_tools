@@ -93,8 +93,8 @@ private:
     mutable std::string relative_url_;
 
     enum StateFlags { UNINITIALISED = 0, IS_VALID = 1, VALIDITY_HAS_BEEN_CHECKED = 2, HAS_BEEN_PARSED = 4, MADE_VALID_ATTEMPTED = 8,
-		      CANONIZATION_ATTEMPTED = 16, HAS_BEEN_MADE_ABSOLUTE = 32, HAS_BEEN_CLEANED_UP = 64, IS_CANONICAL = 128,
-		      AN_ERROR_OCCURRED = 256 };
+                      CANONIZATION_ATTEMPTED = 16, HAS_BEEN_MADE_ABSOLUTE = 32, HAS_BEEN_CLEANED_UP = 64, IS_CANONICAL = 128,
+                      AN_ERROR_OCCURRED = 256 };
 
     /** \enum   StateFlags
      *  \brief  The possible states of the object, represented by bit flags.
@@ -153,8 +153,8 @@ public:
      *          SetDefaultUserAgentString() or you pass in a non-empty "user_agent" parameter value.
      */
     Url(const std::string &url, const std::string &default_base_url, const unsigned creation_flags = AUTO_MAKE_VALID | AUTO_MAKE_ABSOLUTE,
-	const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT, const unsigned timeout = DEFAULT_TIMEOUT,
-	const std::string &user_agent = "");
+        const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT, const unsigned timeout = DEFAULT_TIMEOUT,
+        const std::string &user_agent = "");
 
     /** \brief  Construct a Url object from a URL.
      *  \param  url                    The initial form of the URL.
@@ -167,8 +167,8 @@ public:
      *          SetDefaultUserAgentString() or you pass in a non-empty "user_agent" parameter value.
      */
     explicit Url(const std::string &url, const unsigned creation_flags = AUTO_MAKE_VALID,
-		 const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT, const unsigned timeout = DEFAULT_TIMEOUT,
-		 const std::string &user_agent = "");
+                 const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT, const unsigned timeout = DEFAULT_TIMEOUT,
+                 const std::string &user_agent = "");
 
     /** \brief  Construct a URL from its component parts.
      *  \param  scheme                 The URL's scheme component.
@@ -189,9 +189,9 @@ public:
      *          value.
      */
     Url(const std::string &scheme, const std::string &username_password, const std::string &authority, const std::string &port, const std::string path,
-	const std::string &params = "", const std::string query = "", const std::string &fragment = "",
-	const unsigned creation_flags = AUTO_MAKE_VALID, const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT,
-	const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "");
+        const std::string &params = "", const std::string query = "", const std::string &fragment = "",
+        const unsigned creation_flags = AUTO_MAKE_VALID, const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT,
+        const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "");
 
     /** \brief  Factory method for constructing a Url in canonical form.
      *
@@ -199,10 +199,10 @@ public:
      *          SetDefaultUserAgentString() or you pass in a non-empty "user_agent" parameter value.
      */
     static Url CreateCanonicalUrl(const std::string &url, const std::string &base_url = "",
-				  const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT,
-				  const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "")
+                                  const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT,
+                                  const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "")
     {
-	return Url(url, base_url, AUTO_MAKE_VALID | AUTO_CANONIZE, robots_dot_txt_option, timeout, user_agent);
+        return Url(url, base_url, AUTO_MAKE_VALID | AUTO_CANONIZE, robots_dot_txt_option, timeout, user_agent);
     }
 
     /** \brief  Factory method for constructing a Url in canonical form.
@@ -211,7 +211,7 @@ public:
      *          SetDefaultUserAgentString() or you pass in a non-empty "user_agent" parameter value.
      */
     static Url CreateCanonicalUrl(const std::string &url, const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT,
-				  const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "")
+                                  const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "")
     { return Url(url, AUTO_MAKE_VALID | AUTO_CANONIZE, robots_dot_txt_option, timeout, user_agent); }
 
     /** Allow automatic type conversion to "std::string". */
@@ -245,11 +245,11 @@ public:
     /** \brief  Test to see if the URL is valid. */
     bool isValid() const
     {
-	if (state_ & AN_ERROR_OCCURRED)
-	    return false;
-	if (not (state_ & VALIDITY_HAS_BEEN_CHECKED))
-	    internalIsValid();
-	return state_ & IS_VALID;
+        if (state_ & AN_ERROR_OCCURRED)
+            return false;
+        if (not (state_ & VALIDITY_HAS_BEEN_CHECKED))
+            internalIsValid();
+        return state_ & IS_VALID;
     }
 
     /** \brief  Test to see if the URL is a valid HTTP or HTTPS URL. */
@@ -258,11 +258,11 @@ public:
     /** \brief  Test to see if the URL is canonical. */
     bool isCanonical()
     {
-	if (state_ & AN_ERROR_OCCURRED)
-	    return false;
-	if (not (state_ & CANONIZATION_ATTEMPTED))
-	    makeCanonical();
-	return state_ & IS_CANONICAL;
+        if (state_ & AN_ERROR_OCCURRED)
+            return false;
+        if (not (state_ & CANONIZATION_ATTEMPTED))
+            makeCanonical();
+        return state_ & IS_CANONICAL;
     }
 
     /** \brief   Quickly find a simple "cleaned up" version of a URL.
@@ -290,21 +290,21 @@ public:
     /** \brief  Test to see if the URL is an absolute URL. */
     bool isAbsolute() const
     {
-	if (state_ & AN_ERROR_OCCURRED)
-	    return false;
-	if (not (state_ & HAS_BEEN_PARSED))
-	    parseUrl(url_);
-	return (not scheme_.empty() and scheme_ != "http" and scheme_ != "https") or relative_url_.empty();
+        if (state_ & AN_ERROR_OCCURRED)
+            return false;
+        if (not (state_ & HAS_BEEN_PARSED))
+            parseUrl(url_);
+        return (not scheme_.empty() and scheme_ != "http" and scheme_ != "https") or relative_url_.empty();
     }
 
     /** \brief  Test to see if the URL is a relative URL. */
     bool isRelative() const
     {
-	if (state_ & AN_ERROR_OCCURRED)
-	    return false;
-	if (not (state_ & HAS_BEEN_PARSED))
-	    parseUrl(url_);
-	return not relative_url_.empty();
+        if (state_ & AN_ERROR_OCCURRED)
+            return false;
+        if (not (state_ & HAS_BEEN_PARSED))
+            parseUrl(url_);
+        return not relative_url_.empty();
     }
 
     /** \brief   Make the URL absolute relative to its base URL.
@@ -367,23 +367,23 @@ public:
     /** Get the URL's scheme component as a string. */
     std::string getScheme() const
     {
-	if (state_ & AN_ERROR_OCCURRED)
-	    return "";
-	if (not (state_ & HAS_BEEN_PARSED))
-	    parseUrl(url_);
+        if (state_ & AN_ERROR_OCCURRED)
+            return "";
+        if (not (state_ & HAS_BEEN_PARSED))
+            parseUrl(url_);
 
-	return scheme_;
+        return scheme_;
     }
 
     /** Get the URL's username/password component as a string. */
     std::string getUsernamePassword() const
     {
-	if (state_ & AN_ERROR_OCCURRED)
-	    return "";
-	if (not (state_ & HAS_BEEN_PARSED))
-	    parseUrl(url_);
+        if (state_ & AN_ERROR_OCCURRED)
+            return "";
+        if (not (state_ & HAS_BEEN_PARSED))
+            parseUrl(url_);
 
-	return username_password_;
+        return username_password_;
     }
 
     /** \brief  Get the URL's authority (domain name) component as a string.
@@ -394,12 +394,12 @@ public:
      */
     std::string getAuthority() const
     {
-	if (state_ & AN_ERROR_OCCURRED)
-	    return "";
-	if (not (state_ & HAS_BEEN_PARSED))
-	    parseUrl(url_);
+        if (state_ & AN_ERROR_OCCURRED)
+            return "";
+        if (not (state_ & HAS_BEEN_PARSED))
+            parseUrl(url_);
 
-	return authority_;
+        return authority_;
     }
 
     /** \brief   Get the URL's port component as an unsigned integer.
@@ -419,43 +419,43 @@ public:
     /** Get the URL's path component as a string. */
     std::string getPath() const
     {
-	if (state_ & AN_ERROR_OCCURRED)
-	    return "";
-	if (not (state_ & HAS_BEEN_PARSED))
-	    parseUrl(url_);
+        if (state_ & AN_ERROR_OCCURRED)
+            return "";
+        if (not (state_ & HAS_BEEN_PARSED))
+            parseUrl(url_);
 
-	return path_;
+        return path_;
     }
 
     /** Get the URL's pamaters component as a string. */
     std::string getParams() const
     {
-	if (not (state_ & HAS_BEEN_PARSED))
-	    parseUrl(url_);
+        if (not (state_ & HAS_BEEN_PARSED))
+            parseUrl(url_);
 
-	return params_;
+        return params_;
     }
 
     /** Get the URL's query component as a string. */
     std::string getQuery() const
     {
-	if (state_ & AN_ERROR_OCCURRED)
-	    return "";
-	if (not (state_ & HAS_BEEN_PARSED))
-	    parseUrl(url_);
+        if (state_ & AN_ERROR_OCCURRED)
+            return "";
+        if (not (state_ & HAS_BEEN_PARSED))
+            parseUrl(url_);
 
-	return query_;
+        return query_;
     }
 
     /** Get the URL's fragment component as a string. */
     std::string getFragment() const
     {
-	if (state_ & AN_ERROR_OCCURRED)
-	    return "";
-	if (not (state_ & HAS_BEEN_PARSED))
-	    parseUrl(url_);
+        if (state_ & AN_ERROR_OCCURRED)
+            return "";
+        if (not (state_ & HAS_BEEN_PARSED))
+            parseUrl(url_);
 
-	return fragment_;
+        return fragment_;
     }
 
     /** \brief   Returns the `site' part of the URL.  Assumes that this Url is absolute.
@@ -533,9 +533,9 @@ public:
      *  \return  The URL that has been assembled from the individual components.
      */
     static std::string MakeUrl(const std::string &scheme, const std::string &username_password,
-			       const std::string &authority, const std::string &port,
-			       const std::string &path, const std::string &params,
-			       const std::string &query, const std::string &fragment);
+                               const std::string &authority, const std::string &port,
+                               const std::string &path, const std::string &params,
+                               const std::string &query, const std::string &fragment);
 
     /** \brief   Transform a URL from one form to another based local configuration.
      *  \param   url  The URL to transform.
@@ -567,8 +567,8 @@ public:
      *  "resolve_ip_addresses" is true.
      */
     static bool SuggestPotentialCanonicalUrls(const std::string &original_url,
-					      std::list<std::string> * const potential_urls,
-					      const bool resolve_ip_address = false);
+                                              std::list<std::string> * const potential_urls,
+                                              const bool resolve_ip_address = false);
 
     /** \brief   Suggest simple, common variant forms of a URL
      *  \param   url           The URL to check.
@@ -580,7 +580,7 @@ public:
      *  database already, we can assume the URL is a duplicate.  The URL itself is always returned.
      */
     static unsigned SuggestLikelyAlternateFormsForWebUrl(const std::string &url, std::list<std::string> * const url_list,
-							 const bool canonize_url = true);
+                                                         const bool canonize_url = true);
 
     /** Sets the default user agent string for Url::makeCanonical(). */
     static void SetDefaultUserAgentString(const std::string &new_default_user_agent_string)
@@ -604,18 +604,18 @@ private:
      *            into an inconsistent state.
      */
     void setUrlFromComponents(const unsigned new_state = UNINITIALISED) {
-	assert(state_ & HAS_BEEN_PARSED);
-	url_ = Url::MakeUrl(scheme_, username_password_, authority_, port_,
-			    path_, params_, query_, fragment_);
-	state_ = new_state | HAS_BEEN_PARSED;
+        assert(state_ & HAS_BEEN_PARSED);
+        url_ = Url::MakeUrl(scheme_, username_password_, authority_, port_,
+                            path_, params_, query_, fragment_);
+        state_ = new_state | HAS_BEEN_PARSED;
     }
 
     void error(const std::string &error_message) const {
-	error_message_ = error_message;
-	state_ |= AN_ERROR_OCCURRED;
+        error_message_ = error_message;
+        state_ |= AN_ERROR_OCCURRED;
 
-	if (throw_exceptions_)
-	    throw std::runtime_error(error_message);
+        if (throw_exceptions_)
+            throw std::runtime_error(error_message);
     }
 };
 

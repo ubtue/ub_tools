@@ -53,16 +53,16 @@ static std::unordered_set<std::string> *shared_norm_data_control_numbers;
 
 
 bool RecordKeywordControlNumbers(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
-				 std::string * const /* err_msg */)
+                                 std::string * const /* err_msg */)
 {
     std::vector<std::string> keyword_tags;
     StringUtil::Split("600:610:611:630:650:653:656", ':', &keyword_tags);
     const std::vector<std::string> &fields(record->getFields());
     const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
     for (const auto &keyword_tag : keyword_tags) {
-	const ssize_t start_index(record->getFieldIndex(keyword_tag));
-	if (start_index == -1)
-	    continue;
+        const ssize_t start_index(record->getFieldIndex(keyword_tag));
+        if (start_index == -1)
+            continue;
 
         for (size_t index(start_index); index < dir_entries.size() and dir_entries[index].getTag() == keyword_tag; ++index) {
             const Subfields subfields(fields[index]);
@@ -72,7 +72,7 @@ bool RecordKeywordControlNumbers(MarcUtil::Record * const record, XmlWriter * co
                     continue;
 
                 const std::string topic_id(subfield0->second.substr(8));
-		shared_norm_data_control_numbers->insert(topic_id);
+                shared_norm_data_control_numbers->insert(topic_id);
             }
         }
     }
@@ -82,17 +82,17 @@ bool RecordKeywordControlNumbers(MarcUtil::Record * const record, XmlWriter * co
 
 
 void ExtractKeywordNormdataControlNumbers(File * const marc_input,
-					  std::unordered_set<std::string> * const norm_data_control_numbers)
+                                          std::unordered_set<std::string> * const norm_data_control_numbers)
 {
     const size_t orig_size(norm_data_control_numbers->size());
 
     shared_norm_data_control_numbers = norm_data_control_numbers;
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(marc_input, RecordKeywordControlNumbers, nullptr, &err_msg))
-	Error("error while extracting keyword control numbers for \"" + marc_input->getPath() + "\": " + err_msg);
+        Error("error while extracting keyword control numbers for \"" + marc_input->getPath() + "\": " + err_msg);
 
     std::cerr << "Found " << (norm_data_control_numbers->size() - orig_size) << " new keyword control numbers in "
-	      << marc_input->getPath() << '\n';
+              << marc_input->getPath() << '\n';
 }
 
 
@@ -103,16 +103,16 @@ static DbConnection *shared_connection;
 bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/, std::string * const /* err_msg */) {
     const std::vector<std::string> &fields(record->getFields());
     if (shared_norm_data_control_numbers->find(fields[0]) == shared_norm_data_control_numbers->cend())
-	return true; // Not one of the records w/ a keyword used in our title data.
+        return true; // Not one of the records w/ a keyword used in our title data.
 
     // Extract original German entry:
     const ssize_t _150_index(record->getFieldIndex("150"));
     if (_150_index == -1)
-	return true;
+        return true;
     const Subfields _150_subfields(fields[_150_index]);
     const std::string german_text(_150_subfields.getFirstSubfieldValue('a'));
     if (unlikely(german_text.empty()))
-	return true;
+        return true;
     ++keyword_count;
  
     std::vector<std::pair<std::string, std::string>> text_and_language_codes;
@@ -122,54 +122,54 @@ bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xm
     const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
     ssize_t _450_index(record->getFieldIndex("450"));
     if (_450_index != -1) {
-	for (/* Intentionally empty! */;
-	     static_cast<size_t>(_450_index) < fields.size() and dir_entries[_450_index].getTag() == "450"; ++_450_index)
+        for (/* Intentionally empty! */;
+             static_cast<size_t>(_450_index) < fields.size() and dir_entries[_450_index].getTag() == "450"; ++_450_index)
         {
-	    const Subfields _450_subfields(fields[_450_index]);
-	    if (_450_subfields.hasSubfield('a')) {
-		text_and_language_codes.emplace_back(std::make_pair(_450_subfields.getFirstSubfieldValue('a'), "deu"));
-		++synonym_count;
-	    }
-	}
+            const Subfields _450_subfields(fields[_450_index]);
+            if (_450_subfields.hasSubfield('a')) {
+                text_and_language_codes.emplace_back(std::make_pair(_450_subfields.getFirstSubfieldValue('a'), "deu"));
+                ++synonym_count;
+            }
+        }
     }
 
     // Find translations:
     const ssize_t first_750_index(record->getFieldIndex("750"));
     if (first_750_index != -1) {
         for (size_t index(first_750_index); index < dir_entries.size() and dir_entries[index].getTag() == "750"; ++index) {
-	    const Subfields _750_subfields(fields[index]);
-	    auto start_end(_750_subfields.getIterators('9'));
-	    if (start_end.first == start_end.second)
-		continue;
-	    std::string language_code;
-	    for (auto code_and_value(start_end.first); code_and_value != start_end.second; ++code_and_value) {
-		if (StringUtil::StartsWith(code_and_value->second, "L:"))
-		    language_code = code_and_value->second.substr(2);
-	    }
-	    if (language_code.empty() and _750_subfields.hasSubfield('2')) {
-		const std::string _750_2(_750_subfields.getFirstSubfieldValue('2'));
-		if (_750_2 == "lcsh")
-		    language_code = "eng";
-		else if (_750_2 == "ram")
-		    language_code ="fra";
-		if (not language_code.empty())
-		    ++additional_hits;
+            const Subfields _750_subfields(fields[index]);
+            auto start_end(_750_subfields.getIterators('9'));
+            if (start_end.first == start_end.second)
+                continue;
+            std::string language_code;
+            for (auto code_and_value(start_end.first); code_and_value != start_end.second; ++code_and_value) {
+                if (StringUtil::StartsWith(code_and_value->second, "L:"))
+                    language_code = code_and_value->second.substr(2);
             }
-	    if (not language_code.empty()) {
-		++translation_count;
-		text_and_language_codes.emplace_back(std::make_pair(_750_subfields.getFirstSubfieldValue('a'), language_code));
-	    }
+            if (language_code.empty() and _750_subfields.hasSubfield('2')) {
+                const std::string _750_2(_750_subfields.getFirstSubfieldValue('2'));
+                if (_750_2 == "lcsh")
+                    language_code = "eng";
+                else if (_750_2 == "ram")
+                    language_code ="fra";
+                if (not language_code.empty())
+                    ++additional_hits;
+            }
+            if (not language_code.empty()) {
+                ++translation_count;
+                text_and_language_codes.emplace_back(std::make_pair(_750_subfields.getFirstSubfieldValue('a'), language_code));
+            }
         }
     }
 
     // Update the database.
     const std::string id(TranslationUtil::GetId(shared_connection, german_text));
     for (const auto &text_and_language_code : text_and_language_codes) {
-	const std::string REPLACE_STMT("REPLACE INTO translations SET id=" + id + ", language_code=\""
-				       + text_and_language_code.second + "\", category=\"keywords\", preexists=TRUE, text=\""
-				       + shared_connection->escapeString(text_and_language_code.first) + "\"");
-	if (not shared_connection->query(REPLACE_STMT))
-	    Error("Insert failed: " + REPLACE_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
+        const std::string REPLACE_STMT("REPLACE INTO translations SET id=" + id + ", language_code=\""
+                                       + text_and_language_code.second + "\", category=\"keywords\", preexists=TRUE, text=\""
+                                       + shared_connection->escapeString(text_and_language_code.first) + "\"");
+        if (not shared_connection->query(REPLACE_STMT))
+            Error("Insert failed: " + REPLACE_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
     }
 
     return true;
@@ -181,15 +181,15 @@ void ExtractTranslationTerms(File * const norm_data_input, DbConnection * const 
 
     std::string err_msg;
     if (not MarcUtil::ProcessRecords(norm_data_input, ExtractTranslations, nullptr, &err_msg))
-	Error("error while extracting translations from \"" + norm_data_input->getPath() + "\": " + err_msg);
+        Error("error while extracting translations from \"" + norm_data_input->getPath() + "\": " + err_msg);
 
     std::cerr << "Added " << keyword_count << " to the translation database.\n";
     std::cerr << "Found " << translation_count << " translations in the norm data. (" << additional_hits
-	      << " due to 'ram' and 'lcsh' entries.)\n";
+              << " due to 'ram' and 'lcsh' entries.)\n";
     std::cerr << "Found " << synonym_count << " synonym entries.\n";
 }
 
-			     
+                             
 const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
@@ -212,19 +212,19 @@ int main(int argc, char **argv) {
         Error("can't open \"" + norm_data_marc_input_filename + "\" for reading!");
 
     try {
-	const IniFile ini_file(CONF_FILE_PATH);
-	const std::string sql_database(ini_file.getString("", "sql_database"));
-	const std::string sql_username(ini_file.getString("", "sql_username"));
-	const std::string sql_password(ini_file.getString("", "sql_password"));
-	DbConnection db_connection(sql_database, sql_username, sql_password);
+        const IniFile ini_file(CONF_FILE_PATH);
+        const std::string sql_database(ini_file.getString("", "sql_database"));
+        const std::string sql_username(ini_file.getString("", "sql_username"));
+        const std::string sql_password(ini_file.getString("", "sql_password"));
+        DbConnection db_connection(sql_database, sql_username, sql_password);
 
-	std::unordered_set<std::string> norm_data_control_numbers;
-	ExtractKeywordNormdataControlNumbers(&marc_input, &norm_data_control_numbers);
-	ExtractTranslationTerms(&norm_data_marc_input, &db_connection);
+        std::unordered_set<std::string> norm_data_control_numbers;
+        ExtractKeywordNormdataControlNumbers(&marc_input, &norm_data_control_numbers);
+        ExtractTranslationTerms(&norm_data_marc_input, &db_connection);
 
-	timer.stop();
-	std::cout << ::progname << ": execution time: " << TimeUtil::FormatTime(timer.getTimeInMilliseconds()) << ".\n";
+        timer.stop();
+        std::cout << ::progname << ": execution time: " << TimeUtil::FormatTime(timer.getTimeInMilliseconds()) << ".\n";
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }
