@@ -1,5 +1,5 @@
 /** \file    augment_bible_references.cc
- *  \brief   A tool for adding numeric bible references to MARC-21 datasets.
+ *  \brief   A tool for adding numeric bible references a.k.a. "bible ranges" to MARC-21 datasets.
  *  \author  Dr. Johannes Ruscheinski
  */
 
@@ -99,6 +99,8 @@ bool GetGNDCode(const std::vector<DirectoryEntry> &dir_entries, const std::vecto
 }
 
 
+/* Pericopes are found in 130$a if there are also bible references in the 430 field. You should therefore
+   only call this after acertaining that one or more 430 fields contain a bible reference. */
 bool FindPericopes(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
                    const std::set<std::pair<std::string, std::string>> &ranges,
                    std::unordered_multimap<std::string, std::string> * const pericopes_to_ranges_map)
@@ -241,6 +243,11 @@ const std::map<std::string, std::string> book_alias_map {
 static unsigned unknown_book_count;
 
 
+/*  Possible fields containing bible references which will be extracted as bible ranges are 130 and 430
+    (specified by "field_tag").  If one of these fields contains a bible reference, the subfield "a" must
+    contain the text "Bible".  Subfield "p" must contain the name of a book of the bible.  Book ordinals and
+    chapter and verse indicators would be in one or two "n" subfields.
+ */
 bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record,
                     const std::unordered_set<std::string> &books_of_the_bible,
                     const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
@@ -338,6 +345,9 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
 }
 
 
+/* Scans norm data for records that contain bible references.  Found references are converted to bible book
+   ranges and will in a later processing phase be added to title data.  We also extract pericopes which will
+   saved to a file that maps periope names to bible ranges. */
 void LoadNormData(const bool verbose, const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
                   File * const norm_input,
                   std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
@@ -429,6 +439,8 @@ bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record,
 }
 
 
+/* Augments MARC title records that contain bible references by pointing at bible reference norm data records
+   by adding a new MARC field with tag BIB_REF_RANGE_TAG.  This field is filled in with bible ranges. */
 void AugmentBibleRefs(const bool verbose, File * const input, File * const output,
                       const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
                           &gnd_codes_to_bible_ref_codes_map)
