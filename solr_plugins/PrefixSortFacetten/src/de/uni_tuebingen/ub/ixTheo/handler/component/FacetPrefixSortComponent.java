@@ -49,7 +49,7 @@ import java.text.Collator;
  */
 @SuppressWarnings("rawtypes")
 // public class FacetComponent extends SearchComponent {
-public class FacetPrefixSortComponent extends FacetComponent {
+public class FacetPrefixSortComponent extends org.apache.solr.handler.component.FacetComponent {
 
     // We should split at spaces but pay attention to quoted strings which
     // can have internally escaped quotes again. The regex is based on
