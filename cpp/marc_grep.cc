@@ -109,7 +109,7 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
     if (label_format_candidate == "marc_xml")
         return MARC_XML;
     if (label_format_candidate == "control_number_and_traditional")
-	return CONTROL_NUMBER_AND_TRADITIONAL;
+        return CONTROL_NUMBER_AND_TRADITIONAL;
 
     Error("\"" + label_format_candidate + "\" is no valid output label format!");
 }
@@ -137,10 +137,10 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
         return;
     case MARC_BINARY:
     case MARC_XML:
-	Error("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
+        Error("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
     case CONTROL_NUMBER_AND_TRADITIONAL:
         std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':'
-		  << StringUtil::Map(contents, '\x1F', '$') << '\n';
+                  << StringUtil::Map(contents, '\x1F', '$') << '\n';
         return;
     }
 }
@@ -151,20 +151,20 @@ class TagAndContents {
     std::string contents_;
 public:
     TagAndContents(const std::string &tag_or_tag_plus_subfield_code, const std::string &contents)
-	: tag_or_tag_plus_subfield_code_(tag_or_tag_plus_subfield_code), contents_(contents) { }
+        : tag_or_tag_plus_subfield_code_(tag_or_tag_plus_subfield_code), contents_(contents) { }
 
     TagAndContents(TagAndContents &&other) {
-	std::swap(tag_or_tag_plus_subfield_code_, other.tag_or_tag_plus_subfield_code_);
-	std::swap(contents_, other.contents_);
+        std::swap(tag_or_tag_plus_subfield_code_, other.tag_or_tag_plus_subfield_code_);
+        std::swap(contents_, other.contents_);
     }
 
     TagAndContents &operator=(const TagAndContents &rhs) {
-	if (&rhs != this) {
-	    tag_or_tag_plus_subfield_code_ = rhs.tag_or_tag_plus_subfield_code_;
-	    contents_                      = rhs.contents_;
-	}
+        if (&rhs != this) {
+            tag_or_tag_plus_subfield_code_ = rhs.tag_or_tag_plus_subfield_code_;
+            contents_                      = rhs.contents_;
+        }
 
-	return *this;
+        return *this;
     }
 
     const std::string &getTagOrTagPlusSubfieldCode() const { return tag_or_tag_plus_subfield_code_; }
@@ -176,19 +176,19 @@ public:
 
 
 void Emit(const std::string &control_number, const OutputLabel output_format,
-	  std::priority_queue<TagAndContents> * const tags_and_contents)
+          std::priority_queue<TagAndContents> * const tags_and_contents)
 {
     while (not tags_and_contents->empty()) {
-	const TagAndContents &tag_and_contents(tags_and_contents->top());
-	Emit(control_number, tag_and_contents.getTagOrTagPlusSubfieldCode(), tag_and_contents.getContents(),
-	     output_format);
-	tags_and_contents->pop();
+        const TagAndContents &tag_and_contents(tags_and_contents->top());
+        Emit(control_number, tag_and_contents.getTagOrTagPlusSubfieldCode(), tag_and_contents.getContents(),
+             output_format);
+        tags_and_contents->pop();
     }
 }
 
 
 bool EnqueueSubfields(const std::string &tag, const char subfield_code, const std::string &contents,
-		      std::priority_queue<TagAndContents> * const tags_and_contents)
+                      std::priority_queue<TagAndContents> * const tags_and_contents)
 {
     std::string tag_plus_subfield_code(tag);
     tag_plus_subfield_code += subfield_code;
@@ -288,7 +288,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
     {
         if (field_or_subfield_desc.isStar()) {
             for (const auto &tag_and_content : field_to_content_map)
-		tags_and_contents->push(TagAndContents(tag_and_content.first, *(tag_and_content.second)));
+                tags_and_contents->push(TagAndContents(tag_and_content.first, *(tag_and_content.second)));
             return true;
         }
 
@@ -303,7 +303,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
             } else { // Looking for one or more subfields:
                 for (const auto &subfield_code : subfield_codes) {
                     if (EnqueueSubfields(extraction_tag, subfield_code, *tag_and_field_contents->second,
-					 tags_and_contents))
+                                         tags_and_contents))
                         emitted_at_least_one = true;
                 }
             }
@@ -332,7 +332,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
             if (not subfields.hasSubfield(test_subfield_code)) {
                 if (comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL) {
                     if (EnqueueSubfields(extraction_tag, extract_subfield_code, *tag_and_field_contents->second,
-					 tags_and_contents))
+                                         tags_and_contents))
                         emitted_at_least_one = true;
                 } else
                     return false;
@@ -354,7 +354,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
                     or (not matched_at_least_one and comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL))
                 {
                     if (EnqueueSubfields(extraction_tag, extract_subfield_code, *tag_and_field_contents->second,
-					 tags_and_contents))
+                                         tags_and_contents))
                         emitted_at_least_one = true;
                 }
             }
@@ -367,13 +367,13 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
 
 
 void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const std::string &input_filename,
-	       const QueryDescriptor &query_desc, const OutputLabel output_format)
+               const QueryDescriptor &query_desc, const OutputLabel output_format)
 {
     const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
     if (unlikely(media_type.empty()))
-	Error("can't determine media type of \"" + input_filename + "\"!");
+        Error("can't determine media type of \"" + input_filename + "\"!");
     if (media_type != "application/xml" and media_type != "application/marc")
-	Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
+        Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
     const bool input_is_xml(media_type == "application/xml");
 
     File input(input_filename, input_is_xml ? "rm" : "rbm");
@@ -386,7 +386,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
 
     std::unique_ptr<XmlWriter> xml_writer;
     if (output_format == MARC_XML) {
-	xml_writer.reset(new XmlWriter(&output));
+        xml_writer.reset(new XmlWriter(&output));
         xml_writer->openTag("marc:collection",
                            { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
                              std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
@@ -395,34 +395,34 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
 
     while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(&input) : MarcUtil::Record::BinaryFactory(&input))
     {
-	if (output_format == MARC_XML)
-	    record.setRecordWillBeWrittenAsXml(true);
+        if (output_format == MARC_XML)
+            record.setRecordWillBeWrittenAsXml(true);
 
         ++count, ++rate_counter;
-	if (count > max_records)
-	    break;
-	if (rate_counter == sampling_rate)
-	    rate_counter = 0;
-	else
-	    continue;
+        if (count > max_records)
+            break;
+        if (rate_counter == sampling_rate)
+            rate_counter = 0;
+        else
+            continue;
 
         if (query_desc.hasLeaderCondition()) {
             const LeaderCondition &leader_cond(query_desc.getLeaderCondition());
-	    const Leader &leader(record.getLeader());
+            const Leader &leader(record.getLeader());
             if (leader.toString().substr(leader_cond.getStartOffset(),
-					 leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
+                                         leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
                 != leader_cond.getMatch())
                 continue;
         }
 
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-	const std::vector<std::string> &fields(record.getFields());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<std::string> &fields(record.getFields());
         std::unordered_multimap<std::string, const std::string *> field_to_content_map;
         for (unsigned i(0); i < dir_entries.size(); ++i)
             field_to_content_map.insert(std::make_pair(dir_entries[i].getTag(), &fields[i]));
 
         bool matched(false);
-	std::priority_queue<TagAndContents> tags_and_contents;
+        std::priority_queue<TagAndContents> tags_and_contents;
 
         // Extract fields and subfields:
         for (const auto &cond_and_field_or_subfield : query_desc.getCondsAndFieldOrSubfieldDescs()) {
@@ -434,24 +434,24 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
         if (matched) {
             ++matched_count;
 
-	    if (output_format == MARC_BINARY)
-		record.write(&output);
-	    else if (output_format == MARC_XML)
-		record.write(xml_writer.get());
-	    else {
-		// Determine the control number:
-		const auto &control_number_iter(field_to_content_map.find("001"));
-		if (unlikely(control_number_iter == field_to_content_map.end()))
-		    Error("In FieldGrep: record has no control number!");
-		const std::string control_number(*(control_number_iter->second));
+            if (output_format == MARC_BINARY)
+                record.write(&output);
+            else if (output_format == MARC_XML)
+                record.write(xml_writer.get());
+            else {
+                // Determine the control number:
+                const auto &control_number_iter(field_to_content_map.find("001"));
+                if (unlikely(control_number_iter == field_to_content_map.end()))
+                    Error("In FieldGrep: record has no control number!");
+                const std::string control_number(*(control_number_iter->second));
 
-		Emit(control_number, output_format, &tags_and_contents);
-	    }
-	}
+                Emit(control_number, output_format, &tags_and_contents);
+            }
+        }
     }
 
     if (xml_writer != nullptr)
-	xml_writer->closeTag();
+        xml_writer->closeTag();
 
     if (not err_msg.empty())
         Error(err_msg);
@@ -466,39 +466,39 @@ int main(int argc, char *argv[]) {
     // Limit the number of records that we will process:
     unsigned max_records(UINT_MAX);
     if (argc > 1 and std::strcmp(argv[1], "--limit") == 0) {
-	if (argc <= 3)
-	    Usage();
+        if (argc <= 3)
+            Usage();
 
-	if (not StringUtil::ToUnsigned(argv[2], &max_records))
-	    Error("bad record count limit: \"" + std::string(argv[2]) + "\"!");
-	argc -= 2;
-	argv += 2;
+        if (not StringUtil::ToUnsigned(argv[2], &max_records))
+            Error("bad record count limit: \"" + std::string(argv[2]) + "\"!");
+        argc -= 2;
+        argv += 2;
     }
 
     unsigned sampling_rate(1);
     if (argc > 1 and std::strcmp(argv[1], "--sample-rate") == 0) {
-	if (argc <= 3)
-	    Usage();
+        if (argc <= 3)
+            Usage();
 
-	if (not StringUtil::ToUnsigned(argv[2], &sampling_rate))
-	    Error("bad sampling rate: \"" + std::string(argv[2]) + "\"!");
-	argc -= 2;
-	argv += 2;
+        if (not StringUtil::ToUnsigned(argv[2], &sampling_rate))
+            Error("bad sampling rate: \"" + std::string(argv[2]) + "\"!");
+        argc -= 2;
+        argv += 2;
     }
 
     if (argc < 3 or argc > 4)
         Usage();
 
     try {
-	QueryDescriptor query_desc;
-	std::string err_msg;
-	if (not ParseQuery(argv[2], &query_desc, &err_msg))
-	    Error("Query parsing failed: " + err_msg);
+        QueryDescriptor query_desc;
+        std::string err_msg;
+        if (not ParseQuery(argv[2], &query_desc, &err_msg))
+            Error("Query parsing failed: " + err_msg);
 
-	const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
-	    : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
-	FieldGrep(max_records, sampling_rate, argv[1], query_desc, output_label);
+        const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
+            : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
+        FieldGrep(max_records, sampling_rate, argv[1], query_desc, output_label);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

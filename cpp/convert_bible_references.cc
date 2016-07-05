@@ -37,20 +37,20 @@ static unsigned conversion_count(0);
 void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record) {
     const ssize_t _040_index(record->getFieldIndex("040"));
     if (_040_index == -1)
-	return; // Nothing to do!
+        return; // Nothing to do!
 
     const ssize_t _130_index(record->getFieldIndex("130"));
     if (_130_index == -1)
-	return; // Nothing to do!
+        return; // Nothing to do!
 
     const std::vector<std::string> &field_data(record->getFields());
     Subfields _040_subfields(field_data[_040_index]);
     if (not StringUtil::StartsWith(_040_subfields.getFirstSubfieldValue('e'), "rak"))
-	return; // Nothing to do!
+        return; // Nothing to do!
 
     Subfields _130_subfields(field_data[_130_index]);
     if (not _130_subfields.hasSubfield('a'))
-	return; // Nothing to do!
+        return; // Nothing to do!
 
     record->setRecordWillBeWrittenAsXml(true);
 
@@ -58,10 +58,10 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
     record->updateField(static_cast<size_t>(_040_index), _040_subfields.toString());
 
     if (not (_130_subfields.hasSubfield('p') and _130_subfields.getFirstSubfieldValue('a') == "Bibel")) {
-	if (not _130_subfields.moveSubfield('a', 'p'))
-	    return;
-	_130_subfields.setSubfield('a', "Bibel");
-	record->updateField(static_cast<size_t>(_130_index), _130_subfields.toString());
+        if (not _130_subfields.moveSubfield('a', 'p'))
+            return;
+        _130_subfields.setSubfield('a', "Bibel");
+        record->updateField(static_cast<size_t>(_130_index), _130_subfields.toString());
     }
 
     record->write(xml_writer);
@@ -74,7 +74,7 @@ void ConvertBibleRefs(File * const input, File * const output) {
     MarcXmlWriter xml_writer(output);
 
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input))
-	ProcessRecord(&xml_writer, &record);
+        ProcessRecord(&xml_writer, &record);
 
     std::cerr << "Converted " << conversion_count << " record(s).\n";
 }
@@ -103,8 +103,8 @@ int main(int argc, char **argv) {
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
-	ConvertBibleRefs(&marc_input, &marc_output);
+        ConvertBibleRefs(&marc_input, &marc_output);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

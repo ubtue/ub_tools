@@ -136,7 +136,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
 {
     const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user WHERE id=" + user_id);
     if (unlikely(not db_connection->query(SELECT_USER_ATTRIBUTES)))
-	Error("Select failed: " + SELECT_USER_ATTRIBUTES + " (" + db_connection->getLastErrorMessage() + ")");
+        Error("Select failed: " + SELECT_USER_ATTRIBUTES + " (" + db_connection->getLastErrorMessage() + ")");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty())
         Error("found no user attributes in table \"user\" for ID \"" + user_id + "\"!");
@@ -225,12 +225,12 @@ int main(int argc, char **argv) {
     }
 
     try {
-	std::string mysql_url;
-	VuFind::GetMysqlURL(&mysql_url);
-	DbConnection db_connection(mysql_url);
+        std::string mysql_url;
+        VuFind::GetMysqlURL(&mysql_url);
+        DbConnection db_connection(mysql_url);
 
         ProcessSubscriptions(verbose, &db_connection, solr_host_and_port);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

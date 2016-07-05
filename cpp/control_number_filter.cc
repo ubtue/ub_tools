@@ -45,7 +45,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File *
     std::string err_msg;
     const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)
-	Error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
+        Error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
     XmlWriter xml_writer(output);
     xml_writer.openTag("marc:collection",
@@ -55,22 +55,22 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File *
     unsigned count(0), kept_or_deleted_count(0);
 
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+        record.setRecordWillBeWrittenAsXml(true);
         ++count;
 
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         if (dir_entries[0].getTag() != "001")
             Error("First field is not \"001\"!");
 
-	const std::vector<std::string> &fields(record.getFields());
-	const bool matched(matcher->matched(fields[0], &err_msg));
-	if (not err_msg.empty())
-	    Error("regex matching error: " + err_msg);
+        const std::vector<std::string> &fields(record.getFields());
+        const bool matched(matcher->matched(fields[0], &err_msg));
+        if (not err_msg.empty())
+            Error("regex matching error: " + err_msg);
 
-	if ((keep and matched) or (not keep and not matched)) {
-	    ++kept_or_deleted_count;
-	    record.write(&xml_writer);
-	}
+        if ((keep and matched) or (not keep and not matched)) {
+            ++kept_or_deleted_count;
+            record.write(&xml_writer);
+        }
     }
     xml_writer.closeTag();
     
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
     if (argc != 5)
         Usage();
     if (std::strcmp(argv[1], "--keep") != 0 and std::strcmp(argv[1], "--delete") != 0)
-	Usage();
+        Usage();
     const bool keep(std::strcmp(argv[1], "--keep") == 0);
     const std::string regex_pattern(argv[2]);
 

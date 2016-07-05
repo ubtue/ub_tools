@@ -56,29 +56,29 @@ int main(int argc, char *argv[]) {
     progname = argv[0];
 
     if (argc < 3)
-	Usage();
+        Usage();
 
     const unsigned DEFAULT_TIMEOUT(20); // seconds
     unsigned timeout(DEFAULT_TIMEOUT);
     if (std::strcmp(argv[1], "--timeout") == 0) {
-	if (not StringUtil::ToUnsigned(argv[2], &timeout))
+        if (not StringUtil::ToUnsigned(argv[2], &timeout))
             Error("bad timeout \"" + std::string(argv[2]) + "\"!");
-	argc -= 2;
-	argv += 2;
+        argc -= 2;
+        argv += 2;
     }
 
     if (argc < 3)
-	Usage();
+        Usage();
 
     bool trace(false);
     if (std::strcmp(argv[1], "--trace") == 0) {
-	trace = true;
-	--argc;
-	++argv;
+        trace = true;
+        --argc;
+        ++argv;
     }
 
     if (argc != 3)
-	Usage();
+        Usage();
 
     const std::string url(argv[1]);
     const std::string output_filename(argv[2]);
