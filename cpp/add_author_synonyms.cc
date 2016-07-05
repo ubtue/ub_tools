@@ -24,8 +24,8 @@
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
+#include "FileUtil.h"
 #include "MarcUtil.h"
-#include "MediaTypeUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -189,17 +189,6 @@ void AddAuthorSynonyms(File * const marc_input, File * marc_output,
 }
 
 
-std::unique_ptr<File> OpenInputFile(const std::string &filename) {
-    std::string mode("r");
-    mode += MediaTypeUtil::GetFileMediaType(filename) == "application/lz4" ? "u" : "m";
-    std::unique_ptr<File> file(new File(filename, mode));
-    if (file == nullptr)
-        Error("can't open \"" + filename + "\" for reading!");
-
-    return file;
-}
-
-
 int main(int argc, char **argv) {
     progname = argv[0];
 
@@ -207,10 +196,10 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    std::unique_ptr<File> marc_input(OpenInputFile(marc_input_filename));
+    std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(marc_input_filename));
 
     const std::string norm_data_marc_input_filename(argv[2]);
-    std::unique_ptr<File> norm_data_marc_input(OpenInputFile(norm_data_marc_input_filename));
+    std::unique_ptr<File> norm_data_marc_input(FileUtil::OpenInputFileOrDie(norm_data_marc_input_filename));
 
     const std::string marc_output_filename(argv[3]);
     if (unlikely(marc_input_filename == marc_output_filename))

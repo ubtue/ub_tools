@@ -28,9 +28,9 @@
 #include <cstdlib>
 #include <cstring>
 #include "DirectoryEntry.h"
+#include "FileUtil.h"
 #include "Leader.h"
 #include "MarcUtil.h"
-#include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -194,17 +194,6 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
 }
 
 
-std::unique_ptr<File> OpenInputFile(const std::string &filename) {
-    std::string mode("r");
-    mode += MediaTypeUtil::GetFileMediaType(filename) == "application/lz4" ? "u" : "m";
-    std::unique_ptr<File> file(new File(filename, mode));
-    if (file == nullptr)
-        Error("can't open \"" + filename + "\" for reading!");
-
-    return file;
-}
-
-
 int main(int argc, char **argv) {
     progname = argv[0];
 
@@ -213,7 +202,7 @@ int main(int argc, char **argv) {
     const bool verbose(argc == 4);
 
     const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
-    std::unique_ptr<File> marc_input(OpenInputFile(marc_input_filename));
+    std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(marc_input_filename));
 
     const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
     if (unlikely(marc_input_filename == marc_output_filename))
@@ -230,7 +219,7 @@ int main(int argc, char **argv) {
         PopulateParentIdToISBNAndISSNMap(verbose, marc_input.get(), &parent_id_to_isbn_and_issn_map);
         marc_input->close();
         
-        std::unique_ptr<File> marc_input2(OpenInputFile(marc_input_filename));
+        std::unique_ptr<File> marc_input2(FileUtil::OpenInputFileOrDie(marc_input_filename));
         AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_input2.get(), &marc_output, parent_id_to_isbn_and_issn_map);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
