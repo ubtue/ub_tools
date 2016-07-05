@@ -39,9 +39,9 @@
 //
 inline bool operator<(const struct timeval &tv1, const struct timeval &tv2) {
     if (tv1.tv_sec < tv2.tv_sec)
-	return true;
+        return true;
     if (tv1.tv_sec > tv2.tv_sec)
-	return false;
+        return false;
 
     // At this point tv1.tv_sec == tv2.tv_sec
     return tv1.tv_usec < tv2.tv_usec;
@@ -52,9 +52,9 @@ inline bool operator<(const struct timeval &tv1, const struct timeval &tv2) {
 //
 inline bool operator>(const struct timeval &tv1, const struct timeval &tv2) {
     if (tv1.tv_sec > tv2.tv_sec)
-	return true;
+        return true;
     if (tv1.tv_sec < tv2.tv_sec)
-	return false;
+        return false;
 
     // At this point tv1.tv_sec == tv2.tv_sec
     return tv1.tv_usec > tv2.tv_usec;
@@ -101,17 +101,17 @@ inline double TimespecToDouble(const struct timespec &ts) {
 inline timeval &operator+=(timeval &lhs, const unsigned milliseconds) {
     // Are we adding less than 1 second?
     if (milliseconds < 1000) // Yes!
-	lhs.tv_usec += milliseconds * static_cast<suseconds_t>(1000);
+        lhs.tv_usec += milliseconds * static_cast<suseconds_t>(1000);
     else { // No, more than 1 second.
-	const time_t additional_seconds(milliseconds / 1000);
-	lhs.tv_sec += additional_seconds;
-	lhs.tv_usec += (milliseconds - additional_seconds * 1000)  * static_cast<suseconds_t>(1000);
+        const time_t additional_seconds(milliseconds / 1000);
+        lhs.tv_sec += additional_seconds;
+        lhs.tv_usec += (milliseconds - additional_seconds * 1000)  * static_cast<suseconds_t>(1000);
     }
 
     // Make sure "lhs" is in normalised form:
     if (lhs.tv_usec > 1000000) {
-	lhs.tv_usec -= 1000000;
-	++lhs.tv_sec;
+        lhs.tv_usec -= 1000000;
+        ++lhs.tv_sec;
     }
 
     return lhs;
@@ -158,7 +158,7 @@ template<class SomeTimer> class TimerStartStopper {
     bool is_stopped_;
 public:
     explicit TimerStartStopper(SomeTimer * const some_timer)
-	: some_timer_(*some_timer), is_stopped_(false)
+        : some_timer_(*some_timer), is_stopped_(false)
     { some_timer_.start(); }
 
     /** Use this in tandem with the "restart()" member function. */

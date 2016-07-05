@@ -21,6 +21,7 @@
 */
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 #include <cstdlib>
 #include <cstring>
 #include "Solr.h"
@@ -29,7 +30,8 @@
 
 
 __attribute__((noreturn)) void Usage() {
-    std::cerr << "usage: " << ::progname << " query fields host_and_port timeout\n";
+    std::cerr << "usage: " << ::progname << " query fields host_and_port timeout query_result_format\n";
+    std::cerr << "       Where \"query_result_format\" must be either \"XML\" or \"JSON\".\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -37,8 +39,8 @@ __attribute__((noreturn)) void Usage() {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 5)
-	Usage();
+    if (argc != 6)
+        Usage();
 
     const std::string query(argv[1]);
     const std::string fields(argv[2]);
@@ -48,9 +50,18 @@ int main(int argc, char *argv[]) {
     if (not StringUtil::ToUnsigned(argv[4], &timeout) or timeout < 1)
         Error("can't convert \"" + std::string(argv[4]) + " \" to a postive integer!");
 
+    const std::string result_format_candidate(argv[5]);
+    Solr::QueryResultFormat result_format;
+    if (result_format_candidate == "xml")
+        result_format = Solr::QueryResultFormat::XML;
+    else if (result_format_candidate == "json")
+        result_format = Solr::QueryResultFormat::JSON;
+    else
+        Error("unknown query result format \"" + result_format_candidate + "\"!");
+
     try {
         std::string xml_result;
-        if (not Solr::Query(query, fields, &xml_result, host_and_port, timeout))
+        if (not Solr::Query(query, fields, &xml_result, host_and_port, timeout, result_format))
             Error("query failed");
 
         std::cout << xml_result;

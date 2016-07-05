@@ -41,7 +41,7 @@ void ExtractNamesAndValues(const int argc, char *argv[],
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
     if (argc < 3)
-	Usage();
+        Usage();
 
     try {
         const std::string template_filename(argv[1]);

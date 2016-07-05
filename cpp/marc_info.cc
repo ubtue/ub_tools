@@ -46,37 +46,37 @@ void ProcessRecords(const bool input_is_xml, File * const input) {
     std::unordered_set<std::string> control_numbers;
 
     while (const MarcUtil::Record record =
-	   input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
+           input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
     {
         ++record_count;
 
-	std::string err_msg;
-	if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
-	    Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
+        std::string err_msg;
+        if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
+            Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
 
-	const std::vector<std::string> &fields(record.getFields());
-	if (unlikely(fields.empty()))
-	  Error("record #" + std::to_string(record_count) + " has zero fields!");
-	const std::string &control_number(fields[0]);
-	if (control_numbers.find(control_number) != control_numbers.end())
-	    Error("found at least one duplicate control number: " + control_number);
-	control_numbers.insert(control_number);
+        const std::vector<std::string> &fields(record.getFields());
+        if (unlikely(fields.empty()))
+          Error("record #" + std::to_string(record_count) + " has zero fields!");
+        const std::string &control_number(fields[0]);
+        if (control_numbers.find(control_number) != control_numbers.end())
+            Error("found at least one duplicate control number: " + control_number);
+        control_numbers.insert(control_number);
 
-	const Leader &leader(record.getLeader());
-	const unsigned record_length(leader.getRecordLength());
-	if (record_length > max_record_length)
-	    max_record_length = record_length;
+        const Leader &leader(record.getLeader());
+        const unsigned record_length(leader.getRecordLength());
+        if (record_length > max_record_length)
+            max_record_length = record_length;
 
-	std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-	const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
-	if (local_block_count > max_local_block_count)
-	    max_local_block_count = local_block_count;
+        std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+        const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
+        if (local_block_count > max_local_block_count)
+            max_local_block_count = local_block_count;
     }
 
     std::cout << "Data set contains " << record_count << " MARC record(s).\n";
     std::cout << "Largest record contains " << max_record_length << " bytes.\n";
     std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count
-	      << " local blocks.\n";
+              << " local blocks.\n";
 }
 
 
@@ -89,9 +89,9 @@ int main(int argc, char *argv[]) {
     const std::string marc_input_filename(argv[1]);
     const std::string media_type(MediaTypeUtil::GetFileMediaType(marc_input_filename));
     if (unlikely(media_type.empty()))
-	Error("can't determine media type of \"" + marc_input_filename + "\"!");
+        Error("can't determine media type of \"" + marc_input_filename + "\"!");
     if (media_type != "application/xml" and media_type != "application/marc")
-	Error("\"input_filename\" is neither XML nor MARC-21 data!");
+        Error("\"input_filename\" is neither XML nor MARC-21 data!");
     const bool input_is_xml(media_type == "application/xml");
 
     File marc_input(marc_input_filename, input_is_xml ? "r" : "rb");

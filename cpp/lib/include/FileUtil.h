@@ -178,7 +178,7 @@ bool RemoveDirectory(const std::string &dir_name);
  *  \return The number of matched files if all files matching "filename_regex" have been successfully deleted, else -1.
  */
 ssize_t RemoveMatchingFiles(const std::string &filename_regex, const bool include_directories = true,
-			    const std::string &directory_to_scan = ".");
+                            const std::string &directory_to_scan = ".");
 
 
 /** Repositions the offset of the open file associated with the file descriptor "fd" to the start of the file.
@@ -191,23 +191,23 @@ bool Rewind(const int fd);
  *  \brief  Possible types for a file.
  */
 enum FileType {
-	FILE_TYPE_UNKNOWN,
-	FILE_TYPE_TEXT,      // .txt
-	FILE_TYPE_HTML,      // .htm .html .php
-	FILE_TYPE_PDF,       // .pdf
-	FILE_TYPE_PS,        // .ps, .eps
-	FILE_TYPE_DOC,       // .sxw .doc
-	FILE_TYPE_SLIDES,    // .sxi .ppt
-	FILE_TYPE_TEX,       // .tex ???
-	FILE_TYPE_DVI,       // .dvi
-	FILE_TYPE_TAR,       // .tar
-	FILE_TYPE_RTF,       // .rtf
-	FILE_TYPE_GZIP,      // .tgz, .gz
-	FILE_TYPE_Z,         // .Z    COMPRESS
-	FILE_TYPE_CODE,      // .c, .cc, .h, .pm, ...
-	FILE_TYPE_GRAPHIC,   // .gif, .jpg, ...
-	FILE_TYPE_AUDIO,     // .ogg, .mp3
-	FILE_TYPE_MOVIE      // .mpg, .mpeg, .divx
+        FILE_TYPE_UNKNOWN,
+        FILE_TYPE_TEXT,      // .txt
+        FILE_TYPE_HTML,      // .htm .html .php
+        FILE_TYPE_PDF,       // .pdf
+        FILE_TYPE_PS,        // .ps, .eps
+        FILE_TYPE_DOC,       // .sxw .doc
+        FILE_TYPE_SLIDES,    // .sxi .ppt
+        FILE_TYPE_TEX,       // .tex ???
+        FILE_TYPE_DVI,       // .dvi
+        FILE_TYPE_TAR,       // .tar
+        FILE_TYPE_RTF,       // .rtf
+        FILE_TYPE_GZIP,      // .tgz, .gz
+        FILE_TYPE_Z,         // .Z    COMPRESS
+        FILE_TYPE_CODE,      // .c, .cc, .h, .pm, ...
+        FILE_TYPE_GRAPHIC,   // .gif, .jpg, ...
+        FILE_TYPE_AUDIO,     // .ogg, .mp3
+        FILE_TYPE_MOVIE      // .mpg, .mpeg, .divx
 };
 
 
@@ -229,7 +229,7 @@ std::string FileTypeToString(FileType const file_type);
  *  \return The number of matched file names.
  */
 size_t GetFileNameList(const std::string &filename_regex, std::vector<std::string> * const matched_filenames,
-		       const std::string &directory_to_scan = ".");
+                       const std::string &directory_to_scan = ".");
 
 /** \brief Rename a file or directory.
  *  \param old_name       The original name.

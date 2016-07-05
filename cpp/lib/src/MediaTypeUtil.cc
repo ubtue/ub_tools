@@ -44,12 +44,12 @@ namespace MediaTypeUtil {
 
 std::string GetHtmlMediaType(const std::string &document) {
     static const PerlCompatRegExp doctype_regexp("^\\s*<(?:!DOCTYPE\\s+HTML\\s+PUBLIC\\s+\"-//W3C//DTD\\s+){0,1}(X?HTML)",
-						 PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE, PCRE_CASELESS);
+                                                 PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE, PCRE_CASELESS);
 
     // If we have a match we have either HTML or XHTML...
     std::string matched_substring;
     if (doctype_regexp.match(document) and doctype_regexp.getMatchedSubstring(1, &matched_substring))
-	return matched_substring.length() == 4 ? "text/html" : "text/xhtml";
+        return matched_substring.length() == 4 ? "text/html" : "text/xhtml";
 
     // ...otherwise we have no idea what we have:
     return "";
@@ -63,40 +63,40 @@ static std::string LZ4_MAGIC("\000\042\115\030");
 //
 std::string GetMediaType(const std::string &document, const bool auto_simplify) {
     if (document.empty())
-	return "";
+        return "";
 
     // 1. See if we have (X)HTML:
     std::string media_type(GetHtmlMediaType(document));
     if (not media_type.empty())
-	return media_type;
+        return media_type;
 
     // 2. Check for LZ4 compression:
     if (document.substr(0, 4) == LZ4_MAGIC)
-	return "application/lz4";
+        return "application/lz4";
 
     // 3. Next try libmagic:
     const magic_t cookie = ::magic_open(MAGIC_MIME);
     if (unlikely(cookie == nullptr))
-	throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
+        throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
 
     // Load the default "magic" definitions file:
     if (unlikely(::magic_load(cookie, nullptr /* use default magic file */) != 0)) {
-	::magic_close(cookie);
-	throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not load libmagic ("
-	                         + std::string(::magic_error(cookie)) + ").");
+        ::magic_close(cookie);
+        throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not load libmagic ("
+                                 + std::string(::magic_error(cookie)) + ").");
     }
 
     // Use magic to get the mime type of the buffer:
     const char *magic_mime_type = ::magic_buffer(cookie, document.c_str(), document.length());
     if (unlikely(magic_mime_type == nullptr)) {
-	::magic_close(cookie);
-	throw std::runtime_error("in MediaTypeUtil::GetMediaType: error in libmagic ("
-	                         + std::string(::magic_error(cookie)) + ").");
+        ::magic_close(cookie);
+        throw std::runtime_error("in MediaTypeUtil::GetMediaType: error in libmagic ("
+                                 + std::string(::magic_error(cookie)) + ").");
     }
 
     // Attempt to remove possible leading junk (no idea why libmagic behaves in this manner every now and then):
     if (std::strncmp(magic_mime_type, "\\012- ", 6) == 0)
-	magic_mime_type += 6;
+        magic_mime_type += 6;
 
     // Close the library:
     media_type = magic_mime_type;
@@ -104,10 +104,10 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 
     // 4. If the libmagic could not determine the document's MIME type, test for XML:
     if (media_type.empty() and document.size() > 5)
-	return std::strncmp(document.c_str(), "<?xml", 5) == 0 ? "text/xml" : "";
+        return std::strncmp(document.c_str(), "<?xml", 5) == 0 ? "text/xml" : "";
 
     if (auto_simplify)
-	SimplifyMediaType(&media_type);
+        SimplifyMediaType(&media_type);
 
     return media_type;
 }
@@ -116,39 +116,39 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 std::string GetFileMediaType(const std::string &filename, const bool auto_simplify) {
     const magic_t cookie = ::magic_open(MAGIC_MIME | MAGIC_SYMLINK);
     if (unlikely(cookie == nullptr))
-	throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
+        throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
 
     // Load the default "magic" definitions file:
     if (unlikely(::magic_load(cookie, nullptr /* use default magic file */) != 0)) {
-	::magic_close(cookie);
-	throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not load libmagic ("
-	                         + std::string(::magic_error(cookie)) + ").");
+        ::magic_close(cookie);
+        throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not load libmagic ("
+                                 + std::string(::magic_error(cookie)) + ").");
     }
 
     // Use magic to get the mime type of the buffer:
     const char *magic_mime_type(::magic_file(cookie, filename.c_str()));
     if (unlikely(magic_mime_type == nullptr)) {
-	::magic_close(cookie);
-	throw std::runtime_error("in MediaTypeUtil::GetFileMediaType: error in libmagic ("
-	                         + std::string(::magic_error(cookie)) + ").");
+        ::magic_close(cookie);
+        throw std::runtime_error("in MediaTypeUtil::GetFileMediaType: error in libmagic ("
+                                 + std::string(::magic_error(cookie)) + ").");
     }
 
     // Attempt to remove possible leading junk (no idea why libmagic behaves in this manner every now and then):
     if (std::strncmp(magic_mime_type, "\\012- ", 6) == 0)
-	magic_mime_type += 6;
+        magic_mime_type += 6;
 
     // Close the library:
     std::string media_type(magic_mime_type);
     ::magic_close(cookie);
 
     if (auto_simplify)
-	SimplifyMediaType(&media_type);
+        SimplifyMediaType(&media_type);
 
     if (StringUtil::StartsWith(media_type, "application/octet-stream")) {
-	File input(filename, "rb");
-	char *buf = reinterpret_cast<char *>(::alloca(LZ4_MAGIC.size()));
-	if ((input.read(buf, sizeof(buf)) == sizeof(buf)) and std::strncmp(LZ4_MAGIC.c_str(), buf, LZ4_MAGIC.size()) == 0)
-	    return "application/lz4";
+        File input(filename, "rb");
+        char *buf = reinterpret_cast<char *>(::alloca(LZ4_MAGIC.size()));
+        if ((input.read(buf, sizeof(buf)) == sizeof(buf)) and std::strncmp(LZ4_MAGIC.c_str(), buf, LZ4_MAGIC.size()) == 0)
+            return "application/lz4";
     }
 
     return media_type;
@@ -161,13 +161,13 @@ std::string GetMediaType(const std::string &page_header, const std::string &page
     // First, attempt to find the media type in the header:
     HttpHeader http_header(page_header);
     if (http_header.isValid()) {
-	std::string media_type(http_header.getMediaType());
-	if (not media_type.empty()) {
-	    StringUtil::ToLower(&media_type);
-	    if (auto_simplify)
-		SimplifyMediaType(&media_type);
-	    return media_type;
-	}
+        std::string media_type(http_header.getMediaType());
+        if (not media_type.empty()) {
+            StringUtil::ToLower(&media_type);
+            if (auto_simplify)
+                SimplifyMediaType(&media_type);
+            return media_type;
+        }
     }
 
     // Otherwise, check the content:
@@ -178,30 +178,30 @@ std::string GetMediaType(const std::string &page_header, const std::string &page
 // GetMediaType -- Get the MediaType of the page.  Returns true if "media_type" is known and set.
 //
 bool GetMediaType(const Url &url, const HttpHeader &http_header, const std::string &page_content,
-		  std::string * const media_type, const bool auto_simplify)
+                  std::string * const media_type, const bool auto_simplify)
 {
     // First, attempt to find the media type in the header:
     if (http_header.isValid()) {
-	*media_type = http_header.getMediaType();
-	if (not media_type->empty()) {
-	    if (auto_simplify)
-		SimplifyMediaType(media_type);
-	    return true;
-	}
+        *media_type = http_header.getMediaType();
+        if (not media_type->empty()) {
+            if (auto_simplify)
+                SimplifyMediaType(media_type);
+            return true;
+        }
     }
 
     // Second, attempt to use the "magic" library (libmagic) to analyse the page:
     *media_type = MediaTypeUtil::GetMediaType(page_content);
     if (not media_type->empty()) {
-	if (auto_simplify)
-	    SimplifyMediaType(media_type);
-	return true;
+        if (auto_simplify)
+            SimplifyMediaType(media_type);
+        return true;
     }
 
     // Third, guess based on URL:
     *media_type = WebUtil::GuessMediaType(url);
     if (not media_type->empty() and auto_simplify)
-	SimplifyMediaType(media_type);
+        SimplifyMediaType(media_type);
     return not media_type->empty();
 }
 
@@ -211,13 +211,13 @@ std::string GetMediaType(const HttpHeader &http_header, const std::string &page_
 
     // First, attempt to find the media type in the header:
     if (http_header.isValid()) {
-	media_type = http_header.getMediaType();
-	if (not media_type.empty()) {
-	    StringUtil::ToLower(&media_type);
-	    if (auto_simplify)
-		SimplifyMediaType(&media_type);
-	    return media_type;
-	}
+        media_type = http_header.getMediaType();
+        if (not media_type.empty()) {
+            StringUtil::ToLower(&media_type);
+            if (auto_simplify)
+                SimplifyMediaType(&media_type);
+            return media_type;
+        }
     }
 
     // Second, attempt to use the "magic" library (libmagic) to analyse the page:
@@ -228,7 +228,7 @@ std::string GetMediaType(const HttpHeader &http_header, const std::string &page_
 
 
 bool GetMediaType(const std::string &url, const HttpHeader &http_header, const std::string &page_content,
-		  std::string * const media_type, const bool auto_simplify)
+                  std::string * const media_type, const bool auto_simplify)
 {
     return GetMediaType(Url(url), http_header, page_content, media_type, auto_simplify);
 }
@@ -236,11 +236,11 @@ bool GetMediaType(const std::string &url, const HttpHeader &http_header, const s
 
 bool SimplifyMediaType(std::string * const media_type) {
     if (media_type->empty())
-	return false;
+        return false;
 
     // This is the format of the Content-Type field for Web pages:
-    // 	media-type     = type "/" subtype *( ";" parameter )
-    // 	type           = token
+    //  media-type     = type "/" subtype *( ";" parameter )
+    //  type           = token
     //      subtype        = token
     // See: http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
 
@@ -249,11 +249,11 @@ bool SimplifyMediaType(std::string * const media_type) {
     // Search for a semicolon and delete any 'parameter' parts:
     const std::string::size_type semicolon_pos(media_type->find(';'));
     if (semicolon_pos != std::string::npos)
-	media_type->resize(semicolon_pos);
+        media_type->resize(semicolon_pos);
     else { // Try a space instead of a semicolon.
-	const std::string::size_type space_pos(media_type->find(' '));
-	if (space_pos != std::string::npos)
-	    media_type->resize(space_pos);
+        const std::string::size_type space_pos(media_type->find(' '));
+        if (space_pos != std::string::npos)
+            media_type->resize(space_pos);
     }
 
     StringUtil::TrimWhite(media_type);

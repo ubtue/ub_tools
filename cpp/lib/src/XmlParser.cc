@@ -32,7 +32,7 @@
 bool XmlParser::AttributeMap::insert(const std::string &name, const std::string &value) {
     const iterator iter = find(name);
     if (iter != end())
-	return false;
+        return false;
 
     std::map<std::string, std::string>::insert(std::pair<std::string, std::string>(name, value));
     return true;
@@ -44,7 +44,7 @@ bool XmlParser::Chunk::getAttribute(const std::string &attrib_name, std::string 
 
     const AttributeMap::const_iterator name_and_value(attribute_map_->find(attrib_name));
     if (name_and_value == attribute_map_->end())
-	return false;
+        return false;
     *attrib_value = name_and_value->second;
     return true;
 }
@@ -53,7 +53,7 @@ bool XmlParser::Chunk::getAttribute(const std::string &attrib_name, std::string 
 bool XmlParser::reentrantXmlSAXParseFile(const xmlSAXHandlerPtr sax, const std::string &filename) {
     xmlParserCtxtPtr parser_ctxt = ::xmlCreateFileParserCtxt(filename.c_str());
     if (parser_ctxt == nullptr)
-	return false;
+        return false;
 
     parser_ctxt->sax = sax;
     parser_ctxt->userData = this;
@@ -66,7 +66,7 @@ bool XmlParser::reentrantXmlSAXParseFile(const xmlSAXHandlerPtr sax, const std::
     parser_ctxt->myDoc = nullptr;
 
     if (sax != nullptr)
-	parser_ctxt->sax = nullptr;
+        parser_ctxt->sax = nullptr;
 
     ::xmlFreeParserCtxt(parser_ctxt);
     ::xmlCleanupParser();
@@ -76,11 +76,11 @@ bool XmlParser::reentrantXmlSAXParseFile(const xmlSAXHandlerPtr sax, const std::
 
 
 bool XmlParser::reentrantXmlSAXParseMemory(const xmlSAXHandlerPtr sax, const char * const memory,
-					   const size_t memory_size)
+                                           const size_t memory_size)
 {
     xmlParserCtxtPtr memory_parser_ctxt = ::xmlCreateMemoryParserCtxt(memory, memory_size);
     if (memory_parser_ctxt == nullptr)
-	return false;
+        return false;
 
     memory_parser_ctxt->sax = sax;
     memory_parser_ctxt->userData = this;
@@ -93,7 +93,7 @@ bool XmlParser::reentrantXmlSAXParseMemory(const xmlSAXHandlerPtr sax, const cha
     memory_parser_ctxt->myDoc = nullptr;
 
     if (sax != nullptr)
-	memory_parser_ctxt->sax = nullptr;
+        memory_parser_ctxt->sax = nullptr;
 
     ::xmlFreeParserCtxt(memory_parser_ctxt);
     ::xmlCleanupParser();
@@ -107,9 +107,9 @@ bool XmlParser::parse() {
     initSaxHandler(&sax_handler, notification_mask_);
 
     if (filename_ != nullptr)
-	return reentrantXmlSAXParseFile(&sax_handler, filename_);
+        return reentrantXmlSAXParseFile(&sax_handler, filename_);
     else
-	return reentrantXmlSAXParseMemory(&sax_handler, memory_, memory_size_);
+        return reentrantXmlSAXParseMemory(&sax_handler, memory_, memory_size_);
 }
 
 
@@ -120,13 +120,13 @@ void XmlParser::initSaxHandler(xmlSAXHandlerPtr const sax_handler, unsigned noti
     // Explicitly set function handlers for "events" that we would like to
     // be notified of:
     if (notification_mask & XmlParser::START_DOCUMENT)
-	sax_handler->startDocument = XmlParser::startDocumentHandler;
+        sax_handler->startDocument = XmlParser::startDocumentHandler;
     if (notification_mask & XmlParser::END_DOCUMENT)
-	sax_handler->endDocument = XmlParser::endDocumentHandler;
+        sax_handler->endDocument = XmlParser::endDocumentHandler;
     if (notification_mask & XmlParser::START_ELEMENT)
-	sax_handler->startElement = XmlParser::startElementHandler;
+        sax_handler->startElement = XmlParser::startElementHandler;
     if (notification_mask & XmlParser::END_ELEMENT)
-	sax_handler->endElement = XmlParser::endElementHandler;
+        sax_handler->endElement = XmlParser::endElementHandler;
 
     // We always want to install the character handler so that we can
     // count newlines to determine the current line number when
@@ -139,11 +139,11 @@ void XmlParser::initSaxHandler(xmlSAXHandlerPtr const sax_handler, unsigned noti
     sax_handler->ignorableWhitespace = XmlParser::ignorableWhitespaceHandler;
 
     if (notification_mask & XmlParser::WARNING)
-	sax_handler->warning = XmlParser::warningHandler;
+        sax_handler->warning = XmlParser::warningHandler;
     if (notification_mask & XmlParser::ERROR)
-	sax_handler->error = XmlParser::errorHandler;
+        sax_handler->error = XmlParser::errorHandler;
     if (notification_mask & XmlParser::FATAL_ERROR)
-	sax_handler->fatalError = XmlParser::fatalErrorHandler;
+        sax_handler->fatalError = XmlParser::fatalErrorHandler;
 }
 
 
@@ -168,23 +168,23 @@ void XmlParser::startElementHandler(void * user_data, const xmlChar *element_nam
 
     std::string name;
     if (xml_parser->convert_to_iso8859_15_)
-	name = StringUtil::UTF8ToISO8859_15(reinterpret_cast<const char *>(element_name));
+        name = StringUtil::UTF8ToISO8859_15(reinterpret_cast<const char *>(element_name));
     else
-	name = reinterpret_cast<const char *>(element_name);
+        name = reinterpret_cast<const char *>(element_name);
 
     Chunk chunk(XmlParser::START_ELEMENT, name, xml_parser->lineno_);
     chunk.attribute_map_ = new AttributeMap;
     for (const xmlChar **attrib = attribs; attrib != nullptr and *attrib != nullptr; ++attrib) {
-	std::string attrib_name, attrib_value;
-	if (xml_parser->convert_to_iso8859_15_) {
-	    attrib_name  = StringUtil::UTF8ToISO8859_15(reinterpret_cast<const char *>(*attrib++));
-	    attrib_value = StringUtil::UTF8ToISO8859_15(reinterpret_cast<const char *>(*attrib));
-	}
-	else {
-	    attrib_name  = reinterpret_cast<const char *>(*attrib++);
-	    attrib_value = reinterpret_cast<const char *>(*attrib);
-	}
-	chunk.attribute_map_->insert(attrib_name, attrib_value);
+        std::string attrib_name, attrib_value;
+        if (xml_parser->convert_to_iso8859_15_) {
+            attrib_name  = StringUtil::UTF8ToISO8859_15(reinterpret_cast<const char *>(*attrib++));
+            attrib_value = StringUtil::UTF8ToISO8859_15(reinterpret_cast<const char *>(*attrib));
+        }
+        else {
+            attrib_name  = reinterpret_cast<const char *>(*attrib++);
+            attrib_value = reinterpret_cast<const char *>(*attrib);
+        }
+        chunk.attribute_map_->insert(attrib_name, attrib_value);
     }
 
     xml_parser->notify(chunk);
@@ -196,9 +196,9 @@ void XmlParser::endElementHandler(void * user_data, const xmlChar *element_name)
 
     std::string name;
     if (xml_parser->convert_to_iso8859_15_)
-	name = StringUtil::UTF8ToISO8859_15(reinterpret_cast<const char *>(element_name));
+        name = StringUtil::UTF8ToISO8859_15(reinterpret_cast<const char *>(element_name));
     else
-	name = reinterpret_cast<const char *>(element_name);
+        name = reinterpret_cast<const char *>(element_name);
 
     Chunk chunk(XmlParser::END_ELEMENT, name, xml_parser->lineno_);
     xml_parser->notify(chunk);
@@ -215,19 +215,19 @@ void XmlParser::charactersHandler(void * user_data, const xmlChar *chars, int le
 
     std::string characters(reinterpret_cast<const char *>(chars), len);
     if (xml_parser->convert_to_iso8859_15_)
-	characters = StringUtil::UTF8ToISO8859_15(characters);
+        characters = StringUtil::UTF8ToISO8859_15(characters);
 
     bool newline_is_last_char = characters[characters.length() - 1] == '\n';
     unsigned newline_count(0);
     for (std::string::const_iterator ch(characters.begin()); ch != characters.end(); ++ch)
-	if (*ch == '\n')
-	    ++newline_count;
+        if (*ch == '\n')
+            ++newline_count;
     xml_parser->lineno_ += newline_count;
 
     if (xml_parser->notification_mask_ & XmlParser::CHARACTERS) {
-	Chunk chunk(XmlParser::CHARACTERS, characters,
-		    newline_is_last_char ? xml_parser->lineno_ - 1 : xml_parser->lineno_);
-	xml_parser->notify(chunk);
+        Chunk chunk(XmlParser::CHARACTERS, characters,
+                    newline_is_last_char ? xml_parser->lineno_ - 1 : xml_parser->lineno_);
+        xml_parser->notify(chunk);
     }
 }
 
@@ -237,19 +237,19 @@ void XmlParser::ignorableWhitespaceHandler(void * user_data, const xmlChar *char
 
     std::string characters(reinterpret_cast<const char *>(chars), len);
     if (xml_parser->convert_to_iso8859_15_)
-	characters = StringUtil::UTF8ToISO8859_15(characters);
+        characters = StringUtil::UTF8ToISO8859_15(characters);
 
     bool newline_is_last_char = characters[characters.length() - 1] == '\n';
     unsigned newline_count(0);
     for (std::string::const_iterator ch(characters.begin()); ch != characters.end(); ++ch)
-	if (*ch == '\n')
-	    ++newline_count;
+        if (*ch == '\n')
+            ++newline_count;
     xml_parser->lineno_ += newline_count;
 
     if (xml_parser->notification_mask_ & XmlParser::IGNORABLE_WHITESPACE) {
-	Chunk chunk(XmlParser::IGNORABLE_WHITESPACE, characters,
-		    newline_is_last_char ? xml_parser->lineno_ - 1 : xml_parser->lineno_);
-	xml_parser->notify(chunk);
+        Chunk chunk(XmlParser::IGNORABLE_WHITESPACE, characters,
+                    newline_is_last_char ? xml_parser->lineno_ - 1 : xml_parser->lineno_);
+        xml_parser->notify(chunk);
     }
 }
 
@@ -279,7 +279,7 @@ void XmlParser::errorHandler(void * user_data, const char *fmt, ...) {
 
     std::string text(reinterpret_cast<const char *>(xml_parser->current_xml_text_), 40);
     if (xml_parser->convert_to_iso8859_15_)
-	text = StringUtil::UTF8ToISO8859_15(text);
+        text = StringUtil::UTF8ToISO8859_15(text);
 
     Chunk chunk(XmlParser::ERROR, std::string(error) + ": " + text, xml_parser->lineno_);
     xml_parser->notify(chunk);

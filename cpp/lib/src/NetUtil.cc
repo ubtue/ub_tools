@@ -35,7 +35,7 @@
 
 
 #ifndef DIM
-#       define DIM(array)	(sizeof(array) / sizeof(array[0]))
+#       define DIM(array)       (sizeof(array) / sizeof(array[0]))
 #endif
 
 
@@ -45,24 +45,24 @@ namespace NetUtil {
 bool StringToNetworkAddressAndMask(const std::string &s, in_addr_t * const network_address, in_addr_t * const netmask) {
     std::string::size_type slash_pos = s.find('/');
     if (slash_pos == std::string::npos)
-	return false;
+        return false;
 
     in_addr address;
     if (not ::inet_aton(s.substr(0, slash_pos).c_str(), &address))
-	return false;
+        return false;
     *network_address = address.s_addr;
 
     if (s.length() <= slash_pos or not StringUtil::IsUnsignedNumber(s.substr(slash_pos + 1)))
-	return false;
+        return false;
 
     unsigned subnet_size = std::atoi(s.substr(slash_pos + 1).c_str());
     if (subnet_size > 32)
-	return false;
+        return false;
     else if (subnet_size == 0)
-	*netmask = 0;
+        *netmask = 0;
     else {
-	*netmask = ~0u << (32u - subnet_size);
-	*netmask = htonl(*netmask);
+        *netmask = ~0u << (32u - subnet_size);
+        *netmask = htonl(*netmask);
     }
 
     return true;
@@ -72,7 +72,7 @@ bool StringToNetworkAddressAndMask(const std::string &s, in_addr_t * const netwo
 bool StringToNetworkAddress(const std::string &s, in_addr_t * const network_address) {
     in_addr address;
     if (not ::inet_aton(s.c_str(), &address))
-	return false;
+        return false;
     *network_address = address.s_addr;
 
     return true;
@@ -82,7 +82,7 @@ bool StringToNetworkAddress(const std::string &s, in_addr_t * const network_addr
 in_addr_t StringToNetworkAddress(const std::string &s) {
     in_addr_t network_address(0x0);
     if (likely(StringToNetworkAddress(s, &network_address)))
-	return network_address;
+        return network_address;
 
     throw std::runtime_error("in NetUtil::StringToNetworkAddress: \"" + s + "\" is not a valid IPv4 address!");
 }
@@ -93,9 +93,9 @@ bool NetworkAddressToString(const in_addr_t network_address, std::string * const
     network_address_in_host_byte_order = ntohl(network_address_in_host_byte_order);
     char buf[3 + 1 + 3 + 1 + 3 + 1 + 3 + 1];
     std::sprintf(buf, "%0u.%0u.%0u.%0u", (network_address_in_host_byte_order >> 24u),
-		 (network_address_in_host_byte_order >> 16u) & 0xFF,
-		 (network_address_in_host_byte_order >> 8u) & 0xFF,
-		 network_address_in_host_byte_order & 0xFF);
+                 (network_address_in_host_byte_order >> 16u) & 0xFF,
+                 (network_address_in_host_byte_order >> 8u) & 0xFF,
+                 network_address_in_host_byte_order & 0xFF);
     *s = buf;
 
     return true;
@@ -105,7 +105,7 @@ bool NetworkAddressToString(const in_addr_t network_address, std::string * const
 std::string NetworkAddressToString(const in_addr_t network_address) {
     std::string network_address_as_string;
     if (unlikely(not NetworkAddressToString(network_address, &network_address_as_string)))
-	throw std::runtime_error("in NetUtil::NetworkAddressToString: can't convert in_addr_t to an IPv4 address!");
+        throw std::runtime_error("in NetUtil::NetworkAddressToString: can't convert in_addr_t to an IPv4 address!");
 
     return network_address_as_string;
 }
@@ -153,10 +153,10 @@ void PopulateNetmaskToPrefixTable(std::unordered_map<in_addr_t, std::string> * c
 std::string NetmaskToIpPrefix(const in_addr_t netmask) {
     static std::unordered_map<in_addr_t, std::string> netmask_to_prefix;
     if (unlikely(netmask_to_prefix.empty()))
-	PopulateNetmaskToPrefixTable(&netmask_to_prefix);
+        PopulateNetmaskToPrefixTable(&netmask_to_prefix);
     std::unordered_map<in_addr_t, std::string>::const_iterator netmask_and_prefix(netmask_to_prefix.find(netmask));
     if (netmask_and_prefix == netmask_to_prefix.end())
-	return "";
+        return "";
     return netmask_and_prefix->second;
 }
 
@@ -167,17 +167,17 @@ std::string NetmaskToIpPrefix(const in_addr_t netmask) {
 std::string NetworkAddressAndMaskToString(const in_addr_t network_address, const in_addr_t netmask) {
     std::string address, ip_prefix;
     if (not NetworkAddressToString(network_address, &address))
-	throw std::runtime_error("in NetUtil::NetworkAddressAndMaskToString: invalid network address("
-				 + std::to_string(network_address) + ")");
+        throw std::runtime_error("in NetUtil::NetworkAddressAndMaskToString: invalid network address("
+                                 + std::to_string(network_address) + ")");
 
     if (netmask == 0)
-	ip_prefix = "/0";
+        ip_prefix = "/0";
     else
-	ip_prefix = NetmaskToIpPrefix(netmask);
+        ip_prefix = NetmaskToIpPrefix(netmask);
 
     if (ip_prefix == "")
-	throw std::runtime_error("in NetUtil::NetworkAddressAndMaskToString: invalid netmask(" + StringUtil::ToString(netmask)
-				 + ")");
+        throw std::runtime_error("in NetUtil::NetworkAddressAndMaskToString: invalid netmask(" + StringUtil::ToString(netmask)
+                                 + ")");
 
     return address + ip_prefix;
 }
@@ -196,34 +196,34 @@ void GetInterfaces(std::list<ifreq> * const interface_requests) {
 
     const int sock_fd = ::socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (sock_fd == -1)
-	throw std::runtime_error("in GetInterfaces: can't get IPv4 socket!");
+        throw std::runtime_error("in GetInterfaces: can't get IPv4 socket!");
 
     // Loop until we've allocated struct ifreq's for all interfaces:
     unsigned no_of_interface_requests(10);
     ifconf ifc;
     for (;;) {
-	const int bufsize(static_cast<int>(no_of_interface_requests * sizeof(ifreq)));
-	ifc.ifc_len = bufsize;
-	ifc.ifc_buf = new char[bufsize];
+        const int bufsize(static_cast<int>(no_of_interface_requests * sizeof(ifreq)));
+        ifc.ifc_len = bufsize;
+        ifc.ifc_buf = new char[bufsize];
 
-	if (::ioctl(sock_fd, SIOCGIFCONF, &ifc) != 0) {
-	    delete [] ifc.ifc_buf;
-	    throw std::runtime_error("in GetInterfaces: ioctl(2) failed (" + std::to_string(errno) + ")!");
-	}
+        if (::ioctl(sock_fd, SIOCGIFCONF, &ifc) != 0) {
+            delete [] ifc.ifc_buf;
+            throw std::runtime_error("in GetInterfaces: ioctl(2) failed (" + std::to_string(errno) + ")!");
+        }
 
-	if (ifc.ifc_len == bufsize) { // We possibly need room for more ifreq's.
-	    delete [] ifc.ifc_buf;
-	    no_of_interface_requests *= 2; // Double the number of request buffers:
-	    continue;
-	}
+        if (ifc.ifc_len == bufsize) { // We possibly need room for more ifreq's.
+            delete [] ifc.ifc_buf;
+            no_of_interface_requests *= 2; // Double the number of request buffers:
+            continue;
+        }
 
-	break;
+        break;
     }
 
     ifreq *interface_request = ifc.ifc_req;
     for (ssize_t i = 0; i < ifc.ifc_len; i += sizeof(ifreq)) {
-	interface_requests->push_back(*interface_request);
-	interface_request++;
+        interface_requests->push_back(*interface_request);
+        interface_request++;
     }
 
     delete [] ifc.ifc_buf;
@@ -240,7 +240,7 @@ void GetLocalIPv4Addrs(std::list<in_addr_t> * const ip_addresses) {
     GetInterfaces(&interface_requests);
 
     for (std::list<ifreq>::const_iterator ifreq(interface_requests.begin()); ifreq != interface_requests.end(); ++ifreq)
-	ip_addresses->push_back(reinterpret_cast<const sockaddr_in *>(&ifreq->ifr_ifru.ifru_addr)->sin_addr.s_addr);
+        ip_addresses->push_back(reinterpret_cast<const sockaddr_in *>(&ifreq->ifr_ifru.ifru_addr)->sin_addr.s_addr);
 }
 
 
@@ -269,10 +269,10 @@ const char * const g_tlds[] = {
 
 
 const struct {
-	char country_code_[2 + 1];
-	unsigned pseudo_tld_label_count_;
+        char country_code_[2 + 1];
+        unsigned pseudo_tld_label_count_;
 } cc_tld_exceptions[] = {
-	{ "de", 1 },  // Germany dosn't use ".com." or ".co." or anything like GB (".co.uk" or ".ac.uk") or similar.
+        { "de", 1 },  // Germany dosn't use ".com." or ".co." or anything like GB (".co.uk" or ".ac.uk") or similar.
 };
 
 
@@ -283,37 +283,37 @@ std::string GetQuasiTopLevelDomainName(const std::string &domain_name) {
     std::list<std::string> labels;
     StringUtil::SplitThenTrim(StringUtil::ToLower(domain_name), ".", " \t\n\r\v", &labels);
     if (unlikely(labels.empty()))
-	return "";
+        return "";
 
     // Compare against the gTLD's and ".arpa":
     for (unsigned i = 0; i < DIM(g_tlds); ++i) {
-	if (labels.back() == g_tlds[i])
-	    return g_tlds[i];
+        if (labels.back() == g_tlds[i])
+            return g_tlds[i];
     }
 
     // Make sure we're dealing with a possible ccTLD:
     if (labels.back().length() != 2)
-	return "";
+        return "";
 
     for (unsigned i = 0; i < DIM(cc_tld_exceptions); ++i) {
-	if (labels.back() == cc_tld_exceptions[i].country_code_) {
-	    if (labels.size() < cc_tld_exceptions[i].pseudo_tld_label_count_)
-		return "";
-	    std::string pseudo_tld;
-	    std::list<std::string>::const_reverse_iterator label(labels.rbegin());
-	    for (unsigned k = 0; k < cc_tld_exceptions[i].pseudo_tld_label_count_; ++k) {
-		if (k > 0)
-		    pseudo_tld = "." + pseudo_tld;
-		pseudo_tld = *label + pseudo_tld;
-	    }
+        if (labels.back() == cc_tld_exceptions[i].country_code_) {
+            if (labels.size() < cc_tld_exceptions[i].pseudo_tld_label_count_)
+                return "";
+            std::string pseudo_tld;
+            std::list<std::string>::const_reverse_iterator label(labels.rbegin());
+            for (unsigned k = 0; k < cc_tld_exceptions[i].pseudo_tld_label_count_; ++k) {
+                if (k > 0)
+                    pseudo_tld = "." + pseudo_tld;
+                pseudo_tld = *label + pseudo_tld;
+            }
 
-	    return pseudo_tld;
-	}
+            return pseudo_tld;
+        }
     }
 
     // Assume all other ccTLD's behave like ".ac.uk" etc.:
     if (labels.size() < 2)
-	return "";
+        return "";
 
     std::list<std::string>::const_reverse_iterator label(labels.rbegin());
     const std::string last_label(*label);
@@ -326,10 +326,10 @@ bool GetPeerIpAddressFromSocket(const int socket_fd, in_addr_t * const ip_addres
     sockaddr peeraddr;
     socklen_t addrlen;
     if (0 != ::getpeername(socket_fd, &peeraddr, &addrlen))
-	return false;
+        return false;
 
     if (peeraddr.sa_family != AF_INET)
-	return false;
+        return false;
 
     sockaddr_in *peeraddr_in((sockaddr_in *)&peeraddr);
     *ip_address = peeraddr_in->sin_addr.s_addr;
