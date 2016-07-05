@@ -488,8 +488,8 @@ public class IxTheo extends SolrIndexerMixin {
      * Get the appropriate translation map
      */
 
-    Map<String, String> translation_map_en = new LinkedHashMap<String, String>();
-    Map<String, String> translation_map_fr = new LinkedHashMap<String, String>();
+    Map<String, String> translation_map_en = new HashMap<String, String>();
+    Map<String, String> translation_map_fr = new HashMap<String, String>();
 
     public Map<String, String> getTranslationMap(String langShortcut) throws IllegalArgumentException {
 
@@ -539,7 +539,7 @@ public class IxTheo extends SolrIndexerMixin {
         if (langShortcut.equals("de"))
             return topics;
 
-        Set<String> translated_topics = new LinkedHashSet<String>();
+        Set<String> translated_topics = new HashSet<String>();
         Map<String, String> translation_map = getTranslationMap(langShortcut);
 
         for (String topic : topics) {
@@ -579,7 +579,22 @@ public class IxTheo extends SolrIndexerMixin {
         // $n is converted to a space if there is additional information
         Map<String, String> separators = parseTopicSeparators(separator);
         getTopicsCollector(record, fieldSpec, separators, topics);
+
+        // Extract all translations that will be included
         return translateTopics(topics, langShortcut);
+    }
+
+    public Set<String> collectTopicsInSeveralLanguages(final Record record, String fieldSpec, final String separator,
+            final String langString) throws FileNotFoundException {
+        final Set<String> topics = new HashSet<String>();
+        Map<String, String> separators = parseTopicSeparators(separator);
+        getTopicsCollector(record, fieldSpec, separators, topics);
+        final String[] langShortcuts = langString.split("\\|");
+
+        for (String langShortcut : langShortcuts)
+            topics.addAll(translateTopics(topics, langShortcut.trim()));
+
+        return topics;
     }
 
     /**
@@ -588,7 +603,7 @@ public class IxTheo extends SolrIndexerMixin {
 
     public Map<String, String> parseTopicSeparators(String separatorSpec) {
 
-        final Map<String, String> separators = new LinkedHashMap<String, String>();
+        final Map<String, String> separators = new HashMap<String, String>();
 
         // Split the string at unescaped ":"
         // See
