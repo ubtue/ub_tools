@@ -201,9 +201,10 @@ int main(int argc, char **argv) {
          std::string lang_file_name_str = 
              (extension != "") ? basename + "_" + lang + "." + extension : basename + "_" + lang;
 
-         lang_files[i++] = new File(lang_file_name_str, output_mode);
+         lang_files[i] = new File(lang_file_name_str, output_mode);
          if (lang_files[i]->fail())
              Error("can't open \"" + lang_file_name_str + "\" for writing!");
+         ++i;
     }
 
     try {
