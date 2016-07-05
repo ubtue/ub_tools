@@ -83,7 +83,7 @@ void augmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::str
 void ExtractTranslations(File* const marc_norm_input, 
                          const std::string german_term_field_spec,
                          const std::string translation_field_spec,
-                         std::map<std::string, std::string> term_to_translation_map[]) 
+                         std::map<std::string, std::string> term_to_translation_maps[]) 
 {
     std::set<std::string> german_tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(german_term_field_spec, ':', &german_tags_and_subfield_codes) < 1))
@@ -96,7 +96,7 @@ void ExtractTranslations(File* const marc_norm_input,
     unsigned count(0);
     
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_norm_input)) {
-        std::vector<std::string> german_term;
+        std::vector<std::string> german_terms;
 
         // Determine the German term we will have translations for
         for (const auto tag_and_subfields : german_tags_and_subfield_codes) {
@@ -107,11 +107,11 @@ void ExtractTranslations(File* const marc_norm_input,
              record.extractSubfields(tag, subfields, &german_term_for_one_field);
              
              // We may get the german term from only one field
-             if (german_term.size() > 1)  
+             if (german_terms.size() > 1)  
                  Warning("We have german terms in more than one field for PPN: " + record.getFields()[0]);
 
              if (not german_term_for_one_field.empty()) 
-                 german_term = german_term_for_one_field;
+                 german_terms = german_term_for_one_field;
         }        
 
         std::vector<std::string> all_translations;
@@ -132,16 +132,16 @@ void ExtractTranslations(File* const marc_norm_input,
  
         for (auto it = all_translations.begin(); it != all_translations.end(); ++it) {
             if (*it == "IxTheo_eng") {
-                term_to_translation_map[en].emplace(StringUtil::Join(german_term, ' '), *(it + 1));
+                term_to_translation_maps[en].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
                 ++it;
             } else if (*it == "IxTheo_fra") {
-                term_to_translation_map[fr].emplace(StringUtil::Join(german_term, ' '), *(it + 1));
+                term_to_translation_maps[fr].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
                 ++it;
             } else if (*it == "lcsh") {
-                term_to_translation_map[en].emplace(StringUtil::Join(german_term, ' '), *(it + 1));
+                term_to_translation_maps[en].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
                 ++it;
             } else if (*it == "ram") {
-                term_to_translation_map[fr].emplace(StringUtil::Join(german_term, ' '), *(it + 1));
+                term_to_translation_maps[fr].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
                 ++it;
             }
         }
@@ -207,15 +207,15 @@ int main(int argc, char **argv) {
     }
 
     try {
-        std::map<std::string, std::string> term_to_translation_map[NUMBER_OF_LANGUAGES];
+        std::map<std::string, std::string> term_to_translation_maps[NUMBER_OF_LANGUAGES];
 
-        ExtractTranslations(norm_data_marc_input.get(), "100a:150a", "750a2", term_to_translation_map);
-        for (auto line : term_to_translation_map[en]) {
+        ExtractTranslations(norm_data_marc_input.get(), "100a:150a", "750a2", term_to_translation_maps);
+        for (auto line : term_to_translation_maps[en]) {
               
              *(lang_files[en]) << line.first << "|" << line.second << "\n";
         }
 
-        for (auto line : term_to_translation_map[fr]) {
+        for (auto line : term_to_translation_maps[fr]) {
              *(lang_files[fr]) << line.first << "|" << line.second << "\n";
         }
 
