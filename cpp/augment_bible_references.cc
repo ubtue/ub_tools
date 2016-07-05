@@ -255,8 +255,7 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
     const std::vector<std::string> &fields(record.getFields());
     const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
     bool found_at_least_one(false);
-    --index;
-    while (static_cast<size_t>(++index) < fields.size() and dir_entries[index].getTag() == field_tag) {
+    while (static_cast<size_t>(index++) < fields.size() and dir_entries[index].getTag() == field_tag) {
         const Subfields subfields(fields[index]);
         if (subfields.getFirstSubfieldValue('a') != "Bibel")
             continue;
