@@ -31,7 +31,7 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
 
 ((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Filter out local data of other Institutions ***" | tee --append "${log}"
+echo "*** Phase $P: Filter out records containing mtex in 935\$a ***" | tee --append "${log}"
 simple_marc_filter --drop 935a:mtex GesamtTiteldaten-"${date}".xml \
                          GesamtTiteldaten-post-phase"$P"-"${date}".xml \
                          >> "${log}" 2>&1
