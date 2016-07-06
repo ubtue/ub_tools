@@ -74,7 +74,7 @@ void AugmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::str
             else if (lang_code.find("fra") != std::string::npos and *ixtheo_pos != "IxTheo_fra")
                *ixtheo_pos += "_fra";
             else 
-                Warning("Unsupported language code " + lang_code);
+                Warning("Unsupported language code \"" + lang_code + "\" for PPN " + record.getFields()[0]);
         }
     }
 }
