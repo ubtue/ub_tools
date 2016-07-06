@@ -32,8 +32,9 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
 ((++P)); START=$(date +%s.%N)
 echo "*** Phase $P: Filter out records containing mtex in 935\$a ***" | tee --append "${log}"
-simple_marc_filter --drop 935a:mtex GesamtTiteldaten-"${date}".xml \
+simple_marc_filter --drop GesamtTiteldaten-"${date}".xml \
                          GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+                         935a:mtex \
                          >> "${log}" 2>&1
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
