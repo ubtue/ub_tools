@@ -14,5 +14,6 @@ CREATE TABLE ixtheo_journal_subscriptions (
        id INT(11) NOT NULL,
        journal_control_number VARCHAR(256) NOT NULL,
        last_issue_date DATE NOT NULL,
-       FOREIGN KEY (id) REFERENCES user(id)
+       FOREIGN KEY (id) REFERENCES user(id),
+       PRIMARY KEY (id,journal_control_number)
 );
