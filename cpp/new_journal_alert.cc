@@ -112,7 +112,7 @@ bool GetNewIssues(const std::string &solr_host_and_port, const std::string &seri
 
 
 void SendNotificationEmail(const std::string &firstname, const std::string &lastname, const std::string &email,
-                           const std::vector<NewIssueInfo> &new_issue_infos)
+                           const std::string &vufind_host, const std::vector<NewIssueInfo> &new_issue_infos)
 {
     const std::string EMAIL_TEMPLATE_PATH("/var/lib/tuelib/subscriptions_email.template");
     std::string email_template;
@@ -125,16 +125,23 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
     names_to_values_map["lastname"] = std::vector<std::string>{ lastname };
     std::vector<std::string> urls, titles;
     for (const auto &new_issue_info : new_issue_infos) {
-        urls.emplace_back(new_issue_info.control_number_);
+        urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
         titles.emplace_back(new_issue_info.title_);
     }
-    names_to_values_map["urls"] = urls;
-    names_to_values_map["titles"] = titles;
+    names_to_values_map["url"] = urls;
+    names_to_values_map["title"] = titles;
     const std::string email_contents(MiscUtil::ExpandTemplate(email_template, names_to_values_map));
 
     if (unlikely(EmailSender::SendEmail("notifications@ixtheo.de", email, "Ixtheo Subscriptions", email_contents,
                                         EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
         Error("failed to send a notification email to \"" + email + "\"!");
+}
+
+
+/** \return If "host_and_port" has a colon, the part before the colon else all of "host_and_port". */
+std::string GetHost(const std::string &host_and_port) {
+    const std::string::size_type colon_pos(host_and_port.find(':'));
+    return colon_pos == std::string::npos ? host_and_port : host_and_port.substr(0, colon_pos);
 }
 
 
@@ -173,7 +180,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
         std::cerr << "Found " << new_issue_infos.size() << " new issues for " << " \"" << username << "\".\n";
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(firstname, lastname, email, new_issue_infos);
+        SendNotificationEmail(firstname, lastname, email, GetHost(solr_host_and_port), new_issue_infos);
 
     // Update the database with the new last issue dates.
     for (const auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
