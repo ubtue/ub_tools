@@ -5,6 +5,7 @@ import org.apache.lucene.search.Query;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
 import org.slf4j.Logger;
@@ -29,6 +30,7 @@ public class MultiLanguageQueryParser extends QParser {
         newRequest = request;
         this.newParams = new ModifiableSolrParams();
         this.newParams.add(params);
+        IndexSchema schema = request.getSchema();
 
         String[] queryFields = newParams.getParams("qf");
         String[] facetFields = newParams.getParams("facet.field");
@@ -47,7 +49,9 @@ public class MultiLanguageQueryParser extends QParser {
             StringBuilder sb = new StringBuilder();
             int i = 0;
             for (String singleParam : singleParams) {
-                sb.append(singleParam + "_" + lang);
+                String newFieldName = singleParam + "_" + lang;
+                newFieldName = (schema.getFieldOrNull(newFieldName) != null) ? newFieldName : singleParam;
+                sb.append(newFieldName);
                 if (++i < singleParams.length)
                     sb.append(" ");
             }
@@ -55,8 +59,12 @@ public class MultiLanguageQueryParser extends QParser {
         }
 
         for (String param : facetFields) {
-            newParams.remove("facet.field", param);
-            newParams.add("facet.field", param + "_" + lang);
+            // Replace field used if it exists
+            String newFieldName = param + "_" + lang;
+            if (schema.getFieldOrNull(newFieldName) != null) {
+                newParams.remove("facet.field", param);
+                newParams.add("facet.field", newFieldName);
+            }
         }
     }
 
