@@ -584,19 +584,6 @@ public class IxTheo extends SolrIndexerMixin {
         return translateTopics(topics, langShortcut);
     }
 
-    public Set<String> collectTopicsInSeveralLanguages(final Record record, String fieldSpec, final String separator,
-            final String langString) throws FileNotFoundException {
-        final Set<String> topics = new HashSet<String>();
-        Map<String, String> separators = parseTopicSeparators(separator);
-        getTopicsCollector(record, fieldSpec, separators, topics);
-        final String[] langShortcuts = langString.split("\\|");
-
-        for (String langShortcut : langShortcuts)
-            topics.addAll(translateTopics(topics, langShortcut.trim()));
-
-        return topics;
-    }
-
     /**
      * Parse the field specifications
      */
