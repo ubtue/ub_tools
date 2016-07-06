@@ -112,7 +112,7 @@ std::string GetMediaType(const std::string &page_header, const std::string &page
  *  \return True if "media_type" has been determined, else false.
  */
 bool GetMediaType(const Url &url, const HttpHeader &http_header, const std::string &page_content, std::string * const media_type,
-		  const bool auto_simplify = true);
+                  const bool auto_simplify = true);
 
 
 /** \brief  Get the MediaType of a Web page.
@@ -124,7 +124,7 @@ bool GetMediaType(const Url &url, const HttpHeader &http_header, const std::stri
  *  \return True if "media_type" has been determined, else false.
  */
 bool GetMediaType(const std::string &url, const HttpHeader &http_header, const std::string &page_content,
-		  std::string * const media_type, const bool auto_simplify = true);
+                  std::string * const media_type, const bool auto_simplify = true);
 
 
 /** \brief  Cleans up a media type by trimming parameters.

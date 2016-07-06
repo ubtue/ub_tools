@@ -33,7 +33,7 @@
 #include "TimerUtil.h"
 
 
-#define USE_CLOCK_GETTIME	1 // Set this to 0 to use gettimeofday(2).
+#define USE_CLOCK_GETTIME       1 // Set this to 0 to use gettimeofday(2).
 
 
 /** \class  WallClockTimer
@@ -57,23 +57,23 @@ class WallClockTimer {
     static const unsigned char AUTO_STOP_FLAG  = 1u << 2;
 public:
     enum WallClockTimerType {
-	/** Time spent between multiple start/stop pairs gets accumulated. */
-	CUMULATIVE                                   = CUMULATIVE_FLAG,
-	/** Each call to start() resets the timer to zero. */
-	NON_CUMULATIVE                               = 0,
-	/** Like "CUMULATIVE" and constructor automatically calls start(). */
-	CUMULATIVE_WITH_AUTO_START                   = CUMULATIVE_FLAG | AUTO_START_FLAG,
-	/** Like "NON_CUMULATIVE" and constructor automatically calls start(). */
-	NON_CUMULATIVE_WITH_AUTO_START               = AUTO_START_FLAG,
-	/** Like "CUMULATIVE" and destructor automatically calls stop() if neccessary. */
-	CUMULATIVE_WITH_AUTO_STOP                    = CUMULATIVE_FLAG | AUTO_STOP_FLAG,
-	/** Like "NON_CUMULATIVE" and destructor automatically calls stop() if neccessary. */
-	NON_CUMULATIVE_WITH_AUTO_STOP                = AUTO_STOP_FLAG,
-	/** Like "CUMULATIVE", constructor automatically calls start() and destructor automatically calls stop() if neccessary. */
-	CUMULATIVE_WITH_AUTO_START_AND_AUTO_STOP     = CUMULATIVE_FLAG | AUTO_START_FLAG | AUTO_STOP_FLAG,
-	/** Like "NON_CUMULATIVE", constructor automatically calls start() and destructor automatically calls stop()
-	    if neccessary. */
-	NON_CUMULATIVE_WITH_AUTO_START_AND_AUTO_STOP = AUTO_START_FLAG | AUTO_STOP_FLAG,
+        /** Time spent between multiple start/stop pairs gets accumulated. */
+        CUMULATIVE                                   = CUMULATIVE_FLAG,
+        /** Each call to start() resets the timer to zero. */
+        NON_CUMULATIVE                               = 0,
+        /** Like "CUMULATIVE" and constructor automatically calls start(). */
+        CUMULATIVE_WITH_AUTO_START                   = CUMULATIVE_FLAG | AUTO_START_FLAG,
+        /** Like "NON_CUMULATIVE" and constructor automatically calls start(). */
+        NON_CUMULATIVE_WITH_AUTO_START               = AUTO_START_FLAG,
+        /** Like "CUMULATIVE" and destructor automatically calls stop() if neccessary. */
+        CUMULATIVE_WITH_AUTO_STOP                    = CUMULATIVE_FLAG | AUTO_STOP_FLAG,
+        /** Like "NON_CUMULATIVE" and destructor automatically calls stop() if neccessary. */
+        NON_CUMULATIVE_WITH_AUTO_STOP                = AUTO_STOP_FLAG,
+        /** Like "CUMULATIVE", constructor automatically calls start() and destructor automatically calls stop() if neccessary. */
+        CUMULATIVE_WITH_AUTO_START_AND_AUTO_STOP     = CUMULATIVE_FLAG | AUTO_START_FLAG | AUTO_STOP_FLAG,
+        /** Like "NON_CUMULATIVE", constructor automatically calls start() and destructor automatically calls stop()
+            if neccessary. */
+        NON_CUMULATIVE_WITH_AUTO_START_AND_AUTO_STOP = AUTO_START_FLAG | AUTO_STOP_FLAG,
     };
 private:
     WallClockTimerType timer_type_;

@@ -68,30 +68,30 @@ class Resolver {
      *  \brief  A cache where the results of DNS lookups are stored for later re-use.
      */
     class Cache {
-	struct CacheEntry {
-	    time_t expire_time_;
-	    std::set<in_addr_t> ip_addresses_;
-	public:
-	    CacheEntry(const time_t expire_time, const std::set<in_addr_t> &ip_addresses)
-		: expire_time_(expire_time), ip_addresses_(ip_addresses) { }
-	};
-	std::unordered_map<std::string, CacheEntry> resolved_hostnames_cache_;
+        struct CacheEntry {
+            time_t expire_time_;
+            std::set<in_addr_t> ip_addresses_;
+        public:
+            CacheEntry(const time_t expire_time, const std::set<in_addr_t> &ip_addresses)
+                : expire_time_(expire_time), ip_addresses_(ip_addresses) { }
+        };
+        std::unordered_map<std::string, CacheEntry> resolved_hostnames_cache_;
     public:
-	Cache() { }
-	bool lookup(const std::string &hostname, std::set<in_addr_t> * const ip_addresses);
-	void insert(const std::string &hostname, const std::set<in_addr_t> &ip_addresses, const uint32_t ttl);
+        Cache() { }
+        bool lookup(const std::string &hostname, std::set<in_addr_t> * const ip_addresses);
+        void insert(const std::string &hostname, const std::set<in_addr_t> &ip_addresses, const uint32_t ttl);
     } cache_;
 
     static uint16_t next_request_id_;
 public:
     enum ResultType { RESOLVED, UNKNOWN };
     struct Result {
-	ResultType result_type_;
-	std::string hostname_;
-	std::set<in_addr_t> ip_addresses_;
+        ResultType result_type_;
+        std::string hostname_;
+        std::set<in_addr_t> ip_addresses_;
     public:
-	Result(const ResultType result_type, const std::string &hostname, const std::set<in_addr_t> ip_addresses)
-	    : result_type_(result_type), hostname_(hostname), ip_addresses_(ip_addresses) { }
+        Result(const ResultType result_type, const std::string &hostname, const std::set<in_addr_t> ip_addresses)
+            : result_type_(result_type), hostname_(hostname), ip_addresses_(ip_addresses) { }
     };
 private:
     std::list<Result> resolved_addresses_;
@@ -106,7 +106,7 @@ public:
      *  this section.  Otherwise, nameservers will be drawn from the standard UNIX /etc/resolv.conf file.
      */
     explicit Resolver(const std::list<std::string> &dns_servers = std::list<std::string>(),
-		      Logger * const logger = nullptr, const unsigned verbosity = 3);
+                      Logger * const logger = nullptr, const unsigned verbosity = 3);
     explicit Resolver(const std::string &dns_server, Logger * const logger = nullptr, const unsigned verbosity = 3);
     explicit Resolver(const in_addr_t dns_server, Logger * const logger = nullptr, const unsigned verbosity = 3);
     ~Resolver();
@@ -157,8 +157,8 @@ public:
      *  \return True if we successfully extracted at least one IP address or we received a truncated reply, else false.
      */
     static bool DecodeReply(const unsigned char * const packet_start, const size_t packet_size, std::set<std::string> * const domainnames,
-			    std::set<in_addr_t> * const ip_addresses, uint32_t * const ttl, uint16_t * const reply_id, bool * const truncated,
-			    Logger * const logger = nullptr, const unsigned verbosity = 3);
+                            std::set<in_addr_t> * const ip_addresses, uint32_t * const ttl, uint16_t * const reply_id, bool * const truncated,
+                            Logger * const logger = nullptr, const unsigned verbosity = 3);
 
     /** \brief   Checks whether a DNS server is alive or not.
      *  \param   server_ip_address    The server's IP address as a dotted quad.
@@ -170,9 +170,9 @@ public:
      *  \warning This function is absolutely not thread-safe!
      */
     static bool ServerIsAlive(const std::string &server_ip_address, const std::string &hostname_to_resolve,
-			      const unsigned time_limit = 5000, Logger * const logger = nullptr, const unsigned verbosity = 3);
+                              const unsigned time_limit = 5000, Logger * const logger = nullptr, const unsigned verbosity = 3);
     static bool ServerIsAlive(const in_addr_t server_ip_address, const std::string &hostname_to_resolve,
-			      const unsigned time_limit = 5000, Logger * const logger = nullptr, const unsigned verbosity = 3);
+                              const unsigned time_limit = 5000, Logger * const logger = nullptr, const unsigned verbosity = 3);
 
     /** \brief  Extracts DNS server IP addresses from /etc/resolv.conf.
      *  \param  server_ip_addresses  Upon return, this variable will contain the resolver IP addresses.
@@ -201,7 +201,7 @@ private:
      *  \return A valid connected socket file descriptor or -1 if an error occurred.
      */
     int sendTcpRequest(const in_addr_t resolver_ip_address, const TimeLimit &time_limit, const unsigned char * const packet,
-		       const unsigned packet_size) const;
+                       const unsigned packet_size) const;
 
     static ssize_t TimedUdpRead(int socket_fd, const TimeLimit &time_limit, void * const data, size_t data_size) throw ();
 };
@@ -212,11 +212,11 @@ private:
  */
 class ThreadSafeDnsCache {
     struct ThreadSafeDnsCacheEntry {
-	time_t expire_time_;
-	std::set<in_addr_t> ip_addresses_;
+        time_t expire_time_;
+        std::set<in_addr_t> ip_addresses_;
     public:
-	ThreadSafeDnsCacheEntry(const time_t expire_time, const std::set<in_addr_t> &ip_addresses)
-	    : expire_time_(expire_time), ip_addresses_(ip_addresses) { }
+        ThreadSafeDnsCacheEntry(const time_t expire_time, const std::set<in_addr_t> &ip_addresses)
+            : expire_time_(expire_time), ip_addresses_(ip_addresses) { }
     };
     std::unordered_map<std::string, ThreadSafeDnsCacheEntry> resolved_hostnames_cache_;
     std::mutex cache_access_mutex_;
@@ -263,7 +263,7 @@ private:
     void decDnsServerUsageCount(const in_addr_t server_ip_address);
     uint16_t getNextRequestId();
     bool processServerReply(const unsigned char * const reply_packet, const size_t reply_packet_size, const uint16_t expected_reply_id,
-			    std::set<in_addr_t> * const ip_addresses);
+                            std::set<in_addr_t> * const ip_addresses);
 };
 
 

@@ -61,26 +61,26 @@ class File {
     bool delete_on_close_;
 public:
     template<typename ArgType> struct SingleArgManipulator {
-	File &(*func_)(File &file, ArgType arg);
-	ArgType arg_;
+        File &(*func_)(File &file, ArgType arg);
+        ArgType arg_;
     public:
-	SingleArgManipulator(File &(*func)(File &file, ArgType arg), ArgType arg): func_(func), arg_(arg) { }
+        SingleArgManipulator(File &(*func)(File &file, ArgType arg), ArgType arg): func_(func), arg_(arg) { }
     };
 
     class const_iterator {
-	friend class File;
-	FILE * const file_;
-	char current_char_, last_char_;
-	bool eof_;
+        friend class File;
+        FILE * const file_;
+        char current_char_, last_char_;
+        bool eof_;
     public:
-	const char *operator->() const { return &current_char_; }
-	const char &operator*() const { return current_char_; }
-	const char *operator++();
-	const char *operator++(int);
-	bool operator==(const const_iterator &rhs) const { return eof_ == true and eof_ == rhs.eof_; }
-	bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
+        const char *operator->() const { return &current_char_; }
+        const char &operator*() const { return current_char_; }
+        const char *operator++();
+        const char *operator++(int);
+        bool operator==(const const_iterator &rhs) const { return eof_ == true and eof_ == rhs.eof_; }
+        bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
     private:
-	explicit const_iterator(FILE * const file);
+        explicit const_iterator(FILE * const file);
     };
     enum ThrowOnOpenBehaviour { THROW_ON_ERROR, DO_NOT_THROW_ON_ERROR };
     enum DeleteOnCloseBehaviour { DO_NOT_DELETE_ON_CLOSE, DELETE_ON_CLOSE };
@@ -100,8 +100,8 @@ public:
      *          by the process' umask value (see umask(2)).
      */
     File(const std::string &path, const std::string &mode,
-	 const ThrowOnOpenBehaviour throw_on_error_behaviour = DO_NOT_THROW_ON_ERROR,
-	 const DeleteOnCloseBehaviour delete_on_close_behaviour = DO_NOT_DELETE_ON_CLOSE);
+         const ThrowOnOpenBehaviour throw_on_error_behaviour = DO_NOT_THROW_ON_ERROR,
+         const DeleteOnCloseBehaviour delete_on_close_behaviour = DO_NOT_DELETE_ON_CLOSE);
 
     /** \brief  Create a File object from a file descriptor.
      *  \param  fd    A valid (open) file descriptor for the current process.
@@ -205,21 +205,21 @@ public:
      *  \return True if the operation succeeded and false if there was some I/O error.
      */
     template <typename NumericType> bool serialize(const NumericType n) {
-	if (unlikely(file_ == nullptr))
-	    throw std::runtime_error("in File::serialize: can't serialize to a non-open file (4)!");
-	return write(reinterpret_cast<const void *>(&n), sizeof n) == sizeof n;
+        if (unlikely(file_ == nullptr))
+            throw std::runtime_error("in File::serialize: can't serialize to a non-open file (4)!");
+        return write(reinterpret_cast<const void *>(&n), sizeof n) == sizeof n;
     }
 
     /** Returns the next character from the input stream or EOF at the end of the input stream. */
     inline int get() {
-	if (unlikely(file_ == nullptr))
-	    throw std::runtime_error("in File::get: can't read from a non-open file \"" + path_ + "\"!");
-	return getc(file_);
+        if (unlikely(file_ == nullptr))
+            throw std::runtime_error("in File::get: can't read from a non-open file \"" + path_ + "\"!");
+        return getc(file_);
     }
 
     /** \brief Write a character. */
     inline int put(const char ch) {
-	return putc(ch, file_);
+        return putc(ch, file_);
     }
 
     void putback(const char ch);
@@ -238,11 +238,11 @@ public:
 
     /** Resets the file pointer to the beginning of the file. */
     void rewind() {
-	if (unlikely(file_ == nullptr))
-	    throw std::runtime_error("in File::rewind: can't rewind a non-open file!");
-	if (unlikely(not fifo_path_.empty()))
-	    throw std::runtime_error("in File::rewind: can't rewind a file that was opened with a 'c' or 'u' flag!");
-	std::rewind(file_);
+        if (unlikely(file_ == nullptr))
+            throw std::runtime_error("in File::rewind: can't rewind a non-open file!");
+        if (unlikely(not fifo_path_.empty()))
+            throw std::runtime_error("in File::rewind: can't rewind a file that was opened with a 'c' or 'u' flag!");
+        std::rewind(file_);
     }
 
     /** \brief  Skips over input characters.
@@ -269,9 +269,9 @@ public:
      *  \return True if the operation succeeded and false if there was some I/O error.
      */
     template <typename NumericType> bool deserialize(NumericType * const n) {
-	if (unlikely(file_ == nullptr))
-	    throw std::runtime_error("in File::deserialize: can't read from a non-open file (4)!");
-	return read(reinterpret_cast<void *>(n), sizeof *n) == sizeof *n;
+        if (unlikely(file_ == nullptr))
+            throw std::runtime_error("in File::deserialize: can't read from a non-open file (4)!");
+        return read(reinterpret_cast<void *>(n), sizeof *n) == sizeof *n;
     }
 
     /** \brief  Set the file pointer for the next I/O operation.
@@ -438,7 +438,7 @@ public:
 
     static File &endl(File &f) { return f.appendNewlineAndFlush(); }
     static SingleArgManipulator<int> setprecision(int new_precision) {
-	return SingleArgManipulator<int>(SetPrecision, new_precision); }
+        return SingleArgManipulator<int>(SetPrecision, new_precision); }
 private:
     File(const File &rhs) = delete;
     const File operator=(const File &rhs) = delete;

@@ -52,15 +52,15 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
         ++count;
 
-	const Leader &leader(record.getLeader());
+        const Leader &leader(record.getLeader());
         const bool is_article(leader.isArticle());
         const bool is_serial(leader.isSerial());
         if (not is_article and not is_serial)
             continue;
 
         std::string control_number, isbn, issn;
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-	const std::vector<std::string> &fields(record.getFields());
+        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+        const std::vector<std::string> &fields(record.getFields());
         for (unsigned i(0); i < dir_entries.size(); ++i) {
             const std::string tag(dir_entries[i].getTag());
             if (tag == "001")
@@ -116,8 +116,8 @@ int main(int argc, char **argv) {
     }
 
     try {
-	JOP_Grep(argv[1], max_result_count);
+        JOP_Grep(argv[1], max_result_count);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }
