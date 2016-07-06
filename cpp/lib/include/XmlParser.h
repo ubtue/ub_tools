@@ -64,47 +64,47 @@ public:
 
     class AttributeMap: public std::map<std::string, std::string> {
     public:
-	/** \brief  Insert a value into an AttributeMap, replacing any old value.
-	 *  \param  name   The name of the key.
-	 *  \param  value  The value to be associated with "name".
-	 *  \return True if the attribute wasn't in the map yet, else false.
-	 *
-	 *  The pair (name, value) is stored in the AttributeMap.  If
-	 *  there is an existing value associated with name, it is
-	 *  not inserted.
-	 */
-	bool insert(const std::string &name, const std::string &value);
+        /** \brief  Insert a value into an AttributeMap, replacing any old value.
+         *  \param  name   The name of the key.
+         *  \param  value  The value to be associated with "name".
+         *  \return True if the attribute wasn't in the map yet, else false.
+         *
+         *  The pair (name, value) is stored in the AttributeMap.  If
+         *  there is an existing value associated with name, it is
+         *  not inserted.
+         */
+        bool insert(const std::string &name, const std::string &value);
     };
 
     struct Chunk {
-	const unsigned type_;
-	const std::string text_;
-	const unsigned lineno_;
-	AttributeMap *attribute_map_; // only non-nullptr if type_ == OPENING_TAG
+        const unsigned type_;
+        const std::string text_;
+        const unsigned lineno_;
+        AttributeMap *attribute_map_; // only non-nullptr if type_ == OPENING_TAG
     public:
-	Chunk(const unsigned type, const std::string &text, const unsigned lineno,
-	      AttributeMap * const attribute_map = nullptr)
-	    : type_(type), text_(text), lineno_(lineno), attribute_map_(attribute_map) { }
-	~Chunk() { delete attribute_map_; }
+        Chunk(const unsigned type, const std::string &text, const unsigned lineno,
+              AttributeMap * const attribute_map = nullptr)
+            : type_(type), text_(text), lineno_(lineno), attribute_map_(attribute_map) { }
+        ~Chunk() { delete attribute_map_; }
 
-	/** \brief  Attempts to retrieve the value of a specified attribute.
-	 *  \param  attrib_name   The name of the attrbute whose value we would like to look up.
-	 *  \param  attrib_value  On a successful return, the value of the requested attribute.
-	 *  \return True if the attribute was present and false otherwise.
-	 */
-	bool getAttribute(const std::string &attrib_name, std::string * const attrib_value) const;
+        /** \brief  Attempts to retrieve the value of a specified attribute.
+         *  \param  attrib_name   The name of the attrbute whose value we would like to look up.
+         *  \param  attrib_value  On a successful return, the value of the requested attribute.
+         *  \return True if the attribute was present and false otherwise.
+         */
+        bool getAttribute(const std::string &attrib_name, std::string * const attrib_value) const;
     };
 public:
     explicit XmlParser(const std::string &filename, const bool convert_to_iso8859_15 = false,
-		       unsigned notification_mask = EVERYTHING)
-	: filename_(filename.c_str()), memory_(nullptr), memory_size_(0),
-	  convert_to_iso8859_15_(convert_to_iso8859_15), notification_mask_(notification_mask),
-	  lineno_(1), current_xml_text_(nullptr) { }
+                       unsigned notification_mask = EVERYTHING)
+        : filename_(filename.c_str()), memory_(nullptr), memory_size_(0),
+          convert_to_iso8859_15_(convert_to_iso8859_15), notification_mask_(notification_mask),
+          lineno_(1), current_xml_text_(nullptr) { }
     XmlParser(const char * const memory, const size_t memory_size, const bool convert_to_iso8859_15 = false,
-	      unsigned notification_mask = EVERYTHING)
-	: filename_(nullptr), memory_(memory), memory_size_(memory_size),
-	  convert_to_iso8859_15_(convert_to_iso8859_15), notification_mask_(notification_mask),
-	  lineno_(1), current_xml_text_(nullptr) { }
+              unsigned notification_mask = EVERYTHING)
+        : filename_(nullptr), memory_(memory), memory_size_(memory_size),
+          convert_to_iso8859_15_(convert_to_iso8859_15), notification_mask_(notification_mask),
+          lineno_(1), current_xml_text_(nullptr) { }
     virtual ~XmlParser() { }
     bool parse();
 

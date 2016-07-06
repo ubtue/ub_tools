@@ -41,44 +41,44 @@ WallClockTimer::WallClockTimer(const WallClockTimerType timer_type, const std::s
     timerclear(&time_start_);
 #endif
     if (timer_type & AUTO_START_FLAG)
-	start();
+        start();
 }
 
 
 WallClockTimer::~WallClockTimer() {
     // Ignore all potential error conditions if we have an uncaught exception:
     if (std::uncaught_exception())
-	return;
+        return;
 
     if ((timer_type_ & AUTO_STOP_FLAG) and is_running_) {
-	stop();
-	return;
+        stop();
+        return;
     }
 
     if (unlikely(is_running_)) {
-	if (not name_.empty())
-	    throw std::runtime_error("in WallClockTimer::~WallClockTimer: timer \"" + name_ + "\" is running!");
-	else
-	    throw std::runtime_error("in WallClockTimer::~WallClockTimer: timer is running!");
+        if (not name_.empty())
+            throw std::runtime_error("in WallClockTimer::~WallClockTimer: timer \"" + name_ + "\" is running!");
+        else
+            throw std::runtime_error("in WallClockTimer::~WallClockTimer: timer is running!");
     }
 }
 
 
 void WallClockTimer::start() {
     if (unlikely(is_running_)) {
-	if (not name_.empty())
-	    throw std::runtime_error("in WallClockTimer::start: \"" + name_ + "\" is running!");
-	else
-	    throw std::runtime_error("in WallClockTimer::start: timer is running!");
+        if (not name_.empty())
+            throw std::runtime_error("in WallClockTimer::start: \"" + name_ + "\" is running!");
+        else
+            throw std::runtime_error("in WallClockTimer::start: timer is running!");
     }
 
 #if USE_CLOCK_GETTIME
     if (unlikely(::clock_gettime(CLOCK_REALTIME, &time_start_) == -1))
-	throw std::runtime_error("in WallClockTimer::start: clock_gettime(2) failed (" + std::string(::strerror(errno)) + ")!");
+        throw std::runtime_error("in WallClockTimer::start: clock_gettime(2) failed (" + std::string(::strerror(errno)) + ")!");
 #else
     struct timezone dummy;
     if (unlikely(::gettimeofday(&time_start_, &dummy) == -1))
-	throw std::runtime_error("in WallClockTimer::start: gettimeofday(2) failed (" + std::string(::strerror(errno)) + ")!");
+        throw std::runtime_error("in WallClockTimer::start: gettimeofday(2) failed (" + std::string(::strerror(errno)) + ")!");
 #endif
 
     is_running_ = true;
@@ -87,31 +87,31 @@ void WallClockTimer::start() {
 
 void WallClockTimer::stop() {
     if (unlikely(not is_running_)) {
-	if (not name_.empty())
-	    throw std::runtime_error("in WallClockTimer::stop: timer \"" + name_ + "\" is not running!");
-	else
-	    throw std::runtime_error("in WallClockTimer::stop: timer is not running!");
+        if (not name_.empty())
+            throw std::runtime_error("in WallClockTimer::stop: timer \"" + name_ + "\" is not running!");
+        else
+            throw std::runtime_error("in WallClockTimer::stop: timer is not running!");
     }
 
 #if USE_CLOCK_GETTIME
     struct timespec time_end;
     if (unlikely(::clock_gettime(CLOCK_REALTIME, &time_end) == -1))
-	throw std::runtime_error("in WallClockTimer::stop: clock_gettime(2) failed (" + std::string(::strerror(errno)) + ")!");
+        throw std::runtime_error("in WallClockTimer::stop: clock_gettime(2) failed (" + std::string(::strerror(errno)) + ")!");
 
     if (timer_type_ & CUMULATIVE_FLAG)
-	time_ += TimespecToDouble(time_end) - TimespecToDouble(time_start_);
+        time_ += TimespecToDouble(time_end) - TimespecToDouble(time_start_);
     else // Assume noncumulative timing.
-	time_ = TimespecToDouble(time_end) - TimespecToDouble(time_start_);
+        time_ = TimespecToDouble(time_end) - TimespecToDouble(time_start_);
 #else
     struct timeval time_end;
     struct timezone dummy;
     if (unlikely(::gettimeofday(&time_end, &dummy) == -1))
-	throw std::runtime_error("in WallClockTimer::stop: gettimeofday(2) failed (" + std::string(::strerror(errno)) + ")!");
+        throw std::runtime_error("in WallClockTimer::stop: gettimeofday(2) failed (" + std::string(::strerror(errno)) + ")!");
 
     if (timer_type_ & CUMULATIVE_FLAG)
-	time_ += TimevalToDouble(time_end) - TimevalToDouble(time_start_);
+        time_ += TimevalToDouble(time_end) - TimevalToDouble(time_start_);
     else // Assume noncumulative timing.
-	time_ = TimevalToDouble(time_end) - TimevalToDouble(time_start_);
+        time_ = TimevalToDouble(time_end) - TimevalToDouble(time_start_);
 #endif
 
     is_running_ = false;
@@ -120,10 +120,10 @@ void WallClockTimer::stop() {
 
 double WallClockTimer::getTime() const {
     if (unlikely(is_running_)) {
-	if (not name_.empty())
-	    throw std::runtime_error("in WallClockTimer::getSystemTime: \"" + name_ + "\" is still running!");
-	else
-	    throw std::runtime_error("in WallClockTimer::getSystemTime: timer is still running!");
+        if (not name_.empty())
+            throw std::runtime_error("in WallClockTimer::getSystemTime: \"" + name_ + "\" is still running!");
+        else
+            throw std::runtime_error("in WallClockTimer::getSystemTime: timer is still running!");
     }
 
     return time_;

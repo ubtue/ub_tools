@@ -36,9 +36,9 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 2)
-	Usage();
+        Usage();
 
     const std::string directory_name(argv[1]);
     if (not FileUtil::RemoveDirectory(directory_name))
-	Error("failed to recursively delete \"" + directory_name + "\"! (" + std::string(::strerror(errno)) + ")");
+        Error("failed to recursively delete \"" + directory_name + "\"! (" + std::string(::strerror(errno)) + ")");
 }

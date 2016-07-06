@@ -24,8 +24,8 @@
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
+#include "FileUtil.h"
 #include "MarcUtil.h"
-#include "MediaTypeUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -88,7 +88,7 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
 
         const std::vector<std::string> &fields(record.getFields());
         const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index],
-								tags_and_subfield_codes[0].substr(3)));
+                                                                tags_and_subfield_codes[0].substr(3)));
         if (unlikely(primary_name.empty()))
             continue;
 
@@ -136,7 +136,7 @@ void ProcessRecord(MarcUtil::Record * const record, const std::map<std::string, 
     record->setRecordWillBeWrittenAsXml(true);
 
     if (unlikely(record->getFieldIndex(SYNOMYM_FIELD) != -1))
-	Error("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!");
+        Error("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!");
 
     const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
     if (dir_entries.at(0).getTag() != "001")
@@ -168,7 +168,7 @@ void ProcessRecord(MarcUtil::Record * const record, const std::map<std::string, 
 
 
 void AddAuthorSynonyms(File * const marc_input, File * marc_output,
-		       const std::map<std::string, std::string> &author_to_synonyms_map,
+                       const std::map<std::string, std::string> &author_to_synonyms_map,
                        const std::string &primary_author_field)
 {
     XmlWriter xml_writer(marc_output);
@@ -189,17 +189,6 @@ void AddAuthorSynonyms(File * const marc_input, File * marc_output,
 }
 
 
-std::unique_ptr<File> OpenInputFile(const std::string &filename) {
-    std::string mode("r");
-    mode += MediaTypeUtil::GetFileMediaType(filename) == "application/lz4" ? "u" : "m";
-    std::unique_ptr<File> file(new File(filename, mode));
-    if (file == nullptr)
-        Error("can't open \"" + filename + "\" for reading!");
-
-    return file;
-}
-
-
 int main(int argc, char **argv) {
     progname = argv[0];
 
@@ -207,10 +196,10 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    std::unique_ptr<File> marc_input(OpenInputFile(marc_input_filename));
+    std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(marc_input_filename));
 
     const std::string norm_data_marc_input_filename(argv[2]);
-    std::unique_ptr<File> norm_data_marc_input(OpenInputFile(norm_data_marc_input_filename));
+    std::unique_ptr<File> norm_data_marc_input(FileUtil::OpenInputFileOrDie(norm_data_marc_input_filename));
 
     const std::string marc_output_filename(argv[3]);
     if (unlikely(marc_input_filename == marc_output_filename))

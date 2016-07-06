@@ -43,25 +43,25 @@ public:
      *  \param  open_mode     Whether to clear the log file upon opening it or not.
      */
     explicit ThreadSafeLogger(const std::string &log_filename,
-			      const Logger::VerbosityLevel default_verbosity = Logger::VL_NORMAL,
-			      const Logger::OpenMode open_mode = Logger::DO_NOT_CLEAR)
-	: Logger(log_filename, default_verbosity, open_mode) { }
+                              const Logger::VerbosityLevel default_verbosity = Logger::VL_NORMAL,
+                              const Logger::OpenMode open_mode = Logger::DO_NOT_CLEAR)
+        : Logger(log_filename, default_verbosity, open_mode) { }
 
     /** \brief  Creates a new ThreadSafeLogger object that writes to a log file.
      *  \param  log_filename  The log file name.
      *  \param  open_mode     Whether to clear the log file upon opening it or not.
      */
     explicit ThreadSafeLogger(const char * const log_filename, const Logger::VerbosityLevel default_verbosity = Logger::VL_NORMAL,
-			      const Logger::OpenMode open_mode = Logger::DO_NOT_CLEAR)
-	: Logger(log_filename, default_verbosity, open_mode) { }
+                              const Logger::OpenMode open_mode = Logger::DO_NOT_CLEAR)
+        : Logger(log_filename, default_verbosity, open_mode) { }
 
     /** \brief  Creates a new ThreadSafeLogger object that writes to a File.
      *  \param  log_file   The File to write to.
      *  \param  open_mode  Whether to clear the log file upon opening it or not.
      */
     explicit ThreadSafeLogger(File * const log_file, const Logger::VerbosityLevel default_verbosity = Logger::VL_NORMAL,
-			      const Logger::OpenMode open_mode = Logger::DO_NOT_CLEAR)
-	: Logger(log_file, default_verbosity, open_mode) { }
+                              const Logger::OpenMode open_mode = Logger::DO_NOT_CLEAR)
+        : Logger(log_file, default_verbosity, open_mode) { }
 protected:
     virtual void writeLog(const std::string &message, const unsigned log_mask);
 };

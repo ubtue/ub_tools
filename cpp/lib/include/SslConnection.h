@@ -52,19 +52,19 @@ private:
     static bool ssl_libraries_have_been_initialised_;
 public:
     struct ContextInfo {
-	Method method_;
-	ClientServerMode client_server_mode_;
-	SSL_CTX *ssl_context_;
-	unsigned usage_count_;
+        Method method_;
+        ClientServerMode client_server_mode_;
+        SSL_CTX *ssl_context_;
+        unsigned usage_count_;
     public:
-	ContextInfo(const Method method, const ClientServerMode client_server_mode)
-	    : method_(method), client_server_mode_(client_server_mode), ssl_context_(nullptr), usage_count_(1) { }
+        ContextInfo(const Method method, const ClientServerMode client_server_mode)
+            : method_(method), client_server_mode_(client_server_mode), ssl_context_(nullptr), usage_count_(1) { }
     };
 private:
     static std::list<ContextInfo> context_infos_;
 public:
     explicit SslConnection(const int fd, const Method method = ALL_METHODS, const ClientServerMode client_server_mode = CLIENT,
-			   const ThreadingSupportMode threading_support_mode = DO_NOT_SUPPORT_MULTITHREADING );
+                           const ThreadingSupportMode threading_support_mode = DO_NOT_SUPPORT_MULTITHREADING );
     ~SslConnection();
     ssize_t read(void * const data, size_t data_size);
     ssize_t write(const void * const data, size_t data_size);

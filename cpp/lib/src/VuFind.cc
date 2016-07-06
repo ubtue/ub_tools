@@ -32,7 +32,7 @@ void GetMysqlURL(std::string * const mysql_url) throw(std::exception) {
     const std::string line(database_conf.getline());
     const size_t schema_pos(line.find("mysql://"));
     if (schema_pos == std::string::npos)
-	throw std::runtime_error("MySQL schema not found in \"" + database_conf_filename + "\"!");
+        throw std::runtime_error("MySQL schema not found in \"" + database_conf_filename + "\"!");
     *mysql_url = StringUtil::RightTrim(line.substr(schema_pos));
     mysql_url->resize(mysql_url->size() - 1); // Remove trailing double quote.
 }

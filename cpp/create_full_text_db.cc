@@ -94,7 +94,7 @@ bool FoundAtLeastOneNonReviewLink(const MarcUtil::Record &record) {
 
     const ssize_t dir_entry_count(static_cast<ssize_t>(dir_entries.size()));
     for (/* Empty! */; _856_index < dir_entry_count and dir_entries[_856_index].getTag() == "856"; ++_856_index) { 
-	const std::vector<std::string> &fields(record.getFields());
+        const std::vector<std::string> &fields(record.getFields());
 
         const Subfields subfields(fields[_856_index]);
         if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
@@ -138,7 +138,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
     std::cout << "Skip " << skip_count << " records\n";
 
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+        record.setRecordWillBeWrittenAsXml(true);
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;
