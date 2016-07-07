@@ -68,6 +68,10 @@ std::string ExpandTemplate(const std::string &original_template,
                            const std::map<std::string, std::vector<std::string>> &names_to_values_map);
 
 
+/** \return True if "ppn_candidate" is a possible Pica Production Number, else false. */
+bool IsValidPPN(const std::string &ppn_candidate);
+
+
 } // namespace MiscUtil
 
 
