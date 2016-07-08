@@ -1,5 +1,4 @@
-Dear $firstname $lastname,
-
+Dear $firstname $lastname,<br /><br />
 An automated process has determined that new issues are available for
 serials that you are subscribed to.  The list is:
 <ul>
@@ -7,6 +6,6 @@ $LOOP(url,title)
   <li><a href="$url">$title</a></li>
 $ENDLOOP
 </ul>
-
-Sincerely,
+<br />
+Sincerely,<br />
 The IxTheo Team
