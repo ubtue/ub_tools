@@ -30,6 +30,7 @@
 #include "DbConnection.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
+#include "HtmlUtil.h"
 #include "MiscUtil.h"
 #include "Solr.h"
 #include "StringUtil.h"
@@ -126,14 +127,14 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
     std::vector<std::string> urls, titles;
     for (const auto &new_issue_info : new_issue_infos) {
         urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
-        titles.emplace_back(new_issue_info.title_);
+        titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.title_));
     }
     names_to_values_map["url"] = urls;
     names_to_values_map["title"] = titles;
     const std::string email_contents(MiscUtil::ExpandTemplate(email_template, names_to_values_map));
 
-    if (unlikely(EmailSender::SendEmail("notifications@ixtheo.de", email, "Ixtheo Subscriptions", email_contents,
-                                        EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
+    if (unlikely(not EmailSender::SendEmail("notifications@ixtheo.de", email, "Ixtheo Subscriptions", email_contents,
+                                            EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
         Error("failed to send a notification email to \"" + email + "\"!");
 }
 
