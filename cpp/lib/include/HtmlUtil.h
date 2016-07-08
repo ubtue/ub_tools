@@ -8,6 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
+ *  Copyright 2016 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -60,6 +61,10 @@ inline std::string ReplaceEntities(const std::string &s,
         ReplaceEntities(&temp_s, unknown_entity_mode);
         return temp_s;
 }
+
+
+/** \brief Replaces ampersands, less-than and greater than symbols with HTML entities. */
+std::string HtmlEscape(const std::string &unescaped_text);
 
 
 } // namespace HtmlUtil
