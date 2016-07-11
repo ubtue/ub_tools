@@ -57,6 +57,7 @@ merge_differential_and_full_marc_updates
 mysql_test
 notify_users
 populate_in_tuebingen_available
+ppn_test
 regex_matcher
 remove_directory_test
 remove_matching_files_test

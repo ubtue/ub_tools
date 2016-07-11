@@ -279,4 +279,23 @@ std::string ExpandTemplate(const std::string &original_template,
 }
 
 
+bool IsValidPPN(const std::string &ppn_candidate) {
+    if (ppn_candidate.length() != 9)
+        return false;
+
+    for (unsigned i(0); i < 8; ++i) {
+        if (not StringUtil::IsDigit(ppn_candidate[i]))
+            return false;
+    }
+
+    unsigned checksum(0);
+    for (unsigned i(0); i < 8; ++i)
+        checksum += (9 - i) * (ppn_candidate[i] - '0');
+    checksum = (11 - (checksum % 11)) % 11;
+    const char checksum_as_char(checksum == 10 ? 'X' : '0' + checksum);
+
+    return ppn_candidate[8] == checksum_as_char;
+}
+
+
 } // namespace MiscUtil
