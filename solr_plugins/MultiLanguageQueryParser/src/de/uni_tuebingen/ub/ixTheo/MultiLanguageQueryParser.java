@@ -70,7 +70,7 @@ public class MultiLanguageQueryParser extends QParser {
 
     public Query parse() throws SyntaxError {
         this.newRequest.setParams(newParams);
-        QParser parser = getParser(this.searchString, "dismax", this.newRequest);
+        QParser parser = getParser(this.searchString, "edismax", this.newRequest);
         return parser.parse();
     }
 }
