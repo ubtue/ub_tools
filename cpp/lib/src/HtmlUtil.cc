@@ -8,6 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
+ *  Copyright 2016 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -620,6 +621,25 @@ std::string &ReplaceEntities(std::string * const s, const UnknownEntityMode unkn
     }
 
     return *s = result;
+}
+
+
+std::string HtmlEscape(const std::string &unescaped_text) {
+    std::string escaped_text;
+    escaped_text.reserve(unescaped_text.length());
+
+    for (const char ch : unescaped_text) {
+        if (ch == '&')
+            escaped_text += "&amp";
+        else if (ch == '<')
+            escaped_text += "&lt";
+        else if (ch == '>')
+            escaped_text += "&gt";
+        else
+            escaped_text += ch;
+    }
+
+    return escaped_text;
 }
 
 
