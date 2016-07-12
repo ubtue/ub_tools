@@ -32,7 +32,7 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
 ((++P)); START=$(date +%s.%N)
 echo "*** Phase $P: Filter out records containing mtex in 935\$a ***" | tee --append "${log}"
-marc_filter --drop 935a:mtex GesamtTiteldaten-"${date}".xml GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+marc_filter --drop GesamtTiteldaten-"${date}".xml GesamtTiteldaten-post-phase"$P"-"${date}".xml 935a:mtex \
     >> "${log}" 2>&1
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
@@ -127,6 +127,13 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 echo "*** Phase $P: Fill in missing 773\$a Subfields ***" | tee --append "${log}"
 augment_773a --verbose GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
                        GesamtTiteldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
+PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
+echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+
+((++P)); START=$(date +%s.%N)
+echo "*** Extract Normdata Translations" | tee --append "${log}"
+extract_normdata_translations Normdaten-"${date}".xml \
+     normdata_translations.txt >> "${log}" 2>&1
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
 echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
