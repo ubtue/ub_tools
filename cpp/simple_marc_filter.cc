@@ -29,6 +29,7 @@
 #include "Leader.h"
 #include "MarcUtil.h"
 #include "MarcXmlWriter.h"
+#include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -36,10 +37,10 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << progname << " (--drop|--keep) marc_input marc_output subfieldspec1:regex1 "
-              << "[subfieldspec2:regex2 .. subfieldspecN:regexN]\n"
-              << "       where \"subfieldspec\" must be a MARC tag followed by a single-character subfield code\n"
-              << "       and \"regex\" is a Perl-compatible regular expression.\n\n";
+    std::cerr << "usage: " << progname << " (--drop|--keep) marc_input marc_output field_or_subfieldspec1:regex1 "
+              << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
+              << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
+              << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n\n";
 
     std::exit(EXIT_FAILURE);
 }
@@ -50,12 +51,29 @@ class CompiledPattern {
     char subfield_code_;
     RegexMatcher matcher_;
 public:
+    static const char NO_SUBFIELD_CODE;
+public:
     CompiledPattern(const std::string &tag, const char subfield_code,  const RegexMatcher &matcher)
         : tag_(tag), subfield_code_(subfield_code), matcher_(matcher) {}
     const std::string &getTag() const { return tag_; }
+    bool hasSubfieldCode() const { return subfield_code_ != NO_SUBFIELD_CODE; }
     char getSubfieldCode() const { return subfield_code_; }
+    bool fieldMatched(const std::string &field_contents) const;
     bool subfieldMatched(const std::string &subfield_contents) const;
 };
+
+
+const char CompiledPattern::NO_SUBFIELD_CODE('\0');
+
+
+bool CompiledPattern::fieldMatched(const std::string &field_contents) const {
+    std::string err_msg;
+    const bool retval = matcher_.matched(field_contents, &err_msg);
+    if (not retval and not err_msg.empty())
+        Error("Unexpected error while trying to match a field in CompiledPattern::fieldMatched(): " + err_msg);
+
+    return retval;
+}
 
 
 bool CompiledPattern::subfieldMatched(const std::string &subfield_contents) const {
@@ -70,6 +88,7 @@ bool CompiledPattern::subfieldMatched(const std::string &subfield_contents) cons
 
 // Expects "patterns" to contain strings that look like TTTS:REGEX where TTT are 3 characters specifying a field,
 // S is a subfield code and REGEX is a PCRE-style regex supporting UTF8 that should match subfield contents.
+// Alteratively a pattern can look like TTT:REGEX where TTT is a tag and we have no subfield code.
 bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<CompiledPattern> * const compiled_patterns,
                      std::string * const err_msg)
 {
@@ -77,20 +96,25 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
     compiled_patterns->reserve(patterns.size());
 
     for (const auto &pattern : patterns) {
+        std::string tag;
+        char subfield_code;
         std::string::size_type first_colon_pos = pattern.find(':');
         if (first_colon_pos == std::string::npos) {
             *err_msg = "missing colon!";
             return false;
+        } else if (first_colon_pos == DirectoryEntry::TAG_LENGTH) {
+            tag = pattern.substr(0, 3);
+            subfield_code = CompiledPattern::NO_SUBFIELD_CODE;
         } else if (first_colon_pos != DirectoryEntry::TAG_LENGTH + 1) {
+            tag = pattern.substr(0, 3);
+            subfield_code = pattern[3];
+        } else {
             *err_msg = "colon in wrong position! (Tag length must be "
                        + std::to_string(DirectoryEntry::TAG_LENGTH) + ".)";
             return false;
         }
 
-        const std::string tag(pattern.substr(0, 3));
-        const char subfield_code(pattern[3]);
         const std::string regex_string(pattern.substr(first_colon_pos + 1));
-
         RegexMatcher * const new_matcher(RegexMatcher::RegexMatcherFactory(regex_string, err_msg));
         if (new_matcher == nullptr) {
             *err_msg = "failed to compile regular expression: \"" + regex_string + "\"! (" + *err_msg +")";
@@ -118,14 +142,17 @@ bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &
              static_cast<size_t>(index) < fields.size() and dir_entries[index].getTag() == compiled_pattern.getTag();
              ++index)
         {
-            const Subfields subfields(fields[index]);
-            const auto begin_end(subfields.getIterators(compiled_pattern.getSubfieldCode()));
-            for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
-                 ++subfield_code_and_value)
-            {
-                if (compiled_pattern.subfieldMatched(subfield_code_and_value->second))
-                    return true;
-            }
+            if (compiled_pattern.hasSubfieldCode()) {
+                const Subfields subfields(fields[index]);
+                const auto begin_end(subfields.getIterators(compiled_pattern.getSubfieldCode()));
+                for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
+                     ++subfield_code_and_value)
+                    {
+                        if (compiled_pattern.subfieldMatched(subfield_code_and_value->second))
+                            return true;
+                    }
+            } else if (compiled_pattern.fieldMatched(fields[index]))
+                return true;
         }
     }
 
@@ -133,8 +160,12 @@ bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &
 }
 
 
-void Filter(const std::vector<std::string> &patterns, const bool keep, File * const input, File * const output) {
-    MarcXmlWriter xml_writer(output);
+void Filter(const bool input_is_xml, const std::vector<std::string> &patterns, const bool keep, File * const input,
+            File * const output)
+{
+    MarcXmlWriter *xml_writer(nullptr);
+    if (input_is_xml)
+        xml_writer = new MarcXmlWriter(output);
 
     std::vector<CompiledPattern> compiled_patterns;
     std::string err_msg;
@@ -142,25 +173,30 @@ void Filter(const std::vector<std::string> &patterns, const bool keep, File * co
         Error("Error while compiling patterns: " + err_msg);
 
     unsigned total_count(0), kept_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        record.setRecordWillBeWrittenAsXml(true);
+    while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(input)
+                                                  : MarcUtil::Record::BinaryFactory(input))
+    {
+        record.setRecordWillBeWrittenAsXml(input_is_xml);
         ++total_count;
 
         const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const std::vector<std::string> &fields(record.getFields());
         if (Matched(record, dir_entries, fields, compiled_patterns)) {
             if (keep) {
-                record.write(&xml_writer);
+                input_is_xml ? record.write(xml_writer) : record.write(output);
                 ++kept_count;
             }
         } else if (not keep) {
-            record.write(&xml_writer);
+            input_is_xml ? record.write(xml_writer) : record.write(output);
             ++kept_count;
         }
     }
 
     if (not err_msg.empty())
         Error(err_msg);
+
+    if (input_is_xml)
+        delete xml_writer;
 
     std::cerr << "Kept " << kept_count << " of " << total_count << " record(s).\n";
 }
@@ -180,7 +216,15 @@ int main(int argc, char **argv) {
     else
         Error("expected --keep or --drop as the first argument!");
 
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(argv[2]));
+    const std::string input_filename(argv[2]);
+    const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
+    if (unlikely(media_type.empty()))
+        Error("can't determine media type of \"" + input_filename + "\"!");
+    if (media_type != "application/xml" and media_type != "application/marc")
+        Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
+    const bool input_is_xml(media_type == "application/xml");
+
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[3]));
 
     std::vector<std::string> patterns;
@@ -188,7 +232,7 @@ int main(int argc, char **argv) {
         patterns.emplace_back(argv[arg_no]);
 
     try {
-        Filter(patterns, keep, input.get(), output.get());
+        Filter(input_is_xml, patterns, keep, input.get(), output.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
