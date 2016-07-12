@@ -67,23 +67,21 @@ void AugmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::str
     auto ixtheo_pos = std::find(translations->begin(), translations->end(), "IxTheo");
     if (ixtheo_pos != translations->end()) {
         std::vector<std::string> ixtheo_lang_code;
-        record.extractSubfields(tag, "9", &ixtheo_lang_code);
-        bool already_found_ixtheo_translation = false;
-        for (auto lang_code : ixtheo_lang_code) {
+        record.extractSubfields(tag, "9", &ixtheo_lang_codes);
+        bool already_found_ixtheo_translation(false);
+        for (const auto &lang_code : ixtheo_lang_codes) {
             if (lang_code[0] != 'L')
                continue;
             if (already_found_ixtheo_translation)
                continue;
             if (lang_code.find("eng") != std::string::npos and *ixtheo_pos != "IxTheo_eng") {
-               *ixtheo_pos = *ixtheo_pos + "_eng";
+               *ixtheo_pos += + "_eng";
                already_found_ixtheo_translation = true;
-            }
-            else if (lang_code.find("fra") != std::string::npos and *ixtheo_pos != "IxTheo_fra") {
-               *ixtheo_pos = *ixtheo_pos + "_fra";
+            } else if (lang_code.find("fra") != std::string::npos and *ixtheo_pos != "IxTheo_fra") {
+               *ixtheo_pos += "_fra";
                already_found_ixtheo_translation = true;
-            }
-            else 
-                Warning("Unsupported language code \"" + lang_code + "\" for PPN " + record.getFields()[0]);
+            } else 
+               Warning("Unsupported language code \"" + lang_code + "\" for PPN " + record.getFields()[0]);
         }
     }
 }
