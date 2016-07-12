@@ -1,7 +1,7 @@
-/** \brief A MARC-21 filter uliity that can remove records based on ISILs and replace URNs in 856u-fields with URLs.
+/** \brief A MARC-21 filter utility that can remove records based on patterns for MARC subfields.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,23 +25,46 @@
 #include <cstring>
 #include <getopt.h>
 #include "DirectoryEntry.h"
+#include "FileUtil.h"
 #include "Leader.h"
 #include "MarcUtil.h"
 #include "MarcXmlWriter.h"
+#include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
 
 
+void Usage() {
+    std::cerr << "usage: " << progname << " (--drop|--keep) [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
+              << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
+              << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
+              << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
+              << "       If you don't specify an output format it will be the same as the input format.\n\n";
+
+    std::exit(EXIT_FAILURE);
+}
+
+
 class CompiledPattern {
     std::string tag_;
+    char subfield_code_;
     RegexMatcher matcher_;
 public:
-    CompiledPattern(const std::string &tag,  const RegexMatcher &matcher): tag_(tag), matcher_(matcher) {}
-    bool tagMatched(const std::string &tag) const { return tag == tag_; }
+    static const char NO_SUBFIELD_CODE;
+public:
+    CompiledPattern(const std::string &tag, const char subfield_code,  const RegexMatcher &matcher)
+        : tag_(tag), subfield_code_(subfield_code), matcher_(matcher) {}
+    const std::string &getTag() const { return tag_; }
+    bool hasSubfieldCode() const { return subfield_code_ != NO_SUBFIELD_CODE; }
+    char getSubfieldCode() const { return subfield_code_; }
     bool fieldMatched(const std::string &field_contents) const;
+    bool subfieldMatched(const std::string &subfield_contents) const;
 };
+
+
+const char CompiledPattern::NO_SUBFIELD_CODE('\0');
 
 
 bool CompiledPattern::fieldMatched(const std::string &field_contents) const {
@@ -54,8 +77,19 @@ bool CompiledPattern::fieldMatched(const std::string &field_contents) const {
 }
 
 
-// Expects "patterns" to contain strings that look like XXX:REGEX where XXX are 3 characters specifying a field
-// and REGEX is a PCRE-style regex supporting UTF8 that should match field contents.
+bool CompiledPattern::subfieldMatched(const std::string &subfield_contents) const {
+    std::string err_msg;
+    const bool retval = matcher_.matched(subfield_contents, &err_msg);
+    if (not retval and not err_msg.empty())
+        Error("Unexpected error while trying to match a subfield in CompiledPattern::subfieldMatched(): " + err_msg);
+
+    return retval;
+}
+
+
+// Expects "patterns" to contain strings that look like TTTS:REGEX where TTT are 3 characters specifying a field,
+// S is a subfield code and REGEX is a PCRE-style regex supporting UTF8 that should match subfield contents.
+// Alteratively a pattern can look like TTT:REGEX where TTT is a tag and we have no subfield code.
 bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<CompiledPattern> * const compiled_patterns,
                      std::string * const err_msg)
 {
@@ -63,26 +97,32 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
     compiled_patterns->reserve(patterns.size());
 
     for (const auto &pattern : patterns) {
+        std::string tag;
+        char subfield_code;
         std::string::size_type first_colon_pos = pattern.find(':');
         if (first_colon_pos == std::string::npos) {
             *err_msg = "missing colon!";
             return false;
-        } else if (first_colon_pos != DirectoryEntry::TAG_LENGTH) {
+        } else if (first_colon_pos == DirectoryEntry::TAG_LENGTH) {
+            tag = pattern.substr(0, 3);
+            subfield_code = CompiledPattern::NO_SUBFIELD_CODE;
+        } else if (first_colon_pos != DirectoryEntry::TAG_LENGTH + 1) {
+            tag = pattern.substr(0, 3);
+            subfield_code = pattern[3];
+        } else {
             *err_msg = "colon in wrong position! (Tag length must be "
                        + std::to_string(DirectoryEntry::TAG_LENGTH) + ".)";
             return false;
         }
 
-        const std::string field(pattern.substr(0, first_colon_pos));
         const std::string regex_string(pattern.substr(first_colon_pos + 1));
-
-        RegexMatcher *new_matcher = RegexMatcher::RegexMatcherFactory(regex_string, err_msg);
+        RegexMatcher * const new_matcher(RegexMatcher::RegexMatcherFactory(regex_string, err_msg));
         if (new_matcher == nullptr) {
             *err_msg = "failed to compile regular expression: \"" + regex_string + "\"! (" + *err_msg +")";
             return false;
         }
 
-        compiled_patterns->push_back(CompiledPattern(field, std::move(*new_matcher)));
+        compiled_patterns->push_back(CompiledPattern(tag, subfield_code, std::move(*new_matcher)));
         delete new_matcher;
     }
 
@@ -90,366 +130,130 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
 }
 
 
-void Filter(const std::string &input_filename, const std::string &output_filename,
-            std::vector<std::string> &patterns, const bool verbose) {
-    File input(input_filename, "rm");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
-
-    File output(output_filename, "wb");
-    if (not output)
-        Error("can't open \"" + output_filename + "\" for writing!");
-    MarcXmlWriter xml_writer(&output);
-
-    std::vector<CompiledPattern> compiled_patterns;
-    std::string err_msg;
-    if (not CompilePatterns(patterns, &compiled_patterns, &err_msg))
-        Error("Error while compiling patterns: " + err_msg);
-
-    unsigned count(0), matched_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
-        record.setRecordWillBeWrittenAsXml(true);
-        ++count;
-
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        const std::vector<std::string> &fields(record.getFields());
-        bool matched(false);
-        for (unsigned i(0); i < dir_entries.size(); ++i) {
-            for (const auto &compiled_pattern : compiled_patterns) {
-                if (compiled_pattern.tagMatched(dir_entries[i].getTag())) {
-                    if (compiled_pattern.fieldMatched(fields[i])) {
-                        if (verbose) std::cerr << '=' << dir_entries[i].getTag() << "  " << fields[i] << '\n';
-                        matched = true;
-                        goto found;
-                    }
-                }
-            }
-        }
-    found:
-        if (matched) {
-            ++matched_count;
-            record.write(&xml_writer);
-        }
-    }
-
-    if (not err_msg.empty())
-        Error(err_msg);
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << "Matched " << matched_count << " records.\n";
-}
-
-
-void DumpEditFormat(const std::string &input_filename, const std::string &output_filename) {
-    std::ofstream output(output_filename);
-    if (not output)
-        Error("can't open \"" + output_filename + "\" for writing!");
-
-    File input(input_filename, "rm");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
-
-    std::shared_ptr<Leader> leader;
-    std::vector<DirectoryEntry> dir_entries;
-    std::vector<std::string> field_data;
-    std::string err_msg;
-    unsigned count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
-        ++count;
-
-        output << "=LDR  ....." << leader->toString().substr(5) << '\n';
-
-        unsigned i(0);
-        for (const auto &entry : dir_entries) {
-            output << '=' << entry.getTag() << "  ";
-            if (not entry.isControlFieldEntry()) {
-                if (field_data[i][0] == ' ') field_data[i][0] = '\\';
-                if (field_data[i][1] == ' ') field_data[i][1] = '\\';
-            }
-                output << field_data[i] << '\n';
-
-            ++i;
-        }
-
-        output << '\n';
-    }
-
-    if (not err_msg.empty())
-        Error(err_msg);
-
-    std::cerr << "Read " << count << " records.\n";
-}
-
-
-// Performs a few sanity checks.
-bool RecordSeemsCorrect(const std::string &record, std::string * const err_msg) {
-    if (record.size() < Leader::LEADER_LENGTH) {
-        *err_msg = "record too small to contain leader!";
-        return false;
-    }
-
-    std::shared_ptr<Leader> leader;
-    if (not Leader::ParseLeader(record.substr(0, Leader::LEADER_LENGTH), leader.get(), err_msg))
-        return false;
-
-    if (leader->getRecordLength() != record.length()) {
-        *err_msg = "leader's record length (" + std::to_string(leader->getRecordLength())
-                   + ") does not equal actual record length (" + std::to_string(record.length()) + ")!";
-        return false;
-    }
-
-    if (leader->getBaseAddressOfData() <= Leader::LEADER_LENGTH) {
-        *err_msg = "impossible base address of data!";
-        return false;
-    }
-
-    const size_t directory_length(leader->getBaseAddressOfData() - Leader::LEADER_LENGTH - 1);
-    if ((directory_length % DirectoryEntry::DIRECTORY_ENTRY_LENGTH) != 0) {
-        *err_msg = "directory length is not a multiple of "
-                   + std::to_string(DirectoryEntry::DIRECTORY_ENTRY_LENGTH) + "!";
-        return false;
-    }
-
-    if (record[leader->getBaseAddressOfData() - 1] != '\x1E') {
-        *err_msg = "directory is not terminated with a field terminator!";
-        return false;
-    }
-
-    if (record[record.size() - 1] != '\x1D') {
-        *err_msg = "record is not terminated with a record terminator!";
-        return false;
-    }
-
-    return true;
-}
-
-
-void DeleteMatched(const std::string &tags_list, const std::vector<std::string> &patterns, const bool invert,
-                   File * const input, File * const output)
+/** Returns true if we have at least one match. */
+bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &dir_entries,
+             const std::vector<std::string> &fields, const std::vector<CompiledPattern> &compiled_patterns)
 {
-    MarcXmlWriter xml_writer(output);
+    for (const auto &compiled_pattern : compiled_patterns) {
+        ssize_t index(record.getFieldIndex(compiled_pattern.getTag()));
+        if (index == -1)
+            continue;
+
+        for (/* Intentionally empty! */;
+             static_cast<size_t>(index) < fields.size() and dir_entries[index].getTag() == compiled_pattern.getTag();
+             ++index)
+        {
+            if (compiled_pattern.hasSubfieldCode()) {
+                const Subfields subfields(fields[index]);
+                const auto begin_end(subfields.getIterators(compiled_pattern.getSubfieldCode()));
+                for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
+                     ++subfield_code_and_value)
+                    {
+                        if (compiled_pattern.subfieldMatched(subfield_code_and_value->second))
+                            return true;
+                    }
+            } else if (compiled_pattern.fieldMatched(fields[index]))
+                return true;
+        }
+    }
+
+    return false;
+}
+
+
+namespace {
+
+
+enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
+
+
+} // unnamed namespace
+
+
+void Filter(const bool input_is_xml, const OutputFormat output_format, const std::vector<std::string> &patterns,
+            const bool keep, File * const input, File * const output)
+{
+    MarcXmlWriter *xml_writer(nullptr);
+    if ((output_format == OutputFormat::SAME_AS_INPUT and input_is_xml) or output_format == OutputFormat::MARC_XML)
+        xml_writer = new MarcXmlWriter(output);
 
     std::vector<CompiledPattern> compiled_patterns;
     std::string err_msg;
     if (not CompilePatterns(patterns, &compiled_patterns, &err_msg))
         Error("Error while compiling patterns: " + err_msg);
 
-    std::vector<std::string> tags;
-    if (StringUtil::Split(tags_list, ':', &tags) == 0)
-        Error("Empty list of tags to remove!");
-    const std::unordered_set<std::string> drop_tags(tags.begin(), tags.end());
+    unsigned total_count(0), kept_count(0);
+    while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(input)
+                                                  : MarcUtil::Record::BinaryFactory(input))
+    {
+        record.setRecordWillBeWrittenAsXml(input_is_xml);
+        ++total_count;
 
-    for (const auto &tag : tags) {
-        if (tag.length() != DirectoryEntry::TAG_LENGTH)
-            Error("Tags need to be " + std::to_string(DirectoryEntry::TAG_LENGTH)
-                  + " characters in length! (Bad tag is \"" + tag +"\")");
-    }
-
-    unsigned count(0), modified_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        record.setRecordWillBeWrittenAsXml(true);
-        ++count;
-
-        bool matched(false);
         const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const std::vector<std::string> &fields(record.getFields());
-        for (unsigned i(0); i < dir_entries.size(); ++i) {
-            for (const auto &compiled_pattern : compiled_patterns) {
-                if (compiled_pattern.tagMatched(dir_entries[i].getTag())) {
-                    if (compiled_pattern.fieldMatched(fields[i])) {
-                        matched = true;
-                        goto found_match;
-                    }
-                }
+        if (Matched(record, dir_entries, fields, compiled_patterns)) {
+            if (keep) {
+                xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
+                ++kept_count;
             }
+        } else if (not keep) {
+            xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
+            ++kept_count;
         }
-
-found_match:
-        if (invert)
-            matched = not matched;
-        if (matched) {
-            ++modified_count;
-            record.filterTags(drop_tags);
-        }
-
-        record.write(&xml_writer);
     }
 
     if (not err_msg.empty())
         Error(err_msg);
 
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << "Modified " << modified_count << " record(s).\n";
+    delete xml_writer;
+
+    std::cerr << "Kept " << kept_count << " of " << total_count << " record(s).\n";
 }
-
-
-inline bool IsHttpOrHttpsURL(const std::string &url_candidate) {
-    return StringUtil::StartsWith(url_candidate, "http://") or StringUtil::StartsWith(url_candidate, "https://");
-}
-
-
-void NormaliseURLs(const bool verbose, File * const input, File * const output) {
-    MarcXmlWriter xml_writer(output);
-
-    unsigned count(0), modified_count(0), duplicate_skip_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        record.setRecordWillBeWrittenAsXml(true);
-        ++count;
-
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        const std::vector<std::string> &fields(record.getFields());
-        bool modified_record(false);
-        std::unordered_set<std::string> already_seen_links;
-        for (unsigned field_no(0); field_no < dir_entries.size(); /* Intentionally empty! */) {
-            if (dir_entries[field_no].getTag() != "856") {
-                ++field_no;
-                continue;
-            }
-
-            const std::string &_856_field(fields[field_no]);
-            Subfields _856_subfields(_856_field);
-            bool duplicate_link(false);
-            if (_856_subfields.getIndicator1() != '7' and _856_subfields.hasSubfield('u')) {
-                const std::string u_subfield(_856_subfields.getFirstSubfieldValue('u'));
-
-                if (IsHttpOrHttpsURL(u_subfield)) {
-                    if (already_seen_links.find(u_subfield) == already_seen_links.cend())
-                        already_seen_links.insert(u_subfield);
-                    else
-                        duplicate_link = true;
-                } else {
-                    std::string new_http_replacement_link;
-                    if (StringUtil::StartsWith(u_subfield, "urn:"))
-                        new_http_replacement_link = "https://nbn-resolving.org/" + u_subfield;
-                    else if (StringUtil::StartsWith(u_subfield, "10900/"))
-                        new_http_replacement_link = "https://publikationen.uni-tuebingen.de/xmlui/handle/" + u_subfield;
-                    else
-                        new_http_replacement_link = "http://" + u_subfield;
-                    if (already_seen_links.find(new_http_replacement_link) == already_seen_links.cend()) {
-                        _856_subfields.replace('u', u_subfield, new_http_replacement_link);
-                        if (verbose)
-                            std::cout << "Replaced \"" << u_subfield << "\" with \"" << new_http_replacement_link
-                                      << "\". (PPN: " << fields[0] << ")\n";
-                        already_seen_links.insert(new_http_replacement_link);
-                        modified_record = true;
-                    } else
-                        duplicate_link = true;
-                }
-            }
-
-            if (not duplicate_link)
-                ++field_no;
-            else {
-                ++duplicate_skip_count;
-                if (verbose)
-                    std::cout << "Skipping duplicate, control numbers is " << fields[0] << ".\n";
-                record.deleteField(field_no);
-                modified_record = true;
-            }
-        }
-
-        if (modified_record)
-            ++modified_count;
-
-        record.write(&xml_writer);
-    }
-
-    std::cerr << "Read " << count << " records.\n";
-    std::cerr << "Modified " << modified_count << " record(s).\n";
-    std::cerr << "Skipped " << duplicate_skip_count << " duplicate links.\n";
-}
-
-
-void Usage() {
-    std::cerr << "Usage: " << progname << "[(--verbose|-v)]"
-              << "[(--bibliotheks-sigel-filtern|-f) input_filename output_filename]\n"
-              << "\t[(--normalise-urls|-n) input_filename output_filename]\n";
-
-    std::exit(EXIT_FAILURE);
-}
-
-
-#pragma GCC diagnostic ignored "-Wpedantic"
-const struct option longopts[] = {
-    {
-        .name    = "bibliotheks-sigel-filtern",
-        .has_arg = no_argument,
-        .flag    = nullptr,
-        .val     = 'f'
-    },
-    {
-        .name    = "verbose",
-        .has_arg = no_argument,
-        .flag    = nullptr,
-        .val     = 'v'
-    },
-    {
-        .name    = "normalise-urls",
-        .has_arg = no_argument,
-        .flag    = nullptr,
-        .val     = 'n'
-    },
-    {
-        .name    = nullptr,
-        .has_arg = 0,
-        .flag    = nullptr,
-        .val     = '\0'
-    },
-};
-#pragma GCC diagnostic warning "-Wpedantic"
 
 
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    int opt;
-    bool bibliotheks_sigel_filtern(false), normalise_urls(false), verbose(false);
-    int option_index(0);
-    while ((opt = getopt_long(argc, argv, "fvn", longopts, &option_index)) != -1) {
-        switch (opt) {
-        case 'f':
-            bibliotheks_sigel_filtern = true;
-            break;
-        case 'n':
-            normalise_urls = true;
-            break;
-        case 'v':
-            verbose = true;
-            break;
-        default:
-            std::cerr << ::progname << ": unknown command-line option!\n";
-            Usage();
-        }
-    }
-    argc -= optind;
-    argv += optind;
-
-    if (argc < 1) {
-        std::cerr<< ::progname << ": missing input filename!\n";
+    if (argc < 5)
         Usage();
-    }
-    if (argc < 2) {
-        std::cerr<< ::progname << ": missing input filename!\n";
-        Usage();
+
+    bool keep;
+    if (std::strcmp(argv[1], "--keep") == 0)
+        keep = true;
+    else if (std::strcmp(argv[1], "--drop") == 0)
+        keep = false;
+    else
+        Error("expected --keep or --drop as the first argument!");
+
+    OutputFormat output_format(OutputFormat::SAME_AS_INPUT);
+    if (StringUtil::StartsWith(argv[2], "--output-format=")) {
+        if (std::strcmp(argv[2] + std::strlen("--output-format="), "marc-xml") == 0)
+            output_format = OutputFormat::MARC_XML;
+        else if (std::strcmp(argv[2] + std::strlen("--output-format="), "marc-21") == 0)
+            output_format = OutputFormat::MARC_21;
+        else
+            Error("unknown output format \"" + std::string(argv[2] + 16)
+                  + "\"!  Must be \"marc-xml\" or \"marc-21\".");
+        --argv, --argc;
     }
 
-    const std::string input_filename(argv[0]);
-    File input(input_filename, "rm");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
+    const std::string input_filename(argv[2]);
+    const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
+    if (unlikely(media_type.empty()))
+        Error("can't determine media type of \"" + input_filename + "\"!");
+    if (media_type != "application/xml" and media_type != "application/marc")
+        Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
+    const bool input_is_xml(media_type == "application/xml");
 
-    const std::string output_filename(argv[1]);
-    File output(output_filename, "w");
-    if (not output)
-        Error("can't open \"" + output_filename + "\" for writing!");
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
+    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[3]));
+
+    std::vector<std::string> patterns;
+    for (int arg_no(4); arg_no < argc; ++arg_no)
+        patterns.emplace_back(argv[arg_no]);
 
     try {
-        if (bibliotheks_sigel_filtern) {
-            std::vector<std::string> patterns = { "LOK:^.*[a]DE-21 *$|^.*[a]DE-21-24 *$|^.*[a]DE-21-110 *$" };
-            DeleteMatched("LOK", patterns, /* invert = */ true, &input, &output);
-        } else if (normalise_urls)
-            NormaliseURLs(verbose, &input, &output);
-        else
-            Usage();
+        Filter(input_is_xml, output_format, patterns, keep, input.get(), output.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
