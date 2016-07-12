@@ -37,10 +37,11 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << progname << " (--drop|--keep) marc_input marc_output field_or_subfieldspec1:regex1 "
+    std::cerr << "usage: " << progname << " (--drop|--keep) [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
-              << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n\n";
+              << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
+              << "       If you don't specify an output format it will be the same as the input format.\n\n";
 
     std::exit(EXIT_FAILURE);
 }
@@ -160,11 +161,20 @@ bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &
 }
 
 
-void Filter(const bool input_is_xml, const std::vector<std::string> &patterns, const bool keep, File * const input,
-            File * const output)
+namespace {
+
+
+enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
+
+
+} // unnamed namespace
+
+
+void Filter(const bool input_is_xml, const OutputFormat output_format, const std::vector<std::string> &patterns,
+            const bool keep, File * const input, File * const output)
 {
     MarcXmlWriter *xml_writer(nullptr);
-    if (input_is_xml)
+    if ((output_format == OutputFormat::SAME_AS_INPUT and input_is_xml) or output_format == OutputFormat::MARC_XML)
         xml_writer = new MarcXmlWriter(output);
 
     std::vector<CompiledPattern> compiled_patterns;
@@ -183,11 +193,11 @@ void Filter(const bool input_is_xml, const std::vector<std::string> &patterns, c
         const std::vector<std::string> &fields(record.getFields());
         if (Matched(record, dir_entries, fields, compiled_patterns)) {
             if (keep) {
-                input_is_xml ? record.write(xml_writer) : record.write(output);
+                xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
                 ++kept_count;
             }
         } else if (not keep) {
-            input_is_xml ? record.write(xml_writer) : record.write(output);
+            xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
             ++kept_count;
         }
     }
@@ -195,8 +205,7 @@ void Filter(const bool input_is_xml, const std::vector<std::string> &patterns, c
     if (not err_msg.empty())
         Error(err_msg);
 
-    if (input_is_xml)
-        delete xml_writer;
+    delete xml_writer;
 
     std::cerr << "Kept " << kept_count << " of " << total_count << " record(s).\n";
 }
@@ -216,6 +225,18 @@ int main(int argc, char **argv) {
     else
         Error("expected --keep or --drop as the first argument!");
 
+    OutputFormat output_format(OutputFormat::SAME_AS_INPUT);
+    if (StringUtil::StartsWith(argv[2], "--output-format=")) {
+        if (std::strcmp(argv[2] + std::strlen("--output-format="), "marc-xml") == 0)
+            output_format = OutputFormat::MARC_XML;
+        else if (std::strcmp(argv[2] + std::strlen("--output-format="), "marc-21") == 0)
+            output_format = OutputFormat::MARC_21;
+        else
+            Error("unknown output format \"" + std::string(argv[2] + 16)
+                  + "\"!  Must be \"marc-xml\" or \"marc-21\".");
+        --argv, --argc;
+    }
+
     const std::string input_filename(argv[2]);
     const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
     if (unlikely(media_type.empty()))
@@ -232,7 +253,7 @@ int main(int argc, char **argv) {
         patterns.emplace_back(argv[arg_no]);
 
     try {
-        Filter(input_is_xml, patterns, keep, input.get(), output.get());
+        Filter(input_is_xml, output_format, patterns, keep, input.get(), output.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
