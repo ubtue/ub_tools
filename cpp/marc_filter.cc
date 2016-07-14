@@ -106,11 +106,11 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
         } else if (first_colon_pos == DirectoryEntry::TAG_LENGTH) {
             tag = pattern.substr(0, 3);
             subfield_code = CompiledPattern::NO_SUBFIELD_CODE;
-        } else if (first_colon_pos != DirectoryEntry::TAG_LENGTH + 1) {
+        } else if (first_colon_pos == DirectoryEntry::TAG_LENGTH + 1) {
             tag = pattern.substr(0, 3);
             subfield_code = pattern[3];
         } else {
-            *err_msg = "colon in wrong position! (Tag length must be "
+            *err_msg = "colon in wrong position (" + std::to_string(first_colon_pos) + ")! (Tag length must be "
                        + std::to_string(DirectoryEntry::TAG_LENGTH) + ".)";
             return false;
         }
