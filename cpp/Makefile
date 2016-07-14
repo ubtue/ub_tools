@@ -4,6 +4,7 @@ CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wsha
                   -ftrapv -Ilib/libstemmer/include \
                   -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
                   -I/usr/include/libxml2
+CCCFLAGS_AMD64  = $(subst -march=native,,$(CCCFLAGS))
 CCC             = clang++
 MAKE_DEPS=iViaCore-mkdep
 MAKE_DEPS_FLAGS = --output-program-rules
@@ -15,8 +16,9 @@ else # Ubuntu version
   LIBMARIADB=-lmariadbclient
   LIBCURL=-lcurl
 endif
-LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpthread -lpcre -lcrypto -lkyotocabinet -lmagic -lz -lrt \
-       -lssl -larchive -lboost_graph $(LIBCURL) $(LIBMARIADB)
+LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
+       -larchive -lboost_graph $(LIBCURL) $(LIBMARIADB) -lrt -lssl -lcrypto -lpthread
+LIBS_AMD64 = $(subst -lstemmer,-lstemmer_amd64,$(subst -lmarc,-lmarc_amd64,$(LIBS)))
 
 PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
 CGI_PROGS=full_text_lookup
@@ -25,14 +27,23 @@ INSTALL_PROGS=$(filter-out %_test,$(PROGS)) *.sh
 .PHONY: all install root_install clean
 
 all: .deps $(PROGS)
+amd64: .deps $(AMD64_PROGS)
 
 %.o: %.cc
 	@echo "Compiling $<..."
 	@$(CCC) $(CCCFLAGS) $< -c
 
+%_amd64.o: %.cc
+	@echo "Compiling (AMD64) $<..."
+	@$(CCC) $(CCCFLAGS_AMD64) $< -c -o $@
+
 $(PROGS): % : %.o lib/libmarc.a
 	@echo "Linking $@..."
 	@$(CCC) $< -o $@ $(LIBS)
+
+marc_filter_amd64: marc_filter_amd64.o lib/libmarc_amd64.a
+	@echo "Linking $@..."
+	@$(CCC) $< -o $@ $(LIBS_AMD64)
 
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile

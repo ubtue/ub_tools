@@ -1,13 +1,15 @@
-INC    = ./include
-SRC    = src
-OBJ    = objs
-SRCS   = $(SRC)/*.cc
-TEMP   = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
-OBJS   = $(TEMP:.cc=.o)
-CCC    = clang++
-CCOPTS = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include -O3\
-         -pedantic -Wno-vla-extension -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
-         -ftrapv -DETC_DIR='"/var/lib/tuelib"'
+INC        = ./include
+SRC        = src
+OBJ        = objs
+SRCS       = $(SRC)/*.cc
+TEMP       = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
+OBJS       = $(TEMP:.cc=.o)
+AMD64_OBJS = $(TEMP:.cc=_amd64.o)
+CCC        = clang++
+CCOPTS     = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include \
+             -O3 -pedantic -Wno-vla-extension -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
+             -ftrapv -DETC_DIR='"/var/lib/tuelib"'
+AMD64_CCOPTS = $(subst -march=native,,$(CCOPTS))
 MAKE_DEPS=iViaCore-mkdep
 
 ifneq ("$(wildcard /etc/centos-release)","")
@@ -19,18 +21,28 @@ endif
 .PHONY: clean
 .PRECIOUS: $(OBJ)/%.o
 
-# Rule for building:
+# Rules for building:
 $(OBJ)/%.o: $(SRC)/%.cc
 	$(CCC) $(CCOPTS) $< -c -o $@ -DLZ4_PATH=\"$(LZ4_PATH)\"
+$(OBJ)/%_amd64.o: $(SRC)/%.cc
+	$(CCC) $(AMD64_CCOPTS) $< -c -o $@ -DLZ4_PATH=\"$(LZ4_PATH)\"
 
 all: .deps libstemmer/libstemmer.a libmarc.a
+amd64: .deps libstemmer/libstemmer_amd64.a libmarc_amd64.a
 
 libmarc.a: $(OBJS)
 	@echo "Linking $@..."
 	@ar crs $@ $^
 
+libmarc_amd64.a: $(AMD64_OBJS)
+	@echo "Linking $@..."
+	@ar crs $@ $^
+
 libstemmer/libstemmer.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/include/*.h)
 	$(MAKE) -C libstemmer
+
+libstemmer/libstemmer_amd64.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/include/*.h)
+	$(MAKE) -C libstemmer libstemmer_amd64.a
 
 -include .deps
 .deps: $(SRCS) $(INC)/*.h Makefile
