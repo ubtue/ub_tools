@@ -27,14 +27,14 @@ $(OBJ)/%.o: $(SRC)/%.cc
 $(OBJ)/%_amd64.o: $(SRC)/%.cc
 	$(CCC) $(AMD64_CCOPTS) $< -c -o $@ -DLZ4_PATH=\"$(LZ4_PATH)\"
 
-all: .deps libstemmer/libstemmer.a libmarc.a
-amd64: .deps libstemmer/libstemmer_amd64.a libmarc_amd64.a
+all: .deps libstemmer/libstemmer.a libubtue.a
+amd64: .deps libstemmer/libstemmer_amd64.a libubtue_amd64.a
 
-libmarc.a: $(OBJS)
+libubtue.a: $(OBJS)
 	@echo "Linking $@..."
 	@ar crs $@ $^
 
-libmarc_amd64.a: $(AMD64_OBJS)
+libubtue_amd64.a: $(AMD64_OBJS)
 	@echo "Linking $@..."
 	@ar crs $@ $^
 
