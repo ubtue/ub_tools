@@ -16,9 +16,9 @@ else # Ubuntu version
   LIBMARIADB=-lmariadbclient
   LIBCURL=-lcurl
 endif
-LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
+LIBS = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
        -larchive -lboost_graph $(LIBCURL) $(LIBMARIADB) -lrt -lssl -lcrypto -lpthread
-LIBS_AMD64 = $(subst -lstemmer,-lstemmer_amd64,$(subst -lmarc,-lmarc_amd64,$(LIBS)))
+LIBS_AMD64 = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
 
 PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
 CGI_PROGS=full_text_lookup
@@ -37,11 +37,11 @@ amd64: .deps $(AMD64_PROGS)
 	@echo "Compiling (AMD64) $<..."
 	@$(CCC) $(CCCFLAGS_AMD64) $< -c -o $@
 
-$(PROGS): % : %.o lib/libmarc.a
+$(PROGS): % : %.o lib/libubtue.a
 	@echo "Linking $@..."
 	@$(CCC) $< -o $@ $(LIBS)
 
-marc_filter_amd64: marc_filter_amd64.o lib/libmarc_amd64.a
+marc_filter_amd64: marc_filter_amd64.o lib/libubtue_amd64.a
 	@echo "Linking $@..."
 	@$(CCC) $< -o $@ $(LIBS_AMD64)
 
@@ -49,7 +49,7 @@ marc_filter_amd64: marc_filter_amd64.o lib/libmarc_amd64.a
 .deps: *.cc $(INC)/*.h Makefile
 	$(MAKE_DEPS) $(MAKE_DEPS_FLAGS) -I $(INC) *.cc
 
-lib/libmarc.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
+lib/libubtue.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
 	$(MAKE) -C lib
 
 tests: $(patsubst %.cc,%,$(wildcard *test.cc))
