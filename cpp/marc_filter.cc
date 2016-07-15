@@ -234,7 +234,7 @@ int main(int argc, char **argv) {
         else
             Error("unknown output format \"" + std::string(argv[2] + 16)
                   + "\"!  Must be \"marc-xml\" or \"marc-21\".");
-        --argv, --argc;
+        ++argv, --argc;
     }
 
     const std::string input_filename(argv[2]);
