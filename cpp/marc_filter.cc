@@ -16,7 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <fstream>
+
 #include <iostream>
 #include <memory>
 #include <unordered_set>
@@ -106,11 +106,11 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
         } else if (first_colon_pos == DirectoryEntry::TAG_LENGTH) {
             tag = pattern.substr(0, 3);
             subfield_code = CompiledPattern::NO_SUBFIELD_CODE;
-        } else if (first_colon_pos != DirectoryEntry::TAG_LENGTH + 1) {
+        } else if (first_colon_pos == DirectoryEntry::TAG_LENGTH + 1) {
             tag = pattern.substr(0, 3);
             subfield_code = pattern[3];
         } else {
-            *err_msg = "colon in wrong position! (Tag length must be "
+            *err_msg = "colon in wrong position (" + std::to_string(first_colon_pos) + ")! (Tag length must be "
                        + std::to_string(DirectoryEntry::TAG_LENGTH) + ".)";
             return false;
         }
@@ -234,7 +234,7 @@ int main(int argc, char **argv) {
         else
             Error("unknown output format \"" + std::string(argv[2] + 16)
                   + "\"!  Must be \"marc-xml\" or \"marc-21\".");
-        --argv, --argc;
+        ++argv, --argc;
     }
 
     const std::string input_filename(argv[2]);
