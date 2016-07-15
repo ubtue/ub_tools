@@ -248,8 +248,16 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename);
 
 
+/** \brief Opens a file for reading and writing or aborts. */
+std::unique_ptr<File> OpenInputOutputFileOrDie(const std::string &filename);
+
+
 /** \brief Opens a file for writing or aborts. */
 std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename);
+
+
+/** \brief Opens a file for appending or aborts. */
+std::unique_ptr<File> OpenForAppeningOrDie(const std::string &filename);
 
 
 } // namespace FileUtil
