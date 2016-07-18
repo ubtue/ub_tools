@@ -726,4 +726,14 @@ std::unique_ptr<File> OpenForAppeningOrDie(const std::string &filename) {
 }
 
 
+bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
+    errno = 0;
+    std::string buffer;
+    buffer.resize(no_of_bytes);
+    if (unlikely(from->read((void *)buffer.data(), no_of_bytes) != no_of_bytes))
+        return false;
+    return to->write((void *)buffer.data(), no_of_bytes) == no_of_bytes;
+}
+
+
 } // namespace FileUtil
