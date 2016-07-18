@@ -6,7 +6,17 @@ SOLR_JAR_FILE=$(VUFIND_HOME)/solr/vufind/jars/BibleRangeParser.jar
 BIN=bin
 SRC=src
 PACKAGE_DIRECOTRY=de/uni_tuebingen/ub/ixTheo/$(PROJECT_NAME)
-LIB_DIRECTORY=/usr/local/vufind2/solr/vendor/server/lib/*:/usr/local/vufind2/solrvendor/server/lib/ext/*:/usr/local/vufind2/solr/vendor/server/solr-webapp/webapp/WEB-INF/lib/*
+
+EMPTY :=
+SPACE := $(EMPTY) $(EMPTY)
+LIB_DIRECTORY_0=$(subst $(SPACE),:,$(wildcard /usr/local/vufind2/solr/lib/*.jar))
+LIB_DIRECTORY_1=$(subst $(SPACE),:,$(wildcard /usr/local/vufind2/solr/vendor/server/lib/*.jar))
+LIB_DIRECTORY_2=$(subst $(SPACE),:,$(wildcard /usr/local/vufind2/solr/vendor/server/lib/ext/*.jar))
+LIB_DIRECTORY_3=$(subst $(SPACE),:,$(wildcard /usr/local/vufind2/solr/vendor/server/solr-webapp/webapp/WEB-INF/lib/*.jar))
+
+LIB_DIRECTORY=$(LIB_DIRECTORY_0):$(LIB_DIRECTORY_1):$(LIB_DIRECTORY_2):$(LIB_DIRECTORY_3)
+
+$(info $(LIB_DIRECTORY))
 
 # Compiler
 JAVAC=javac

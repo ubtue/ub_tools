@@ -98,7 +98,7 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
     if (format == PLAIN_TEXT)
         return ExecUtil::Exec(mutt_path, { "-H", "-" }, stdin_replacement_for_mutt) == 0;
     else // Send icky HTML email.
-        return ExecUtil::Exec(mutt_path, { "-H", "-", "-e \"set content_type=text/html\"" },
+        return ExecUtil::Exec(mutt_path, { "-H", "-", "-e set content_type=text/html" },
                               stdin_replacement_for_mutt) == 0;
 }
 

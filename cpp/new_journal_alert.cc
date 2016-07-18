@@ -30,6 +30,7 @@
 #include "DbConnection.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
+#include "HtmlUtil.h"
 #include "MiscUtil.h"
 #include "Solr.h"
 #include "StringUtil.h"
@@ -49,41 +50,52 @@ void Usage() {
 struct SerialControlNumberAndLastIssueDate {
     std::string serial_control_number_;
     std::string last_issue_date_;
+    bool changed_;
 public:
     SerialControlNumberAndLastIssueDate(const std::string &serial_control_number, const std::string &last_issue_date)
-        : serial_control_number_(serial_control_number), last_issue_date_(last_issue_date) { }
+        : serial_control_number_(serial_control_number), last_issue_date_(last_issue_date), changed_(false) { }
+    inline void setLastIssueDate(const std::string &new_last_issue_date)
+        { last_issue_date_ = new_last_issue_date; changed_ = true; }
+    inline bool changed() const { return changed_; }
 };
 
 
 struct NewIssueInfo {
     std::string control_number_;
     std::string title_;
+    std::string last_issue_date_;
 public:
     NewIssueInfo(const std::string &control_number, const std::string &title)
         : control_number_(control_number), title_(title) { }
 };
 
 
-void ExtractNewIssueInfos(const std::string &json_document, std::vector<NewIssueInfo> * const new_issue_infos,
+/** \return True if new issues were found, false o/w. */
+bool ExtractNewIssueInfos(const std::string &json_document, std::vector<NewIssueInfo> * const new_issue_infos,
                           std::string * const max_last_issue_date)
 {
     std::stringstream input(json_document, std::ios_base::in);
     boost::property_tree::ptree property_tree;
     boost::property_tree::json_parser::read_json(input, property_tree);
 
+    bool found_at_least_one_new_issue(false);
     for (const auto &document : property_tree.get_child("response.docs.")) {
         const auto &id(document.second.get<std::string>("id"));
         const auto &title(document.second.get<std::string>("title"));
         new_issue_infos->emplace_back(id, title);
 
         const auto &recording_date(document.second.get<std::string>("recording_date"));
-        if (recording_date > *max_last_issue_date)
+        if (recording_date > *max_last_issue_date) {
             *max_last_issue_date = recording_date;
+            found_at_least_one_new_issue = true;
+        }
     }
+
+    return found_at_least_one_new_issue;
 }
 
 
-void GetNewIssues(const std::string &solr_host_and_port, const std::string &serial_control_number,
+bool GetNewIssues(const std::string &solr_host_and_port, const std::string &serial_control_number,
                   std::string last_issue_date, std::vector<NewIssueInfo> * const new_issue_infos,
                   std::string * const max_last_issue_date)
 {
@@ -94,17 +106,14 @@ void GetNewIssues(const std::string &solr_host_and_port, const std::string &seri
     std::string json_result;
     if (unlikely(not Solr::Query(QUERY, "id,title,author,recording_date", &json_result, solr_host_and_port,
                                  /* timeout = */ 5, Solr::JSON)))
-    {
-        std::cerr << "Solr query failed or timed-out: \"" << QUERY << "\".\n";
-        return;
-    }
+        Error("Solr query failed or timed-out: \"" + QUERY + "\".");
 
-    ExtractNewIssueInfos(json_result, new_issue_infos, max_last_issue_date);
+    return ExtractNewIssueInfos(json_result, new_issue_infos, max_last_issue_date);
 }
 
 
 void SendNotificationEmail(const std::string &firstname, const std::string &lastname, const std::string &email,
-                           const std::vector<NewIssueInfo> &new_issue_infos)
+                           const std::string &vufind_host, const std::vector<NewIssueInfo> &new_issue_infos)
 {
     const std::string EMAIL_TEMPLATE_PATH("/var/lib/tuelib/subscriptions_email.template");
     std::string email_template;
@@ -117,22 +126,29 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
     names_to_values_map["lastname"] = std::vector<std::string>{ lastname };
     std::vector<std::string> urls, titles;
     for (const auto &new_issue_info : new_issue_infos) {
-        urls.emplace_back(new_issue_info.control_number_);
-        titles.emplace_back(new_issue_info.title_);
+        urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
+        titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.title_));
     }
-    names_to_values_map["urls"] = urls;
-    names_to_values_map["titles"] = titles;
+    names_to_values_map["url"] = urls;
+    names_to_values_map["title"] = titles;
     const std::string email_contents(MiscUtil::ExpandTemplate(email_template, names_to_values_map));
 
-    if (unlikely(EmailSender::SendEmail("notifications@ixtheo.de", email, "Ixtheo Subscriptions", email_contents,
-                                        EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
+    if (unlikely(not EmailSender::SendEmail("notifications@ixtheo.de", email, "Ixtheo Subscriptions", email_contents,
+                                            EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
         Error("failed to send a notification email to \"" + email + "\"!");
+}
+
+
+/** \return If "host_and_port" has a colon, the part before the colon else all of "host_and_port". */
+std::string GetHost(const std::string &host_and_port) {
+    const std::string::size_type colon_pos(host_and_port.find(':'));
+    return colon_pos == std::string::npos ? host_and_port : host_and_port.substr(0, colon_pos);
 }
 
 
 void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, const std::string &user_id,
                        const std::string &solr_host_and_port,
-                       const std::vector<SerialControlNumberAndLastIssueDate> &control_numbers_and_last_issue_dates)
+                       std::vector<SerialControlNumberAndLastIssueDate> &control_numbers_and_last_issue_dates)
 {
     const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user WHERE id=" + user_id);
     if (unlikely(not db_connection->query(SELECT_USER_ATTRIBUTES)))
@@ -153,21 +169,32 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
     const std::string lastname(row["lastname"]);
     const std::string email(row["email"]);
 
+    // Collect the dates for new issues.
     std::vector<NewIssueInfo> new_issue_infos;
-    for (const auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
+    for (auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
         std::string max_last_issue_date(control_number_and_last_issue_date.last_issue_date_);
-        GetNewIssues(solr_host_and_port, control_number_and_last_issue_date.serial_control_number_,
-                     control_number_and_last_issue_date.last_issue_date_, &new_issue_infos, &max_last_issue_date);
-
-        const std::string REPLACE_STMT("REPLACE INTO ixtheo_journal_subscriptions SET last_issue_date='"
-                                       + max_last_issue_date + "'");
-        if (unlikely(not db_connection->query(REPLACE_STMT)))
-            Error("Replace failed: " + REPLACE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+        if (GetNewIssues(solr_host_and_port, control_number_and_last_issue_date.serial_control_number_,
+                         control_number_and_last_issue_date.last_issue_date_, &new_issue_infos, &max_last_issue_date))
+            control_number_and_last_issue_date.setLastIssueDate(max_last_issue_date);
     }
     if (verbose)
         std::cerr << "Found " << new_issue_infos.size() << " new issues for " << " \"" << username << "\".\n";
+
     if (not new_issue_infos.empty())
-        SendNotificationEmail(firstname, lastname, email, new_issue_infos);
+        SendNotificationEmail(firstname, lastname, email, GetHost(solr_host_and_port), new_issue_infos);
+
+    // Update the database with the new last issue dates.
+    for (const auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
+        if (not control_number_and_last_issue_date.changed())
+            continue;
+
+        const std::string REPLACE_STMT("REPLACE INTO ixtheo_journal_subscriptions SET id=" + user_id
+                                       + ",last_issue_date='" + control_number_and_last_issue_date.last_issue_date_
+                                       + "',journal_control_number="
+                                       + control_number_and_last_issue_date.serial_control_number_);
+        if (unlikely(not db_connection->query(REPLACE_STMT)))
+            Error("Replace failed: " + REPLACE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    }
 }
 
 

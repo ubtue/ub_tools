@@ -699,10 +699,28 @@ std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
 }
 
 
+std::unique_ptr<File> OpenInputOutputFileOrDie(const std::string &filename) {
+    std::unique_ptr<File> file(new File(filename, "r+"));
+    if (file->fail())
+        Error("can't open \"" + filename + "\" for reading and writing!");
+
+    return file;
+}
+
+
 std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "w"));
     if (file->fail())
-        Error("can't open \"" + filename + "\" for reading!");
+        Error("can't open \"" + filename + "\" for writing!");
+
+    return file;
+}
+
+
+std::unique_ptr<File> OpenForAppeningOrDie(const std::string &filename) {
+    std::unique_ptr<File> file(new File(filename, "a"));
+    if (file->fail())
+        Error("can't open \"" + filename + "\" for appending!");
 
     return file;
 }
