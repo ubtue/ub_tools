@@ -18,6 +18,7 @@ add_isbns_or_issns_to_articles
 add_journal_subscription
 add_superior_flag
 add_title_keywords
+append_marc_xml
 archive_reader_test
 archive_writer_test
 augment_773a
@@ -43,6 +44,7 @@ enrich_keywords_with_title_words
 expand_template_test
 exec_test
 extract_keywords_for_translation
+extract_normdata_translations
 extract_text_from_image_only_pdfs
 extract_vufind_translations_for_translation
 fifo_pipe_file_test
