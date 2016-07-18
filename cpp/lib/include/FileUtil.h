@@ -260,6 +260,13 @@ std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename);
 std::unique_ptr<File> OpenForAppeningOrDie(const std::string &filename);
 
 
+/** \brief Copies "no_of_bytes" from the current file offset of "from" to the current file offset of "to".
+ *  \return True if the copying was successful, else false
+ *  \note If false was returned, errno has been set.
+ */
+bool Copy(File * const from, File * const to, const size_t no_of_bytes);
+
+
 } // namespace FileUtil
 
 
