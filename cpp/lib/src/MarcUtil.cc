@@ -579,8 +579,8 @@ static void ParseLeader(const std::string &input_filename, Leader * const leader
     while (xml_parser->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser::CHARACTERS)
         /* Intentionally empty! */;
     if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:leader"))
-        throw std::runtime_error("in MarcUtil::ParseLeader: opening <leader> tag expected while parsing \"" + input_filename
-                                 + "\" on line " + std::to_string(xml_parser->getLineNo()) + ".");
+        throw std::runtime_error("in MarcUtil::ParseLeader: opening <marc:leader> tag expected while parsing \""
+                                 + input_filename + "\" on line " + std::to_string(xml_parser->getLineNo()) + ".");
 
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
         throw std::runtime_error("in MarcUtil::ParseLeader: error while parsing \"" + input_filename + "\": "
