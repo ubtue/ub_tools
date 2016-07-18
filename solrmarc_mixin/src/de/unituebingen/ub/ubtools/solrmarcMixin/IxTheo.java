@@ -601,7 +601,6 @@ public class IxTheo extends SolrIndexerMixin {
         final String subfieldDelim = "$";
         final String esc = "\\";
         final String regexColon = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(fieldDelim);
-
         String[] subfieldSeparatorList = separatorSpec.split(regexColon);
         for (String s : subfieldSeparatorList) {
             // System.out.println("separator Spec: " + s);
@@ -709,23 +708,36 @@ public class IxTheo extends SolrIndexerMixin {
                         // Iterate over all given subfield codes
                         Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
                         List<Subfield> subfields = marcField.getSubfields();
-                        for (Subfield subfield : subfields) {
-                            // Skip numeric fields
-                            if (Character.isDigit(subfield.getCode()))
-                                continue;
-                            Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                            if (matcher.matches()) {
-                                if (buffer.length() > 0) {
-                                    String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                                    if (separator != null) {
-                                        buffer.append(separator);
-                                    }
-                                }
-                                buffer.append(subfield.getData().trim());
+                        // Case 1: The separator specification is empty thus we add the subfields individually
+                        if (separators.get("default").equals("")) {
+                            for (Subfield subfield : subfields) {
+                                 if (Character.isDigit(subfield.getCode()))
+                                     continue;
+                                 String term = subfield.getData().trim();
+                                 if (term.length() > 0)
+                                     collector.add(Utils.cleanData(term));
                             }
                         }
-                        if (buffer.length() > 0)
-                            collector.add(Utils.cleanData(buffer.toString()));
+                        // Case 2: Generate a complex string using the separators 
+                        else {
+                            for (Subfield subfield : subfields) {
+                                // Skip numeric fields
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                                if (matcher.matches()) {
+                                    if (buffer.length() > 0) {
+                                        String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
+                                        if (separator != null) {
+                                            buffer.append(separator);
+                                        }
+                                    }
+                                    buffer.append(subfield.getData().trim());
+                                }
+                            }
+                            if (buffer.length() > 0)
+                                collector.add(Utils.cleanData(buffer.toString()));
+                        }
                     }
                 }
             }
@@ -739,23 +751,36 @@ public class IxTheo extends SolrIndexerMixin {
                         DataField marcField = (DataField) vf;
                         StringBuffer buffer = new StringBuffer("");
                         List<Subfield> subfields = marcField.getSubfields();
-                        for (Subfield subfield : subfields) {
-                            // Skip numeric fields
-                            if (Character.isDigit(subfield.getCode()))
-                                continue;
-                            Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                            if (matcher.matches()) {
-                                if (buffer.length() > 0) {
-                                    String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                                    if (separator != null) {
-                                        buffer.append(separator);
-                                    }
-                                }
-                                buffer.append(subfield.getData().trim());
+                        // Case 1: The separator specification is empty thus we add the subfields individually
+                        if (separators.get("default").equals("")) { 
+                            for (Subfield subfield : subfields) {
+                                 if (Character.isDigit(subfield.getCode()))
+                                     continue;
+                                 String term = subfield.getData().trim();
+                                 if (term.length() > 0)
+                                     collector.add(Utils.cleanData(term));
                             }
                         }
-                        if (buffer.length() > 0)
-                            collector.add(Utils.cleanData(buffer.toString()));
+                        // Case 2: Generate a complex string using the separators 
+                        else {
+                            for (Subfield subfield : subfields) {
+                                // Skip numeric fields
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                                if (matcher.matches()) {
+                                    if (buffer.length() > 0) {
+                                        String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
+                                        if (separator != null) {
+                                            buffer.append(separator);
+                                        }
+                                    }
+                                    buffer.append(subfield.getData().trim());
+                                }
+                            }
+                            if (buffer.length() > 0)
+                                collector.add(Utils.cleanData(buffer.toString()));
+                        }
                     }
                 }
             }
