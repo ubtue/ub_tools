@@ -402,8 +402,7 @@ public class IxTheo extends SolrIndexerMixin {
         final List<VariableField> _655Fields = record.getVariableFields("655");
         for (final VariableField _655Field : _655Fields) {
             final DataField dataField = (DataField) _655Field;
-            if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
-                    && dataField.getSubfield('a').getData().startsWith("Rezension")) {
+            if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7' && dataField.getSubfield('a').getData().startsWith("Rezension")) {
                 formats.remove("Article");
                 formats.add("Review");
                 break;
@@ -570,8 +569,7 @@ public class IxTheo extends SolrIndexerMixin {
      * @return format of record
      */
 
-    public Set<String> getTopics(final Record record, String fieldSpec, String separator, String langShortcut)
-            throws FileNotFoundException {
+    public Set<String> getTopics(final Record record, String fieldSpec, String separator, String langShortcut) throws FileNotFoundException {
 
         final Set<String> topics = new HashSet<String>();
         // It seems to be a general rule that in the fields that the $p fields
@@ -605,8 +603,7 @@ public class IxTheo extends SolrIndexerMixin {
         for (String s : subfieldSeparatorList) {
             // System.out.println("separator Spec: " + s);
             // Create map of subfields and separators
-            final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim)
-                    + "([a-zA-Z])(.*)";
+            final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim) + "([a-zA-Z])(.*)";
             Matcher subfieldMatcher = Pattern.compile(regexSubfield).matcher(s);
 
             // Extract the subfield
@@ -635,8 +632,7 @@ public class IxTheo extends SolrIndexerMixin {
     public String getSubfieldBasedSeparator(Map<String, String> separators, char subfieldCodeChar) {
 
         String subfieldCodeString = Character.toString(subfieldCodeChar);
-        String separator = separators.get(subfieldCodeString) != null ? separators.get(subfieldCodeString)
-                : separators.get("default");
+        String separator = separators.get(subfieldCodeString) != null ? separators.get(subfieldCodeString) : separators.get("default");
 
         return separator;
 
@@ -663,8 +659,7 @@ public class IxTheo extends SolrIndexerMixin {
      * characters without ":" and "$" | empty_string
      */
 
-    public void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
-            Collection<String> collector) {
+    public void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators, Collection<String> collector) {
 
         String[] fldTags = fieldSpec.split(":");
         String fldTag;
@@ -708,17 +703,19 @@ public class IxTheo extends SolrIndexerMixin {
                         // Iterate over all given subfield codes
                         Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
                         List<Subfield> subfields = marcField.getSubfields();
-                        // Case 1: The separator specification is empty thus we add the subfields individually
+                        // Case 1: The separator specification is empty thus we
+                        // add the subfields individually
                         if (separators.get("default").equals("")) {
                             for (Subfield subfield : subfields) {
-                                 if (Character.isDigit(subfield.getCode()))
-                                     continue;
-                                 String term = subfield.getData().trim();
-                                 if (term.length() > 0)
-                                     collector.add(Utils.cleanData(term));
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                String term = subfield.getData().trim();
+                                if (term.length() > 0)
+                                    collector.add(Utils.cleanData(term));
                             }
                         }
-                        // Case 2: Generate a complex string using the separators 
+                        // Case 2: Generate a complex string using the
+                        // separators
                         else {
                             for (Subfield subfield : subfields) {
                                 // Skip numeric fields
@@ -751,17 +748,19 @@ public class IxTheo extends SolrIndexerMixin {
                         DataField marcField = (DataField) vf;
                         StringBuffer buffer = new StringBuffer("");
                         List<Subfield> subfields = marcField.getSubfields();
-                        // Case 1: The separator specification is empty thus we add the subfields individually
-                        if (separators.get("default").equals("")) { 
+                        // Case 1: The separator specification is empty thus we
+                        // add the subfields individually
+                        if (separators.get("default").equals("")) {
                             for (Subfield subfield : subfields) {
-                                 if (Character.isDigit(subfield.getCode()))
-                                     continue;
-                                 String term = subfield.getData().trim();
-                                 if (term.length() > 0)
-                                     collector.add(Utils.cleanData(term));
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                String term = subfield.getData().trim();
+                                if (term.length() > 0)
+                                    collector.add(Utils.cleanData(term));
                             }
                         }
-                        // Case 2: Generate a complex string using the separators 
+                        // Case 2: Generate a complex string using the
+                        // separators
                         else {
                             for (Subfield subfield : subfields) {
                                 // Skip numeric fields
