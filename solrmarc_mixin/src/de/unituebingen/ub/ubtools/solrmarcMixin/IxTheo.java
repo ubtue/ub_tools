@@ -537,13 +537,25 @@ public class IxTheo extends SolrIndexerMixin {
     public Set<String> translateTopics(Set<String> topics, String langShortcut) {
         if (langShortcut.equals("de"))
             return topics;
-
         Set<String> translated_topics = new HashSet<String>();
         Map<String, String> translation_map = getTranslationMap(langShortcut);
 
         for (String topic : topics) {
-            topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
-            translated_topics.add(topic);
+            // Some ordinary topics contain words with an escaped slash as a separator
+            // See whether we can translate the single parts
+            if (topic.contains("\\/")) {
+                String[] subtopics = topic.split("\\/");
+                int i = 0;
+                for (String subtopic : subtopics) {
+                    subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
+                    ++i;
+                }
+                translated_topics.add(Utils.join(new HashSet(Arrays.asList(subtopics)), "\\/"));
+
+            } else {
+                topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+                translated_topics.add(topic);
+            }
         }
 
         return translated_topics;
@@ -558,7 +570,19 @@ public class IxTheo extends SolrIndexerMixin {
             return topic;
 
         Map<String, String> translation_map = getTranslationMap(langShortcut);
-        return (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+        // Some terms contain slash separated subterms, see whether we can translate them
+        if (topic.contains("\\/")) {
+            String[] subtopics = topic.split("\\\\/");
+            int i = 0;
+            for (String subtopic : subtopics) {
+                subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
+                ++i;
+            }
+            topic = Utils.join(new HashSet(Arrays.asList(subtopics)), "\\/");
+        } else {
+            topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+        }
+        return topic;
     }
 
     /**
@@ -576,10 +600,8 @@ public class IxTheo extends SolrIndexerMixin {
         // are converted to a '.'
         // $n is converted to a space if there is additional information
         Map<String, String> separators = parseTopicSeparators(separator);
-        getTopicsCollector(record, fieldSpec, separators, topics);
-
-        // Extract all translations that will be included
-        return translateTopics(topics, langShortcut);
+        getTopicsCollector(record, fieldSpec, separators, topics, langShortcut);
+        return topics;
     }
 
     /**
@@ -659,7 +681,7 @@ public class IxTheo extends SolrIndexerMixin {
      * characters without ":" and "$" | empty_string
      */
 
-    public void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators, Collection<String> collector) {
+    public void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators, Collection<String> collector, String langShortcut) {
 
         String[] fldTags = fieldSpec.split(":");
         String fldTag;
@@ -711,7 +733,8 @@ public class IxTheo extends SolrIndexerMixin {
                                     continue;
                                 String term = subfield.getData().trim();
                                 if (term.length() > 0)
-                                    collector.add(Utils.cleanData(term));
+                                    // Escape slashes in single topics since they interfere with KWCs
+                                    collector.add(translateTopic(Utils.cleanData(term.replace("/", "\\/")), langShortcut));
                             }
                         }
                         // Case 2: Generate a complex string using the
@@ -729,7 +752,8 @@ public class IxTheo extends SolrIndexerMixin {
                                             buffer.append(separator);
                                         }
                                     }
-                                    buffer.append(subfield.getData().trim());
+                                    String term = subfield.getData().trim();
+                                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
                                 }
                             }
                             if (buffer.length() > 0)
@@ -756,7 +780,7 @@ public class IxTheo extends SolrIndexerMixin {
                                     continue;
                                 String term = subfield.getData().trim();
                                 if (term.length() > 0)
-                                    collector.add(Utils.cleanData(term));
+                                    collector.add(translateTopic(Utils.cleanData(term.replace("/", "\\/")), langShortcut));
                             }
                         }
                         // Case 2: Generate a complex string using the
@@ -774,7 +798,8 @@ public class IxTheo extends SolrIndexerMixin {
                                             buffer.append(separator);
                                         }
                                     }
-                                    buffer.append(subfield.getData().trim());
+                                    String term = subfield.getData().trim();
+                                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
                                 }
                             }
                             if (buffer.length() > 0)
