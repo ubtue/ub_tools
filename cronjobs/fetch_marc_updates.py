@@ -26,6 +26,10 @@ directory_on_ftp_server = /ixtheo
 filename_pattern = ^LOEPPN-(\d\d\d\d\d\d)$
 directory_on_ftp_server = /sekkor
 
+[Errors]
+filename_pattern = ^Errors_ixtheo_(\d\d\d\d\d\d)$
+directory_on_ftp_server = /ixtheo
+
 [Kumulierte Abzuege]
 output_directory = /usr/local/ub_tools/bsz_daten_cumulated
 """
@@ -302,6 +306,7 @@ def Main():
         download_cutoff_date = ExtractDateFromFilename(complete_data_filename)
     DownloadOtherData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
     DownloadOtherData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
+    DownloadOtherData(config, "Errors", ftp, download_cutoff_date, msg)
     CleanUpCumulativeCollection(config)
     util.SendEmail("BSZ File Update", string.join(msg, ""), priority=5)
 

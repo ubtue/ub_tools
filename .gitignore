@@ -60,6 +60,7 @@ iViaCore-mkdep
 json_parser_test
 jop_grep
 kcdb_info
+make_marc_xml
 map_ddc_and_rvk_to_ixtheo_notations
 marc_filter
 marc_grep

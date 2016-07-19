@@ -35,7 +35,7 @@ void Usage() {
 const off_t TAIL_OFFSET(20);
 
 
-void PositionFileBeforeClosingCollectionTag(File *const file) {
+void PositionFileBeforeClosingCollectionTag(File * const file) {
     if (unlikely(file->size() < TAIL_OFFSET))
         Error("\"" + file->getPath() + "\" is too small to look for the </marc:collection> tag!");
 
@@ -57,10 +57,10 @@ void PositionFileBeforeClosingCollectionTag(File *const file) {
 }
 
 
-const off_t MIN_SOURCE_SIZE(150);
+const off_t MIN_SOURCE_SIZE(350);
 
 
-off_t PositionFileAtFirstRecordStart(File *const file) {
+off_t PositionFileAtFirstRecordStart(File * const file) {
     if (unlikely(file->size() < MIN_SOURCE_SIZE))
         Error("\"" + file->getPath() + "\" is too small to look for the first <marc:record> tag!");
 
@@ -84,9 +84,8 @@ off_t PositionFileAtFirstRecordStart(File *const file) {
 void Append(File * const source, File * const target) {
     PositionFileBeforeClosingCollectionTag(target);
     const off_t record_tag_start(PositionFileAtFirstRecordStart(source));
-    if (::sendfile(target->getFileDescriptor(), source->getFileDescriptor(), nullptr,
-                   source->size() - record_tag_start + 1) == -1)
-        Error("sendfile(2) failed: " + std::string(::strerror(errno)));
+    if (unlikely(not FileUtil::Copy(source, target, source->size() - record_tag_start)))
+        Error("copying failed: " + std::string(::strerror(errno)));
 }
 
 
