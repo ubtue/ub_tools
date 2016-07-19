@@ -99,7 +99,7 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
 
             final SimplePrefixSortFacets facets = new SimplePrefixSortFacets(rb.req, rb.getResults().docSet, params,
                     rb);
-            final NamedList<Object> counts = FacetComponent.getFacetCounts(facets);
+            final NamedList<Object> counts = org.apache.solr.handler.component.FacetComponent.getFacetCounts(facets);
 
             final String[] pivots = params.getParams(FacetParams.FACET_PIVOT);
             if (pivots != null && pivots.length > 0) {
