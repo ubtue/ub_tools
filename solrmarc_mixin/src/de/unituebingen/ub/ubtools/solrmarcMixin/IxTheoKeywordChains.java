@@ -25,21 +25,25 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         return concatenateKeyWordsToChains(keyWordChains);
     }
 
+    /**
+     * Create set version of the terms contained in the keyword chains 
+     */
+
     public Set<String> getKeyWordChainBag(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
-        final Set<String> keyWordChainsBag = new HashSet<>();
-
+        final Map<Character, List<String>> keyWordChains = new HashMap<>();
+        final Set<String> keyWordChainBag = new HashSet<>();
+        
         for (final VariableField variableField : variableFields) {
             final DataField dataField = (DataField) variableField;
-            final List<Subfield> subfields = dataField.getSubfields('a');
-            for (final Subfield subfield : subfields) {
-                final String subfield_data = subfield.getData();
-                if (subfield_data.length() > 1) {
-                    keyWordChainsBag.add(subfield_data);
-                }
-            }
+            processField(dataField, keyWordChains, lang);
         }
-        return keyWordChainsBag;
+        
+        for (List<String> keyWordChain : keyWordChains.values()) {
+            keyWordChainBag.addAll(keyWordChain);
+        } 
+
+        return keyWordChainBag;        
     }
 
     public Set<String> getKeyWordChainSorted(final Record record, final String fieldSpec, final String lang) {
