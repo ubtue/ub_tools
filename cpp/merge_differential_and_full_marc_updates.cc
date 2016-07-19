@@ -136,8 +136,8 @@ unsigned GetSortedListOfRegularFiles(const std::string &filename_regex, std::vec
     std::string err_msg;
     std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(filename_regex_precise_ending, &err_msg));
     if (unlikely(not err_msg.empty()))
-        LogSendEmailAndDie("in GetListOfRegularFiles: failed to compile file name regex: \"" + filename_regex_precise_ending
-                           + "\". (" + err_msg + ")");
+        LogSendEmailAndDie("in GetListOfRegularFiles: failed to compile file name regex: \""
+                           + filename_regex_precise_ending + "\". (" + err_msg + ")");
 
     DIR * const directory_stream(::opendir("."));
     if (unlikely(directory_stream == nullptr))
@@ -180,7 +180,8 @@ std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
     }
 
     if (unlikely(not matcher->matched(filename)))
-        LogSendEmailAndDie("in ExtractDate: \"" + filename + "\" failed to match the regex \"" + DATE_EXTRACTION_REGEX + "\"!");
+        LogSendEmailAndDie("in ExtractDate: \"" + filename + "\" failed to match the regex \""
+                           + DATE_EXTRACTION_REGEX + "\"!");
 
     return (*matcher)[1];
 }
@@ -193,7 +194,8 @@ void GetFilesMoreRecentThan(const std::string &cutoff_date, const std::string &f
 
     const auto first_deletion_position(filenames->begin());
     auto last_deletion_position(filenames->begin());
-    while (last_deletion_position < filenames->end() and ExtractDateFromFilenameOrDie(*last_deletion_position) <= cutoff_date)
+    while (last_deletion_position < filenames->end()
+           and ExtractDateFromFilenameOrDie(*last_deletion_position) <= cutoff_date)
         ++last_deletion_position;
 
     const auto erase_count(std::distance(first_deletion_position, last_deletion_position));
@@ -214,14 +216,16 @@ std::string GetWorkingDirectoryName() {
 
 void ChangeDirectoryOrDie(const std::string &directory) {
     if (unlikely(::chdir(directory.c_str()) != 0))
-        LogSendEmailAndDie("failed to change directory to \"" + directory + "\"! " + std::string(::strerror(errno)) + ")");
+        LogSendEmailAndDie("failed to change directory to \"" + directory + "\"! " + std::string(::strerror(errno))
+                           + ")");
 }
 
 
 void CreateAndChangeIntoTheWorkingDirectory() {
     const std::string working_directory(GetWorkingDirectoryName());
     if (not FileUtil::MakeDirectory(working_directory))
-        LogSendEmailAndDie("in CreateAndChangeIntoTheWorkingDirectory failed to create \"" + working_directory + "\"!");
+        LogSendEmailAndDie("in CreateAndChangeIntoTheWorkingDirectory failed to create \"" + working_directory
+                           + "\"!");
 
     ChangeDirectoryOrDie(working_directory);
 }
@@ -251,8 +255,8 @@ void GetOutputNameAndMode(const std::string &archive_entry_name,
         regex_pattern += isdigit(ch) ? "\\d" : std::string(1, ch);
 
     std::string err_msg;
-    regex_to_first_file_map->emplace(std::shared_ptr<RegexMatcher>(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg)),
-                                     archive_entry_name);
+    regex_to_first_file_map->emplace(std::shared_ptr<RegexMatcher>(
+        RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg)), archive_entry_name);
     if (unlikely(not err_msg.empty()))
         LogSendEmailAndDie("in GetOutputNameAndMode: failed to compile regex \"" + regex_pattern + "\"! ("
                            + err_msg + ")");
@@ -263,8 +267,9 @@ void GetOutputNameAndMode(const std::string &archive_entry_name,
 
 
 // Extracts files from a MARC archive, typically a gzipped tar file, and combines files matching the same pattern.
-// For example, if the archive contains "SA-MARC-ixtheoa001.raw" and "SA-MARC-ixtheoa002.raw", "SA-MARC-ixtheoa002.raw"
-// will be concatenated onto "SA-MARC-ixtheoa001.raw" do that only a single disc file will result.
+// For example, if the archive contains "SA-MARC-ixtheoa001.raw" and "SA-MARC-ixtheoa002.raw",
+// "SA-MARC-ixtheoa002.raw" will be concatenated onto "SA-MARC-ixtheoa001.raw" do that only a single disc file will
+// result.
 void ExtractMarcFilesFromArchive(const std::string &archive_name, std::vector<std::string> * const extracted_names,
                                  const std::string &name_prefix = "", const std::string &name_suffix = "")
 {
@@ -314,7 +319,8 @@ std::string GetCurrentDate() {
 std::string ReplaceStringOrDie(const std::string &original, const std::string &replacement, const std::string &s) {
     const size_t original_start(s.find(original));
     if (unlikely(original_start == std::string::npos))
-        LogSendEmailAndDie("in ReplaceStringOrDie: can't replace \"" + original + "\" with \"" + replacement + " in \"" + s + "\"!");
+        LogSendEmailAndDie("in ReplaceStringOrDie: can't replace \"" + original + "\" with \"" + replacement
+                           + " in \"" + s + "\"!");
     return s.substr(0, original_start) + replacement + s.substr(original_start + original.length());
 }
 
@@ -323,7 +329,8 @@ std::string ReplaceStringOrDie(const std::string &original, const std::string &r
 void CreateEmptyFileOrDie(const std::string &filename) {
     const int fd(::open(filename.c_str(), O_CREAT | O_EXCL, 0600));
     if (unlikely(fd == -1))
-        LogSendEmailAndDie("failed to create the empty file \"" + filename + "\"! (" + std::string(::strerror(errno)) + ")");
+        LogSendEmailAndDie("failed to create the empty file \"" + filename + "\"! (" + std::string(::strerror(errno))
+                           + ")");
     ::close(fd);
 }
 
@@ -342,11 +349,13 @@ void CopyFileOrDie(const std::string &from, const std::string &to) {
 
     const int from_fd(::open(from.c_str(), O_RDONLY));
     if (unlikely(from_fd == -1))
-        LogSendEmailAndDie("in CopyFileOrDie: open(2) on \"" + from + "\" failed! (" + std::string(::strerror(errno)) + ")");
+        LogSendEmailAndDie("in CopyFileOrDie: open(2) on \"" + from + "\" failed! (" + std::string(::strerror(errno))
+                           + ")");
 
     const int to_fd(::open(to.c_str(), O_WRONLY | O_CREAT | O_TRUNC, stat_buf.st_mode));
     if (unlikely(to_fd == -1))
-        LogSendEmailAndDie("in CopyFileOrDie: open(2) on \"" + to + "\" failed! (" + std::string(::strerror(errno)) + ")");
+        LogSendEmailAndDie("in CopyFileOrDie: open(2) on \"" + to + "\" failed! (" + std::string(::strerror(errno))
+                           + ")");
 
     if (unlikely(::sendfile(to_fd, from_fd, /* offset = */nullptr, stat_buf.st_size) == -1))
         LogSendEmailAndDie("in CopyFileOrDie: sendfile(2) on \"" + from + "\" and \"" + to + "\" failed! ("
@@ -368,8 +377,8 @@ void AppendFileOrDie(const std::string &append_target, const std::string &append
         LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_source + "\" for reading! ("
                            + std::string(::strerror(errno)) + ")");
     if (unlikely(not append_target_file.append(append_source_file)))
-        LogSendEmailAndDie("in AppendFileOrDie: failed to append \"" + append_source + "\" to \"" + append_target + "\"! ("
-                           + std::string(::strerror(errno)) + ")");
+        LogSendEmailAndDie("in AppendFileOrDie: failed to append \"" + append_source + "\" to \"" + append_target
+                           + "\"! (" + std::string(::strerror(errno)) + ")");
 }
 
 
@@ -391,7 +400,8 @@ void UpdateOneFile(const std::string &old_marc_filename, const std::string &new_
     Log("creating \"" + new_marc_filename + "\" from \"" + old_marc_filename
         + "\" and an optional deletion list and difference file.");
 
-    if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND, { LOCAL_DELETION_LIST_FILENAME, old_marc_filename, new_marc_filename }) != 0))
+    if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
+                                { LOCAL_DELETION_LIST_FILENAME, old_marc_filename, new_marc_filename }) != 0))
         LogSendEmailAndDie("in UpdateOneFile: \"" + DELETE_IDS_COMMAND + "\" failed!");
 
     if (FileUtil::Exists(differential_marc_file))
@@ -505,17 +515,19 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     if (not deletion_list_filename.empty())
         CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
     else if (differential_archive.empty())
-        LogSendEmailAndDie("in ApplyUpdate: both, \"deletion_list_filename\" and \"differential_archive\" are empty strings."
-                           "  This should never happen!");
+        LogSendEmailAndDie("in ApplyUpdate: both, \"deletion_list_filename\" and \"differential_archive\" are "
+                           "empty strings.  This should never happen!");
 
     // Unpack the differential archive and extract control numbers from its members appending them to the
     // deletion list file:
     if (not differential_archive.empty()) {
-        Log("updating the deletion list based on control numbers found in the files contained in the differential MARC archive.");
+        Log("updating the deletion list based on control numbers found in the files contained in the differential "
+            "MARC archive.");
         std::vector<std::string> extracted_names;
         ExtractMarcFilesFromArchive("../" + differential_archive, &extracted_names, "diff_");
         for (const auto &extracted_name : extracted_names) {
-            Log("Processing \"" + extracted_name + "\" in order to extract control numbers to append to the deletion list.");
+            Log("Processing \"" + extracted_name
+                + "\" in order to extract control numbers to append to the deletion list.");
             ExtractAndAppendIDs(extracted_name, LOCAL_DELETION_LIST_FILENAME);
         }
 
@@ -636,7 +648,8 @@ std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_d
     ArchiveWriter archive_writer("../" + new_complete_dump_filename);
     for (const auto &updated_marc_file : updated_marc_files) {
         const std::string archive_member_name(RemoveFileNameSuffix(updated_marc_file, filename_suffix));
-        Log("Storing \"" + updated_marc_file + "\" as \"" + archive_member_name + "\" in \"" + new_complete_dump_filename + "\".");
+        Log("Storing \"" + updated_marc_file + "\" as \"" + archive_member_name + "\" in \""
+            + new_complete_dump_filename + "\".");
         archive_writer.add(updated_marc_file, archive_member_name);
     }
 
@@ -647,7 +660,8 @@ std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_d
 void RemoveDirectoryOrDie(const std::string &directory_name) {\
     Log("about to remove subdirectory \"" + directory_name + "\" and any contained files.");
     if (unlikely(not FileUtil::RemoveDirectory(directory_name)))
-        LogSendEmailAndDie("failed to recursively remove \"" + directory_name + "\"! (" + std::string(::strerror(errno)) + ")");
+        LogSendEmailAndDie("failed to recursively remove \"" + directory_name + "\"! ("
+                           + std::string(::strerror(errno)) + ")");
 }
 
 
@@ -679,7 +693,8 @@ int main(int argc, char *argv[]) {
         std::vector<std::string> deletion_list_filenames;
         GetFilesMoreRecentThan(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
         if (not deletion_list_filenames.empty())
-            Log("identified " + std::to_string(deletion_list_filenames.size()) + " deletion list filenames for application.");
+            Log("identified " + std::to_string(deletion_list_filenames.size())
+                + " deletion list filenames for application.");
 
         std::vector<std::string> incremental_dump_filenames;
         GetFilesMoreRecentThan(complete_dump_filename_date, incremental_dump_pattern, &incremental_dump_filenames);
@@ -696,7 +711,8 @@ int main(int argc, char *argv[]) {
 
         CreateAndChangeIntoTheWorkingDirectory();
         const std::string new_complete_dump_filename(
-            ExtractAndCombineMarcFilesFromArchives(complete_dump_filename, deletion_list_filenames, incremental_dump_filenames));
+            ExtractAndCombineMarcFilesFromArchives(complete_dump_filename, deletion_list_filenames,
+                                                   incremental_dump_filenames));
         ChangeDirectoryOrDie(".."); // Leave the working directory again.
         RemoveDirectoryOrDie(GetWorkingDirectoryName());
         DeleteFilesOrDie(incremental_dump_pattern);

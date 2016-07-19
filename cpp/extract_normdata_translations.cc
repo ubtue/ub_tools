@@ -54,7 +54,7 @@
 // Languages to handle
 const unsigned int NUMBER_OF_LANGUAGES = 2;
 const std::vector<std::string> languages_to_create{ "en", "fr" };
-enum languages { en, fr };
+enum Languages { EN, FR };
 
 
 void Usage() {
@@ -64,16 +64,23 @@ void Usage() {
 
 
 void AugmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::string &tag, std::vector<std::string> * const translations) {
-    auto ixtheo_pos = std::find(translations->begin(), translations->end(), "IxTheo");
+    auto ixtheo_pos(std::find(translations->begin(), translations->end(), "IxTheo"));
     if (ixtheo_pos != translations->end()) {
-        std::vector<std::string> ixtheo_lang_code;
-        record.extractSubfields(tag, "9" , &ixtheo_lang_code);
-        for (auto lang_code : ixtheo_lang_code) {
-            if (lang_code.find("eng") != std::string::npos and *ixtheo_pos != "IxTheo_eng")
-               *ixtheo_pos += "_eng";
-            else if (lang_code.find("fra") != std::string::npos and *ixtheo_pos != "IxTheo_fra")
-               *ixtheo_pos += "_fra";
-            else 
+        std::vector<std::string> ixtheo_lang_codes;
+        record.extractSubfields(tag, "9", &ixtheo_lang_codes);
+        bool already_found_ixtheo_translation(false);
+        for (const auto &lang_code : ixtheo_lang_codes) {
+            if (lang_code[0] != 'L')
+                continue;
+            if (already_found_ixtheo_translation)
+                continue;
+            if (lang_code.find("eng") != std::string::npos and *ixtheo_pos != "IxTheo_eng") {
+                *ixtheo_pos += + "_eng";
+                already_found_ixtheo_translation = true;
+            } else if (lang_code.find("fra") != std::string::npos and *ixtheo_pos != "IxTheo_fra") {
+                *ixtheo_pos += "_fra";
+                already_found_ixtheo_translation = true;
+            } else 
                 Warning("Unsupported language code \"" + lang_code + "\" for PPN " + record.getFields()[0]);
         }
     }
@@ -105,7 +112,7 @@ void ExtractTranslations(File* const marc_norm_input,
              
              std::vector<std::string> german_term_for_one_field;
              record.extractSubfields(tag, subfields, &german_term_for_one_field);
-             
+
              // We may get the german term from only one field
              if (german_terms.size() > 1)  
                  Warning("We have german terms in more than one field for PPN: " + record.getFields()[0]);
@@ -120,7 +127,7 @@ void ExtractTranslations(File* const marc_norm_input,
         for (auto tag_and_subfields : translation_tags_and_subfield_codes) {
             const std::string tag(tag_and_subfields.substr(0, 3));
             const std::string subfields(tag_and_subfields.substr(3));
-
+            
             std::vector<std::string> translations;
             record.extractSubfields(tag, subfields, &translations);
 
@@ -132,16 +139,16 @@ void ExtractTranslations(File* const marc_norm_input,
  
         for (auto it = all_translations.begin(); it != all_translations.end(); ++it) {
             if (*it == "IxTheo_eng") {
-                term_to_translation_maps[en].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
+                term_to_translation_maps[EN].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
                 ++it;
             } else if (*it == "IxTheo_fra") {
-                term_to_translation_maps[fr].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
+                term_to_translation_maps[FR].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
                 ++it;
             } else if (*it == "lcsh") {
-                term_to_translation_maps[en].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
+                term_to_translation_maps[EN].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
                 ++it;
             } else if (*it == "ram") {
-                term_to_translation_maps[fr].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
+                term_to_translation_maps[FR].emplace(StringUtil::Join(german_terms, ' '), *(it + 1));
                 ++it;
             }
         }
@@ -211,13 +218,13 @@ int main(int argc, char **argv) {
         std::map<std::string, std::string> term_to_translation_maps[NUMBER_OF_LANGUAGES];
 
         ExtractTranslations(norm_data_marc_input.get(), "100a:150a", "750a2", term_to_translation_maps);
-        for (auto line : term_to_translation_maps[en]) {
+        for (auto line : term_to_translation_maps[EN]) {
               
-             *(lang_files[en]) << line.first << "|" << line.second << "\n";
+             *(lang_files[EN]) << line.first << "|" << line.second << "\n";
         }
 
-        for (auto line : term_to_translation_maps[fr]) {
-             *(lang_files[fr]) << line.first << "|" << line.second << "\n";
+        for (auto line : term_to_translation_maps[FR]) {
+             *(lang_files[FR]) << line.first << "|" << line.second << "\n";
         }
 
     } catch (const std::exception &x) {
