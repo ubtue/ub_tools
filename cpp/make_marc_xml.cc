@@ -149,10 +149,7 @@ void Convert(File * const input, File * const output) {
     const RegexMatcher * const close_tag_matcher(
         RegexMatcher::RegexMatcherFactory("</controlfield>|</datafield>|</leader>"));
     while (not token.empty()) {
-        if (token == "<record>") {
-            xml_components.emplace_back(token);
-            converting = true;
-        } else if (converting) {
+        if (converting) {
             if (token == "</record>") {
                 converting = false;
                 xml_components.emplace_back(token);
@@ -173,6 +170,9 @@ void Convert(File * const input, File * const output) {
                 else
                     component_text += token;
             }
+        } else if (token == "<record>") {
+            xml_components.emplace_back(token);
+            converting = true;
         }
 
         token = GetNextToken(input);
