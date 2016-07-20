@@ -172,7 +172,7 @@ void CreateNumberedBooks(const std::string &book_name_candidate,
         return;
     }
 
-    if (n_subfield_values->front() == "1. 2.") {
+    if (n_subfield_values->front() == "1. 2." or n_subfield_values->front() == "1.-2.") {
         numbered_books->emplace_back("1" + book_name_candidate);
         numbered_books->emplace_back("2" + book_name_candidate);
         n_subfield_values->erase(n_subfield_values->begin());
@@ -326,21 +326,12 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
             continue;
         }
 
-        if (book_codes.size() > 1) {
-            if (book_codes.size() == 2)
-                ranges->insert(std::make_pair(book_codes[0] + "00000", book_codes[1] + "99999"));
-            else
-                ranges->insert(std::make_pair(book_codes[0] + "00000", book_codes[2] + "99999"));
-        } else { // Have precisely one book code.
-            if (n_subfield_values.empty())
-                ranges->insert(std::make_pair(book_codes[0] + "00000", book_codes[0] + "99999"));
-            else {
-                if (not ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
-                    std::cerr << fields[0] << ": failed to parse bible references (1): "
-                              << n_subfield_values.front() << '\n';
-                    continue;
-                }
-            }
+        if (book_codes.size() > 1 or n_subfield_values.empty())
+            ranges->insert(std::make_pair(book_codes.front() + "00000", book_codes.back() + "99999"));
+        else if (not ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
+            std::cerr << fields[0] << ": failed to parse bible references (1): "
+                      << n_subfield_values.front() << '\n';
+            continue;
         }
 
         found_at_least_one = true;
