@@ -24,9 +24,11 @@
   Config files for this program look like this:
 
 [Files]
-loesch_liste    = LOEPPN-\d{6}
-komplett_abzug  = SA-MARC-ixtheo-\d{6}.tar.gz
-differenz_abzug = TA-MARC-ixtheo(?:_o)?-\d{6}.tar.gz|SA-MARC-ixtheo_o-\d{6}.tar.gz
+deletion_list          = LOEPPN-\d{6}
+complete_dump          = SA-MARC-ixtheo-\d{6}.tar.gz
+incremental_dump       = (:?TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-\d{6}.tar.gz
+complete_dump_linkname = SA-MARC-ixtheo-current.tar.gz
+errors_list            = Errors_ixtheo_\d{6}
 
 [SMTPServer]
 server_address  = smtpserv.uni-tuebingen.de
@@ -184,6 +186,39 @@ std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
                            + DATE_EXTRACTION_REGEX + "\"!");
 
     return (*matcher)[1];
+}
+
+
+enum CompOutcome { CO_GREATER, CO_SMALLER, CO_EQUAL };
+
+
+CompOutcome DateCompare(const std::string &filename1, const std::string &filename2) {
+    const std::string date1(ExtractDateFromFilenameOrDie(filename1));
+    const std::string date2(ExtractDateFromFilenameOrDie(filename2));
+    if (date1 < date2)
+        return CO_SMALLER;
+    else if (date1 > date2)
+        return CO_GREATER;
+    return CO_EQUAL;
+}
+
+
+/** \brief Advances "filename_iter" to where its date is greater or equal to the date of "reference_filename".
+ *  \return The date matching if "filename_iter"'s date is the same as the reference date else the empty string.
+ */
+std::string AdvanceToDate(const std::string &reference_filename, const std::vector<std::string>::const_iterator &end,
+                   std::vector<std::string>::const_iterator * const filename_iter)
+{
+    while (*filename_iter != end) {
+        const CompOutcome comp_outcome(DateCompare(reference_filename, **filename_iter));
+        if (comp_outcome == CO_EQUAL)
+            return **filename_iter;
+        if (comp_outcome == CO_SMALLER)
+            return "";
+        ++*filename_iter;
+    }
+
+    return "";
 }
 
 
@@ -345,7 +380,8 @@ void RenameOrDie(const std::string &old_filename, const std::string &new_filenam
 void CopyFileOrDie(const std::string &from, const std::string &to) {
     struct stat stat_buf;
     if (unlikely(::stat(from.c_str(), &stat_buf) != 0))
-        LogSendEmailAndDie("in CopyFileOrDie: stat(2) on \"" + from + "\" failed! (" + std::string(::strerror(errno)) + ")");
+        LogSendEmailAndDie("in CopyFileOrDie: stat(2) on \"" + from + "\" failed! (" + std::string(::strerror(errno))
+                           + ")");
 
     const int from_fd(::open(from.c_str(), O_RDONLY));
     if (unlikely(from_fd == -1))
@@ -385,8 +421,8 @@ void AppendFileOrDie(const std::string &append_target, const std::string &append
 void DeleteFileOrDie(const std::string &filename) {
     Log("about to delete \"" + filename + "\".");
     if (unlikely(::unlink(filename.c_str()) != 0))
-        LogSendEmailAndDie("in DeleteFileOrDie: unlink(2) on \"" + filename + "\" failed! (" + std::string(::strerror(errno))
-                           + ")");
+        LogSendEmailAndDie("in DeleteFileOrDie: unlink(2) on \"" + filename + "\" failed! ("
+                           + std::string(::strerror(errno)) + ")");
 }
 
 
@@ -511,12 +547,41 @@ void IfNotExistsMakeEmptyOrDie(const std::string &pathname) {
 }
 
 
-void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_filename, const std::string &differential_archive) {
+const std::string APPEND_MARC_XML_CMD("/usr/local/bin/append_marc_xml");
+
+
+// Appends "source_filename" to "target_filename".
+void AppendMarcXMLOrDie(const std::string &source_filename, const std::string &target_filename) {
+    if (unlikely(ExecUtil::Exec(APPEND_MARC_XML_CMD, { source_filename, target_filename }) != 0))
+        LogSendEmailAndDie("\"" + APPEND_MARC_XML_CMD + "\" with arguments \"" + source_filename + "\" and \""
+                           + target_filename + "\" failed!");
+}
+
+
+const std::string DOWNLOAD_ERROR_RECORDS_SCRIPT("/usr/local/bin/download_error_records.sh");
+const std::string ERROR_RECORDS("error_records.xml");
+
+
+void DownloadErrorRecordsOrDie(const std::string &errors_list_filename) {
+    if (errors_list_filename.empty())
+        return;
+
+    if (unlikely(ExecUtil::Exec(DOWNLOAD_ERROR_RECORDS_SCRIPT, { errors_list_filename, ERROR_RECORDS }) != 0))
+        LogSendEmailAndDie("\"" + DOWNLOAD_ERROR_RECORDS_SCRIPT + "\" with arguments \"" + errors_list_filename
+                           + "\" and \"" + ERROR_RECORDS + "\" failed!");
+}
+
+
+void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_filename,
+                 const std::string &errors_list_filename, const std::string &differential_archive)
+{
     if (not deletion_list_filename.empty())
         CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
     else if (differential_archive.empty())
         LogSendEmailAndDie("in ApplyUpdate: both, \"deletion_list_filename\" and \"differential_archive\" are "
                            "empty strings.  This should never happen!");
+
+    DownloadErrorRecordsOrDie(errors_list_filename);
 
     // Unpack the differential archive and extract control numbers from its members appending them to the
     // deletion list file:
@@ -549,8 +614,12 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     if (not differential_archive.empty() and not GetMatchingFilename(diff_filename_pattern, &diff_filename))
         LogWarning("found no match for \"" + diff_filename_pattern + "\" which might match a file extracted from \""
                    + differential_archive + "\"!");
-    UpdateOneFile(title_marc_basename, ReplaceSuffix(title_marc_basename, old_name_suffix, new_name_suffix),
-                  diff_filename);
+    const std::string new_title_marc_filename(ReplaceSuffix(title_marc_basename, old_name_suffix, new_name_suffix));
+    UpdateOneFile(title_marc_basename, new_title_marc_filename, diff_filename);
+    if (FileUtil::Exists(ERROR_RECORDS)) {
+        AppendMarcXMLOrDie(ERROR_RECORDS, new_title_marc_filename);
+        Log("Appended \"" + ERROR_RECORDS + "\" to \"" + new_title_marc_filename + "\".");
+    }
 
     // Update the superior data:
     diff_filename_pattern = "diff_.*b001.raw";
@@ -575,6 +644,7 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     DeleteFileOrDie(superior_marc_basename);
     DeleteFileOrDie(normdata_marc_basename);
     DeleteFileOrDie(LOCAL_DELETION_LIST_FILENAME);
+    DeleteFileOrDie(ERROR_RECORDS);
 }
 
 
@@ -596,6 +666,7 @@ void CreateSymlink(const std::string &target_filename, const std::string &link_f
 // Creates a new full MARC archive from an old full archive as well as deletion lists and differential updates.
 std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_dump_filename,
                                                    const std::vector<std::string> &deletion_list_filenames,
+                                                   const std::vector<std::string> &errors_list_filenames,
                                                    const std::vector<std::string> &incremental_dump_filenames)
 {
     std::vector<std::string> extracted_names;
@@ -604,6 +675,7 @@ std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_d
 
     // Iterate over the deletion list and incremental dump filename lists and apply one or both as appropriate:
     auto deletion_list_filename(deletion_list_filenames.cbegin());
+    auto errors_list_filename(errors_list_filenames.cbegin());
     auto incremental_dump_filename(incremental_dump_filenames.cbegin());
     unsigned apply_count(0);
     while (deletion_list_filename != deletion_list_filenames.cend()
@@ -612,22 +684,36 @@ std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_d
         ++apply_count;
 
         if (deletion_list_filename == deletion_list_filenames.cend()) {
-            ApplyUpdate(apply_count, "", *incremental_dump_filename);
+            ApplyUpdate(apply_count, "",
+                        AdvanceToDate(*incremental_dump_filename, errors_list_filenames.cend(),
+                                      &errors_list_filename),
+                        *incremental_dump_filename);
             ++incremental_dump_filename;
         } else if (incremental_dump_filename == incremental_dump_filenames.cend()) {
-            ApplyUpdate(apply_count, *deletion_list_filename, "");
+            ApplyUpdate(apply_count, *deletion_list_filename,
+                        AdvanceToDate(*deletion_list_filename, errors_list_filenames.cend(), &errors_list_filename),
+                        "");
             ++deletion_list_filename;
         } else {
             const std::string deletion_list_date(ExtractDateFromFilenameOrDie(*deletion_list_filename));
             const std::string incremental_dump_date(ExtractDateFromFilenameOrDie(*incremental_dump_filename));
             if (deletion_list_date < incremental_dump_date) {
-                ApplyUpdate(apply_count, *deletion_list_filename, "");
+                ApplyUpdate(apply_count, *deletion_list_filename,
+                            AdvanceToDate(*deletion_list_filename, errors_list_filenames.cend(),
+                                          &errors_list_filename),
+                            "");
                 ++deletion_list_filename;
             } else if (incremental_dump_date > deletion_list_date) {
-                ApplyUpdate(apply_count, "", *incremental_dump_filename);
+                ApplyUpdate(apply_count, "",
+                            AdvanceToDate(*incremental_dump_filename, errors_list_filenames.cend(),
+                                          &errors_list_filename),
+                            *incremental_dump_filename);
                 ++incremental_dump_filename;
             } else {
-                ApplyUpdate(apply_count, *deletion_list_filename, *incremental_dump_filename);
+                ApplyUpdate(apply_count, *deletion_list_filename,
+                            AdvanceToDate(*incremental_dump_filename, errors_list_filenames.cend(),
+                                          &errors_list_filename),
+                            *incremental_dump_filename);
                 ++deletion_list_filename;
                 ++incremental_dump_filename;
             }
@@ -686,6 +772,7 @@ int main(int argc, char *argv[]) {
         const std::string complete_dump_pattern(ini_file.getString("Files", "complete_dump"));
         const std::string incremental_dump_pattern(ini_file.getString("Files", "incremental_dump"));
         const std::string complete_dump_linkname(ini_file.getString("Files", "complete_dump_linkname"));
+        const std::string errors_list_pattern(ini_file.getString("Files", "errors_list"));
 
         const std::string complete_dump_filename(PickCompleteDumpFilename(complete_dump_pattern));
         const std::string complete_dump_filename_date(ExtractDateFromFilenameOrDie(complete_dump_filename));
@@ -695,6 +782,12 @@ int main(int argc, char *argv[]) {
         if (not deletion_list_filenames.empty())
             Log("identified " + std::to_string(deletion_list_filenames.size())
                 + " deletion list filenames for application.");
+
+        std::vector<std::string> errors_list_filenames;
+        GetFilesMoreRecentThan(complete_dump_filename_date, errors_list_pattern, &errors_list_filenames);
+        if (not errors_list_filenames.empty())
+            Log("identified " + std::to_string(errors_list_filenames.size())
+                + " errors list filenames for application.");
 
         std::vector<std::string> incremental_dump_filenames;
         GetFilesMoreRecentThan(complete_dump_filename_date, incremental_dump_pattern, &incremental_dump_filenames);
@@ -712,11 +805,12 @@ int main(int argc, char *argv[]) {
         CreateAndChangeIntoTheWorkingDirectory();
         const std::string new_complete_dump_filename(
             ExtractAndCombineMarcFilesFromArchives(complete_dump_filename, deletion_list_filenames,
-                                                   incremental_dump_filenames));
+                                                   errors_list_filenames, incremental_dump_filenames));
         ChangeDirectoryOrDie(".."); // Leave the working directory again.
         RemoveDirectoryOrDie(GetWorkingDirectoryName());
         DeleteFilesOrDie(incremental_dump_pattern);
         DeleteFilesOrDie(deletion_list_pattern);
+        DeleteFilesOrDie(errors_list_pattern);
 
         CreateSymlink(new_complete_dump_filename, complete_dump_linkname);
 

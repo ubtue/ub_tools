@@ -153,38 +153,44 @@ bool OrderNSubfields(std::vector<std::string> * const n_subfield_values) {
 }
 
 
+// Populates "numbered_books" based on "book_name_candidate" and the 0th entry in "*n_subfield_values".
+// If there were one or more arabic numerals in "(*n_subfield_values)[0]" this entry will also be removed.
 void CreateNumberedBooks(const std::string &book_name_candidate,
-                         const std::vector<std::string> &n_subfield_values,
+                         std::vector<std::string> * const n_subfield_values,
                          std::vector<std::string> * const numbered_books)
 {
     numbered_books->clear();
 
-    if (n_subfield_values.empty()) {
+    if (n_subfield_values->empty()) {
         numbered_books->emplace_back(book_name_candidate);
         return;
     }
 
-    if (IsValidSingleDigitArabicOrdinal(n_subfield_values[0])) {
-        numbered_books->emplace_back(std::string(1, n_subfield_values[0][0]) + book_name_candidate);
+    if (IsValidSingleDigitArabicOrdinal(n_subfield_values->front())) {
+        numbered_books->emplace_back(std::string(1, n_subfield_values->front()[0]) + book_name_candidate);
+        n_subfield_values->erase(n_subfield_values->begin());
         return;
     }
 
-    if (n_subfield_values[0] == "1. 2.") {
+    if (n_subfield_values->front() == "1. 2." or n_subfield_values->front() == "1.-2.") {
         numbered_books->emplace_back("1" + book_name_candidate);
         numbered_books->emplace_back("2" + book_name_candidate);
+        n_subfield_values->erase(n_subfield_values->begin());
         return;
     }
 
-    if (n_subfield_values[0] == "2.-3.") {
+    if (n_subfield_values->front() == "2.-3.") {
         numbered_books->emplace_back("2" + book_name_candidate);
         numbered_books->emplace_back("3" + book_name_candidate);
+        n_subfield_values->erase(n_subfield_values->begin());
         return;
     }
 
-    if (n_subfield_values[0] == "1.-3.") {
+    if (n_subfield_values->front() == "1.-3.") {
         numbered_books->emplace_back("1" + book_name_candidate);
         numbered_books->emplace_back("2" + book_name_candidate);
         numbered_books->emplace_back("3" + book_name_candidate);
+        n_subfield_values->erase(n_subfield_values->begin());
         return;
     }
 
@@ -204,14 +210,14 @@ bool HaveBibleBookCodes(const std::vector<std::string> &book_name_candidates,
 }
 
 
-bool ConvertNumberedBooksToBookCodes(const std::vector<std::string> &numbered_books,
-                                     const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
-                                     std::vector<std::string> * const book_codes)
+bool ConvertBooksToBookCodes(const std::vector<std::string> &books,
+                             const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
+                             std::vector<std::string> * const book_codes)
 {
     book_codes->clear();
 
-    for (const auto &numbered_book : numbered_books) {
-        const auto book_and_code(bible_book_to_code_map.find(numbered_book));
+    for (const auto &book : books) {
+        const auto book_and_code(bible_book_to_code_map.find(book));
         if (unlikely(book_and_code == bible_book_to_code_map.cend()))
             return false;
         book_codes->emplace_back(book_and_code->second);
@@ -241,6 +247,17 @@ const std::map<std::string, std::string> book_alias_map {
 
 
 static unsigned unknown_book_count;
+
+
+std::string RangesToString(const std::set<std::pair<std::string, std::string>> &ranges) {
+    std::string ranges_as_string;
+    for (const auto &start_and_end : ranges) {
+        if (not ranges_as_string.empty())
+            ranges_as_string += ", ";
+        ranges_as_string += start_and_end.first + ":" + start_and_end.second;
+    }
+    return ranges_as_string;
+}
 
 
 /*  Possible fields containing bible references which will be extracted as bible ranges are 130 and 430
@@ -294,48 +311,27 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
             continue;
         }
 
-        std::vector<std::string> numbered_books;
-        CreateNumberedBooks(book_name_candidate, n_subfield_values, &numbered_books);
-        if (not HaveBibleBookCodes(numbered_books, bible_book_to_code_map)) {
+        std::vector<std::string> books;
+        CreateNumberedBooks(book_name_candidate, &n_subfield_values, &books);
+        if (not HaveBibleBookCodes(books, bible_book_to_code_map)) {
             std::cerr << fields[0] << ": found no bible book code for \"" << book_name_candidate
                       << "\"! (" << StringUtil::Join(n_subfield_values, ", ") << ")\n";
             continue;
         }
 
         std::vector<std::string> book_codes;
-        if (not ConvertNumberedBooksToBookCodes(numbered_books, bible_book_to_code_map, &book_codes)) {
+        if (not ConvertBooksToBookCodes(books, bible_book_to_code_map, &book_codes)) {
             std::cerr << fields[0] << ": can't convert one or more of these books to book codes: "
-                      << StringUtil::Join(numbered_books, ", ") << "!\n";
+                      << StringUtil::Join(books, ", ") << "!\n";
             continue;
         }
 
-        if (n_subfield_values.size() == 2) {
-            if (book_codes.size() != 1)  {
-                std::cerr << fields[0] << ": this should never happen: "
-                          << "n_subfield_values.size() == 2 AND book_codes.size() != 1\n";
-                continue;   
-            }
-            if (not ParseBibleReference(n_subfield_values[1], book_codes[0], ranges)) {
-                std::cerr << fields[0] << ": failed to parse bible references (1): " << n_subfield_values[1] << '\n';
-                continue;
-            }
-        } else if (book_codes.size() == 1) {
-            if (n_subfield_values.empty() or StringUtil::IsDigit(book_codes[0][0]))
-                ranges->insert(std::make_pair(book_codes[0] + "00000", book_codes[0] + "99999"));
-            else if (not ParseBibleReference(n_subfield_values[0], book_codes[0], ranges)) {
-                std::cerr << fields[0] << ": failed to parse bible references (2): $p=" << numbered_books[0]
-                          << ", $n=" << n_subfield_values[0] << '\n';
-                continue;   
-            }
-        } else if (book_codes.size() == 3)
-            ranges->insert(std::make_pair(book_codes[0] + "00000", book_codes[2] + "99999"));
-        else { // Assume book_codes.size() == 2.
-            if (book_codes.size() != 2) {
-                std::cerr << fields[0] << "expected 2 book codes but found \"" << StringUtil::Join(book_codes, ", ")
-                          << "\"!\n";
-                continue;
-            }
-            ranges->insert(std::make_pair(book_codes[0] + "00000", book_codes[1] + "99999"));
+        if (book_codes.size() > 1 or n_subfield_values.empty())
+            ranges->insert(std::make_pair(book_codes.front() + "00000", book_codes.back() + "99999"));
+        else if (not ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
+            std::cerr << fields[0] << ": failed to parse bible references (1): "
+                      << n_subfield_values.front() << '\n';
+            continue;
         }
 
         found_at_least_one = true;
