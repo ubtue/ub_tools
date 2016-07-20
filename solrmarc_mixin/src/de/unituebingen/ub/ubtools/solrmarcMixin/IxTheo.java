@@ -578,7 +578,7 @@ public class IxTheo extends SolrIndexerMixin {
                 subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
                 ++i;
             }
-            topic = Utils.join(new HashSet(Arrays.asList(subtopics)), "\\/");
+            topic = Utils.join(new HashSet(Arrays.asList(subtopics)), "/");
         } else {
             topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
         }
