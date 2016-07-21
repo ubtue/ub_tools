@@ -190,7 +190,6 @@ int main(int argc, char **argv) {
         Error("extracted_translations_filename " + extracted_translations_filename + " is not valid");
    
     File *lang_files[NUMBER_OF_LANGUAGES];
-    unsigned i(0);
   
     // Derive output components from given input filename
     std::string extension = (output_file_components.size() > 1) ? output_file_components.back() : "";
@@ -200,11 +199,11 @@ int main(int argc, char **argv) {
     basename = StringUtil::Join(output_file_components, ".");
       
     // Assemble output filename
+    unsigned i(0);
     for (auto lang : languages_to_create) {
          lang = StringUtil::Trim(lang);
 
-         std::string lang_file_name_str = 
-             (extension != "") ? basename + "_" + lang + "." + extension : basename + "_" + lang;
+         const std::string lang_file_name_str(extension.empty() ? basename + "_" + lang : basename + "_" + lang + "." + extension);
 
          lang_files[i] = new File(lang_file_name_str, output_mode);
          if (lang_files[i]->fail())
