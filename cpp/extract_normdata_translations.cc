@@ -136,7 +136,7 @@ void ExtractTranslations(File * const marc_norm_input,
         }   
  
         for (auto all_translations_it = all_translations.begin(); all_translations_it != all_translations.end(); ++all_translations_it) {
-            std::string german_term = all_translations_it->first;
+            std::string german_term(all_translations_it->first);
 
             for (auto translation_vector_it = all_translations_it->second.begin(); translation_vector_it != all_translations_it->second.end(); ++translation_vector_it) {
                 if (*translation_vector_it == "IxTheo_eng")
