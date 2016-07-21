@@ -202,14 +202,14 @@ int main(int argc, char **argv) {
     // Assemble output filename
     unsigned i(0);
     for (auto lang : languages_to_create) {
-         lang = StringUtil::Trim(lang);
+        lang = StringUtil::Trim(lang);
 
-         const std::string lang_file_name_str(extension.empty() ? basename + "_" + lang : basename + "_" + lang + "." + extension);
+        const std::string lang_file_name_str(extension.empty() ? basename + "_" + lang : basename + "_" + lang + "." + extension);
 
-         lang_files[i] = new File(lang_file_name_str, output_mode);
-         if (lang_files[i]->fail())
-             Error("can't open \"" + lang_file_name_str + "\" for writing!");
-         ++i;
+        lang_files[i] = new File(lang_file_name_str, output_mode);
+        if (lang_files[i]->fail())
+            Error("can't open \"" + lang_file_name_str + "\" for writing!");
+        ++i;
     }
 
     try {
@@ -220,10 +220,10 @@ int main(int argc, char **argv) {
                             "700a:710a:711a:730a:750a:751a",
                             term_to_translation_maps);
         for (const auto &line : term_to_translation_maps[EN]) 
-             *(lang_files[EN]) << line.first << '|' << line.second << '\n';
+            *(lang_files[EN]) << line.first << '|' << line.second << '\n';
 
         for (const auto &line : term_to_translation_maps[FR])
-             *(lang_files[FR]) << line.first << '|' << line.second << '\n';
+            *(lang_files[FR]) << line.first << '|' << line.second << '\n';
 
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
