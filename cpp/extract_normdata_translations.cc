@@ -119,7 +119,8 @@ void ExtractTranslations(File * const marc_norm_input,
  
              for (auto subfield_iterator = std::make_pair(german_subfields.begin(), translation_subfields.cbegin());
                   subfield_iterator.first != german_subfields.cend();
-                  ++subfield_iterator.first, ++subfield_iterator.second) {
+                  ++subfield_iterator.first, ++subfield_iterator.second) 
+             {
                   std::vector<std::string> german_term_for_one_field;
                   record.extractSubfields(german_tag, std::string(1, *subfield_iterator.first), &german_term_for_one_field);
  
