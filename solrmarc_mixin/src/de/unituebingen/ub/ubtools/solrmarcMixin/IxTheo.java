@@ -437,14 +437,14 @@ public class IxTheo extends SolrIndexerMixin {
             List<Subfield> subfields = dataField.getSubfields();
             boolean foundMatch = false;
             for (Subfield subfield : subfields) {
-                 if (subfield.getCode() == 'c' && subfield.getData().contains("website")) {
-                     formats.add("Website");
-                     foundMatch = true;
-                     break;
-                 }
+                if (subfield.getCode() == 'c' && subfield.getData().contains("website")) {
+                    formats.add("Website");
+                    foundMatch = true;
+                    break;
+                }
             }
             if (foundMatch == true)
-               break;
+                break;
         }
 
         // Rewrite all E-Books as electronic Books
@@ -557,7 +557,8 @@ public class IxTheo extends SolrIndexerMixin {
         Map<String, String> translation_map = getTranslationMap(langShortcut);
 
         for (String topic : topics) {
-            // Some ordinary topics contain words with an escaped slash as a separator
+            // Some ordinary topics contain words with an escaped slash as a
+            // separator
             // See whether we can translate the single parts
             if (topic.contains("\\/")) {
                 String[] subtopics = topic.split("\\/");
@@ -586,7 +587,11 @@ public class IxTheo extends SolrIndexerMixin {
             return topic;
 
         Map<String, String> translation_map = getTranslationMap(langShortcut);
-        // Some terms contain slash separated subterms, see whether we can translate them
+        String NUMBER_END_PATTERN = "([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)";
+        Matcher numberEndMatcher = Pattern.compile(NUMBER_END_PATTERN).matcher(topic);
+
+        // Some terms contain slash separated subterms, see whether we can
+        // translate them
         if (topic.contains("\\/")) {
             String[] subtopics = topic.split("\\\\/");
             int i = 0;
@@ -595,6 +600,24 @@ public class IxTheo extends SolrIndexerMixin {
                 ++i;
             }
             topic = Utils.join(new HashSet(Arrays.asList(subtopics)), "/");
+        }
+        // If we have a topic and a following number, try to separate the word and join it afterwards
+        // This is especially important for time informations where we provide special treatment
+        else if (numberEndMatcher.find()) {
+            String topicText = numberEndMatcher.group(1);
+            String numberExtension = numberEndMatcher.group(2);
+            if (topicText.equals("Geschichte")) {
+                switch (langShortcut) {
+                case "en":
+                    topic = "History" + numberExtension;
+                    break;
+                case "fr":
+                    topic = "Histoire" + numberExtension;
+                    break;
+                }
+            } else {
+                topic = translation_map.get(topicText) != null ? translation_map.get(topicText) + numberExtension : topic;
+            }
         } else {
             topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
         }
@@ -749,7 +772,8 @@ public class IxTheo extends SolrIndexerMixin {
                                     continue;
                                 String term = subfield.getData().trim();
                                 if (term.length() > 0)
-                                    // Escape slashes in single topics since they interfere with KWCs
+                                    // Escape slashes in single topics since
+                                    // they interfere with KWCs
                                     collector.add(translateTopic(Utils.cleanData(term.replace("/", "\\/")), langShortcut));
                             }
                         }
