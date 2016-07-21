@@ -101,21 +101,21 @@ void ExtractTranslations(File* const marc_norm_input,
         Error("ExtractTranslations: Need at least one translation field");
     
     if (unlikely(not(german_tags_and_subfield_codes.size() == translation_tags_and_subfield_codes.size())))
-        Error("ExtractTranslations: Number of german fields and number of translation fields must be equal");
+        Error("ExtractTranslations: Number of German fields and number of translation fields must be equal");
     
     unsigned count(0);
     
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_norm_input)) {
         std::map<std::string, std::vector<std::string>> all_translations;
           
-        for (auto it = std::make_pair(german_tags_and_subfield_codes.cbegin(), translation_tags_and_subfield_codes.cbegin());
-             it.first != german_tags_and_subfield_codes.cend();
-             ++it.first, ++it.second) {
+        for (const auto german_and_translations_it = std::make_pair(german_tags_and_subfield_codes.cbegin(), translation_tags_and_subfield_codes.cbegin());
+             german_and_translations_it.first != german_tags_and_subfield_codes.cend();
+             ++german_and_translations_it.first, ++german_and_translations_it.second) {
 
-             const std::string german_tag((*it.first).substr(0, 3));
-             const std::string german_subfields((*it.first).substr(3));
-             const std::string translation_tag((*it.second).substr(0, 3));
-             const std::string translation_subfields((*it.second).substr(3));
+             const std::string german_tag((*german_and_translations_it.first).substr(0, 3));
+             const std::string german_subfields((*german_and_translations_it.first).substr(3));
+             const std::string translation_tag((*german_and_translations_it.second).substr(0, 3));
+             const std::string translation_subfields((*german_and_translations_it.second).substr(3));
  
              for (auto subfield_iterator = std::make_pair(german_subfields.begin(), translation_subfields.cbegin());
                   subfield_iterator.first != german_subfields.cend();
@@ -134,10 +134,10 @@ void ExtractTranslations(File* const marc_norm_input,
             }
         }   
  
-        for (auto it = all_translations.begin(); it != all_translations.end(); ++it) {
-            std::string german_term = it->first;
+        for (auto all_translations_it = all_translations.begin(); all_translations_it != all_translations.end(); ++all_translations_it) {
+            std::string german_term = all_translations_it->first;
 
-            for (auto translation_vector_it = it->second.begin(); translation_vector_it != it->second.end(); ++translation_vector_it) {
+            for (auto translation_vector_it = all_translations_it->second.begin(); translation_vector_it != all_translations_it->second.end(); ++translation_vector_it) {
                 
                 if (*translation_vector_it == "IxTheo_eng") {
                     term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
