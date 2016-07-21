@@ -431,6 +431,22 @@ public class IxTheo extends SolrIndexerMixin {
             }
         }
 
+        // Determine whether record is a Website, i.e. has "website" in 935$c
+        for (final VariableField _935Field : _935Fields) {
+            final DataField dataField = (DataField) _935Field;
+            List<Subfield> subfields = dataField.getSubfields();
+            boolean foundMatch = false;
+            for (Subfield subfield : subfields) {
+                 if (subfield.getCode() == 'c' && subfield.getData().contains("website")) {
+                     formats.add("Website");
+                     foundMatch = true;
+                     break;
+                 }
+            }
+            if (foundMatch == true)
+               break;
+        }
+
         // Rewrite all E-Books as electronic Books
         if (formats.contains("eBook")) {
             formats.remove("eBook");
