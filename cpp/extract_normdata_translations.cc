@@ -87,7 +87,7 @@ void AugmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::str
 }
 
 
-void ExtractTranslations(File* const marc_norm_input, 
+void ExtractTranslations(File * const marc_norm_input, 
                          const std::string german_term_field_spec,
                          const std::string translation_field_spec,
                          std::map<std::string, std::string> term_to_translation_maps[]) 
@@ -129,7 +129,7 @@ void ExtractTranslations(File* const marc_norm_input,
 
                   // For IxTheo-Translations add the language code in the same field
                   AugmentIxTheoTagWithLanguage(record, translation_tag, &translations);
-                  if (not(german_term_for_one_field.empty()))
+                  if (not german_term_for_one_field.empty())
                       all_translations.insert(std::make_pair(StringUtil::Join(german_term_for_one_field, ' '), translations));
             }
         }   
@@ -139,15 +139,14 @@ void ExtractTranslations(File* const marc_norm_input,
 
             for (auto translation_vector_it = all_translations_it->second.begin(); translation_vector_it != all_translations_it->second.end(); ++translation_vector_it) {
                 
-                if (*translation_vector_it == "IxTheo_eng") {
+                if (*translation_vector_it == "IxTheo_eng")
                     term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
-                } else if (*translation_vector_it == "IxTheo_fra") {
+                else if (*translation_vector_it == "IxTheo_fra")
                     term_to_translation_maps[FR].emplace(german_term, *(++translation_vector_it));
-                } else if (*translation_vector_it == "lcsh") {
+                else if (*translation_vector_it == "lcsh")
                     term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
-                } else if (*translation_vector_it == "ram") {
+                else if (*translation_vector_it == "ram")
                     term_to_translation_maps[FR].emplace(german_term, *(++translation_vector_it));
-                }
            }
        }
     ++count;
@@ -218,10 +217,10 @@ int main(int argc, char **argv) {
                             "100a:110a:111a:130a:150a:151a", 
                             "700a:710a:711a:730a:750a:751a",
                             term_to_translation_maps);
-        for (auto line : term_to_translation_maps[EN]) 
+        for (const auto &line : term_to_translation_maps[EN]) 
              *(lang_files[EN]) << line.first << '|' << line.second << '\n';
 
-        for (auto line : term_to_translation_maps[FR])
+        for (const auto &line : term_to_translation_maps[FR])
              *(lang_files[FR]) << line.first << '|' << line.second << '\n';
 
     } catch (const std::exception &x) {
