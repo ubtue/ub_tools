@@ -108,7 +108,7 @@ void ExtractTranslations(File* const marc_norm_input,
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_norm_input)) {
         std::map<std::string, std::vector<std::string>> all_translations;
           
-        for (const auto german_and_translations_it = std::make_pair(german_tags_and_subfield_codes.cbegin(), translation_tags_and_subfield_codes.cbegin());
+        for (auto german_and_translations_it(std::make_pair(german_tags_and_subfield_codes.cbegin(), translation_tags_and_subfield_codes.cbegin()));
              german_and_translations_it.first != german_tags_and_subfield_codes.cend();
              ++german_and_translations_it.first, ++german_and_translations_it.second) {
 
@@ -219,17 +219,14 @@ int main(int argc, char **argv) {
                             "100a:110a:111a:130a:150a:151a", 
                             "700a:710a:711a:730a:750a:751a",
                             term_to_translation_maps);
-        for (auto line : term_to_translation_maps[EN]) {
-              
-             *(lang_files[EN]) << line.first << "|" << line.second << "\n";
-        }
+        for (auto line : term_to_translation_maps[EN]) 
+             *(lang_files[EN]) << line.first << '|' << line.second << '\n';
 
-        for (auto line : term_to_translation_maps[FR]) {
-             *(lang_files[FR]) << line.first << "|" << line.second << "\n";
-        }
+        for (auto line : term_to_translation_maps[FR])
+             *(lang_files[FR]) << line.first << '|' << line.second << '\n';
 
     } catch (const std::exception &x) {
-      Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }
 
