@@ -37,7 +37,7 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << progname << " (--drop|--keep) [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
+    std::cerr << "usage: " << progname << " (--drop|--keep|--remove-field) [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
               << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
@@ -132,8 +132,12 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
 
 /** Returns true if we have at least one match. */
 bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &dir_entries,
-             const std::vector<std::string> &fields, const std::vector<CompiledPattern> &compiled_patterns)
+             const std::vector<std::string> &fields, const std::vector<CompiledPattern> &compiled_patterns,
+             std::vector<size_t> * const matched_field_indices)
 {
+    matched_field_indices->clear();
+
+    bool matched_at_least_one(false);
     for (const auto &compiled_pattern : compiled_patterns) {
         ssize_t index(record.getFieldIndex(compiled_pattern.getTag()));
         if (index == -1)
@@ -150,14 +154,14 @@ bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &
                      ++subfield_code_and_value)
                     {
                         if (compiled_pattern.subfieldMatched(subfield_code_and_value->second))
-                            return true;
+                            matched_at_least_one = true;
                     }
             } else if (compiled_pattern.fieldMatched(fields[index]))
-                return true;
+                matched_at_least_one = true;
         }
     }
 
-    return false;
+    return matched_at_least_one;
 }
 
 
@@ -165,13 +169,14 @@ namespace {
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
+enum class OperationType { KEEP, DROP, REMOVE_FIELD };
 
 
 } // unnamed namespace
 
 
 void Filter(const bool input_is_xml, const OutputFormat output_format, const std::vector<std::string> &patterns,
-            const bool keep, File * const input, File * const output)
+            const OperationType operation_type, File * const input, File * const output)
 {
     MarcXmlWriter *xml_writer(nullptr);
     if ((output_format == OutputFormat::SAME_AS_INPUT and input_is_xml) or output_format == OutputFormat::MARC_XML)
@@ -182,7 +187,7 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
     if (not CompilePatterns(patterns, &compiled_patterns, &err_msg))
         Error("Error while compiling patterns: " + err_msg);
 
-    unsigned total_count(0), kept_count(0);
+    unsigned total_count(0), kept_count(0), modified_count(0);
     while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(input)
                                                   : MarcUtil::Record::BinaryFactory(input))
     {
@@ -191,12 +196,19 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
 
         const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const std::vector<std::string> &fields(record.getFields());
-        if (Matched(record, dir_entries, fields, compiled_patterns)) {
-            if (keep) {
+        std::vector<size_t> matched_field_indices;
+        if (Matched(record, dir_entries, fields, compiled_patterns, &matched_field_indices)) {
+            if (operation_type == OperationType::KEEP) {
                 xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
                 ++kept_count;
+            } else if (operation_type == OperationType::REMOVE_FIELD) {
+                std::sort(matched_field_indices.begin(), matched_field_indices.end(), std::greater<size_t>());
+                for (const auto field_index : matched_field_indices)
+                    record.deleteField(field_index);
+                xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
+                ++modified_count;
             }
-        } else if (not keep) {
+        } else if (operation_type == OperationType::DROP) {
             xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
             ++kept_count;
         }
@@ -207,7 +219,10 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
 
     delete xml_writer;
 
-    std::cerr << "Kept " << kept_count << " of " << total_count << " record(s).\n";
+    if (operation_type == OperationType::REMOVE_FIELD)
+        std::cerr << "Modified " << modified_count << " of " << total_count << " record(s).\n";
+    else
+        std::cerr << "Kept " << kept_count << " of " << total_count << " record(s).\n";
 }
 
 
@@ -217,13 +232,15 @@ int main(int argc, char **argv) {
     if (argc < 5)
         Usage();
 
-    bool keep;
+    OperationType operation_type;
     if (std::strcmp(argv[1], "--keep") == 0)
-        keep = true;
+        operation_type = OperationType::KEEP;
     else if (std::strcmp(argv[1], "--drop") == 0)
-        keep = false;
+        operation_type = OperationType::KEEP;
+    else if (std::strcmp(argv[1], "--remove-field") == 0)
+        operation_type = OperationType::REMOVE_FIELD;
     else
-        Error("expected --keep or --drop as the first argument!");
+        Error("expected --keep, --drop or --remove-field as the first argument!");
 
     OutputFormat output_format(OutputFormat::SAME_AS_INPUT);
     if (StringUtil::StartsWith(argv[2], "--output-format=")) {
@@ -253,7 +270,7 @@ int main(int argc, char **argv) {
         patterns.emplace_back(argv[arg_no]);
 
     try {
-        Filter(input_is_xml, output_format, patterns, keep, input.get(), output.get());
+        Filter(input_is_xml, output_format, patterns, operation_type, input.get(), output.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
