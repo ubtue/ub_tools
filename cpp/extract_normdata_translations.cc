@@ -112,7 +112,6 @@ void ExtractTranslations(File * const marc_norm_input,
              german_and_translations_it.first != german_tags_and_subfield_codes.cend();
              ++german_and_translations_it.first, ++german_and_translations_it.second) 
         {
-
              const std::string german_tag((*german_and_translations_it.first).substr(0, 3));
              const std::string german_subfields((*german_and_translations_it.first).substr(3));
              const std::string translation_tag((*german_and_translations_it.second).substr(0, 3));
