@@ -88,8 +88,8 @@ void AugmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::str
 
 
 void ExtractTranslations(File * const marc_norm_input, 
-                         const std::string german_term_field_spec,
-                         const std::string translation_field_spec,
+                         const std::string &german_term_field_spec,
+                         const std::string &translation_field_spec,
                          std::map<std::string, std::string> term_to_translation_maps[]) 
 {
     std::set<std::string> german_tags_and_subfield_codes;
@@ -140,7 +140,6 @@ void ExtractTranslations(File * const marc_norm_input,
             std::string german_term = all_translations_it->first;
 
             for (auto translation_vector_it = all_translations_it->second.begin(); translation_vector_it != all_translations_it->second.end(); ++translation_vector_it) {
-                
                 if (*translation_vector_it == "IxTheo_eng")
                     term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "IxTheo_fra")
@@ -149,9 +148,9 @@ void ExtractTranslations(File * const marc_norm_input,
                     term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "ram")
                     term_to_translation_maps[FR].emplace(german_term, *(++translation_vector_it));
-           }
-       }
-    ++count;
+            }
+        }
+       ++count;
     }
 }
 
