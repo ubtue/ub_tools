@@ -149,7 +149,7 @@ void ExtractTranslations(File * const marc_norm_input,
                     term_to_translation_maps[FR].emplace(german_term, *(++translation_vector_it));
             }
         }
-       ++count;
+        ++count;
     }
 }
 
