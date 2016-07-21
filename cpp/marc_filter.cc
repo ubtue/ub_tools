@@ -240,7 +240,7 @@ int main(int argc, char **argv) {
     if (std::strcmp(argv[1], "--keep") == 0)
         operation_type = OperationType::KEEP;
     else if (std::strcmp(argv[1], "--drop") == 0)
-        operation_type = OperationType::KEEP;
+        operation_type = OperationType::DROP;
     else if (std::strcmp(argv[1], "--remove-field") == 0)
         operation_type = OperationType::REMOVE_FIELD;
     else
