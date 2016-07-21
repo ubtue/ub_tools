@@ -152,12 +152,16 @@ bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &
                 const auto begin_end(subfields.getIterators(compiled_pattern.getSubfieldCode()));
                 for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
                      ++subfield_code_and_value)
-                    {
-                        if (compiled_pattern.subfieldMatched(subfield_code_and_value->second))
-                            matched_at_least_one = true;
+                {
+                    if (compiled_pattern.subfieldMatched(subfield_code_and_value->second)) {
+                        matched_field_indices->emplace_back(index);
+                        matched_at_least_one = true;
                     }
-            } else if (compiled_pattern.fieldMatched(fields[index]))
+                }
+            } else if (compiled_pattern.fieldMatched(fields[index])) {
+                matched_field_indices->emplace_back(index);
                 matched_at_least_one = true;
+            }
         }
     }
 
