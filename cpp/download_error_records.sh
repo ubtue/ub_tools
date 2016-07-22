@@ -10,6 +10,8 @@ fi
 
 OUTPUT_XML="$2"
 DOWNLOADED_XML_FILE=/tmp/downloaded_xml
+ERROR_PPNS_FILE=/tmp/error_ppns.list
+> "$ERROR_PPNS_FILE"
 cat /var/lib/tuelib/xml/MARC_XML_HEADER /var/lib/tuelib/xml/MARC_XML_TRAILER > "$OUTPUT_XML"
 
 declare -i good_count=0
@@ -26,13 +28,16 @@ for line in $(grep --only-matching ppn:'[^ ]*' "$1"); do
         if append_marc_xml /tmp/single_record_collection.xml "$OUTPUT_XML"; then
             ((++good_count))
         else
+            echo "${ppn}" >> "$ERROR_PPNS_FILE"
             ((++bad_count))
         fi
     else
         >&2 echo "Bad XML for PPN ${ppn}!"
+        echo "${ppn}" >> "$ERROR_PPNS_FILE"
         ((++bad_count))
     fi
     rm -f "$DOWNLOADED_XML_FILE"
 done
 
 echo "Processed $good_count good and $bad_count bad records."
+echo "The list of PPNs for which we failed is in ${ERROR_PPNS_FILE}."

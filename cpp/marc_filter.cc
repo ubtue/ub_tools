@@ -37,7 +37,7 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << progname << " (--drop|--keep|--remove-field) [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
+    std::cerr << "usage: " << progname << " (--drop|--keep|--remove-fields) [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
               << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
@@ -173,7 +173,7 @@ namespace {
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
-enum class OperationType { KEEP, DROP, REMOVE_FIELD };
+enum class OperationType { KEEP, DROP, REMOVE_FIELDS };
 
 
 } // unnamed namespace
@@ -205,7 +205,7 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
             if (operation_type == OperationType::KEEP) {
                 xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
                 ++kept_count;
-            } else if (operation_type == OperationType::REMOVE_FIELD) {
+            } else if (operation_type == OperationType::REMOVE_FIELDS) {
                 std::sort(matched_field_indices.begin(), matched_field_indices.end(), std::greater<size_t>());
                 for (const auto field_index : matched_field_indices)
                     record.deleteField(field_index);
@@ -223,7 +223,7 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
 
     delete xml_writer;
 
-    if (operation_type == OperationType::REMOVE_FIELD)
+    if (operation_type == OperationType::REMOVE_FIELDS)
         std::cerr << "Modified " << modified_count << " of " << total_count << " record(s).\n";
     else
         std::cerr << "Kept " << kept_count << " of " << total_count << " record(s).\n";
@@ -241,8 +241,8 @@ int main(int argc, char **argv) {
         operation_type = OperationType::KEEP;
     else if (std::strcmp(argv[1], "--drop") == 0)
         operation_type = OperationType::DROP;
-    else if (std::strcmp(argv[1], "--remove-field") == 0)
-        operation_type = OperationType::REMOVE_FIELD;
+    else if (std::strcmp(argv[1], "--remove-fields") == 0)
+        operation_type = OperationType::REMOVE_FIELDS;
     else
         Error("expected --keep, --drop or --remove-field as the first argument!");
 
