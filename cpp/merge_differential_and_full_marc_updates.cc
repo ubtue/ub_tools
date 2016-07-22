@@ -644,7 +644,8 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     DeleteFileOrDie(superior_marc_basename);
     DeleteFileOrDie(normdata_marc_basename);
     DeleteFileOrDie(LOCAL_DELETION_LIST_FILENAME);
-    DeleteFileOrDie(ERROR_RECORDS);
+    if (FileUtil::Exists(ERROR_RECORDS))
+        DeleteFileOrDie(ERROR_RECORDS);
 }
 
 
