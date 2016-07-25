@@ -44,6 +44,8 @@ class Record {
     mutable std::vector<std::string> fields_;
     mutable off_t xml_file_start_offset_;
     mutable bool record_will_be_written_as_xml_;
+public:
+    enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC };
 private:
     Record() = default;
     Record(Leader &leader, std::vector<DirectoryEntry> &dir_entries, std::vector<std::string> &fields,
@@ -66,6 +68,7 @@ public:
     const std::vector<DirectoryEntry> &getDirEntries() const { return dir_entries_; }
     const std::vector<std::string> &getFields() const { return fields_; }
 
+    RecordType getRecordType() const;
     std::string getControlNumber() const { return fields_.empty() ? "" : fields_[0]; }
 
     /** \brief Returns the index of "field_tag" or -1 if the tag is not present. */
