@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <unordered_set>
@@ -44,11 +45,13 @@ void ProcessRecords(const bool input_is_xml, File * const input) {
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0);
     std::unordered_set<std::string> control_numbers;
+    std::map<MarcUtil::Record::RecordType, unsigned> record_types_and_counts;
 
     while (const MarcUtil::Record record =
            input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
     {
         ++record_count;
+        ++record_types_and_counts[record.getRecordType()];
 
         std::string err_msg;
         if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
@@ -77,6 +80,10 @@ void ProcessRecords(const bool input_is_xml, File * const input) {
     std::cout << "Largest record contains " << max_record_length << " bytes.\n";
     std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count
               << " local blocks.\n";
+    std::cout << "Counted " << record_types_and_counts[MarcUtil::Record::BIBLIOGRAPHIC]
+              << " bibliographic record(s), " << record_types_and_counts[MarcUtil::Record::AUTHORITY]
+              << " authority record(s), and " << record_types_and_counts[MarcUtil::Record::UNKNOWN]
+              << " record(s) of unknown record type.\n";
 }
 
 
