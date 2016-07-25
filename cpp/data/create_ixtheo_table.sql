@@ -20,3 +20,12 @@ CREATE TABLE ixtheo_journal_subscriptions (
        FOREIGN KEY (id) REFERENCES user(id),
        PRIMARY KEY (id,journal_control_number)
 );
+
+CREATE TABLE ixtheo_user (
+       id INT(11) NOT NULL,
+       title VARCHAR(64),
+       institution VARCHAR(256),
+       country VARCHAR(256),
+       FOREIGN KEY (id) REFERENCES user(id),
+       PRIMARY KEY (id)
+);
