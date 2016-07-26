@@ -69,7 +69,7 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 ((++P)); START=$(date +%s.%N)
 echo "*** Phase $P: Parent-to-Child Linking and Flagging of Subscribable Items- $(date) ***" | tee --append "${log}"
 create_superior_ppns.sh GesamtTiteldaten-post-phase"$((P-2))"-"${date}".xml >> "${log}" 2>&1
-add_superior_and_alertable_falgs GesamtTiteldaten-post-phase"$((P-2))"-"${date}".xml \
+add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((P-2))"-"${date}".xml \
                                  GesamtTiteldaten-post-phase"$P"-"${date}".xml \
                                  superior_ppns >> "${log}" 2>&1
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
