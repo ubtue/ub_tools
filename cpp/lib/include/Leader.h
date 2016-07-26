@@ -31,6 +31,7 @@
 class Leader {
 public:
     static const size_t LEADER_LENGTH = 24;
+    enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
 private:
     std::string raw_leader_;
     unsigned record_length_;
@@ -66,15 +67,16 @@ public:
     bool setRecordLength(const unsigned new_record_length, std::string * const err_msg = nullptr);
 
     char getRecordStatus() const { return raw_leader_[5]; }
-    char getRecordType() const { return raw_leader_[6]; }
     char getBibliographicLevel() const { return raw_leader_[7]; }
     char getCharacterCodingScheme() const { return raw_leader_[9]; }
     std::string getImplementationDefined1() const { return raw_leader_.substr(7, 2); }
     std::string getImplementationDefined2() const { return raw_leader_.substr(17, 3); }
     unsigned getBaseAddressOfData() const { return base_address_of_data_; }
     void setBaseAddressOfData(const unsigned new_base_address_of_data);
+    bool isMonograph() const { return raw_leader_[7] == 'm'; }
     bool isSerial() const { return raw_leader_[7] == 's'; }
     bool isArticle() const { return raw_leader_[7] == 'a'; }
+    RecordType getRecordType() const;
 
     /** \return A binary representation of the leader.  Can be used to construct a MARC-21 record. */ 
     std::string toString() const { return raw_leader_; }

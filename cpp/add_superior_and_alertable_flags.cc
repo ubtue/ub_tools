@@ -1,5 +1,6 @@
-/** \file    add_superior_flag.cc
+/** \file    add_superior_and_alertable_flags.cc
  *  \author  Oliver Obenland
+ *  \author  Dr. Johannes Ruscheinski
  *
  *  A tool for marking superior records that have associated inferior records in our data sets.
  */
@@ -27,8 +28,9 @@
 #include <unordered_map>
 #include <cstdlib>
 #include <cstring>
+#include "Compiler.h"
 #include "DirectoryEntry.h"
-#include "File.h"
+#include "FileUtil.h"
 #include "Leader.h"
 #include "MarcUtil.h"
 #include "MarcXmlWriter.h"
@@ -39,12 +41,21 @@
 
 static unsigned modified_count(0);
 static std::set<std::string> superior_ppns;
-static std::string superior_subfield_data;
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " marc_input marc_output superior_ppns\n";
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output superior_ppns\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+bool SeriesHasNotBeenCompleted(const MarcUtil::Record &record) {
+    const ssize_t _008_index(record.getFieldIndex("008"));
+    if (unlikely(_008_index == -1))
+        return false;
+
+    const std::string _008_contents(record.getFields()[_008_index]);
+    return _008_contents.substr(11, 4) == "9999";
 }
 
 
@@ -57,12 +68,16 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
         return;
     }
 
-    const std::vector<std::string> &field_data(record->getFields());
-    const auto iter(superior_ppns.find(field_data.at(0)));
+    const auto iter(superior_ppns.find(record->getControlNumber()));
     if (iter != superior_ppns.end()) {
-        if (not record->insertField("SPR", superior_subfield_data))
-            Warning("Not enough room to add a SPR field! (Control number: " + field_data[0] + ")");
-        ++modified_count;
+        Subfields superior_subfield(/* indicator1 = */' ', /* indicator2 = */' ');
+        superior_subfield.addSubfield('a', "1"); // Could be anything but we can't have an empty field.
+        if (SeriesHasNotBeenCompleted(*record))
+            superior_subfield.addSubfield('b', "1");
+        if (unlikely(not record->insertField("SPR", superior_subfield.toString())))
+            Warning("Not enough room to add an SPR field! (Control number: " + record->getControlNumber() + ")");
+        else
+            ++modified_count;
     }
 
     record->write(xml_writer);
@@ -94,34 +109,18 @@ void LoadSuperiorPPNs(File * const input) {
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 4)
         Usage();
 
-    const std::string marc_input_filename(argv[1]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
-    const std::string marc_output_filename(argv[2]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
-
-    const std::string superior_ppns_filename(argv[3]);
-    File superior_ppns_input(superior_ppns_filename, "r");
-    if (not superior_ppns_input)
-        Error("can't open \"" + superior_ppns_filename + "\" for reading!");
+    const std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(argv[1]));
+    const std::unique_ptr<File> marc_output(FileUtil::OpenOutputFileOrDie(argv[2]));
+    const std::unique_ptr<File> superior_ppn_input(FileUtil::OpenInputFileOrDie(argv[3]));
 
     try {
-        LoadSuperiorPPNs(&superior_ppns_input);
-
-        Subfields superior_subfield(/* indicator1 = */' ', /* indicator2 = */' ');
-        superior_subfield.addSubfield('a', "1"); // Could be anything but we can't have an empty field.
-        superior_subfield_data = superior_subfield.toString();
-
-        AddSuperiorFlag(&marc_input, &marc_output);
+        LoadSuperiorPPNs(superior_ppn_input.get());
+        AddSuperiorFlag(marc_input.get(), marc_output.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
