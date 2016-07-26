@@ -854,6 +854,13 @@ public class TuelibMixin extends SolrIndexerMixin {
         return Boolean.toString(record.getVariableField("SPR") != null);
     }
 
+    public String isSubscribable(final Record record) {
+        final DataField sprField = (DataField)record.getVariableField("SPR");
+        if (sprField == null)
+            return Boolean.FALSE.toString();
+        return Boolean.toString(sprField.getSubfield('b') != null);
+    }
+
     private static String currentYear = null;
 
     /** @return the last two digits of the current year. */
