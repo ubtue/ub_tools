@@ -109,6 +109,8 @@ Record::RecordType Record::getRecordType() const {
         return AUTHORITY;
     case Leader::BIBLIOGRAPHIC:
         return BIBLIOGRAPHIC;
+    case Leader::CLASSIFICATION:
+        return CLASSIFICATION;
     case Leader::UNKNOWN:
         return UNKNOWN;
     }

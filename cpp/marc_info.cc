@@ -87,6 +87,7 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
               << " local blocks.\n";
     std::cout << "Counted " << record_types_and_counts[MarcUtil::Record::BIBLIOGRAPHIC]
               << " bibliographic record(s), " << record_types_and_counts[MarcUtil::Record::AUTHORITY]
+              << " classification record(s), " << record_types_and_counts[MarcUtil::Record::CLASSIFICATION]
               << " authority record(s), and " << record_types_and_counts[MarcUtil::Record::UNKNOWN]
               << " record(s) of unknown record type.\n";
 }
