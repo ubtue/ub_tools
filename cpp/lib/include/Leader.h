@@ -73,6 +73,7 @@ public:
     std::string getImplementationDefined2() const { return raw_leader_.substr(17, 3); }
     unsigned getBaseAddressOfData() const { return base_address_of_data_; }
     void setBaseAddressOfData(const unsigned new_base_address_of_data);
+    bool isMonograph() const { return raw_leader_[7] == 'm'; }
     bool isSerial() const { return raw_leader_[7] == 's'; }
     bool isArticle() const { return raw_leader_[7] == 'a'; }
     RecordType getRecordType() const;
