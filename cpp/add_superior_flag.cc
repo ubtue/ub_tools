@@ -62,7 +62,8 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
     if (iter != superior_ppns.end()) {
         if (not record->insertField("SPR", superior_subfield_data))
             Warning("Not enough room to add a SPR field! (Control number: " + field_data[0] + ")");
-        ++modified_count;
+        else
+            ++modified_count;
     }
 
     record->write(xml_writer);
