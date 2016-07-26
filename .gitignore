@@ -16,7 +16,7 @@ add_author_synonyms
 add_child_refs
 add_isbns_or_issns_to_articles
 add_journal_subscription
-add_superior_flag
+add_superior_and_alertable_flags
 add_title_keywords
 append_marc_xml
 archive_reader_test

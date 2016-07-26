@@ -1,4 +1,4 @@
-/** \file    add_superior_flag.cc
+/** \file    add_superior_and_alertable_flags.cc
  *  \author  Oliver Obenland
  *  \author  Dr. Johannes Ruscheinski
  *
@@ -41,12 +41,21 @@
 
 static unsigned modified_count(0);
 static std::set<std::string> superior_ppns;
-static std::string superior_subfield_data;
 
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_input marc_output superior_ppns\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+bool SeriesHasNotBeenCompleted(const MarcUtil::Record &record) {
+    const ssize_t _008_index(record.getFieldIndex("008"));
+    if (unlikely(_008_index == -1))
+        return false;
+
+    const std::string _008_contents(record.getFields()[_008_index]);
+    return _008_contents.substr(11, 4) == "9999";
 }
 
 
@@ -61,7 +70,11 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
 
     const auto iter(superior_ppns.find(record->getControlNumber()));
     if (iter != superior_ppns.end()) {
-        if (unlikely(not record->insertField("SPR", superior_subfield_data)))
+        Subfields superior_subfield(/* indicator1 = */' ', /* indicator2 = */' ');
+        superior_subfield.addSubfield('a', "1"); // Could be anything but we can't have an empty field.
+        if (SeriesHasNotBeenCompleted(*record))
+            superior_subfield.addSubfield('b', "1");
+        if (unlikely(not record->insertField("SPR", superior_subfield.toString())))
             Warning("Not enough room to add an SPR field! (Control number: " + record->getControlNumber() + ")");
         else
             ++modified_count;
@@ -107,11 +120,6 @@ int main(int argc, char **argv) {
 
     try {
         LoadSuperiorPPNs(superior_ppn_input.get());
-
-        Subfields superior_subfield(/* indicator1 = */' ', /* indicator2 = */' ');
-        superior_subfield.addSubfield('a', "1"); // Could be anything but we can't have an empty field.
-        superior_subfield_data = superior_subfield.toString();
-
         AddSuperiorFlag(marc_input.get(), marc_output.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
