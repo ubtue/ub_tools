@@ -1,7 +1,7 @@
 /** \brief Utility for displaying various bits of info about a collection of MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -36,12 +36,12 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << progname << " marc_data\n";
+    std::cerr << "Usage: " << progname << " [--verbose] marc_data\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void ProcessRecords(const bool input_is_xml, File * const input) {
+void ProcessRecords(const bool verbose, const bool input_is_xml, File * const input) {
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0);
     std::unordered_set<std::string> control_numbers;
@@ -51,16 +51,21 @@ void ProcessRecords(const bool input_is_xml, File * const input) {
            input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
     {
         ++record_count;
-        ++record_types_and_counts[record.getRecordType()];
-
-        std::string err_msg;
-        if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
-            Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
 
         const std::vector<std::string> &fields(record.getFields());
         if (unlikely(fields.empty()))
           Error("record #" + std::to_string(record_count) + " has zero fields!");
         const std::string &control_number(fields[0]);
+
+        const MarcUtil::Record::RecordType record_type(record.getRecordType());
+        ++record_types_and_counts[record_type];
+        if (verbose and record_type == MarcUtil::Record::UNKNOWN)
+            std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number << ".\n";
+
+        std::string err_msg;
+        if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
+            Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
+
         if (control_numbers.find(control_number) != control_numbers.end())
             Error("found at least one duplicate control number: " + control_number);
         control_numbers.insert(control_number);
@@ -90,6 +95,13 @@ void ProcessRecords(const bool input_is_xml, File * const input) {
 int main(int argc, char *argv[]) {
     progname = argv[0];
 
+    if (argc < 2)
+        Usage();
+
+    const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
+    if (verbose)
+        --argc, ++argv;
+
     if (argc != 2)
         Usage();
 
@@ -106,7 +118,7 @@ int main(int argc, char *argv[]) {
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     try {
-        ProcessRecords(input_is_xml, &marc_input);
+        ProcessRecords(verbose, input_is_xml, &marc_input);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
