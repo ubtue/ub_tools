@@ -32,8 +32,8 @@ for line in $(grep --only-matching ppn:'[^ ]*' "$1"); do
         if [[ $(categorise_marc_xml /tmp/single_record_collection.xml) == "BIBLIOGRAPHIC" ]]; then
             append_marc_xml /tmp/single_record_collection.xml "$BIBLIO_OUTPUT_XML"
             ((++good_count))
-        elif [[ $(categorise_marc_xml /tmp/single_record_collection.xml) == "AUTHORITY" \
-                || $(categorise_marc_xml /tmp/single_record_collection.xml) == "CLASSIFICATION" ]]; then
+        elif [[ $(categorise_marc_xml /tmp/single_record_collection.xml) == "AUTHORITY" ]] \
+             || [[ $(categorise_marc_xml /tmp/single_record_collection.xml) == "CLASSIFICATION" ]]; then
             append_marc_xml /tmp/single_record_collection.xml "$AUTHORITY_OUTPUT_XML"
             ((++good_count))
         else
