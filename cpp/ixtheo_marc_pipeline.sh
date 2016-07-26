@@ -48,7 +48,7 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
 ((++P)); START=$(date +%s.%N)
 echo "*** Phase $P: Filter out local data of other Institutions ***" | tee --append "${log}"
-delete_unused_local_data GesamtTiteldaten-"${date}".xml \
+delete_unused_local_data GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
                          GesamtTiteldaten-post-phase"$P"-"${date}".xml \
                          >> "${log}" 2>&1
 PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
