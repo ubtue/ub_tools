@@ -37,11 +37,6 @@ public:
     typedef std::unordered_multimap<char, std::string>::iterator Iterator;
 public:
     Subfields() {}
-
-    Subfields(const Subfields &rhs)
-        : indicator1_(rhs.indicator1_), indicator2_(rhs.indicator2_),
-          subfield_code_to_data_map_(rhs.subfield_code_to_data_map_) { }
-
     Subfields(const char indicator1, const char indicator2): indicator1_(indicator1), indicator2_(indicator2) {}
 
     /** \brief Parses a binary MARC-21 field. */
