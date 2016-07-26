@@ -104,3 +104,11 @@ void Leader::setBaseAddressOfData(const unsigned new_base_address_of_data) {
                   + raw_leader_.substr(17);
 }
 
+
+Leader::RecordType Leader::getRecordType() const {
+    if (raw_leader_[6] == 'z')
+        return AUTHORITY;
+    if (raw_leader_[6] == 'w')
+        return CLASSIFICATION;
+    return std::strchr("acdefgijkmoprt", raw_leader_[6]) == nullptr ? UNKNOWN : BIBLIOGRAPHIC;
+}
