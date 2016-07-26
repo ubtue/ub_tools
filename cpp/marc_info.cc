@@ -45,7 +45,7 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0);
     std::unordered_set<std::string> control_numbers;
-    std::map<MarcUtil::Record::RecordType, unsigned> record_types_and_counts;
+    std::map<Leader::RecordType, unsigned> record_types_and_counts;
 
     while (const MarcUtil::Record record =
            input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
@@ -57,9 +57,9 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
           Error("record #" + std::to_string(record_count) + " has zero fields!");
         const std::string &control_number(fields[0]);
 
-        const MarcUtil::Record::RecordType record_type(record.getRecordType());
+        const Leader::RecordType record_type(record.getRecordType());
         ++record_types_and_counts[record_type];
-        if (verbose and record_type == MarcUtil::Record::UNKNOWN)
+        if (verbose and record_type == Leader::RecordType::UNKNOWN)
             std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number << ".\n";
 
         std::string err_msg;
@@ -85,10 +85,10 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
     std::cout << "Largest record contains " << max_record_length << " bytes.\n";
     std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count
               << " local blocks.\n";
-    std::cout << "Counted " << record_types_and_counts[MarcUtil::Record::BIBLIOGRAPHIC]
-              << " bibliographic record(s), " << record_types_and_counts[MarcUtil::Record::AUTHORITY]
-              << " classification record(s), " << record_types_and_counts[MarcUtil::Record::CLASSIFICATION]
-              << " authority record(s), and " << record_types_and_counts[MarcUtil::Record::UNKNOWN]
+    std::cout << "Counted " << record_types_and_counts[Leader::RecordType::BIBLIOGRAPHIC]
+              << " bibliographic record(s), " << record_types_and_counts[Leader::RecordType::AUTHORITY]
+              << " classification record(s), " << record_types_and_counts[Leader::RecordType::CLASSIFICATION]
+              << " authority record(s), and " << record_types_and_counts[Leader::RecordType::UNKNOWN]
               << " record(s) of unknown record type.\n";
 }
 

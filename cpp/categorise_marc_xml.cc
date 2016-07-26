@@ -34,16 +34,16 @@ void Usage() {
 void Categorise(File * const input) {
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
         switch (record.getRecordType()) {
-        case MarcUtil::Record::AUTHORITY:
+        case Leader::RecordType::AUTHORITY:
             std::cout << "AUTHORITY\n";
             break;
-        case MarcUtil::Record::BIBLIOGRAPHIC:
+        case Leader::RecordType::BIBLIOGRAPHIC:
             std::cout << "BIBLIOGRAPHIC\n";
             break;
-        case MarcUtil::Record::CLASSIFICATION:
+        case Leader::RecordType::CLASSIFICATION:
             std::cout << "CLASSIFICATION\n";
             break;
-        case MarcUtil::Record::UNKNOWN:
+        case Leader::RecordType::UNKNOWN:
             std::cout << "UNKNOWN\n";
             break;
         }

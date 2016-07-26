@@ -103,20 +103,6 @@ static bool ReadFields(const std::string &raw_fields, const std::vector<Director
 namespace MarcUtil {
 
 
-Record::RecordType Record::getRecordType() const {
-    switch (leader_.getRecordType()) {
-    case Leader::AUTHORITY:
-        return AUTHORITY;
-    case Leader::BIBLIOGRAPHIC:
-        return BIBLIOGRAPHIC;
-    case Leader::CLASSIFICATION:
-        return CLASSIFICATION;
-    case Leader::UNKNOWN:
-        return UNKNOWN;
-    }
-}
-
-
 bool Record::recordSeemsCorrect(std::string * const err_msg) const {
     if (raw_record_is_out_of_date_)
         UpdateRawRecord();
