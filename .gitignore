@@ -27,6 +27,7 @@ auto_temp_file_test
 backtrace_test
 bib_ref_parser_test
 bib_ref_to_codes_tool
+categorise_marc_xml
 chop_into_words_test
 compress_test
 control_number_filter
