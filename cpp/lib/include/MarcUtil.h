@@ -45,7 +45,7 @@ class Record {
     mutable off_t xml_file_start_offset_;
     mutable bool record_will_be_written_as_xml_;
 public:
-    enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC };
+    enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
 private:
     Record() = default;
     Record(Leader &leader, std::vector<DirectoryEntry> &dir_entries, std::vector<std::string> &fields,

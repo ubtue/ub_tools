@@ -40,6 +40,9 @@ void Categorise(File * const input) {
         case MarcUtil::Record::BIBLIOGRAPHIC:
             std::cout << "BIBLIOGRAPHIC\n";
             break;
+        case MarcUtil::Record::CLASSIFICATION:
+            std::cout << "CLASSIFICATION\n";
+            break;
         case MarcUtil::Record::UNKNOWN:
             std::cout << "UNKNOWN\n";
             break;
