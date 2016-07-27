@@ -8,7 +8,6 @@ CCCFLAGS_AMD64  = $(subst -march=native,,$(CCCFLAGS))
 CCC             = clang++
 OBJ             = .
 MAKE_DEPS=iViaCore-mkdep
-MAKE_DEPS_FLAGS =
 
 ifneq ("$(wildcard /etc/centos-release)","")
   LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
@@ -48,7 +47,7 @@ marc_filter_amd64: marc_filter_amd64.o lib/libubtue_amd64.a
 
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile
-	$(MAKE_DEPS) $(MAKE_DEPS_FLAGS) -I $(INC) *.cc
+	$(MAKE_DEPS) -I $(INC) *.cc
 
 lib/libubtue.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
 	$(MAKE) -C lib
