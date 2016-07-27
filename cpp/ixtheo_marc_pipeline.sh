@@ -41,9 +41,9 @@ rm -f "${log}"
 
 StartPhase "Convert MARC-21 to MARC-XML"
 marc_grep GesamtTiteldaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
-    > GesamtTiteldaten-post-phase"$P"-"${date}".xml 2>> "${log}"
+    > GesamtTiteldaten"${date}".xml 2>> "${log}"
 marc_grep Normdaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
-     > Normdaten-post-phase"$P"-"${date}".xml 2>> "${log}"
+     > Normdaten-"${date}".xml 2>> "${log}"
 EndPhase
 
 
@@ -68,7 +68,7 @@ EndPhase
 
 StartPhase "Extract Translation Keywords"
 extract_keywords_for_translation GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-                                 Normdaten-post-phase0-"${date}".xml >> "${log}" 2>&1
+                                 Normdaten-"${date}".xml >> "${log}" 2>&1
 extract_vufind_translations_for_translation \
     $(ls "$VUFIND_HOME"/local/languages/??.ini | grep 'de.ini$') \
     $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1
@@ -84,7 +84,7 @@ EndPhase
 
 
 StartPhase "Add Author Synonyms from Authority Data"
-add_author_synonyms GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml Normdaten-post-phase0-"${date}".xml \
+add_author_synonyms GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml Normdaten-"${date}".xml \
                     GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 EndPhase
 
@@ -104,7 +104,7 @@ EndPhase
 
 StartPhase "Augment Bible References"
 augment_bible_references GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-                         Normdaten-post-phase0-"${date}".xml \
+                         Normdaten-"${date}".xml \
                          GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
 cp pericopes_to_codes.map /var/lib/tuelib/bibleRef/
 EndPhase
@@ -133,16 +133,15 @@ EndPhase
 
 
 StartPhase "Extract Normdata Translations"
-extract_normdata_translations Normdaten-post-phase0-"${date}".xml \
+extract_normdata_translations Normdaten-"${date}".xml \
      normdata_translations.txt >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Cleanup of Intermediate Files"
-for p in $(seq 0 "$((P-1))"); do
+for p in $(seq "$((P-1))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.xml
 done
-rm -r Normdaten-post-phase0-??????.xml
 rm -f child_refs child_titles parent_refs
 EndPhase
 
