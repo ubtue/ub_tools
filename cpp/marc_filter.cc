@@ -212,7 +212,7 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
                 xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
                 ++modified_count;
             }
-        } else if (operation_type == OperationType::DROP) {
+        } else if (operation_type == OperationType::DROP or operation_type == OperationType::REMOVE_FIELDS) {
             xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
             ++kept_count;
         }
