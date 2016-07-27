@@ -204,13 +204,19 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
                                                           books_of_the_bible_to_code_map_filename));
 
     if (generate_solr_query)
-            std::cout << (first_book_code + "00000") << '_' << (second_book_code + "99999") << '\n';
+        std::cout << (first_book_code
+                      + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '0'))
+                  << '_'
+                  << (second_book_code
+                      + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '9'))
+                  << '\n';
 
     std::exit(EXIT_SUCCESS);
 }
 
 
-void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query, std::string bible_reference_candidate,
+void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query,
+                              std::string bible_reference_candidate,
                               const std::string &bible_books_to_codes_map_filename,
                               const std::string &books_of_the_bible_to_canonical_form_map_filename)
 {
@@ -229,15 +235,24 @@ void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query
         std::cerr << "book code = \"" << book_code << "\"\n";
     if (chapters_and_verses_candidate.empty()) {
         if (generate_solr_query)
-            std::cout << (book_code + "00000") << '_' << (book_code + "99999") << '\n';
+            std::cout << book_code
+                      << std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '0')
+                      << '_'
+                      << book_code
+                      << std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '9')
+                      << '\n';
         else
-            std::cout << book_code << "00000:" << book_code << "99999" << '\n';
+            std::cout << book_code
+                      << std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '0')
+                      << ':' << book_code
+                      << std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '9')
+                      << '\n';
 
         std::exit(EXIT_SUCCESS);
     }
 
     std::set<std::pair<std::string, std::string>> start_end;
-    if (not ParseBibleReference(chapters_and_verses_candidate, book_code, &start_end)) {
+    if (not BibleReferenceParser::ParseBibleReference(chapters_and_verses_candidate, book_code, &start_end)) {
         if (verbose)
             std::cerr << "The parsing of \"" << chapters_and_verses_candidate
                       << "\" as chapters and verses failed!\n";
