@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015, 2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include "Compiler.h"
 #include "DirectoryEntry.h"
+#include "FileUtil.h"
 #include "Leader.h"
 #include "MarcQueryParser.h"
 #include "MarcUtil.h"
@@ -369,16 +370,14 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
 void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const std::string &input_filename,
                const QueryDescriptor &query_desc, const OutputLabel output_format)
 {
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
+
     const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
     if (unlikely(media_type.empty()))
         Error("can't determine media type of \"" + input_filename + "\"!");
     if (media_type != "application/xml" and media_type != "application/marc")
         Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
     const bool input_is_xml(media_type == "application/xml");
-
-    File input(input_filename, input_is_xml ? "rm" : "rbm");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
 
     File output(STDOUT_FILENO);
     std::string err_msg;
@@ -393,7 +392,8 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
                              std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     }
 
-    while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(&input) : MarcUtil::Record::BinaryFactory(&input))
+    while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(input.get())
+                                                  : MarcUtil::Record::BinaryFactory(input.get()))
     {
         if (output_format == MARC_XML)
             record.setRecordWillBeWrittenAsXml(true);
