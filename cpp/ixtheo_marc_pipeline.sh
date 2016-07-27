@@ -13,6 +13,16 @@ if [[ ! "$1" =~ GesamtTiteldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
 fi
 
 
+# Determines the embedded date of the files we're processing:
+date=$(echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1)
+
+
+if [[ "$2" != "Normdaten-${date}.mrc" ]]; then
+    echo "Authority data file must be named \"$2\"\ to match the bibliographic file name!"
+    exit 1
+fi
+
+
 function StartPhase {
     if [ -z ${P+x} ]; then
         P=0
@@ -29,9 +39,6 @@ function EndPhase {
     echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 }
 
-
-# Determines the embedded date of the files we're processing:
-date=$(echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1)
 
 # Sets up the log file:
 logdir=/var/log/ixtheo
