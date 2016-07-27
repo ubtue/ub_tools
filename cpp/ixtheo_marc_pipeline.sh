@@ -48,15 +48,15 @@ rm -f "${log}"
 
 StartPhase "Convert MARC-21 to MARC-XML"
 marc_grep GesamtTiteldaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
-    > GesamtTiteldaten"${date}".xml 2>> "${log}"
+    > GesamtTiteldaten-"${date}".xml 2>> "${log}"
 marc_grep Normdaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
      > Normdaten-"${date}".xml 2>> "${log}"
 EndPhase
 
 
 StartPhase "Filter out Local Data of Other Institutions"
-delete_unused_local_data GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-                         GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+delete_unused_local_data GesamtTiteldaten-"${date}".xml \
+                         GesamtTiteldaten-post-phase-"$P"-"${date}".xml \
                          >> "${log}" 2>&1
 EndPhase
 
