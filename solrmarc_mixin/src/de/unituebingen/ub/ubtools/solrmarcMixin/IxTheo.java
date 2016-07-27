@@ -402,8 +402,7 @@ public class IxTheo extends SolrIndexerMixin {
         final List<VariableField> _655Fields = record.getVariableFields("655");
         for (final VariableField _655Field : _655Fields) {
             final DataField dataField = (DataField) _655Field;
-            if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
-                    && dataField.getSubfield('a').getData().startsWith("Rezension")) {
+            if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7' && dataField.getSubfield('a').getData().startsWith("Rezension")) {
                 formats.remove("Article");
                 formats.add("Review");
                 break;
@@ -430,6 +429,22 @@ public class IxTheo extends SolrIndexerMixin {
                 formats.add("Festschrift");
                 break;
             }
+        }
+
+        // Determine whether record is a Website, i.e. has "website" in 935$c
+        for (final VariableField _935Field : _935Fields) {
+            final DataField dataField = (DataField) _935Field;
+            List<Subfield> subfields = dataField.getSubfields();
+            boolean foundMatch = false;
+            for (Subfield subfield : subfields) {
+                if (subfield.getCode() == 'c' && subfield.getData().contains("website")) {
+                    formats.add("Website");
+                    foundMatch = true;
+                    break;
+                }
+            }
+            if (foundMatch == true)
+                break;
         }
 
         // Rewrite all E-Books as electronic Books
@@ -538,13 +553,26 @@ public class IxTheo extends SolrIndexerMixin {
     public Set<String> translateTopics(Set<String> topics, String langShortcut) {
         if (langShortcut.equals("de"))
             return topics;
-
         Set<String> translated_topics = new HashSet<String>();
         Map<String, String> translation_map = getTranslationMap(langShortcut);
 
         for (String topic : topics) {
-            topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
-            translated_topics.add(topic);
+            // Some ordinary topics contain words with an escaped slash as a
+            // separator
+            // See whether we can translate the single parts
+            if (topic.contains("\\/")) {
+                String[] subtopics = topic.split("\\/");
+                int i = 0;
+                for (String subtopic : subtopics) {
+                    subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
+                    ++i;
+                }
+                translated_topics.add(Utils.join(new HashSet(Arrays.asList(subtopics)), "\\/"));
+
+            } else {
+                topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+                translated_topics.add(topic);
+            }
         }
 
         return translated_topics;
@@ -559,7 +587,41 @@ public class IxTheo extends SolrIndexerMixin {
             return topic;
 
         Map<String, String> translation_map = getTranslationMap(langShortcut);
-        return (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+        String NUMBER_END_PATTERN = "([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)";
+        Matcher numberEndMatcher = Pattern.compile(NUMBER_END_PATTERN).matcher(topic);
+
+        // Some terms contain slash separated subterms, see whether we can
+        // translate them
+        if (topic.contains("\\/")) {
+            String[] subtopics = topic.split("\\\\/");
+            int i = 0;
+            for (String subtopic : subtopics) {
+                subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
+                ++i;
+            }
+            topic = Utils.join(new HashSet(Arrays.asList(subtopics)), "/");
+        }
+        // If we have a topic and a following number, try to separate the word and join it afterwards
+        // This is especially important for time informations where we provide special treatment
+        else if (numberEndMatcher.find()) {
+            String topicText = numberEndMatcher.group(1);
+            String numberExtension = numberEndMatcher.group(2);
+            if (topicText.equals("Geschichte")) {
+                switch (langShortcut) {
+                case "en":
+                    topic = "History" + numberExtension;
+                    break;
+                case "fr":
+                    topic = "Histoire" + numberExtension;
+                    break;
+                }
+            } else {
+                topic = translation_map.get(topicText) != null ? translation_map.get(topicText) + numberExtension : topic;
+            }
+        } else {
+            topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+        }
+        return topic;
     }
 
     /**
@@ -570,18 +632,15 @@ public class IxTheo extends SolrIndexerMixin {
      * @return format of record
      */
 
-    public Set<String> getTopics(final Record record, String fieldSpec, String separator, String langShortcut)
-            throws FileNotFoundException {
+    public Set<String> getTopics(final Record record, String fieldSpec, String separator, String langShortcut) throws FileNotFoundException {
 
         final Set<String> topics = new HashSet<String>();
         // It seems to be a general rule that in the fields that the $p fields
         // are converted to a '.'
         // $n is converted to a space if there is additional information
         Map<String, String> separators = parseTopicSeparators(separator);
-        getTopicsCollector(record, fieldSpec, separators, topics);
-
-        // Extract all translations that will be included
-        return translateTopics(topics, langShortcut);
+        getTopicsCollector(record, fieldSpec, separators, topics, langShortcut);
+        return topics;
     }
 
     /**
@@ -601,13 +660,11 @@ public class IxTheo extends SolrIndexerMixin {
         final String subfieldDelim = "$";
         final String esc = "\\";
         final String regexColon = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(fieldDelim);
-
         String[] subfieldSeparatorList = separatorSpec.split(regexColon);
         for (String s : subfieldSeparatorList) {
             // System.out.println("separator Spec: " + s);
             // Create map of subfields and separators
-            final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim)
-                    + "([a-zA-Z])(.*)";
+            final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim) + "([a-zA-Z])(.*)";
             Matcher subfieldMatcher = Pattern.compile(regexSubfield).matcher(s);
 
             // Extract the subfield
@@ -636,8 +693,7 @@ public class IxTheo extends SolrIndexerMixin {
     public String getSubfieldBasedSeparator(Map<String, String> separators, char subfieldCodeChar) {
 
         String subfieldCodeString = Character.toString(subfieldCodeChar);
-        String separator = separators.get(subfieldCodeString) != null ? separators.get(subfieldCodeString)
-                : separators.get("default");
+        String separator = separators.get(subfieldCodeString) != null ? separators.get(subfieldCodeString) : separators.get("default");
 
         return separator;
 
@@ -664,8 +720,7 @@ public class IxTheo extends SolrIndexerMixin {
      * characters without ":" and "$" | empty_string
      */
 
-    public void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
-            Collection<String> collector) {
+    public void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators, Collection<String> collector, String langShortcut) {
 
         String[] fldTags = fieldSpec.split(":");
         String fldTag;
@@ -709,23 +764,41 @@ public class IxTheo extends SolrIndexerMixin {
                         // Iterate over all given subfield codes
                         Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
                         List<Subfield> subfields = marcField.getSubfields();
-                        for (Subfield subfield : subfields) {
-                            // Skip numeric fields
-                            if (Character.isDigit(subfield.getCode()))
-                                continue;
-                            Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                            if (matcher.matches()) {
-                                if (buffer.length() > 0) {
-                                    String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                                    if (separator != null) {
-                                        buffer.append(separator);
-                                    }
-                                }
-                                buffer.append(subfield.getData().trim());
+                        // Case 1: The separator specification is empty thus we
+                        // add the subfields individually
+                        if (separators.get("default").equals("")) {
+                            for (Subfield subfield : subfields) {
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                String term = subfield.getData().trim();
+                                if (term.length() > 0)
+                                    // Escape slashes in single topics since
+                                    // they interfere with KWCs
+                                    collector.add(translateTopic(Utils.cleanData(term.replace("/", "\\/")), langShortcut));
                             }
                         }
-                        if (buffer.length() > 0)
-                            collector.add(Utils.cleanData(buffer.toString()));
+                        // Case 2: Generate a complex string using the
+                        // separators
+                        else {
+                            for (Subfield subfield : subfields) {
+                                // Skip numeric fields
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                                if (matcher.matches()) {
+                                    if (buffer.length() > 0) {
+                                        String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
+                                        if (separator != null) {
+                                            buffer.append(separator);
+                                        }
+                                    }
+                                    String term = subfield.getData().trim();
+                                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
+                                }
+                            }
+                            if (buffer.length() > 0)
+                                collector.add(Utils.cleanData(buffer.toString()));
+                        }
                     }
                 }
             }
@@ -739,23 +812,39 @@ public class IxTheo extends SolrIndexerMixin {
                         DataField marcField = (DataField) vf;
                         StringBuffer buffer = new StringBuffer("");
                         List<Subfield> subfields = marcField.getSubfields();
-                        for (Subfield subfield : subfields) {
-                            // Skip numeric fields
-                            if (Character.isDigit(subfield.getCode()))
-                                continue;
-                            Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                            if (matcher.matches()) {
-                                if (buffer.length() > 0) {
-                                    String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                                    if (separator != null) {
-                                        buffer.append(separator);
-                                    }
-                                }
-                                buffer.append(subfield.getData().trim());
+                        // Case 1: The separator specification is empty thus we
+                        // add the subfields individually
+                        if (separators.get("default").equals("")) {
+                            for (Subfield subfield : subfields) {
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                String term = subfield.getData().trim();
+                                if (term.length() > 0)
+                                    collector.add(translateTopic(Utils.cleanData(term.replace("/", "\\/")), langShortcut));
                             }
                         }
-                        if (buffer.length() > 0)
-                            collector.add(Utils.cleanData(buffer.toString()));
+                        // Case 2: Generate a complex string using the
+                        // separators
+                        else {
+                            for (Subfield subfield : subfields) {
+                                // Skip numeric fields
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                                if (matcher.matches()) {
+                                    if (buffer.length() > 0) {
+                                        String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
+                                        if (separator != null) {
+                                            buffer.append(separator);
+                                        }
+                                    }
+                                    String term = subfield.getData().trim();
+                                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
+                                }
+                            }
+                            if (buffer.length() > 0)
+                                collector.add(Utils.cleanData(buffer.toString()));
+                        }
                     }
                 }
             }

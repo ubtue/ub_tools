@@ -29,7 +29,7 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.handler.component.*;
-
+import org.apache.commons.lang.LocaleUtils;
 import org.apache.commons.lang.*;
 
 import java.io.IOException;
@@ -58,7 +58,11 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
     private final static Pattern WHITE_SPACES_WITH_QUOTES_SPLITTING_PATTERN = Pattern
             .compile("((?<![\\\\])['\"]|\\\\\")((?:.(?!(?<![\\\\])\\1))*.?)\\1|([^\\s]+)");
 
-    private final static Comparator<Entry<Entry<String, Object>, Double>> ENTRY_COMPARATOR = new Comparator<Entry<Entry<String, Object>, Double>>() {
+    private final static Pattern LANG_CODE_TRANSFORMATION_PATTERN = Pattern.compile("([a-zA-Z]{2})(-)?([a-zA-Z]{2})?");
+
+    private Collator collator;
+
+    private final Comparator<Entry<Entry<String, Object>, Double>> ENTRY_COMPARATOR = new Comparator<Entry<Entry<String, Object>, Double>>() {
         public int compare(Entry<Entry<String, Object>, Double> e1, Entry<Entry<String, Object>, Double> e2) {
 
             // We would like to score according to the second element
@@ -67,14 +71,49 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
             if (compval != 0) {
                 return compval;
             } else {
-                // Make sure Umlauts are sorted correctly
-                Collator germanCollator = Collator.getInstance(Locale.GERMAN);
-                return germanCollator.compare(e1.getKey().getKey(), e2.getKey().getKey());
+                // Sort according to the chosen language
+                return collator.compare(e1.getKey().getKey(), e2.getKey().getKey());
             }
         }
     };
 
     private static final String PIVOT_KEY = "facet_pivot";
+
+    /**
+     * Choose the collator according to the selected language
+     */
+
+    private void setCollator(final String langCode) {
+
+        Locale locale = Locale.GERMAN;
+        String transformedLangCode = "";
+
+        // Rewrite lang parameter to required layout
+        Matcher m = LANG_CODE_TRANSFORMATION_PATTERN.matcher(langCode);
+        StringBuffer sb = new StringBuffer(langCode.length());
+        while (m.find()) {
+            if (m.group(1) != null)
+                sb.append(m.group(1).toLowerCase());
+
+            if (m.group(2) != null)
+                sb.append(m.group(2).equals("-") ? "_" : "");
+
+            if (m.group(3) != null)
+                sb.append(m.group(3).toUpperCase());
+
+            transformedLangCode = sb.toString();
+        }
+
+        try {
+            locale = LocaleUtils.toLocale(transformedLangCode);
+        } catch (IllegalArgumentException e) {
+        }
+
+        if (LocaleUtils.isAvailableLocale(locale))
+            collator = Collator.getInstance(locale);
+        else
+            collator = Collator.getInstance(Locale.GERMAN);
+    };
 
     /**
      * Actually run the query
@@ -85,6 +124,7 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
             final ModifiableSolrParams params = new ModifiableSolrParams();
             final SolrParams origParams = rb.req.getParams();
             final Iterator<String> iter = origParams.getParameterNamesIterator();
+            setCollator(origParams.get("lang"));
             while (iter.hasNext()) {
                 final String paramName = iter.next();
                 // Deduplicate the list with LinkedHashSet, but _only_ for facet
@@ -97,14 +137,12 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
                 params.add(paramName, deDupe.toArray(new String[deDupe.size()]));
             }
 
-            final SimplePrefixSortFacets facets = new SimplePrefixSortFacets(rb.req, rb.getResults().docSet, params,
-                    rb);
-            final NamedList<Object> counts = FacetComponent.getFacetCounts(facets);
+            final SimplePrefixSortFacets facets = new SimplePrefixSortFacets(rb.req, rb.getResults().docSet, params, rb);
+            final NamedList<Object> counts = org.apache.solr.handler.component.FacetComponent.getFacetCounts(facets);
 
             final String[] pivots = params.getParams(FacetParams.FACET_PIVOT);
             if (pivots != null && pivots.length > 0) {
-                PivotFacetProcessor pivotProcessor = new PivotFacetProcessor(rb.req, rb.getResults().docSet, params,
-                        rb);
+                PivotFacetProcessor pivotProcessor = new PivotFacetProcessor(rb.req, rb.getResults().docSet, params, rb);
                 SimpleOrderedMap<List<NamedList<Object>>> v = pivotProcessor.process(pivots);
                 if (v != null) {
                     counts.add(PIVOT_KEY, v);
@@ -132,8 +170,10 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
                     }
                 }
 
-                // In some contexts, i.e. in KWC that are derived from ordinary keywords or if
-                // wildcards occur, also add all the query terms as a single phrase term
+                // In some contexts, i.e. in KWC that are derived from ordinary
+                // keywords or if
+                // wildcards occur, also add all the query terms as a single
+                // phrase term
                 // with stripped wildcards
                 StringBuilder sb = new StringBuilder();
                 for (String s : queryTermsCollection) {
@@ -161,7 +201,7 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
 
                     // Split up each KWC and calculate the scoring
 
-                    ArrayList<String> facetList = new ArrayList<>(Arrays.asList(facetTerms.split("/")));
+                    ArrayList<String> facetList = new ArrayList<>(Arrays.asList(facetTerms.split("/|\\\\/")));
 
                     // For usability reasons sort the result facets according to
                     // the order of the search
@@ -169,11 +209,11 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
 
                     final double score = KeywordChainMetric.calculateSimilarityScore(queryList, facetList);
 
-                    // Collect the result in a sorted list and throw away garbage
+                    // Collect the result in a sorted list and throw away
+                    // garbage
                     if (score > 0) {
                         String facetTermsSorted = StringUtils.join(facetList, "/");
-                        Map.Entry<String, Object> sortedEntry = new AbstractMap.SimpleEntry<>(
-                                facetTermsSorted, entry.getValue());
+                        Map.Entry<String, Object> sortedEntry = new AbstractMap.SimpleEntry<>(facetTermsSorted, entry.getValue());
                         facetPrefixListScored.add(new AbstractMap.SimpleEntry<>(sortedEntry, score));
                     }
                 }
@@ -189,10 +229,8 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
                 // We had to disable all limits and offsets sort according
                 // Handle this accordingly now
 
-                int offset = (params.getInt(FacetParams.FACET_OFFSET) != null) ? params.getInt(FacetParams.FACET_OFFSET)
-                        : 0;
-                int limit = (params.getInt(FacetParams.FACET_LIMIT) != null) ? params.getInt(FacetParams.FACET_LIMIT)
-                        : 100;
+                int offset = (params.getInt(FacetParams.FACET_OFFSET) != null) ? params.getInt(FacetParams.FACET_OFFSET) : 0;
+                int limit = (params.getInt(FacetParams.FACET_LIMIT) != null) ? params.getInt(FacetParams.FACET_LIMIT) : 100;
 
                 // Strip uneeded elements
                 int s = facetPrefixListScored.size();
@@ -201,8 +239,7 @@ public class FacetPrefixSortComponent extends org.apache.solr.handler.component.
                 // param, i.e. unlimited results
                 int lim = (offset + limit <= s) ? (offset + limit) : s;
 
-                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScoredTruncated = facetPrefixListScored
-                        .subList(off, lim);
+                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScoredTruncated = facetPrefixListScored.subList(off, lim);
 
                 for (Entry<Entry<String, Object>, Double> e : facetPrefixListScoredTruncated) {
                     facetNamedListSorted.add(e.getKey().getKey(), e.getKey().getValue());

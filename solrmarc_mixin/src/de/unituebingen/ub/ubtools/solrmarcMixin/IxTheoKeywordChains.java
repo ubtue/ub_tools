@@ -25,21 +25,25 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         return concatenateKeyWordsToChains(keyWordChains);
     }
 
+    /**
+     * Create set version of the terms contained in the keyword chains
+     */
+
     public Set<String> getKeyWordChainBag(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
-        final Set<String> keyWordChainsBag = new HashSet<>();
+        final Map<Character, List<String>> keyWordChains = new HashMap<>();
+        final Set<String> keyWordChainBag = new HashSet<>();
 
         for (final VariableField variableField : variableFields) {
             final DataField dataField = (DataField) variableField;
-            final List<Subfield> subfields = dataField.getSubfields('a');
-            for (final Subfield subfield : subfields) {
-                final String subfield_data = subfield.getData();
-                if (subfield_data.length() > 1) {
-                    keyWordChainsBag.add(subfield_data);
-                }
-            }
+            processField(dataField, keyWordChains, lang);
         }
-        return keyWordChainsBag;
+
+        for (List<String> keyWordChain : keyWordChains.values()) {
+            keyWordChainBag.addAll(keyWordChain);
+        }
+
+        return keyWordChainBag;
     }
 
     public Set<String> getKeyWordChainSorted(final Record record, final String fieldSpec, final String lang) {
@@ -62,8 +66,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
      * Extracts the keyword from data field and inserts it into the right
      * keyword chain.
      */
-    private void processField(final DataField dataField, final Map<Character, List<String>> keyWordChains,
-            String lang) {
+    private void processField(final DataField dataField, final Map<Character, List<String>> keyWordChains, String lang) {
         final char chainID = dataField.getIndicator1();
         final List<String> keyWordChain = getKeyWordChain(keyWordChains, chainID);
 
@@ -79,10 +82,11 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                             keyword.append(", ");
                         }
                     }
-                    keyword.append(subfield.getData());
+                    // keyword.append(subfield.getData());
+                    keyword.append(ixTheoObject.translateTopic(subfield.getData(), lang));
                 } else if (subfield.getCode() == '9' && keyword.length() > 0 && subfield.getData().startsWith("g:")) {
                     keyword.append(" (");
-                    keyword.append(subfield.getData().substring(2));
+                    keyword.append(ixTheoObject.translateTopic(subfield.getData().substring(2), lang));
                     keyword.append(')');
                 }
             } else if (subfield.getCode() == '2' && subfield.getData().equals("gnd"))
@@ -91,7 +95,6 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 
         if (keyword.length() > 0) {
             String keywordString = keyword.toString();
-            keywordString = ixTheoObject.translateTopic(keywordString, lang);
             keyWordChain.add(keywordString);
         }
     }
