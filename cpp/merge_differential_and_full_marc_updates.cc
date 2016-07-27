@@ -469,7 +469,7 @@ bool GetMatchingFilename(const std::string &regex, std::string * const pathname)
 
 
 void GetBasenamesOrDie(std::string * const title_marc_basename, std::string * const superior_marc_basename,
-                       std::string * const normdata_marc_basename, const std::string &suffix = "")
+                       std::string * const authority_marc_basename, const std::string &suffix = "")
 {
     if (unlikely(not GetMatchingFilename("a001.raw" + suffix + "$", title_marc_basename)))
         LogSendEmailAndDie("did not find precisely one file matching \"a001.raw" + suffix + "$\"!");
@@ -477,7 +477,7 @@ void GetBasenamesOrDie(std::string * const title_marc_basename, std::string * co
     if (unlikely(not GetMatchingFilename("b001.raw" + suffix + "$", superior_marc_basename)))
         LogSendEmailAndDie("did not find precisely one file matching \"b001.raw" + suffix + "$\"!");
 
-    if (unlikely(not GetMatchingFilename("c001.raw" + suffix + "$", normdata_marc_basename)))
+    if (unlikely(not GetMatchingFilename("c001.raw" + suffix + "$", authority_marc_basename)))
         LogSendEmailAndDie("did not find precisely one file matching \"c001.raw" + suffix + "$\"!");
 }
 
@@ -559,16 +559,18 @@ void AppendMarcXMLOrDie(const std::string &source_filename, const std::string &t
 
 
 const std::string DOWNLOAD_ERROR_RECORDS_SCRIPT("/usr/local/bin/download_error_records.sh");
-const std::string ERROR_RECORDS("error_records.xml");
+const std::string BIBLIO_ERROR_RECORDS("biblio_error_records.xml");
+const std::string AUTH_ERROR_RECORDS("auth_error_records.xml");
 
 
 void DownloadErrorRecordsOrDie(const std::string &errors_list_filename) {
     if (errors_list_filename.empty())
         return;
 
-    if (unlikely(ExecUtil::Exec(DOWNLOAD_ERROR_RECORDS_SCRIPT, { errors_list_filename, ERROR_RECORDS }) != 0))
+    if (unlikely(ExecUtil::Exec(DOWNLOAD_ERROR_RECORDS_SCRIPT,
+                                { errors_list_filename, BIBLIO_ERROR_RECORDS, AUTH_ERROR_RECORDS }) != 0))
         LogSendEmailAndDie("\"" + DOWNLOAD_ERROR_RECORDS_SCRIPT + "\" with arguments \"" + errors_list_filename
-                           + "\" and \"" + ERROR_RECORDS + "\" failed!");
+                           + "\", \"" + BIBLIO_ERROR_RECORDS +"\" and \"" + AUTH_ERROR_RECORDS + "\" failed!");
 }
 
 
@@ -603,8 +605,8 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     IfNotExistsMakeEmptyOrDie(LOCAL_DELETION_LIST_FILENAME);
 
     const std::string old_name_suffix("." + std::to_string(apply_count - 1));
-    std::string title_marc_basename, superior_marc_basename, normdata_marc_basename;
-    GetBasenamesOrDie(&title_marc_basename, &superior_marc_basename, &normdata_marc_basename, old_name_suffix);
+    std::string title_marc_basename, superior_marc_basename, authority_marc_basename;
+    GetBasenamesOrDie(&title_marc_basename, &superior_marc_basename, &authority_marc_basename, old_name_suffix);
 
     const std::string new_name_suffix("." + std::to_string(apply_count));
     std::string diff_filename;
@@ -616,9 +618,9 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
                    + differential_archive + "\"!");
     const std::string new_title_marc_filename(ReplaceSuffix(title_marc_basename, old_name_suffix, new_name_suffix));
     UpdateOneFile(title_marc_basename, new_title_marc_filename, diff_filename);
-    if (FileUtil::Exists(ERROR_RECORDS)) {
-        AppendMarcXMLOrDie(ERROR_RECORDS, new_title_marc_filename);
-        Log("Appended \"" + ERROR_RECORDS + "\" to \"" + new_title_marc_filename + "\".");
+    if (FileUtil::Exists(BIBLIO_ERROR_RECORDS)) {
+        AppendMarcXMLOrDie(BIBLIO_ERROR_RECORDS, new_title_marc_filename);
+        Log("Appended \"" + BIBLIO_ERROR_RECORDS + "\" to \"" + new_title_marc_filename + "\".");
     }
 
     // Update the superior data:
@@ -629,23 +631,30 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     UpdateOneFile(superior_marc_basename, ReplaceSuffix(superior_marc_basename, old_name_suffix, new_name_suffix),
                   diff_filename);
 
-    // Update the norm data:
+    // Update the authority data:
     diff_filename_pattern = "diff_.*c001.raw";
     if (not differential_archive.empty() and not GetMatchingFilename(diff_filename_pattern, &diff_filename))
         LogWarning("found no match for \"" + diff_filename_pattern + "\" which might match a file extracted from \""
                    + differential_archive + "\"!");
-    UpdateOneFile(normdata_marc_basename, ReplaceSuffix(normdata_marc_basename, old_name_suffix, new_name_suffix),
-                  diff_filename);
+    const std::string new_authority_data_marc_filename(ReplaceSuffix(authority_marc_basename, old_name_suffix,
+                                                               new_name_suffix));
+    UpdateOneFile(authority_marc_basename, new_authority_data_marc_filename, diff_filename);
+    if (FileUtil::Exists(AUTH_ERROR_RECORDS)) {
+        AppendMarcXMLOrDie(AUTH_ERROR_RECORDS, new_authority_data_marc_filename);
+        Log("Appended \"" + AUTH_ERROR_RECORDS + "\" to \"" + new_authority_data_marc_filename + "\".");
+    }
 
     if (not differential_archive.empty())
         DeleteFilesOrDie("diff_.*");
 
     DeleteFileOrDie(title_marc_basename);
     DeleteFileOrDie(superior_marc_basename);
-    DeleteFileOrDie(normdata_marc_basename);
+    DeleteFileOrDie(authority_marc_basename);
     DeleteFileOrDie(LOCAL_DELETION_LIST_FILENAME);
-    if (FileUtil::Exists(ERROR_RECORDS))
-        DeleteFileOrDie(ERROR_RECORDS);
+    if (FileUtil::Exists(BIBLIO_ERROR_RECORDS))
+        DeleteFileOrDie(BIBLIO_ERROR_RECORDS);
+    if (FileUtil::Exists(AUTH_ERROR_RECORDS))
+        DeleteFileOrDie(AUTH_ERROR_RECORDS);
 }
 
 

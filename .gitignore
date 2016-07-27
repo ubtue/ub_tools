@@ -16,7 +16,7 @@ add_author_synonyms
 add_child_refs
 add_isbns_or_issns_to_articles
 add_journal_subscription
-add_superior_flag
+add_superior_and_alertable_flags
 add_title_keywords
 append_marc_xml
 archive_reader_test
@@ -27,6 +27,7 @@ auto_temp_file_test
 backtrace_test
 bib_ref_parser_test
 bib_ref_to_codes_tool
+categorise_marc_xml
 chop_into_words_test
 compress_test
 control_number_filter
