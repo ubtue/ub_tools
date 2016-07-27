@@ -6,8 +6,9 @@ CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wsha
                   -I/usr/include/libxml2
 CCCFLAGS_AMD64  = $(subst -march=native,,$(CCCFLAGS))
 CCC             = clang++
+OBJ             = .
 MAKE_DEPS=iViaCore-mkdep
-MAKE_DEPS_FLAGS = --output-program-rules
+MAKE_DEPS_FLAGS =
 
 ifneq ("$(wildcard /etc/centos-release)","")
   LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
