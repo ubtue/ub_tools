@@ -41,7 +41,7 @@ class Tokenizer {
     std::string last_string_constant_;
     unsigned last_unsigned_constant_;
 public:
-    explicit Tokenizer(const std::string input)
+    explicit Tokenizer(const std::string &input)
         : input_(input), ch_(input_.begin()), end_(input_.end()), token_has_been_pushed_back_(false) { }
     TokenType getToken();
     void ungetToken();
