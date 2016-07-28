@@ -61,23 +61,11 @@ public class BibleRange extends Range {
     public static BibleRange[] removeBooks(BibleRange[] ranges) {
         List<BibleRange> filteredRanges = new ArrayList<>(ranges.length);
         for (final BibleRange range : ranges) {
-            if (!range.isBook()) {
+            if (!range.isEntireBook()) {
                 filteredRanges.add(range);
             }
         }
         return filteredRanges.toArray(new BibleRange[filteredRanges.size()]);
-    }
-
-    public boolean isVerse() {
-        return !isChapter();
-    }
-
-    public boolean isChapter() {
-        return (getLower() % VERSE_MASK) == 0 && (getUpper() % VERSE_MASK) == MAX_VERSE_CODE && !isBook();
-    }
-
-    public boolean isBook() {
-        return (getLower() % CHAPTER_MASK) == 0 && (getUpper() % CHAPTER_MASK) == MAX_CHAPTER_CODE;
     }
 
     private static int tenToThePowerOf(int exp) {
@@ -86,5 +74,9 @@ public class BibleRange extends Range {
             base *= 10;
         }
         return base;
+    }
+
+    public boolean isEntireBook() {
+        return (getLower() % CHAPTER_MASK) == 0 && (getUpper() % CHAPTER_MASK) == MAX_CHAPTER_CODE;
     }
 }
