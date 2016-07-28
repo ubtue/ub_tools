@@ -10,20 +10,20 @@ public class BibleRange extends Range {
     private final static int CHAPTER_LENGTH = 3;
     private final static int BOOK_LENGTH = 2;
 
-    private final static int VERSE_MASK = (int) (Math.pow(10, VERSE_LENGTH));
-    private final static int CHAPTER_MASK = (int) (Math.pow(10, VERSE_LENGTH + CHAPTER_LENGTH));
-    private final static int BOOK_MASK = (int) (Math.pow(10, VERSE_LENGTH + CHAPTER_LENGTH + BOOK_LENGTH + 1));
+    private final static int VERSE_MASK = tenToThePowerOf(VERSE_LENGTH);
+    private final static int CHAPTER_MASK = tenToThePowerOf(VERSE_LENGTH + CHAPTER_LENGTH);
+    private final static int BOOK_MASK = tenToThePowerOf(VERSE_LENGTH + CHAPTER_LENGTH + BOOK_LENGTH);
 
     private final static int MAX_VERSE_CODE = VERSE_MASK - 1;
     private final static int MAX_CHAPTER_CODE = CHAPTER_MASK - 1;
     private final static int MAX_BOOK_CODE = BOOK_MASK - 1;
 
-    private final static int BOOK_CODE_LENGTH = VERSE_LENGTH + CHAPTER_LENGTH + BOOK_LENGTH;
+    private final static int BIBLE_CODE_LENGTH = VERSE_LENGTH + CHAPTER_LENGTH + BOOK_LENGTH;
 
-    private final static int LOWER_BOOK_CODE_START = 0;
-    private final static int UPPER_BOOK_CODE_START = LOWER_BOOK_CODE_START + BOOK_CODE_LENGTH + 1;
+    private final static int LOWER_BIBLE_CODE_START = 0;
+    private final static int UPPER_BIBLE_CODE_START = LOWER_BIBLE_CODE_START + BIBLE_CODE_LENGTH + 1;
 
-    private final static int RANGE_STRING_LENGTH = BOOK_CODE_LENGTH + 1 + BOOK_CODE_LENGTH;
+    private final static int RANGE_STRING_LENGTH = BIBLE_CODE_LENGTH + 1 + BIBLE_CODE_LENGTH;
 
     public BibleRange(final String range) {
         super(getLower(range), getUpper(range));
@@ -31,7 +31,7 @@ public class BibleRange extends Range {
 
     private static int getLower(final String range) {
         if (range.length() == RANGE_STRING_LENGTH) {
-            return Integer.valueOf(range.substring(LOWER_BOOK_CODE_START, LOWER_BOOK_CODE_START + BOOK_CODE_LENGTH));
+            return Integer.valueOf(range.substring(LOWER_BIBLE_CODE_START, LOWER_BIBLE_CODE_START + BIBLE_CODE_LENGTH));
         } else {
             return 0;
         }
@@ -39,7 +39,7 @@ public class BibleRange extends Range {
 
     private static int getUpper(final String range) {
         if (range.length() == RANGE_STRING_LENGTH) {
-            return Integer.valueOf(range.substring(UPPER_BOOK_CODE_START, UPPER_BOOK_CODE_START + BOOK_CODE_LENGTH));
+            return Integer.valueOf(range.substring(UPPER_BIBLE_CODE_START, UPPER_BIBLE_CODE_START + BIBLE_CODE_LENGTH));
         } else {
             return MAX_BOOK_CODE;
         }
@@ -78,5 +78,13 @@ public class BibleRange extends Range {
 
     public boolean isBook() {
         return (getLower() % CHAPTER_MASK) == 0 && (getUpper() % CHAPTER_MASK) == MAX_CHAPTER_CODE;
+    }
+
+    private static int tenToThePowerOf(int exp) {
+        int base = 10;
+        for (; exp > 0; --exp) {
+            base *= 10;
+        }
+        return base;
     }
 }
