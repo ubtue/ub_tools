@@ -327,8 +327,15 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
         }
 
         if (book_codes.size() > 1 or n_subfield_values.empty())
-            ranges->insert(std::make_pair(book_codes.front() + "00000", book_codes.back() + "99999"));
-        else if (not ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
+            ranges->insert(
+                std::make_pair(
+                    book_codes.front()
+                    + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '0'),
+                    book_codes.back()
+                    + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '9')
+                )
+            );
+        else if (not BibleReferenceParser::ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
             std::cerr << fields[0] << ": failed to parse bible references (1): "
                       << n_subfield_values.front() << '\n';
             continue;
