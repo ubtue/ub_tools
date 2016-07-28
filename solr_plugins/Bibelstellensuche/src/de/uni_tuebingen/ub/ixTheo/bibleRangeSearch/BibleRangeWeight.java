@@ -31,7 +31,7 @@ public class BibleRangeWeight extends ConstantScoreWeight {
         this.weight = weight;
         boolean isSearchingForBooks = false;
         for (final BibleRange range : ranges) {
-            isSearchingForBooks |= range.isBook();
+            isSearchingForBooks |= range.isEntireBook();
         }
         this.isSearchingForBooks = isSearchingForBooks;
     }

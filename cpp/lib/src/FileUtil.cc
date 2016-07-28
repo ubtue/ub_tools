@@ -32,7 +32,6 @@
 #include <unistd.h>
 #include "Compiler.h"
 #include "StringUtil.h"
-#include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -690,8 +689,7 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
 
 
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
-    const std::string mode(MediaTypeUtil::GetFileMediaType(filename) == "application/lz4" ? "ru" : "r");
-    std::unique_ptr<File> file(new File(filename, mode));
+    std::unique_ptr<File> file(new File(filename, "r"));
     if (file->fail())
         Error("can't open \"" + filename + "\" for reading!");
 
