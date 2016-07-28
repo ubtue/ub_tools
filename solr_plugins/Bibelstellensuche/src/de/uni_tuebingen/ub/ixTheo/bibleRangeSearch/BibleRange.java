@@ -10,11 +10,9 @@ public class BibleRange extends Range {
     private final static int CHAPTER_LENGTH = 3;
     private final static int BOOK_LENGTH = 2;
 
-    private final static int VERSE_MASK = tenToThePowerOf(VERSE_LENGTH);
     private final static int CHAPTER_MASK = tenToThePowerOf(VERSE_LENGTH + CHAPTER_LENGTH);
     private final static int BOOK_MASK = tenToThePowerOf(VERSE_LENGTH + CHAPTER_LENGTH + BOOK_LENGTH);
 
-    private final static int MAX_VERSE_CODE = VERSE_MASK - 1;
     private final static int MAX_CHAPTER_CODE = CHAPTER_MASK - 1;
     private final static int MAX_BOOK_CODE = BOOK_MASK - 1;
 
