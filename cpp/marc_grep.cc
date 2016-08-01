@@ -101,7 +101,7 @@ void LoadControlNumbers(const std::string &control_numbers_filename,
     while (not input->eof()) {
         std::string line;
         input->getline(&line);
-        StringUtil::Trim(&line);
+        StringUtil::TrimWhite(&line);
         if (not line.empty())
             control_numbers->insert(line);
     }
