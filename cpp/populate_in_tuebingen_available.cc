@@ -22,8 +22,10 @@
 */
 
 #include <iostream>
+#include <set>
 #include <cstdlib>
 #include "DirectoryEntry.h"
+#include "HtmlUtil.h"
 #include "Leader.h"
 #include "MarcUtil.h"
 #include "MarcXmlWriter.h"
@@ -43,11 +45,14 @@ static unsigned add_sig_count;
 
 
 bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer, std::string * const /*err_msg*/) {
+    record->setRecordWillBeWrittenAsXml(true);
+
     std::vector <std::pair<size_t, size_t>> local_block_boundaries;
     record->findAllLocalDataBlocks(&local_block_boundaries);
 
     bool modified_record(false);
     const std::vector<std::string> &fields(record->getFields());
+    std::set<std::string> alread_seen_urls;
     for (const auto &block_start_and_end : local_block_boundaries) {
         std::vector <size_t> _852_field_indices;
         if (record->findFieldsInLocalBlock("852", "??", block_start_and_end, &_852_field_indices) == 0)
@@ -55,11 +60,8 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
         for (const size_t _852_index : _852_field_indices) {
             const Subfields subfields1(fields[_852_index]);
             const std::string not_available_subfield(subfields1.getFirstSubfieldValue('z'));
-            if (not_available_subfield == "Kein Bestand am IfK; Nachweis für KrimDok") {
-                record->filterTags({"SIG"});
-                record->write(xml_writer);
-                return true;
-            }
+            if (not_available_subfield == "Kein Bestand am IfK; Nachweis für KrimDok")
+                continue;
 
             const std::string isil_subfield(subfields1.getFirstSubfieldValue('a'));
             if (isil_subfield != "DE-21" and isil_subfield != "DE-21-110")
@@ -93,6 +95,21 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
                     record->insertField("SIG",
                                         "  ""\x1F""a" + institution_and_call_number
                                         + (detailed_availability.empty() ? "" : "(" + detailed_availability + ")"));
+                } else { // Look for a URL.
+                    std::vector <size_t> _856_field_indices;
+                    if (record->findFieldsInLocalBlock("856", "4 ", block_start_and_end, &_856_field_indices) > 0) {
+                        const Subfields subfields3(fields[_856_field_indices.front()]);
+                        if (subfields3.hasSubfield('u')) {
+                            const std::string url(subfields3.getFirstSubfieldValue('u'));
+                            if (alread_seen_urls.find(url) == alread_seen_urls.cend()) {
+                                alread_seen_urls.insert(url);
+                                std::string anchor(HtmlUtil::HtmlEscape(subfields3.getFirstSubfieldValue('x')));
+                                if (anchor.empty())
+                                    anchor = "Tübingen Online Resource";
+                                record->insertField("SIG", "\x1F""a<a href=\"" + url + "\">" + anchor + "</a>");
+                            }
+                        }
+                    }
                 }
             }
             break;
