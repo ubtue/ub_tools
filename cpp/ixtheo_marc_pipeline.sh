@@ -24,13 +24,13 @@ fi
 
 
 function StartPhase {
-    if [ -z ${P+x} ]; then
-        P=0
+    if [ -z ${PHASE+x} ]; then
+        PHASE=0
     else
-        ((++P))
+        ((++PHASE))
     fi
     START=$(date +%s.%N)
-    echo "*** Phase $P: $1 - $(date) ***" | tee --append "${log}"
+    echo "*** Phase $PHASE: $1 - $(date) ***" | tee --append "${log}"
 }
 
 
@@ -56,25 +56,25 @@ EndPhase
 
 StartPhase "Filter out Local Data of Other Institutions"
 delete_unused_local_data GesamtTiteldaten-"${date}".xml \
-                         GesamtTiteldaten-post-phase-"$P"-"${date}".xml \
+                         GesamtTiteldaten-post-phase-"$PHASE"-"${date}".xml \
                          >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Filter out Records Containing mtex in 935\$a"
-marc_filter --drop GesamtTiteldaten-"${date}".xml GesamtTiteldaten-post-phase"$P"-"${date}".xml 935a:mtex \
+marc_filter --drop GesamtTiteldaten-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml 935a:mtex \
     >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Filter out Self-referential 856 Fields"
-marc_filter --remove-fields GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-    GesamtTiteldaten-post-phase"$P"-"${date}".xml '856u:ixtheo\.de' >> "${log}" 2>&1
+marc_filter --remove-fields GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml '856u:ixtheo\.de' >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Extract Translation Keywords"
-extract_keywords_for_translation GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
+extract_keywords_for_translation GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                  Normdaten-"${date}".xml >> "${log}" 2>&1
 extract_vufind_translations_for_translation \
     $(ls "$VUFIND_HOME"/local/languages/??.ini | grep 'de.ini$') \
@@ -83,58 +83,58 @@ EndPhase
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-create_superior_ppns.sh GesamtTiteldaten-post-phase"$((P-2))"-"${date}".xml >> "${log}" 2>&1
-add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((P-2))"-"${date}".xml \
-                                 GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".xml >> "${log}" 2>&1
+add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".xml \
+                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
                                  superior_ppns >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Add Author Synonyms from Authority Data"
-add_author_synonyms GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml Normdaten-"${date}".xml \
-                    GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
+add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml Normdaten-"${date}".xml \
+                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Adding of ISBN's and ISSN's to Component Parts"
-add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-                               GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
+add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+                               GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Extracting Keywords from Titles"
-enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-                                 GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
                                  ../cpp/data/stopwords.???
 EndPhase
 
 
 StartPhase "Augment Bible References"
-augment_bible_references GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
+augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                          Normdaten-"${date}".xml \
-                         GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1
 cp pericopes_to_codes.map /var/lib/tuelib/bibleRef/
 EndPhase
 
 
 StartPhase "Update IxTheo Notations"
 update_ixtheo_notations \
-    GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-    GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Map DDC and RVK to IxTheo Notations"
 map_ddc_and_rvk_to_ixtheo_notations \
-    GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-    GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
     ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Fill in missing 773\$a Subfields"
-augment_773a --verbose GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
+augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                        GesamtTiteldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
 EndPhase
 
@@ -146,7 +146,7 @@ EndPhase
 
 
 StartPhase "Cleanup of Intermediate Files"
-for p in $(seq "$((P-1))"); do
+for p in $(seq "$((PHASE-1))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.xml
 done
 rm -f child_refs child_titles parent_refs
