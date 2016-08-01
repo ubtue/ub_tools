@@ -26,6 +26,7 @@
 #include <queue>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #include <cstring>
@@ -39,12 +40,13 @@
 #include "MediaTypeUtil.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
+#include "MarcXmlWriter.h"
 
 
 char help_text[] =
   "  \"--limit\"  Only process the first \"count\" records.\n"
   "  \"--sample-rate\"  Only process every \"rate\"-th record.\n"
+  "  \"--control-number-list\"  Only process records whose control numbers are listed in the specified file.\n"
   "\n"
   "  Query syntax:\n"
   "    query                                    = [ leader_condition ] simple_query\n"
@@ -71,7 +73,7 @@ char help_text[] =
   "\n"
   "  String constants start and end with double quotes. Backslashes and double quotes within need to be escaped\n"
   "  with a backslash. The difference between the \"==\" and \"!=\" vs. \"===\" and \"!===\" comparision\n"
-  "  operators is that the latter compare subfields within a given field while the former compare against any two\n"
+  "  operators is that the latter compares subfields within a given field while the former compares against any two\n"
   "  matching fields or subfields.  This becomes relevant when there are multiple occurrences of a field in a\n"
   "  record. \"*\" matches all fields.  Field and subfield references are strings and thus need to be quoted.\n"
   "\n"
@@ -80,13 +82,29 @@ char help_text[] =
   "                   | no_label | marc_binary | marc_xml | control_number_and_traditional\n"
   "\n"
   "  The default output label is the control number followed by a colon followed by the matched field or \n"
-  "  subfield followed by a colon.  When the formats are \"marc_binary\" or \"marc_xml\" entire records will always be copied.\n";
+  "  subfield followed by a colon.  When the formats are \"marc_binary\" or \"marc_xml\" entire records will always\n"
+  "  be copied.\n";
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--limit count] [--sample-rate rate] marc_filename query [output_label_format]\n\n";
+    std::cerr << "Usage: " << progname << " [--limit count] [--sample-rate rate] "
+              << "[--control-number-list list_filename] marc_filename query [output_label_format]\n\n";
     std::cerr << help_text << '\n';
     std::exit(EXIT_FAILURE);
+}
+
+
+void LoadControlNumbers(const std::string &control_numbers_filename,
+                        std::unordered_set<std::string> * const control_numbers)
+{
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(control_numbers_filename));
+    while (not input->eof()) {
+        std::string line;
+        input->getline(&line);
+        StringUtil::TrimWhite(&line);
+        if (not line.empty())
+            control_numbers->insert(line);
+    }
 }
 
 
@@ -367,7 +385,8 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
 }
 
 
-void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const std::string &input_filename,
+void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
+               const std::unordered_set<std::string> &control_numbers, const std::string &input_filename,
                const QueryDescriptor &query_desc, const OutputLabel output_format)
 {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
@@ -383,20 +402,16 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
     std::string err_msg;
     unsigned count(0), matched_count(0), rate_counter(0);
 
-    std::unique_ptr<XmlWriter> xml_writer;
-    if (output_format == MARC_XML) {
-        xml_writer.reset(new XmlWriter(&output));
-        xml_writer->openTag("marc:collection",
-                           { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                             std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                             std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
-    }
+    std::unique_ptr<MarcXmlWriter> xml_writer;
+    if (output_format == MARC_XML)
+        xml_writer.reset(new MarcXmlWriter(&output));
 
     while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(input.get())
                                                   : MarcUtil::Record::BinaryFactory(input.get()))
     {
-        if (output_format == MARC_XML)
-            record.setRecordWillBeWrittenAsXml(true);
+        // If we use a control number filter, only process a record if it is in our list:
+        if (not control_numbers.empty() and control_numbers.find(record.getControlNumber()) == control_numbers.cend())
+            continue;
 
         ++count, ++rate_counter;
         if (count > max_records)
@@ -405,6 +420,9 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
             rate_counter = 0;
         else
             continue;
+
+        if (output_format == MARC_XML)
+            record.setRecordWillBeWrittenAsXml(true);
 
         if (query_desc.hasLeaderCondition()) {
             const LeaderCondition &leader_cond(query_desc.getLeaderCondition());
@@ -450,9 +468,6 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
         }
     }
 
-    if (xml_writer != nullptr)
-        xml_writer->closeTag();
-
     if (not err_msg.empty())
         Error(err_msg);
     std::cerr << "Matched " << matched_count << (matched_count == 1 ? " record of " :  " records of ") << count
@@ -486,10 +501,24 @@ int main(int argc, char *argv[]) {
         argv += 2;
     }
 
+    if (argc < 3)
+        Usage();
+
+    std::string control_numbers_filename;
+    if (std::strcmp("--control-number-list", argv[1]) == 0) {
+        control_numbers_filename = argv[2];
+        argc -= 2;
+        argv += 2;
+    }
+
     if (argc < 3 or argc > 4)
         Usage();
 
     try {
+        std::unordered_set<std::string> control_numbers;
+        if (not control_numbers_filename.empty())
+            LoadControlNumbers(control_numbers_filename, &control_numbers);
+
         QueryDescriptor query_desc;
         std::string err_msg;
         if (not ParseQuery(argv[2], &query_desc, &err_msg))
@@ -497,7 +526,7 @@ int main(int argc, char *argv[]) {
 
         const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
             : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
-        FieldGrep(max_records, sampling_rate, argv[1], query_desc, output_label);
+        FieldGrep(max_records, sampling_rate, control_numbers, argv[1], query_desc, output_label);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
