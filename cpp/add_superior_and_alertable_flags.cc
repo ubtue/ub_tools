@@ -62,18 +62,24 @@ bool SeriesHasNotBeenCompleted(const MarcUtil::Record &record) {
 void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record) {
     record->setRecordWillBeWrittenAsXml(true);
 
-    // Don't add the flag twice
+    // Don't add the flag twice:
     if (record->getFieldIndex("SPR") != -1) {
         record->write(xml_writer);
         return;
     }
 
+    Subfields superior_subfield(/* indicator1 = */' ', /* indicator2 = */' ');
+
+    // Set the we are a "superior" record, if appropriate:
     const auto iter(superior_ppns.find(record->getControlNumber()));
-    if (iter != superior_ppns.end()) {
-        Subfields superior_subfield(/* indicator1 = */' ', /* indicator2 = */' ');
+    if (iter != superior_ppns.end())
         superior_subfield.addSubfield('a', "1"); // Could be anything but we can't have an empty field.
-        if (SeriesHasNotBeenCompleted(*record))
-            superior_subfield.addSubfield('b', "1");
+
+    // Set the, you-can-subscribe-to-this flag, if appropriate:
+    if (record->getLeader().isSerial() and SeriesHasNotBeenCompleted(*record))
+        superior_subfield.addSubfield('b', "1");
+
+    if (not superior_subfield.empty()) {
         if (unlikely(not record->insertField("SPR", superior_subfield.toString())))
             Warning("Not enough room to add an SPR field! (Control number: " + record->getControlNumber() + ")");
         else
