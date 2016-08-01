@@ -40,7 +40,7 @@
 #include "MediaTypeUtil.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
+#include "MarcXmlWriter.h"
 
 
 char help_text[] =
@@ -402,15 +402,9 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
     std::string err_msg;
     unsigned count(0), matched_count(0), rate_counter(0);
 
-    std::unique_ptr<XmlWriter> xml_writer;
-    if (output_format == MARC_XML) {
-        xml_writer.reset(new XmlWriter(&output));
-        xml_writer->openTag("marc:collection",
-                           { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                             std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                             std::make_pair("xsi:schemaLocation",
-                                            "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
-    }
+    std::unique_ptr<MarcXmlWriter> xml_writer;
+    if (output_format == MARC_XML)
+        xml_writer.reset(new MarcXmlWriter(&output));
 
     while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(input.get())
                                                   : MarcUtil::Record::BinaryFactory(input.get()))
@@ -473,9 +467,6 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
             }
         }
     }
-
-    if (xml_writer != nullptr)
-        xml_writer->closeTag();
 
     if (not err_msg.empty())
         Error(err_msg);
