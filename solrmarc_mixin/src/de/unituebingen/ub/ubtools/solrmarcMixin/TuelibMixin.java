@@ -888,4 +888,21 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return iso8601_date.toString();
     }
+
+    public Set<String> getGenre(final Record record, final String fieldSpecs) {
+        final Set<String> genres = getValuesOrUnassigned(record, fieldSpecs);
+
+        // Also try to find the code for "Festschrift" in 935$c:
+        final DataField _935Field = (DataField)record.getVariableField("935");
+        if (_935Field != null) {
+            final List<Subfield> cSubfields = _935Field.getSubfields('c');
+            for (final Subfield cSubfield : cSubfields) {
+                if (cSubfield.toString().equals("fe")) {
+                    genres.add("Festschrift");
+                }
+            }
+        }
+
+        return genres;
+    }
 }
