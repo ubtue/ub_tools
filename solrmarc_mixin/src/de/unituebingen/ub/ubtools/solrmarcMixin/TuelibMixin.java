@@ -106,11 +106,14 @@ public class TuelibMixin extends SolrIndexerMixin {
             this.put("DE-Frei85", "Freiburg MPI Ausl\u00E4nd.Recht, Max-Planck-Institut f\u00FCr ausl\u00E4ndisches und internationales Strafrecht");
         }
     };
+
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
+    private final static String UNASSIGNED = "[Unassigned]";
+
     // Map used by getPhysicalType().
     private static final Map<String, String> phys_code_to_full_name_map;
 
@@ -753,7 +756,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getValuesOrUnassigned(final Record record, final String fieldSpecs) {
         final Set<String> values = SolrIndexer.getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
-            values.add("[Unassigned]");
+            values.add(UNASSIGNED);
         }
         return values;
     }
@@ -761,7 +764,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
         final Set<String> values = SolrIndexer.getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
-            values.add("[Unassigned]");
+            values.add(UNASSIGNED);
         }
         return values.iterator().next();
     }
@@ -898,7 +901,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             final List<Subfield> cSubfields = _935Field.getSubfields('c');
             for (final Subfield cSubfield : cSubfields) {
                 if (cSubfield.toString().equals("fe")) {
-                    genres.remove("[Unassigned]");
+                    genres.remove(UNASSIGNED);
                     genres.add("Festschrift");
                 }
             }
