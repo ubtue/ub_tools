@@ -192,28 +192,20 @@ public class BibleRangeTests {
     }
 
     @Test
-    public void testIsVerse() {
-        assertTrue(new BibleRange("27003020_27003021").isVerse());
-        assertTrue(new BibleRange("27000000_27003021").isVerse());
-        assertFalse(new BibleRange("68107000_68150999").isVerse());
-        assertFalse(new BibleRange("68100000_68999999").isVerse());
-    }
-
-    @Test
     public void testIsChepter() {
-        assertFalse(new BibleRange("27003020_27003021").isChapter());
-        assertFalse(new BibleRange("27000000_27003021").isChapter());
-        assertTrue(new BibleRange("68003000_68003999").isChapter());
-        assertTrue(new BibleRange("68107000_68150999").isChapter());
-        assertFalse(new BibleRange("6800000_68999999").isChapter());
+        assertFalse(new BibleRange("27003020_27003021").isEntireChapter());
+        assertFalse(new BibleRange("27000000_27003021").isEntireChapter());
+        assertTrue(new BibleRange("68003000_68003999").isEntireChapter());
+        assertTrue(new BibleRange("68107000_68150999").isEntireChapter());
+        assertFalse(new BibleRange("6800000_68999999").isEntireChapter());
     }
 
     @Test
     public void testIsBook() {
-        assertFalse(new BibleRange("27003020_27003021").isBook());
-        assertFalse(new BibleRange("27000000_27003021").isBook());
-        assertFalse(new BibleRange("68003000_68003999").isBook());
-        assertFalse(new BibleRange("68107000_68150999").isBook());
-        assertTrue(new BibleRange("68000000_68999999").isBook());
+        assertFalse(new BibleRange("27003020_27003021").isEntireBook());
+        assertFalse(new BibleRange("27000000_27003021").isEntireBook());
+        assertFalse(new BibleRange("68003000_68003999").isEntireBook());
+        assertFalse(new BibleRange("68107000_68150999").isEntireBook());
+        assertTrue(new BibleRange("68000000_68999999").isEntireBook());
     }
 }
