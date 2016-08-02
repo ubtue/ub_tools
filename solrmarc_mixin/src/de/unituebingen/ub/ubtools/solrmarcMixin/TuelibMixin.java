@@ -898,6 +898,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             final List<Subfield> cSubfields = _935Field.getSubfields('c');
             for (final Subfield cSubfield : cSubfields) {
                 if (cSubfield.toString().equals("fe")) {
+                    genres.remove("[Unassigned]");
                     genres.add("Festschrift");
                 }
             }
