@@ -6,7 +6,6 @@ CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wsha
                   -I/usr/include/libxml2
 CCC             = clang++
 MAKE_DEPS=/usr/local/bin/iViaCore-mkdep
-MAKE_DEPS_FLAGS = --output-program-rules
 
 ifneq ("$(wildcard /etc/centos-release)","")
   LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
@@ -36,7 +35,7 @@ $(PROGS): % : %.o lib/libmarc.a
 
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile
-	$(MAKE_DEPS) $(MAKE_DEPS_FLAGS) -I $(INC) *.cc
+	$(MAKE_DEPS) -I $(INC) *.cc
 
 lib/libmarc.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
 	$(MAKE) -C lib
