@@ -81,6 +81,7 @@ remove_matching_files_test
 rename_file_test
 resolve_in_path_test
 send_email_test
+set_tad_access_flag
 shared_buffer_test
 simple_file_test
 simple_xml_parser_test
