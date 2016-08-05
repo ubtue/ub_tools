@@ -34,7 +34,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " user_ID email_address email_permissions_patterns_file\n";
+    std::cerr << "Usage: " << ::progname << " user_ID email_address\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -319,13 +319,13 @@ bool CanUseTAD(const std::string &email_address, const std::vector<Pattern> &pat
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc != 4)
+    if (argc != 3)
         Usage();
 
     try {
         const std::string user_ID(argv[1]);
         const std::string email_address(argv[2]);
-        std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(argv[3]));
+        std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie("/var/lib/tuelib/tad_email_acl.yaml");
 
         std::vector<Pattern> patterns;
         ParseEmailPatterns(input.get(), &patterns);
