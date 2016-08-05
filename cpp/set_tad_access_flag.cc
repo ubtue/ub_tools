@@ -65,7 +65,6 @@ private:
     void skipCommentsAndWhiteSpace();
     void readStringConstant();
     TokenType parseKeyword();
-    void skipOther();
 };
 
 
@@ -101,7 +100,7 @@ PermissionParser::TokenType PermissionParser::getToken() {
     } else if (ch == '!')
         return parseKeyword();
     else {
-        skipOther();
+        skipToEndOfLine();
         return OTHER;
     }
 }
@@ -164,6 +163,7 @@ void PermissionParser::readStringConstant() {
 }
 
 
+// Hopes to find "allow" or "deny", the only two keywords that our input file should contain.
 PermissionParser::TokenType PermissionParser::parseKeyword() {
     std::string keyword;
     for (;;) {
@@ -180,19 +180,6 @@ PermissionParser::TokenType PermissionParser::parseKeyword() {
                 return DENY;
             throw std::runtime_error("unknown keyword \"" + keyword + "\" on line "
                                      + std::to_string(current_line_number_) + "!");
-        }
-    }
-}
-
-
-void PermissionParser::skipOther() {
-    for (;;) {
-        const int ch(input_->get());
-        if (unlikely(ch == EOF))
-            return;
-        if (ch == '\n') {
-            ++current_line_number_;
-            return;
         }
     }
 }
@@ -243,6 +230,8 @@ bool Pattern::matched(const std::string &test_string) const {
 }
 
 
+// Positions the token stream to just before the next hyphen or, if no more hyphens are left,
+// at the end of the input stream.
 void SkipToNextDashOrEndOfInput(PermissionParser * const parser) {
     for (;;) {
         const PermissionParser::TokenType token = parser->getToken();
@@ -256,6 +245,8 @@ void SkipToNextDashOrEndOfInput(PermissionParser * const parser) {
 }
 
 
+// Parses a single rule.  There are two types of rules.  Those with a single email pattern and those
+// with a comma-separated list of patterns in square brackets.  Each rule is either an "allow" or a "deny" rule.
 void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const patterns) {
     PermissionParser::TokenType token(parser->getToken());
     if (unlikely(token != PermissionParser::ALLOW and token != PermissionParser::DENY))
@@ -292,7 +283,7 @@ void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const pat
 }
 
 
-void ParseEmailPatterns(File * const input, std::vector<Pattern> * const patterns) {
+void ParseEmailRules(File * const input, std::vector<Pattern> * const patterns) {
     PermissionParser parser(input);
 
     for (;;) {
@@ -318,6 +309,9 @@ bool CanUseTAD(const std::string &email_address, const std::vector<Pattern> &pat
 }
 
 
+const std::string EMAIL_RULES_FILE("/var/lib/tuelib/tad_email_acl.yaml");
+
+
 int main(int argc, char **argv) {
     progname = argv[0];
 
@@ -327,9 +321,9 @@ int main(int argc, char **argv) {
     try {
         const std::string user_ID(argv[1]);
 
-        std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie("/var/lib/tuelib/tad_email_acl.yaml"));
+        std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(EMAIL_RULES_FILE));
         std::vector<Pattern> patterns;
-        ParseEmailPatterns(input.get(), &patterns);
+        ParseEmailRules(input.get(), &patterns);
 
         std::string mysql_url;
         VuFind::GetMysqlURL(&mysql_url);
