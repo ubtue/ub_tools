@@ -27,6 +27,8 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
+#include "DbResultSet.h"
+#include "DbRow.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -34,7 +36,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " user_ID email_address\n";
+    std::cerr << "Usage: " << ::progname << " user_ID\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -319,25 +321,33 @@ bool CanUseTAD(const std::string &email_address, const std::vector<Pattern> &pat
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc != 3)
+    if (argc != 2)
         Usage();
 
     try {
         const std::string user_ID(argv[1]);
-        const std::string email_address(argv[2]);
-        std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie("/var/lib/tuelib/tad_email_acl.yaml");
 
+        std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie("/var/lib/tuelib/tad_email_acl.yaml"));
         std::vector<Pattern> patterns;
         ParseEmailPatterns(input.get(), &patterns);
 
         std::string mysql_url;
         VuFind::GetMysqlURL(&mysql_url);
         DbConnection db_connection(mysql_url);
+
+        const std::string SELECT_EMAIL_STMT("SELECT email FROM user WHERE id=" + user_ID);
+        if (unlikely(not db_connection.query(SELECT_EMAIL_STMT)))
+            Error("Select failed: " + SELECT_EMAIL_STMT + " (" + db_connection.getLastErrorMessage() + ")");
+        DbResultSet result_set(db_connection.getLastResultSet());
+        if (result_set.empty())
+            Error("No email address found for user ID " + user_ID + "!");
+        const std::string email_address(result_set.getNextRow()["email"]);
+
         const std::string UPDATE_STMT("UPDATE ixtheo_user SET can_use_tad="
                                       + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
                                       + " WHERE id=" + user_ID);
         if (unlikely(not db_connection.query(UPDATE_STMT)))
-            Error("Select failed: " + UPDATE_STMT + " (" + db_connection.getLastErrorMessage() + ")");
+            Error("Update failed: " + UPDATE_STMT + " (" + db_connection.getLastErrorMessage() + ")");
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
