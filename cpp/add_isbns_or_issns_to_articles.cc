@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015,2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -91,7 +91,8 @@ void PopulateParentIdToISBNAndISSNMap(
 
         std::string issn;
 
-        // 1. First try to get an ISSN from 029$a, but only if the indicators are correct:
+        // 1. First try to get an ISSN from 029$a, (according to the BSZ's PICA-to-MARC mapping
+        // documentation this contains the "authorised" ISSN) but only if the indicators are correct:
         std::vector<size_t> _029_field_indices;
         record.getFieldIndices("029", &_029_field_indices);
         for (const auto _029_field_index : _029_field_indices) {
