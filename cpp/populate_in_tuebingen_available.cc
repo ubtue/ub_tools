@@ -106,7 +106,7 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
                                 std::string anchor(HtmlUtil::HtmlEscape(subfields3.getFirstSubfieldValue('x')));
                                 if (anchor.empty())
                                     anchor = "Tübingen Online Resource";
-                                record->insertField("SIG", "\x1F""a<a href=\"" + url + "\">" + anchor + "</a>");
+                                record->insertField("SIG", "  \x1F""a<a href=\"" + url + "\">" + anchor + "</a>");
                             }
                         }
                     }

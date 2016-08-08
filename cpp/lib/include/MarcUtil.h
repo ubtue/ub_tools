@@ -72,6 +72,9 @@ public:
     /** \brief Returns the index of "field_tag" or -1 if the tag is not present. */
     ssize_t getFieldIndex(const std::string &field_tag) const;
 
+    /** \return The number of field indices for the tag "tag". */
+    size_t getFieldIndices(const std::string &field_tag, std::vector<size_t> * const field_indices) const;
+
     /** \brief Returns 3-letter language codes from field 041a. */
     std::string getLanguage(const std::string &default_language_code = "ger") const;
 
