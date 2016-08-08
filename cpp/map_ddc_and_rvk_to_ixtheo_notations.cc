@@ -148,7 +148,7 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
             continue;
         }
 
-        // Many DDCs have superfluous backslashes which are non-standard and need to be removed before further
+        // Many DDC's have superfluous backslashes which are non-standard and need to be removed before further
         // processing can take place:
         for (auto &ddc_value : ddc_values)
             StringUtil::RemoveChars("/", &ddc_value);
@@ -176,7 +176,7 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
 
         if (not ixtheo_notations_list.empty()) {
             ++records_with_new_notations;
-            record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list);
+            record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list + "\x1F""bDDCoderRVK");
         }
 
         record.write(&xml_writer);

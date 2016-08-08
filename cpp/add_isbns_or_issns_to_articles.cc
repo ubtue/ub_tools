@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015,2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -80,21 +80,42 @@ void PopulateParentIdToISBNAndISSNMap(
         if (not leader.isSerial())
             continue;
 
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        if (dir_entries[0].getTag() != "001")
-            Error("First field is not \"001\"!");
-
+        // Try to see if we have an ISBN:
         const std::vector<std::string> &fields(record.getFields());
         const std::string isbn(record.extractFirstSubfield("020", 'a'));
         if (not isbn.empty()) {
             (*parent_id_to_isbn_and_issn_map)[fields[0]] = isbn;
             ++extracted_isbn_count;
+            continue;
         }
 
-        const std::string issn(record.extractFirstSubfield("022", 'a'));
-        if (not issn.empty()) {
-            (*parent_id_to_isbn_and_issn_map)[fields[0]] = issn;
-            ++extracted_issn_count;
+        std::string issn;
+
+        // 1. First try to get an ISSN from 029$a, (according to the BSZ's PICA-to-MARC mapping
+        // documentation this contains the "authorised" ISSN) but only if the indicators are correct:
+        std::vector<size_t> _029_field_indices;
+        record.getFieldIndices("029", &_029_field_indices);
+        for (const auto _029_field_index : _029_field_indices) {
+            const Subfields subfields(fields[_029_field_index]);
+
+            // We only want fields with indicators 'x' and 'a':
+            if (subfields.getIndicator1() != 'x' or subfields.getIndicator2() != 'a')
+                continue;
+
+            issn = subfields.getFirstSubfieldValue('a');
+            if (not issn.empty()) {
+                (*parent_id_to_isbn_and_issn_map)[fields[0]] = issn;
+                ++extracted_issn_count;
+            }
+        }
+
+        // 2. If we don't already have an ISSN check 022$a as a last resort:
+        if (issn.empty()) {
+            issn = record.extractFirstSubfield("022", 'a');
+            if (not issn.empty()) {
+                (*parent_id_to_isbn_and_issn_map)[fields[0]] = issn;
+                ++extracted_issn_count;
+            }
         }
     }
 
