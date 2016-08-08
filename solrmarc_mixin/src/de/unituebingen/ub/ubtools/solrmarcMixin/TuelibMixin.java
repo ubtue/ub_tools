@@ -851,7 +851,10 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public String isSuperiorWork(final Record record) {
-        return Boolean.toString(record.getVariableField("SPR") != null);
+        final DataField sprField = (DataField)record.getVariableField("SPR");
+        if (sprField == null)
+            return Boolean.FALSE.toString();
+        return Boolean.toString(sprField.getSubfield('a') != null);
     }
 
     public String isSubscribable(final Record record) {
@@ -887,5 +890,23 @@ public class TuelibMixin extends SolrIndexerMixin {
         iso8601_date.append("T00:00:00Z");
 
         return iso8601_date.toString();
+    }
+
+    public Set<String> getGenre(final Record record, final String fieldSpecs) {
+        final Set<String> genres = getValuesOrUnassigned(record, fieldSpecs);
+
+        // Also try to find the code for "Festschrift" in 935$c:
+        final DataField _935Field = (DataField)record.getVariableField("935");
+        if (_935Field != null) {
+            final List<Subfield> cSubfields = _935Field.getSubfields('c');
+            for (final Subfield cSubfield : cSubfields) {
+                if (cSubfield.toString().equals("fe")) {
+                    genres.remove("[Unassigned]");
+                    genres.add("Festschrift");
+                }
+            }
+        }
+
+        return genres;
     }
 }
