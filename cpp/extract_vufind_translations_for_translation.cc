@@ -28,8 +28,6 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
-#include "DbResultSet.h"
-#include "DbRow.h"
 #include "File.h"
 #include "IniFile.h"
 #include "StringUtil.h"
