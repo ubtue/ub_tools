@@ -8,151 +8,149 @@ if [ $# != 2 ]; then
 fi
 
 if [[ ! "$1" =~ GesamtTiteldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
-    echo 'Die Gesamttiteldatendatei entspicht nicht dem Muster GesamtTiteldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc!'
+    echo 'Die Gesamttiteldatendatei entspricht nicht dem Muster GesamtTiteldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc!'
     exit 1
 fi
 
+
 # Determines the embedded date of the files we're processing:
 date=$(echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1)
+
+
+if [[ "$2" != "Normdaten-${date}.mrc" ]]; then
+    echo "Authority data file must be named \"$2\"\ to match the bibliographic file name!"
+    exit 1
+fi
+
+
+function StartPhase {
+    if [ -z ${PHASE+x} ]; then
+        PHASE=0
+    else
+        ((++PHASE))
+    fi
+    START=$(date +%s.%N)
+    echo "*** Phase $PHASE: $1 - $(date) ***" | tee --append "${log}"
+}
+
+
+function EndPhase {
+    PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc --mathlib)
+    echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+}
+
 
 # Sets up the log file:
 logdir=/var/log/ixtheo
 log="${logdir}/ixtheo_marc_pipeline.log"
 rm -f "${log}"
 
-P=0; START=$(date +%s.%N)
-echo "*** Phase $P: Convert MARC-21 to MARC-XML ***" | tee --append "${log}"
+
+StartPhase "Convert MARC-21 to MARC-XML"
 marc_grep GesamtTiteldaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
     > GesamtTiteldaten-"${date}".xml 2>> "${log}"
 marc_grep Normdaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
      > Normdaten-"${date}".xml 2>> "${log}"
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
 
 
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Filter out records containing mtex in 935\$a ***" | tee --append "${log}"
-marc_filter --drop GesamtTiteldaten-"${date}".xml GesamtTiteldaten-post-phase"$P"-"${date}".xml 935a:mtex \
-    >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
-
-
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Filter out self-referential 856 fields ***" | tee --append "${log}"
-marc_filter --remove-fields GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-    GesamtTiteldaten-post-phase"$P"-"${date}".xml '856u:ixtheo\.de' >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
-
-
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Filter out local data of other Institutions ***" | tee --append "${log}"
-delete_unused_local_data GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-                         GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+StartPhase "Filter out Local Data of Other Institutions"
+delete_unused_local_data GesamtTiteldaten-"${date}".xml \
+                         GesamtTiteldaten-post-phase-"$PHASE"-"${date}".xml \
                          >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
 
 
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Extract Translation Keywords - $(date) ***" | tee --append "${log}"
-extract_keywords_for_translation GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
+StartPhase "Filter out Records Containing mtex in 935\$a"
+marc_filter --drop GesamtTiteldaten-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml 935a:mtex \
+    >> "${log}" 2>&1
+EndPhase
+
+
+StartPhase "Filter out Self-referential 856 Fields"
+marc_filter --remove-fields GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml '856u:ixtheo\.de' >> "${log}" 2>&1
+EndPhase
+
+
+StartPhase "Extract Translation Keywords"
+extract_keywords_for_translation GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                  Normdaten-"${date}".xml >> "${log}" 2>&1
 extract_vufind_translations_for_translation \
     $(ls "$VUFIND_HOME"/local/languages/??.ini | grep 'de.ini$') \
     $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
 
 
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Parent-to-Child Linking and Flagging of Subscribable Items- $(date) ***" | tee --append "${log}"
-create_superior_ppns.sh GesamtTiteldaten-post-phase"$((P-2))"-"${date}".xml >> "${log}" 2>&1
-add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((P-2))"-"${date}".xml \
-                                 GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
+create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".xml >> "${log}" 2>&1
+add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".xml \
+                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
                                  superior_ppns >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
 
 
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Add Author Synonyms from Norm Data ***" | tee --append "${log}"
-add_author_synonyms GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml Normdaten-"${date}".xml \
-                    GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+StartPhase "Add Author Synonyms from Authority Data"
+add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml Normdaten-"${date}".xml \
+                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1
+EndPhase
 
 
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Adding of ISBN's and ISSN's to Component Parts - $(date) ***" | tee --append "${log}"
-add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-                               GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+StartPhase "Adding of ISBN's and ISSN's to Component Parts"
+add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+                               GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1
+EndPhase
 
 
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Extracting Keywords from Titles - $(date) ***" | tee --append "${log}"
-enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-                                 GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+StartPhase "Extracting Keywords from Titles"
+enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
                                  ../cpp/data/stopwords.???
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
 
 
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Augment Bible References - $(date) ***" | tee --append "${log}"
-augment_bible_references GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
+StartPhase "Augment Bible References"
+augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                          Normdaten-"${date}".xml \
-                         GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1
 cp pericopes_to_codes.map /var/lib/tuelib/bibleRef/
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
 
 
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Update IxTheo Notations - $(date) ***" | tee --append "${log}"
+StartPhase "Update IxTheo Notations"
 update_ixtheo_notations \
-    GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-    GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
 
 
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Map DDC and RVK to IxTheo Notations - $(date) ***" | tee --append "${log}"
+StartPhase "Map DDC and RVK to IxTheo Notations"
 map_ddc_and_rvk_to_ixtheo_notations \
-    GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
-    GesamtTiteldaten-post-phase"$P"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
     ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
 
 
-((++P)); START=$(date +%s.%N)
-echo "*** Phase $P: Fill in missing 773\$a Subfields ***" | tee --append "${log}"
-augment_773a --verbose GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
+StartPhase "Fill in missing 773\$a Subfields"
+augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                        GesamtTiteldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
 
-((++P)); START=$(date +%s.%N)
-echo "*** Extract Normdata Translations" | tee --append "${log}"
+
+StartPhase "Extract Normdata Translations"
 extract_normdata_translations Normdaten-"${date}".xml \
      normdata_translations.txt >> "${log}" 2>&1
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
 
 
-START=$(date +%s.%N)
-echo "*** Cleanup of Intermediate Files - $(date) ***" | tee --append "${log}"
-for p in $(seq "$((P-1))"); do
+StartPhase "Cleanup of Intermediate Files"
+for p in $(seq "$((PHASE-1))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.xml
 done
 rm -f child_refs child_titles parent_refs
-PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
-echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+EndPhase
+
 
 echo "*** IXTHEO MARC PIPELINE DONE - $(date) ***" | tee --append "${log}"
