@@ -36,7 +36,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " user_ID\n";
+    std::cerr << "Usage: " << ::progname << " (--update-all-users|user_ID)\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -312,6 +312,36 @@ bool CanUseTAD(const std::string &email_address, const std::vector<Pattern> &pat
 const std::string EMAIL_RULES_FILE("/var/lib/tuelib/tad_email_acl.yaml");
 
 
+void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns,
+                      const std::string &user_ID)
+{
+    const std::string SELECT_EMAIL_STMT("SELECT email FROM user WHERE id=" + user_ID);
+    if (unlikely(not db_connection->query(SELECT_EMAIL_STMT)))
+        Error("Select failed: " + SELECT_EMAIL_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.empty())
+        Error("No email address found for user ID " + user_ID + "!");
+    const std::string email_address(result_set.getNextRow()["email"]);
+
+    const std::string UPDATE_STMT("UPDATE ixtheo_user SET can_use_tad="
+                                  + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
+                                  + " WHERE id=" + user_ID);
+    if (unlikely(not db_connection->query(UPDATE_STMT)))
+        Error("Update failed: " + UPDATE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+}
+
+
+void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Pattern> &patterns) {
+    const std::string SELECT_USER_IDS_STMT("SELECT id FROM ixtheo_user");
+    if (unlikely(not db_connection->query(SELECT_USER_IDS_STMT)))
+        Error("Select failed: " + SELECT_USER_IDS_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    DbResultSet result_set(db_connection->getLastResultSet());
+
+    while (const DbRow row = result_set.getNextRow())
+        UpdateSingleUser(db_connection, patterns, row["id"]);
+}
+
+
 int main(int argc, char **argv) {
     progname = argv[0];
 
@@ -319,7 +349,7 @@ int main(int argc, char **argv) {
         Usage();
 
     try {
-        const std::string user_ID(argv[1]);
+        const std::string flag_or_user_ID(argv[1]);
 
         std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(EMAIL_RULES_FILE));
         std::vector<Pattern> patterns;
@@ -329,19 +359,11 @@ int main(int argc, char **argv) {
         VuFind::GetMysqlURL(&mysql_url);
         DbConnection db_connection(mysql_url);
 
-        const std::string SELECT_EMAIL_STMT("SELECT email FROM user WHERE id=" + user_ID);
-        if (unlikely(not db_connection.query(SELECT_EMAIL_STMT)))
-            Error("Select failed: " + SELECT_EMAIL_STMT + " (" + db_connection.getLastErrorMessage() + ")");
-        DbResultSet result_set(db_connection.getLastResultSet());
-        if (result_set.empty())
-            Error("No email address found for user ID " + user_ID + "!");
-        const std::string email_address(result_set.getNextRow()["email"]);
+        if (flag_or_user_ID == "--update-all-users")
+            UpdateAllUsers(&db_connection, patterns);
+        else
+            UpdateSingleUser(&db_connection, patterns, flag_or_user_ID);
 
-        const std::string UPDATE_STMT("UPDATE ixtheo_user SET can_use_tad="
-                                      + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
-                                      + " WHERE id=" + user_ID);
-        if (unlikely(not db_connection.query(UPDATE_STMT)))
-            Error("Update failed: " + UPDATE_STMT + " (" + db_connection.getLastErrorMessage() + ")");
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
