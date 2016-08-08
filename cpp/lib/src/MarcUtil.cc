@@ -207,6 +207,21 @@ ssize_t Record::getFieldIndex(const std::string &field_tag) const {
 }
 
 
+size_t Record::getFieldIndices(const std::string &field_tag, std::vector<size_t> * const field_indices) const {
+    field_indices->clear();
+
+    const auto iter(std::find_if(dir_entries_.begin(), dir_entries_.end(), MatchTag(field_tag)));
+    size_t field_index(std::distance(dir_entries_.begin(), iter));
+
+    while (field_index < dir_entries_.size() and dir_entries_[field_index].getTag() == "field_tag") {
+        field_indices->emplace_back(field_index);
+        ++field_index;
+    }
+
+    return field_indices->size();
+}
+
+
 std::string Record::getLanguage(const std::string &default_language_code) const {
     const ssize_t index(getFieldIndex("041"));
     if (index == -1)
