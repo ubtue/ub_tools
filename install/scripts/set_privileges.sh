@@ -78,7 +78,7 @@ function set_se_permissions() {
 if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
 
    if [[ $(which setsebool) ]]; then
-    setsebool -P httpd_can_network_connect=1 httpd_can_network_connect_db=1 httpd_enable_cgi=1
+    setsebool -P httpd_can_network_connect=1 httpd_can_network_connect_db=1 httpd_enable_cgi=1 httpd_can_sendmail=1
   fi
 
   if [[ $(which semanage) ]]; then
