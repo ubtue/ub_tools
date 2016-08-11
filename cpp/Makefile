@@ -9,15 +9,13 @@ CCC             = clang++
 OBJ             = .
 MAKE_DEPS=iViaCore-mkdep
 
-ifneq ("$(wildcard /etc/centos-release)","")
-  LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
+ifeq ("$(wildcard /etc/centos-release)","")
   LIBCURL=-L/opt/shibboleth/lib64/ -lcurl
 else # Ubuntu version
-  LIBMARIADB=-lmariadbclient
   LIBCURL=-lcurl
 endif
 LIBS = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
-       -larchive -lboost_graph $(LIBCURL) $(LIBMARIADB) -lrt -lssl -lcrypto -lpthread
+       -larchive -lboost_graph $(LIBCURL) -L/usr/lib64/mysql/ -lmysqlclient -lrt -lssl -lcrypto -lpthread
 LIBS_AMD64 = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
 
 PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
