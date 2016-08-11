@@ -7,18 +7,11 @@ CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wsha
 CCCFLAGS_AMD64  = $(subst -march=native,,$(CCCFLAGS))
 CCC             = clang++
 OBJ             = .
-MAKE_DEPS=iViaCore-mkdep
-
-ifneq ("$(wildcard /etc/centos-release)","")
-  LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
-  LIBCURL=-L/opt/shibboleth/lib64/ -lcurl
-else # Ubuntu version
-  LIBMARIADB=-lmariadbclient
-  LIBCURL=-lcurl
-endif
-LIBS = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
-       -larchive -lboost_graph $(LIBCURL) $(LIBMARIADB) -lrt -lssl -lcrypto -lpthread
-LIBS_AMD64 = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
+MAKE_DEPS       = iViaCore-mkdep
+LIBS            = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
+                  -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
+                  -lssl -lcrypto -lpthread
+LIBS_AMD64      = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
 
 PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
 CGI_PROGS=full_text_lookup
