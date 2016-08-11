@@ -22,7 +22,7 @@ void PrintString(const std::shared_ptr<PHPUtil::DataType> &string_candidate, con
     const PHPUtil::String * const string(dynamic_cast<PHPUtil::String *>(string_candidate.get()));
     if (unlikely(string == nullptr))
         Error("in PrintString: expected PHPUtil::String, found "
-              + std::string(typeid(*string_candidate).name()) + " instead!");
+              + std::string(typeid(string_candidate).name()) + " instead!");
 
     std::cout << std::string(indent, ' ') << "String: " << string->getName() << '(' << string->getValue() << ")\n";
 }
@@ -32,7 +32,7 @@ void PrintInteger(const std::shared_ptr<PHPUtil::DataType> &integer_candidate, c
     const PHPUtil::Integer * const integer(dynamic_cast<PHPUtil::Integer *>(integer_candidate.get()));
     if (unlikely(integer == nullptr))
         Error("in PrintInteger: expected PHPUtil::Integer, found "
-              + std::string(typeid(*integer_candidate).name()) + " instead!");
+              + std::string(typeid(integer_candidate).name()) + " instead!");
 
     std::cout << std::string(indent, ' ') << "Integer: " << integer->getName() << '(' << integer->getValue() << ")\n";
 }
@@ -42,7 +42,7 @@ void PrintFloat(const std::shared_ptr<PHPUtil::DataType> &float_candidate, const
     const PHPUtil::Float * const flt(dynamic_cast<PHPUtil::Float *>(float_candidate.get()));
     if (unlikely(flt == nullptr))
         Error("in PrintFloat: expected PHPUtil::Float, found "
-              + std::string(typeid(*float_candidate).name()) + " instead!");
+              + std::string(typeid(float_candidate).name()) + " instead!");
 
     std::cout << std::string(indent, ' ') << "Float: " << flt->getName() << '(' << flt->getValue() << ")\n";
 }
@@ -55,7 +55,7 @@ void PrintObject(const std::shared_ptr<PHPUtil::DataType> &object_candidate, con
 void PrintArray(const std::shared_ptr<PHPUtil::DataType> &array_candidate, const unsigned indent) {
     const PHPUtil::Array * const array(dynamic_cast<PHPUtil::Array *>(array_candidate.get()));
     if (unlikely(array == nullptr))
-        Error("in PrintArray: expected PHPUtil::Array, found " + std::string(typeid(*array_candidate).name())
+        Error("in PrintArray: expected PHPUtil::Array, found " + std::string(typeid(array_candidate).name())
               + " instead!");
 
     std::cout << std::string(indent, ' ') << "Array: " << array->getName() << "(size:" << array->size() << ")\n";
@@ -86,7 +86,7 @@ void PrintArray(const std::shared_ptr<PHPUtil::DataType> &array_candidate, const
 void PrintObject(const std::shared_ptr<PHPUtil::DataType> &object_candidate, const unsigned indent = 0) {
     const PHPUtil::Object * const object(dynamic_cast<PHPUtil::Object *>(object_candidate.get()));
     if (unlikely(object == nullptr))
-        Error("in PrintObject: expected PHPUtil::Object, found " + std::string(typeid(*object_candidate).name())
+        Error("in PrintObject: expected PHPUtil::Object, found " + std::string(typeid(object_candidate).name())
               + " instead!");
 
     std::cout << std::string(indent, ' ') << "Object: ";
