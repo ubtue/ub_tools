@@ -22,6 +22,7 @@
 #include <set>
 #include <cstdlib>
 #include <cstring>
+#include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
@@ -47,6 +48,19 @@ void ExecSqlOrDie(const std::string &select_statement, DbConnection * const conn
 }
 
 
+// Replaces a comma with "\," and a slash with "\\".
+std::string EscapeCommasAndBackslashes(const std::string &text) {
+    std::string escaped_text;
+    for (const auto ch : text) {
+        if (unlikely(ch == ',' or ch == '\\'))
+            escaped_text += '\\';
+        escaped_text += ch;
+    }
+
+    return escaped_text;
+}
+
+
 void GetMissing(DbConnection * const connection, const std::string &language_code) {
     // Find an ID where "language_code" is missing:
     ExecSqlOrDie("SELECT id FROM translations WHERE id NOT IN (SELECT id FROM translations "
@@ -61,7 +75,8 @@ void GetMissing(DbConnection * const connection, const std::string &language_cod
     DbResultSet result_set(connection->getLastResultSet());
     if (not result_set.empty()) {
         const DbRow row = result_set.getNextRow();
-        std::cout << row["id"] << ',' << row["language_code"] << ',' << row["text"] << ',' << row["category"] << '\n';
+        std::cout << row["id"] << ',' << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["text"]) << ','
+                  << row["category"] << '\n';
     }
 }
 
@@ -72,7 +87,8 @@ void Insert(DbConnection * const connection, const unsigned index, const std::st
     const std::string ID(std::to_string(index));
     if (category == "vufind_translations") {
         // First get the token that we need for the INSERT:
-        const std::string SELECT_STMT("SELECT token FROM translations WHERE category='vufind_translations' AND id='" + ID + "'");
+        const std::string SELECT_STMT("SELECT token FROM translations WHERE category='vufind_translations' AND id='"
+                                      + ID + "'");
         ExecSqlOrDie(SELECT_STMT, connection);
         DbResultSet result_set(connection->getLastResultSet());
         if (result_set.empty())
@@ -85,7 +101,8 @@ void Insert(DbConnection * const connection, const unsigned index, const std::st
                      + "', preexists=FALSE", connection);
     } else
         ExecSqlOrDie("INSERT INTO translations SET id=" + ID + ",language_code=\"" + language_code + "\",text=\""
-                     + connection->escapeString(text) + "\", category='" + category + "', preexists=FALSE", connection);
+                     + connection->escapeString(text) + "\", category='" + category + "', preexists=FALSE",
+                     connection);
 }
 
 
@@ -96,6 +113,20 @@ void GetPossibleCategories(DbConnection * const connection, std::set<std::string
     DbResultSet categories_result_set(connection->getLastResultSet());
     while (const DbRow row = categories_result_set.getNextRow())
         categories->insert(row[0]);
+}
+
+
+bool IsValid3LetterLanguageCode(const std::string &language_code_candidate) {
+    static std::vector<std::string> VALID_LANGUAGE_CODES{
+        "deu", "eng", "fra"
+    };
+
+    for (const auto &valid_language_code : VALID_LANGUAGE_CODES) {
+        if (valid_language_code == language_code_candidate)
+            return true;
+    }
+
+    return false;
 }
 
 
@@ -119,7 +150,7 @@ int main(int argc, char *argv[]) {
             if (argc != 3)
                 Error("\"get_missing\" requires exactly one argument: language_code!");
             const std::string language_code(argv[2]);
-            if (language_code.length() != 3)
+            if (not IsValid3LetterLanguageCode(language_code))
                 Error("\"" + language_code + "\" is not a valid 3-letter language code!");
             GetMissing(&db_connection, language_code);
         } else if (std::strcmp(argv[1], "insert") == 0) {
