@@ -116,16 +116,6 @@ void GetPossibleCategories(DbConnection * const connection, std::set<std::string
 }
 
 
-bool IsValid3LetterLanguageCode(const std::string &language_code_candidate) {
-    static std::vector<std::string> VALID_LANGUAGE_CODES{
-        "deu", "eng", "fra"
-    };
-
-    return std::find(VALID_LANGUAGE_CODES.cbegin(), VALID_LANGUAGE_CODES.cend(), language_code_candidate)
-           != VALID_LANGUAGE_CODES.end();
-}
-
-
 const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
@@ -146,7 +136,7 @@ int main(int argc, char *argv[]) {
             if (argc != 3)
                 Error("\"get_missing\" requires exactly one argument: language_code!");
             const std::string language_code(argv[2]);
-            if (not IsValid3LetterLanguageCode(language_code))
+            if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
                 Error("\"" + language_code + "\" is not a valid 3-letter language code!");
             GetMissing(&db_connection, language_code);
         } else if (std::strcmp(argv[1], "insert") == 0) {
