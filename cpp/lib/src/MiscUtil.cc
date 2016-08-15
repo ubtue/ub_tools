@@ -27,6 +27,7 @@
  */
 
 #include "MiscUtil.h"
+#include <stack>
 #include <stdexcept>
 #include "Compiler.h"
 #include "StringUtil.h"
@@ -186,6 +187,28 @@ bool LoopVarsAreValid(const std::map<std::string, std::vector<std::string>> &nam
 }
 
 
+bool EvalIfDefined(std::string::const_iterator &ch, const std::string::const_iterator &end, const unsigned line_no,
+                   const std::map<std::string, std::vector<std::string>> &names_to_values_map)
+{
+    if (unlikely(ch == end or *ch != '('))
+        throw std::runtime_error("in MiscUtil::ProcessTemplate: expected '(' after IFDEFINED keyword on line "
+                                 + std::to_string(line_no) +"!");
+    ++ch;
+
+    const std::string variable_name(ExtractName(ch, end));
+    if (unlikely(variable_name.empty()))
+        throw std::runtime_error("in MiscUtil::ProcessTemplate: failed to extract variable name after IFDEFINED( "
+                                 "on line " + std::to_string(line_no) +"!");
+        
+    if (unlikely(ch == end or *ch != ')'))
+        throw std::runtime_error("in MiscUtil::ProcessTemplate: expected ')' after IFDEFINED variable name on line "
+                                 + std::to_string(line_no) +"!");
+    ++ch;
+
+    return names_to_values_map.find(variable_name) != names_to_values_map.cend();
+}
+
+    
 } // unnamed namespace
 
 
@@ -202,6 +225,7 @@ std::string ExpandTemplate(const std::string &original_template,
     std::string expanded_template;
     std::string::const_iterator ch(original_template.cbegin()), loop_start;
     bool in_loop(false);
+    std::stack<bool> skipping;
     unsigned line_no(1), loop_start_line_no;
     std::vector<std::string> loop_vars;
     unsigned loop_index;
@@ -209,7 +233,10 @@ std::string ExpandTemplate(const std::string &original_template,
         if (*ch != '$') {
             if (*ch == '\n')
                 ++line_no;
-            expanded_template += *ch++;
+            if (skipping.empty() or not skipping.top())
+                expanded_template += *ch++;
+            else
+                ++ch;
         } else { // We found a $-sign.
             ++ch;
             if (unlikely(ch == original_template.cend()))
@@ -250,6 +277,12 @@ std::string ExpandTemplate(const std::string &original_template,
                         continue;
                     }
                     in_loop = false;
+                } else if (name == "IFDEFINED")
+                    skipping.push(not EvalIfDefined(ch, original_template.cend(), line_no, names_to_values_map));
+                else if (name == "ENDIFDEFINED") {
+                    if (unlikely(skipping.empty()))
+                        throw std::runtime_error("in MiscUtil::ProcessTemplate: found ENDIFDEFINED w/o prior IFDEFINED!");
+                    skipping.pop();
                 } else { // Expand variable.
                     const auto name_and_values(names_to_values_map.find(name));
                     if (unlikely(name_and_values == names_to_values_map.cend()))
@@ -274,6 +307,8 @@ std::string ExpandTemplate(const std::string &original_template,
     }
     if (unlikely(in_loop))
         throw std::runtime_error("in MiscUtil::ProcessTemplate: unclosed $LOOP at end of template!");
+    if (unlikely(not skipping.empty()))
+        throw std::runtime_error("in MiscUtil::ProcessTemplate: unclosed $IFDEFINED at end of template!");
 
     return expanded_template;
 }

@@ -62,7 +62,9 @@ char HexDigit(const unsigned value);
  *  Should you need to embed a literal $-sign in the expanded template, use a "$$" in the original template.
  *  Variable names must consist of ASCII letters and underscores only.  Should you need an ASCII letter or an
  *  underscore immediately following a variable, use the ${var} syntax instead of the $var syntax.  The braces
- *  are also allowed with ${LOOP} and ${ENDLOOP}.
+ *  are also allowed with ${LOOP} and ${ENDLOOP}.  Another feature is a conditional starting with $IFDEFINED(var)
+ *  and ending with $ENDIFDEFINED.  If "var" is not known any output will be suppressed until the corresponding
+ *  $ENDIFDEFINED.  This feature can be nested.
  */
 std::string ExpandTemplate(const std::string &original_template,
                            const std::map<std::string, std::vector<std::string>> &names_to_values_map);
