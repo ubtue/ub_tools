@@ -225,4 +225,23 @@ std::string Which(const std::string &executable_candidate) {
 }
 
 
+bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output) {
+    stdout_output->clear();
+    
+    FILE * const subcommand_stdout(::popen(command.c_str(), "r"));
+    if (subcommand_stdout == nullptr)
+        return false;
+
+    int ch;
+    while ((ch = std::getc(subcommand_stdout)) != EOF)
+        *stdout_output += static_cast<char>(ch);
+
+    const int ret_code(::pclose(subcommand_stdout));
+    if (ret_code == -1)
+        Error("pclose(3) failed: " + std::string(::strerror(errno)));
+
+    return WEXITSTATUS(ret_code) == 0;
+}
+
+
 } // namespace ExecUtil
