@@ -161,11 +161,13 @@ int main(int argc, char **argv) {
         // Determine possible mappings
         const std::string AUTHORITY_DATA_PRIMARY_SPEC = "110abcd:111abcd:130abcd:150abcd:151abcd";
         const std::string AUTHORITY_DATA_SYNONYM_SPEC = "410abcd:411abcd:430abcd:450abcd:451abcd";
+        const std::string TITLE_DATA_PRIMARY_SPEC = "610abcd:611abcd:430abcd:650abcd:651abcd";
         const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS = "180a:181a:182a:183a:184a";
 
         // Determine fields to handle
         std::set<std::string> primary_tags_and_subfield_codes;
         std::set<std::string> synonym_tags_and_subfield_codes;
+        std::set<std::string> input_tags_and_subfield_codes;
         std::set<std::string> output_tags_and_subfield_codes;
 
         if (unlikely(StringUtil::Split(AUTHORITY_DATA_PRIMARY_SPEC, ":", &primary_tags_and_subfield_codes) < 1))
@@ -174,12 +176,16 @@ int main(int argc, char **argv) {
         if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) < 1))
             Error("Need at least one synonym field");
 
+        if (unlikely(StringUtil::Split(TITLE_DATA_PRIMARY_SPEC, ":", &input_tags_and_subfield_codes) < 1))
+            Error("Need at least one input field");
+
         if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ":", &output_tags_and_subfield_codes) < 1))
             Error("Need at least one output field");
 
         unsigned num_of_entries(primary_tags_and_subfield_codes.size());
 
-        if (synonym_tags_and_subfield_codes.size() != num_of_entries or output_tags_and_subfield_codes.size() != num_of_entries)
+        if (synonym_tags_and_subfield_codes.size() != num_of_entries or input_tags_and_subfield_codes.size() != num_of_entries
+            or output_tags_and_subfield_codes.size() != num_of_entries)
             Error("Number of fields in all field specifications must be identical");
              
         // Set up the array of synonym lists
@@ -187,7 +193,7 @@ int main(int argc, char **argv) {
         ExtractSynonyms(norm_data_marc_input.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes, synonym_map);
 
         // Iterate over the title data
-        InsertSynonyms(marc_input.get(), &marc_output, primary_tags_and_subfield_codes, output_tags_and_subfield_codes, synonym_map);
+        InsertSynonyms(marc_input.get(), &marc_output, input_tags_and_subfield_codes, output_tags_and_subfield_codes, synonym_map);
 
         delete[] synonym_map;
     }
@@ -196,7 +202,3 @@ int main(int argc, char **argv) {
 
     }
 }
-
-
-
-   
