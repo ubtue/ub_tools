@@ -1,0 +1,9 @@
+Blah blah...
+$IFDEFINED(var)
+We should see this...
+$IFDEFINED(undefined)
+...but not this
+$ENDIFDEFINED
+$ENDIFDEFINED
+The END!
+
