@@ -121,12 +121,8 @@ bool IsValid3LetterLanguageCode(const std::string &language_code_candidate) {
         "deu", "eng", "fra"
     };
 
-    for (const auto &valid_language_code : VALID_LANGUAGE_CODES) {
-        if (valid_language_code == language_code_candidate)
-            return true;
-    }
-
-    return false;
+    return std::find(VALID_LANGUAGE_CODES.cbegin(), VALID_LANGUAGE_CODES.cend(), language_code_candidate)
+           != VALID_LANGUAGE_CODES.end();
 }
 
 
