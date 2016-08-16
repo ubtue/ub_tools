@@ -441,6 +441,7 @@ void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const lo
     loop_vars->insert(variable_name_candidate);
 
     while ((token = scanner->getToken(/* emit_output = */false)) == TemplateScanner::COMMA) {
+        token = scanner->getToken(/* emit_output = */false);
         if (unlikely(token != TemplateScanner::VARIABLE_NAME))
             throw std::runtime_error("in MiscUtil::ParseLoop: error on line "
                                      + std::to_string(scanner->getLineNo())
@@ -497,7 +498,6 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
             const unsigned start_line_no(scanner.getLineNo());
             skipping.push(not ParseIf(&scanner, names_to_values_map));
             scopes.push(Scope::MakeIfScope(start_line_no));
-            ProcessEndOfSyntax("IF", &scanner);
         } else if (token == TemplateScanner::ELSE) {
             if (unlikely(scopes.top().getType() != Scope::IF))
                 throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
