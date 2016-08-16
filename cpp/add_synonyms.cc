@@ -132,7 +132,7 @@ void InsertSynonyms(File * const marc_input, File * marc_output, const std::set<
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 4)
         Usage();
