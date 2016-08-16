@@ -854,7 +854,10 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public String isSuperiorWork(final Record record) {
-        return Boolean.toString(record.getVariableField("SPR") != null);
+        final DataField sprField = (DataField)record.getVariableField("SPR");
+        if (sprField == null)
+            return Boolean.FALSE.toString();
+        return Boolean.toString(sprField.getSubfield('a') != null);
     }
 
     public String isSubscribable(final Record record) {
