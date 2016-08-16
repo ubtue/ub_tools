@@ -22,3 +22,9 @@ rm -f /tmp/test.out
 ./expand_template_test test_input/test3.template var:x > /tmp/test.out
 diff --brief /tmp/test.out test_input/test3.template.out
 rm -f /tmp/test.out
+
+# Test 4
+./expand_template_test test_input/test4.template firstname:Johannes lastname:Ruscheinski url:http1:http2 \
+                       title:T1:T1000 > /tmp/test.out
+diff --brief /tmp/test.out test_input/test4.template.out
+rm -f /tmp/test.out
