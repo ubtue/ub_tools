@@ -3,6 +3,7 @@
 #include <iostream>
 #include <map>
 #include <stdexcept>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <cstdlib>
@@ -50,7 +51,8 @@ int main(int argc, char *argv[]) {
             Error("failed to read the template from \"" + template_filename + "\" for reading!");
         std::map<std::string, std::vector<std::string>> names_to_values_map;
         ExtractNamesAndValues(argc, argv, &names_to_values_map);
-        std::cout << MiscUtil::ExpandTemplate(template_string, names_to_values_map);
+        std::istringstream input(template_string);
+        MiscUtil::ExpandTemplate(input, std::cout, names_to_values_map);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

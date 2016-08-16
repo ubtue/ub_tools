@@ -83,6 +83,14 @@ int Spawn(const std::string &command, const std::vector<std::string> &args = {},
 std::string Which(const std::string &executable_candidate);
 
 
+/**  \brief Retrieve the stdout of a subcommand.
+ *   \param command        A shell command.  Can include arguments. E.g. "ls -l".
+ *   \param stdout_output  Where to store the output of the command.
+ *   \note  The command will be executed by passing it to the standard shell interpreter: "/bin/sh -c command".
+ */
+bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output);
+
+
 } // namespace ExecUtil
 
 
