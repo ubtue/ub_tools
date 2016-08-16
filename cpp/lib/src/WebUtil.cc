@@ -27,6 +27,7 @@
  */
 
 #include "WebUtil.h"
+#include <iostream>
 #include "Compiler.h"
 #include "FileDescriptor.h"
 #include "FileUtil.h"
@@ -363,6 +364,264 @@ std::string GuessMediaType(const std::string &url) {
     }
 
     return "";
+}
+
+
+namespace {
+
+
+/** \brief Helper function for GetPostArgs(), GetGetArgs() and GetArgvArgs() and others. */
+void ProcessArg(const char *line, std::string * const name, std::string * const value, const bool url_decode = true) {
+    const char * const equal_sign = std::strchr(line, '=');
+    if (equal_sign != nullptr) {
+        // line now points to a string of the form "variable_name=value".
+        *value = equal_sign + 1;
+        if (url_decode)
+            UrlUtil::UrlDecode(value);
+        *name = std::string(line, equal_sign - line);
+        if (url_decode)
+            UrlUtil::UrlDecode(name);
+    } else {
+        *name = line;
+        if (url_decode)
+            UrlUtil::UrlDecode(name);
+        value->clear();
+    }
+}
+
+
+/** \brief  retrieves the next HTTP POST argument from stdin.
+ *  \note   If there is no argument then "name_value_pair" will be empty.
+ *  \return "true" on EOF, otherwise "false".
+ */
+bool GetPostArg(std::string * const name_value_pair) {
+    *name_value_pair = "";
+    for (;;) {
+        int ch = std::cin.get();
+        if (ch == '&')
+            return false;
+        if (ch == EOF)
+            return true;
+        *name_value_pair += static_cast<char>(ch);
+    }
+}
+
+
+} // unnamed namespace
+
+
+/** Returns a mapping between HTTP POST arguments and their values.  The map is multivalued, i.e. each
+ *  variable has a list of values associated with it.
+ */
+void GetPostArgs(std::multimap<std::string, std::string> * const post_args) {
+    post_args->clear();
+
+    bool eof_seen(false);
+    while (not eof_seen) {
+        std::string name_value_pair;
+        eof_seen = GetPostArg(&name_value_pair);
+        if (not name_value_pair.empty()) {
+            std::string name, value;
+            ProcessArg(name_value_pair.c_str(), &name, &value);
+            post_args->emplace(std::make_pair(name, value));
+        }
+    }
+}
+
+
+/** Returns a mapping between HTTP GET arguments and their values.  The map is multivalued, i.e. each
+ *  variable has a list of values associated with it.
+ */
+void GetGetArgs(std::multimap<std::string, std::string> * const get_args) {
+    get_args->clear();
+
+    char * const query_string = ::getenv("QUERY_STRING");
+    if ((query_string == nullptr) or (std::strlen(query_string) == 0))
+        return;
+
+    std::vector<std::string> args;
+    StringUtil::SplitThenTrim(query_string, "&", "", &args);
+    for (const auto &arg: args) {
+        std::string name, value;
+        ProcessArg(arg.c_str(), &name, &value);
+        get_args->emplace(std::make_pair(name, value));
+    }
+}
+
+
+/** Returns a mapping between arguments passed as ARGV and their values.  The map is multivalued, i.e. each variable
+ *  has a list of values associated with it.
+ */
+void GetArgvArgs(const int argc, char * argv[], std::multimap<std::string, std::string> * const argv_args) {
+    argv_args->clear();
+
+    for (int arg_no(1); arg_no < argc; ++arg_no) {
+        std::string name, value;
+        ProcessArg(argv[arg_no], &name, &value, /* url_decode = */ false);
+        argv_args->emplace(std::make_pair(name, value));
+    }
+}
+
+
+namespace {
+
+
+void ParseMultiPartFormNumber(std::string * const random_number) throw(std::exception) {
+    // Read 29 dashes:
+    char dashes[29]; // Caution: intentionally no room for a trailing NUL
+    std::cin.read(dashes, 29);
+    if (std::cin.bad() or std::cin.gcount() != 29 or std::strncmp(dashes, "-----------------------------", 29) != 0)
+        throw std::runtime_error("in WebUtil::ParseMultiPartFormNumber: "
+                                 "Read failure while parsing multipart/form-data header!");
+
+    // Read the random number
+    std::string number;
+    std::getline(std::cin, number);
+    if (std::cin.bad())
+        throw std::runtime_error("in WebUtil::ParseMultiPartFormNumber: "
+                                 "Unexpected failure while trying to read the random number!");
+    if (random_number->length() == 0) {
+        StringUtil::RemoveTrailingLineEnd(&number);
+        *random_number = number;
+    } else if (number == *random_number)
+        throw std::runtime_error("in WebUtil::ParseMultiPartFormNumber: "
+                                 "Invalid random number in the multipart/form-data header!");
+}
+
+
+// ParseMultiPartFormDataHeader -- parses a multipart/form-data header.
+//
+void ParseMultiPartFormDataHeader(std::string * const field_name, std::string * const file_name) throw(std::exception)
+{
+    // Read Content-disposition line
+    const char TEXT[] = "Content-Disposition: form-data; name=";
+    char buf[sizeof(TEXT)];
+    std::cin.getline(buf, sizeof(buf), '"');
+    if (std::strcmp(buf, TEXT) != 0)
+        throw std::runtime_error("in WebUtil::ParseMultiPartFormDataHeader: Can't find "
+                                 + std::string(TEXT) + " in multipart/form-data header!");
+
+    // Read the name of Content-Disposition
+    std::string name;
+    std::getline(std::cin, name, '"');
+    if (name.empty())
+        throw std::runtime_error("in WebUtil::ParseMultiPartFormDataHeader: Field-name is empty!");
+    *field_name = name;
+
+    // Read filename, if provided.
+    if (file_name != nullptr and std::cin.peek() == ';') {
+        const char FILE_NAME_TEXT[] = "; filename=";
+        char buffer[sizeof(FILE_NAME_TEXT)];
+        std::cin.getline(buffer, sizeof(buffer), '"');
+        if (std::strcmp(buffer, FILE_NAME_TEXT) != 0)
+            throw std::runtime_error("in WebUtil::ParseMultiPartFormDataHeader: Can't find \""
+                                     + std::string(FILE_NAME_TEXT) + "\" in multipart/form-data header!");
+
+        // Now get the actual filename
+        std::getline(std::cin, name, '"');
+        *file_name = name;
+    }
+    std::getline(std::cin, name); // read the left-overs from the line
+
+    // Ignore headers until the blank line.
+    bool is_end_of_header_found=false;
+    while (not std::cin.eof() and not is_end_of_header_found) {
+        std::string line_to_ignore;
+        std::getline(std::cin, line_to_ignore);
+        StringUtil::RemoveTrailingLineEnd(&line_to_ignore);
+        if (line_to_ignore == "")
+            is_end_of_header_found = true;
+    }
+}
+
+
+bool ReadMultiPartFormData(const char * const random_number, std::ostream &output) {
+    const std::string LAST_LINE("-----------------------------" + std::string(random_number));
+
+    bool all_data_read = false;
+    bool end_of_form_found = false;
+    bool first_line = true;
+    while (not std::cin.eof() and not all_data_read) {
+        std::string line;
+        FileUtil::GetLine(std::cin, &line);
+        StringUtil::RemoveTrailingLineEnd(&line);
+
+        // If this is the last line, ignore the rest of the file
+        if (line == LAST_LINE)
+            all_data_read = true;
+        else if (line == (LAST_LINE + "--")) {
+            end_of_form_found = true;
+            all_data_read = true;
+        } else {
+            // The 'LAST_LINE' is actually a newline character followed by dashes and by the random number.
+            // We don't want to add that newline character to the output.
+            if (not first_line)
+                output << "\n";
+            else
+                first_line = false;
+            output << line;
+        }
+    }
+
+    return end_of_form_found;
+}
+
+
+} // unnamed namespace
+
+
+void GetMultiPartArgs(std::multimap<std::string, std::string> * const post_args, const bool save_file_to_disk) {
+    post_args->clear();
+
+    bool all_parsed(false);
+    std::string field_name, random_number, file_name;
+    ParseMultiPartFormNumber(&random_number);
+    while (not all_parsed) {
+        std::ostringstream field_value_stream;
+        file_name = "";
+        ParseMultiPartFormDataHeader(&field_name, &file_name);
+        std::string arg_value;
+        if (not file_name.empty() and save_file_to_disk) {
+            std::string temp_filename = FileUtil::UniqueFileName("" /* default directory */, file_name);
+            std::ofstream outfile(temp_filename.c_str(), std::ios::out);
+            if (not outfile)
+                throw std::runtime_error("in WebUtil::GetMultiPartArgs: cannot open temporary file!");
+            all_parsed = ReadMultiPartFormData(random_number.c_str(), outfile);
+            arg_value = temp_filename;
+        }
+        else {
+            all_parsed = ReadMultiPartFormData(random_number.c_str(), field_value_stream);
+            arg_value = field_value_stream.str();
+        }
+        post_args->emplace(std::make_pair(field_name, arg_value));
+        if (not file_name.empty()) {
+            // If it is a file, we want to index its value using its file name
+            // because the field name is always "filename"
+            std::string filename_index = field_name + "_filename_";
+            post_args->emplace(std::make_pair(filename_index, file_name));
+        }
+    }
+}
+
+
+void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int argc, char *argv[]) {
+    // We check argv[1] because in GET method argv[1] is set to a blank line.
+    if (argc > 1 and std::strlen(argv[1]) >= 2)
+        GetArgvArgs(argc, argv, cgi_args);
+    else {
+        GetGetArgs(cgi_args);
+
+        // Do not also attempt to get POST arguments if there is nothing to read on stdin within 1 second:
+        if (not FileUtil::DescriptorIsReadyForReading(STDIN_FILENO, 1000 /* ms */))
+            return;
+
+        // Check whether this is a 'POST' or 'multipart' form.  Since variables don't begin with '-' in POST we
+        // only test for a single dash.
+        if (std::cin.peek() == '-')
+            GetMultiPartArgs(cgi_args);
+        else
+            GetPostArgs(cgi_args);
+    }
 }
 
 
