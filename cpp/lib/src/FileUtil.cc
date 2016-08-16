@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "Compiler.h"
+#include "SocketUtil.h"
 #include "StringUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -731,6 +732,56 @@ bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
     if (unlikely(from->read((void *)buffer.data(), no_of_bytes) != no_of_bytes))
         return false;
     return to->write((void *)buffer.data(), no_of_bytes) == no_of_bytes;
+}
+
+
+bool DescriptorIsReadyForReading(const int fd, const TimeLimit &time_limit) {
+    return SocketUtil::TimedRead(fd, time_limit, reinterpret_cast<void *>(NULL), 0) == 0;
+}
+
+
+bool DescriptorIsReadyForWriting(const int fd, const TimeLimit &time_limit) {
+    return SocketUtil::TimedWrite(fd, time_limit, reinterpret_cast<void *>(NULL), 0) == 0;
+}
+
+
+bool GetLine(std::istream &stream, std::string * const line, const char terminator) {
+    const std::string::size_type INITIAL_CAPACITY(128);
+    line->clear();
+    line->reserve(INITIAL_CAPACITY);
+
+    int ch;
+    for (ch = stream.get(); ch != EOF and ch != terminator; ch = stream.get()) {
+        if (line->size() == line->capacity())
+            line->reserve(2 * line->capacity());
+        line->push_back(static_cast<char>(ch));
+    }
+
+    return ch != EOF;
+}
+
+
+std::string UniqueFileName(const std::string &directory, const std::string &filename_prefix,
+			   const std::string &filename_suffix)
+{
+    static unsigned generation_number(1);
+
+    // Set default for prefix if necessary.
+    std::string prefix(filename_prefix);
+    if (prefix.empty())
+        prefix = ::progname;
+
+    std::string suffix(filename_suffix);
+    if (not suffix.empty() and suffix[0] != '.')
+        suffix = "." + suffix;
+
+    std::string dir(directory);
+    if (dir.empty())
+        dir = "/tmp";
+
+    return (dir + "/" + prefix + "." +
+            std::to_string(getpid()) + "." +
+            std::to_string(generation_number++) + suffix);
 }
 
 

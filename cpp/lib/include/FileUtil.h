@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "File.h"
+#include "TimeLimit.h"
 
 
 namespace FileUtil {
@@ -265,6 +266,46 @@ std::unique_ptr<File> OpenForAppeningOrDie(const std::string &filename);
  *  \note If false was returned, errno has been set.
  */
 bool Copy(File * const from, File * const to, const size_t no_of_bytes);
+
+
+/** \brief  Tests a file descriptor for readiness for reading.
+ *  \param  fd          The file descriptor that we we want to test for read readiness.
+ *  \param  time_limit  Up to how long to wait, in milliseconds, for the descriptor to become ready for reading.
+ *  \return True if the specified file descriptor is ready for reading, otherwise false.
+ *  \note   Please beware that on POSIX based systems it is possible that a file descriptor is ready for reading yet may
+ *          still return 0 bytes!  It just means that read(2) will not hang.
+ */
+bool DescriptorIsReadyForReading(const int fd, const TimeLimit &time_limit = 0);
+
+
+/** \brief  Tests a file descriptor for readiness for writing.
+ *  \param  fd          The file descriptor that we we want to test for write readiness.
+ *  \param  time_limit  Up to how long to wait, in milliseconds, for the descriptor to become ready for writing.
+ *  \return True if the specified file descriptor is ready for writing, otherwise false.
+ *  \note   Please beware that on POSIX based systems it is possible that a file descriptor is ready for writing yet may
+ *          still return 0 bytes!  It just means that write(2) will not hang.
+ */
+bool DescriptorIsReadyForWriting(const int fd, const TimeLimit &time_limit = 0);
+
+
+/** \brief  Reads an arbitrarily long line.
+ *  \param  stream      The input stream to read from.
+ *  \param  line        Where to store the read line.
+ *  \param  terminator  The character terminating the line (won't be stored in "line").
+ *  \return False on EOF, otherwise true.
+ */
+bool GetLine(std::istream &stream, std::string * const line, const char terminator = '\n');
+
+
+/** \brief   Generate a unique filename
+ *  \param   directory        The directory in which to create the temporary file (default: /tmp).
+ *                            If directory is passed to be empty, the default is used again.
+ *  \param   filename_prefix  Optional prefix for the filename.
+ *  \param   filename_suffix  Optional suffix for the filename.
+ *  \return  A new, unique file name.
+ */
+std::string UniqueFileName(const std::string &directory = "/tmp", const std::string &filename_prefix = "",
+                           const std::string &filename_suffix = "");
 
 
 } // namespace FileUtil
