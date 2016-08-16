@@ -24,6 +24,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <getopt.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "DirectoryEntry.h"
 #include "FileUtil.h"
 #include "Leader.h"
@@ -259,12 +262,20 @@ int main(int argc, char **argv) {
     }
 
     const std::string input_filename(argv[2]);
-    const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
-    if (unlikely(media_type.empty()))
-        Error("can't determine media type of \"" + input_filename + "\"!");
-    if (media_type != "application/xml" and media_type != "application/marc")
-        Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
-    const bool input_is_xml(media_type == "application/xml");
+    
+    // Our input file is possibly a fifo, then avoid reading twice
+    struct stat st;
+    bool input_is_xml(false);
+    if (!stat(input_filename.c_str(), &st) && S_ISFIFO(st.st_mode)) {
+         input_is_xml = true;
+    } else {
+        const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
+        if (unlikely(media_type.empty()))
+            Error("can't determine media type of \"" + input_filename + "\"!");
+        if (media_type != "application/xml" and media_type != "application/marc")
+            Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
+        input_is_xml = (media_type == "application/xml");
+     }
 
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[3]));
