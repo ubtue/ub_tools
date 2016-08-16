@@ -170,9 +170,13 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
                 last_variable_name_ = extractVariableName();
                 return VARIABLE_NAME;
             }
-        } else if (ch == '{' and input_.peek() == '{')
-            in_syntax_ = true;
-        else if (emit_output)
+        } else if (ch == '{') {
+            if (input_.peek() == '{') {
+                input_.get();
+                output_.put('{');
+            } else
+                in_syntax_ = true;
+        } else if (emit_output)
             output_.put(static_cast<char>(ch));
     }
 }

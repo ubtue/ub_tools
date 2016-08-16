@@ -54,7 +54,7 @@ char HexDigit(const unsigned value);
 
 
 /** A simple template expander.  All special constructs are in curly brackets.  To emit normal curly brackets
- *  you must dublicate them.  Variable names as defined by "names_to_values_map" must start with a lowercase ASCII
+ *  you must duplicate them.  Variable names as defined by "names_to_values_map" must start with a lowercase ASCII
  *  letter, followed by lowercase ASCII letters, underscores or ASCII digits.  All keywords are all uppercase.
  *  The list of keywords is IF, ELSE, ENDIF, DEFINED, LOOP and ENDLOOP.  The only conditional for an IF is
  *  DEFINED(var).  This returns true if "var" is a key in "names_to_values_map", else false.  Output gets suppressed
