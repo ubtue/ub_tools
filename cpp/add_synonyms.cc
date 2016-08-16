@@ -47,20 +47,19 @@ void Usage() {
 }
 
 
-std::string getTag(const std::string &tag_and_subfields_spec) {
+std::string GetTag(const std::string &tag_and_subfields_spec) {
     return tag_and_subfields_spec.substr(0, 3);
 }
 
 
-std::string getSubfields(const std::string &tag_and_subfields_spec) {
+std::string GetSubfields(const std::string &tag_and_subfields_spec) {
     return tag_and_subfields_spec.substr(3);
 }
 
 
 void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::string> &primary_tags_and_subfield_codes,
-                    const std::set<std::string> &synonym_tags_and_subfield_codes,  std::map<std::string, std::string> *synonym_map) {
-    
-
+                     const std::set<std::string> &synonym_tags_and_subfield_codes,  std::map<std::string, std::string> *synonym_map) 
+{
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(norm_data_marc_input)) {
         std::set<std::string>::const_iterator primary;
         std::set<std::string>::const_iterator synonym;
@@ -73,8 +72,8 @@ void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::stri
             std::vector<std::string> primary_values; 
             std::vector<std::string> synonym_values;              
 
-            if (record.extractSubfields(getTag(*primary), getSubfields(*primary), &primary_values) and 
-                record.extractSubfields(getTag(*synonym), getSubfields(*synonym), &synonym_values))
+            if (record.extractSubfields(GetTag(*primary), GetSubfields(*primary), &primary_values) and 
+                record.extractSubfields(GetTag(*synonym), GetSubfields(*synonym), &synonym_values))
                     synonym_map[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values, ','));
         }
     }
@@ -95,17 +94,16 @@ void ProcessRecord(MarcUtil::Record * const record, std::map<std::string, std::s
     {
         // Insert synonyms
         std::vector<std::string> primary_values;
-
-        if (record->extractSubfields(getTag(*primary), getSubfields(*primary), &primary_values)) {
+        if (record->extractSubfields(GetTag(*primary), GetSubfields(*primary), &primary_values)) {
             std::string synonyms(synonym_map[i][StringUtil::Join(primary_values, ',')]);
             if (synonyms.empty())
                 continue;
 
             // Abort if field is already populated
-            std::string tag(getTag(*output));
+            std::string tag(GetTag(*output));
             if (record->getFieldIndex(tag) != -1)
                 Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
-            std::string subfield_spec = getSubfields(*output);
+            std::string subfield_spec = GetSubfields(*output);
             if (subfield_spec.size() != 1)
                 Error("We currently only support a single subfield and thus specifying " + subfield_spec + " as output subfield is not valid\n");
             Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
@@ -119,8 +117,8 @@ void ProcessRecord(MarcUtil::Record * const record, std::map<std::string, std::s
 
 
 void InsertSynonyms(File * const marc_input, File * marc_output, const std::set<std::string> &primary_tags_and_subfield_codes,
-                    const std::set<std::string> &output_tags_and_subfield_codes, std::map<std::string, std::string> *synonym_map) {
-
+                    const std::set<std::string> &output_tags_and_subfield_codes, std::map<std::string, std::string> *synonym_map) 
+{
     MarcXmlWriter xml_writer(marc_output);
 
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_input)) {
