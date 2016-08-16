@@ -23,6 +23,11 @@
 #include <map>
 #include <memory>
 #include <stdexcept>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <iostream>
 #include "Compiler.h"
 #include "SimpleXmlParser.h"
 #include "StringUtil.h"
@@ -742,7 +747,9 @@ Record Record::XmlFactory(File * const input) {
     else {
         xml_parser = new SimpleXmlParser(input);
         file_to_parser_map.insert(std::make_pair(input, xml_parser));
-        if (input->tell() == 0)
+        // If we use Fifos we may not use tell but have to skip over anyway
+        struct stat st;
+        if ((!fstat(input->getFileDescriptor(), &st) && S_ISFIFO(st.st_mode)) or (input->tell() == 0)) 
             SkipOverStartOfDocument(xml_parser);
     }
 
