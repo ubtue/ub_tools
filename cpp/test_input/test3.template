@@ -1,9 +1,9 @@
 Blah blah...
-$IFDEFINED(var)
+{IF DEFINED(var)}
 We should see this...
-$IFDEFINED(undefined)
+{IF DEFINED(undefined)}
 ...but not this
-$ENDIFDEFINED
-$ENDIFDEFINED
+{ENDIF}
+{ENDIF}
 The END!
 
