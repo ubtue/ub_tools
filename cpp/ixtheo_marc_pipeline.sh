@@ -133,6 +133,14 @@ map_ddc_and_rvk_to_ixtheo_notations \
 EndPhase
 
 
+StartPhase "Add Keyword Synonyms"
+add_synonyms \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    Normdaten-"${date}".xml \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 
+EndPhase
+
+
 StartPhase "Fill in missing 773\$a Subfields"
 augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                        GesamtTiteldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1
