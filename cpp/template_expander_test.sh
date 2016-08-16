@@ -28,3 +28,14 @@ rm -f /tmp/test.out
                        title:T1:T1000 > /tmp/test.out
 diff --brief /tmp/test.out test_input/test4.template.out
 rm -f /tmp/test.out
+
+# Test 5
+./expand_template_test test_input/test5.template var:1 > /tmp/test.out
+diff --brief /tmp/test.out test_input/test5.template.out
+rm -f /tmp/test.out
+
+# Test 6
+./expand_template_test test_input/test6.template x:y > /tmp/test.out
+diff --brief /tmp/test.out test_input/test6.template.out
+rm -f /tmp/test.out
+
