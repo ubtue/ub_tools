@@ -30,7 +30,8 @@
 
 
 #include <algorithm>
-#include <fstream>
+#include <istream>
+#include <ostream>
 #include <list>
 #include <map>
 #include <set>
@@ -52,22 +53,19 @@ namespace MiscUtil {
 char HexDigit(const unsigned value);
 
 
-/** A simple template expander.  Variables look like "$var" or "${var}".  There are two kinds of variables:
- *  Scalar-values ones and vector-valued ones.  Vector valued ones have more than a single value associated
- *  with them.  Two varables are special: "$LOOP" and "$ENDLOOP".  They are used as brackets for repeated
- *  sections.  A repeated section starts with "$LOOP(vvar1,vvar2,..,vvarN)" where vvar1, vvar2, and vvarN are
- *  vector-valued "loop" variables that all must have the same number of values.  The section up to the $ENDLOOP
- *  will then be expanded N times where N is the length of each of the loop variables.  On the first iteration
- *  the 0-th values will be used, then the values with index 1 and so on until the values have been exhausted.
- *  Should you need to embed a literal $-sign in the expanded template, use a "$$" in the original template.
- *  Variable names must consist of ASCII letters and underscores only.  Should you need an ASCII letter or an
- *  underscore immediately following a variable, use the ${var} syntax instead of the $var syntax.  The braces
- *  are also allowed with ${LOOP} and ${ENDLOOP}.  Another feature is a conditional starting with $IFDEFINED(var)
- *  and ending with $ENDIFDEFINED.  If "var" is not known any output will be suppressed until the corresponding
- *  $ENDIFDEFINED.  This feature can be nested.
+/** A simple template expander.  All special constructs are in curly brackets.  To emit normal curly brackets
+ *  you must dublicate them.  Variable names as defined by "names_to_values_map" must start with a lowercase ASCII
+ *  letter, followed by lowercase ASCII letters, underscores or ASCII digits.  All keywords are all uppercase.
+ *  The list of keywords is IF, ELSE, ENDIF, DEFINED, LOOP and ENDLOOP.  The only conditional for an IF is
+ *  DEFINED(var).  This returns true if "var" is a key in "names_to_values_map", else false.  Output gets suppressed
+ *  if DEFINED(var) elavuates to false.  ELSE is optional.  Loops look like "LOOP var1[,var2..]" if more than one
+ *  variable name has been specified, all variables must have the same cardinality.  In a loop "var1" etc. are
+ *  automatically indexed based on the current iteration.
+ *
+ *  \throws std::runtime_error if anything goes wrong, i.e. if a syntax error has been detected.
  */
-std::string ExpandTemplate(const std::string &original_template,
-                           const std::map<std::string, std::vector<std::string>> &names_to_values_map);
+void ExpandTemplate(std::istream &input, std::ostream &output,
+                    const std::map<std::string, std::vector<std::string>> &names_to_values_map);
 
 
 /** \return True if "ppn_candidate" is a possible Pica Production Number, else false. */

@@ -21,6 +21,7 @@
 */
 
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <cstdlib>
 #include <cstring>
@@ -131,10 +132,13 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
     }
     names_to_values_map["url"] = urls;
     names_to_values_map["title"] = titles;
-    const std::string email_contents(MiscUtil::ExpandTemplate(email_template, names_to_values_map));
+    std::istringstream input(email_template);
+    std::ostringstream email_contents;
+    MiscUtil::ExpandTemplate(input, email_contents, names_to_values_map);
 
-    if (unlikely(not EmailSender::SendEmail("notifications@ixtheo.de", email, "Ixtheo Subscriptions", email_contents,
-                                            EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
+    if (unlikely(not EmailSender::SendEmail("notifications@ixtheo.de", email, "Ixtheo Subscriptions",
+                                            email_contents.str(), EmailSender::DO_NOT_SET_PRIORITY,
+                                            EmailSender::HTML)))
         Error("failed to send a notification email to \"" + email + "\"!");
 }
 
