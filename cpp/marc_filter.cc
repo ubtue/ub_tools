@@ -36,7 +36,7 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << progname << " [--input-format=(marc-xml|marc-21)] (--drop|--keep|--remove-fields) [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
+    std::cerr << "usage: " << progname << " (--drop|--keep|--remove-fields) [--input-format=(marc-xml|marc-21)] [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
               << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
