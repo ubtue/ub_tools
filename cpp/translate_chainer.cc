@@ -1,5 +1,5 @@
 /** \file    translate_chainer.cc
- *  \brief   Simple tool for generating a sequence of Web pagers for translations.
+ *  \brief   Simple tool for generating a sequence of Web pages for translations.
  *  \author  Dr. Johannes Ruscheinski
  */
 
