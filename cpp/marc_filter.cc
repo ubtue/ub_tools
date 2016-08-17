@@ -248,12 +248,10 @@ int main(int argc, char **argv) {
     bool input_is_xml(false), already_determined_input_format(false);
     if (std::strcmp("--input-format=marc-xml", argv[2]) == 0) {
         input_is_xml = true;
-        argc -= 1;
-        argv += 1;
+        --argc, ++argv;
         already_determined_input_format = true;
     } else if (std::strcmp("--input-format=marc-21", argv[2]) == 0) {
-        argc -= 1;
-        argv += 1;
+        --argc, ++argv;
         already_determined_input_format = true;
     }
 
