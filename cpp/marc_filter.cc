@@ -234,18 +234,6 @@ int main(int argc, char **argv) {
 
     if (argc < 5)
         Usage();
-
-    bool input_is_xml(false), already_determined_input_format(false);
-    if (std::strcmp("--input-format=marc-xml", argv[1]) == 0) {
-        input_is_xml = true;
-        argc -= 2;
-        argv += 2;
-        already_determined_input_format = true;
-    } else if (std::strcmp("--input-format=marc-21", argv[1]) == 0) {
-        argc -= 2;
-        argv += 2;
-        already_determined_input_format = true;
-    }
     
     OperationType operation_type;
     if (std::strcmp(argv[1], "--keep") == 0)
@@ -256,6 +244,18 @@ int main(int argc, char **argv) {
         operation_type = OperationType::REMOVE_FIELDS;
     else
         Error("expected --keep, --drop or --remove-field as the first argument!");
+
+    bool input_is_xml(false), already_determined_input_format(false);
+    if (std::strcmp("--input-format=marc-xml", argv[2]) == 0) {
+        input_is_xml = true;
+        argc -= 1;
+        argv += 1;
+        already_determined_input_format = true;
+    } else if (std::strcmp("--input-format=marc-21", argv[2]) == 0) {
+        argc -= 1;
+        argv += 1;
+        already_determined_input_format = true;
+    }
 
     OutputFormat output_format(OutputFormat::SAME_AS_INPUT);
     if (StringUtil::StartsWith(argv[2], "--output-format=")) {
