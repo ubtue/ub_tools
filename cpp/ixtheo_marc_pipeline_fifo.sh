@@ -73,13 +73,13 @@ EndPhase) &
 
 StartPhase "Filter out Records Containing mtex in 935\$a" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
-(marc_filter --drop GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml 935a:mtex \
-    >> "${log}" 2>&1 && \
+(marc_filter --input-format=marc-xml --drop GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml 935a:mtex >> "${log}" 2>&1 && \
 EndPhase) &
 
 
 StartPhase "Filter out Self-referential 856 Fields" 
-(marc_filter --remove-fields GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+(marc_filter --input-format=marc-xml --remove-fields GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml '856u:ixtheo\.de' >> "${log}" 2>&1 && \
 EndPhase) &
 wait
