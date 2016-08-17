@@ -23,12 +23,14 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include <cstring>
 #include "File.h"
 #include "FileUtil.h"
 #include "TranslationUtil.h"
+#include "StringUtil.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
@@ -42,8 +44,18 @@ void Usage() {
 }
 
 
-// Generates a XX.ini output file with sorted entries.  The XX is a 2-letter language code.
-void ProcessLanguage(const std::string &output_file_path, const std::string &_3letter_code, DbConnection * const db_connection) {
+// Generates a XX.ini output file with entries like the original file.  The XX is a 2-letter language code.
+void ProcessLanguage(const std::string &output_file_path, const std::string &_3letter_code,
+                     DbConnection * const db_connection)
+{
+    std::unordered_map<std::string, std::pair<unsigned, std::string>> token_to_line_no_and_other_map;
+    TranslationUtil::ReadIniFile(output_file_path, &token_to_line_no_and_other_map);
+    std::unordered_map<unsigned, std::string> line_no_to_token_map;
+    line_no_to_token_map.reserve(token_to_line_no_and_other_map.size());
+    for (const auto &token_and_line_no_and_translation : token_to_line_no_and_other_map)
+        line_no_to_token_map[token_and_line_no_and_translation.second.first] =
+            token_and_line_no_and_translation.first;
+
     if (unlikely(not FileUtil::RenameFile(output_file_path, output_file_path + ".bak", /* remove_target = */true)))
         Error("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"! ("
               + std::string(::strerror(errno)) + ")");
@@ -52,8 +64,8 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
     if (unlikely(output.fail()))
         Error("failed to open \"" + output_file_path + "\" for writing!");
 
-    const std::string SELECT_STMT("SELECT token,text FROM translations WHERE language_code='" + _3letter_code + "' AND "
-                                  "category='vufind_translations'");
+    const std::string SELECT_STMT("SELECT token,text FROM translations WHERE language_code='" + _3letter_code
+                                  + "' AND category='vufind_translations'");
     if (unlikely(not db_connection->query(SELECT_STMT)))
         Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
@@ -61,23 +73,32 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
     if (unlikely(result_set.empty()))
         Error("found no translations for language code \"" + _3letter_code + "\"!");
 
-    std::vector<std::pair<std::string, std::string>> tokens_and_texts;
-    while (const DbRow row = result_set.getNextRow())
-        tokens_and_texts.emplace_back(row[0], row[1]);
+    std::vector<std::tuple<unsigned, std::string, std::string>> line_nos_tokens_and_translations;
+    while (const DbRow row = result_set.getNextRow()) {
+        const auto &line_no_and_token(line_no_to_token_map.find(StringUtil::ToUnsigned(row[0])));
+        if (line_no_and_token != line_no_to_token_map.cend())
+            line_nos_tokens_and_translations.emplace_back(line_no_and_token->first, row[0], row[1]);
+        else
+            line_nos_tokens_and_translations.emplace_back(line_no_to_token_map.size() + 1, row[0], row[1]);
+    }
 
-    std::sort(tokens_and_texts.begin(), tokens_and_texts.end(),
-              [](const std::pair<std::string,std::string> &left, const std::pair<std::string,std::string> &right)
-                  { return left.first < right.first; });
+    std::sort(line_nos_tokens_and_translations.begin(), line_nos_tokens_and_translations.end(),
+              [](const std::tuple<unsigned, std::string,std::string> &left,
+                 const std::tuple<unsigned, std::string,std::string> &right)
+              { return std::get<0>(left) < std::get<0>(right); });
 
-    for (const auto &token_and_text : tokens_and_texts)
-        output << token_and_text.first << " = \"" << token_and_text.second << "\"\n";
+    for (const auto &line_no_token_and_translation : line_nos_tokens_and_translations)
+        output << std::get<1>(line_no_token_and_translation) << " = \""
+               << std::get<2>(line_no_token_and_translation) << "\"\n";
 
-    std::cout << "Wrote " << tokens_and_texts.size() << " language mappings to \"" << output_file_path << "\"\n";
+    std::cout << "Wrote " << line_nos_tokens_and_translations.size() << " language mappings to \""
+              << output_file_path << "\"\n";
 }
 
 
 void GetLanguageCodes(DbConnection * const db_connection, std::map<std::string, std::string> * language_codes) {
-    const std::string SELECT_STMT("SELECT DISTINCT language_code FROM translations WHERE category = 'vufind_translations'");
+    const std::string SELECT_STMT("SELECT DISTINCT language_code FROM translations WHERE category = "
+                                  "'vufind_translations'");
     if (unlikely(not db_connection->query(SELECT_STMT)))
         Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
