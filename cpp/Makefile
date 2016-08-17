@@ -13,8 +13,8 @@ LIBS            = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyoto
                   -lssl -lcrypto -lpthread
 LIBS_AMD64      = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
 
-PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
-CGI_PROGS=full_text_lookup
+PROGS           := $(patsubst %.cc,%,$(wildcard *.cc))
+CGI_PROGS       = full_text_lookup translate_chainer
 INSTALL_PROGS=$(filter-out %_test,$(PROGS)) *.sh
 
 .PHONY: all install root_install clean
@@ -51,16 +51,20 @@ install: $(INSTALL_PROGS)
 	@echo "Installing programs..."
 	cp $(INSTALL_PROGS) ~/bin/
 
-root_install: $(INSTALL_PROGS)
+root_install: regular_install cgi_install
+
+regular_install: $(INSTALL_PROGS)
 	@echo "Installing programs and data..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
 	mkdir --parents /var/lib/tuelib/bibleRef/
 	cp data/books_of_the_bible_to_canonical_form.map \
             /var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map
+	mkdir --parents /var/lib/tuelib/translate_chainer
+	cp data/done_translating.html  data/translate.html /var/lib/tuelib/translate_chainer/
 
 cgi_install: $(CGI_PROGS)
 	mkdir --parents /var/www/cgi-bin
-	cp full_text_lookup /var/www/cgi-bin/
+	cp $(CGI_PROGS) /var/www/cgi-bin/
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps
