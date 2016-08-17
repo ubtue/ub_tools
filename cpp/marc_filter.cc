@@ -36,7 +36,7 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << progname << " [--input-format=(marc-xml|marc-21)] (--drop|--keep|--remove-fields) [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
+    std::cerr << "usage: " << progname << " (--drop|--keep|--remove-fields) [--input-format=(marc-xml|marc-21)] [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
               << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
@@ -234,18 +234,6 @@ int main(int argc, char **argv) {
 
     if (argc < 5)
         Usage();
-
-    bool input_is_xml(false), already_determined_input_format(false);
-    if (std::strcmp("--input-format=marc-xml", argv[1]) == 0) {
-        input_is_xml = true;
-        argc -= 2;
-        argv += 2;
-        already_determined_input_format = true;
-    } else if (std::strcmp("--input-format=marc-21", argv[1]) == 0) {
-        argc -= 2;
-        argv += 2;
-        already_determined_input_format = true;
-    }
     
     OperationType operation_type;
     if (std::strcmp(argv[1], "--keep") == 0)
@@ -256,6 +244,16 @@ int main(int argc, char **argv) {
         operation_type = OperationType::REMOVE_FIELDS;
     else
         Error("expected --keep, --drop or --remove-field as the first argument!");
+
+    bool input_is_xml(false), already_determined_input_format(false);
+    if (std::strcmp("--input-format=marc-xml", argv[2]) == 0) {
+        input_is_xml = true;
+        --argc, ++argv;
+        already_determined_input_format = true;
+    } else if (std::strcmp("--input-format=marc-21", argv[2]) == 0) {
+        --argc, ++argv;
+        already_determined_input_format = true;
+    }
 
     OutputFormat output_format(OutputFormat::SAME_AS_INPUT);
     if (StringUtil::StartsWith(argv[2], "--output-format=")) {
