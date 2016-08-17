@@ -100,7 +100,7 @@ std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &
 {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
-        Error("expected a \"" + parameter_name + "\" parameter!");
+        Error("expected a(n) \"" + parameter_name + "\" parameter!");
 
     return key_and_value->second;
 }
