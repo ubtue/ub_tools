@@ -1,5 +1,5 @@
 /** \file    translate_chainer.cc
- *  \brief   Simple tool for generating a sequence of Web pagers for translations.
+ *  \brief   Simple tool for generating a sequence of Web pages for translations.
  *  \author  Dr. Johannes Ruscheinski
  */
 
@@ -83,7 +83,7 @@ void ParseGetMissingLine(const std::string &line, Translation * const translatio
 }
 
 
-void ParseGetMissingOutput(const std::string &output, std::vector<Translation> * const translations) {
+void ParseTranslationsDbToolOutput(const std::string &output, std::vector<Translation> * const translations) {
     std::vector<std::string> lines;
     StringUtil::Split(output, '\n', &lines);
 
@@ -98,54 +98,70 @@ void ParseGetMissingOutput(const std::string &output, std::vector<Translation> *
 std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &cgi_args,
                                  const std::string &parameter_name) 
 {
-        const auto key_and_value(cgi_args.find(parameter_name));
-        if (key_and_value == cgi_args.cend())
-            Error("expected a \"" + parameter_name + "\" parameter!");
+    const auto key_and_value(cgi_args.find(parameter_name));
+    if (key_and_value == cgi_args.cend())
+        Error("expected a \"" + parameter_name + "\" parameter!");
 
-        return key_and_value->second;
+    return key_and_value->second;
 }
 
 
-void ProcessArgs(const std::multimap<std::string, std::string> &cgi_args) {
-    if (cgi_args.size() == 1) {
-        const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
+void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &output, const std::string &language_code) {
+    std::vector<Translation> translations;
+    ParseTranslationsDbToolOutput(output, &translations);
+    if (translations.empty()) {
+        std::ifstream done_html("/var/lib/tuelib/translate_chainer/done_translating.html", std::ios::binary);
+        std::cout << done_html.rdbuf();
+    } else {
+        std::map<std::string, std::vector<std::string>> names_to_values_map;
+        names_to_values_map.emplace(std::make_pair(std::string("index"),
+                                                   std::vector<std::string>{ translations.front().index_ }));
+        names_to_values_map.emplace(std::make_pair(std::string("target_language_code"),
+                                                   std::vector<std::string>{ language_code }));
+        names_to_values_map.emplace(std::make_pair(std::string("category"),
+                                                   std::vector<std::string>{ translations.front().category_ }));
 
-        const std::string COMMAND("/usr/local/bin/translation_db_tool get_missing " + language_code);
-        std::string output;
-        if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &output))
-            Error("failed to execute \"" + COMMAND + "\" or it returned a non-zero exit code!");
-
-        std::vector<Translation> translations;
-        ParseGetMissingOutput(output, &translations);
-        if (translations.empty()) {
-            std::ifstream done_html("data/done_translating.html", std::ios::binary);
-            std::cout << done_html.rdbuf();
-        } else {
-            std::map<std::string, std::vector<std::string>> names_to_values_map;
-            names_to_values_map.emplace(std::make_pair(std::string("index"),
-                                                       std::vector<std::string>{ translations.front().index_ }));
-            names_to_values_map.emplace(std::make_pair(std::string("target_language_code"),
-                                                       std::vector<std::string>{ language_code }));
-            names_to_values_map.emplace(std::make_pair(std::string("category"),
-                                                       std::vector<std::string>{ translations.front().category_ }));
-
-            std::vector<std::string> language_codes, example_texts;
-            for (const auto &translation : translations) {
-                language_codes.emplace_back(translation.language_code_);
-                example_texts.emplace_back(translation.text_);
-            }
-            names_to_values_map.emplace(std::make_pair(std::string("language_code"), language_codes));
-            names_to_values_map.emplace(std::make_pair(std::string("example_text"), example_texts));
-
-            std::ifstream translate_html("data/translate.html", std::ios::binary);
-            MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
+        std::vector<std::string> language_codes, example_texts;
+        for (const auto &translation : translations) {
+            language_codes.emplace_back(translation.language_code_);
+            example_texts.emplace_back(translation.text_);
         }
-    } else if (cgi_args.size() == 4) {
-        const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
-        const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
-        const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
-        const std::string category(GetCGIParameterOrDie(cgi_args, "category"));
+        names_to_values_map.emplace(std::make_pair(std::string("language_code"), language_codes));
+        names_to_values_map.emplace(std::make_pair(std::string("example_text"), example_texts));
+
+        std::ifstream translate_html("/var/lib/tuelib/translate_chainer/translate.html", std::ios::binary);
+        MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
     }
+}
+
+
+// The first call should only provide only the 3-letter language.
+void InitialCall(const std::multimap<std::string, std::string> &cgi_args) {
+    const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
+
+    const std::string GET_MISSING_COMMAND("/usr/local/bin/translation_db_tool get_missing " + language_code);
+    std::string output;
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_MISSING_COMMAND, &output))
+        Error("failed to execute \"" + GET_MISSING_COMMAND + "\" or it returned a non-zero exit code!");
+
+    ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code);
+}
+
+
+// A standard call should provide "index", "language_code", "category" and "translation".
+void RegularCall(const std::multimap<std::string, std::string> &cgi_args) {
+    const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
+    const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
+    const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
+    const std::string category(GetCGIParameterOrDie(cgi_args, "category"));
+
+    const std::string INSERT_COMMAND("/usr/local/bin/translation_db_tool insert " + index + " " + language_code
+                                     + " " + category + " " + translation);
+    std::string output;
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(INSERT_COMMAND, &output))
+        Error("failed to execute \"" + INSERT_COMMAND + "\" or it returned a non-zero exit code!");
+
+    ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code);
 }
 
 
@@ -156,7 +172,12 @@ int main(int argc, char *argv[]) {
         std::multimap<std::string, std::string> cgi_args;
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
  
-        ProcessArgs(cgi_args);
+        if (cgi_args.size() == 1)
+            InitialCall(cgi_args);
+        else if (cgi_args.size() == 4)
+            RegularCall(cgi_args);
+        else
+            Error("we should be called w/ either 1 or 4 CGI arguments!");
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
