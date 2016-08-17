@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
                 Error("\"" + std::string(argv[2])  + "\" is not a valid index!");
 
             const std::string language_code(argv[3]);
-            if (TranslationUtil::IsValidGerman3LetterCode(language_code))
+            if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
                 Error("\"" + language_code + "\" is not a valid German 3-letter language code!");
 
             std::set<std::string> valid_categories;
