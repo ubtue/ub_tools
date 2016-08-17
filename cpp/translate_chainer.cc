@@ -135,7 +135,7 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
 }
 
 
-// The first call should only provide only the 3-letter language.
+// The first call should only provide the 3-letter language code.
 void InitialCall(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
 
