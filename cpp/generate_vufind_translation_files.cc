@@ -64,8 +64,8 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
     if (unlikely(output.fail()))
         Error("failed to open \"" + output_file_path + "\" for writing!");
 
-    const std::string SELECT_STMT("SELECT token,text FROM translations WHERE language_code='" + _3letter_code
-                                  + "' AND category='vufind_translations'");
+    const std::string SELECT_STMT("SELECT token,text FROM vufind_translations WHERE language_code='" + _3letter_code
+                                  + "'");
     if (unlikely(not db_connection->query(SELECT_STMT)))
         Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
@@ -97,8 +97,7 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
 
 
 void GetLanguageCodes(DbConnection * const db_connection, std::map<std::string, std::string> * language_codes) {
-    const std::string SELECT_STMT("SELECT DISTINCT language_code FROM translations WHERE category = "
-                                  "'vufind_translations'");
+    const std::string SELECT_STMT("SELECT DISTINCT language_code FROM vufind_translations");
     if (unlikely(not db_connection->query(SELECT_STMT)))
         Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
