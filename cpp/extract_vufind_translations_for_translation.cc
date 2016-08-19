@@ -36,43 +36,20 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " de.ini other_local_vufind_language_maps\n";
+    std::cerr << "Usage: " << progname << " translation.ini...\n";
     std::exit(EXIT_FAILURE);
 }
 
-
-void InsertGerman(DbConnection * const connection,
-                  const std::unordered_map<std::string, std::pair<unsigned, std::string>> &keys_to_german_map)
-{
-    for (const auto &key_and_line_no_and_german : keys_to_german_map) {
-        const std::string id(TranslationUtil::GetId(connection, key_and_line_no_and_german.second.second));
-        const std::string INSERT_GERMAN("REPLACE INTO translations SET id=" + id
-                                        + ", language_code=\"deu\", category=\"vufind_translations\", "
-                                        "preexists=TRUE, token=\""
-                                        + connection->escapeString(key_and_line_no_and_german.first) + "\", text=\""
-                                        + connection->escapeString(key_and_line_no_and_german.second.second) + "\"");
-        if (not connection->query(INSERT_GERMAN))
-            Error("Insert failed: " + INSERT_GERMAN + " (" + connection->getLastErrorMessage() + ")");
-    }
-}
-
-
-void InsertOther(
+void InsertTranslations(
     DbConnection * const connection, const std::string &language_code,
-    const std::unordered_map<std::string, std::pair<unsigned, std::string>> &keys_to_line_no_and_german_map,
-    const std::unordered_map<std::string, std::pair<unsigned, std::string>> &keys_to_line_no_and_other_map)
+    const std::unordered_map<std::string, std::pair<unsigned, std::string>> &keys_to_line_no_and_translation_map)
 {
-    for (const auto &key_and_line_no_and_other : keys_to_line_no_and_other_map) {
-        const auto &key_and_line_no_and_german(keys_to_line_no_and_german_map.find(key_and_line_no_and_other.first));
-        if (unlikely(key_and_line_no_and_german == keys_to_line_no_and_german_map.cend()))
-            continue;
-        const std::string id(TranslationUtil::GetId(connection, key_and_line_no_and_german->second.second));
-
-        const std::string INSERT_OTHER("REPLACE INTO translations SET id=" + id + ", language_code=\""
-                                       + language_code + "\", category=\"vufind_translations\", preexists=TRUE, "
-                                       "token=\"" + connection->escapeString(key_and_line_no_and_other.first)
-                                       + "\", text=\""
-                                       + connection->escapeString(key_and_line_no_and_other.second.second) + "\"");
+    for (const auto &keys_to_line_no_and_translation : keys_to_line_no_and_translation_map) {
+        const std::string key = connection->escapeString(keys_to_line_no_and_translation.first);
+        const std::string translation = connection->escapeString(keys_to_line_no_and_translation.second.second);
+        const std::string INSERT_OTHER("REPLACE INTO vufind_translations SET language_code=\"" + language_code + "\", "
+                                        "token=\"" + key + "\", "
+                                        "translation=\"" + translation + "\"");
         if (not connection->query(INSERT_OTHER))
             Error("Insert failed: " + INSERT_OTHER + " (" + connection->getLastErrorMessage() + ")");
     }
@@ -85,7 +62,7 @@ const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc < 3)
+    if (argc < 2)
         Usage();
 
     try {
@@ -95,17 +72,7 @@ int main(int argc, char **argv) {
         const std::string sql_password(ini_file.getString("", "sql_password"));
         DbConnection db_connection(sql_database, sql_username, sql_password);
 
-        const std::string de_ini_filename(argv[1]);
-        if (unlikely(de_ini_filename != "de.ini" and not StringUtil::EndsWith(de_ini_filename, "/de.ini")))
-            Error("first INI file must be \"de.ini\"!");
-
-        std::unordered_map<std::string, std::pair<unsigned, std::string>> keys_to_line_no_and_german_map;
-        TranslationUtil::ReadIniFile(de_ini_filename, &keys_to_line_no_and_german_map);
-        InsertGerman(&db_connection, keys_to_line_no_and_german_map);
-        std::cout << "Read " << keys_to_line_no_and_german_map.size()
-                  << " mappings from English to German from \"" << de_ini_filename << "\".\n";
-
-        for (int arg_no(2); arg_no < argc; ++arg_no) {
+        for (int arg_no(1); arg_no < argc; ++arg_no) {
             // Get the 2-letter language code from the filename.  We expect filenames of the form "xx.ini" or
             // "some_path/xx.ini":
             const std::string ini_filename(argv[arg_no]);
@@ -124,13 +91,12 @@ int main(int argc, char **argv) {
             const std::string german_3letter_code(
                 TranslationUtil::MapInternational2LetterCodeToGerman3LetterCode(two_letter_code));
 
-            std::unordered_map<std::string, std::pair<unsigned, std::string>> keys_to_line_no_and_other_map;
-            TranslationUtil::ReadIniFile(ini_filename, &keys_to_line_no_and_other_map);
-            std::cout << "Read " << keys_to_line_no_and_other_map.size()
+            std::unordered_map<std::string, std::pair<unsigned, std::string>> keys_to_line_no_and_translation_map;
+            TranslationUtil::ReadIniFile(ini_filename, &keys_to_line_no_and_translation_map);
+            std::cout << "Read " << keys_to_line_no_and_translation_map.size()
                       << " mappings from English to another language from \"" << ini_filename << "\".\n";
 
-            InsertOther(&db_connection, german_3letter_code, keys_to_line_no_and_german_map,
-                        keys_to_line_no_and_other_map);
+            InsertTranslations(&db_connection, german_3letter_code, keys_to_line_no_and_translation_map);
         }
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));

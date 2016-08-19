@@ -50,11 +50,6 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
 {
     std::unordered_map<std::string, std::pair<unsigned, std::string>> token_to_line_no_and_other_map;
     TranslationUtil::ReadIniFile(output_file_path, &token_to_line_no_and_other_map);
-    std::unordered_map<unsigned, std::string> line_no_to_token_map;
-    line_no_to_token_map.reserve(token_to_line_no_and_other_map.size());
-    for (const auto &token_and_line_no_and_translation : token_to_line_no_and_other_map)
-        line_no_to_token_map[token_and_line_no_and_translation.second.first] =
-            token_and_line_no_and_translation.first;
 
     if (unlikely(not FileUtil::RenameFile(output_file_path, output_file_path + ".bak", /* remove_target = */true)))
         Error("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"! ("
@@ -64,7 +59,7 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
     if (unlikely(output.fail()))
         Error("failed to open \"" + output_file_path + "\" for writing!");
 
-    const std::string SELECT_STMT("SELECT token,text FROM vufind_translations WHERE language_code='" + _3letter_code
+    const std::string SELECT_STMT("SELECT token,translation FROM vufind_translations WHERE language_code='" + _3letter_code
                                   + "'");
     if (unlikely(not db_connection->query(SELECT_STMT)))
         Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
@@ -75,11 +70,11 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
 
     std::vector<std::tuple<unsigned, std::string, std::string>> line_nos_tokens_and_translations;
     while (const DbRow row = result_set.getNextRow()) {
-        const auto &line_no_and_token(line_no_to_token_map.find(StringUtil::ToUnsigned(row[0])));
-        if (line_no_and_token != line_no_to_token_map.cend())
-            line_nos_tokens_and_translations.emplace_back(line_no_and_token->first, row[0], row[1]);
+        const auto &token_to_line_no_and_other(token_to_line_no_and_other_map.find(row[0]));
+        if (token_to_line_no_and_other != token_to_line_no_and_other_map.cend())
+            line_nos_tokens_and_translations.emplace_back(token_to_line_no_and_other->second.first, row[0], row[1]);
         else
-            line_nos_tokens_and_translations.emplace_back(line_no_to_token_map.size() + 1, row[0], row[1]);
+            line_nos_tokens_and_translations.emplace_back(token_to_line_no_and_other_map.size() + 1, row[0], row[1]);
     }
 
     std::sort(line_nos_tokens_and_translations.begin(), line_nos_tokens_and_translations.end(),
