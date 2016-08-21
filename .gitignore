@@ -100,12 +100,15 @@ vufind_db_test
 xml_parser_test
 
 bsz_daten
+bsz_daten_cumulated
 KeywordChainParser-*.jar
 BibleRangeParser-*.jar
 solr_plugins/Bibelstellensuche/bin/
 solr_plugins/Schlagwortfolgensuche/bin/
 SolrmarcMixin-*.jar
 FacetPrefixSortComponent-*.jar
+MultiLanguageDocTransformerFactory-0.0.1.jar
+MultiLanguageQueryParser-0.0.1.jar
 solr_plugins/PrefixSortFacetten/bin/
 solrmarc_mixin/bin/
 go/bin/*
