@@ -101,8 +101,8 @@ void RemoveExistingKeywords(DbConnection * const connection, std::unordered_set<
 
     DbResultSet result_set(connection->getLastResultSet());
     while (const DbRow row = result_set.getNextRow()) {
-        const auto iter = norm_data_control_numbers->find(row["id"]);
-        if (iter != norm_data_control_numbers->end())
+        const auto id_iter(norm_data_control_numbers->find(row["id"]));
+        if (id_iter != norm_data_control_numbers->end())
             norm_data_control_numbers->erase(iter);
     }
 }
