@@ -48,7 +48,6 @@ void Usage() {
     std::exit(EXIT_FAILURE);
 }
 
-static WallClockTimer *shared_timer;
 static unsigned keyword_count, translation_count, additional_hits, synonym_count;
 static std::unordered_set<std::string> *shared_norm_data_control_numbers;
 static DbConnection *shared_connection;
@@ -78,6 +77,7 @@ bool RecordKeywordControlNumbers(MarcUtil::Record * const record, XmlWriter * co
             }
         }
     }
+    
     return true;
 }
 
@@ -96,16 +96,15 @@ void ExtractKeywordNormdataControlNumbers(File * const marc_input, std::unordere
 
 void RemoveExistingKeywords(DbConnection * const connection, std::unordered_set<std::string> * const norm_data_control_numbers)
 {
-    const std::string SELECT_STMT = "SELECT DISTINCT id FROM keyword_translations";
+    const std::string SELECT_STMT("SELECT DISTINCT id FROM keyword_translations");
     if (not connection->query(SELECT_STMT))
         Error("Select failed: " + SELECT_STMT + " (" + connection->getLastErrorMessage() + ")");
 
     DbResultSet result_set(connection->getLastResultSet());
     while (const DbRow row = result_set.getNextRow()) {
         const auto iter = norm_data_control_numbers->find(row["id"]);
-        if (iter != norm_data_control_numbers->end()) {
+        if (iter != norm_data_control_numbers->end())
             norm_data_control_numbers->erase(iter);
-        }
     }
 }
 
