@@ -161,27 +161,26 @@ bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xm
         }
     }
     
-    const std::string INSERT_STATEMENT_BEGIN("INSERT INTO keyword_translations (id,language_code,translation,preexists) VALUES ");
-    std::string insert_statement(INSERT_STATEMENT_BEGIN);
+    const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (id,language_code,translation,preexists) VALUES ");
+    std::string insert_statement(INSERT_STATEMENT_START);
     size_t row_counter(0);
     const size_t MAX_ROW_COUNT(1000);
-    // Update the database.
+    
+    // Update the database:
     for (const auto &text_and_language_code : text_and_language_codes) {
         const std::string language_code = shared_connection->escapeString(text_and_language_code.second);
         const std::string translation = shared_connection->escapeString(text_and_language_code.first);
-        insert_statement.append("('" + record->getControlNumber() + "', "
-                                "'" + language_code + "', "
-                                "'" + translation + "', TRUE), ");
+        insert_statement += "('" + record->getControlNumber() + "', '" + language_code + "', '" + translation + "', TRUE), ";
         if (++row_counter > MAX_ROW_COUNT) {
-            insert_statement = insert_statement.substr(0, insert_statement.size() - 2).append(";");
+            insert_statement = insert_statement.substr(0, insert_statement.size() - 2).append(';');
             if (not shared_connection->query(insert_statement))
                 Error("Insert failed: " + insert_statement + " (" + shared_connection->getLastErrorMessage() + ")");
             
-            insert_statement.clear();
-            insert_statement.append(INSERT_STATEMENT_BEGIN);
+            insert_statement = INSERT_STATEMENT_START;
             row_counter = 0;
         }
     }
+    
     return true;
 }
 
