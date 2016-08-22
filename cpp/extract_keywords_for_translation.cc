@@ -39,7 +39,6 @@
 #include "Subfields.h"
 #include "TimeUtil.h"
 #include "TranslationUtil.h"
-#include "WallClockTimer.h"
 #include "util.h"
 
 
@@ -207,8 +206,6 @@ int main(int argc, char **argv) {
 
     if (argc != 3)
         Usage();
-    WallClockTimer timer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
-    shared_timer = &timer;
     
     const std::string marc_input_filename(argv[1]);
     File marc_input(marc_input_filename, "rm");
@@ -234,9 +231,6 @@ int main(int argc, char **argv) {
         ExtractKeywordNormdataControlNumbers(&marc_input, &norm_data_control_numbers);
         RemoveExistingKeywords(&db_connection, &norm_data_control_numbers);
         ExtractTranslationTerms(&norm_data_marc_input);
-
-        timer.stop();
-        std::cout << ::progname << ": execution time: " << TimeUtil::FormatTime(timer.getTimeInMilliseconds()) << ".\n";
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
