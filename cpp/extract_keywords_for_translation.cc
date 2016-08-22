@@ -110,7 +110,7 @@ void RemoveExistingKeywords(DbConnection * const connection, std::unordered_set<
 
 bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/, std::string * const /* err_msg */) {
     const std::vector<std::string> &fields(record->getFields());
-    if (shared_norm_data_control_numbers->find(fields[0]) == shared_norm_data_control_numbers->cend())
+    if (shared_norm_data_control_numbers->find(record->getControlNumber()) == shared_norm_data_control_numbers->cend())
         return true; // Not one of the records w/ a keyword used in our title data or it is in the database already.
     
     ++keyword_count;
