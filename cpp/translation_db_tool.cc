@@ -63,19 +63,19 @@ std::string EscapeCommasAndBackslashes(const std::string &text) {
 
 unsigned GetMissingVuFindTranslations(DbConnection * const connection, const std::string &language_code) {
     // Find an ID where "language_code" is missing:
-    ExecSqlOrDie("SELECT id FROM vufind_translations WHERE id NOT IN (SELECT id FROM vufind_translations "
+    ExecSqlOrDie("SELECT token FROM vufind_translations WHERE token NOT IN (SELECT token FROM vufind_translations "
                  "WHERE language_code = \"" + language_code + "\") LIMIT 1", connection);
     DbResultSet id_result_set(connection->getLastResultSet());
     if (id_result_set.empty()) // The language code whose absence we're looking for exists for all ID's.!
         return 0;
 
     // Print the contents of all rows with the ID from the last query on stdout:
-    const std::string matching_id(id_result_set.getNextRow()["id"]);
-    ExecSqlOrDie("SELECT * FROM vufind_translations WHERE id=" + matching_id, connection);
+    const std::string matching_id(id_result_set.getNextRow()["token"]);
+    ExecSqlOrDie("SELECT * FROM vufind_translations WHERE token='" + matching_id + "';", connection);
     DbResultSet result_set(connection->getLastResultSet());
     if (not result_set.empty()) {
         const DbRow row = result_set.getNextRow();
-        std::cout << row["id"] << ',' << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["text"]) << ','
+        std::cout << row["token"] << ',' << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["translation"]) << ','
                   << "vufind_translations\n";
     }
 
@@ -93,11 +93,11 @@ unsigned GetMissingKeywordTranslations(DbConnection * const connection, const st
 
     // Print the contents of all rows with the ID from the last query on stdout:
     const std::string matching_id(id_result_set.getNextRow()["id"]);
-    ExecSqlOrDie("SELECT * FROM keyword_translations WHERE id=" + matching_id, connection);
+    ExecSqlOrDie("SELECT * FROM keyword_translations WHERE id='" + matching_id + "';", connection);
     DbResultSet result_set(connection->getLastResultSet());
     if (not result_set.empty()) {
         const DbRow row = result_set.getNextRow();
-        std::cout << row["id"] << ',' << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["text"]) << ','
+        std::cout << row["id"] << ',' << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["translation"]) << ','
                   << "keywords\n";
     }
 
@@ -121,7 +121,7 @@ void InsertIntoVuFindTranslations(DbConnection * const connection, const unsigne
     const std::string token(row[0]);
 
     ExecSqlOrDie("INSERT INTO vufind_translations SET id=" + ID + ",language_code=\"" + language_code
-                 + "\",text=\"" + connection->escapeString(text) + "\", token='" + token + "'", connection);
+                 + "\",translation=\"" + connection->escapeString(text) + "\", token='" + token + "'", connection);
 }
 
 
@@ -129,7 +129,7 @@ void InsertIntoKeywordTranslations(DbConnection * const connection, const unsign
                                    const std::string &language_code, const std::string &text)
 {
     const std::string ID(std::to_string(index));
-    ExecSqlOrDie("INSERT INTO keyword_translations SET id=" + ID + ",language_code=\"" + language_code + "\",text=\""
+    ExecSqlOrDie("INSERT INTO keyword_translations SET id=" + ID + ",language_code=\"" + language_code + "\",translation=\""
                  + connection->escapeString(text) + "\"", connection);
 }
 
@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
         const std::string sql_database(ini_file.getString("", "sql_database"));
         const std::string sql_username(ini_file.getString("", "sql_username"));
         const std::string sql_password(ini_file.getString("", "sql_password"));
-        DbConnection db_connection("vufind", sql_username, sql_password);
+        DbConnection db_connection(sql_database, sql_username, sql_password);
 
         if (std::strcmp(argv[1], "get_missing") == 0) {
             if (argc != 3)
