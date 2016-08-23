@@ -29,6 +29,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <climits>
 #include <cstring>
 #include <unistd.h>
 #include "Compiler.h"
