@@ -1,0 +1,24 @@
+<html>
+  <body>
+    <em>Existing translation(s):</em><br />
+    <table>
+      <tr>
+        <th>Language Code</th><th>Translation</th>
+      </tr>
+{LOOP language_code,example_text}
+      <tr>
+        <td>{language_code}</td><td>{example_text}</td>
+      </tr>
+{ENDLOOP}
+    </table>
+    <br />
+    <br />
+    <form action="/usr/local/bin/translate_chainer">
+      Translation:<input type="text" name="translation" size="60" maxlength="200" />
+      <input type="hidden" name="language_code" value="{target_language_code}" />
+      <input type="hidden" name="index" value="{index}" />
+      <input type="hidden" name="category" value="{category}" />
+      <input type="submit" value="Submit">
+    </form>
+  </body>
+</html>
