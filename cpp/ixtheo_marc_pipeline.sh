@@ -56,13 +56,13 @@ EndPhase
 
 StartPhase "Filter out Local Data of Other Institutions"
 delete_unused_local_data GesamtTiteldaten-"${date}".xml \
-                         GesamtTiteldaten-post-phase-"$PHASE"-"${date}".xml \
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
                          >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Filter out Records Containing mtex in 935\$a"
-marc_filter --drop GesamtTiteldaten-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml 935a:mtex \
+marc_filter --drop GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml 935a:mtex \
     >> "${log}" 2>&1
 EndPhase
 
@@ -73,12 +73,13 @@ marc_filter --remove-fields GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".
 EndPhase
 
 
-StartPhase "Extract Translation Keywords"
+StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
 extract_keywords_for_translation GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                  Normdaten-"${date}".xml >> "${log}" 2>&1
 extract_vufind_translations_for_translation \
     $(ls "$VUFIND_HOME"/local/languages/??.ini | grep 'de.ini$') \
     $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1
+generate_vufind_translation_files "$VUFIND_HOME"/local/languages/
 EndPhase
 
 
@@ -130,6 +131,14 @@ map_ddc_and_rvk_to_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
     ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1
+EndPhase
+
+
+StartPhase "Add Keyword Synonyms"
+add_synonyms \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    Normdaten-"${date}".xml \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 
 EndPhase
 
 

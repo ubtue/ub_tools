@@ -23,7 +23,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <getopt.h>
 #include "DirectoryEntry.h"
 #include "FileUtil.h"
 #include "Leader.h"
@@ -37,7 +36,7 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << progname << " (--drop|--keep|--remove-fields) [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
+    std::cerr << "usage: " << progname << " (--drop|--keep|--remove-fields) [--input-format=(marc-xml|marc-21)] [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
               << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
@@ -235,7 +234,7 @@ int main(int argc, char **argv) {
 
     if (argc < 5)
         Usage();
-
+    
     OperationType operation_type;
     if (std::strcmp(argv[1], "--keep") == 0)
         operation_type = OperationType::KEEP;
@@ -245,6 +244,16 @@ int main(int argc, char **argv) {
         operation_type = OperationType::REMOVE_FIELDS;
     else
         Error("expected --keep, --drop or --remove-field as the first argument!");
+
+    bool input_is_xml(false), already_determined_input_format(false);
+    if (std::strcmp("--input-format=marc-xml", argv[2]) == 0) {
+        input_is_xml = true;
+        --argc, ++argv;
+        already_determined_input_format = true;
+    } else if (std::strcmp("--input-format=marc-21", argv[2]) == 0) {
+        --argc, ++argv;
+        already_determined_input_format = true;
+    }
 
     OutputFormat output_format(OutputFormat::SAME_AS_INPUT);
     if (StringUtil::StartsWith(argv[2], "--output-format=")) {
@@ -259,12 +268,16 @@ int main(int argc, char **argv) {
     }
 
     const std::string input_filename(argv[2]);
-    const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
-    if (unlikely(media_type.empty()))
-        Error("can't determine media type of \"" + input_filename + "\"!");
-    if (media_type != "application/xml" and media_type != "application/marc")
-        Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
-    const bool input_is_xml(media_type == "application/xml");
+    
+    // Our input file is possibly a fifo, then avoid reading twice
+    if (not already_determined_input_format) {
+        const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
+        if (unlikely(media_type.empty()))
+            Error("can't determine media type of \"" + input_filename + "\"!");
+        if (media_type != "application/xml" and media_type != "application/marc")
+            Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
+        input_is_xml = (media_type == "application/xml");
+     }
 
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[3]));

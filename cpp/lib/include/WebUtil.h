@@ -124,6 +124,31 @@ FileUtil::FileType GuessFileType(const std::string &url);
 std::string GuessMediaType(const std::string &url);
 
 
+/** \brief  Parse all arguments from HTTP POST (via std::cin) into a multimap. */
+void GetPostArgs(std::multimap<std::string, std::string> * const post_args);
+
+
+/** \brief  Parse all multipart arguments (via std::cin) into a multimap. */
+void GetMultiPartArgs(std::multimap<std::string, std::string> * const post_args, const bool save_file_to_disk = true);
+
+
+/** \brief  Parse all arguments from HTTP GET (via std::cin) into a multimap. */
+void GetGetArgs(std::multimap<std::string, std::string> * const get_args);
+
+
+/** \brief  Parse all arguments from the command line into a multimap. */
+void GetArgvArgs(const int argc, char * argv[], std::multimap<std::string, std::string> * const argv_args);
+
+
+/** \brief  Obtains all arguments from CGI (submitted in GET or POST methods or provided on the command line).
+ *  \param  cgi_args  The map that holds that variable -> value relation upon exit.
+ *  \param  argc      The argument count as provided to the main function.
+ *  \param  argv      The argument list as provided to the main function.
+ *  \note   If "argc" and "argv" are set to their default values only HTTP GET and POST arguments will be extracted!
+*/
+void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int argc = 1, char *argv[] = NULL);
+
+
 } // namespace WebUtil
 
 
