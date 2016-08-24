@@ -49,6 +49,7 @@ extract_normdata_translations
 extract_text_from_image_only_pdfs
 extract_vufind_translations_for_translation
 fifo_pipe_file_test
+files_differ_test
 find_substring_test
 fix_article_biblio_levels
 full_text_cache_cleaner
