@@ -28,6 +28,7 @@
 
 #include "WebUtil.h"
 #include <iostream>
+#include <sstream>
 #include "Compiler.h"
 #include "FileDescriptor.h"
 #include "FileUtil.h"
