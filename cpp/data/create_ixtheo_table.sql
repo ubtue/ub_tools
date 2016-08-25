@@ -27,7 +27,7 @@ CREATE TABLE ixtheo_user (
        title VARCHAR(64),
        institution VARCHAR(256),
        country VARCHAR(256),
-       language VARCHAR(256),
+       language VARCHAR(20),
        can_use_tad BOOLEAN DEFAULT FALSE,
        FOREIGN KEY (id) REFERENCES user(id),
        PRIMARY KEY (id)
