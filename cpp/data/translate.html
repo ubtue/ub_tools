@@ -1,5 +1,13 @@
 <html>
   <body>
+    <em>Your language:</em> 
+    <select name="language_code">
+        <option {IF target_language_code == "eng"}selected{ENDIF}>English</option>
+        <option {IF target_language_code == "deu"}selected{ENDIF}>German</option>
+        <option {IF target_language_code == "fra"}selected{ENDIF}>France</option>
+    </select>
+    <br />
+    <br />
     <em>Existing translation(s):</em><br />
     <table>
       <tr>
@@ -15,7 +23,6 @@
     <br />
     <form action="/cgi-bin/translate_chainer">
       Translation:<input type="text" name="translation" size="60" maxlength="200" />
-      <input type="hidden" name="language_code" value="{target_language_code}" />
       <input type="hidden" name="index" value="{index}" />
       <input type="hidden" name="category" value="{category}" />
       <input type="submit" value="Submit">

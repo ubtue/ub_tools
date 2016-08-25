@@ -54,3 +54,8 @@ rm -f /tmp/test.out
 diff --brief /tmp/test.out test_input/test9.template.out
 rm -f /tmp/test.out
 
+# Test 10
+./expand_template_test test_input/test10.template x:"Bob" > /tmp/test.out
+diff --brief /tmp/test.out test_input/test10.template.out
+rm -f /tmp/test.out
+
