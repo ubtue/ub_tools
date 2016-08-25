@@ -155,6 +155,9 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
     const std::string category(GetCGIParameterOrDie(cgi_args, "category"));
 
+    if (translation.empty())
+        return;
+    
     const std::string INSERT_COMMAND("/usr/local/bin/translation_db_tool insert " + index + " " + language_code
                                      + " " + category + " " + translation);
     std::string output;
@@ -165,6 +168,11 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
 
 void EmitHeader() {
     std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+}
+
+void EmitRedirectHeader(const std::string language_code) {
+    std::cout << "Status: 302 Found\r\n";
+    std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code << "\r\n\r\n";
 }
 
 
@@ -179,9 +187,9 @@ int main(int argc, char *argv[]) {
             EmitHeader();
             GetMissing(cgi_args);
         } else if (cgi_args.size() == 4) {
-            EmitHeader();
+            const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
+            EmitRedirectHeader(language_code);
             Insert(cgi_args);
-            GetMissing(cgi_args);
         } else
             Error("we should be called w/ either 1 or 4 CGI arguments!");
     } catch (const std::exception &x) {
