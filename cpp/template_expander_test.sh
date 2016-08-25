@@ -39,3 +39,18 @@ rm -f /tmp/test.out
 diff --brief /tmp/test.out test_input/test6.template.out
 rm -f /tmp/test.out
 
+# Test 7
+./expand_template_test test_input/test7.template x:"Bob" y:"Bob" > /tmp/test.out
+diff --brief /tmp/test.out test_input/test7.template.out
+rm -f /tmp/test.out
+
+# Test 8
+./expand_template_test test_input/test8.template x:"Bob" y:"Bill" > /tmp/test.out
+diff --brief /tmp/test.out test_input/test8.template.out
+rm -f /tmp/test.out
+
+# Test 9
+./expand_template_test test_input/test9.template x:"Bob" > /tmp/test.out
+diff --brief /tmp/test.out test_input/test9.template.out
+rm -f /tmp/test.out
+
