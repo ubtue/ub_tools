@@ -59,7 +59,7 @@ void ParseEscapedCommaSeparatedList(const std::string &escaped_text, std::vector
     }
 
     if (unlikely(last_char_was_backslash))
-        Error("weird escaped string end in backslash \"" + escaped_text + "\"!");
+        Error("weird escaped string ends in backslash \"" + escaped_text + "\"!");
     
     list->emplace_back(StringUtil::RightTrim(&unescaped_text, '\n'));
 }
