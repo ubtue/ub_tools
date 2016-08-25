@@ -84,7 +84,7 @@ namespace {
 
 
 class TemplateScanner {
-    std::string last_variable_name_, last_error_message_;
+    std::string last_variable_name_, last_string_constant_, last_error_message_;
     unsigned line_no_;
     std::istream &input_;
     std::ostream &output_;
@@ -93,7 +93,7 @@ class TemplateScanner {
     bool in_syntax_;
 public:
     enum TokenType { END_OF_INPUT, IF, ELSE, ENDIF, DEFINED, LOOP, ENDLOOP, VARIABLE_NAME, OPEN_PAREN, CLOSE_PAREN,
-                     COMMA, END_OF_SYNTAX, ERROR };
+                     COMMA, EQUALS, NOT_EQUALS, STRING_CONSTANT, END_OF_SYNTAX, ERROR };
 public:
     TemplateScanner(std::istream &input, std::ostream &output)
         : line_no_(1), input_(input), output_(output), in_syntax_(false) { }
@@ -103,6 +103,9 @@ public:
 
     /** Only call this immediately after getToken() has returned VARIABLE_NAME. */
     const std::string &getLastVariableName() const { return last_variable_name_; }
+
+    /** Only call this immediately after getToken() has returned STRING_CONSTANT. */
+    const std::string &getLastStringConstant() const { return last_string_constant_; }
 
     /** Only call this immediately after getToken() has returned ERROR. */
     const std::string &getLastErrorMessage() const { return last_error_message_; }
@@ -122,6 +125,7 @@ public:
 private:
     std::string extractKeywordCandidate();
     std::string extractVariableName();
+    void extractStringConstant();
 
     /** \return Either a keyword token type or ERROR if we failed to recognise the keyword. */
     static TokenType MapStringToKeywordToken(const std::string &keyword_candidate);
@@ -135,7 +139,7 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
         Error("in TemplateScanner::getToken: attempting to continue scanning after an error occurred!");
 
     for (;;) {
-        const int ch(input_.get());
+        int ch(input_.get());
         if (unlikely(ch == EOF)) {
             if (unlikely(in_syntax_))
                 throw std::runtime_error("in MiscUtil::TemplateScanner::getToken: unexpected EOF on line "
@@ -156,6 +160,22 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
                 in_syntax_ = false;
                 return END_OF_SYNTAX;
             }
+            if (ch == '=') {
+                ch = input_.get();
+                if (likely(ch == '='))
+                    return EQUALS;
+                else
+                    throw std::runtime_error("in MiscUtil::TemplateScanner::getToken: expected '=' after '=' on line "
+                                             + std::to_string(line_no_) + "!");
+            }
+            if (ch == '!') {
+                ch = input_.get();
+                if (likely(ch == '='))
+                    return NOT_EQUALS;
+                else
+                    throw std::runtime_error("in MiscUtil::TemplateScanner::getToken: expected '=' after '!' on line "
+                                             + std::to_string(line_no_) + "!");
+            }
 
             if (ch >= 'A' and ch <= 'Z') {
                 input_.unget();
@@ -169,6 +189,9 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
                 input_.unget();
                 last_variable_name_ = extractVariableName();
                 return VARIABLE_NAME;
+            } else if (ch == '"') {
+                extractStringConstant();
+                return STRING_CONSTANT;
             }
         } else if (ch == '{') {
             if (input_.peek() == '{') {
@@ -232,6 +255,12 @@ std::string TemplateScanner::TokenTypeToString(const TemplateScanner::TokenType 
         return "CLOSE_PAREN";
     case COMMA:
         return "COMMA";
+    case EQUALS:
+        return "EQUALS";
+    case NOT_EQUALS:
+        return "NOT_EQUALS";
+    case STRING_CONSTANT:
+        return "STRING_CONSTANT";
     case END_OF_SYNTAX:
         return "END_OF_SYNTAX";
     case ERROR:
@@ -251,6 +280,38 @@ std::string TemplateScanner::extractVariableName() {
 }
 
 
+void TemplateScanner::extractStringConstant() {
+    last_string_constant_.clear();
+
+    int ch;
+    while ((ch = input_.get()) != '"') {
+        switch (ch) {
+        case EOF:
+            throw std::runtime_error("in TemplateScanner::extractStringConstant: unexpected EOF while parsing a "
+                                     "string constant on line " + std::to_string(line_no_) + "!");
+        case '\\': {
+                ch = input_.get();
+                if (unlikely(ch == EOF))
+                    throw std::runtime_error("in TemplateScanner::extractStringConstant: unexpected EOF while "
+                                             "parsing a string constant on line " + std::to_string(line_no_) + "!");
+                if (ch == '\\')
+                    last_string_constant_ += '\\';
+                else if (ch == 'n')
+                    last_string_constant_ += '\n';
+                else if (ch == '"')
+                    last_string_constant_ += '"';
+                else
+                    throw std::runtime_error("in TemplateScanner::extractStringConstant: illegal character after "
+                                             "backslash in a string constant on line " + std::to_string(line_no_)
+                                             + "!");
+                break;
+        } default:
+            last_string_constant_ += static_cast<char>(ch);
+        }
+    }
+}
+
+    
 TemplateScanner::TokenType TemplateScanner::MapStringToKeywordToken(const std::string &keyword_candidate) {
     static std::map<std::string, TokenType> keywords_to_tokens_map{
         { "IF",      IF      },
@@ -342,63 +403,96 @@ std::istream::streampos Scope::getStartStreamPos() const {
 }
 
 
-bool IsScalarVariable(const std::string &variable_name,
-                      const std::map<std::string, std::vector<std::string>> &names_to_values_map)
+// Returns true, if "variable_nam" exists and can be accessed as a scalar based on the current scope.
+bool GetScalarValue(const std::string &variable_name,
+                    const std::map<std::string, std::vector<std::string>> &names_to_values_map,
+                    const std::vector<Scope> &active_scopes, std::string * const value)
 {
     const auto &name_and_values(names_to_values_map.find(variable_name));
     if (name_and_values == names_to_values_map.cend())
         return false;
-    return name_and_values->second.size() == 1;
+
+    if (name_and_values->second.size() == 1) { // We can always access this variable in a scalar context!
+        *value = name_and_values->second[0];
+        return true;
+    }
+    
+    // Now deal w/ multivalued variables:
+    for (auto scope(active_scopes.crbegin()); scope != active_scopes.crend(); ++scope) {
+        if (scope->isLoopVariable(variable_name)) {
+            *value = name_and_values->second[scope->getCurrentIterationCount()];
+            return true;
+        }
+    }
+
+    return false;
 }
 
-
-std::string GetVariableValue(const std::string &variable_name,
-                             const std::map<std::string, std::vector<std::string>> &names_to_values_map,
-                             const unsigned index = 0)
-{
-    const auto &name_and_values(names_to_values_map.find(variable_name));
-    if (unlikely(name_and_values == names_to_values_map.cend()))
-        Error("in MiscUtil::GetVariableValue: trying to access a nonexistent variable \"" + variable_name + "\"!");
-
-    if (unlikely(index >= name_and_values->second.size()))
-        Error("in MiscUtil::GetVariableValue: trying to access a nonexistent index ("
-              + std::to_string(index) + ") on \"" + variable_name + "\" which has only "
-              + std::to_string(name_and_values->second.size()) + " entries!");
-
-    return name_and_values->second[index];
-}
-
-
+    
 // \return The value of the conditional expression.
 bool ParseIf(TemplateScanner * const scanner,
-             const std::map<std::string, std::vector<std::string>> &names_to_values_map)
+             const std::map<std::string, std::vector<std::string>> &names_to_values_map,
+             const std::vector<Scope> &active_scopes)
 {
     scanner->skipWhitespace();
     TemplateScanner::TokenType token(scanner->getToken(/* emit_output = */false));
-    if (unlikely(token != TemplateScanner::DEFINED))
+    if (unlikely(token != TemplateScanner::DEFINED and token != TemplateScanner::VARIABLE_NAME))
         throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
-                                 + " DEFINED expected but found " + TemplateScanner::TokenTypeToString(token)
-                                 + " instead!");
+                                 + " DEFINED or variable name expected but found "
+                                 + TemplateScanner::TokenTypeToString(token) + " instead!");
+
+    bool expression_value;
+    if (token == TemplateScanner::DEFINED) {
+        token = scanner->getToken(/* emit_output = */false);
+        if (unlikely(token != TemplateScanner::OPEN_PAREN))
+            throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
+                                     + " '(' expected but found " + TemplateScanner::TokenTypeToString(token)
+                                     + " instead!");
     
-    token = scanner->getToken(/* emit_output = */false);
-    if (unlikely(token != TemplateScanner::OPEN_PAREN))
-        throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
-                                 + " '(' expected but found " + TemplateScanner::TokenTypeToString(token)
-                                 + " instead!");
+        token = scanner->getToken(/* emit_output = */false);
+        if (unlikely(token != TemplateScanner::VARIABLE_NAME))
+            throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
+                                     + " variable name expected but found "
+                                     + TemplateScanner::TokenTypeToString(token) + " instead!");
+        expression_value = names_to_values_map.find(scanner->getLastVariableName())
+                           != names_to_values_map.cend();
     
-    token = scanner->getToken(/* emit_output = */false);
-    if (unlikely(token != TemplateScanner::VARIABLE_NAME))
-        throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
-                                 + " variable name expected but found " + TemplateScanner::TokenTypeToString(token)
-                                 + " instead!");
-    const bool expression_value(names_to_values_map.find(scanner->getLastVariableName())
-                                != names_to_values_map.cend());
-    
-    token = scanner->getToken(/* emit_output = */false);
-    if (unlikely(token != TemplateScanner::CLOSE_PAREN))
-        throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
-                                 + " '(' expected but found " + TemplateScanner::TokenTypeToString(token)
-                                 + " instead!");
+        token = scanner->getToken(/* emit_output = */false);
+        if (unlikely(token != TemplateScanner::CLOSE_PAREN))
+            throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
+                                     + " '(' expected but found " + TemplateScanner::TokenTypeToString(token)
+                                     + " instead!");
+    } else { // Comparison.
+        std::string variable_name(scanner->getLastVariableName());
+        std::string lhs;
+        if (unlikely(not GetScalarValue(variable_name, names_to_values_map, active_scopes, &lhs)))
+            throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
+                                     + " unknown or non-scalar variable name \"" + variable_name + "\"!");
+        scanner->skipWhitespace();
+        const TemplateScanner::TokenType operator_token(scanner->getToken(/* emit_output = */false));
+        if (unlikely(operator_token != TemplateScanner::EQUALS and operator_token != TemplateScanner::NOT_EQUALS))
+            throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
+                                     + " \"==\" or \"!=\" expected after variable name!");
+
+        scanner->skipWhitespace();
+        token = scanner->getToken(/* emit_output = */false);
+        if (unlikely(token != TemplateScanner::VARIABLE_NAME and token != TemplateScanner::STRING_CONSTANT))
+            throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
+                                     + " variable name or string constant expected after comparison operator!");
+        std::string rhs;
+        if (token == TemplateScanner::STRING_CONSTANT)
+            rhs = scanner->getLastStringConstant();
+        else {
+            variable_name = scanner->getLastVariableName();
+            if (unlikely(not GetScalarValue(variable_name, names_to_values_map, active_scopes, &rhs)))
+                throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
+                                         + " unknown or non-scalar variable name \"" + variable_name + "\"!");
+        }
+
+        expression_value = (rhs == lhs);
+        if (operator_token == TemplateScanner::NOT_EQUALS)
+            expression_value = !expression_value;
+    }
 
     scanner->skipWhitespace();
     token = scanner->getToken(/* emit_output = */false);
@@ -406,7 +500,7 @@ bool ParseIf(TemplateScanner * const scanner,
         throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
                                  + " '}' expected but found " + TemplateScanner::TokenTypeToString(token)
                                  + " instead!");
-
+    
     return expression_value;
 }
 
@@ -485,8 +579,8 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
                     const std::map<std::string, std::vector<std::string>> &names_to_values_map)
 {
     TemplateScanner scanner(input, output);
-    std::stack<Scope> scopes;
-    scopes.push(Scope::MakeTopLevelScope());
+    std::vector<Scope> scopes;
+    scopes.push_back(Scope::MakeTopLevelScope());
 
     std::stack<bool> skipping;
     TemplateScanner::TokenType token;
@@ -496,21 +590,21 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
                                      + std::to_string(scanner.getLineNo()) + ": " + scanner.getLastErrorMessage());
         if (token == TemplateScanner::IF) {
             const unsigned start_line_no(scanner.getLineNo());
-            skipping.push(not ParseIf(&scanner, names_to_values_map));
-            scopes.push(Scope::MakeIfScope(start_line_no));
+            skipping.push(not ParseIf(&scanner, names_to_values_map, scopes));
+            scopes.push_back(Scope::MakeIfScope(start_line_no));
         } else if (token == TemplateScanner::ELSE) {
-            if (unlikely(scopes.top().getType() != Scope::IF))
+            if (unlikely(scopes.back().getType() != Scope::IF))
                 throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
                                          + std::to_string(scanner.getLineNo())
                                          + ": ELSE found w/o corresponding earlier IF!");
             skipping.top() = not skipping.top();
             ProcessEndOfSyntax("ELSE", &scanner);
         } else if (token == TemplateScanner::ENDIF) {
-            if (unlikely(scopes.top().getType() != Scope::IF))
+            if (unlikely(scopes.back().getType() != Scope::IF))
                 throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
                                          + std::to_string(scanner.getLineNo())
                                          + ": ENDIF found w/o corresponding earlier IF!");
-            scopes.pop();
+            scopes.pop_back();
             skipping.pop();
             ProcessEndOfSyntax("ENDIF", &scanner);
         } else if (token == TemplateScanner::LOOP) {
@@ -518,9 +612,9 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
             unsigned loop_count;
             ParseLoop(&scanner, &loop_vars, &loop_count, names_to_values_map);
             const unsigned start_line_no(scanner.getLineNo());
-            scopes.push(Scope::MakeLoopScope(start_line_no, scanner.getInputStreamPos(), loop_vars, loop_count));
+            scopes.push_back(Scope::MakeLoopScope(start_line_no, scanner.getInputStreamPos(), loop_vars, loop_count));
         } else if (token == TemplateScanner::ENDLOOP) {
-            Scope &current_scope(scopes.top());
+            Scope &current_scope(scopes.back());
             if (unlikely(current_scope.getType() != Scope::LOOP))
                 throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
                                          + std::to_string(scanner.getLineNo())
@@ -529,28 +623,23 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
 
             current_scope.incIterationCount();
             if (current_scope.getCurrentIterationCount() == current_scope.getLoopCount())
-                scopes.pop();
+                scopes.pop_back();
             else
                 scanner.seek(current_scope.getStartStreamPos(), current_scope.getStartLineNumber());
         } else if (token == TemplateScanner::VARIABLE_NAME) {
             const std::string &last_variable_name(scanner.getLastVariableName());
-            if (IsScalarVariable(last_variable_name, names_to_values_map)) {
-                if (skipping.empty() or not skipping.top())
-                    output << GetVariableValue(last_variable_name, names_to_values_map);
-            } else if (scopes.top().getType() == Scope::LOOP and scopes.top().isLoopVariable(last_variable_name)) {
-                if (skipping.empty() or not skipping.top())
-                    output << GetVariableValue(last_variable_name, names_to_values_map,
-                                               scopes.top().getCurrentIterationCount());
-            } else
+            std::string variable_value;
+            if (not GetScalarValue(last_variable_name, names_to_values_map, scopes, &variable_value))
                 throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
-                                         + std::to_string(scanner.getLineNo()) + ": found unexpected " +
-                                         TemplateScanner::TokenTypeToString(token) + "!");
-
+                                         + std::to_string(scanner.getLineNo()) + ": found unexpected variable \""
+                                         + last_variable_name + "\"!");
+            if (skipping.empty() or not skipping.top())
+                output << variable_value;
             ProcessEndOfSyntax("variable expansion", &scanner);
         }
     }
 
-    const Scope &scope(scopes.top());
+    const Scope &scope(scopes.back());
     switch (scope.getType()) {
     case Scope::TOP_LEVEL:
         return;

@@ -28,6 +28,7 @@
 
 #include "WebUtil.h"
 #include <iostream>
+#include <sstream>
 #include "Compiler.h"
 #include "FileDescriptor.h"
 #include "FileUtil.h"
@@ -612,7 +613,7 @@ void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int
         GetGetArgs(cgi_args);
 
         // Do not also attempt to get POST arguments if there is nothing to read on stdin within 1 second:
-        if (not FileUtil::DescriptorIsReadyForReading(STDIN_FILENO, 1000 /* ms */))
+        if (not cgi_args->empty() or not FileUtil::DescriptorIsReadyForReading(STDIN_FILENO, 1000 /* ms */))
             return;
 
         // Check whether this is a 'POST' or 'multipart' form.  Since variables don't begin with '-' in POST we
