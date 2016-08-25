@@ -23,9 +23,11 @@ CREATE TABLE ixtheo_journal_subscriptions (
 
 CREATE TABLE ixtheo_user (
        id INT(11) NOT NULL,
+       sex VARCHAR(64),
        title VARCHAR(64),
        institution VARCHAR(256),
        country VARCHAR(256),
+       language VARCHAR(256),
        can_use_tad BOOLEAN DEFAULT FALSE,
        FOREIGN KEY (id) REFERENCES user(id),
        PRIMARY KEY (id)
