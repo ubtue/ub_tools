@@ -136,7 +136,7 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
 
 
 // The first call should only provide the 3-letter language code.
-void InitialCall(const std::multimap<std::string, std::string> &cgi_args) {
+void GetMissing(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
 
     const std::string GET_MISSING_COMMAND("/usr/local/bin/translation_db_tool get_missing " + language_code);
@@ -149,7 +149,7 @@ void InitialCall(const std::multimap<std::string, std::string> &cgi_args) {
 
 
 // A standard call should provide "index", "language_code", "category" and "translation".
-void RegularCall(const std::multimap<std::string, std::string> &cgi_args) {
+void Insert(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
@@ -160,8 +160,11 @@ void RegularCall(const std::multimap<std::string, std::string> &cgi_args) {
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(INSERT_COMMAND, &output))
         Error("failed to execute \"" + INSERT_COMMAND + "\" or it returned a non-zero exit code!");
+}
 
-    ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code);
+
+void EmitHeader() {
+    std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
 }
 
 
@@ -171,12 +174,15 @@ int main(int argc, char *argv[]) {
     try {
         std::multimap<std::string, std::string> cgi_args;
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
- 
-        if (cgi_args.size() == 1)
-            InitialCall(cgi_args);
-        else if (cgi_args.size() == 4)
-            RegularCall(cgi_args);
-        else
+        
+        if (cgi_args.size() == 1) {
+            EmitHeader();
+            GetMissing(cgi_args);
+        } else if (cgi_args.size() == 4) {
+            EmitHeader();
+            Insert(cgi_args);
+            GetMissing(cgi_args);
+        } else
             Error("we should be called w/ either 1 or 4 CGI arguments!");
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
