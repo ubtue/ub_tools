@@ -306,8 +306,14 @@ bool GetLine(std::istream &stream, std::string * const line, const char terminat
  */
 std::string UniqueFileName(const std::string &directory = "/tmp", const std::string &filename_prefix = "",
                            const std::string &filename_suffix = "");
+    
 
+/** \brief Compares the contents of two files.
+ *  \note  Throws a std::runtime_error exception if "path1" or "path2" can't be read.
+ */
+bool FilesDiffer(const std::string &path1, const std::string &path2);
 
+    
 } // namespace FileUtil
 
 

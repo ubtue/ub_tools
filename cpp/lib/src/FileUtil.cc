@@ -785,4 +785,35 @@ std::string UniqueFileName(const std::string &directory, const std::string &file
 }
 
 
+bool FilesDiffer(const std::string &path1, const std::string &path2) {
+    File input1(path1, "r");
+    if (not input1)
+        throw std::runtime_error("in FileUtil::FilesDiffer: failed to open \"" + path1 + "\" for reading!");
+    
+    File input2(path2, "r");
+    if (not input2)
+        throw std::runtime_error("in FileUtil::FilesDiffer: failed to open \"" + path2 + "\" for reading!");
+
+    for (;;) {
+        char buf1[BUFSIZ];
+        const size_t read_count1(input1.read(reinterpret_cast<void *>(buf1), BUFSIZ));
+        if (unlikely(read_count1 < BUFSIZ) and input1.anErrorOccurred())
+            throw std::runtime_error("in FileUtil::FilesDiffer: an error occurred while trying to read \"" + path1
+                                     + "\"!");
+        
+        char buf2[BUFSIZ];
+        const size_t read_count2(input2.read(reinterpret_cast<void *>(buf2), BUFSIZ));
+        if (unlikely(read_count2 < BUFSIZ) and input2.anErrorOccurred())
+            throw std::runtime_error("in FileUtil::FilesDiffer: an error occurred while trying to read \"" + path2
+                                     + "\"!");
+
+        if (read_count1 != read_count2 or std::memcmp(buf1, buf2, BUFSIZ) != 0)
+            return true;
+    
+        if (read_count1 < BUFSIZ)
+            return false;
+    }
+}
+    
+
 } // namespace FileUtil

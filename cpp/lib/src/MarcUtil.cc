@@ -707,8 +707,9 @@ static void ParseDatafield(const std::string &input_filename, const std::map<std
         if (unlikely(type != SimpleXmlParser::CLOSING_TAG or data != "marc:subfield")) {
             const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
             throw std::runtime_error("in MarcUtil::ParseDatafield: expected </subfield> closing tag on line "
-                                     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename + "\"! (Found: "
-                                     + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : ""));
+                                     + std::to_string(xml_parser->getLineNo()) + " in file \"" + input_filename
+                                     + "\"! (Found: " + SimpleXmlParser::TypeToString(type)
+                                     + (tag_found ? (":" + data) : ""));
         }
     }
 }
@@ -720,18 +721,19 @@ static void SkipOverStartOfDocument(SimpleXmlParser * const xml_parser) {
     std::string data;
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data) and type != SimpleXmlParser::START_OF_DOCUMENT))
         throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: error while parsing start of \""
-                                 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage() + " on line "
-                                 + std::to_string(xml_parser->getLineNo()) + "! (Expected start-of-document.)");
+                                 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage()
+                                 + " on line " + std::to_string(xml_parser->getLineNo())
+                                 + "! (Expected start-of-document.)");
     if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
         throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: error while parsing start of \""
-                                 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage() + " on line "
-                                 + std::to_string(xml_parser->getLineNo()) + "!");
+                                 + xml_parser->getInputFile()->getPath() + "\": " + xml_parser->getLastErrorMessage()
+                                 + " on line " + std::to_string(xml_parser->getLineNo()) + "!");
     if (unlikely(type != SimpleXmlParser::OPENING_TAG or data != "marc:collection")) {
         const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
-        throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: opening <marc:collection> tag expected while parsing \""
-                                 + xml_parser->getInputFile()->getPath() + "\" on line "
-                                 + std::to_string(xml_parser->getLineNo()) + "! (Found: " + SimpleXmlParser::TypeToString(type)
-                                 + (tag_found ? (":" + data) : "") + ")");
+        throw std::runtime_error("in MarcUtil::SkipOverStartOfDocument: opening <marc:collection> tag expected "
+                                 "while parsing \"" + xml_parser->getInputFile()->getPath() + "\" on line "
+                                 + std::to_string(xml_parser->getLineNo()) + "! (Found: "
+                                 + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data) : "") + ")");
     }
 }
 
@@ -747,9 +749,10 @@ Record Record::XmlFactory(File * const input) {
     else {
         xml_parser = new SimpleXmlParser(input);
         file_to_parser_map.insert(std::make_pair(input, xml_parser));
-        // If we use Fifos we may not use tell but have to skip over anyway
+
+        // If we use FIFO's we may not use tell but have to skip over the start of the XML document anyway:
         struct stat st;
-        if ((!fstat(input->getFileDescriptor(), &st) && S_ISFIFO(st.st_mode)) or (input->tell() == 0)) 
+        if ((not fstat(input->getFileDescriptor(), &st) and S_ISFIFO(st.st_mode)) or (input->tell() == 0)) 
             SkipOverStartOfDocument(xml_parser);
     }
 
@@ -779,12 +782,13 @@ Record Record::XmlFactory(File * const input) {
         const bool tag_found(type == SimpleXmlParser::OPENING_TAG or type == SimpleXmlParser::CLOSING_TAG);
         if (type == SimpleXmlParser::ERROR)
             throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <record> tag expected while parsing \""
-                                     + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "! ("
-                                     + xml_parser->getLastErrorMessage() + ")");
+                                     + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo())
+                                     + "! (" + xml_parser->getLastErrorMessage() + ")");
         else
             throw std::runtime_error("in MarcUtil::Record::XmlFactory: opening <record> tag expected while parsing \""
-                                     + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo()) + "! (Found: "
-                                     + SimpleXmlParser::TypeToString(type) + (tag_found ? (":" + data + ")") : ")"));
+                                     + input->getPath() + "\" on line " + std::to_string(xml_parser->getLineNo())
+                                     + "! (Found: " + SimpleXmlParser::TypeToString(type)
+                                     + (tag_found ? (":" + data + ")") : ")"));
     }
 
     ParseLeader(input->getPath(), &leader, xml_parser);
@@ -792,8 +796,8 @@ Record Record::XmlFactory(File * const input) {
     bool datafield_seen(false);
     for (;;) { // Process "datafield" and "controlfield" sections.
         if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
-            throw std::runtime_error("in MarcUtil::Record::XmlFactory: error while parsing \"" + input->getPath() + "\": "
-                                     + xml_parser->getLastErrorMessage() + " on line "
+            throw std::runtime_error("in MarcUtil::Record::XmlFactory: error while parsing \"" + input->getPath()
+                                     + "\": " + xml_parser->getLastErrorMessage() + " on line "
                                      + std::to_string(xml_parser->getLineNo()) + "!");
 
         if (type == SimpleXmlParser::CLOSING_TAG) {

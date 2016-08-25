@@ -41,6 +41,7 @@
    751: Geografikum - Bevorzugter Name in einem anderen Datenbestand  
 */ 
 #include <iostream>
+#include <map>
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
@@ -178,10 +179,6 @@ int main(int argc, char **argv) {
     const std::string extracted_translations_filename(argv[2]);
     if (unlikely(norm_data_marc_input_filename == extracted_translations_filename))
         Error("Norm data input file name equals output file name!");
-
-    std::string output_mode("w");
-    if (norm_data_marc_input->isCompressingOrUncompressing())
-        output_mode += 'c';
     
     // Create a file for each language
     std::vector<std::string> output_file_components;
@@ -202,9 +199,10 @@ int main(int argc, char **argv) {
     for (auto lang : languages_to_create) {
         lang = StringUtil::Trim(lang);
 
-        const std::string lang_file_name_str(extension.empty() ? basename + "_" + lang : basename + "_" + lang + "." + extension);
+        const std::string lang_file_name_str(extension.empty() ? basename + "_" + lang : basename + "_" + lang + "."
+                                             + extension);
 
-        lang_files[i] = new File(lang_file_name_str, output_mode);
+        lang_files[i] = new File(lang_file_name_str, "w");
         if (lang_files[i]->fail())
             Error("can't open \"" + lang_file_name_str + "\" for writing!");
         ++i;
