@@ -116,8 +116,6 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
         std::map<std::string, std::vector<std::string>> names_to_values_map;
         names_to_values_map.emplace(std::make_pair(std::string("index"),
                                                    std::vector<std::string>{ translations.front().index_ }));
-        names_to_values_map.emplace(std::make_pair(std::string("language_code"),
-                                                   std::vector<std::string>{ language_code }));
         names_to_values_map.emplace(std::make_pair(std::string("target_language_code"),
                                                    std::vector<std::string>{ language_code }));
         names_to_values_map.emplace(std::make_pair(std::string("category"),

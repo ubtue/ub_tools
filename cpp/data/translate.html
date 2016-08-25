@@ -1,31 +1,27 @@
 <html>
-  <body>
-    <em>Your language:</em> 
-    <select name="language_code">
-        <option {IF target_language_code == "eng"}selected{ENDIF}>English</option>
-        <option {IF target_language_code == "deu"}selected{ENDIF}>German</option>
-        <option {IF target_language_code == "fra"}selected{ENDIF}>France</option>
-    </select>
-    <br />
-    <br />
-    <em>Existing translation(s):</em><br />
-    <table>
-      <tr>
-        <th>Language Code</th><th>Translation</th>
-      </tr>
-{LOOP language_code,example_text}
-      <tr>
-        <td>{language_code}</td><td>{example_text}</td>
-      </tr>
-{ENDLOOP}
-    </table>
-    <br />
-    <br />
-    <form action="/cgi-bin/translate_chainer">
-      Translation:<input type="text" name="translation" size="60" maxlength="200" />
-      <input type="hidden" name="index" value="{index}" />
-      <input type="hidden" name="category" value="{category}" />
-      <input type="submit" value="Submit">
-    </form>
-  </body>
+    <body>
+        <h1>Translating for IxThoe</h1>
+        <form action="/cgi-bin/translate_chainer">
+            <em>Your language:</em> 
+            <select name="language_code">
+                <option value="eng" {IF target_language_code == "eng"} selected{ENDIF}>English</option>
+                <option value="deu" {IF target_language_code == "deu"} selected{ENDIF}>German</option>
+                <option value="fra" {IF target_language_code == "fra"} selected{ENDIF}>France</option>
+            </select>
+            <h2>Existing translation(s):</h2>
+            <table>
+                {LOOP language_code,example_text}
+                <tr>
+                    <td><b>{language_code}:</b></td><td>{example_text}</td>
+                </tr>
+                {ENDLOOP}
+            </table>
+            <br />
+            <br />
+            Translation:<input type="text" name="translation" size="60" maxlength="200" />
+            <input type="hidden" name="index" value="{index}" />
+            <input type="hidden" name="category" value="{category}" />
+            <input type="submit" value="Submit">
+        </form>
+    </body>
 </html>
