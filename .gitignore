@@ -17,6 +17,7 @@ add_child_refs
 add_isbns_or_issns_to_articles
 add_journal_subscription
 add_superior_and_alertable_flags
+add_synonyms
 add_title_keywords
 append_marc_xml
 archive_reader_test
@@ -49,6 +50,7 @@ extract_normdata_translations
 extract_text_from_image_only_pdfs
 extract_vufind_translations_for_translation
 fifo_pipe_file_test
+files_differ_test
 find_substring_test
 fix_article_biblio_levels
 full_text_cache_cleaner
