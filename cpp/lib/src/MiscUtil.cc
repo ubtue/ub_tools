@@ -105,7 +105,7 @@ public:
     const std::string &getLastVariableName() const { return last_variable_name_; }
 
     /** Only call this immediately after getToken() has returned STRING_CONSTANT. */
-    const std::string &getLastStringConstant() const { return last_variable_name_; }
+    const std::string &getLastStringConstant() const { return last_string_constant_; }
 
     /** Only call this immediately after getToken() has returned ERROR. */
     const std::string &getLastErrorMessage() const { return last_error_message_; }
@@ -282,7 +282,6 @@ std::string TemplateScanner::extractVariableName() {
 
 void TemplateScanner::extractStringConstant() {
     last_string_constant_.clear();
-    input_.get(); // Skip over the leading double quote.
 
     int ch;
     while ((ch = input_.get()) != '"') {
@@ -417,7 +416,7 @@ bool GetScalarValue(const std::string &variable_name,
         *value = name_and_values->second[0];
         return true;
     }
-
+    
     // Now deal w/ multivalued variables:
     for (auto scope(active_scopes.crbegin()); scope != active_scopes.crend(); ++scope) {
         if (scope->isLoopVariable(variable_name)) {
@@ -469,7 +468,6 @@ bool ParseIf(TemplateScanner * const scanner,
         if (unlikely(not GetScalarValue(variable_name, names_to_values_map, active_scopes, &lhs)))
             throw std::runtime_error("in MiscUtil::ParseIf: error on line " + std::to_string(scanner->getLineNo())
                                      + " unknown or non-scalar variable name \"" + variable_name + "\"!");
-
         scanner->skipWhitespace();
         const TemplateScanner::TokenType operator_token(scanner->getToken(/* emit_output = */false));
         if (unlikely(operator_token != TemplateScanner::EQUALS and operator_token != TemplateScanner::NOT_EQUALS))
