@@ -86,7 +86,7 @@ unsigned GetMissingVuFindTranslations(DbConnection * const connection, const std
 unsigned GetMissingKeywordTranslations(DbConnection * const connection, const std::string &language_code) {
     // Find an ID where "language_code" is missing:
     ExecSqlOrDie("SELECT id FROM keyword_translations WHERE id NOT IN (SELECT id FROM keyword_translations "
-                 "WHERE language_code = \"" + language_code + "\") LIMIT 1", connection);
+                 "WHERE language_code = \"" + language_code + "\") ORDER BY RAND() LIMIT 1;", connection);
     DbResultSet id_result_set(connection->getLastResultSet());
     if (id_result_set.empty()) // The language code whose absence we're looking for exists for all ID's.!
         return 0;
