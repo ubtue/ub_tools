@@ -255,7 +255,7 @@ XmlWriter &XmlWriter::indent(XmlWriter &xml_writer) {
 
 XmlWriter &XmlWriter::endl(XmlWriter &xml_writer) {
     if (xml_writer.output_file_ != nullptr)
-        xml_writer.output_file_->appendNewlineAndFlush();
+        *xml_writer.output_file_ << File::endl;
     else
         *xml_writer.output_string_ += '\n';
 
