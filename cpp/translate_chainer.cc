@@ -135,7 +135,6 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
 }
 
 
-// The first call should only provide the 3-letter language code.
 void GetMissing(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
 
@@ -148,7 +147,6 @@ void GetMissing(const std::multimap<std::string, std::string> &cgi_args) {
 }
 
 
-// A standard call should provide "index", "language_code", "category" and "translation".
 void Insert(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
@@ -166,16 +164,6 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
 }
 
 
-void EmitHeader() {
-    std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
-}
-
-void EmitRedirectHeader(const std::string language_code) {
-    std::cout << "Status: 302 Found\r\n";
-    std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code << "\r\n\r\n";
-}
-
-
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
@@ -184,11 +172,12 @@ int main(int argc, char *argv[]) {
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
         
         if (cgi_args.size() == 1) {
-            EmitHeader();
+            std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             GetMissing(cgi_args);
         } else if (cgi_args.size() == 4) {
             const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
-            EmitRedirectHeader(language_code);
+            std::cout << "Status: 302 Found\r\n";
+            std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code << "\r\n\r\n";
             Insert(cgi_args);
         } else
             Error("we should be called w/ either 1 or 4 CGI arguments!");
