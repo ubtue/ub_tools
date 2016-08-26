@@ -84,21 +84,21 @@ unsigned GetMissingVuFindTranslations(DbConnection * const connection, const std
 
 
 unsigned GetMissingKeywordTranslations(DbConnection * const connection, const std::string &language_code) {
-    // Find an ID where "language_code" is missing:
-    ExecSqlOrDie("SELECT id FROM keyword_translations WHERE id NOT IN (SELECT id FROM keyword_translations "
+    // Find an PPN where "language_code" is missing:
+    ExecSqlOrDie("SELECT ppn FROM keyword_translations WHERE ppn NOT IN (SELECT ppn FROM keyword_translations "
                  "WHERE language_code = \"" + language_code + "\") ORDER BY RAND() LIMIT 1;", connection);
-    DbResultSet id_result_set(connection->getLastResultSet());
-    if (id_result_set.empty()) // The language code whose absence we're looking for exists for all ID's.!
+    DbResultSet ppn_result_set(connection->getLastResultSet());
+    if (ppn_result_set.empty()) // The language code whose absence we're looking for exists for all PPN's.!
         return 0;
 
-    // Print the contents of all rows with the ID from the last query on stdout:
-    const std::string matching_id(id_result_set.getNextRow()["id"]);
-    ExecSqlOrDie("SELECT * FROM keyword_translations WHERE id='" + matching_id + "';", connection);
+    // Print the contents of all rows with the PPN from the last query on stdout:
+    const std::string matching_ppn(ppn_result_set.getNextRow()["ppn"]);
+    ExecSqlOrDie("SELECT * FROM keyword_translations WHERE ppn='" + matching_ppn + "';", connection);
     DbResultSet result_set(connection->getLastResultSet());
     if (not result_set.empty()) {
         const DbRow row = result_set.getNextRow();
-        std::cout << row["id"] << ',' << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["translation"]) << ','
-                  << "keywords\n";
+        std::cout << row["ppn"] << ',' << row["language_code"] << ','
+                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << "keywords\n";
     }
 
     return result_set.size();
