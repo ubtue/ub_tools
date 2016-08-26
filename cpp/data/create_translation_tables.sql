@@ -11,12 +11,12 @@ CREATE INDEX vufind_translations_idx_language_code ON vufind_translations (langu
 CREATE INDEX translations_idx_text ON translations (text);
 
 CREATE TABLE keyword_translations (
-    id INT(11) NOT NULL,
+    ppn CHAR(9) NOT NULL,
     language_code CHAR(3) NOT NULL,
     text VARCHAR(100) NOT NULL,
-    CONSTRAINT UNIQUE id_and_language_code (id,language_code),
+    CONSTRAINT UNIQUE ppn_and_language_code (ppn,language_code),
 );
 
-CREATE INDEX keyword_translations_idx_id ON keyword_translations (id);
+CREATE INDEX keyword_translations_idx_ppn ON keyword_translations (ppn);
 CREATE INDEX keyword_translations_idx_language_code ON keyword_translations (language_code);
 CREATE INDEX translations_idx_text ON translations (text);
