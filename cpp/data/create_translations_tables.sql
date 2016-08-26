@@ -15,4 +15,4 @@ CREATE TABLE keyword_translations (
   preexists BOOLEAN NOT NULL DEFAULT FALSE,
   KEY keyword_translations_idx_ppn (ppn),
   KEY keyword_translations_idx_language_code (language_code)
-) DEFAULT CHARSET="utf8";
+) DEFAULT CHARSET=utf8;
