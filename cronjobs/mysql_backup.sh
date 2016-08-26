@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o errexit
 # TARGET: Backup-Ziel
 # IGNORE: Liste zu ignorierender Datenbanken (durch | getrennt)
 # CONF: MySQL Config-Datei, welche die Zugangsdaten enthaelt
@@ -21,6 +22,7 @@ if [ -x /usr/bin/git ] && [ -d ${TARGET}/.git/ ]; then
   /usr/bin/git commit -m "$NOW"
 else
   echo "$0 - git nicht verfuegbar oder Backup-Ziel nicht unter Versionskontrolle"
+  exit 2
 fi
 
 echo "$0 - Backup von $NOW erfolgreich durchgefuehrt"
