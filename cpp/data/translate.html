@@ -1,12 +1,12 @@
 <html>
     <body>
-        <h1>Translating for IxThoe</h1>
+        <h1>Translating for IxTheo ({category}, {remaining_count} remaining)</h1>
         <form action="/cgi-bin/translate_chainer">
             <em>Your language:</em> 
             <select name="language_code" onchange="this.form.submit()">
                 <option value="eng" {IF target_language_code == "eng"} selected{ENDIF}>English</option>
                 <option value="deu" {IF target_language_code == "deu"} selected{ENDIF}>German</option>
-                <option value="fra" {IF target_language_code == "fra"} selected{ENDIF}>France</option>
+                <option value="fra" {IF target_language_code == "fra"} selected{ENDIF}>French</option>
             </select>
         </form>
         

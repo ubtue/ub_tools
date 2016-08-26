@@ -66,20 +66,21 @@ void ParseEscapedCommaSeparatedList(const std::string &escaped_text, std::vector
 
 
 struct Translation {
-    std::string index_, language_code_, text_, category_;
+    std::string index_, remaining_count_, language_code_, text_, category_;
 };
 
 
 void ParseGetMissingLine(const std::string &line, Translation * const translation) {
     std::vector<std::string> parts;
     ParseEscapedCommaSeparatedList(line, &parts);
-    if (unlikely(parts.size() != 4))
-        Error("expected 4 parts, found \"" + line + "\"!");
+    if (unlikely(parts.size() != 5))
+        Error("expected 5 parts, found \"" + line + "\"!");
     
-    translation->index_         = parts[0];
-    translation->language_code_ = parts[1];
-    translation->text_          = parts[2];
-    translation->category_      = parts[3];
+    translation->index_           = parts[0];
+    translation->remaining_count_ = parts[1];
+    translation->language_code_   = parts[2];
+    translation->text_            = parts[3];
+    translation->category_        = parts[4];
 }
 
 
@@ -116,6 +117,8 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
         std::map<std::string, std::vector<std::string>> names_to_values_map;
         names_to_values_map.emplace(std::make_pair(std::string("index"),
                                                    std::vector<std::string>{ translations.front().index_ }));
+        names_to_values_map.emplace(std::make_pair(std::string("remaining_count"),
+                                                   std::vector<std::string>{ translations.front().remaining_count_ }));
         names_to_values_map.emplace(std::make_pair(std::string("target_language_code"),
                                                    std::vector<std::string>{ language_code }));
         names_to_values_map.emplace(std::make_pair(std::string("category"),
