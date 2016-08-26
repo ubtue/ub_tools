@@ -62,21 +62,24 @@ std::string EscapeCommasAndBackslashes(const std::string &text) {
 
 
 unsigned GetMissingVuFindTranslations(DbConnection * const connection, const std::string &language_code) {
-    // Find an ID where "language_code" is missing:
-    ExecSqlOrDie("SELECT token FROM vufind_translations WHERE token NOT IN (SELECT token FROM vufind_translations "
-                 "WHERE language_code = \"" + language_code + "\") LIMIT 1", connection);
-    DbResultSet id_result_set(connection->getLastResultSet());
-    if (id_result_set.empty()) // The language code whose absence we're looking for exists for all ID's.!
+    // Find a token where "language_code" is missing:
+    ExecSqlOrDie("SET sql_mode=(SELECT REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', ''));"
+                 "SELECT token,COUNT(token) FROM vufind_translations WHERE token NOT IN (SELECT token FROM "
+                 "vufind_translations WHERE language_code = \"" + language_code + "\") LIMIT 1;", connection);
+    DbResultSet token_result_set(connection->getLastResultSet());
+    DbRow row(token_result_set.getNextRow());
+    const std::string count(row["COUNT(token)"]);
+    if (count == "0") // The language code whose absence we're looking for exists for all tokens.!
         return 0;
 
-    // Print the contents of all rows with the ID from the last query on stdout:
-    const std::string matching_id(id_result_set.getNextRow()["token"]);
+    // Print the contents of all rows with the token from the last query on stdout:
+    const std::string matching_id(row["token"]);
     ExecSqlOrDie("SELECT * FROM vufind_translations WHERE token='" + matching_id + "';", connection);
     DbResultSet result_set(connection->getLastResultSet());
     if (not result_set.empty()) {
-        const DbRow row = result_set.getNextRow();
-        std::cout << row["token"] << ',' << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["translation"]) << ','
-                  << "vufind_translations\n";
+        row = result_set.getNextRow();
+        std::cout << row["token"] << ',' << count << ',' << row["language_code"] << ','
+                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << "vufind_translations\n";
     }
 
     return result_set.size();
@@ -84,21 +87,25 @@ unsigned GetMissingVuFindTranslations(DbConnection * const connection, const std
 
 
 unsigned GetMissingKeywordTranslations(DbConnection * const connection, const std::string &language_code) {
-    // Find an ID where "language_code" is missing:
-    ExecSqlOrDie("SELECT id FROM keyword_translations WHERE id NOT IN (SELECT id FROM keyword_translations "
-                 "WHERE language_code = \"" + language_code + "\") ORDER BY RAND() LIMIT 1;", connection);
-    DbResultSet id_result_set(connection->getLastResultSet());
-    if (id_result_set.empty()) // The language code whose absence we're looking for exists for all ID's.!
+    // Find an PPN where "language_code" is missing:
+    ExecSqlOrDie("SET sql_mode=(SELECT REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', ''));"
+                 "SELECT ppn,COUNT(ppn) FROM keyword_translations WHERE ppn NOT IN (SELECT ppn "
+                 "FROM keyword_translations WHERE language_code = \"" + language_code
+                 + "\") ORDER BY RAND() LIMIT 1;", connection);
+    DbResultSet ppn_result_set(connection->getLastResultSet());
+    DbRow row(ppn_result_set.getNextRow());
+    const std::string count(row["COUNT(ppn)"]);
+    if (count == "0") // The language code whose absence we're looking for exists for all PPN's.!
         return 0;
 
-    // Print the contents of all rows with the ID from the last query on stdout:
-    const std::string matching_id(id_result_set.getNextRow()["id"]);
-    ExecSqlOrDie("SELECT * FROM keyword_translations WHERE id='" + matching_id + "';", connection);
+    // Print the contents of all rows with the PPN from the last query on stdout:
+    const std::string matching_ppn(ppn_result_set.getNextRow()["ppn"]);
+    ExecSqlOrDie("SELECT * FROM keyword_translations WHERE ppn='" + matching_ppn + "';", connection);
     DbResultSet result_set(connection->getLastResultSet());
     if (not result_set.empty()) {
-        const DbRow row = result_set.getNextRow();
-        std::cout << row["id"] << ',' << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["translation"]) << ','
-                  << "keywords\n";
+        row = result_set.getNextRow();
+        std::cout << row["ppn"] << ',' << count << ',' << row["language_code"] << ','
+                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << "keywords\n";
     }
 
     return result_set.size();

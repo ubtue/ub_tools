@@ -48,67 +48,7 @@ void Usage() {
 }
 
 static unsigned keyword_count, translation_count, additional_hits, synonym_count;
-static std::unordered_set<std::string> *shared_norm_data_control_numbers;
 static DbConnection *shared_connection;
-
-
-bool RecordKeywordControlNumbers(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
-                                 std::string * const /* err_msg */)
-{
-    std::vector<std::string> keyword_tags;
-    StringUtil::Split("600:610:611:630:650:653:656", ':', &keyword_tags);
-    const std::vector<std::string> &fields(record->getFields());
-    const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
-    for (const auto &keyword_tag : keyword_tags) {
-        const ssize_t start_index(record->getFieldIndex(keyword_tag));
-        if (start_index == -1)
-            continue;
-
-        for (size_t index(start_index); index < dir_entries.size() and dir_entries[index].getTag() == keyword_tag;
-             ++index)
-        {
-            const Subfields subfields(fields[index]);
-            const auto begin_end(subfields.getIterators('0'));
-            for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
-                if (not StringUtil::StartsWith(subfield0->second, "(DE-576)"))
-                    continue;
-
-                const std::string topic_id(subfield0->second.substr(8));
-                shared_norm_data_control_numbers->insert(topic_id);
-            }
-        }
-    }
-    
-    return true;
-}
-
-
-void ExtractKeywordNormdataControlNumbers(File * const marc_input, std::unordered_set<std::string> * const norm_data_control_numbers)
-{
-    const size_t orig_size(norm_data_control_numbers->size());
-    std::string err_msg;
-    if (not MarcUtil::ProcessRecords(marc_input, RecordKeywordControlNumbers, nullptr, &err_msg))
-        Error("error while extracting keyword control numbers for \"" + marc_input->getPath() + "\": " + err_msg);
-
-    std::cerr << "Found " << (norm_data_control_numbers->size() - orig_size) << " new keyword control numbers in "
-              << marc_input->getPath() << '\n';
-}
-
-
-void RemoveExistingKeywords(DbConnection * const connection,
-                            std::unordered_set<std::string> * const norm_data_control_numbers)
-{
-    const std::string SELECT_STMT("SELECT DISTINCT id FROM keyword_translations");
-    if (not connection->query(SELECT_STMT))
-        Error("Select failed: " + SELECT_STMT + " (" + connection->getLastErrorMessage() + ")");
-
-    DbResultSet result_set(connection->getLastResultSet());
-    while (const DbRow row = result_set.getNextRow()) {
-        const auto id_iter(norm_data_control_numbers->find(row["id"]));
-        if (id_iter != norm_data_control_numbers->end())
-            norm_data_control_numbers->erase(id_iter);
-    }
-}
 
 
 void ExtractGermanSynonyms(const MarcUtil::Record &record,
@@ -184,20 +124,49 @@ void FlushToDatabase(std::string &insert_statement) {
 }
 
 
-bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
-                         std::string * const /* err_msg */)
+// Returns a string that looks like "(language_code='deu' OR language_code='eng')" etc.
+std::string GenerateLanguageCodeWhereClause(
+    const std::vector<std::pair<std::string, std::string>> &text_and_language_codes)
 {
-    if (shared_norm_data_control_numbers->find(record->getControlNumber())
-        == shared_norm_data_control_numbers->cend())
-        return true; // Not one of the records w/ a keyword used in our title data or it is in the database already.
+    std::string partial_where_clause;
     
-    ++keyword_count;
-    
+    partial_where_clause += '(';
+    std::set<std::string> already_seen;
+    for (const auto &text_and_language_code : text_and_language_codes) {
+        const std::string &language_code(text_and_language_code.second);
+        if (already_seen.find(language_code) == already_seen.cend()) {
+            already_seen.insert(language_code);
+            if (partial_where_clause.length() > 1)
+                partial_where_clause += " OR ";
+            partial_where_clause += "language_code='" + language_code + "'";
+        }
+    }
+    partial_where_clause += ')';
+
+    return partial_where_clause;
+}
+
+
+bool ExtractTranslationsForASingleRecord(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
+                                         std::string * const /* err_msg */)
+{
+    // Extract all synonyms and translations:
     std::vector<std::pair<std::string, std::string>> text_and_language_codes;
     ExtractGermanSynonyms(*record, &text_and_language_codes);
     ExtractNonGermanTranslations(*record, &text_and_language_codes);
+    if (text_and_language_codes.empty())
+        return true;
+
+    ++keyword_count;
+
+    // Remove entries for which authoritative translation were shipped to us from the BSZ: 
+    const std::string ppn(record->getControlNumber());
+    const std::string DELETE_STMT("DELETE FROM keyword_translations WHERE id=" + ppn + " AND "
+                                  + GenerateLanguageCodeWhereClause(text_and_language_codes));
+    if (not shared_connection->query(DELETE_STMT))
+        Error("Delete failed: " + DELETE_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
     
-    const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (id,language_code,translation,"
+    const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (ppn,language_code,translation,"
                                              "preexists) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
     
@@ -208,8 +177,7 @@ bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xm
     for (const auto &text_and_language_code : text_and_language_codes) {
         const std::string language_code(shared_connection->escapeString(text_and_language_code.second));
         const std::string translation(shared_connection->escapeString(text_and_language_code.first));
-        insert_statement += "('" + record->getControlNumber() + "', '" + language_code + "', '" + translation
-                            + "', TRUE), ";
+        insert_statement += "('" + ppn + "', '" + language_code + "', '" + translation + "', TRUE), ";
         if (++row_counter > MAX_ROW_COUNT) {
             FlushToDatabase(insert_statement);
             insert_statement = INSERT_STATEMENT_START;
@@ -222,9 +190,9 @@ bool ExtractTranslations(MarcUtil::Record * const record, XmlWriter * const /*xm
 }
 
 
-void ExtractTranslationTerms(File * const norm_data_input) {
+void ExtractTranslationsForAllRecords(File * const norm_data_input) {
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(norm_data_input, ExtractTranslations, nullptr, &err_msg))
+    if (not MarcUtil::ProcessRecords(norm_data_input, ExtractTranslationsForASingleRecord, nullptr, &err_msg))
         Error("error while extracting translations from \"" + norm_data_input->getPath() + "\": " + err_msg);
 
     std::cerr << "Added " << keyword_count << " to the translation database.\n";
@@ -260,13 +228,8 @@ int main(int argc, char **argv) {
         const std::string sql_password(ini_file.getString("", "sql_password"));
         DbConnection db_connection(sql_database, sql_username, sql_password);
         shared_connection = &db_connection;
-
-        std::unordered_set<std::string> norm_data_control_numbers;
-        shared_norm_data_control_numbers = &norm_data_control_numbers;
     
-        ExtractKeywordNormdataControlNumbers(&marc_input, &norm_data_control_numbers);
-        RemoveExistingKeywords(&db_connection, &norm_data_control_numbers);
-        ExtractTranslationTerms(&norm_data_marc_input);
+        ExtractTranslationsForAllRecords(&norm_data_marc_input);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
