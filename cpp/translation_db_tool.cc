@@ -60,48 +60,42 @@ std::string EscapeCommasAndBackslashes(const std::string &text) {
     return escaped_text;
 }
 
-
-unsigned GetMissingVuFindTranslations(DbConnection * const connection, const std::string &language_code) {
-    // Find an ID where "language_code" is missing:
-    ExecSqlOrDie("SELECT token FROM vufind_translations WHERE token NOT IN (SELECT token FROM vufind_translations "
-                 "WHERE language_code = \"" + language_code + "\") LIMIT 1", connection);
-    DbResultSet id_result_set(connection->getLastResultSet());
-    if (id_result_set.empty()) // The language code whose absence we're looking for exists for all ID's.!
+unsigned GetMissing(DbConnection * const connection, const std::string &table_name, 
+                    const std::string &table_key_name, const std::string &category,
+                    const std::string &language_code) 
+{
+     // Find a token/ppn where "language_code" is missing:
+    ExecSqlOrDie("SELECT distinct " + table_key_name + " FROM " + table_name + " WHERE " + table_key_name + 
+                 " NOT IN (SELECT distinct " + table_key_name + " FROM " + table_name + 
+                 " WHERE language_code = \"" + language_code + "\") ORDER BY RAND();", connection);
+    DbResultSet keys_result_set(connection->getLastResultSet());
+    const size_t count(keys_result_set.size());
+    if (count == 0)
         return 0;
 
-    // Print the contents of all rows with the ID from the last query on stdout:
-    const std::string matching_id(id_result_set.getNextRow()["token"]);
-    ExecSqlOrDie("SELECT * FROM vufind_translations WHERE token='" + matching_id + "';", connection);
+    // Print the contents of all rows with the token from the last query on stdout:
+    DbRow row(keys_result_set.getNextRow());
+    const std::string matching_key(row[table_key_name]);
+    ExecSqlOrDie("SELECT * FROM " + table_name + " WHERE " + table_key_name + "='" + matching_key + "';", connection);
     DbResultSet result_set(connection->getLastResultSet());
-    if (not result_set.empty()) {
-        const DbRow row = result_set.getNextRow();
-        std::cout << row["token"] << ',' << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["translation"]) << ','
-                  << "vufind_translations\n";
-    }
+    if (result_set.empty())
+        return 0;
+    
+    while (row = result_set.getNextRow())
+        std::cout << row[table_key_name] << ',' << count << ',' << row["language_code"] << ','
+                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category << '\n';
 
     return result_set.size();
 }
 
 
+unsigned GetMissingVuFindTranslations(DbConnection * const connection, const std::string &language_code) {
+    return GetMissing(connection, "vufind_translations", "token", "vufind_translations", language_code);
+}
+
+
 unsigned GetMissingKeywordTranslations(DbConnection * const connection, const std::string &language_code) {
-    // Find an ID where "language_code" is missing:
-    ExecSqlOrDie("SELECT id FROM keyword_translations WHERE id NOT IN (SELECT id FROM keyword_translations "
-                 "WHERE language_code = \"" + language_code + "\") ORDER BY RAND() LIMIT 1;", connection);
-    DbResultSet id_result_set(connection->getLastResultSet());
-    if (id_result_set.empty()) // The language code whose absence we're looking for exists for all ID's.!
-        return 0;
-
-    // Print the contents of all rows with the ID from the last query on stdout:
-    const std::string matching_id(id_result_set.getNextRow()["id"]);
-    ExecSqlOrDie("SELECT * FROM keyword_translations WHERE id='" + matching_id + "';", connection);
-    DbResultSet result_set(connection->getLastResultSet());
-    if (not result_set.empty()) {
-        const DbRow row = result_set.getNextRow();
-        std::cout << row["id"] << ',' << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["translation"]) << ','
-                  << "keywords\n";
-    }
-
-    return result_set.size();
+    return GetMissing(connection, "keyword_translations", "ppn", "keywords", language_code);
 }
 
 
@@ -116,7 +110,7 @@ void InsertIntoVuFindTranslations(DbConnection * const connection, const std::st
 void InsertIntoKeywordTranslations(DbConnection * const connection, const std::string ID,
                                    const std::string &language_code, const std::string &text)
 {
-    ExecSqlOrDie("INSERT INTO keyword_translations SET id=\"" + ID + "\",language_code=\"" + language_code + "\",translation=\""
+    ExecSqlOrDie("INSERT INTO keyword_translations SET ppn=\"" + ID + "\",language_code=\"" + language_code + "\",translation=\""
                  + connection->escapeString(text) + "\";", connection);
 }
 
