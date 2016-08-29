@@ -38,8 +38,8 @@ function StartPhase {
 # $start and $end have to be in seconds.
 # Returns the difference in fractional minutes as a string.
 function CalculateTimeDifference {
-    $start=$1
-    $end=$2
+    start=$1
+    end=$2
     echo "scale=2;($end - $start)/60" | bc --mathlib
 }
 
