@@ -159,8 +159,8 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
     if (translation.empty())
         return;
     
-    const std::string INSERT_COMMAND("/usr/local/bin/translation_db_tool insert " + index + " " + language_code
-                                     + " " + category + " " + translation);
+    const std::string INSERT_COMMAND("/usr/local/bin/translation_db_tool insert '" + index + "' " + language_code
+                                     + " " + category + " '" + translation + "'");
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(INSERT_COMMAND, &output))
         Error("failed to execute \"" + INSERT_COMMAND + "\" or it returned a non-zero exit code!");
