@@ -161,7 +161,7 @@ bool ExtractTranslationsForASingleRecord(MarcUtil::Record * const record, XmlWri
 
     // Remove entries for which authoritative translation were shipped to us from the BSZ: 
     const std::string ppn(record->getControlNumber());
-    const std::string DELETE_STMT("DELETE FROM keyword_translations WHERE id=" + ppn + " AND "
+    const std::string DELETE_STMT("DELETE FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND "
                                   + GenerateLanguageCodeWhereClause(text_and_language_codes));
     if (not shared_connection->query(DELETE_STMT))
         Error("Delete failed: " + DELETE_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
