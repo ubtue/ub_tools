@@ -40,7 +40,7 @@ function StartPhase {
 function CalculateTimeDifference {
     $start=$1
     $end=$2
-    return $(echo $("scale=2;($(date +%s.%N) - $START)/60" | bc --mathlib))
+    echo "scale=2;($end - $start)/60" | bc --mathlib
 }
 
 
