@@ -34,8 +34,18 @@ function StartPhase {
 }
 
 
+# Call with "CalculateTimeDifference $start $end".
+# $start and $end have to be in seconds.
+# Returns the difference in fractional minutes as a string.
+function CalculateTimeDifference {
+    $start=$1
+    $end=$2
+    return $(echo $("scale=2;($(date +%s.%N) - $START)/60" | bc --mathlib))
+}
+
+
 function EndPhase {
-    PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc --mathlib)
+    PHASE_DURATION=$(CalculateTimeDifference($START $(date +%s.%N)))
     echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 }
 
@@ -44,6 +54,9 @@ function EndPhase {
 logdir=/var/log/ixtheo
 log="${logdir}/ixtheo_marc_pipeline.log"
 rm -f "${log}"
+
+
+OVERALL_START=$(date +%s.%N)
 
 
 StartPhase "Convert MARC-21 to MARC-XML"
@@ -162,4 +175,5 @@ rm -f child_refs child_titles parent_refs
 EndPhase
 
 
+echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes."
 echo "*** IXTHEO MARC PIPELINE DONE - $(date) ***" | tee --append "${log}"
