@@ -66,20 +66,21 @@ void ParseEscapedCommaSeparatedList(const std::string &escaped_text, std::vector
 
 
 struct Translation {
-    std::string index_, language_code_, text_, category_;
+    std::string index_, remaining_count_, language_code_, text_, category_;
 };
 
 
 void ParseGetMissingLine(const std::string &line, Translation * const translation) {
     std::vector<std::string> parts;
     ParseEscapedCommaSeparatedList(line, &parts);
-    if (unlikely(parts.size() != 4))
-        Error("expected 4 parts, found \"" + line + "\"!");
+    if (unlikely(parts.size() != 5))
+        Error("expected 5 parts, found \"" + line + "\"!");
     
-    translation->index_         = parts[0];
-    translation->language_code_ = parts[1];
-    translation->text_          = parts[2];
-    translation->category_      = parts[3];
+    translation->index_           = parts[0];
+    translation->remaining_count_ = parts[1];
+    translation->language_code_   = parts[2];
+    translation->text_            = parts[3];
+    translation->category_        = parts[4];
 }
 
 
@@ -116,6 +117,8 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
         std::map<std::string, std::vector<std::string>> names_to_values_map;
         names_to_values_map.emplace(std::make_pair(std::string("index"),
                                                    std::vector<std::string>{ translations.front().index_ }));
+        names_to_values_map.emplace(std::make_pair(std::string("remaining_count"),
+                                                   std::vector<std::string>{ translations.front().remaining_count_ }));
         names_to_values_map.emplace(std::make_pair(std::string("target_language_code"),
                                                    std::vector<std::string>{ language_code }));
         names_to_values_map.emplace(std::make_pair(std::string("category"),
@@ -156,8 +159,8 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
     if (translation.empty())
         return;
     
-    const std::string INSERT_COMMAND("/usr/local/bin/translation_db_tool insert " + index + " " + language_code
-                                     + " " + category + " " + translation);
+    const std::string INSERT_COMMAND("/usr/local/bin/translation_db_tool insert '" + index + "' " + language_code
+                                     + " " + category + " '" + translation + "'");
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(INSERT_COMMAND, &output))
         Error("failed to execute \"" + INSERT_COMMAND + "\" or it returned a non-zero exit code!");

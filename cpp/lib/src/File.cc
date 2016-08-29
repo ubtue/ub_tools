@@ -37,6 +37,8 @@ File::File(const std::string &filename, const std::string &mode, const ThrowOnOp
 {
     if (mode == "w")
         open_mode_ = WRITING;
+    else if (mode == "a")
+        open_mode_ = WRITING;
     else if (mode == "r")
         open_mode_ = READING;
     else if (mode == "r+")
