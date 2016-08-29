@@ -45,7 +45,7 @@ function CalculateTimeDifference {
 
 
 function EndPhase {
-    PHASE_DURATION=$(CalculateTimeDifference($START $(date +%s.%N)))
+    PHASE_DURATION=$(CalculateTimeDifference $START $(date +%s.%N))
     echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 }
 
