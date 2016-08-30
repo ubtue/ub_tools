@@ -99,6 +99,18 @@ File::File(const int fd, const std::string &mode)
 }
 
 
+bool File::close() {
+    if (file_ == nullptr) {
+        errno = 0;
+        return false;
+    }
+
+    const bool retval(std::fclose(file_) == 0);
+    file_ = nullptr;
+    return retval;
+}
+
+
 void File::fillBuffer() {
     read_count_ = std::fread(reinterpret_cast<void *>(buffer_), 1, BUFSIZ, file_);
     if (unlikely(std::ferror(file_) != 0))
