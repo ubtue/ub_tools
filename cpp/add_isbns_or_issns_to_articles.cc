@@ -77,7 +77,7 @@ void PopulateParentIdToISBNAndISSNMap(
         ++count;
 
         const Leader &leader(record.getLeader());
-        if (not leader.isSerial())
+        if (not leader.isSerial() and not leader.isMonograph())
             continue;
 
         // Try to see if we have an ISBN:
