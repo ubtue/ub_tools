@@ -75,14 +75,10 @@ public:
      */
     explicit File(const int fd, const std::string &mode = "");
     
-    ~File() { std::fclose(file_); }
+    ~File() { if (file_ != nullptr) std::fclose(file_); }
 
     /** Closes this File.  If this fails you may consult the global "errno" for the reason. */
-    inline bool close() {
-        if (file_ == nullptr)
-            return false;
-        return std::fclose(file_) == 0;
-    }
+    bool close();
 
     inline int getFileDescriptor() const { return fileno(file_); }
 
