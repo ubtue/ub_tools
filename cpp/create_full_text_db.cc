@@ -221,12 +221,12 @@ int main(int argc, char **argv) {
     }
 
     const std::string marc_input_filename(*argv++);
-    File marc_input(marc_input_filename, "rb");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(*argv++);
-    File marc_output(marc_output_filename, "wb");
+    File marc_output(marc_output_filename, "w");
     if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
