@@ -31,7 +31,7 @@ bool DecodeEnity(const std::string &entity_string, std::string * const decoded_c
     if (unlikely(entity_string.empty()))
         return false;
 
-    if (entity_string[0] == '#') {
+    if (unlikely(entity_string[0] == '#')) {
         if (entity_string.length() < 2)
             return false;
 
@@ -67,11 +67,11 @@ bool DecodeEnity(const std::string &entity_string, std::string * const decoded_c
 }
 
 
-bool DecodeEntities(const std::string &raw_string, std::string * const decoded_string) {
+inline bool DecodeEntities(const std::string &raw_string, std::string * const decoded_string) {
     bool in_entity(false);
     std::string entity;
     for (const auto ch : raw_string) {
-        if (in_entity) {
+        if (unlikely(in_entity)) {
             if (ch == ';') {
                 std::string decoded_char;
                 if (not DecodeEnity(entity, &decoded_char))
@@ -80,7 +80,7 @@ bool DecodeEntities(const std::string &raw_string, std::string * const decoded_s
                 in_entity = false;
             } else
                 entity += ch;
-        } else if (ch == '&') {
+        } else if (unlikely(ch == '&')) {
             in_entity = true;
             entity.clear();
         } else
@@ -94,8 +94,10 @@ bool DecodeEntities(const std::string &raw_string, std::string * const decoded_s
 } // unnamed namespace
 
 
-bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data) {
-    if (last_type_ == ERROR)
+bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::string> * const attrib_map,
+                              std::string * const data)
+{
+    if (unlikely(last_type_ == ERROR))
         throw std::runtime_error("in SimpleXmlParser::getNext: previous call already indicated an error!");
 
     attrib_map->clear();
@@ -119,7 +121,7 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
                 last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
                 return false;
             }
-            if (ch == '\n')
+            if (unlikely(ch == '\n'))
                 ++line_no_;
             raw_string += static_cast<char>(ch);
         }
@@ -132,7 +134,7 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
         }
     } else { // end-of-document or opening or closing tag
         skipWhiteSpace();
-        
+
         ch = input_->get();
         if (unlikely(ch == EOF)) {
             last_type_ = *type = END_OF_DOCUMENT;
@@ -145,7 +147,7 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
                                   + std::string(1, static_cast<char>(ch)) + "' instead!";
             return false;
         }
-        
+
         // If we're at the beginning, we may have an XML prolog:
         if (unlikely(last_type_ == UNINITIALISED) and input_->peek() == '?') {
             if (not parseProlog()) {
@@ -167,7 +169,7 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
             last_type_ = *type = CLOSING_TAG;
         } else { // An opening tag.
             input_->putback(ch);
-        
+
             std::string error_message;
             if (unlikely(not parseOpeningTag(data, attrib_map, &error_message))) {
                 last_type_ = *type = ERROR;
@@ -242,7 +244,7 @@ bool SimpleXmlParser::extractQuotedString(const int closing_quote, std::string *
         const int ch(input_->get());
         if (unlikely(ch == EOF))
             return false;
-        if (ch == closing_quote)
+        if (unlikely(ch == closing_quote))
             return true;
         *s += static_cast<char>(ch);
     }
@@ -286,7 +288,8 @@ bool SimpleXmlParser::parseProlog() {
 }
 
 
-bool SimpleXmlParser::parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
+bool SimpleXmlParser::parseOpeningTag(std::string * const tag_name,
+                                      std::map<std::string, std::string> * const attrib_map,
                                       std::string * const error_message)
 {
     attrib_map->clear();
