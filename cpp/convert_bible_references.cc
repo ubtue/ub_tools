@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
