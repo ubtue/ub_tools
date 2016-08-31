@@ -94,6 +94,57 @@ inline bool DecodeEntities(const std::string &raw_string, std::string * const de
 } // unnamed namespace
 
 
+inline void SimpleXmlParser::skipWhiteSpace() {
+    for (;;) {
+        const int ch(input_->get());
+        if (unlikely(ch == EOF))
+            return;
+        if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
+            input_->putback(ch);
+            return;
+        } else if (ch == '\n')
+            ++line_no_;
+    }
+}
+
+
+inline bool SimpleXmlParser::extractName(std::string * const name) {
+    name->clear();
+
+    int ch(input_->get());
+    if (unlikely(ch == EOF or (not StringUtil::IsAsciiLetter(ch) and ch != '_' and ch != ':'))) {
+        input_->putback(ch);
+        return false;
+    }
+
+    *name += static_cast<char>(ch);
+    for (;;) {
+        ch = input_->get();
+        if (unlikely(ch == EOF))
+            return false;
+        if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.')) {
+            input_->putback(ch);
+            return true;
+        }
+        *name += static_cast<char>(ch);
+    }
+}
+
+
+inline bool SimpleXmlParser::extractQuotedString(const int closing_quote, std::string * const s) {
+    s->clear();
+
+    for (;;) {
+        const int ch(input_->get());
+        if (unlikely(ch == EOF))
+            return false;
+        if (unlikely(ch == closing_quote))
+            return true;
+        *s += static_cast<char>(ch);
+    }
+}
+
+
 bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::string> * const attrib_map,
                               std::string * const data)
 {
@@ -197,57 +248,6 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
     }
 
     return true;
-}
-
-
-void SimpleXmlParser::skipWhiteSpace() {
-    for (;;) {
-        const int ch(input_->get());
-        if (unlikely(ch == EOF))
-            return;
-        if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
-            input_->putback(ch);
-            return;
-        } else if (ch == '\n')
-            ++line_no_;
-    }
-}
-
-
-bool SimpleXmlParser::extractName(std::string * const name) {
-    name->clear();
-
-    int ch(input_->get());
-    if (unlikely(ch == EOF or (not StringUtil::IsAsciiLetter(ch) and ch != '_' and ch != ':'))) {
-        input_->putback(ch);
-        return false;
-    }
-
-    *name += static_cast<char>(ch);
-    for (;;) {
-        ch = input_->get();
-        if (unlikely(ch == EOF))
-            return false;
-        if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.')) {
-            input_->putback(ch);
-            return true;
-        }
-        *name += static_cast<char>(ch);
-    }
-}
-
-
-bool SimpleXmlParser::extractQuotedString(const int closing_quote, std::string * const s) {
-    s->clear();
-
-    for (;;) {
-        const int ch(input_->get());
-        if (unlikely(ch == EOF))
-            return false;
-        if (unlikely(ch == closing_quote))
-            return true;
-        *s += static_cast<char>(ch);
-    }
 }
 
 
