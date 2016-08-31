@@ -192,12 +192,12 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[verbose ? 2 : 1]);
-    File marc_input(marc_input_filename, "rm");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     const std::string marc_output_filename(argv[verbose ? 3 : 2]);
-    File marc_output(marc_output_filename, "wb");
+    File marc_output(marc_output_filename, "w");
     if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
             not StringUtil::StartsWith(stopwords_filename, "stopwords."))
             Error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(10));
-        File stopwords(stopwords_filename, "rm");
+        File stopwords(stopwords_filename, "r");
         if (not stopwords)
             Error("can't open \"" + stopwords_filename + "\" for reading!");
         std::unordered_set<std::string> stopwords_set;

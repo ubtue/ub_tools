@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
         Error("\"input_filename\" is neither XML nor MARC-21 data!");
     const bool input_is_xml(media_type == "application/xml");
 
-    File marc_input(marc_input_filename, input_is_xml ? "r" : "rb");
+    File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
