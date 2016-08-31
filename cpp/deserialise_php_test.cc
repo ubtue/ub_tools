@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
         Usage();
 
     const std::string input_filename(argv[1]);
-    FILE * const input(std::fopen(input_filename.c_str(), "rbm"));
+    FILE * const input(std::fopen(input_filename.c_str(), "r"));
     if (input == nullptr)
         Error("can't open \"" + input_filename + "\" for reading!");
 

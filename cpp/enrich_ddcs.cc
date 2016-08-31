@@ -211,12 +211,12 @@ int main(int argc, char *argv[]) {
     }
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
-    File title_input(title_input_filename, "rm");
+    File title_input(title_input_filename, "r");
     if (not title_input)
         Error("can't open \"" + title_input_filename + "\" for reading!");
 
     const std::string norm_input_filename(argv[verbose ? 3 : 2]);
-    File norm_input(norm_input_filename, "rm");
+    File norm_input(norm_input_filename, "r");
     if (not norm_input)
         Error("can't open \"" + norm_input_filename + "\" for reading!");
 
