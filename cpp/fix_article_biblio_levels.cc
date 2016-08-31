@@ -170,14 +170,14 @@ int main(int argc, char **argv) {
     std::vector<File *> marc_inputs;
     for (int arg_no(verbose ? 2 : 1); arg_no < (argc - 1) ; ++arg_no) {
         const std::string marc_input_filename(argv[arg_no]);
-        File *marc_input = new File(marc_input_filename, "rbm");
+        File *marc_input = new File(marc_input_filename, "r");
         if (not *marc_input)
             Error("can't open \"" + marc_input_filename + "\" for reading!");
         marc_inputs.push_back(marc_input);
     }
 
     const std::string marc_output_filename(argv[argc - 1]);
-    File marc_output(marc_output_filename, "wb");
+    File marc_output(marc_output_filename, "w");
     if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 

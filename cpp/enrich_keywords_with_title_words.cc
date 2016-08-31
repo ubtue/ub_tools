@@ -422,7 +422,7 @@ int main(int argc, char **argv) {
         if (not matcher->matched(stopwords_filename, &err_msg))
             Error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(stopwords_filename.length() - 3));
-        File stopwords(stopwords_filename, "rm");
+        File stopwords(stopwords_filename, "r");
         if (not stopwords)
             Error("can't open \"" + stopwords_filename + "\" for reading!");
         std::unordered_set<std::string> stopwords_set;
