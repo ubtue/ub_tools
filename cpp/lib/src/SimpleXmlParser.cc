@@ -66,17 +66,23 @@ bool DecodeEnity(const std::string &entity_string, std::string * const decoded_c
     return true;
 }
 
+    
+// Replaces entities in the range (before,last].
+inline bool DecodeEntities(std::string * const data) {
+    if (unlikely(data->empty()))
+        return true;
 
-inline bool DecodeEntities(const std::string &raw_string, std::string * const decoded_string) {
+    std::string::iterator next(data->begin());
     bool in_entity(false);
     std::string entity;
-    for (const auto ch : raw_string) {
+    for (const auto ch : *data) {
         if (unlikely(in_entity)) {
             if (ch == ';') {
                 std::string decoded_char;
                 if (not DecodeEnity(entity, &decoded_char))
                     return false;
-                *decoded_string += decoded_char;
+                for (const auto dch : decoded_char)
+                    *next++ = dch;
                 in_entity = false;
             } else
                 entity += ch;
@@ -84,8 +90,11 @@ inline bool DecodeEntities(const std::string &raw_string, std::string * const de
             in_entity = true;
             entity.clear();
         } else
-            *decoded_string += ch;
+            *next++ = ch;
     }
+
+    if (unlikely(next != data->end())) // We had some non-length-preserving entity replacements.
+        data->resize(next - data->begin());
 
     return not in_entity;
 }
@@ -166,7 +175,6 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
     if (last_type_ == OPENING_TAG) {
         last_type_ = *type = CHARACTERS;
 
-        std::string raw_string;
         while ((ch = input_->get()) != '<') {
             if (unlikely(ch == EOF)) {
                 last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
@@ -174,11 +182,11 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
             }
             if (unlikely(ch == '\n'))
                 ++line_no_;
-            raw_string += static_cast<char>(ch);
+            *data += static_cast<char>(ch);
         }
         input_->putback(ch); // Putting back the '<'.
 
-        if (not DecodeEntities(raw_string, data)) {
+        if (not DecodeEntities(data)) {
             last_type_ = *type = ERROR;
             last_error_message_ = "Invalid entity in character data ending on line " + std::to_string(line_no_) + "!";
             return false;
