@@ -149,6 +149,19 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
 }
 
 
+bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string) {
+    utf8_string->clear();
+
+    char buf[6];
+    std::mbstate_t state = std::mbstate_t();
+    const size_t retcode(std::wcrtomb(buf, wchar, &state));
+    if (retcode == static_cast<size_t>(-1))
+        return false;
+    utf8_string->append(buf, retcode);
+    return true;
+}
+
+
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string) {
     std::wstring wchar_string;
     if (not UTF8toWCharString(utf8_string, &wchar_string))
