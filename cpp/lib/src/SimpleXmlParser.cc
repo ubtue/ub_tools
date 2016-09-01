@@ -27,11 +27,21 @@
 namespace {
 
 
-bool DecodeEnity(const std::string &entity_string, std::string * const decoded_char) {
+inline bool DecodeEnity(const std::string &entity_string, std::string * const decoded_char) {
     if (unlikely(entity_string.empty()))
         return false;
 
-    if (unlikely(entity_string[0] == '#')) {
+    if (__builtin_strcmp(entity_string.c_str(), "amp") == 0)
+        *decoded_char = "&";
+    else if (__builtin_strcmp(entity_string.c_str(), "apos") == 0)
+        *decoded_char = "'";
+    else if (__builtin_strcmp(entity_string.c_str(), "quot") == 0)
+        *decoded_char = "\"";
+    else if (__builtin_strcmp(entity_string.c_str(), "lt") == 0)
+        *decoded_char = "<";
+    else if (__builtin_strcmp(entity_string.c_str(), "gt") == 0)
+        *decoded_char = ">";
+    else if (unlikely(entity_string[0] == '#')) {
         if (entity_string.length() < 2)
             return false;
 
@@ -48,19 +58,9 @@ bool DecodeEnity(const std::string &entity_string, std::string * const decoded_c
                 return false;
         }
 
-        if (not TextUtil::WCharToUTF8String(std::wstring(1, static_cast<wchar_t>(code_point)), decoded_char))
+        if (not TextUtil::WCharToUTF8String(static_cast<wchar_t>(code_point), decoded_char))
             return false;
-    } else if (entity_string == "quot")
-        *decoded_char = "\"";
-    else if (entity_string =="amp")
-        *decoded_char = "&";
-    else if (entity_string =="apos")
-        *decoded_char = "'";
-    else if (entity_string =="lt")
-        *decoded_char = "<";
-    else if (entity_string =="gt")
-        *decoded_char = ">";
-    else
+    } else
         return false;
 
     return true;
