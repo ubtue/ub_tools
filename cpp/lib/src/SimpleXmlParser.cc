@@ -67,7 +67,7 @@ bool DecodeEnity(const std::string &entity_string, std::string * const decoded_c
 }
 
     
-// Replaces entities in the range (before,last].
+// Replaces entities in-place and resizes "data", if necessary.
 inline bool DecodeEntities(std::string * const data) {
     if (unlikely(data->empty()))
         return true;
