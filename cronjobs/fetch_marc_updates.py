@@ -269,9 +269,6 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
 def DownloadCompleteData(config, ftp, download_cutoff_date, msg):
     downloaded_files = DownloadData(config, "Kompletter Abzug", ftp, download_cutoff_date, msg)
     if len(downloaded_files) == 1:
-        # Create a "flag" file used to signal that we had a real new complete data dump:                       
-        util.Touch("downloaded_a_genuine_full_data_dump")
-
         return downloaded_files[0]
     elif len(downloaded_files) == 0:
         return None
