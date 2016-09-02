@@ -57,6 +57,10 @@ bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 
 /** \brief Convert wide characters to UTF8. */
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string);
+
+
+/** \brief Convert a wide character to UTF8. */
+bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string);
     
 
 /** \brief Converts a UTF8 string to lowercase.
