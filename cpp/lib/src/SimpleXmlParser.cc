@@ -27,11 +27,21 @@
 namespace {
 
 
-bool DecodeEnity(const std::string &entity_string, std::string * const decoded_char) {
+inline bool DecodeEnity(const std::string &entity_string, std::string * const decoded_char) {
     if (unlikely(entity_string.empty()))
         return false;
 
-    if (entity_string[0] == '#') {
+    if (__builtin_strcmp(entity_string.c_str(), "amp") == 0)
+        *decoded_char = "&";
+    else if (__builtin_strcmp(entity_string.c_str(), "apos") == 0)
+        *decoded_char = "'";
+    else if (__builtin_strcmp(entity_string.c_str(), "quot") == 0)
+        *decoded_char = "\"";
+    else if (__builtin_strcmp(entity_string.c_str(), "lt") == 0)
+        *decoded_char = "<";
+    else if (__builtin_strcmp(entity_string.c_str(), "gt") == 0)
+        *decoded_char = ">";
+    else if (unlikely(entity_string[0] == '#')) {
         if (entity_string.length() < 2)
             return false;
 
@@ -48,44 +58,43 @@ bool DecodeEnity(const std::string &entity_string, std::string * const decoded_c
                 return false;
         }
 
-        if (not TextUtil::WCharToUTF8String(std::wstring(1, static_cast<wchar_t>(code_point)), decoded_char))
+        if (not TextUtil::WCharToUTF8String(static_cast<wchar_t>(code_point), decoded_char))
             return false;
-    } else if (entity_string == "quot")
-        *decoded_char = "\"";
-    else if (entity_string =="amp")
-        *decoded_char = "&";
-    else if (entity_string =="apos")
-        *decoded_char = "'";
-    else if (entity_string =="lt")
-        *decoded_char = "<";
-    else if (entity_string =="gt")
-        *decoded_char = ">";
-    else
+    } else
         return false;
 
     return true;
 }
 
+    
+// Replaces entities in-place and resizes "data", if necessary.
+inline bool DecodeEntities(std::string * const data) {
+    if (unlikely(data->empty()))
+        return true;
 
-bool DecodeEntities(const std::string &raw_string, std::string * const decoded_string) {
+    std::string::iterator next(data->begin());
     bool in_entity(false);
     std::string entity;
-    for (const auto ch : raw_string) {
-        if (in_entity) {
+    for (const auto ch : *data) {
+        if (unlikely(in_entity)) {
             if (ch == ';') {
                 std::string decoded_char;
                 if (not DecodeEnity(entity, &decoded_char))
                     return false;
-                *decoded_string += decoded_char;
+                for (const auto dch : decoded_char)
+                    *next++ = dch;
                 in_entity = false;
             } else
                 entity += ch;
-        } else if (ch == '&') {
+        } else if (unlikely(ch == '&')) {
             in_entity = true;
             entity.clear();
         } else
-            *decoded_string += ch;
+            *next++ = ch;
     }
+
+    if (unlikely(next != data->end())) // We had some non-length-preserving entity replacements.
+        data->resize(next - data->begin());
 
     return not in_entity;
 }
@@ -94,8 +103,61 @@ bool DecodeEntities(const std::string &raw_string, std::string * const decoded_s
 } // unnamed namespace
 
 
-bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data) {
-    if (last_type_ == ERROR)
+inline void SimpleXmlParser::skipWhiteSpace() {
+    for (;;) {
+        const int ch(input_->get());
+        if (unlikely(ch == EOF))
+            return;
+        if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
+            input_->putback(ch);
+            return;
+        } else if (ch == '\n')
+            ++line_no_;
+    }
+}
+
+
+inline bool SimpleXmlParser::extractName(std::string * const name) {
+    name->clear();
+
+    int ch(input_->get());
+    if (unlikely(ch == EOF or (not StringUtil::IsAsciiLetter(ch) and ch != '_' and ch != ':'))) {
+        input_->putback(ch);
+        return false;
+    }
+
+    *name += static_cast<char>(ch);
+    for (;;) {
+        ch = input_->get();
+        if (unlikely(ch == EOF))
+            return false;
+        if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.')) {
+            input_->putback(ch);
+            return true;
+        }
+        *name += static_cast<char>(ch);
+    }
+}
+
+
+inline bool SimpleXmlParser::extractQuotedString(const int closing_quote, std::string * const s) {
+    s->clear();
+
+    for (;;) {
+        const int ch(input_->get());
+        if (unlikely(ch == EOF))
+            return false;
+        if (unlikely(ch == closing_quote))
+            return true;
+        *s += static_cast<char>(ch);
+    }
+}
+
+
+bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::string> * const attrib_map,
+                              std::string * const data)
+{
+    if (unlikely(last_type_ == ERROR))
         throw std::runtime_error("in SimpleXmlParser::getNext: previous call already indicated an error!");
 
     attrib_map->clear();
@@ -113,26 +175,25 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
     if (last_type_ == OPENING_TAG) {
         last_type_ = *type = CHARACTERS;
 
-        std::string raw_string;
         while ((ch = input_->get()) != '<') {
             if (unlikely(ch == EOF)) {
                 last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
                 return false;
             }
-            if (ch == '\n')
+            if (unlikely(ch == '\n'))
                 ++line_no_;
-            raw_string += static_cast<char>(ch);
+            *data += static_cast<char>(ch);
         }
         input_->putback(ch); // Putting back the '<'.
 
-        if (not DecodeEntities(raw_string, data)) {
+        if (not DecodeEntities(data)) {
             last_type_ = *type = ERROR;
             last_error_message_ = "Invalid entity in character data ending on line " + std::to_string(line_no_) + "!";
             return false;
         }
     } else { // end-of-document or opening or closing tag
         skipWhiteSpace();
-        
+
         ch = input_->get();
         if (unlikely(ch == EOF)) {
             last_type_ = *type = END_OF_DOCUMENT;
@@ -145,7 +206,7 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
                                   + std::string(1, static_cast<char>(ch)) + "' instead!";
             return false;
         }
-        
+
         // If we're at the beginning, we may have an XML prolog:
         if (unlikely(last_type_ == UNINITIALISED) and input_->peek() == '?') {
             if (not parseProlog()) {
@@ -167,7 +228,7 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
             last_type_ = *type = CLOSING_TAG;
         } else { // An opening tag.
             input_->putback(ch);
-        
+
             std::string error_message;
             if (unlikely(not parseOpeningTag(data, attrib_map, &error_message))) {
                 last_type_ = *type = ERROR;
@@ -195,57 +256,6 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
     }
 
     return true;
-}
-
-
-void SimpleXmlParser::skipWhiteSpace() {
-    for (;;) {
-        const int ch(input_->get());
-        if (unlikely(ch == EOF))
-            return;
-        if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
-            input_->putback(ch);
-            return;
-        } else if (ch == '\n')
-            ++line_no_;
-    }
-}
-
-
-bool SimpleXmlParser::extractName(std::string * const name) {
-    name->clear();
-
-    int ch(input_->get());
-    if (unlikely(ch == EOF or (not StringUtil::IsAsciiLetter(ch) and ch != '_' and ch != ':'))) {
-        input_->putback(ch);
-        return false;
-    }
-
-    *name += static_cast<char>(ch);
-    for (;;) {
-        ch = input_->get();
-        if (unlikely(ch == EOF))
-            return false;
-        if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.')) {
-            input_->putback(ch);
-            return true;
-        }
-        *name += static_cast<char>(ch);
-    }
-}
-
-
-bool SimpleXmlParser::extractQuotedString(const int closing_quote, std::string * const s) {
-    s->clear();
-
-    for (;;) {
-        const int ch(input_->get());
-        if (unlikely(ch == EOF))
-            return false;
-        if (ch == closing_quote)
-            return true;
-        *s += static_cast<char>(ch);
-    }
 }
 
 
@@ -286,7 +296,8 @@ bool SimpleXmlParser::parseProlog() {
 }
 
 
-bool SimpleXmlParser::parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
+bool SimpleXmlParser::parseOpeningTag(std::string * const tag_name,
+                                      std::map<std::string, std::string> * const attrib_map,
                                       std::string * const error_message)
 {
     attrib_map->clear();

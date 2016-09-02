@@ -65,7 +65,7 @@ server_password = vv:*i%Nk
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " default_email_recipient\n";
+    std::cerr << "Usage: " << progname << " [--keep-intermediate-files] default_email_recipient\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -574,8 +574,9 @@ void DownloadErrorRecordsOrDie(const std::string &errors_list_filename) {
 }
 
 
-void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_filename,
-                 const std::string &errors_list_filename, const std::string &differential_archive)
+void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
+                 const std::string &deletion_list_filename, const std::string &errors_list_filename,
+                 const std::string &differential_archive)
 {
     if (not deletion_list_filename.empty())
         CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
@@ -647,14 +648,16 @@ void ApplyUpdate(const unsigned apply_count, const std::string &deletion_list_fi
     if (not differential_archive.empty())
         DeleteFilesOrDie("diff_.*");
 
-    DeleteFileOrDie(title_marc_basename);
-    DeleteFileOrDie(superior_marc_basename);
-    DeleteFileOrDie(authority_marc_basename);
-    DeleteFileOrDie(LOCAL_DELETION_LIST_FILENAME);
-    if (FileUtil::Exists(BIBLIO_ERROR_RECORDS))
-        DeleteFileOrDie(BIBLIO_ERROR_RECORDS);
-    if (FileUtil::Exists(AUTH_ERROR_RECORDS))
-        DeleteFileOrDie(AUTH_ERROR_RECORDS);
+    if (not keep_intermediate_files) {
+        DeleteFileOrDie(title_marc_basename);
+        DeleteFileOrDie(superior_marc_basename);
+        DeleteFileOrDie(authority_marc_basename);
+        DeleteFileOrDie(LOCAL_DELETION_LIST_FILENAME);
+        if (FileUtil::Exists(BIBLIO_ERROR_RECORDS))
+            DeleteFileOrDie(BIBLIO_ERROR_RECORDS);
+        if (FileUtil::Exists(AUTH_ERROR_RECORDS))
+            DeleteFileOrDie(AUTH_ERROR_RECORDS);
+    }
 }
 
 
@@ -674,7 +677,8 @@ void CreateSymlink(const std::string &target_filename, const std::string &link_f
 
 
 // Creates a new full MARC archive from an old full archive as well as deletion lists and differential updates.
-std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_dump_filename,
+std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_files,
+                                                   const std::string &complete_dump_filename,
                                                    const std::vector<std::string> &deletion_list_filenames,
                                                    const std::vector<std::string> &errors_list_filenames,
                                                    const std::vector<std::string> &incremental_dump_filenames)
@@ -694,13 +698,13 @@ std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_d
         ++apply_count;
 
         if (deletion_list_filename == deletion_list_filenames.cend()) {
-            ApplyUpdate(apply_count, "",
+            ApplyUpdate(keep_intermediate_files, apply_count, "",
                         AdvanceToDate(*incremental_dump_filename, errors_list_filenames.cend(),
                                       &errors_list_filename),
                         *incremental_dump_filename);
             ++incremental_dump_filename;
         } else if (incremental_dump_filename == incremental_dump_filenames.cend()) {
-            ApplyUpdate(apply_count, *deletion_list_filename,
+            ApplyUpdate(keep_intermediate_files, apply_count, *deletion_list_filename,
                         AdvanceToDate(*deletion_list_filename, errors_list_filenames.cend(), &errors_list_filename),
                         "");
             ++deletion_list_filename;
@@ -708,19 +712,19 @@ std::string ExtractAndCombineMarcFilesFromArchives(const std::string &complete_d
             const std::string deletion_list_date(ExtractDateFromFilenameOrDie(*deletion_list_filename));
             const std::string incremental_dump_date(ExtractDateFromFilenameOrDie(*incremental_dump_filename));
             if (deletion_list_date < incremental_dump_date) {
-                ApplyUpdate(apply_count, *deletion_list_filename,
+                ApplyUpdate(keep_intermediate_files, apply_count, *deletion_list_filename,
                             AdvanceToDate(*deletion_list_filename, errors_list_filenames.cend(),
                                           &errors_list_filename),
                             "");
                 ++deletion_list_filename;
             } else if (incremental_dump_date > deletion_list_date) {
-                ApplyUpdate(apply_count, "",
+                ApplyUpdate(keep_intermediate_files, apply_count, "",
                             AdvanceToDate(*incremental_dump_filename, errors_list_filenames.cend(),
                                           &errors_list_filename),
                             *incremental_dump_filename);
                 ++incremental_dump_filename;
             } else {
-                ApplyUpdate(apply_count, *deletion_list_filename,
+                ApplyUpdate(keep_intermediate_files, apply_count, *deletion_list_filename,
                             AdvanceToDate(*incremental_dump_filename, errors_list_filenames.cend(),
                                           &errors_list_filename),
                             *incremental_dump_filename);
@@ -767,7 +771,13 @@ const std::string CONF_FILE_PATH("/var/lib/tuelib/cronjobs/merge_differential_an
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 2)
+    bool keep_intermediate_files(false);
+    if (argc == 3) {
+        if (std::strcmp(argv[1], "--keep-intermediate-files") != 0)
+            Usage();
+        keep_intermediate_files = true;
+        --argc, ++argv;
+    } else if (argc != 2)
         Usage();
 
     ::default_email_recipient = argv[1];
@@ -814,13 +824,17 @@ int main(int argc, char *argv[]) {
 
         CreateAndChangeIntoTheWorkingDirectory();
         const std::string new_complete_dump_filename(
-            ExtractAndCombineMarcFilesFromArchives(complete_dump_filename, deletion_list_filenames,
-                                                   errors_list_filenames, incremental_dump_filenames));
+            ExtractAndCombineMarcFilesFromArchives(keep_intermediate_files, complete_dump_filename,
+                                                   deletion_list_filenames, errors_list_filenames,
+                                                   incremental_dump_filenames));
         ChangeDirectoryOrDie(".."); // Leave the working directory again.
-        RemoveDirectoryOrDie(GetWorkingDirectoryName());
-        DeleteFilesOrDie(incremental_dump_pattern);
-        DeleteFilesOrDie(deletion_list_pattern);
-        DeleteFilesOrDie(errors_list_pattern);
+
+        if (not keep_intermediate_files) {
+            RemoveDirectoryOrDie(GetWorkingDirectoryName());
+            DeleteFilesOrDie(incremental_dump_pattern);
+            DeleteFilesOrDie(deletion_list_pattern);
+            DeleteFilesOrDie(errors_list_pattern);
+        }
 
         CreateSymlink(new_complete_dump_filename, complete_dump_linkname);
 
