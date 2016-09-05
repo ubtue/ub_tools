@@ -734,9 +734,12 @@ std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_
         }
     }
 
-    Log("deleting \"" + complete_dump_filename + "\".");
     const std::string old_date(ExtractDateFromFilenameOrDie("../" + complete_dump_filename));
-    DeleteFileOrDie("../" + complete_dump_filename);
+
+    if (not keep_intermediate_files) {
+        Log("deleting \"" + complete_dump_filename + "\".");
+        DeleteFileOrDie("../" + complete_dump_filename);
+    }
 
     // Create new complete MARC archive:
     const std::string current_date(GetCurrentDate());
