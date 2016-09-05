@@ -404,6 +404,7 @@ void CopyFileOrDie(const std::string &from, const std::string &to) {
 
 // Appends "append_source" onto "append_target".
 void AppendFileOrDie(const std::string &append_target, const std::string &append_source) {
+    Log("about to append \"" + append_source + "\" onto \"" + append_target + "\".");
     File append_target_file(append_target, "a");
     if (unlikely(append_target_file.fail()))
         LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_target + "\" for writing! ("
@@ -434,7 +435,7 @@ void UpdateOneFile(const std::string &old_marc_filename, const std::string &new_
                    const std::string &differential_marc_file)
 {
     Log("creating \"" + new_marc_filename + "\" from \"" + old_marc_filename
-        + "\" and an optional deletion list and difference file.");
+        + "\" and an optional deletion list and difference file \"" + differential_marc_file + "\".");
 
     if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
                                 { LOCAL_DELETION_LIST_FILENAME, old_marc_filename, new_marc_filename }) != 0))
