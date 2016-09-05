@@ -47,8 +47,19 @@ function StartPhase {
 }
 
 
+# Call with "CalculateTimeDifference $start $end".
+# $start and $end have to be in seconds.
+# Returns the difference in fractional minutes as a string.
+function CalculateTimeDifference {
+    start=$1
+    end=$2
+    echo "scale=2;($end - $start)/60" | bc --mathlib
+}
+
+
+
 function EndPhase {
-    PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc --mathlib)
+    PHASE_DURATION=$(CalculateTimeDifference $START $(date +%s.%N))
     echo "Phase ${PHASE}: Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 }
 
@@ -65,6 +76,8 @@ log="${logdir}/ixtheo_marc_pipeline.log"
 rm -f "${log}"
 
 CleanUp
+
+OVERALL_START=$(date +%s.%N)
 
 mkfifo GesamtTiteldaten-"${date}".xml
 StartPhase "Convert MARC-21 to MARC-XML" 
@@ -95,12 +108,13 @@ StartPhase "Filter out Self-referential 856 Fields"
 EndPhase || Abort) &
 wait
 
-StartPhase "Extract Translation Keywords" 
+StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
 (extract_keywords_for_translation GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                  Normdaten-"${date}".xml >> "${log}" 2>&1 && \
 extract_vufind_translations_for_translation \
     $(ls "$VUFIND_HOME"/local/languages/??.ini | grep 'de.ini$') \
     $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
+generate_vufind_translation_files "$VUFIND_HOME"/local/languages/ && \
 EndPhase || Abort) &
 wait 
 
@@ -186,5 +200,5 @@ rm GesamtTiteldaten-"${date}".xml
 rm -f child_refs child_titles parent_refs
 EndPhase
 
-
+echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes."
 echo "*** IXTHEO MARC PIPELINE DONE - $(date) ***" | tee --append "${log}"
