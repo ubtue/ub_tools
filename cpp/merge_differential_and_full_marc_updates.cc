@@ -645,7 +645,7 @@ void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
         Log("Appended \"" + AUTH_ERROR_RECORDS + "\" to \"" + new_authority_data_marc_filename + "\".");
     }
 
-    if (not differential_archive.empty())
+    if (not differential_archive.empty() and not keep_intermediate_files)
         DeleteFilesOrDie("diff_.*");
 
     if (not keep_intermediate_files) {
