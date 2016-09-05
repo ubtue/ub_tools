@@ -404,6 +404,7 @@ void CopyFileOrDie(const std::string &from, const std::string &to) {
 
 // Appends "append_source" onto "append_target".
 void AppendFileOrDie(const std::string &append_target, const std::string &append_source) {
+    Log("about to append \"" + append_source + "\" onto \"" + append_target + "\".");
     File append_target_file(append_target, "a");
     if (unlikely(append_target_file.fail()))
         LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_target + "\" for writing! ("
