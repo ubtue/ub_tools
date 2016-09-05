@@ -434,7 +434,7 @@ void UpdateOneFile(const std::string &old_marc_filename, const std::string &new_
                    const std::string &differential_marc_file)
 {
     Log("creating \"" + new_marc_filename + "\" from \"" + old_marc_filename
-        + "\" and an optional deletion list and difference file.");
+        + "\" and an optional deletion list and difference file \"" + differential_marc_file + "\".");
 
     if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
                                 { LOCAL_DELETION_LIST_FILENAME, old_marc_filename, new_marc_filename }) != 0))
