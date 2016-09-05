@@ -22,6 +22,10 @@ directory_on_ftp_server = /ixtheo
 filename_pattern = ^(?:TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-(\d\d\d\d\d\d).tar.gz$
 directory_on_ftp_server = /ixtheo
 
+[Hinweisabzug]
+filename_pattern = ^SA-MARC-ixtheo_hinweis-(\d\d\d\d\d\d).tar.gz$
+directory_on_ftp_server = /ixtheo
+
 [Loeschlisten]
 filename_pattern = ^LOEPPN-(\d\d\d\d\d\d)$
 directory_on_ftp_server = /sekkor
@@ -302,6 +306,7 @@ def Main():
     if complete_data_filename is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filename)
     DownloadOtherData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
+    DownloadOtherData(config, "Hinweisabzug", ftp, download_cutoff_date, msg)
     DownloadOtherData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     DownloadOtherData(config, "Errors", ftp, download_cutoff_date, msg)
     CleanUpCumulativeCollection(config)
