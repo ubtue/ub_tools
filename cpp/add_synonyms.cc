@@ -59,7 +59,7 @@ std::string GetSubfields(const std::string &tag_and_subfields_spec) {
 
 
 void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::string> &primary_tags_and_subfield_codes,
-                     const std::set<std::string> &synonym_tags_and_subfield_codes,  std::vector<std::map<std::string, std::string>> &synonym_map) 
+                     const std::set<std::string> &synonym_tags_and_subfield_codes,  std::vector<std::map<std::string, std::string>> * const synonym_maps) 
 {
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(norm_data_marc_input)) {
         std::set<std::string>::const_iterator primary;
@@ -75,13 +75,13 @@ void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::stri
 
             if (record.extractSubfields(GetTag(*primary), GetSubfields(*primary), &primary_values) and 
                 record.extractSubfields(GetTag(*synonym), GetSubfields(*synonym), &synonym_values))
-                    synonym_map[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values, ','));
+                    (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values, ','));
         }
     }
 }
 
 
-void ProcessRecord(MarcUtil::Record * const record, std::vector<std::map<std::string, std::string>> &synonym_map, 
+void ProcessRecord(MarcUtil::Record * const record, std::vector<std::map<std::string, std::string>> &synonym_maps, 
                    const std::set<std::string> &primary_tags_and_subfield_codes,
                    const std::set<std::string> &output_tags_and_subfield_codes) 
 {
@@ -101,12 +101,12 @@ void ProcessRecord(MarcUtil::Record * const record, std::vector<std::map<std::st
             if (record->extractSubfields(GetTag(*primary), GetSubfields(*primary), &primary_values)) {
                 
                 // First case: Look up synonyms only in one category
-                if (i < synonym_map.size())
-                    synonyms = synonym_map[i][StringUtil::Join(primary_values, ',')];
+                if (i < synonym_maps.size())
+                    synonyms = synonym_maps[i][StringUtil::Join(primary_values, ',')];
                 
                 // Second case: Look up synonyms in all categories
                 else {
-                    for (auto sm : synonym_map)
+                    for (auto sm : synonym_maps)
                        synonyms += sm[StringUtil::Join(primary_values, ',')];
                 }
 
@@ -133,12 +133,12 @@ void ProcessRecord(MarcUtil::Record * const record, std::vector<std::map<std::st
 
 
 void InsertSynonyms(File * const marc_input, File * marc_output, const std::set<std::string> &primary_tags_and_subfield_codes,
-                    const std::set<std::string> &output_tags_and_subfield_codes, std::vector<std::map<std::string, std::string>> &synonym_map) 
+                    const std::set<std::string> &output_tags_and_subfield_codes, std::vector<std::map<std::string, std::string>> &synonym_maps) 
 {
     MarcXmlWriter xml_writer(marc_output);
 
     while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_input)) {
-        ProcessRecord(&record, synonym_map, primary_tags_and_subfield_codes, output_tags_and_subfield_codes);
+        ProcessRecord(&record, synonym_maps, primary_tags_and_subfield_codes, output_tags_and_subfield_codes);
         record.write(&xml_writer);
         ++record_count;
     }
@@ -201,13 +201,13 @@ int main(int argc, char **argv) {
         if (input_tags_and_subfield_codes.size() != output_tags_and_subfield_codes.size())
             Error("Number of fields title entry specs must match number of output specs");
              
-        std::vector<std::map<std::string, std::string>> synonym_map(num_of_authority_entries, std::map<std::string, std::string>());
+        std::vector<std::map<std::string, std::string>> synonym_maps(num_of_authority_entries, std::map<std::string, std::string>());
         
         // Extract the synonyms from authority data
-        ExtractSynonyms(norm_data_marc_input.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes, synonym_map);
+        ExtractSynonyms(norm_data_marc_input.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes, &synonym_maps);
 
         // Iterate over the title data
-        InsertSynonyms(marc_input.get(), &marc_output, input_tags_and_subfield_codes, output_tags_and_subfield_codes, synonym_map);
+        InsertSynonyms(marc_input.get(), &marc_output, input_tags_and_subfield_codes, output_tags_and_subfield_codes, synonym_maps);
 
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
