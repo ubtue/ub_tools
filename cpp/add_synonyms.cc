@@ -53,7 +53,7 @@ std::string GetTag(const std::string &tag_and_subfields_spec) {
 }
 
 
-std::string GetSubfields(const std::string &tag_and_subfields_spec) {
+std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
     return tag_and_subfields_spec.substr(3);
 }
 
@@ -73,8 +73,8 @@ void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::stri
             std::vector<std::string> primary_values; 
             std::vector<std::string> synonym_values;              
 
-            if (record.extractSubfields(GetTag(*primary), GetSubfields(*primary), &primary_values) and 
-                record.extractSubfields(GetTag(*synonym), GetSubfields(*synonym), &synonym_values))
+            if (record.extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values) and 
+                record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values))
                     (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values, ','));
         }
     }
@@ -89,17 +89,14 @@ void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<s
     std::set<std::string>::const_iterator output;
     unsigned int i(0);
 
-
     if (primary_tags_and_subfield_codes.size() == output_tags_and_subfield_codes.size()) {
-
         for (primary = primary_tags_and_subfield_codes.begin(), output = output_tags_and_subfield_codes.begin();
             primary != primary_tags_and_subfield_codes.end();
             ++primary, ++output, ++i) 
         {
             std::vector<std::string> primary_values;
             std::string synonyms;
-            if (record->extractSubfields(GetTag(*primary), GetSubfields(*primary), &primary_values)) {
-                
+            if (record->extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values)) {
                 // First case: Look up synonyms only in one category
                 if (i < synonym_maps.size()) {
                     const auto synonym_map(synonym_maps[i]);
@@ -120,7 +117,7 @@ void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<s
                 std::string tag(GetTag(*output));
                 if (record->getFieldIndex(tag) != -1)
                     Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
-                std::string subfield_spec = GetSubfields(*output);
+                std::string subfield_spec = GetSubfieldCodes(*output);
                 if (subfield_spec.size() != 1)
                     Error("We currently only support a single subfield and thus specifying " + subfield_spec + " as output subfield is not valid\n");
                 Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
