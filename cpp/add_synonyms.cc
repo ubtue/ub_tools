@@ -59,7 +59,7 @@ std::string GetSubfields(const std::string &tag_and_subfields_spec) {
 
 
 void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::string> &primary_tags_and_subfield_codes,
-                     const std::set<std::string> &synonym_tags_and_subfield_codes,  std::map<std::string, std::string> *synonym_map) 
+                     const std::set<std::string> &synonym_tags_and_subfield_codes,  std::vector<std::map<std::string, std::string>> &synonym_map) 
 {
     while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(norm_data_marc_input)) {
         std::set<std::string>::const_iterator primary;
@@ -81,7 +81,7 @@ void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::stri
 }
 
 
-void ProcessRecord(MarcUtil::Record * const record, std::map<std::string, std::string> *synonym_map, 
+void ProcessRecord(MarcUtil::Record * const record, std::vector<std::map<std::string, std::string>> &synonym_map, 
                    const std::set<std::string> &primary_tags_and_subfield_codes,
                    const std::set<std::string> &output_tags_and_subfield_codes) 
 {
@@ -89,36 +89,51 @@ void ProcessRecord(MarcUtil::Record * const record, std::map<std::string, std::s
     std::set<std::string>::const_iterator output;
     unsigned int i(0);
 
-    for (primary = primary_tags_and_subfield_codes.begin(), output = output_tags_and_subfield_codes.begin();
-        primary != primary_tags_and_subfield_codes.end();
-        ++primary, ++output, ++i) 
-    {
-        // Insert synonyms
-        std::vector<std::string> primary_values;
-        if (record->extractSubfields(GetTag(*primary), GetSubfields(*primary), &primary_values)) {
-            std::string synonyms(synonym_map[i][StringUtil::Join(primary_values, ',')]);
-            if (synonyms.empty())
-                continue;
 
-            // Abort if field is already populated
-            std::string tag(GetTag(*output));
-            if (record->getFieldIndex(tag) != -1)
-                Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
-            std::string subfield_spec = GetSubfields(*output);
-            if (subfield_spec.size() != 1)
-                Error("We currently only support a single subfield and thus specifying " + subfield_spec + " as output subfield is not valid\n");
-            Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
-            subfields.addSubfield(subfield_spec.at(0), synonyms);
-            if (not(record->insertField(tag, subfields.toString())))
-                Warning("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
-            ++modified_count;
+    if (primary_tags_and_subfield_codes.size() == output_tags_and_subfield_codes.size()) {
+
+        for (primary = primary_tags_and_subfield_codes.begin(), output = output_tags_and_subfield_codes.begin();
+            primary != primary_tags_and_subfield_codes.end();
+            ++primary, ++output, ++i) 
+        {
+            std::vector<std::string> primary_values;
+            std::string synonyms;
+            if (record->extractSubfields(GetTag(*primary), GetSubfields(*primary), &primary_values)) {
+                
+                // First case: Look up synonyms only in one category
+                if (i < synonym_map.size())
+                    synonyms = synonym_map[i][StringUtil::Join(primary_values, ',')];
+                
+                // Second case: Look up synonyms in all categories
+                else {
+                    for (auto sm : synonym_map)
+                       synonyms += sm[StringUtil::Join(primary_values, ',')];
+                }
+
+                if (synonyms.empty())
+                    continue;
+ 
+                // Insert synonyms
+                // Abort if field is already populated
+                std::string tag(GetTag(*output));
+                if (record->getFieldIndex(tag) != -1)
+                    Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
+                std::string subfield_spec = GetSubfields(*output);
+                if (subfield_spec.size() != 1)
+                    Error("We currently only support a single subfield and thus specifying " + subfield_spec + " as output subfield is not valid\n");
+                Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
+                subfields.addSubfield(subfield_spec.at(0), synonyms);
+                if (not(record->insertField(tag, subfields.toString())))
+                    Warning("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+                ++modified_count;
+            }   
         }
-    }       
+    }
 }   
 
 
 void InsertSynonyms(File * const marc_input, File * marc_output, const std::set<std::string> &primary_tags_and_subfield_codes,
-                    const std::set<std::string> &output_tags_and_subfield_codes, std::map<std::string, std::string> *synonym_map) 
+                    const std::set<std::string> &output_tags_and_subfield_codes, std::vector<std::map<std::string, std::string>> &synonym_map) 
 {
     MarcXmlWriter xml_writer(marc_output);
 
@@ -158,8 +173,8 @@ int main(int argc, char **argv) {
         // Determine possible mappings
         const std::string AUTHORITY_DATA_PRIMARY_SPEC("110abcd:111abcd:130abcd:150abcd:151abcd");
         const std::string AUTHORITY_DATA_SYNONYM_SPEC("410abcd:411abcd:430abcd:450abcd:451abcd");
-        const std::string TITLE_DATA_PRIMARY_SPEC("610abcd:611abcd:430abcd:650abcd:651abcd");
-        const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a");
+        const std::string TITLE_DATA_PRIMARY_SPEC("610abcd:611abcd:630abcd:650abcd:651abcd:689abcd");
+        const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a");
 
         // Determine fields to handle
         std::set<std::string> primary_tags_and_subfield_codes;
@@ -179,20 +194,21 @@ int main(int argc, char **argv) {
         if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ":", &output_tags_and_subfield_codes) < 1))
             Error("Need at least one output field");
 
-        unsigned num_of_entries(primary_tags_and_subfield_codes.size());
+        unsigned num_of_authority_entries(primary_tags_and_subfield_codes.size());
 
-        if (synonym_tags_and_subfield_codes.size() != num_of_entries or input_tags_and_subfield_codes.size() != num_of_entries
-            or output_tags_and_subfield_codes.size() != num_of_entries)
-            Error("Number of fields in all field specifications must be identical");
+        if (synonym_tags_and_subfield_codes.size() != num_of_authority_entries)
+            Error("Number of authority primary specs must match number of synonym specs");
+        if (input_tags_and_subfield_codes.size() != output_tags_and_subfield_codes.size())
+            Error("Number of fields title entry specs must match number of output specs");
              
-        // Set up the array of synonym lists
-        std::map<std::string, std::string> *synonym_map(new std::map<std::string, std::string>[num_of_entries]);
+        std::vector<std::map<std::string, std::string>> synonym_map(num_of_authority_entries, std::map<std::string, std::string>());
+        
+        // Extract the synonyms from authority data
         ExtractSynonyms(norm_data_marc_input.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes, synonym_map);
 
         // Iterate over the title data
         InsertSynonyms(marc_input.get(), &marc_output, input_tags_and_subfield_codes, output_tags_and_subfield_codes, synonym_map);
 
-        delete [] synonym_map;
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
