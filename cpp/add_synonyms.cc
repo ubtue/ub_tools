@@ -99,13 +99,13 @@ void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<s
             if (record->extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values)) {
                 // First case: Look up synonyms only in one category
                 if (i < synonym_maps.size()) {
-                    const auto synonym_map(synonym_maps[i]);
+                    const auto &synonym_map(synonym_maps[i]);
                     synonyms = synonym_map.find(StringUtil::Join(primary_values, ','))->second;
                 }
                 
                 // Second case: Look up synonyms in all categories
                 else {
-                    for (auto sm : synonym_maps)
+                    for (auto &sm : synonym_maps)
                        synonyms += sm[StringUtil::Join(primary_values, ',')];
                 }
 
