@@ -81,7 +81,7 @@ void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::stri
 }
 
 
-void ProcessRecord(MarcUtil::Record * const record, std::vector<std::map<std::string, std::string>> &synonym_maps, 
+void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<std::string, std::string>> &synonym_maps, 
                    const std::set<std::string> &primary_tags_and_subfield_codes,
                    const std::set<std::string> &output_tags_and_subfield_codes) 
 {
@@ -101,8 +101,10 @@ void ProcessRecord(MarcUtil::Record * const record, std::vector<std::map<std::st
             if (record->extractSubfields(GetTag(*primary), GetSubfields(*primary), &primary_values)) {
                 
                 // First case: Look up synonyms only in one category
-                if (i < synonym_maps.size())
-                    synonyms = synonym_maps[i][StringUtil::Join(primary_values, ',')];
+                if (i < synonym_maps.size()) {
+                    const auto synonym_map(synonym_maps[i]);
+                    synonyms = synonym_map.find(StringUtil::Join(primary_values, ','))->second;
+                }
                 
                 // Second case: Look up synonyms in all categories
                 else {
