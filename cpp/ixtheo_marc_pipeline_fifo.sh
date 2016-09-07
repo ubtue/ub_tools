@@ -3,12 +3,12 @@
 set -o errexit -o nounset
 
 
-function exitHandler {
+function ExitHandler {
     (setsid kill -- -$$) &
     exit 1
 }
 
-trap exitHandler SIGINT
+trap ExitHandler SIGINT
 
 function Abort {
     kill -INT $$
