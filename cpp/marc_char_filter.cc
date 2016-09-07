@@ -104,7 +104,7 @@ void Filter(File * const input, File * const output, const std::vector<std::stri
         }
     }
     
-    std::cerr << "Mofified " << modified_record_count << " (" << modified_field_count << " fields) of "
+    std::cerr << "Modified " << modified_record_count << " (" << modified_field_count << " fields) of "
               << total_count << " record(s).\n";
 }
 
