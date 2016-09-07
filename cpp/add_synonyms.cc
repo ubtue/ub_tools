@@ -105,8 +105,11 @@ void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<s
                 
                 // Second case: Look up synonyms in all categories
                 else {
-                    for (auto &sm : synonym_maps)
-                       synonyms += sm[StringUtil::Join(primary_values, ',')];
+                    for (auto &sm : synonym_maps) {
+                        const auto &synonym(sm.find(StringUtil::Join(primary_values, ','))->second);
+                        if (not synonym.empty())
+                            synonyms = synonyms.empty() ? synonym : synonyms + "," + synonym;
+                    }
                 }
 
                 if (synonyms.empty())
