@@ -139,7 +139,7 @@ int main(int argc, char **argv) {
 
     const std::string filter_chars(argv[4]);
     if (filter_chars.empty())
-        Error("");
+        Error("missing characters to be filtered!");
 
     try {
         Filter(input.get(), output.get(), subfield_specs, filter_chars);
