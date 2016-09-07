@@ -81,6 +81,12 @@ void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::stri
 }
 
 
+std::string GetMapValueOrEmptyString(const std::map<std::string, std::string> &map, const std::string &searchterm) {
+    auto value(map.find(searchterm));
+    return (value != map.cend()) ? value->second : "";
+}
+
+
 void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<std::string, std::string>> &synonym_maps, 
                    const std::set<std::string> &primary_tags_and_subfield_codes,
                    const std::set<std::string> &output_tags_and_subfield_codes) 
@@ -97,16 +103,17 @@ void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<s
             std::vector<std::string> primary_values;
             std::string synonyms;
             if (record->extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values)) {
+                std::string searchphrase(StringUtil::Join(primary_values, ','));
                 // First case: Look up synonyms only in one category
                 if (i < synonym_maps.size()) {
                     const auto &synonym_map(synonym_maps[i]);
-                    synonyms = synonym_map.find(StringUtil::Join(primary_values, ','))->second;
+                    synonyms = GetMapValueOrEmptyString(synonym_map, searchphrase);
                 }
                 
                 // Second case: Look up synonyms in all categories
                 else {
                     for (auto &sm : synonym_maps) {
-                        const auto &synonym(sm.find(StringUtil::Join(primary_values, ','))->second);
+                        const auto &synonym(GetMapValueOrEmptyString(sm, searchphrase));
                         if (not synonym.empty())
                             synonyms = synonyms.empty() ? synonym : synonyms + "," + synonym;
                     }
