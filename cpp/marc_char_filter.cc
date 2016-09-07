@@ -71,16 +71,15 @@ void Filter(File * const input, File * const output, const std::vector<std::stri
         const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const std::vector<std::string> &fields(record.getFields());
 
+        bool modified_at_least_one_field(false);
         for (std::vector<DirectoryEntry>::const_iterator dir_entry(dir_entries.cbegin());
              dir_entry != dir_entries.cend(); ++dir_entry)
         {
             const std::string subfield_codes(GetSubfieldCodes(dir_entry->getTag(), subfield_specs));
-            if (subfield_codes.empty()) {
-                record.write(&xml_writer);
+            if (subfield_codes.empty())
                 continue;
-            }
 
-            bool modified_at_least_one(false);
+            bool modified_at_least_one_subfield(false);
             const auto field_index(dir_entry - dir_entries.cbegin());
             Subfields subfields(fields[field_index]);
             for (const auto subfield_code : subfield_codes) {
@@ -90,18 +89,20 @@ void Filter(File * const input, File * const output, const std::vector<std::stri
                     StringUtil::RemoveChars(filter_chars, &(subfield->second));
                     if (subfield->second.length() != old_length) {
                         ++modified_field_count;
-                        modified_at_least_one = true;
+                        modified_at_least_one_subfield = true;
                     }
                 }
             }
 
-            if (modified_at_least_one) {
+            if (modified_at_least_one_subfield) {
+                modified_at_least_one_field = true;
                 record.replaceField(field_index, subfields.toString());
-                ++modified_record_count;
             }
-
-            record.write(&xml_writer);
         }
+
+        if (modified_at_least_one_field)
+            ++modified_record_count;
+        record.write(&xml_writer);
     }
     
     std::cerr << "Modified " << modified_record_count << " (" << modified_field_count << " fields) of "
