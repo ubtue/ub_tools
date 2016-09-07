@@ -81,7 +81,7 @@ void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::stri
 }
 
 
-std::string GetMapValueOrEmptyString(const std::map<std::string, std::string> &map, const std::string &searchterm) {
+inline std::string GetMapValueOrEmptyString(const std::map<std::string, std::string> &map, const std::string &searchterm) {
     auto value(map.find(searchterm));
     return (value != map.cend()) ? value->second : "";
 }
@@ -103,7 +103,8 @@ void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<s
             std::vector<std::string> primary_values;
             std::string synonyms;
             if (record->extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values)) {
-                std::string searchphrase(StringUtil::Join(primary_values, ','));
+                const std::string searchphrase(StringUtil::Join(primary_values, ','));
+                
                 // First case: Look up synonyms only in one category
                 if (i < synonym_maps.size()) {
                     const auto &synonym_map(synonym_maps[i]);
