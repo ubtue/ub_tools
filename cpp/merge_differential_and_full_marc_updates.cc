@@ -404,6 +404,7 @@ void CopyFileOrDie(const std::string &from, const std::string &to) {
 
 // Appends "append_source" onto "append_target".
 void AppendFileOrDie(const std::string &append_target, const std::string &append_source) {
+    Log("about to append \"" + append_source + "\" onto \"" + append_target + "\".");
     File append_target_file(append_target, "a");
     if (unlikely(append_target_file.fail()))
         LogSendEmailAndDie("in AppendFileOrDie: failed to open \"" + append_target + "\" for writing! ("
@@ -434,7 +435,7 @@ void UpdateOneFile(const std::string &old_marc_filename, const std::string &new_
                    const std::string &differential_marc_file)
 {
     Log("creating \"" + new_marc_filename + "\" from \"" + old_marc_filename
-        + "\" and an optional deletion list and difference file.");
+        + "\" and an optional deletion list and difference file \"" + differential_marc_file + "\".");
 
     if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
                                 { LOCAL_DELETION_LIST_FILENAME, old_marc_filename, new_marc_filename }) != 0))
@@ -645,7 +646,7 @@ void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
         Log("Appended \"" + AUTH_ERROR_RECORDS + "\" to \"" + new_authority_data_marc_filename + "\".");
     }
 
-    if (not differential_archive.empty())
+    if (not differential_archive.empty() and not keep_intermediate_files)
         DeleteFilesOrDie("diff_.*");
 
     if (not keep_intermediate_files) {
@@ -734,9 +735,12 @@ std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_
         }
     }
 
-    Log("deleting \"" + complete_dump_filename + "\".");
     const std::string old_date(ExtractDateFromFilenameOrDie("../" + complete_dump_filename));
-    DeleteFileOrDie("../" + complete_dump_filename);
+
+    if (not keep_intermediate_files) {
+        Log("deleting \"" + complete_dump_filename + "\".");
+        DeleteFileOrDie("../" + complete_dump_filename);
+    }
 
     // Create new complete MARC archive:
     const std::string current_date(GetCurrentDate());
