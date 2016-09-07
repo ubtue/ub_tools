@@ -22,6 +22,10 @@ directory_on_ftp_server = /ixtheo
 filename_pattern = ^(?:TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-(\d\d\d\d\d\d).tar.gz$
 directory_on_ftp_server = /ixtheo
 
+[Hinweisabzug]
+filename_pattern = ^SA-MARC-ixtheo_hinweis-(\d\d\d\d\d\d).tar.gz$
+directory_on_ftp_server = /ixtheo
+
 [Loeschlisten]
 filename_pattern = ^LOEPPN-(\d\d\d\d\d\d)$
 directory_on_ftp_server = /sekkor
@@ -269,9 +273,6 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
 def DownloadCompleteData(config, ftp, download_cutoff_date, msg):
     downloaded_files = DownloadData(config, "Kompletter Abzug", ftp, download_cutoff_date, msg)
     if len(downloaded_files) == 1:
-        # Create a "flag" file used to signal that we had a real new complete data dump:                       
-        util.Touch("downloaded_a_genuine_full_data_dump")
-
         return downloaded_files[0]
     elif len(downloaded_files) == 0:
         return None
@@ -305,6 +306,7 @@ def Main():
     if complete_data_filename is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filename)
     DownloadOtherData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
+    DownloadOtherData(config, "Hinweisabzug", ftp, download_cutoff_date, msg)
     DownloadOtherData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     DownloadOtherData(config, "Errors", ftp, download_cutoff_date, msg)
     CleanUpCumulativeCollection(config)

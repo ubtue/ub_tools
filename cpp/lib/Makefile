@@ -27,7 +27,7 @@ $(OBJ)/%.o: $(SRC)/%.cc
 $(OBJ)/%_amd64.o: $(SRC)/%.cc
 	$(CCC) $(AMD64_CCOPTS) $< -c -o $@ -DLZ4_PATH=\"$(LZ4_PATH)\"
 
-all: .deps libstemmer/libstemmer.a libubtue.a
+all: /usr/local/bin/iViaCore-mkdep .deps libstemmer/libstemmer.a libubtue.a
 amd64: .deps libstemmer/libstemmer_amd64.a libubtue_amd64.a
 
 libubtue.a: $(OBJS)
@@ -43,6 +43,9 @@ libstemmer/libstemmer.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/
 
 libstemmer/libstemmer_amd64.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/include/*.h)
 	$(MAKE) -C libstemmer libstemmer_amd64.a
+
+/usr/local/bin/iViaCore-mkdep:
+	$(MAKE) -C mkdep install 
 
 -include .deps
 .deps: $(SRCS) $(INC)/*.h Makefile

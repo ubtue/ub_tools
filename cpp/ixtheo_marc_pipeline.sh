@@ -116,6 +116,13 @@ add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date
 EndPhase
 
 
+StartPhase "Drop Non-Sorting Characters from Certain Subfields"
+marc_char_filter GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
+                 130a:240a:245a '@'
+EndPhase
+
+
 StartPhase "Extracting Keywords from Titles"
 enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
