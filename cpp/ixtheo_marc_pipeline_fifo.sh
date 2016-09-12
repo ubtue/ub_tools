@@ -2,7 +2,17 @@
 # Runs through the phases of the IxTheo MARC processing pipeline.
 set -o errexit -o nounset
 
-trap 'kill $(jobs -pr) 2>/dev/null' EXIT SIGINT SIGTERM
+
+function ExitHandler {
+    (setsid kill -- -$$) &
+    exit 1
+}
+
+trap ExitHandler SIGINT
+
+function Abort {
+    kill -INT $$
+}
 
 
 if [ $# != 2 ]; then
@@ -37,8 +47,19 @@ function StartPhase {
 }
 
 
+# Call with "CalculateTimeDifference $start $end".
+# $start and $end have to be in seconds.
+# Returns the difference in fractional minutes as a string.
+function CalculateTimeDifference {
+    start=$1
+    end=$2
+    echo "scale=2;($end - $start)/60" | bc --mathlib
+}
+
+
+
 function EndPhase {
-    PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc --mathlib)
+    PHASE_DURATION=$(CalculateTimeDifference $START $(date +%s.%N))
     echo "Phase ${PHASE}: Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 }
 
@@ -56,41 +77,45 @@ rm -f "${log}"
 
 CleanUp
 
+OVERALL_START=$(date +%s.%N)
+
 mkfifo GesamtTiteldaten-"${date}".xml
 StartPhase "Convert MARC-21 to MARC-XML" 
 (marc_grep Normdaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
-     > Normdaten-"${date}".xml 2>> "${log}") &
+     > Normdaten-"${date}".xml 2>> "${log}" || Abort) &
 (marc_grep GesamtTiteldaten-"${date}".mrc 'if "001" == ".*" extract *' marc_xml \
     > GesamtTiteldaten-"${date}".xml 2>> "${log}") &
 
 
 StartPhase "Filter out Local Data of Other Institutions" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
+#(delete_unused_local_data GesamtTiteldaten-"${date}".xml \
 (delete_unused_local_data GesamtTiteldaten-"${date}".xml \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
-                         >> "${log}" 2>&1
-EndPhase) &
+                         >> "${log}" 2>&1 &&
+EndPhase || Abort) &
 
 StartPhase "Filter out Records Containing mtex in 935\$a" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
-(marc_filter --input-format=marc-xml --drop GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+(marc_filter --drop --input-format=marc-xml GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
      GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml 935a:mtex >> "${log}" 2>&1 && \
-EndPhase) &
+EndPhase || Abort)  &
 
 
 StartPhase "Filter out Self-referential 856 Fields" 
-(marc_filter --input-format=marc-xml --remove-fields GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+(marc_filter --remove-fields --input-format=marc-xml GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml '856u:ixtheo\.de' >> "${log}" 2>&1 && \
-EndPhase) &
+EndPhase || Abort) &
 wait
 
-StartPhase "Extract Translation Keywords" 
+StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
 (extract_keywords_for_translation GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                  Normdaten-"${date}".xml >> "${log}" 2>&1 && \
 extract_vufind_translations_for_translation \
     $(ls "$VUFIND_HOME"/local/languages/??.ini | grep 'de.ini$') \
     $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
-EndPhase) &
+generate_vufind_translation_files "$VUFIND_HOME"/local/languages/ && \
+EndPhase || Abort) &
 wait 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items" 
@@ -98,19 +123,19 @@ StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
 add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".xml \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
                                  superior_ppns >> "${log}" 2>&1 && \
-EndPhase) &
+EndPhase || Abort) &
 wait
 
 StartPhase "Add Author Synonyms from Authority Data" 
 (add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml Normdaten-"${date}".xml \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
-EndPhase) &
+EndPhase || Abort) &
 wait
 
 StartPhase "Adding of ISBN's and ISSN's to Component Parts" 
 (add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
-EndPhase) &
+EndPhase || Abort) &
 wait
 
 StartPhase "Extracting Keywords from Titles" 
@@ -126,7 +151,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
                          Normdaten-"${date}".xml \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
 cp pericopes_to_codes.map /var/lib/tuelib/bibleRef/ && \
-EndPhase) &
+EndPhase || Abort) &
 
 
 StartPhase "Update IxTheo Notations"
@@ -135,7 +160,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1 && \
-EndPhase) &
+EndPhase || Abort) &
 
 
 StartPhase "Map DDC and RVK to IxTheo Notations" 
@@ -144,7 +169,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
     ../cpp/data/ddc_ixtheo.map ../cpp/data/ddc_ixtheo.map >> "${log}" 2>&1 && \
-EndPhase) &
+EndPhase || Abort) &
 
 
 StartPhase "Add Keyword Synonyms from Authority Data"
@@ -152,19 +177,19 @@ StartPhase "Add Keyword Synonyms from Authority Data"
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
     Normdaten-"${date}".xml \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
-EndPhase) &
+EndPhase || Abort) &
 wait
 
 StartPhase "Fill in missing 773\$a Subfields"
 (augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                        GesamtTiteldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1 && \
-EndPhase) &
+EndPhase || Abort) &
 
 
 StartPhase "Extract Normdata Translations"
 (extract_normdata_translations Normdaten-"${date}".xml \
      normdata_translations.txt >> "${log}" 2>&1 &&
-EndPhase) &
+EndPhase || Abort) &
 wait 
 
 StartPhase "Cleanup of Intermediate Files"
@@ -175,5 +200,5 @@ rm GesamtTiteldaten-"${date}".xml
 rm -f child_refs child_titles parent_refs
 EndPhase
 
-
+echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes."
 echo "*** IXTHEO MARC PIPELINE DONE - $(date) ***" | tee --append "${log}"

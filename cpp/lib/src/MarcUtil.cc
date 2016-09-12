@@ -322,7 +322,8 @@ void Record::deleteField(const size_t field_index) {
     const size_t deleted_field_size(fields_[field_index].length() + 1 /* field terminator */);
 
     if (not record_will_be_written_as_xml_) {
-        leader_.setRecordLength(leader_.getRecordLength() - deleted_field_size - DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
+        leader_.setRecordLength(leader_.getRecordLength() - deleted_field_size
+                                - DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
         leader_.setBaseAddressOfData(leader_.getBaseAddressOfData() - DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
     }
 
@@ -337,6 +338,20 @@ void Record::deleteField(const size_t field_index) {
 }
 
 
+bool Record::replaceField(const size_t field_index, const std::string &new_field_contents) {
+    const auto old_field_length(fields_[field_index].length());
+    fields_[field_index] = new_field_contents;
+    
+    if (not record_will_be_written_as_xml_) {
+        if (not leader_.setRecordLength(leader_.getRecordLength() + new_field_contents.length() - old_field_length))
+            return false;
+    }
+    
+    raw_record_is_out_of_date_ = true;
+    return true;
+}
+
+    
 size_t Record::extractAllSubfields(const std::string &tags, std::vector<std::string> * const values,
                                    const std::string &ignore_subfield_codes) const
 {
