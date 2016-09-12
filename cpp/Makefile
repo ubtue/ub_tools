@@ -1,23 +1,23 @@
-INC             = lib/include
-LIB_SRCS        = lib/src
-CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include \
-                  -ftrapv -Ilib/libstemmer/include \
-                  -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
-                  -I/usr/include/libxml2
-CCCFLAGS_AMD64  = $(subst -march=native,,$(CCCFLAGS))
-CCC             = clang++
-OBJ             = .
-MAKE_DEPS       = iViaCore-mkdep
-LIBS            = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
-                  -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
-                  -lssl -lcrypto -lpthread
-LIBS_AMD64      = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
+INC            = lib/include
+LIB_SRCS       = lib/src
+CCCFLAGS       = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include \
+                 -ftrapv -Ilib/libstemmer/include \
+                 -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
+                 -I/usr/include/libxml2
+CCCFLAGS_AMD64 = $(subst -march=native,,$(CCCFLAGS))
+CCC            = clang++
+OBJ            = .
+MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
+LIBS           = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
+                 -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
+                 -lssl -lcrypto -lpthread
+LIBS_AMD64     = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
 
-PROGS           := $(patsubst %.cc,%,$(wildcard *.cc))
-CGI_PROGS       = full_text_lookup translate_chainer
-INSTALL_PROGS=$(filter-out %_test,$(PROGS)) *.sh
+PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
+CGI_PROGS      = full_text_lookup translate_chainer
+INSTALL_PROGS  = $(filter-out %_test,$(PROGS)) *.sh
 
-.PHONY: all install root_install clean
+.PHONY: all amd64 install clean
 
 all: .deps $(PROGS)
 amd64: .deps $(AMD64_PROGS)
@@ -47,11 +47,7 @@ lib/libubtue.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
 
 tests: $(patsubst %.cc,%,$(wildcard *test.cc))
 
-install: $(INSTALL_PROGS)
-	@echo "Installing programs..."
-	cp $(INSTALL_PROGS) ~/bin/
-
-root_install: regular_install cgi_install
+install: regular_install cgi_install
 
 regular_install: $(INSTALL_PROGS)
 	@echo "Installing programs and data..."
@@ -61,8 +57,10 @@ regular_install: $(INSTALL_PROGS)
             /var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map
 	mkdir --parents /var/lib/tuelib/translate_chainer
 	cp data/done_translating.html  data/translate.html /var/lib/tuelib/translate_chainer/
+	cp ../config/ixtheo/subscriptions_email.template /var/lib/tuelib/subscriptions_email.template
 
 cgi_install: $(CGI_PROGS)
+	@echo "Installing CGI programs..."
 	mkdir --parents /var/www/cgi-bin
 	cp $(CGI_PROGS) /var/www/cgi-bin/
 
