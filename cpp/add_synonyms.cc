@@ -103,20 +103,20 @@ void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<s
             std::vector<std::string> primary_values;
             std::string synonyms;
             if (record->extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values)) {
-                const std::string searchphrase(StringUtil::Join(primary_values, ','));
-                
-                // First case: Look up synonyms only in one category
-                if (i < synonym_maps.size()) {
-                    const auto &synonym_map(synonym_maps[i]);
-                    synonyms = GetMapValueOrEmptyString(synonym_map, searchphrase);
-                }
-                
-                // Second case: Look up synonyms in all categories
-                else {
-                    for (auto &sm : synonym_maps) {
-                        const auto &synonym(GetMapValueOrEmptyString(sm, searchphrase));
-                        if (not synonym.empty())
-                            synonyms = synonyms.empty() ? synonym : synonyms + "," + synonym;
+               for (const auto searchterm : primary_values) {
+                    // First case: Look up synonyms only in one category
+                    if (i < synonym_maps.size()) {
+                        const auto &synonym_map(synonym_maps[i]);
+                        synonyms = GetMapValueOrEmptyString(synonym_map, searchterm);
+                    }
+                    
+                    // Second case: Look up synonyms in all categories
+                    else {
+                        for (auto &sm : synonym_maps) {
+                            const auto &synonym(GetMapValueOrEmptyString(sm, searchterm));
+                            if (not synonym.empty())
+                                synonyms = synonyms.empty() ? synonym : synonyms + "," + synonym;
+                        }
                     }
                 }
 
