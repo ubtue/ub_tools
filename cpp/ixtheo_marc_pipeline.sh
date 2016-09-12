@@ -119,7 +119,7 @@ EndPhase
 StartPhase "Drop Non-Sorting Characters from Certain Subfields"
 marc_char_filter GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
-                 130a:240a:245a '@'
+                 130a:240a:245a '@' >> "${log}" 2>&1
 EndPhase
 
 
