@@ -739,10 +739,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     private String translateAuthorRole(final String germanRole) {
-        if (GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.containsKey(germanRole))
-            return GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.get(germanRole);
-        System.err.println("No English mapping for \"" + germanRole + "\" found!");
-        return germanRole;
+        final String translation = GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.get(germanRole);
+        if (translation == null) {
+            System.err.println("No English mapping for \"" + germanRole + "\" found!");
+            return germanRole;
+        }
+        return translation;
     }
 
     // Removes any non-letters from "original_role", lowercases letters and returns the clean-up version.
