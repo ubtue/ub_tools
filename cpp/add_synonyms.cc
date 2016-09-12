@@ -101,27 +101,31 @@ void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<s
             ++primary, ++output, ++i) 
         {
             std::vector<std::string> primary_values;
-            std::string synonyms;
+            std::set<std::string> synonym_values;
             if (record->extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values)) {
-                const std::string searchphrase(StringUtil::Join(primary_values, ','));
-                
-                // First case: Look up synonyms only in one category
-                if (i < synonym_maps.size()) {
-                    const auto &synonym_map(synonym_maps[i]);
-                    synonyms = GetMapValueOrEmptyString(synonym_map, searchphrase);
-                }
-                
-                // Second case: Look up synonyms in all categories
-                else {
-                    for (auto &sm : synonym_maps) {
-                        const auto &synonym(GetMapValueOrEmptyString(sm, searchphrase));
+               for (const auto &searchterm : primary_values) {
+                    // First case: Look up synonyms only in one category
+                    if (i < synonym_maps.size()) {
+                        const auto &synonym_map(synonym_maps[i]);
+                        const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
                         if (not synonym.empty())
-                            synonyms = synonyms.empty() ? synonym : synonyms + "," + synonym;
+                            synonym_values.insert(synonym);
+                    }
+                    
+                    // Second case: Look up synonyms in all categories
+                    else {
+                        for (auto &sm : synonym_maps) {
+                            const auto &synonym(GetMapValueOrEmptyString(sm, searchterm));
+                            if (not synonym.empty())
+                                synonym_values.insert(synonym);
+                        }
                     }
                 }
 
-                if (synonyms.empty())
+                if (synonym_values.empty())
                     continue;
+                
+                const std::string synonyms(StringUtil::Join(synonym_values, ','));
  
                 // Insert synonyms
                 // Abort if field is already populated
