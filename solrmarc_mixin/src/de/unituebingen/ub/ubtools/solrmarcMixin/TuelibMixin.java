@@ -20,15 +20,6 @@ import java.util.regex.Pattern;
 
 public class TuelibMixin extends SolrIndexerMixin {
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
-    /**
-     * Returns either a Set<String> of parent (URL + colon + material type).  URLs are taken from 856$u and material
-     * types from 856$3, 856$z or 856$x.  For missing type subfields the text "Unbekanntes Material" will be used.
-     * Furthermore 024$2 will be checked for "doi".  If we find this we generate a URL with a DOI resolver from the
-     * DOI in 024$a and set the "material type" to "DOI Link".
-     *
-     * @param record the record
-     * @return A, possibly empty, Set<String> containing the URL/material-type pairs.
-     */
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
     private final static Pattern EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
     // TODO: This should be in a translation mapping file
@@ -293,6 +284,15 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
+    /**
+     * Returns either a Set<String> of parent (URL + colon + material type).  URLs are taken from 856$u and material
+     * types from 856$3, 856$z or 856$x.  For missing type subfields the text "Unbekanntes Material" will be used.
+     * Furthermore 024$2 will be checked for "doi".  If we find this we generate a URL with a DOI resolver from the
+     * DOI in 024$a and set the "material type" to "DOI Link".
+     *
+     * @param record the record
+     * @return A, possibly empty, Set<String> containing the URL/material-type pairs.
+     */
     public Set<String> getUrlsAndMaterialTypes(final Record record) {
         final Set<String> nonUnknownMaterialTypeURLs = new HashSet<String>();
         final Map<String, Set<String>> materialTypeToURLsMap = new TreeMap<String, Set<String>>();
@@ -726,23 +726,63 @@ public class TuelibMixin extends SolrIndexerMixin {
         return results;
     }
 
+    private static Map<String, String> GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP;
+    static {
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verfasser", "aut");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verfasserin", "aut");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verleger", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verlegerin", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("herausgeber", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("herausgeberin", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("übersetzer", "trl");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("übersetzerin", "trl");
+    }
+
+    private String translateAuthorRole(final String germanRole) {
+        final String translation = GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.get(germanRole);
+        if (translation == null) {
+            System.err.println("No English mapping for \"" + germanRole + "\" found!");
+            return germanRole;
+        }
+        return translation;
+    }
+
+    // Removes any non-letters from "original_role", lowercases letters and returns the clean-up version.
+    private static String cleanRole(final String original_role) {
+        final StringBuilder canonised_role = new StringBuilder();
+        for (final char ch : original_role.toCharArray()) {
+            if (Character.isLetter(ch))
+                canonised_role.append(ch);
+        }
+        
+        return canonised_role.toString().toLowerCase();
+    }
+    
+    private static final char[] author2SubfieldCodes = new char[] { 'a', 'b', 'c', 'd' };
+    
     /**
-     * param record the record
+     * @param record the record
      */
     public Set<String> getAuthor2AndRole(final Record record) {
         final Set<String> results = new TreeSet<>();
         for (final DataField data_field : record.getDataFields()) {
             if (!data_field.getTag().equals("700"))
                 continue;
-// Fixme: Query other author2 fields
+            
+            String author2 = null;
+            for (char subfieldCode : author2SubfieldCodes) {
+                final Subfield subfieldField = data_field.getSubfield(subfieldCode);
+                if (subfieldField != null) {
+                    author2 = subfieldField.getData();
+                    break;
+                }
+            }
 
-            final String author2 = (data_field.getSubfield('a') != null) ?
-                    data_field.getSubfield('a').getData() : "";
-            final String author2role = (data_field.getSubfield('e') != null) ?
-                    data_field.getSubfield('e').getData() : "";
+            final Subfield eSubfield = data_field.getSubfield('e');
+            final String author2role = (eSubfield != null) ? translateAuthorRole(cleanRole(eSubfield.getData())) : null;
 
-            final StringBuilder author2AndRole = new StringBuilder();
-            if (author2 != "" && author2role != "") {
+            if (author2 != null && author2role != null) {
+                final StringBuilder author2AndRole = new StringBuilder();
                 author2AndRole.append(author2);
                 author2AndRole.append("$");
                 author2AndRole.append(author2role);
