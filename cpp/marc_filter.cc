@@ -187,16 +187,19 @@ class FilterDescriptor {
 private:
     FilterType filter_type_;
     std::vector<CompiledPattern *> compiled_patterns_;
-    std::string filter_chars_;
     std::vector<std::string> subfield_specs_;
+    std::string chars_to_delete_;
 public:
     inline FilterType getFilterType() const { return filter_type_; }
 
     /** \note Only call this if the filter type is not FILTER_CHARS! */
     inline const std::vector<CompiledPattern *> getCompiledPatterns() const { return compiled_patterns_; }
 
-    /** \note Only call tis if the filter type is FILTER_CHARS! */
+    /** \note Only call this if the filter type is FILTER_CHARS! */
     inline const std::vector<std::string> &getSubfieldSpecs() const { return subfield_specs_; }
+
+    /** \note Only call this if the filter type is FILTER_CHARS! */
+    inline const std::string &getCharsToDelete() const { return chars_to_delete_; }
     
     inline static FilterDescriptor MakeDropFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::DROP, compiled_patterns);
@@ -207,15 +210,66 @@ public:
     inline static FilterDescriptor MakeRemoveFieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::REMOVE_FIELDS, compiled_patterns);
     }
-    inline static FilterDescriptor MakeFilterCharsFilter(const std::string &filter_chars) {
-        return FilterDescriptor(filter_chars);
+    inline static FilterDescriptor MakeFilterCharsFilter(const std::vector<std::string> &subfield_specs,
+                                                         const std::string &chars_to_delete) {
+        return FilterDescriptor(subfield_specs, chars_to_delete);
     }
 private:
     FilterDescriptor(const FilterType filter_type, const std::vector<CompiledPattern *> &compiled_patterns)
         : filter_type_(filter_type), compiled_patterns_(compiled_patterns) { }
-    FilterDescriptor(const std::string &filter_chars)
-        : filter_type_(FilterType::FILTER_CHARS), filter_chars_(filter_chars) { }
+    FilterDescriptor(const std::vector<std::string> &subfield_specs, const std::string &chars_to_delete)
+        : filter_type_(FilterType::FILTER_CHARS), subfield_specs_(subfield_specs),
+          chars_to_delete_(chars_to_delete) { }
 };
+
+
+std::string GetSubfieldCodes(const std::string &tag, const std::vector<std::string> &subfield_specs) {
+    std::string subfield_codes;
+    
+    for (const auto &subfield_spec : subfield_specs) {
+        if (subfield_spec.substr(0, DirectoryEntry::TAG_LENGTH) == tag)
+            subfield_codes += subfield_spec[DirectoryEntry::TAG_LENGTH];
+    }
+
+    return subfield_codes;
+}
+
+
+bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std::string &chars_to_delete,
+                      MarcUtil::Record * const record)
+{
+    const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
+    const std::vector<std::string> &fields(record->getFields());
+
+        bool modified_at_least_one_field(false);
+    for (std::vector<DirectoryEntry>::const_iterator dir_entry(dir_entries.cbegin());
+         dir_entry != dir_entries.cend(); ++dir_entry)
+    {
+        const std::string subfield_codes(GetSubfieldCodes(dir_entry->getTag(), subfield_specs));
+        if (subfield_codes.empty())
+            continue;
+
+        bool modified_at_least_one_subfield(false);
+        const auto field_index(dir_entry - dir_entries.cbegin());
+        Subfields subfields(fields[field_index]);
+        for (const auto subfield_code : subfield_codes) {
+            const auto begin_end(subfields.getIterators(subfield_code));
+            for (auto subfield(begin_end.first); subfield != begin_end.second; ++subfield) {
+                const auto old_length(subfield->second.length());
+                StringUtil::RemoveChars(chars_to_delete, &(subfield->second));
+                if (subfield->second.length() != old_length)
+                    modified_at_least_one_subfield = true;
+            }
+        }
+
+        if (modified_at_least_one_subfield) {
+            modified_at_least_one_field = true;
+            record->replaceField(field_index, subfields.toString());
+        }
+    }
+
+    return modified_at_least_one_field;
+}
 
 
 void Filter(const bool input_is_xml, const OutputFormat output_format, const std::vector<FilterDescriptor> &filters,
@@ -237,6 +291,8 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
         bool deleted_record(false), modified_record(false);
         for (const auto &filter : filters) {
             if (filter.getFilterType() == FilterType::FILTER_CHARS) {
+                if (FilterCharacters(filter.getSubfieldSpecs(), filter.getCharsToDelete(), &record))
+                    modified_record = true;
             } else {
                 std::vector<size_t> matched_field_indices;
                 if (Matched(record, dir_entries, fields, filter.getCompiledPatterns(), &matched_field_indices)) {
@@ -302,9 +358,9 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             filters->emplace_back(FilterDescriptor::MakeKeepFilter(CollectAndCompilePatterns(&argv)));
         else if (std::strcmp(*argv, "--remove-fields") == 0)
             filters->emplace_back(FilterDescriptor::MakeRemoveFieldsFilter(CollectAndCompilePatterns(&argv)));
-        else if (std::strcmp(*argv, "--filter-chars") == 0)
+        else if (std::strcmp(*argv, "--filter-chars") == 0) {
             filters->emplace_back(FilterDescriptor::MakeFilterCharsFilter(*argv++));
-        else
+        } else
             Error("unknown operation type \"" + std::string(*argv) + "\"!");
     }
 }
