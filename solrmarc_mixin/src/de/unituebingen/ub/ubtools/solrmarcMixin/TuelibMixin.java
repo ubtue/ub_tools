@@ -726,7 +726,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return results;
     }
 
-    private static Map<String, String> GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP;
+    private static Map<String, String> GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP = new TreeMap<String, String>();
     static {
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verfasser", "aut");
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verfasserin", "aut");
