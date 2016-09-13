@@ -1,4 +1,4 @@
-/** \brief A MARC-21 filter utility that can remove records based on patterns for MARC subfields.
+/** \brief A MARC-21 filter utility that can remove records or fields based on patterns for MARC subfields.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
@@ -36,10 +36,15 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << progname << " (--drop|--keep|--remove-fields) [--input-format=(marc-xml|marc-21)] [--output-format=(marc-xml|marc-21)] marc_input marc_output field_or_subfieldspec1:regex1 "
+    std::cerr << "usage: " << ::progname
+              << " marc_input marc_output [[--input-format=(marc-xml|marc-21)] [--output-format=(marc-xml|marc-21)] op1 [op2 .. opN]\n"
+              << "       where each operation must start with the operation type. Operation-type flags\n"
+              << "       are --drop, --keep, --remove-fields, or --filter-chars.\n"
+              << "       Arguments for all operations except for --filter-chars are field_or_subfieldspec1:regex1 "
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
               << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
+              << "       --filter-chars' arguments are subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
 
     std::exit(EXIT_FAILURE);
@@ -89,8 +94,8 @@ bool CompiledPattern::subfieldMatched(const std::string &subfield_contents) cons
 // Expects "patterns" to contain strings that look like TTTS:REGEX where TTT are 3 characters specifying a field,
 // S is a subfield code and REGEX is a PCRE-style regex supporting UTF8 that should match subfield contents.
 // Alteratively a pattern can look like TTT:REGEX where TTT is a tag and we have no subfield code.
-bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<CompiledPattern> * const compiled_patterns,
-                     std::string * const err_msg)
+bool CompilePatterns(const std::vector<std::string> &patterns,
+                     std::vector<CompiledPattern *> * const compiled_patterns, std::string * const err_msg)
 {
     compiled_patterns->clear();
     compiled_patterns->reserve(patterns.size());
@@ -121,7 +126,7 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
             return false;
         }
 
-        compiled_patterns->push_back(CompiledPattern(tag, subfield_code, std::move(*new_matcher)));
+        compiled_patterns->push_back(new CompiledPattern(tag, subfield_code, std::move(*new_matcher)));
         delete new_matcher;
     }
 
@@ -131,33 +136,33 @@ bool CompilePatterns(const std::vector<std::string> &patterns, std::vector<Compi
 
 /** Returns true if we have at least one match. */
 bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &dir_entries,
-             const std::vector<std::string> &fields, const std::vector<CompiledPattern> &compiled_patterns,
+             const std::vector<std::string> &fields, const std::vector<CompiledPattern *> &compiled_patterns,
              std::vector<size_t> * const matched_field_indices)
 {
     matched_field_indices->clear();
 
     bool matched_at_least_one(false);
     for (const auto &compiled_pattern : compiled_patterns) {
-        ssize_t index(record.getFieldIndex(compiled_pattern.getTag()));
+        ssize_t index(record.getFieldIndex(compiled_pattern->getTag()));
         if (index == -1)
             continue;
 
         for (/* Intentionally empty! */;
-             static_cast<size_t>(index) < fields.size() and dir_entries[index].getTag() == compiled_pattern.getTag();
+             static_cast<size_t>(index) < fields.size() and dir_entries[index].getTag() == compiled_pattern->getTag();
              ++index)
         {
-            if (compiled_pattern.hasSubfieldCode()) {
+            if (compiled_pattern->hasSubfieldCode()) {
                 const Subfields subfields(fields[index]);
-                const auto begin_end(subfields.getIterators(compiled_pattern.getSubfieldCode()));
+                const auto begin_end(subfields.getIterators(compiled_pattern->getSubfieldCode()));
                 for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
                      ++subfield_code_and_value)
                 {
-                    if (compiled_pattern.subfieldMatched(subfield_code_and_value->second)) {
+                    if (compiled_pattern->subfieldMatched(subfield_code_and_value->second)) {
                         matched_field_indices->emplace_back(index);
                         matched_at_least_one = true;
                     }
                 }
-            } else if (compiled_pattern.fieldMatched(fields[index])) {
+            } else if (compiled_pattern->fieldMatched(fields[index])) {
                 matched_field_indices->emplace_back(index);
                 matched_at_least_one = true;
             }
@@ -172,104 +177,169 @@ namespace {
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
-enum class OperationType { KEEP, DROP, REMOVE_FIELDS };
+enum class FilterType { KEEP, DROP, REMOVE_FIELDS, FILTER_CHARS };
 
 
 } // unnamed namespace
 
 
-void Filter(const bool input_is_xml, const OutputFormat output_format, const std::vector<std::string> &patterns,
-            const OperationType operation_type, File * const input, File * const output)
+class FilterDescriptor {
+private:
+    FilterType filter_type_;
+    std::vector<CompiledPattern *> compiled_patterns_;
+    std::string filter_chars_;
+    std::vector<std::string> subfield_specs_;
+public:
+    inline FilterType getFilterType() const { return filter_type_; }
+
+    /** \note Only call this if the filter type is not FILTER_CHARS! */
+    inline const std::vector<CompiledPattern *> getCompiledPatterns() const { return compiled_patterns_; }
+
+    /** \note Only call tis if the filter type is FILTER_CHARS! */
+    inline const std::vector<std::string> &getSubfieldSpecs() const { return subfield_specs_; }
+    
+    inline static FilterDescriptor MakeDropFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
+        return FilterDescriptor(FilterType::DROP, compiled_patterns);
+    }
+    inline static FilterDescriptor MakeKeepFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
+        return FilterDescriptor(FilterType::KEEP, compiled_patterns);
+    }
+    inline static FilterDescriptor MakeRemoveFieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
+        return FilterDescriptor(FilterType::REMOVE_FIELDS, compiled_patterns);
+    }
+    inline static FilterDescriptor MakeFilterCharsFilter(const std::string &filter_chars) {
+        return FilterDescriptor(filter_chars);
+    }
+private:
+    FilterDescriptor(const FilterType filter_type, const std::vector<CompiledPattern *> &compiled_patterns)
+        : filter_type_(filter_type), compiled_patterns_(compiled_patterns) { }
+    FilterDescriptor(const std::string &filter_chars)
+        : filter_type_(FilterType::FILTER_CHARS), filter_chars_(filter_chars) { }
+};
+
+
+void Filter(const bool input_is_xml, const OutputFormat output_format, const std::vector<FilterDescriptor> &filters,
+            File * const input, File * const output)
 {
     MarcXmlWriter *xml_writer(nullptr);
     if ((output_format == OutputFormat::SAME_AS_INPUT and input_is_xml) or output_format == OutputFormat::MARC_XML)
         xml_writer = new MarcXmlWriter(output);
 
-    std::vector<CompiledPattern> compiled_patterns;
-    std::string err_msg;
-    if (not CompilePatterns(patterns, &compiled_patterns, &err_msg))
-        Error("Error while compiling patterns: " + err_msg);
-
-    unsigned total_count(0), kept_count(0), modified_count(0);
+    unsigned total_count(0), deleted_count(0), modified_count(0);
     while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(input)
                                                   : MarcUtil::Record::BinaryFactory(input))
     {
         record.setRecordWillBeWrittenAsXml(input_is_xml);
         ++total_count;
-
+        
         const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const std::vector<std::string> &fields(record.getFields());
-        std::vector<size_t> matched_field_indices;
-        if (Matched(record, dir_entries, fields, compiled_patterns, &matched_field_indices)) {
-            if (operation_type == OperationType::KEEP) {
-                xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
-                ++kept_count;
-            } else if (operation_type == OperationType::REMOVE_FIELDS) {
-                std::sort(matched_field_indices.begin(), matched_field_indices.end(), std::greater<size_t>());
-                for (const auto field_index : matched_field_indices)
-                    record.deleteField(field_index);
-                xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
-                ++modified_count;
+        bool deleted_record(false), modified_record(false);
+        for (const auto &filter : filters) {
+            if (filter.getFilterType() == FilterType::FILTER_CHARS) {
+            } else {
+                std::vector<size_t> matched_field_indices;
+                if (Matched(record, dir_entries, fields, filter.getCompiledPatterns(), &matched_field_indices)) {
+                    if (filter.getFilterType() == FilterType::DROP) {
+                        deleted_record = true;
+                        break;
+                    } else if (filter.getFilterType() == FilterType::REMOVE_FIELDS) {
+                        std::sort(matched_field_indices.begin(), matched_field_indices.end(), std::greater<size_t>());
+                        for (const auto field_index : matched_field_indices)
+                            record.deleteField(field_index);
+                        xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
+                        modified_record = true;
+                    }
+                } else if (filter.getFilterType() == FilterType::KEEP) {
+                    deleted_record = true;
+                    break;
+                }
             }
-        } else if (operation_type == OperationType::DROP or operation_type == OperationType::REMOVE_FIELDS) {
+        }
+
+        if (deleted_record)
+            ++deleted_count;
+        else {
+            if (modified_record)
+                ++modified_count;
             xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
-            ++kept_count;
         }
     }
 
-    if (not err_msg.empty())
-        Error(err_msg);
-
     delete xml_writer;
 
-    if (operation_type == OperationType::REMOVE_FIELDS)
-        std::cerr << "Modified " << modified_count << " of " << total_count << " record(s).\n";
-    else
-        std::cerr << "Kept " << kept_count << " of " << total_count << " record(s).\n";
+    std::cerr << "Processed a total of " << total_count << " record(s).\n";
+    std::cerr << "Modified " << modified_count << " record(s).\n";
+    std::cerr << "Deleted " << deleted_count << " record(s).\n";
+}
+
+
+std::vector<CompiledPattern *> CollectAndCompilePatterns(char ***argvp) {
+    const std::string operation_type(**argvp++);
+    
+    std::vector<std::string> specs_and_pattern;
+    while (*argvp != nullptr and not StringUtil::StartsWith(**argvp, "--"))
+        specs_and_pattern.emplace_back(**argvp++);
+    
+    if (specs_and_pattern.empty())
+        Error("expected at least one field or subfield specification after \"" + operation_type + "\"!");
+
+    std::vector<CompiledPattern *> compiled_patterns;
+    std::string err_msg;
+    if (not CompilePatterns(specs_and_pattern, &compiled_patterns, &err_msg))
+        Error("bad field specification and or regular expression (" + err_msg + ")!");
+    
+    return compiled_patterns;
+}
+
+
+void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filters) {
+    while (*argv != nullptr) {
+        std::vector<CompiledPattern *> compiled_patterns;
+        if (std::strcmp(*argv, "--drop") == 0)
+            filters->emplace_back(FilterDescriptor::MakeDropFilter(CollectAndCompilePatterns(&argv)));
+        else if (std::strcmp(*argv, "--keep") == 0)
+            filters->emplace_back(FilterDescriptor::MakeKeepFilter(CollectAndCompilePatterns(&argv)));
+        else if (std::strcmp(*argv, "--remove-fields") == 0)
+            filters->emplace_back(FilterDescriptor::MakeRemoveFieldsFilter(CollectAndCompilePatterns(&argv)));
+        else if (std::strcmp(*argv, "--filter-chars") == 0)
+            filters->emplace_back(FilterDescriptor::MakeFilterCharsFilter(*argv++));
+        else
+            Error("unknown operation type \"" + std::string(*argv) + "\"!");
+    }
 }
 
 
 int main(int argc, char **argv) {
     ::progname = argv[0];
+    ++argv;
 
     if (argc < 5)
         Usage();
-    
-    OperationType operation_type;
-    if (std::strcmp(argv[1], "--keep") == 0)
-        operation_type = OperationType::KEEP;
-    else if (std::strcmp(argv[1], "--drop") == 0)
-        operation_type = OperationType::DROP;
-    else if (std::strcmp(argv[1], "--remove-fields") == 0)
-        operation_type = OperationType::REMOVE_FIELDS;
-    else
-        Error("expected --keep, --drop or --remove-field as the first argument!");
+
+    const std::string input_filename(*argv++);
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
+    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(*argv++));
 
     bool input_is_xml(false), already_determined_input_format(false);
-    if (std::strcmp("--input-format=marc-xml", argv[2]) == 0) {
+    if (std::strcmp("--input-format=marc-xml", *argv) == 0) {
         input_is_xml = true;
-        --argc, ++argv;
+        ++argv;
         already_determined_input_format = true;
-    } else if (std::strcmp("--input-format=marc-21", argv[2]) == 0) {
-        --argc, ++argv;
+    } else if (std::strcmp("--input-format=marc-21", *argv) == 0) {
+        ++argv;
         already_determined_input_format = true;
     }
 
     OutputFormat output_format(OutputFormat::SAME_AS_INPUT);
-    if (StringUtil::StartsWith(argv[2], "--output-format=")) {
-        if (std::strcmp(argv[2] + std::strlen("--output-format="), "marc-xml") == 0)
-            output_format = OutputFormat::MARC_XML;
-        else if (std::strcmp(argv[2] + std::strlen("--output-format="), "marc-21") == 0)
-            output_format = OutputFormat::MARC_21;
-        else
-            Error("unknown output format \"" + std::string(argv[2] + 16)
-                  + "\"!  Must be \"marc-xml\" or \"marc-21\".");
-        ++argv, --argc;
+    if (std::strcmp("--output-format=marc-xml", *argv) == 0) {
+        output_format = OutputFormat::MARC_XML;
+        ++argv;
+    } else if (std::strcmp("--output-format=marc-21", *argv) == 0) {
+        output_format = OutputFormat::MARC_21;
+        ++argv;
     }
-
-    const std::string input_filename(argv[2]);
     
-    // Our input file is possibly a fifo, then avoid reading twice
     if (not already_determined_input_format) {
         const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
         if (unlikely(media_type.empty()))
@@ -277,17 +347,13 @@ int main(int argc, char **argv) {
         if (media_type != "application/xml" and media_type != "application/marc")
             Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
         input_is_xml = (media_type == "application/xml");
-     }
-
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
-    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[3]));
-
-    std::vector<std::string> patterns;
-    for (int arg_no(4); arg_no < argc; ++arg_no)
-        patterns.emplace_back(argv[arg_no]);
+    }
 
     try {
-        Filter(input_is_xml, output_format, patterns, operation_type, input.get(), output.get());
+        std::vector<FilterDescriptor> filters;
+        ProcessFilterArgs(argv, &filters);
+        
+        Filter(input_is_xml, output_format, filters, input.get(), output.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
