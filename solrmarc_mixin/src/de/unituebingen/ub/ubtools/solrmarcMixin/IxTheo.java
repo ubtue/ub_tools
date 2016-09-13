@@ -386,7 +386,7 @@ public class IxTheo extends SolrIndexerMixin {
      *            the record
      * @return format of record
      */
-    public Set getFormatIncludingElectronic(final Record record) {
+    public Set<String> getFormatIncludingElectronic(final Record record) {
         final Set<String> formats = new HashSet<>();
         Set<String> rawFormats = getFormatsWithGermanHandling(record);
 
@@ -465,7 +465,7 @@ public class IxTheo extends SolrIndexerMixin {
      * @return mediatype of the record
      */
 
-    public Set getFormat(final Record record) {
+    public Set<String> getFormat(final Record record) {
         Set<String> formats = getFormatIncludingElectronic(record);
 
         // Since we now have an additional facet mediatype we remove the
@@ -473,6 +473,32 @@ public class IxTheo extends SolrIndexerMixin {
         formats.remove("Electronic");
 
         return formats;
+    }
+
+    public Set<String> getJournalIssue(final Record record) {
+        final DataField _773Field = (DataField)record.getVariableField("773");
+        if (_773Field == null)
+            return null;
+
+        final Subfield aSubfield = _773Field.getSubfield('a');
+        if (aSubfield == null)
+            return null;
+        
+        final Set<String> subfields = new LinkedHashSet<String>();
+        subfields.add(aSubfield.getData());
+
+        final Subfield gSubfield = _773Field.getSubfield('g');
+        if (gSubfield != null)
+            subfields.add(gSubfield.getData());
+
+        final List<Subfield> wSubfields = _773Field.getSubfields('w');
+        for (final Subfield wSubfield : wSubfields) {
+            final String subfieldContents = wSubfield.getData();
+            if (subfieldContents.startsWith("(DE-576)"))
+                subfields.add(subfieldContents);
+        }
+
+        return subfields;
     }
 
     /**
@@ -484,7 +510,7 @@ public class IxTheo extends SolrIndexerMixin {
      * @return mediatype of the record
      */
 
-    public Set getMediatype(final Record record) {
+    public Set<String> getMediatype(final Record record) {
         final Set<String> mediatype = new HashSet<>();
         final Set<String> formats = getFormatIncludingElectronic(record);
         final String electronicRessource = "Electronic";
@@ -507,7 +533,6 @@ public class IxTheo extends SolrIndexerMixin {
     Map<String, String> translation_map_fr = new HashMap<String, String>();
 
     public Map<String, String> getTranslationMap(String langShortcut) throws IllegalArgumentException {
-
         Map<String, String> translation_map;
 
         switch (langShortcut) {
@@ -567,7 +592,7 @@ public class IxTheo extends SolrIndexerMixin {
                     subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
                     ++i;
                 }
-                translated_topics.add(Utils.join(new HashSet(Arrays.asList(subtopics)), "\\/"));
+                translated_topics.add(Utils.join(new HashSet<String>(Arrays.asList(subtopics)), "\\/"));
 
             } else {
                 topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
@@ -599,7 +624,7 @@ public class IxTheo extends SolrIndexerMixin {
                 subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
                 ++i;
             }
-            topic = Utils.join(new HashSet(Arrays.asList(subtopics)), "/");
+            topic = Utils.join(new HashSet<String>(Arrays.asList(subtopics)), "/");
         }
         // If we have a topic and a following number, try to separate the word and join it afterwards
         // This is especially important for time informations where we provide special treatment
