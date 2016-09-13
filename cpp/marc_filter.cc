@@ -349,6 +349,20 @@ std::vector<CompiledPattern *> CollectAndCompilePatterns(char ***argvp) {
 }
 
 
+// Sanity check.
+bool ArePlausibleSubfieldSpecs(const std::vector<std::string> &subfield_specs) {
+    if (subfield_specs.empty())
+        return false;
+
+    for (const auto &subfield_spec : subfield_specs) {
+        if (subfield_spec.length() != (DirectoryEntry::TAG_LENGTH + 1))
+            return false;
+    }
+    
+    return true;
+}
+
+
 void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filters) {
     while (*argv != nullptr) {
         std::vector<CompiledPattern *> compiled_patterns;
@@ -359,7 +373,15 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
         else if (std::strcmp(*argv, "--remove-fields") == 0)
             filters->emplace_back(FilterDescriptor::MakeRemoveFieldsFilter(CollectAndCompilePatterns(&argv)));
         else if (std::strcmp(*argv, "--filter-chars") == 0) {
-            filters->emplace_back(FilterDescriptor::MakeFilterCharsFilter(*argv++));
+            ++argv;
+            std::vector<std::string> subfield_specs;
+            StringUtil::Split(*argv, ':', &subfield_specs);
+            if (not ArePlausibleSubfieldSpecs(subfield_specs))
+                Error("bad subfield specifications \"" + std::string(*argv) + "\"!");
+            ++argv;
+            if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
+                Error("missing of bad \"characters_to_delete\" argument to \"--filter-chars\"!");
+            filters->emplace_back(FilterDescriptor::MakeFilterCharsFilter(subfield_specs, *argv++));
         } else
             Error("unknown operation type \"" + std::string(*argv) + "\"!");
     }
