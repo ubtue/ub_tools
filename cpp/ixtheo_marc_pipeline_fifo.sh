@@ -72,7 +72,7 @@ function CleanUp {
 
 # Sets up the log file:
 logdir=/var/log/ixtheo
-log="${logdir}/ixtheo_marc_pipeline.log"
+log="${logdir}/ixtheo_marc_pipeline_fifo.log"
 rm -f "${log}"
 
 CleanUp
