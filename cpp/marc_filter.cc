@@ -200,7 +200,7 @@ public:
 
     /** \note Only call this if the filter type is FILTER_CHARS! */
     inline const std::string &getCharsToDelete() const { return chars_to_delete_; }
-    
+
     inline static FilterDescriptor MakeDropFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::DROP, compiled_patterns);
     }
@@ -225,7 +225,7 @@ private:
 
 std::string GetSubfieldCodes(const std::string &tag, const std::vector<std::string> &subfield_specs) {
     std::string subfield_codes;
-    
+
     for (const auto &subfield_spec : subfield_specs) {
         if (subfield_spec.substr(0, DirectoryEntry::TAG_LENGTH) == tag)
             subfield_codes += subfield_spec[DirectoryEntry::TAG_LENGTH];
@@ -285,7 +285,7 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
     {
         record.setRecordWillBeWrittenAsXml(input_is_xml);
         ++total_count;
-        
+
         const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         const std::vector<std::string> &fields(record.getFields());
         bool deleted_record(false), modified_record(false);
@@ -331,12 +331,15 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
 
 
 std::vector<CompiledPattern *> CollectAndCompilePatterns(char ***argvp) {
-    const std::string operation_type(**argvp++);
-    
+    const std::string operation_type(**argvp);
+    ++*argvp;
+
     std::vector<std::string> specs_and_pattern;
-    while (*argvp != nullptr and not StringUtil::StartsWith(**argvp, "--"))
-        specs_and_pattern.emplace_back(**argvp++);
-    
+    while (**argvp != nullptr and not StringUtil::StartsWith(**argvp, "--")) {
+        specs_and_pattern.emplace_back(**argvp);
+        ++*argvp;
+    }
+
     if (specs_and_pattern.empty())
         Error("expected at least one field or subfield specification after \"" + operation_type + "\"!");
 
@@ -344,7 +347,7 @@ std::vector<CompiledPattern *> CollectAndCompilePatterns(char ***argvp) {
     std::string err_msg;
     if (not CompilePatterns(specs_and_pattern, &compiled_patterns, &err_msg))
         Error("bad field specification and or regular expression (" + err_msg + ")!");
-    
+
     return compiled_patterns;
 }
 
@@ -358,7 +361,7 @@ bool ArePlausibleSubfieldSpecs(const std::vector<std::string> &subfield_specs) {
         if (subfield_spec.length() != (DirectoryEntry::TAG_LENGTH + 1))
             return false;
     }
-    
+
     return true;
 }
 
@@ -417,7 +420,7 @@ int main(int argc, char **argv) {
         output_format = OutputFormat::MARC_21;
         ++argv;
     }
-    
+
     if (not already_determined_input_format) {
         const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
         if (unlikely(media_type.empty()))
@@ -430,7 +433,7 @@ int main(int argc, char **argv) {
     try {
         std::vector<FilterDescriptor> filters;
         ProcessFilterArgs(argv, &filters);
-        
+
         Filter(input_is_xml, output_format, filters, input.get(), output.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
