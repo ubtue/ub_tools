@@ -1,7 +1,7 @@
 #!/bin/bash
 set -o errexit -o nounset
 
-if [[ $# < 2 ]]; then
+if [[ $# -lt 2 ]]; then
     echo "usage: $0 marc_grep_conditional_expression filename1 [filename2 ... filenameN]"
     exit 1
 fi
