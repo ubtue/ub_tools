@@ -235,6 +235,9 @@ std::string GetSubfieldCodes(const std::string &tag, const std::vector<std::stri
 }
 
 
+/** \brief Removes any of the characters in "chars_to_delete" from all of the subfields specified by "subfield_specs".
+ *  \return True if at least one subfield has been modofied, else false.
+ */
 bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std::string &chars_to_delete,
                       MarcUtil::Record * const record)
 {
