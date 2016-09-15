@@ -14,6 +14,7 @@ LIBS           = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotoc
 LIBS_AMD64     = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
 
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
+AMD64_PROGS    = $(patsubst %.cc,%_amd64,$(wildcard *.cc))
 CGI_PROGS      = full_text_lookup translate_chainer
 INSTALL_PROGS  = $(filter-out %_test,$(PROGS)) *.sh
 
@@ -28,15 +29,15 @@ amd64: .deps $(AMD64_PROGS)
 
 %_amd64.o: %.cc
 	@echo "Compiling (AMD64) $<..."
-	@$(CCC) $(CCCFLAGS_AMD64) $< -c -o $@
+	@$(CCC) --static $(CCCFLAGS_AMD64) $< -c -o $@
 
 $(PROGS): % : %.o lib/libubtue.a
 	@echo "Linking $@..."
 	@$(CCC) $< -o $@ $(LIBS)
 
-marc_filter_amd64: marc_filter_amd64.o lib/libubtue_amd64.a
+$(AMD64_PROGS): % : %.o lib/libubtue.a
 	@echo "Linking $@..."
-	@$(CCC) $< -o $@ $(LIBS_AMD64)
+	@$(CCC) -static-libgcc -static-libstdc++ $< -o $@ $(LIBS)
 
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile

@@ -74,15 +74,13 @@ delete_unused_local_data GesamtTiteldaten-"${date}".xml \
 EndPhase
 
 
-StartPhase "Filter out Records Containing mtex in 935\$a"
-marc_filter --drop GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml 935a:mtex \
+StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, and Remove Sorting Chars\$a"
+marc_filter GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+            GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
+    --drop 935a:mtex \
+    --remove-fields '856u:ixtheo\.de' \
+    --filter-chars 130a:240a:245a '@' \
     >> "${log}" 2>&1
-EndPhase
-
-
-StartPhase "Filter out Self-referential 856 Fields"
-marc_filter --remove-fields GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml '856u:ixtheo\.de' >> "${log}" 2>&1
 EndPhase
 
 
@@ -113,13 +111,6 @@ EndPhase
 StartPhase "Adding of ISBN's and ISSN's to Component Parts"
 add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1
-EndPhase
-
-
-StartPhase "Drop Non-Sorting Characters from Certain Subfields"
-marc_char_filter GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
-                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
-                 130a:240a:245a '@' >> "${log}" 2>&1
 EndPhase
 
 
