@@ -95,18 +95,16 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
                          >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 
-StartPhase "Filter out Records Containing mtex in 935\$a" 
+StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, and Remove Sorting Chars\$a"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
-(marc_filter --drop --input-format=marc-xml GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
-     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml 935a:mtex >> "${log}" 2>&1 && \
-EndPhase || Abort)  &
-
-
-StartPhase "Filter out Self-referential 856 Fields" 
-(marc_filter --remove-fields --input-format=marc-xml GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml '856u:ixtheo\.de' >> "${log}" 2>&1 && \
+(marc_filter \
+     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
+    --input-format=marc-xml \
+    --drop 935a:mtex \
+    --remove-fields '856u:ixtheo\.de' \
+    --filter-chars 130a:240a:245a '@' >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait
+
 
 StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
 (extract_keywords_for_translation GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
@@ -118,6 +116,7 @@ generate_vufind_translation_files "$VUFIND_HOME"/local/languages/ && \
 EndPhase || Abort) &
 wait 
 
+
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items" 
 (create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".xml >> "${log}" 2>&1 && \
 add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".xml \
@@ -126,25 +125,19 @@ add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-2))"-"${da
 EndPhase || Abort) &
 wait
 
+
 StartPhase "Add Author Synonyms from Authority Data" 
 (add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml Normdaten-"${date}".xml \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
+
 StartPhase "Adding of ISBN's and ISSN's to Component Parts" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 (add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
-
-StartPhase "Drop Non-Sorting Characters from Certain Subfields"
-(marc_char_filter GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
-                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
-                 130a:240a:245a '@' >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
 
 
 StartPhase "Extracting Keywords from Titles" 
