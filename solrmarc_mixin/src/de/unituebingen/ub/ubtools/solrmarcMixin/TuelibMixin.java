@@ -816,6 +816,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         return values.iterator().next();
     }
 
+    private static boolean isSerialComponentPart(final Record record) {
+        final String leader = record.getLeader().toString();
+        return leader.charAt(7) == 'b';
+    }
+    
     /**
      * Get all available dates from the record.
      *
@@ -825,7 +830,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getDates(final Record record) {
         final Set<String> dates = new LinkedHashSet<>();
 
-        // Check old-style 260c date:
+        // Check old-style 534c date:
         final List<VariableField> list534 = record.getVariableFields("534");
         for (final VariableField vf : list534) {
             final DataField df = (DataField) vf;
@@ -889,15 +894,29 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @param record MARC record
      * @return earliest date
      */
-    public String getFirstDate(final Record record) {
-        String result = null;
-        final Set<String> dates = getDates(record);
-        for (final String current : dates) {
-            if (result == null || current != null && Integer.parseInt(current) < Integer.parseInt(result)) {
-                result = current;
+    public String getFirstPublicationDate(final Record record) {
+        // If we have a serial article our publication date needs to be taken from 936$i, if it exists:
+        if (TuelibMixin.isSerialComponentPart(record) ) {
+            final DataField _926Field = (DataField)record.getVariableField("936");
+            if (_926Field != null) {
+                final Subfield jSubfield = _926Field.getSubfield('j');
+                if (jSubfield != null) {
+                    final String yearOrYearRange = jSubfield.getData();
+                    return yearOrYearRange.length() > 4 ? yearOrYearRange.substring(0, 4) : yearOrYearRange;
+                }
             }
         }
-        return result;
+            
+        String first_publication_date = null;
+        final Set<String> dates = getDates(record);
+        for (final String current : dates) {
+            if (first_publication_date == null
+                || current != null && Integer.parseInt(current) < Integer.parseInt(first_publication_date))
+            {
+                first_publication_date = current;
+            }
+        }
+        return first_publication_date;
     }
 
     public String isSuperiorWork(final Record record) {
