@@ -417,18 +417,25 @@ public class TuelibMixin extends SolrIndexerMixin {
             final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't');
             final Subfield idSubfield = field.getSubfield('w');
 
-            if (reviewerSubfield == null || titleSubfield == null || idSubfield == null || reviewTypeSubfield == null)
+            if (reviewerSubfield == null || titleSubfield == null || reviewTypeSubfield == null)
                 continue;
 
-            final Matcher matcher = EXTRACTION_PATTERN.matcher(idSubfield.getData());
-            if (!matcher.matches())
-                continue;
-            final String parentId = matcher.group(1);
+            String title = titleSubfield.getData();
+            final Subfield locationAndPublisher = getFirstNonEmptySubfield(field, 'd');
+            if (locationAndPublisher != null)
+                title = title + " (" + locationAndPublisher.getData() + ")";
+
+            String parentId = "000000000";
+            if (idSubfield != null) {
+                final Matcher matcher = EXTRACTION_PATTERN.matcher(idSubfield.getData());
+                if (matcher.matches())
+                    parentId = matcher.group(1);
+            }
 
             if (reviewTypeSubfield.getData().equals("Rezension")) {
-                reviews_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + titleSubfield.getData());
+                reviews_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + title);
             } else if (reviewTypeSubfield.getData().equals("Rezension von")) {
-                reviewedRecords_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + titleSubfield.getData());
+                reviewedRecords_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + title);
             }
         }
     }
@@ -754,12 +761,12 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (Character.isLetter(ch))
                 canonised_role.append(ch);
         }
-        
+
         return canonised_role.toString().toLowerCase();
     }
-    
+
     private static final char[] author2SubfieldCodes = new char[] { 'a', 'b', 'c', 'd' };
-    
+
     /**
      * @param record the record
      */
@@ -768,7 +775,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final DataField data_field : record.getDataFields()) {
             if (!data_field.getTag().equals("700"))
                 continue;
-            
+
             String author2 = null;
             for (char subfieldCode : author2SubfieldCodes) {
                 final Subfield subfieldField = data_field.getSubfield(subfieldCode);
