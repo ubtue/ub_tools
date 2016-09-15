@@ -9,6 +9,8 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.client.solrj.util.ClientUtils;
+import org.apache.log4j.Logger;
+import org.apache.log4j.Level;
 import java.util.Map;
 import java.util.HashMap;
 import java.io.IOException;
@@ -33,7 +35,6 @@ public class QueryRefTermIds {
     }
 
     public QueryResponse querySolr(String queryString) {
-System.out.println("QUERY_STRING IS: " + queryString);
         SolrQuery query = new SolrQuery();
         query.set("q", queryString);
         query.set("fl", "id");
@@ -93,6 +94,8 @@ System.out.println("QUERY_STRING IS: " + queryString);
             System.exit(1);
         }      
 
+        Logger.getRootLogger().setLevel(Level.OFF);
+
         final String outputDir = args[0];
         final String referenceTerm = args[1];
         final String queryString = args[2];
@@ -106,7 +109,7 @@ System.out.println("QUERY_STRING IS: " + queryString);
        	        new File(outputDir).mkdirs();
                 String outfileName = referenceTerm.replaceAll("^\"|\"$", "");         
                 Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputDir + "/" + outfileName), "utf-8")); 
-
+                System.err.println("Writing file " + outfileName);
                 for (SolrDocument doc : docList) {
                     String id = (String)doc.getFieldValue("id");
                     writer.write(id + "|" + referenceTerm + '\n');
