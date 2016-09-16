@@ -89,14 +89,12 @@ StartPhase "Convert MARC-21 to MARC-XML"
 
 StartPhase "Filter out Local Data of Other Institutions" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
-#(delete_unused_local_data GesamtTiteldaten-"${date}".xml \
 (delete_unused_local_data GesamtTiteldaten-"${date}".xml \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
                          >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 
 StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, and Remove Sorting Chars\$a"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
     --input-format=marc-xml \
@@ -104,7 +102,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
     --remove-fields '856u:ixtheo\.de' \
     --filter-chars 130a:240a:245a '@' >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
+wait
 
 StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
 (extract_keywords_for_translation GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
@@ -134,11 +132,10 @@ wait
 
 
 StartPhase "Adding of ISBN's and ISSN's to Component Parts" 
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 (add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
+wait
 
 StartPhase "Extracting Keywords from Titles" 
 (enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
