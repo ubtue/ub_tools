@@ -32,8 +32,9 @@
 #include "DirectoryEntry.h"
 #include "FileUtil.h"
 #include "Leader.h"
-#include "MarcUtil.h"
-#include "MarcXmlWriter.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -49,22 +50,20 @@ void Usage() {
 }
 
 
-bool SeriesHasNotBeenCompleted(const MarcUtil::Record &record) {
-    const ssize_t _008_index(record.getFieldIndex("008"));
-    if (unlikely(_008_index == -1))
+bool SeriesHasNotBeenCompleted(const MarcRecord &record) {
+    const size_t _008_index(record.getFieldIndex("008"));
+    if (unlikely(_008_index == MarcRecord::FIELD_NOT_FOUND))
         return false;
 
-    const std::string _008_contents(record.getFields()[_008_index]);
+    const std::string _008_contents(record.getFieldData(_008_index));
     return _008_contents.substr(11, 4) == "9999";
 }
 
 
-void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record) {
-    record->setRecordWillBeWrittenAsXml(true);
-
+void ProcessRecord(File * const output, MarcRecord * const record) {
     // Don't add the flag twice:
-    if (record->getFieldIndex("SPR") != -1) {
-        record->write(xml_writer);
+    if (record->getFieldIndex("SPR") != MarcRecord::FIELD_NOT_FOUND) {
+        MarcWriter::Write(*record, output);
         return;
     }
 
@@ -86,15 +85,13 @@ void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record
             ++modified_count;
     }
 
-    record->write(xml_writer);
+    MarcWriter::Write(*record, output);
 }
 
 
 void AddSuperiorFlag(File * const input, File * const output) {
-    MarcXmlWriter xml_writer(output);
-
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input))
-        ProcessRecord(&xml_writer, &record);
+    while (MarcRecord record = MarcReader::Read(input))
+        ProcessRecord(output, &record);
 
     std::cerr << "Modified " << modified_count << " record(s).\n";
 }

@@ -101,6 +101,8 @@ update_ixtheo_notations
 urlencode
 vufind_db_test
 xml_parser_test
+marc_compare
+Marc21Tests
 
 bsz_daten
 bsz_daten_cumulated

@@ -26,7 +26,9 @@
 #include "DirectoryEntry.h"
 #include "FileUtil.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "MarcXmlWriter.h"
 #include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
@@ -135,24 +137,19 @@ bool CompilePatterns(const std::vector<std::string> &patterns,
 
 
 /** Returns true if we have at least one match. */
-bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &dir_entries,
-             const std::vector<std::string> &fields, const std::vector<CompiledPattern *> &compiled_patterns,
+bool Matched(const MarcRecord &record, const std::vector<CompiledPattern *> &compiled_patterns,
              std::vector<size_t> * const matched_field_indices)
 {
     matched_field_indices->clear();
 
     bool matched_at_least_one(false);
     for (const auto &compiled_pattern : compiled_patterns) {
-        ssize_t index(record.getFieldIndex(compiled_pattern->getTag()));
-        if (index == -1)
-            continue;
-
-        for (/* Intentionally empty! */;
-             static_cast<size_t>(index) < fields.size() and dir_entries[index].getTag() == compiled_pattern->getTag();
+        for (size_t index(record.getFieldIndex(compiled_pattern->getTag()));
+             index < record.getNumberOfFields() and record.getTag(index) == compiled_pattern->getTag();
              ++index)
         {
             if (compiled_pattern->hasSubfieldCode()) {
-                const Subfields subfields(fields[index]);
+                const Subfields subfields(record.getSubfields(index));
                 const auto begin_end(subfields.getIterators(compiled_pattern->getSubfieldCode()));
                 for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
                      ++subfield_code_and_value)
@@ -162,7 +159,7 @@ bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &
                         matched_at_least_one = true;
                     }
                 }
-            } else if (compiled_pattern->fieldMatched(fields[index])) {
+            } else if (compiled_pattern->fieldMatched(record.getFieldData(index))) {
                 matched_field_indices->emplace_back(index);
                 matched_at_least_one = true;
             }
@@ -239,22 +236,16 @@ std::string GetSubfieldCodes(const std::string &tag, const std::vector<std::stri
  *  \return True if at least one subfield has been modofied, else false.
  */
 bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std::string &chars_to_delete,
-                      MarcUtil::Record * const record)
+                      MarcRecord * const record)
 {
-    const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
-    const std::vector<std::string> &fields(record->getFields());
-
-        bool modified_at_least_one_field(false);
-    for (std::vector<DirectoryEntry>::const_iterator dir_entry(dir_entries.cbegin());
-         dir_entry != dir_entries.cend(); ++dir_entry)
-    {
-        const std::string subfield_codes(GetSubfieldCodes(dir_entry->getTag(), subfield_specs));
+    bool modified_at_least_one_field(false);
+    for (size_t field_index = 0; field_index < record->getNumberOfFields(); ++field_index) {
+        const std::string subfield_codes(GetSubfieldCodes(record->getTag(field_index), subfield_specs));
         if (subfield_codes.empty())
             continue;
 
         bool modified_at_least_one_subfield(false);
-        const auto field_index(dir_entry - dir_entries.cbegin());
-        Subfields subfields(fields[field_index]);
+        Subfields subfields(record->getSubfields(field_index));
         for (const auto subfield_code : subfield_codes) {
             const auto begin_end(subfields.getIterators(subfield_code));
             for (auto subfield(begin_end.first); subfield != begin_end.second; ++subfield) {
@@ -267,7 +258,7 @@ bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std:
 
         if (modified_at_least_one_subfield) {
             modified_at_least_one_field = true;
-            record->replaceField(field_index, subfields.toString());
+            record->updateField(field_index, subfields.toString());
         }
     }
 
@@ -283,14 +274,9 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
         xml_writer = new MarcXmlWriter(output);
 
     unsigned total_count(0), deleted_count(0), modified_count(0);
-    while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(input)
-                                                  : MarcUtil::Record::BinaryFactory(input))
-    {
-        record.setRecordWillBeWrittenAsXml(input_is_xml);
+    while (MarcRecord record = input_is_xml ? MarcReader::ReadXML(input) : MarcReader::Read(input)) {
         ++total_count;
 
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        const std::vector<std::string> &fields(record.getFields());
         bool deleted_record(false), modified_record(false);
         for (const auto &filter : filters) {
             if (filter.getFilterType() == FilterType::FILTER_CHARS) {
@@ -298,7 +284,7 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
                     modified_record = true;
             } else {
                 std::vector<size_t> matched_field_indices;
-                if (Matched(record, dir_entries, fields, filter.getCompiledPatterns(), &matched_field_indices)) {
+                if (Matched(record, filter.getCompiledPatterns(), &matched_field_indices)) {
                     if (filter.getFilterType() == FilterType::DROP) {
                         deleted_record = true;
                         break;
@@ -306,7 +292,7 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
                         std::sort(matched_field_indices.begin(), matched_field_indices.end(), std::greater<size_t>());
                         for (const auto field_index : matched_field_indices)
                             record.deleteField(field_index);
-                        xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
+                        xml_writer != nullptr ? MarcWriter::Write(record, xml_writer) : MarcWriter::Write(record, output);
                         modified_record = true;
                     }
                 } else if (filter.getFilterType() == FilterType::KEEP) {
@@ -321,7 +307,7 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
         else {
             if (modified_record)
                 ++modified_count;
-            xml_writer != nullptr ? record.write(xml_writer) : record.write(output);
+            xml_writer != nullptr ? MarcWriter::Write(record, xml_writer) : MarcWriter::Write(record, output);
         }
     }
 

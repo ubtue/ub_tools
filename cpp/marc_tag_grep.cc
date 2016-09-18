@@ -23,7 +23,9 @@
 #include <iostream>
 #include <cstdlib>
 #include "DirectoryEntry.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "util.h"
 
@@ -45,22 +47,16 @@ void TagGrep(const std::string &regex, const std::string &input_filename) {
         Error("bad regex: " + err_msg);
 
     unsigned count(0), field_matched_count(0), record_matched_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
+    while (const MarcRecord record = MarcReader::Read(&input)) {
         ++count;
-
-        const std::vector<std::string> &fields(record.getFields());
-        const std::string &control_number(fields[0]);
-        unsigned index(0);
         bool at_least_one_field_matched(false);
-        for (const auto dir_entry : record.getDirEntries()) {
-            const std::string &tag(dir_entry.getTag());
+        for (size_t index(0); index < record.getNumberOfFields(); ++index) {
+            const std::string &tag(record.getTag(index));
             if (matcher->matched(tag)) {
-                std::cout << control_number << ':' << tag << ':' << fields[index] << '\n';
+                std::cout << record.getControlNumber() << ':' << tag << ':' << record.getFieldData(index) << '\n';
                 ++field_matched_count;
                 at_least_one_field_matched = true;
             }
-
-            ++index;
         }
         if (at_least_one_field_matched)
             ++record_matched_count;

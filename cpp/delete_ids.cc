@@ -26,7 +26,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -122,40 +124,28 @@ public:
 /** \brief Deletes LOK sections if their pseudo tags are found in "local_deletion_ids"
  *  \return True if at least one local section has been deleted, else false.
  */
-bool DeleteLocalSections(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &fields,
-                         const std::unordered_set <std::string> &local_deletion_ids, MarcUtil::Record * const record)
+bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_ids, MarcRecord * const record)
 {
     bool modified(false);
 
-    ssize_t start_local_match;
-    while ((start_local_match = MatchLocalID(local_deletion_ids, dir_entries, fields)) != -1) {
-        // We now expect a field "000" before the current "001" field.  (This is just a sanity check!):
-        --start_local_match;
-        if (start_local_match <= 0)
-            Error("weird data structure (1)!");
-        const Subfields subfields1(fields[start_local_match]);
-        if (not subfields1.hasSubfield('0')
-            or not StringUtil::StartsWith(subfields1.getFirstSubfieldValue('0'), "000 "))
-            Error("missing or empty local field \"000\"! (EPN: "
-                  + fields[start_local_match + 1].substr(8) + ", PPN: " + fields[0] + ")");
+    std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+    record->findAllLocalDataBlocks(&local_block_boundaries);
 
-        // Now we need to find the index one past the end of the local record.  This would
-        // be either the "000" field of the next local record or one past the end of the overall
-        // MARC record.
-        size_t end_local_match(start_local_match + 2);
-        while (end_local_match < fields.size()) {
-            const Subfields subfields2(fields[end_local_match]);
-            if (not subfields2.hasSubfield('0'))
-                Error("weird data structure (2)!");
-            if (StringUtil::StartsWith(subfields2.getFirstSubfieldValue('0'), "000 "))
-                break;
+    for (const auto local_block_boundary : local_block_boundaries) {
+        std::vector<size_t> field_indices;
+        record->findFieldsInLocalBlock("001", "??", local_block_boundary, &field_indices);
+        if (field_indices.size() != 1)
+            Error("Every local data block has to have exactly one 001 field. (Record: " + record->getControlNumber()
+                  + ", Local data block: " + std::to_string(local_block_boundary.first) + " - "
+                  + std::to_string(local_block_boundary.second));
+        const Subfields &subfields(record->getSubfields(field_indices[0]));
+        const std::string subfield_contents(subfields.getFirstSubfieldValue('0'));
+        if (not StringUtil::StartsWith(subfield_contents, "001 ")
+            or local_deletion_ids.find(subfield_contents.substr(4)) == local_deletion_ids.end())
+            continue;
 
-            ++end_local_match;
-        }
-        
-        for (ssize_t dir_entry_index(end_local_match - 1); dir_entry_index >= start_local_match; --dir_entry_index)
+        for (size_t dir_entry_index(local_block_boundary.second - 1); dir_entry_index >= local_block_boundary.first; --dir_entry_index)
             record->deleteField(dir_entry_index);
-
         modified = true;
     }
 
@@ -168,23 +158,18 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     File * const output)
 {
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record::BinaryFactory(input)) {
+    while (MarcRecord record = MarcReader::Read(input)) {
         ++total_record_count;
 
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        if (dir_entries[0].getTag() != "001")
-            Error("First field is not \"001\"!");
-
-        const std::vector<std::string> &fields(record.getFields());
-        if (title_deletion_ids.find(fields[0]) != title_deletion_ids.end())
+        if (title_deletion_ids.find(record.getControlNumber()) != title_deletion_ids.end())
             ++deleted_record_count;
         else { // Look for local (LOK) data sets that may need to be deleted.
-            if (not DeleteLocalSections(dir_entries, fields, local_deletion_ids, &record))
-                record.write(output);
+            if (not DeleteLocalSections(local_deletion_ids, &record))
+                MarcWriter::Write(record, output);
             else {
                 // Unlike former versions we no longer delete records without local data
                 ++modified_record_count;
-                record.write(output);
+                MarcWriter::Write(record, output);
             }
         }
     }

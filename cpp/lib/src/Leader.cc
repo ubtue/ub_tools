@@ -67,7 +67,7 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader
     }
 
     // Check entry map:
-    if (leader_string.substr(20, 4) != "4500") {
+    if (leader_string.substr(20, 3) != "450") {
         if (err_msg != nullptr)
             *err_msg = "Invalid entry map!";
         return false;

@@ -27,7 +27,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "util.h"
 
@@ -47,15 +49,13 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
     std::unordered_set<std::string> control_numbers;
     std::map<Leader::RecordType, unsigned> record_types_and_counts;
 
-    while (const MarcUtil::Record record =
-           input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
+    while (const MarcRecord record = input_is_xml ? MarcReader::ReadXML(input) : MarcReader::Read(input))
     {
         ++record_count;
 
-        const std::vector<std::string> &fields(record.getFields());
-        if (unlikely(fields.empty()))
-          Error("record #" + std::to_string(record_count) + " has zero fields!");
-        const std::string &control_number(fields[0]);
+        if (unlikely(record.getNumberOfFields()))
+            Error("record #" + std::to_string(record_count) + " has zero fields!");
+        const std::string &control_number(record.getControlNumber());
 
         const Leader::RecordType record_type(record.getRecordType());
         ++record_types_and_counts[record_type];
@@ -63,8 +63,8 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
             std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number << ".\n";
 
         std::string err_msg;
-        if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
-            Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
+//        if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
+//            Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
 
         if (control_numbers.find(control_number) != control_numbers.end())
             Error("found at least one duplicate control number: " + control_number);

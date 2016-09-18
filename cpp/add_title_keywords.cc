@@ -28,7 +28,9 @@
 #include <cstring>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "TextUtil.h"
@@ -91,11 +93,10 @@ std::string ConcatSet(const std::unordered_set<std::string> &words) {
 }
 
 
-bool HasExpertAssignedKeywords(const MarcUtil::Record &record) {
+bool HasExpertAssignedKeywords(const MarcRecord &record) {
     const std::vector<std::string> keyword_fields{ "600", "610", "611", "630", "648", "650", "651", "653", "655", "656", "689" };
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
     for (const auto &keyword_field : keyword_fields) {
-        if (DirectoryEntry::FindField(keyword_field, dir_entries) != dir_entries.end())
+        if (record.getFieldIndex(keyword_field) != MarcRecord::FIELD_NOT_FOUND)
             return true;
     }
 
@@ -103,41 +104,31 @@ bool HasExpertAssignedKeywords(const MarcUtil::Record &record) {
 }
 
 
-void AugmentKeywordsWithTitleWords(
-    const bool verbose, File * const input, File * const output,
+void AugmentKeywordsWithTitleWords(const bool verbose, File * const input, File * const output,
     const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
 {
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
-    XmlWriter xml_writer(output);
     unsigned total_count(0), augment_count(0), title_count(0);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        record.setRecordWillBeWrittenAsXml(true);
+    while (MarcRecord record = MarcReader::Read(input)) {
         ++total_count;
 
         // Do not attempt to generate title keywords if we have expert-assigned keywords:
         if (HasExpertAssignedKeywords(record)) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             continue;
         }
 
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
-        if (entry_iterator == dir_entries.end()) {
-            record.write(&xml_writer);
+        const size_t title_index = record.getFieldIndex("245");
+        if (title_index == MarcRecord::FIELD_NOT_FOUND) {
+            MarcWriter::Write(record, output);
             continue;
         }
 
-        const size_t title_index(entry_iterator - dir_entries.begin());
-        const std::vector<std::string> &fields(record.getFields());
-        Subfields subfields(fields[title_index]);
+        Subfields subfields(record.getSubfields(title_index));
         if (not subfields.hasSubfield('a')) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             continue;
         }
 
@@ -162,7 +153,7 @@ void AugmentKeywordsWithTitleWords(
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             continue;
         }
 
@@ -171,7 +162,6 @@ void AugmentKeywordsWithTitleWords(
 
         ++augment_count;
     }
-    xml_writer.closeTag();
 
     if (verbose) {
         std::cerr << title_count << " records had titles in 245a.\n";

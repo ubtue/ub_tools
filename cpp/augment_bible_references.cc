@@ -35,7 +35,9 @@
 #include "DirectoryEntry.h"
 #include "Leader.h"
 #include "MapIO.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -82,15 +84,14 @@ void LoadBibleOrderMap(const bool verbose, File * const input,
 
 
 /** \brief True if a GND code was found in 035$a else false. */
-bool GetGNDCode(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
-                std::string * const gnd_code)
+bool GetGNDCode(const MarcRecord &record, std::string * const gnd_code)
 {
     gnd_code->clear();
 
-    const auto _035_iter(DirectoryEntry::FindField("035", dir_entries));
-    if (_035_iter == dir_entries.end())
+    const size_t _035_index(record.getFieldIndex("035"));
+    if (_035_index == MarcRecord::FIELD_NOT_FOUND)
         return false;
-    const Subfields _035_subfields(field_data[_035_iter - dir_entries.begin()]);
+    const Subfields _035_subfields(record.getSubfields(_035_index));
     const std::string _035a_field(_035_subfields.getFirstSubfieldValue('a'));
     if (not StringUtil::StartsWith(_035a_field, "(DE-588)"))
         return false;
@@ -101,20 +102,19 @@ bool GetGNDCode(const std::vector<DirectoryEntry> &dir_entries, const std::vecto
 
 /* Pericopes are found in 130$a if there are also bible references in the 430 field. You should therefore
    only call this after acertaining that one or more 430 fields contain a bible reference. */
-bool FindPericopes(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
-                   const std::set<std::pair<std::string, std::string>> &ranges,
+bool FindPericopes(const MarcRecord &record, const std::set<std::pair<std::string, std::string>> &ranges,
                    std::unordered_multimap<std::string, std::string> * const pericopes_to_ranges_map)
 {
     static const std::string PERICOPE_FIELD("130");
     std::vector<std::string> pericopes;
-    auto field_iter(DirectoryEntry::FindField(PERICOPE_FIELD, dir_entries));
-    while (field_iter != dir_entries.end() and field_iter->getTag() == PERICOPE_FIELD) {
-        const Subfields subfields(field_data[field_iter - dir_entries.begin()]);
+    size_t index = record.getFieldIndex(PERICOPE_FIELD);
+    while (index < record.getNumberOfFields() and record.getTag(index) == PERICOPE_FIELD) {
+        const Subfields subfields(record.getSubfields(index));
         std::string a_subfield(subfields.getFirstSubfieldValue('a'));
         StringUtil::ToLower(&a_subfield);
         StringUtil::CollapseAndTrimWhitespace(&a_subfield);
         pericopes.push_back(a_subfield);
-        ++field_iter;
+        ++index;
     }
 
     if (pericopes.empty())
@@ -265,24 +265,21 @@ std::string RangesToString(const std::set<std::pair<std::string, std::string>> &
     contain the text "Bible".  Subfield "p" must contain the name of a book of the bible.  Book ordinals and
     chapter and verse indicators would be in one or two "n" subfields.
  */
-bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record,
+bool GetBibleRanges(const std::string &field_tag, const MarcRecord &record,
                     const std::unordered_set<std::string> &books_of_the_bible,
                     const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
                     std::set<std::pair<std::string, std::string>> * const ranges)
 {
     ranges->clear();
 
-    ssize_t index(record.getFieldIndex(field_tag));
-    if (index == -1)
+    size_t index(record.getFieldIndex(field_tag));
+    if (index == MarcRecord::FIELD_NOT_FOUND)
         return false;
 
-    const std::vector<std::string> &fields(record.getFields());
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
     bool found_at_least_one(false);
-    for (/* Intentionally empty! */;
-         static_cast<size_t>(index) < fields.size() and dir_entries[index].getTag() == field_tag; ++index)
+    for (/* Intentionally empty! */; index < record.getNumberOfFields() and record.getTag(index) == field_tag; ++index)
     {
-        const Subfields subfields(fields[index]);
+        const Subfields subfields(record.getSubfields(index));
         if (subfields.getFirstSubfieldValue('a') != "Bibel")
             continue;
         if (not subfields.hasSubfield('p'))
@@ -293,7 +290,7 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
         if (pair != book_alias_map.cend())
             book_name_candidate = pair->second;
         if (books_of_the_bible.find(book_name_candidate) == books_of_the_bible.cend()) {
-            std::cerr << fields[0] << ": unknown bible book: " << subfields.getFirstSubfieldValue('p') << '\n';
+            std::cerr << record.getControlNumber() << ": unknown bible book: " << subfields.getFirstSubfieldValue('p') << '\n';
             ++unknown_book_count;
             continue;
         }
@@ -301,12 +298,12 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
         std::vector<std::string> n_subfield_values;
         subfields.extractSubfields("n", &n_subfield_values);
         if (n_subfield_values.size() > 2) {
-            std::cerr << "More than 2 $n subfields for PPN " << fields[0] << "!\n";
+            std::cerr << "More than 2 $n subfields for PPN " << record.getControlNumber() << "!\n";
             continue;
         }
 
         if (not OrderNSubfields(&n_subfield_values)) {
-            std::cerr << "Don't know what to do w/ the $n subfields for PPN " << fields[0] << "! ("
+            std::cerr << "Don't know what to do w/ the $n subfields for PPN " << record.getControlNumber() << "! ("
                       << StringUtil::Join(n_subfield_values, ", ") << ")\n";
             continue;
         }
@@ -314,14 +311,14 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
         std::vector<std::string> books;
         CreateNumberedBooks(book_name_candidate, &n_subfield_values, &books);
         if (not HaveBibleBookCodes(books, bible_book_to_code_map)) {
-            std::cerr << fields[0] << ": found no bible book code for \"" << book_name_candidate
+            std::cerr << record.getControlNumber() << ": found no bible book code for \"" << book_name_candidate
                       << "\"! (" << StringUtil::Join(n_subfield_values, ", ") << ")\n";
             continue;
         }
 
         std::vector<std::string> book_codes;
         if (not ConvertBooksToBookCodes(books, bible_book_to_code_map, &book_codes)) {
-            std::cerr << fields[0] << ": can't convert one or more of these books to book codes: "
+            std::cerr << record.getControlNumber() << ": can't convert one or more of these books to book codes: "
                       << StringUtil::Join(books, ", ") << "!\n";
             continue;
         }
@@ -336,7 +333,7 @@ bool GetBibleRanges(const std::string &field_tag, const MarcUtil::Record &record
                 )
             );
         else if (not BibleReferenceParser::ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
-            std::cerr << fields[0] << ": failed to parse bible references (1): "
+            std::cerr << record.getControlNumber() << ": failed to parse bible references (1): "
                       << n_subfield_values.front() << '\n';
             continue;
         }
@@ -365,20 +362,18 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
 
     unsigned count(0), bible_ref_count(0), pericope_count(0);
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(norm_input)) {
+    while (const MarcRecord record = MarcReader::Read(norm_input)) {
         ++count;
 
-        const std::vector<std::string> &fields(record.getFields());
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         std::string gnd_code;
-        if (not GetGNDCode(dir_entries, fields, &gnd_code))
+        if (not GetGNDCode(record, &gnd_code))
             continue;
 
         std::set<std::pair<std::string, std::string>> ranges;
         if (not GetBibleRanges("130", record, books_of_the_bible, bible_book_to_code_map, &ranges)) {
             if (not GetBibleRanges("430", record, books_of_the_bible, bible_book_to_code_map, &ranges))
                 continue;
-            if (not FindPericopes(dir_entries, fields, ranges, &pericopes_to_ranges_map))
+            if (not FindPericopes(record, ranges, &pericopes_to_ranges_map))
                 continue;
             ++pericope_count;
         }
@@ -400,7 +395,7 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
 }
 
 
-bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record,
+bool FindGndCodes(const std::string &tags, const MarcRecord &record,
                   const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
                   &gnd_codes_to_bible_ref_codes_map, std::set<std::string> * const ranges)
 {
@@ -411,14 +406,8 @@ bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record,
 
     bool found_at_least_one(false);
     for (const auto &tag : individual_tags) {
-        const ssize_t first_index(record.getFieldIndex(tag));
-        if (first_index == -1)
-            continue;
-
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        for (size_t index(first_index); index < dir_entries.size() and dir_entries[index].getTag() == tag; ++index) {
-            const std::vector<std::string> &fields(record.getFields());
-            const Subfields subfields(fields[index]);
+        for (size_t index(record.getFieldIndex(tag)); index < record.getNumberOfFields() and record.getTag(index) == tag; ++index) {
+            const Subfields &subfields(record.getSubfields(index));
             const std::string subfield2(subfields.getFirstSubfieldValue('2'));
             if (subfield2.empty() or subfield2 != "gnd")
                 continue;
@@ -452,17 +441,14 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
     if (verbose)
         std::cerr << "Starting augmentation of title records.\n";
 
-    MarcXmlWriter xml_writer(output);
     unsigned total_count(0), augment_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        record.setRecordWillBeWrittenAsXml(true);
+    while (MarcRecord record = MarcReader::Read(input)) {
         ++total_count;
 
         // Make sure that we don't use a bible reference tag that is already in use for another
         // purpose:
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        const auto bib_ref_begin_end(DirectoryEntry::FindFields(BIB_REF_RANGE_TAG, dir_entries));
-        if (bib_ref_begin_end.first != bib_ref_begin_end.second)
+        const size_t bib_ref_index = record.getFieldIndex(BIB_REF_RANGE_TAG);
+        if (bib_ref_index != MarcRecord::FIELD_NOT_FOUND)
             Error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
 
         std::set<std::string> ranges;
@@ -480,7 +466,7 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
             record.insertField(BIB_REF_RANGE_TAG, range_string);
         }
 
-        record.write(&xml_writer);
+        MarcWriter::Write(record, output);
     }
 
     if (verbose)

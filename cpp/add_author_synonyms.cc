@@ -26,7 +26,9 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -80,15 +82,14 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
     if (unlikely(StringUtil::Split(field_list, ':', &tags_and_subfield_codes) < 2))
         Error("in ExtractSynonymsAndWriteSynonymMap: need at least two fields!");
     unsigned count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_input)) {
+    while (const MarcRecord record = MarcReader::Read(marc_input)) {
         ++count;
 
-        const int primary_name_field_index(record.getFieldIndex(tags_and_subfield_codes[0].substr(0, 3)));
-        if (primary_name_field_index == -1)
+        const size_t primary_name_field_index(record.getFieldIndex(tags_and_subfield_codes[0].substr(0, 3)));
+        if (primary_name_field_index == MarcRecord::FIELD_NOT_FOUND)
             continue;
 
-        const std::vector<std::string> &fields(record.getFields());
-        const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index],
+        const std::string primary_name(ExtractNameFromSubfields(record.getFieldData(primary_name_field_index),
                                                                 tags_and_subfield_codes[0].substr(3)));
         if (unlikely(primary_name.empty()))
             continue;
@@ -98,16 +99,13 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
         if (author_to_synonyms_map.find(primary_name) != author_to_synonyms_map.end())
             continue;
 
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-
         for (unsigned i(1); i < tags_and_subfield_codes.size(); ++i) {
             const std::string tag(tags_and_subfield_codes[i].substr(0, 3));
             const std::string secondary_field_subfield_codes(tags_and_subfield_codes[i].substr(3));
-            int secondary_name_field_index(record.getFieldIndex(tag));
-            while (secondary_name_field_index != -1 and static_cast<size_t>(secondary_name_field_index) < dir_entries.size()
-                   and dir_entries[secondary_name_field_index].getTag() == tag)
+            size_t secondary_name_field_index(record.getFieldIndex(tag));
+            while (secondary_name_field_index < record.getNumberOfFields() and record.getTag(secondary_name_field_index) == tag)
             {
-                const std::string secondary_name(ExtractNameFromSubfields(fields[secondary_name_field_index],
+                const std::string secondary_name(ExtractNameFromSubfields(record.getFieldData(primary_name_field_index),
                                                                           secondary_field_subfield_codes));
                 if (not secondary_name.empty())
                     alternatives.emplace_back(secondary_name);
@@ -131,24 +129,17 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
 const std::string SYNOMYM_FIELD("101"); // This must be an o/w unused field!
 
 
-void ProcessRecord(MarcUtil::Record * const record, const std::map<std::string, std::string> &author_to_synonyms_map,
+void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::string> &author_to_synonyms_map,
                    const std::string &primary_author_field)
 {
-    record->setRecordWillBeWrittenAsXml(true);
-
-    if (unlikely(record->getFieldIndex(SYNOMYM_FIELD) != -1))
+    if (unlikely(record->getFieldIndex(SYNOMYM_FIELD) != MarcRecord::FIELD_NOT_FOUND))
         Error("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!");
 
-    const std::vector<DirectoryEntry> &dir_entries(record->getDirEntries());
-    if (dir_entries.at(0).getTag() != "001")
-        Error("First field of record is not \"001\"!");
-
-    const int primary_name_field_index(record->getFieldIndex(primary_author_field.substr(0, 3)));
-    if (primary_name_field_index == -1)
+    const size_t primary_name_field_index(record->getFieldIndex(primary_author_field.substr(0, 3)));
+    if (primary_name_field_index == MarcRecord::FIELD_NOT_FOUND)
         return;
 
-    const std::vector<std::string> &fields(record->getFields());
-    const std::string primary_name(ExtractNameFromSubfields(fields[primary_name_field_index], primary_author_field.substr(3)));
+    const std::string primary_name(ExtractNameFromSubfields(record->getFieldData(primary_name_field_index), primary_author_field.substr(3)));
     if (unlikely(primary_name.empty()))
         return;
 
@@ -161,7 +152,7 @@ void ProcessRecord(MarcUtil::Record * const record, const std::map<std::string, 
     subfields.addSubfield('a', synonyms);
 
     if (not record->insertField(SYNOMYM_FIELD, subfields.toString())) {
-        Warning("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: " + fields[0] + ")");
+        Warning("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: " + record->getControlNumber() + ")");
         return;
     }
     ++modified_count;
@@ -172,19 +163,11 @@ void AddAuthorSynonyms(File * const marc_input, File * marc_output,
                        const std::map<std::string, std::string> &author_to_synonyms_map,
                        const std::string &primary_author_field)
 {
-    XmlWriter xml_writer(marc_output);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
-
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_input)) {
+    while (MarcRecord record = MarcReader::Read(marc_input)) {
         ProcessRecord(&record, author_to_synonyms_map, primary_author_field);
-        record.write(&xml_writer);
+        MarcWriter::Write(record, marc_output);
         ++record_count;
     }
-
-    xml_writer.closeTag();
 
     std::cerr << "Modified " << modified_count << " of " << record_count << " record(s).\n";
 }

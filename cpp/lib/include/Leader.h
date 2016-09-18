@@ -80,6 +80,9 @@ public:
 
     /** \return A binary representation of the leader.  Can be used to construct a MARC-21 record. */ 
     std::string toString() const { return raw_leader_; }
+
+    bool isMultiPartRecord() { return raw_leader_[23] == 'Y'; }
+    void setMultiPartRecord(bool isMultiPart) { raw_leader_[23] = isMultiPart ? 'Y' : 'N'; }
 };
 
 

@@ -20,7 +20,8 @@
 #include <iostream>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
 #include "util.h"
 
 
@@ -32,7 +33,7 @@ void Usage() {
 
 /** \brief Appends "source" to "target". */
 void Categorise(File * const input) {
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+    while (MarcRecord record = MarcReader::Read(input)) {
         switch (record.getRecordType()) {
         case Leader::RecordType::AUTHORITY:
             std::cout << "AUTHORITY\n";
