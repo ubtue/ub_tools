@@ -218,7 +218,7 @@ size_t Record::getFieldIndices(const std::string &field_tag, std::vector<size_t>
     const auto iter(std::find_if(dir_entries_.begin(), dir_entries_.end(), MatchTag(field_tag)));
     size_t field_index(std::distance(dir_entries_.begin(), iter));
 
-    while (field_index < dir_entries_.size() and dir_entries_[field_index].getTag() == "field_tag") {
+    while (field_index < dir_entries_.size() and dir_entries_[field_index].getTag() == field_tag) {
         field_indices->emplace_back(field_index);
         ++field_index;
     }

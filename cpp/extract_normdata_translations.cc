@@ -45,7 +45,9 @@
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -64,7 +66,7 @@ void Usage() {
 }
 
 
-void AugmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::string &tag, std::vector<std::string> * const translations) {
+void AugmentIxTheoTagWithLanguage(const MarcRecord &record, const std::string &tag, std::vector<std::string> * const translations) {
     auto ixtheo_pos(std::find(translations->begin(), translations->end(), "IxTheo"));
     if (ixtheo_pos != translations->end()) {
         std::vector<std::string> ixtheo_lang_codes;
@@ -82,7 +84,7 @@ void AugmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::str
                 *ixtheo_pos += "_fra";
                 already_found_ixtheo_translation = true;
             } else 
-                Warning("Unsupported language code \"" + lang_code + "\" for PPN " + record.getFields()[0]);
+                Warning("Unsupported language code \"" + lang_code + "\" for PPN " + record.getControlNumber());
         }
     }
 }
@@ -91,7 +93,7 @@ void AugmentIxTheoTagWithLanguage(const MarcUtil::Record &record, const std::str
 void ExtractTranslations(File * const marc_norm_input, 
                          const std::string &german_term_field_spec,
                          const std::string &translation_field_spec,
-                         std::map<std::string, std::string> term_to_translation_maps[]) 
+                         std::map<std::string, std::string> term_to_translation_maps[])
 {
     std::set<std::string> german_tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(german_term_field_spec, ':', &german_tags_and_subfield_codes) < 1))
@@ -106,9 +108,9 @@ void ExtractTranslations(File * const marc_norm_input,
     
     unsigned count(0);
     
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_norm_input)) {
+    while (const MarcRecord record = MarcReader::Read(marc_norm_input)) {
         std::map<std::string, std::vector<std::string>> all_translations;
-          
+
         for (auto german_and_translations_it(std::make_pair(german_tags_and_subfield_codes.cbegin(), translation_tags_and_subfield_codes.cbegin()));
              german_and_translations_it.first != german_tags_and_subfield_codes.cend();
              ++german_and_translations_it.first, ++german_and_translations_it.second) 
@@ -139,7 +141,15 @@ void ExtractTranslations(File * const marc_norm_input,
         for (auto all_translations_it = all_translations.begin(); all_translations_it != all_translations.end(); ++all_translations_it) {
             std::string german_term(all_translations_it->first);
 
-            for (auto translation_vector_it = all_translations_it->second.begin(); translation_vector_it != all_translations_it->second.end(); ++translation_vector_it) {
+            for (auto translation_vector_it = all_translations_it->second.begin();
+                 translation_vector_it != all_translations_it->second.end();
+                 ++translation_vector_it)
+            {
+                // FIXME: Die Reihenfolge scheint teilweise nicht zu stimmen. Die Schlüsselwörter können
+                // FIXME: auch in falscher Reihenfolge kommen. Siehe PPN 208836667:
+                // FIXME: Abakus: {Abacus, lcsh, Abaques (mathématiques), ram}
+                // FIXME: - Obenland, 18.09.2016
+
                 if (*translation_vector_it == "IxTheo_eng")
                     term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "IxTheo_fra")
@@ -193,7 +203,7 @@ int main(int argc, char **argv) {
     if (not extension.empty())
         output_file_components.pop_back();
     basename = StringUtil::Join(output_file_components, ".");
-      
+
     // Assemble output filename
     unsigned i(0);
     for (auto lang : languages_to_create) {
@@ -210,8 +220,7 @@ int main(int argc, char **argv) {
 
     try {
         std::map<std::string, std::string> term_to_translation_maps[NUMBER_OF_LANGUAGES];
-
-        ExtractTranslations(norm_data_marc_input.get(), 
+        ExtractTranslations(norm_data_marc_input.get(),
                             "100a:110a:111a:130a:150a:151a", 
                             "700a:710a:711a:730a:750a:751a",
                             term_to_translation_maps);

@@ -35,7 +35,9 @@
 #include "ExecUtil.h"
 #include "FileLocker.h"
 #include "FileUtil.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -59,12 +61,11 @@ static void Usage() {
 }
 
 
-void FileLockedComposeAndWriteRecord(XmlWriter * const xml_writer, const MarcUtil::Record &record) {
-    File *output(xml_writer->getAssociatedOutputFile());
+void FileLockedComposeAndWriteRecord(File * const output, MarcRecord &record) {
     FileLocker file_locker(output, FileLocker::WRITE_ONLY);
     if (not output->seek(0, SEEK_END))
         Error("failed to seek to the end of \"" + output->getPath() + "\"!");
-    record.write(xml_writer);
+    MarcWriter::Write(record, output);
     output->flush();
 }
 
@@ -86,17 +87,9 @@ bool IsProbablyAReview(const Subfields &subfields) {
 }
 
 
-bool FoundAtLeastOneNonReviewLink(const MarcUtil::Record &record) {
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-    ssize_t _856_index(record.getFieldIndex("856"));
-    if (_856_index == -1)
-        return false;
-
-    const ssize_t dir_entry_count(static_cast<ssize_t>(dir_entries.size()));
-    for (/* Empty! */; _856_index < dir_entry_count and dir_entries[_856_index].getTag() == "856"; ++_856_index) { 
-        const std::vector<std::string> &fields(record.getFields());
-
-        const Subfields subfields(fields[_856_index]);
+bool FoundAtLeastOneNonReviewLink(const MarcRecord &record) {
+    for (size_t _856_index(record.getFieldIndex("856")); _856_index < record.getNumberOfFields() and record.getTag(_856_index) == "856"; ++_856_index) {
+        const Subfields &subfields(record.getSubfields(_856_index));
         if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;
 
@@ -126,8 +119,6 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
                     File * const output, const std::string &db_filename, const unsigned process_count_low_watermark,
                     const unsigned process_count_high_watermark)
 {
-    MarcXmlWriter xml_writer(output);
-
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
 
@@ -137,8 +128,8 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     std::cout << "Skip " << skip_count << " records\n";
 
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        record.setRecordWillBeWrittenAsXml(true);
+    long record_start = input->tell();
+    while (MarcRecord record = MarcReader::Read(input)) {
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;
@@ -146,12 +137,12 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             continue;
 
         if (not FoundAtLeastOneNonReviewLink(record)) {
-            FileLockedComposeAndWriteRecord(&xml_writer, record);
+            FileLockedComposeAndWriteRecord(output, record);
             continue;
         }
 
         ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
-                        { std::to_string(record.getXmlFileStartOffset()), input->getPath(), output->getPath(), db_filename });
+                        { std::to_string(record_start), input->getPath(), output->getPath(), db_filename });
         ++active_child_count;
         ++spawn_count;
 
@@ -159,6 +150,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             child_reported_failure_count += CleanUpZombies(active_child_count - process_count_low_watermark);
             active_child_count = process_count_low_watermark;
         }
+        record_start = input->tell();
     }
 
     // Wait for stragglers:

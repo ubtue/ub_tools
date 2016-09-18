@@ -27,7 +27,9 @@
 #include "DirectoryEntry.h"
 #include "HtmlUtil.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "MarcXmlWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -44,21 +46,18 @@ static unsigned modified_record_count;
 static unsigned add_sig_count;
 
 
-bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer, std::string * const /*err_msg*/) {
-    record->setRecordWillBeWrittenAsXml(true);
-
+bool ProcessRecord(MarcRecord * const record, File * const output, std::string * const /*err_msg*/) {
     std::vector <std::pair<size_t, size_t>> local_block_boundaries;
     record->findAllLocalDataBlocks(&local_block_boundaries);
 
     bool modified_record(false);
-    const std::vector<std::string> &fields(record->getFields());
     std::set<std::string> alread_seen_urls;
     for (const auto &block_start_and_end : local_block_boundaries) {
         std::vector <size_t> _852_field_indices;
         if (record->findFieldsInLocalBlock("852", "??", block_start_and_end, &_852_field_indices) == 0)
             continue;
         for (const size_t _852_index : _852_field_indices) {
-            const Subfields subfields1(fields[_852_index]);
+            const Subfields &subfields1(record->getSubfields(_852_index));
             const std::string not_available_subfield(subfields1.getFirstSubfieldValue('z'));
             if (not_available_subfield == "Kein Bestand am IfK; Nachweis für KrimDok")
                 continue;
@@ -71,7 +70,7 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
             std::vector <size_t> _866_field_indices;
             if (record->findFieldsInLocalBlock("866", "30", block_start_and_end, &_866_field_indices) > 0) {
                 for (const size_t _866_index : _866_field_indices) {
-                    const Subfields subfields2(fields[_866_index]);   
+                    const Subfields &subfields2(record->getSubfields(_866_index));
                     const std::string subfield_a(subfields2.getFirstSubfieldValue('a'));
                     if (not subfield_a.empty()) {
                         if (not detailed_availability.empty())
@@ -86,7 +85,7 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
 
             const std::string institution(isil_subfield == "DE-21" ? "UB: " : "IFK: ");
             if (_852_index + 1 < block_start_and_end.second) {
-                const Subfields subfields2(fields[_852_index + 1]);
+                const Subfields &subfields2(record->getSubfields(_852_index + 1));
                 const std::string call_number_subfield(subfields2.getFirstSubfieldValue('c'));
                 if (not call_number_subfield.empty()) {
                     const std::string institution_and_call_number(institution + call_number_subfield);
@@ -98,7 +97,7 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
                 } else { // Look for a URL.
                     std::vector <size_t> _856_field_indices;
                     if (record->findFieldsInLocalBlock("856", "4 ", block_start_and_end, &_856_field_indices) > 0) {
-                        const Subfields subfields3(fields[_856_field_indices.front()]);
+                        const Subfields &subfields3(record->getSubfields(_856_field_indices.front()));
                         if (subfields3.hasSubfield('u')) {
                             const std::string url(subfields3.getFirstSubfieldValue('u'));
                             if (alread_seen_urls.find(url) == alread_seen_urls.cend()) {
@@ -119,16 +118,14 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
     if (modified_record)
         ++modified_record_count;
 
-    record->write(xml_writer);
+    MarcWriter::Write(*record, output);
     return true;
 }
 
 
 void PopulateTheInTuebingenAvailableField(const bool verbose, File * const input, File * const output) {
-    MarcXmlWriter xml_writer(output);
-
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(input, ProcessRecord, &xml_writer , &err_msg))
+    if (not MarcRecord::ProcessRecords(input, output, ProcessRecord, &err_msg))
         Error("error while processing records: " + err_msg);
 
     if (verbose) {

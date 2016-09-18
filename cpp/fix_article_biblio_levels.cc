@@ -29,7 +29,9 @@
 #include <cstdlib>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -50,13 +52,12 @@ void Usage() {
 static std::unordered_set<std::string> monograph_control_numbers;
 
 
-bool RecordMonographControlNumbers(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
+bool RecordMonographControlNumbers(MarcRecord * const record, File * const /*output*/,
                                    std::string * const /* err_msg */)
 {
     const Leader &leader(record->getLeader());
     if (leader[7] == 'm') {
-        const std::vector<std::string> &fields(record->getFields());
-        monograph_control_numbers.insert(fields[0]);
+        monograph_control_numbers.insert(record->getControlNumber());
     }
 
     return true;
@@ -68,7 +69,7 @@ void CollectMonographs(const bool verbose, const std::vector<File *> &inputs) {
     for (auto &input : inputs) {
         if (verbose)
             std::cout << "Extracting serial control numbers from \"" << input->getPath() << "\".\n";
-        if (not MarcUtil::ProcessRecords(input, RecordMonographControlNumbers, /* xml_writer = */nullptr, &err_msg))
+        if (not MarcRecord::ProcessRecords(input, /* output = */nullptr, RecordMonographControlNumbers, &err_msg))
             Error("error while looking for serials: " + err_msg);
     }
 
@@ -80,15 +81,14 @@ void CollectMonographs(const bool verbose, const std::vector<File *> &inputs) {
 static unsigned patch_count;
 
 
-bool HasMonographParent(const std::string &subfield, const MarcUtil::Record &record) {
+bool HasMonographParent(const std::string &subfield, const MarcRecord &record) {
     const std::string tag(subfield.substr(0, 3));
     const char subfield_code(subfield[3]);
-    const ssize_t field_index(record.getFieldIndex(tag));
-    if (field_index == -1)
+    const size_t field_index(record.getFieldIndex(tag));
+    if (field_index == MarcRecord::FIELD_NOT_FOUND)
         return false;
 
-    const std::vector<std::string> &fields(record.getFields());
-    const Subfields subfields(fields[field_index]);
+    const Subfields &subfields(record.getSubfields(field_index));
     const std::string subfield_contents(subfields.getFirstSubfieldValue(subfield_code));
     if (subfield_contents.empty())
         return false;
@@ -102,7 +102,7 @@ bool HasMonographParent(const std::string &subfield, const MarcUtil::Record &rec
 }
 
 
-bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MarcUtil::Record &record) {
+bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MarcRecord &record) {
     std::vector<std::string> subfields;
     StringUtil::Split(subfield_list, ':', &subfields);
     for (const auto &subfield : subfields) {
@@ -116,21 +116,21 @@ bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MarcUt
 
 // Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is not a monograph.
 // Also writes all records to "output_ptr".
-bool PatchUpArticle(MarcUtil::Record * const record, XmlWriter * const xml_writer, std::string * const /*err_msg*/) {
+bool PatchUpArticle(MarcRecord * const record, File * const output, std::string * const /*err_msg*/) {
     Leader &leader(record->getLeader());
     if (leader[7] != 'a') {
-        record->write(xml_writer);
+        MarcWriter::Write(*record, output);
         return true;
     }
 
     if (HasAtLeastOneMonographParent("800w:810w:830w:773w", *record)) {
-        record->write(xml_writer);
+        MarcWriter::Write(*record, output);
         return true;
     }
 
     leader[7] = 'b';
     ++patch_count;
-    record->write(xml_writer);
+    MarcWriter::Write(*record, output);
 
     return true;
 }
@@ -139,17 +139,9 @@ bool PatchUpArticle(MarcUtil::Record * const record, XmlWriter * const xml_write
 // Iterates over all records in a collection and retags all book component parts as artcles
 // unless the object has a monograph as a parent.
 void PatchUpBookComponentParts(const bool verbose, File * const input, File * const output) {
-    XmlWriter xml_writer(output);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
-
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(input, PatchUpArticle, &xml_writer, &err_msg))
+    if (not MarcRecord::ProcessRecords(input, output, PatchUpArticle, &err_msg))
         Error("error while patching up article records: " + err_msg);
-
-    xml_writer.closeTag();
 
     if (verbose)
         std::cout << "Fixed the bibliographic level of " << patch_count << " article records.\n";

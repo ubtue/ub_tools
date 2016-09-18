@@ -12,7 +12,9 @@
 #include <cstring>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "Stemmer.h"
 #include "StringUtil.h"
@@ -145,31 +147,24 @@ std::string CanonizeCentury(const std::string &century_candidate) {
 
 
 size_t ExtractKeywordsFromKeywordChainFields(
-    const MarcUtil::Record &record,
+    const MarcRecord &record,
     const Stemmer * const stemmer,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
 {
     size_t keyword_count(0);
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-    const std::vector<std::string> &fields(record.getFields());
-    const auto _689_iterator(DirectoryEntry::FindField("689", dir_entries));
-    if (_689_iterator != dir_entries.end()) {
-        size_t field_index(_689_iterator - dir_entries.begin());
-        while (field_index < fields.size() and dir_entries[field_index].getTag() == "689") {
-            const Subfields subfields(fields[field_index]);
-            const std::string subfield_a_value(subfields.getFirstSubfieldValue('a'));
-            if (not subfield_a_value.empty()) {
-                std::string keyphrase(subfield_a_value);
-                const std::string subfield_c_value(subfields.getFirstSubfieldValue('c'));
-                if (not subfield_c_value.empty())
-                    keyphrase += " " + subfield_c_value;
-                ProcessKeywordPhrase(CanonizeCentury(keyphrase), stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
-                                     stemmed_keyphrases_to_unstemmed_keyphrases_map);
-                ++keyword_count;
-            }
 
-            ++field_index;
+    for (size_t _689_index = record.getFieldIndex("689"); _689_index < record.getNumberOfFields() and record.getTag(_689_index) == "689"; ++_689_index) {
+        const Subfields &subfields(record.getSubfields(_689_index));
+        const std::string subfield_a_value(subfields.getFirstSubfieldValue('a'));
+        if (not subfield_a_value.empty()) {
+            std::string keyphrase(subfield_a_value);
+            const std::string subfield_c_value(subfields.getFirstSubfieldValue('c'));
+            if (not subfield_c_value.empty())
+                keyphrase += " " + subfield_c_value;
+            ProcessKeywordPhrase(CanonizeCentury(keyphrase), stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
+                                 stemmed_keyphrases_to_unstemmed_keyphrases_map);
+            ++keyword_count;
         }
     }
 
@@ -178,7 +173,7 @@ size_t ExtractKeywordsFromKeywordChainFields(
 
 
 size_t ExtractKeywordsFromIndividualKeywordFields(
-    const MarcUtil::Record &record,
+    const MarcRecord &record,
     const Stemmer * const stemmer,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
@@ -198,7 +193,7 @@ size_t ExtractKeywordsFromIndividualKeywordFields(
 
 
 size_t ExtractAllKeywords(
-    const MarcUtil::Record &record,
+    const MarcRecord &record,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
 {
@@ -226,7 +221,7 @@ void ExtractStemmedKeywords(
         std::cerr << "Starting extraction and stemming of pre-existing keywords.\n";
 
     unsigned total_count(0), records_with_keywords_count(0), keywords_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+    while (const MarcRecord record = MarcReader::Read(input)) {
         ++total_count;
 
         const size_t extracted_count(
@@ -277,30 +272,21 @@ void AugmentRecordsWithTitleKeywords(
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
-    XmlWriter xml_writer(output);
     unsigned total_count(0), augmented_record_count(0);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        record.setRecordWillBeWrittenAsXml(true);
+    while (MarcRecord record = MarcReader::Read(input)) {
         ++total_count;
 
         // Look for a title...
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        const auto entry_iterator(DirectoryEntry::FindField("245", dir_entries));
-        if (entry_iterator == dir_entries.end()) {
-            record.write(&xml_writer);
+        const size_t title_index(record.getFieldIndex("245"));
+        if (title_index == MarcRecord::FIELD_NOT_FOUND) {
+            MarcWriter::Write(record, output);
             continue;
         }
 
         // ...in subfields 'a', 'b', 'c' and 'p':
-        const size_t title_index(entry_iterator - dir_entries.begin());
-        const std::vector<std::string> &fields(record.getFields());
-        Subfields subfields(fields[title_index]);
+        Subfields subfields(record.getSubfields(title_index));
         if (not subfields.hasSubfield('a')) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             continue;
         }
         std::string title;
@@ -325,7 +311,7 @@ void AugmentRecordsWithTitleKeywords(
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             continue;
         }
 
@@ -369,7 +355,7 @@ void AugmentRecordsWithTitleKeywords(
         }
 
         if (new_keyphrases.empty()) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             continue;
         }
 
@@ -379,10 +365,9 @@ void AugmentRecordsWithTitleKeywords(
             record.insertField("601", field_contents);
         }
 
-        record.write(&xml_writer);
+        MarcWriter::Write(record, output);
         ++augmented_record_count;
     }
-    xml_writer.closeTag();
 
     if (verbose)
         std::cerr << augmented_record_count << " records of " << total_count

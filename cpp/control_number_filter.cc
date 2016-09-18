@@ -26,7 +26,9 @@
 #include <cstring>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "util.h"
 #include "XmlWriter.h"
@@ -47,33 +49,21 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File *
     if (matcher == nullptr)
         Error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
-    XmlWriter xml_writer(output);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     unsigned count(0), kept_or_deleted_count(0);
 
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        record.setRecordWillBeWrittenAsXml(true);
+    while (MarcRecord record = MarcReader::Read(input)) {
         ++count;
 
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        if (dir_entries[0].getTag() != "001")
-            Error("First field is not \"001\"!");
-
-        const std::vector<std::string> &fields(record.getFields());
-        const bool matched(matcher->matched(fields[0], &err_msg));
+        const bool matched(matcher->matched(record.getControlNumber(), &err_msg));
         if (not err_msg.empty())
             Error("regex matching error: " + err_msg);
 
         if ((keep and matched) or (not keep and not matched)) {
             ++kept_or_deleted_count;
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
         }
     }
-    xml_writer.closeTag();
-    
+
     if (not err_msg.empty())
         Error(err_msg);
 

@@ -37,7 +37,9 @@
 #include "FileUtil.h"
 #include "Leader.h"
 #include "MarcQueryParser.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -225,7 +227,7 @@ bool EnqueueSubfields(const std::string &tag, const char subfield_code, const st
 
 
 bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
-                         const std::unordered_multimap<std::string, const std::string *> &field_to_content_map)
+                         const std::unordered_multimap<std::string, const std::string> &field_to_content_map)
 {
     const FieldOrSubfieldDescriptor comp_field_or_subfield(cond_desc.getFieldOrSubfieldReference());
     const auto begin_end(field_to_content_map.equal_range(comp_field_or_subfield.getTag()));
@@ -234,7 +236,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
     std::string err_msg;
     bool matched_at_least_one(false);
     for (auto field(begin_end.first); field != begin_end.second; ++field) {
-        const std::string &contents(*(field->second));
+        const std::string &contents(field->second);
         if (subfield_codes.empty()) { // Compare against the entire field. (Does this even make sense?)
             if (cond_desc.getDataMatcher().matched(contents, &err_msg)) {
                 matched_at_least_one = true;
@@ -264,7 +266,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
 
 
 bool ProcessExistenceTest(const ConditionDescriptor &cond_desc,
-                          const std::unordered_multimap<std::string, const std::string *> &field_to_content_map)
+                          const std::unordered_multimap<std::string, const std::string> &field_to_content_map)
 {
     const FieldOrSubfieldDescriptor test_field_or_subfield(cond_desc.getFieldOrSubfieldReference());
     const ConditionDescriptor::CompType comp_type(cond_desc.getCompType());
@@ -277,7 +279,7 @@ bool ProcessExistenceTest(const ConditionDescriptor &cond_desc,
 
     bool found_at_least_one(false);
     for (auto field(begin_end.first); field != begin_end.second; ++field) {
-        const std::string &contents(*(field->second));
+        const std::string &contents(field->second);
         const Subfields subfields(contents);
         if (subfields.hasSubfield(subfield_codes[0])) {
             found_at_least_one = true;
@@ -290,7 +292,7 @@ bool ProcessExistenceTest(const ConditionDescriptor &cond_desc,
 
 
 bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfieldDescriptor &field_or_subfield_desc,
-                       const std::unordered_multimap<std::string, const std::string *> &field_to_content_map,
+                       const std::unordered_multimap<std::string, const std::string> &field_to_content_map,
                        std::priority_queue<TagAndContents> * const tags_and_contents)
 {
     const std::string extraction_tag(field_or_subfield_desc.getTag());
@@ -308,7 +310,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
     {
         if (field_or_subfield_desc.isStar()) {
             for (const auto &tag_and_content : field_to_content_map)
-                tags_and_contents->push(TagAndContents(tag_and_content.first, *(tag_and_content.second)));
+                tags_and_contents->push(TagAndContents(tag_and_content.first, tag_and_content.second));
             return true;
         }
 
@@ -318,11 +320,11 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
              ++tag_and_field_contents)
         {
             if (subfield_codes.empty()) {
-                tags_and_contents->push(TagAndContents(extraction_tag, *(tag_and_field_contents->second)));
+                tags_and_contents->push(TagAndContents(extraction_tag, tag_and_field_contents->second));
                 emitted_at_least_one = true;
             } else { // Looking for one or more subfields:
                 for (const auto &subfield_code : subfield_codes) {
-                    if (EnqueueSubfields(extraction_tag, subfield_code, *tag_and_field_contents->second,
+                    if (EnqueueSubfields(extraction_tag, subfield_code, tag_and_field_contents->second,
                                          tags_and_contents))
                         emitted_at_least_one = true;
                 }
@@ -335,7 +337,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
     {
         if (field_or_subfield_desc.isStar()) {
             for (const auto &tag_and_content : field_to_content_map)
-                tags_and_contents->push(TagAndContents(tag_and_content.first, *(tag_and_content.second)));
+                tags_and_contents->push(TagAndContents(tag_and_content.first, tag_and_content.second));
             return true;
         }
 
@@ -345,13 +347,13 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
         for (auto tag_and_field_contents(begin_end.first); tag_and_field_contents != begin_end.second;
              ++tag_and_field_contents)
         {
-            const Subfields subfields(*tag_and_field_contents->second);
+            const Subfields subfields(tag_and_field_contents->second);
             if (not subfields.hasSubfield(extract_subfield_code))
                 continue;
 
             if (not subfields.hasSubfield(test_subfield_code)) {
                 if (comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL) {
-                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, *tag_and_field_contents->second,
+                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, tag_and_field_contents->second,
                                          tags_and_contents))
                         emitted_at_least_one = true;
                 } else
@@ -373,7 +375,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
                 if ((matched_at_least_one and comp_type == ConditionDescriptor::SINGLE_FIELD_EQUAL)
                     or (not matched_at_least_one and comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL))
                 {
-                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, *tag_and_field_contents->second,
+                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, tag_and_field_contents->second,
                                          tags_and_contents))
                         emitted_at_least_one = true;
                 }
@@ -407,9 +409,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
     if (output_format == MARC_XML)
         xml_writer.reset(new MarcXmlWriter(&output));
 
-    while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(input.get())
-                                                  : MarcUtil::Record::BinaryFactory(input.get()))
-    {
+    while (MarcRecord record = input_is_xml ? MarcReader::ReadXML(input.get()) : MarcReader::Read(input.get())) {
         // If we use a control number filter, only process a record if it is in our list:
         if (not control_numbers.empty() and control_numbers.find(record.getControlNumber()) == control_numbers.cend())
             continue;
@@ -422,9 +422,6 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
         else
             continue;
 
-        if (output_format == MARC_XML)
-            record.setRecordWillBeWrittenAsXml(true);
-
         if (query_desc.hasLeaderCondition()) {
             const LeaderCondition &leader_cond(query_desc.getLeaderCondition());
             const Leader &leader(record.getLeader());
@@ -434,11 +431,9 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
                 continue;
         }
 
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        const std::vector<std::string> &fields(record.getFields());
-        std::unordered_multimap<std::string, const std::string *> field_to_content_map;
-        for (unsigned i(0); i < dir_entries.size(); ++i)
-            field_to_content_map.insert(std::make_pair(dir_entries[i].getTag(), &fields[i]));
+        std::unordered_multimap<std::string, const std::string> field_to_content_map;
+        for (unsigned i(0); i < record.getNumberOfFields(); ++i)
+            field_to_content_map.insert(std::make_pair(record.getTag(i), record.getFieldData(i)));
 
         bool matched(false);
         std::priority_queue<TagAndContents> tags_and_contents;
@@ -454,15 +449,15 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
             ++matched_count;
 
             if (output_format == MARC_BINARY)
-                record.write(&output);
+                MarcWriter::Write(record, &output);
             else if (output_format == MARC_XML)
-                record.write(xml_writer.get());
+                MarcWriter::Write(record, xml_writer.get());
             else {
                 // Determine the control number:
                 const auto &control_number_iter(field_to_content_map.find("001"));
                 if (unlikely(control_number_iter == field_to_content_map.end()))
                     Error("In FieldGrep: record has no control number!");
-                const std::string control_number(*(control_number_iter->second));
+                const std::string control_number(control_number_iter->second);
 
                 Emit(control_number, output_format, &tags_and_contents);
             }

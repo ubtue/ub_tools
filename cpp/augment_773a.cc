@@ -28,12 +28,13 @@
 #include "Compiler.h"
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 void Usage() {
@@ -49,13 +50,12 @@ void Usage() {
 static std::unordered_map<std::string, std::string> control_numbers_to_titles_map;
 
 
-bool RecordControlNumberToTitleMapping(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
+bool RecordControlNumberToTitleMapping(MarcRecord * const record, File * const /*output*/,
                  std::string * const /* err_msg */)
 {
-    ssize_t _245_index;
-    if (likely((_245_index = record->getFieldIndex("245")) != -1)) {
-        const std::vector<std::string> &fields(record->getFields());
-        const Subfields _245_subfields(fields[_245_index]);
+    size_t _245_index;
+    if (likely((_245_index = record->getFieldIndex("245")) != MarcRecord::FIELD_NOT_FOUND)) {
+        const Subfields _245_subfields(record->getSubfields(_245_index));
         std::string title(_245_subfields.getFirstSubfieldValue('a'));
         if (_245_subfields.hasSubfield('b'))
             title += " " + _245_subfields.getFirstSubfieldValue('b');
@@ -73,7 +73,7 @@ void CollectControlNumberToTitleMappings(const bool verbose, File * const input)
         std::cout << "Extracting control numbers to title mappings from \"" << input->getPath() << "\".\n";
 
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(input, RecordControlNumberToTitleMapping, /* xml_writer = */nullptr, &err_msg))
+    if (not MarcRecord::ProcessRecords(input, /* output = */ nullptr, RecordControlNumberToTitleMapping, &err_msg))
         Error("error while looking for control numbers to title mappings: " + err_msg);
 
     if (verbose)
@@ -85,25 +85,25 @@ static unsigned patch_count;
 
 
 // Looks for the existence of a 773 field.  Iff such a field exists and 773$a is missing, we try to add it.
-bool PatchUpOne773a(MarcUtil::Record * const record, XmlWriter * const xml_writer, std::string * const /*err_msg*/) {
-    ssize_t _773_index;
-    if ((_773_index = record->getFieldIndex("773")) != -1) {
-        const std::vector<std::string> &fields(record->getFields());
-        const Subfields _773_subfields(fields[_773_index]);
+bool PatchUpOne773a(MarcRecord * const record, File * const output, std::string * const /*err_msg*/) {
+    size_t _773_index;
+    if ((_773_index = record->getFieldIndex("773")) != MarcRecord::FIELD_NOT_FOUND) {
+        Subfields _773_subfields(record->getSubfields(_773_index));
         if (not _773_subfields.hasSubfield('a') and _773_subfields.hasSubfield('w')) {
             const std::string w_subfield(_773_subfields.getFirstSubfieldValue('w'));
             if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
                 const std::string parent_control_number(w_subfield.substr(8));
                 const auto control_number_and_title(control_numbers_to_titles_map.find(parent_control_number));
                 if (control_number_and_title != control_numbers_to_titles_map.end()) {
-                    record->updateField(_773_index, fields[_773_index] + "\x1F""a" + control_number_and_title->second);
+                    _773_subfields.addSubfield('a', control_number_and_title->second);
+                    record->updateField(_773_index, _773_subfields.toString());
                     ++patch_count;
                 }
             }
         }
     }
 
-    record->write(xml_writer);
+    MarcWriter::Write(*record, output);
 
     return true;
 }
@@ -111,17 +111,9 @@ bool PatchUpOne773a(MarcUtil::Record * const record, XmlWriter * const xml_write
 
 // Iterates over all records in a collection and attempts to in 773$a subfields were they are missing.
 void PatchUp773aSubfields(const bool verbose, File * const input, File * const output) {
-    XmlWriter xml_writer(output);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
-
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(input, PatchUpOne773a, &xml_writer, &err_msg))
+    if (not MarcRecord::ProcessRecords(input, output, PatchUpOne773a, &err_msg))
         Error("error while adding 773$a subfields to some records: " + err_msg);
-
-    xml_writer.closeTag();
 
     if (verbose)
         std::cout << "Added 773$a subfields to " << patch_count << " records.\n";
