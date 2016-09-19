@@ -31,10 +31,7 @@ std::string MarcRecord::getFieldData(const size_t index) const {
     if (directory_entries_.cbegin() + index >= directory_entries_.cend())
         return "";
     const DirectoryEntry &entry(directory_entries_[index]);
-    if (not entry.hasCache()) {
-        entry.setCache(std::string(raw_data_, entry.getFieldOffset(), entry.getFieldLength() - 1));
-    }
-    return entry.getCache();
+    return std::string(raw_data_, entry.getFieldOffset(), entry.getFieldLength() - 1);
 }
 
 
