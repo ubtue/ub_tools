@@ -34,8 +34,8 @@
 #include "DirectoryEntry.h"
 #include "IniFile.h"
 #include "Leader.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -68,7 +68,7 @@ void ExtractNonGermanTranslations(const MarcRecord &record,
                                   std::vector<std::pair<std::string, std::string>> * const text_and_language_codes) {
     for (size_t index(record.getFieldIndex("750"));
          index < record.getNumberOfFields() and record.getTag(index) == "750"; ++index) {
-        const Subfields _750_subfields(record.getSubfields(index));
+        const Subfields &_750_subfields(record.getSubfields(index));
         auto start_end(_750_subfields.getIterators('9'));
         if (start_end.first == start_end.second)
             continue;

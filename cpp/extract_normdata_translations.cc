@@ -45,8 +45,8 @@
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"
@@ -141,7 +141,7 @@ void ExtractTranslations(File * const marc_norm_input,
         for (auto all_translations_it = all_translations.begin(); all_translations_it != all_translations.end(); ++all_translations_it) {
             std::string german_term(all_translations_it->first);
 
-            for (auto translation_vector_it = all_translations_it->second.begin();
+            for (auto translation_vector_it(all_translations_it->second.begin());
                  translation_vector_it != all_translations_it->second.end();
                  ++translation_vector_it)
             {

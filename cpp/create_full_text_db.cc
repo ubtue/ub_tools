@@ -35,10 +35,9 @@
 #include "ExecUtil.h"
 #include "FileLocker.h"
 #include "FileUtil.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
-#include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -61,7 +60,7 @@ static void Usage() {
 }
 
 
-void FileLockedComposeAndWriteRecord(File * const output, MarcRecord &record) {
+void FileLockedComposeAndWriteRecord(File * const output, const MarcRecord &record) {
     FileLocker file_locker(output, FileLocker::WRITE_ONLY);
     if (not output->seek(0, SEEK_END))
         Error("failed to seek to the end of \"" + output->getPath() + "\"!");
@@ -72,12 +71,12 @@ void FileLockedComposeAndWriteRecord(File * const output, MarcRecord &record) {
 
 // Checks subfields "3" and "z" to see if they start w/ "Rezension".
 bool IsProbablyAReview(const Subfields &subfields) {
-    const auto _3_begin_end(subfields.getIterators('3'));
+    const auto &_3_begin_end(subfields.getIterators('3'));
     if (_3_begin_end.first != _3_begin_end.second) {
         if (StringUtil::StartsWith(_3_begin_end.first->second, "Rezension"))
             return true;
     } else {
-        const auto z_begin_end(subfields.getIterators('z'));
+        const auto &z_begin_end(subfields.getIterators('z'));
         if (z_begin_end.first != z_begin_end.second
             and StringUtil::StartsWith(z_begin_end.first->second, "Rezension"))
             return true;
@@ -122,13 +121,13 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
 
-    const std::string UPDATE_FULL_TEXT_DB_PATH(ExecUtil::Which("update_full_text_db"));
+    const std::string &UPDATE_FULL_TEXT_DB_PATH(ExecUtil::Which("update_full_text_db"));
     if (UPDATE_FULL_TEXT_DB_PATH.empty())
         Error("can't find \"update_full_text_db\" in our $PATH!");
 
     std::cout << "Skip " << skip_count << " records\n";
 
-    long record_start = input->tell();
+    const off_t record_start = input->tell();
     while (MarcRecord record = MarcReader::Read(input)) {
         if (total_record_count == max_record_count)
             break;

@@ -1,3 +1,22 @@
+/** \brief Writer for marc files.
+ *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *
+ *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "MarcWriter.h"
 #include "util.h"
 
@@ -5,11 +24,11 @@
 // Marc 21 stuff:
 //
 
-static const size_t MAX_MARC_21_RECORD_LENGTH = 99999;
+static const size_t MAX_MARC_21_RECORD_LENGTH(99999);
 static char write_buffer[MAX_MARC_21_RECORD_LENGTH];
 
 
-static bool inline hasDirectoryEntryEnoughSpace(const size_t baseAddress, const size_t data_length, const size_t next_field_length) {
+static bool inline HasDirectoryEntryEnoughSpace(const size_t baseAddress, const size_t data_length, const size_t next_field_length) {
     return baseAddress + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + data_length + next_field_length + 1 <= MAX_MARC_21_RECORD_LENGTH;
 }
 
@@ -21,7 +40,7 @@ static void inline precalculateBaseAddressOfData(std::vector<DirectoryEntry>::co
                                           size_t *number_of_directory_entries, size_t *baseAddress, size_t *record_length) {
     *baseAddress += Leader::LEADER_LENGTH + 1 /* for directory separator byte */;
     *record_length += 1 /* for end of record byte */;
-    for (; directory_iter < end_iter && hasDirectoryEntryEnoughSpace(*baseAddress, *record_length, directory_iter->getFieldLength()); ++directory_iter) {
+    for (; directory_iter < end_iter && HasDirectoryEntryEnoughSpace(*baseAddress, *record_length, directory_iter->getFieldLength()); ++directory_iter) {
         *baseAddress += DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
         *record_length += directory_iter->getFieldLength();
         ++*number_of_directory_entries;

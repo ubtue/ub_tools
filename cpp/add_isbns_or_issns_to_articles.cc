@@ -75,7 +75,7 @@ void PopulateParentIdToISBNAndISSNMap(
 
     unsigned count(0), extracted_isbn_count(0), extracted_issn_count(0);
     std::string err_msg;
-    while (const MarcRecord record = MarcReader::Read(input)) {
+    while (const MarcRecord &record = MarcReader::Read(input)) {
         ++count;
 
         const Leader &leader(record.getLeader());
@@ -96,7 +96,7 @@ void PopulateParentIdToISBNAndISSNMap(
         // documentation this contains the "authorised" ISSN) but only if the indicators are correct:
         std::vector<size_t> _029_field_indices;
         record.getFieldIndices("029", &_029_field_indices);
-        for (const auto _029_field_index : _029_field_indices) {
+        for (const auto &_029_field_index : _029_field_indices) {
             const Subfields &subfields(record.getSubfields(_029_field_index));
 
             // We only want fields with indicators 'x' and 'a':
@@ -148,7 +148,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
             continue;
         }
 
-        size_t _773_index = record.getFieldIndex("773");
+        const size_t &_773_index(record.getFieldIndex("773"));
         if (_773_index == MarcRecord::FIELD_NOT_FOUND) {
             MarcWriter::Write(record, output);
             continue;
@@ -160,7 +160,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
             continue;
         }
 
-        auto begin_end = subfields.getIterators('w'); // Record control number of Host Item Entry.
+        const auto &begin_end(subfields.getIterators('w')); // Record control number of Host Item Entry.
         if (begin_end.first == begin_end.second) {
             MarcWriter::Write(record, output);
             ++missing_host_record_ctrl_num_count;
@@ -170,7 +170,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
         std::string host_id(begin_end.first->second);
         if (StringUtil::StartsWith(host_id, "(DE-576)"))
             host_id = host_id.substr(8);
-        auto const parent_isbn_or_issn_iter(parent_id_to_isbn_and_issn_map.find(host_id));
+        const auto &parent_isbn_or_issn_iter(parent_id_to_isbn_and_issn_map.find(host_id));
         if (parent_isbn_or_issn_iter == parent_id_to_isbn_and_issn_map.end()) {
             MarcWriter::Write(record, output);
             ++missing_isbn_or_issn_count;

@@ -12,8 +12,8 @@
 #include <cstring>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "Stemmer.h"
@@ -21,7 +21,6 @@
 #include "Subfields.h"
 #include "TextUtil.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 void Usage() {
@@ -154,7 +153,7 @@ size_t ExtractKeywordsFromKeywordChainFields(
 {
     size_t keyword_count(0);
 
-    for (size_t _689_index = record.getFieldIndex("689"); _689_index < record.getNumberOfFields() and record.getTag(_689_index) == "689"; ++_689_index) {
+    for (size_t _689_index(record.getFieldIndex("689")); _689_index < record.getNumberOfFields() and record.getTag(_689_index) == "689"; ++_689_index) {
         const Subfields &subfields(record.getSubfields(_689_index));
         const std::string subfield_a_value(subfields.getFirstSubfieldValue('a'));
         if (not subfield_a_value.empty()) {

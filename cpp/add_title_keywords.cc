@@ -28,8 +28,8 @@
 #include <cstring>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -120,13 +120,13 @@ void AugmentKeywordsWithTitleWords(const bool verbose, File * const input, File 
             continue;
         }
 
-        const size_t title_index = record.getFieldIndex("245");
+        const size_t title_index(record.getFieldIndex("245"));
         if (title_index == MarcRecord::FIELD_NOT_FOUND) {
             MarcWriter::Write(record, output);
             continue;
         }
 
-        Subfields subfields(record.getSubfields(title_index));
+        const Subfields &subfields(record.getSubfields(title_index));
         if (not subfields.hasSubfield('a')) {
             MarcWriter::Write(record, output);
             continue;
@@ -145,7 +145,7 @@ void AugmentKeywordsWithTitleWords(const bool verbose, File * const input, File 
         TextUtil::ChopIntoWords(title, &title_words, /* min_word_length = */ 3);
         LowercaseSet(&title_words);
 
-        const std::string language_code(record.getLanguage());
+        const std::string &language_code(record.getLanguage());
         const auto code_and_stopwords(language_codes_to_stopword_sets.find(language_code));
         if (code_and_stopwords != language_codes_to_stopword_sets.end())
             FilterOutStopwords(code_and_stopwords->second, &title_words);

@@ -21,10 +21,9 @@
 */
 #include <fstream>
 #include <iostream>
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
-#include "MarcXmlWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"

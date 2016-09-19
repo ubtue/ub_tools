@@ -1,13 +1,31 @@
-/* 
- * File:   MarcRecord.h
- * Author: quboo01
+/** \brief Marc-Implementation
+ *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- * Created on 12. September 2016, 11:28
+ *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MARCRECORD_H
-#define MARCRECORD_H
+#ifndef MARC_RECORD
+#define MARC_RECORD
 
+#include <limits>
+#include <iostream>
+#include <set>
+#include <string>
+#include <unordered_set>
+#include <vector>
 #include "Compiler.h"
 #include "DirectoryEntry.h"
 #include "File.h"
@@ -15,18 +33,11 @@
 #include "Subfields.h"
 #include "XmlWriter.h"
 
-#include <string>
-#include <iostream>
-#include <set>
-#include <unordered_set>
-#include <vector>
-
-
 class MarcRecord {
     friend class MarcReader;
     friend class MarcWriter;
 public:
-    static const size_t FIELD_NOT_FOUND = (size_t) -1;
+    static const size_t FIELD_NOT_FOUND =  std::numeric_limits<size_t>::max();
 private:
     Leader leader_;
     std::vector<DirectoryEntry> directory_entries_;
@@ -57,7 +68,7 @@ public:
 
     std::string getTag(const size_t index) const;
 
-    /** \brief Returns the index of "field_tag" or -1 if the tag is not present. */
+    /** \brief Returns the index of "field_tag" or MarcRecord::FIELD_NOT_FOUND if the tag is not present. */
     size_t getFieldIndex(const std::string &field_tag) const;
 
     /** \return The number of field indices for the tag "tag". */
@@ -142,25 +153,24 @@ public:
     using RecordFunc = bool (&)(MarcRecord * const record, File * const output, std::string * const err_msg);
 
     // Returns false on error and EOF.  To distinguish between the two: on EOF "err_msg" is empty but not when an
-    // error has been detected.  For each entry in "dir_entries" there will be a corresponding entry in "field_data".
-    // Each record read from "input" will be parsed and the directory entries and field data will be passed into
-    // "process_record".  If "process_record" returns false, ProcessRecords will be aborted and the error message will
-    // be passed up to the caller.
+    // error has been detected.
+    // Each record read from "input" will be parsed and will be passed into "process_record". If "process_record"
+    // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
     static bool ProcessRecords(File * const input, File * const output, RecordFunc process_record, std::string * const err_msg);
 
 
     using XmlRecordFunc = bool (&)(MarcRecord * const record, XmlWriter * const xml_writer, std::string * const err_msg);
 
     // Returns false on error and EOF.  To distinguish between the two: on EOF "err_msg" is empty but not when an
-    // error has been detected.  For each entry in "dir_entries" there will be a corresponding entry in "field_data".
-    // Each record read from "input" will be parsed and the directory entries and field data will be passed into
-    // "process_record".  If "process_record" returns false, ProcessRecords will be aborted and the error message will
-    // be passed up to the caller.
+    // error has been detected.
+    // Each record read from "input" will be parsed and will be passed into "process_record". If "process_record"
+    // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
     static bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer, std::string * const err_msg);
 
 private:
-    void combine(MarcRecord &record);
+    // Copies all field data from record into this record and extends the directory_entries_ of this record accordingly.
+    void combine(const MarcRecord &record);
 };
 
-#endif /* MARCRECORD_H */
+#endif /* MARC_RECORD */
 
