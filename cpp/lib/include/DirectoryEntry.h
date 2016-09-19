@@ -38,12 +38,7 @@ private:
     std::string tag_;
     unsigned field_length_;
     unsigned field_offset_;
-    mutable std::string cache_;
 public:
-    void setCache(const std::string &cache) const { cache_ = cache; }
-    std::string getCache() const { return cache_; }
-    bool hasCache() const { return not cache_.empty(); }
-
     /** Constructs a DirectoryEntry from the binary representation of a MARC-21 directory entry. */
     explicit DirectoryEntry(const std::string &raw_entry);
 
