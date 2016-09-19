@@ -35,8 +35,8 @@
 #include "DirectoryEntry.h"
 #include "Leader.h"
 #include "MapIO.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
@@ -107,14 +107,12 @@ bool FindPericopes(const MarcRecord &record, const std::set<std::pair<std::strin
 {
     static const std::string PERICOPE_FIELD("130");
     std::vector<std::string> pericopes;
-    size_t index = record.getFieldIndex(PERICOPE_FIELD);
-    while (index < record.getNumberOfFields() and record.getTag(index) == PERICOPE_FIELD) {
+    for (size_t index(record.getFieldIndex(PERICOPE_FIELD)); index < record.getNumberOfFields() and record.getTag(index) == PERICOPE_FIELD: ++index) {
         const Subfields subfields(record.getSubfields(index));
         std::string a_subfield(subfields.getFirstSubfieldValue('a'));
         StringUtil::ToLower(&a_subfield);
         StringUtil::CollapseAndTrimWhitespace(&a_subfield);
         pericopes.push_back(a_subfield);
-        ++index;
     }
 
     if (pericopes.empty())
@@ -447,14 +445,14 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
 
         // Make sure that we don't use a bible reference tag that is already in use for another
         // purpose:
-        const size_t bib_ref_index = record.getFieldIndex(BIB_REF_RANGE_TAG);
+        const size_t bib_ref_index(record.getFieldIndex(BIB_REF_RANGE_TAG));
         if (bib_ref_index != MarcRecord::FIELD_NOT_FOUND)
             Error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
 
         std::set<std::string> ranges;
         if (FindGndCodes("600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map, &ranges)) {
             ++augment_count;
-            std::string range_string;
+             std::string range_string;
             for (auto &range : ranges) {
                 if (not range_string.empty())
                     range_string += ',';

@@ -1,6 +1,26 @@
+/** \brief Marc-Implementation
+ *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *
+ *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "MarcRecord.h"
 #include "util.h"
 #include "MarcReader.h"
+
 
 std::string MarcRecord::getFieldData(const std::string &tag) const {
     return getFieldData(getFieldIndex(tag));
@@ -8,7 +28,7 @@ std::string MarcRecord::getFieldData(const std::string &tag) const {
 
 
 std::string MarcRecord::getFieldData(const size_t index) const {
-    if (index == MarcRecord::FIELD_NOT_FOUND || directory_entries_.cbegin() + index >= directory_entries_.cend())
+    if (directory_entries_.cbegin() + index >= directory_entries_.cend())
         return "";
     const DirectoryEntry &entry(directory_entries_[index]);
     if (not entry.hasCache()) {
@@ -24,14 +44,14 @@ Subfields MarcRecord::getSubfields(const std::string &tag) const {
 
 
 Subfields MarcRecord::getSubfields(const size_t index) const {
-    if (index == MarcRecord::FIELD_NOT_FOUND || directory_entries_.cbegin() + index >= directory_entries_.cend())
+    if (directory_entries_.cbegin() + index >= directory_entries_.cend())
         return Subfields();
     return Subfields(getFieldData(index));
 }
 
 
 std::string MarcRecord::getTag(const size_t index) const {
-    if (index == MarcRecord::FIELD_NOT_FOUND || directory_entries_.cbegin() + index >= directory_entries_.cend())
+    if (directory_entries_.cbegin() + index >= directory_entries_.cend())
         return "";
     return directory_entries_[index].getTag();
 }
@@ -71,7 +91,7 @@ bool MarcRecord::updateField(const size_t field_index, const std::string &new_fi
 
 
 size_t MarcRecord::insertField(const std::string &new_field_tag, const std::string &new_field_value) {
-    if (new_field_tag.length() != 3)
+    if (unlikely(new_field_tag.length() != DirectoryEntry::TAG_LENGTH))
         throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of 3!");
 
     // Find the insertion location:
@@ -79,12 +99,12 @@ size_t MarcRecord::insertField(const std::string &new_field_tag, const std::stri
     while (insertion_location != directory_entries_.end() and new_field_tag >= insertion_location->getTag())
         ++insertion_location;
 
-    const size_t offset = raw_data_.size();
-    const size_t length = new_field_value.length() + 1 /* For new field separator. */;
-    const auto inserted_location = directory_entries_.emplace(insertion_location, new_field_tag, length, offset);
+    const size_t offset(raw_data_.size());
+    const size_t length(new_field_value.length() + 1) /* For new field separator. */;
+    const auto inserted_location(directory_entries_.emplace(insertion_location, new_field_tag, length, offset));
     raw_data_ += new_field_value + '\x1E';
 
-    const size_t index = std::distance(directory_entries_.begin(), inserted_location);
+    const size_t index(std::distance(directory_entries_.begin(), inserted_location));
     directory_entries_[index].setCache(new_field_value);
     return index;
 }
@@ -107,11 +127,10 @@ void MarcRecord::commitDeletionMarks() {
     std::vector<DirectoryEntry> new_entries;
     new_entries.reserve(directory_entries_.size() - deleted_field_indices.size());
 
-    size_t index = 0;
+    size_t index(0);
     for (const size_t deleted_index : deleted_field_indices) {
-        for (/*Empty*/; index < getNumberOfFields() and index != deleted_index; ++index) {
+        for (/*Empty*/; index < getNumberOfFields() and index != deleted_index; ++index)
             new_entries.push_back(std::move(directory_entries_[index]));
-        }
         ++index;
     }
     directory_entries_.clear();
@@ -258,14 +277,15 @@ std::string MarcRecord::getLanguageCode() const {
 }
 
 
-void MarcRecord::combine(MarcRecord &record) {
-    size_t offset = raw_data_.size();
+void MarcRecord::combine(const MarcRecord &record) {
+    const size_t offset(raw_data_.size());
     raw_data_ += record.raw_data_;
 
+    // Ignore first field. We only need one 001-field.
     directory_entries_.reserve(record.directory_entries_.size() - 1);
-    for (auto iter = record.directory_entries_.begin() + 1; iter < record.directory_entries_.end(); ++iter) {
-        iter->setFieldOffset(iter->getFieldOffset() + offset);
-        directory_entries_.emplace_back(*iter);
+    for (auto iter(record.directory_entries_.begin() + 1); iter < record.directory_entries_.end(); ++iter) {
+        auto entry = directory_entries_.emplace_back(*iter);
+        entry->setFieldOffset(iter->getFieldOffset() + offset);
     }
 }
 

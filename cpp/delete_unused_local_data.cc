@@ -25,10 +25,9 @@
 */
 
 #include <iostream>
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
-#include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
 #include "util.h"
 

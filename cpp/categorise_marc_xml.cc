@@ -20,8 +20,8 @@
 #include <iostream>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "util.h"
 
 
@@ -33,7 +33,7 @@ void Usage() {
 
 /** \brief Appends "source" to "target". */
 void Categorise(File * const input) {
-    while (MarcRecord record = MarcReader::Read(input)) {
+    while (const MarcRecord &record = MarcReader::Read(input)) {
         switch (record.getRecordType()) {
         case Leader::RecordType::AUTHORITY:
             std::cout << "AUTHORITY\n";
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    const std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(argv[1]));
+    const std::unique_ptr<File> &input(FileUtil::OpenInputFileOrDie(argv[1]));
     try {
         Categorise(input.get());
     } catch (const std::exception &x) {

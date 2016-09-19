@@ -32,8 +32,8 @@
 #include "DirectoryEntry.h"
 #include "FileUtil.h"
 #include "Leader.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -55,7 +55,7 @@ bool SeriesHasNotBeenCompleted(const MarcRecord &record) {
     if (unlikely(_008_index == MarcRecord::FIELD_NOT_FOUND))
         return false;
 
-    const std::string _008_contents(record.getFieldData(_008_index));
+    const std::string &_008_contents(record.getFieldData(_008_index));
     return _008_contents.substr(11, 4) == "9999";
 }
 

@@ -30,8 +30,8 @@
 #include <getopt.h>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -51,7 +51,7 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
         Error("can't open \"" + input_filename + "\" for reading!");
 
     unsigned count(0), result_count(0);
-    while (const MarcRecord record = MarcReader::Read(&input)) {
+    while (const MarcRecord &record = MarcReader::Read(&input)) {
         ++count;
 
         const Leader &leader(record.getLeader());

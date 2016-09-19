@@ -1,4 +1,23 @@
- #include "MarcReader.h"
+/** \brief Reader for Marc files.
+ *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *
+ *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "MarcReader.h"
 #include "SimpleXmlParser.h"
 
 #include <sys/types.h>
@@ -10,12 +29,12 @@
 
 MarcRecord MarcReader::Read(File * const input) {
     MarcRecord current_record(MarcReader::ReadSingleRecord(input));
-    if (not current_record) {
+    if (not current_record)
         return current_record;
-    }
-    bool isMultiPart = current_record.leader_.isMultiPartRecord();
+
+    bool isMultiPart(current_record.leader_.isMultiPartRecord());
     while (isMultiPart) {
-        MarcRecord next_record = MarcReader::ReadSingleRecord(input);
+        const MarcRecord &next_record(MarcReader::ReadSingleRecord(input));
         current_record.combine(next_record);
         isMultiPart = next_record.leader_.isMultiPartRecord();
     }
@@ -25,7 +44,7 @@ MarcRecord MarcReader::Read(File * const input) {
 MarcRecord MarcReader::ReadSingleRecord(File * const input) {
     MarcRecord record;
     if (input->eof())
-        return record; // Create an empty instance!
+        return record; // Return an empty instance!
 
     char leader_buf[Leader::LEADER_LENGTH];
     ssize_t read_count;
@@ -48,9 +67,9 @@ MarcRecord MarcReader::ReadSingleRecord(File * const input) {
     // Parse directory entries.
     //
 
+    const ssize_t DIRECTORY_LENGTH(record.leader_.getBaseAddressOfData() - Leader::LEADER_LENGTH);
 #pragma GCC diagnostic ignored "-Wvla"
-    const ssize_t directory_length(record.leader_.getBaseAddressOfData() - Leader::LEADER_LENGTH);
-    char directory_buf[directory_length];
+    char directory_buf[DIRECTORY_LENGTH];
 #pragma GCC diagnostic warning "-Wvla"
     if ((read_count = input->read(directory_buf, directory_length)) != directory_length)
         throw std::runtime_error("in MarcReader::read: Short read for a directory or premature EOF in " + input->getPath()
@@ -64,9 +83,9 @@ MarcRecord MarcReader::ReadSingleRecord(File * const input) {
     // Read variable fields.
     //
 
-    const size_t field_data_size(record.leader_.getRecordLength() - record.leader_.getBaseAddressOfData());
+    const size_t FIELD_DATA_SIZE(record.leader_.getRecordLength() - record.leader_.getBaseAddressOfData());
 #pragma GCC diagnostic ignored "-Wvla"
-    char raw_field_data[field_data_size];
+    char raw_field_data[FIELD_DATA_SIZE];
 #pragma GCC diagnostic warning "-Wvla"
     if ((read_count = input->read(raw_field_data, field_data_size)) != static_cast<ssize_t>(field_data_size))
         throw std::runtime_error("in MarcReader: Short read for field data or premature EOF in " + input->getPath()

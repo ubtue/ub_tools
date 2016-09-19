@@ -25,13 +25,12 @@
 #include <cstring>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 bool IsPossibleDDC(const std::string &ddc_candidate) {
@@ -71,7 +70,7 @@ void ExtractDDCsFromNormdata(const bool verbose, File * const norm_input,
         std::cerr << "Starting loading of norm data.\n";
 
     unsigned count(0), ddc_record_count(0);
-    while (const MarcRecord record = MarcReader::Read(norm_input)) {
+    while (const MarcRecord &record = MarcReader::Read(norm_input)) {
         ++count;
 
         const size_t _001_index = record.getFieldIndex("001");

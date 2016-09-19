@@ -2,7 +2,9 @@
 # Runs through the phases of the IxTheo MARC processing pipeline.
 set -o errexit -o nounset
 
-VUFIND_HOME=/usr/local/vufind2
+if [ -z "$VUFIND_HOME" ]; then
+    VUFIND_HOME=/usr/local/vufind2
+fi
 
 if [ $# != 2 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc" "Normdaten-YYMMDD.mrc"

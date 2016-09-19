@@ -40,7 +40,7 @@ private:
     unsigned field_offset_;
     mutable std::string cache_;
 public:
-    void setCache(const std::string& cache) const { cache_ = cache; }
+    void setCache(const std::string &cache) const { cache_ = cache; }
     std::string getCache() const { return cache_; }
     bool hasCache() const { return not cache_.empty(); }
 

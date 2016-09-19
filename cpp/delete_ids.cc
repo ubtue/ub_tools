@@ -26,8 +26,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -70,13 +70,13 @@ loop_top:
         if (line.length() < PPN_START_INDEX)
             Error("short line " + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath()
                   + "\": \"" + line + "\"!");
-        for (char indicator : FULL_RECORD_DELETE_INDICATORS) {
+        for (const char indicator : FULL_RECORD_DELETE_INDICATORS) {
             if (line[SEPARATOR_INDEX] == indicator) {
                 delete_full_record_ids->insert(line.substr(PPN_START_INDEX)); // extract PPN
                 goto loop_top;
             }
         }
-        for (char indicator : LOCAL_DATA_DELETE_INDICATORS) {
+        for (const char indicator : LOCAL_DATA_DELETE_INDICATORS) {
             if (line[SEPARATOR_INDEX] == indicator) {
                 if (line.length() < MIN_LINE_LENGTH)
                     Error("unexpected line length " + std::to_string(line.length()) + " for local entry on line "

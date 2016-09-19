@@ -32,8 +32,8 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"

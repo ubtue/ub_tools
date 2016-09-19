@@ -26,12 +26,11 @@
 #include <cstring>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 void Usage() {

@@ -1,18 +1,33 @@
-//
-// Created by quboo01 on 13.09.16.
-//
+/** \brief A tool to compare two marc files, regardless of the file format.
+ *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *
+ *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <iostream>
 #include <string>
 #include <vector>
-
-#include "util.h"
 #include "File.h"
 #include "MarcUtil.h"
-#include "MarcWriter.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "WallClockTimer.h"
+#include "util.h"
+
 
 void Usage() {
     std::cerr << "usage: " << progname << " marc_input marc_output\n";
@@ -20,37 +35,39 @@ void Usage() {
     std::exit(EXIT_FAILURE);
 }
 
-static const size_t INSERTED_FIELDS_COUNT = 20;
 
-MarcRecord testMarc21(File * const input) {
+static const size_t INSERTED_FIELDS_COUNT(20);
+
+
+MarcRecord TestMarc21(File * const input) {
     MarcRecord record = MarcReader::Read(input);
-    if (not record) { return record; }
+    if (not record) return record;
 
     record.getControlNumber();
     record.getFieldIndex("689");
     record.extractFirstSubfield("689", 't');
 
     std::vector<std::string> vector;
-    size_t count = record.extractAllSubfields("100", &vector, "a0");
+    size_t count(record.extractAllSubfields("100", &vector, "a0"));
 
     count = record.extractSubfield("689", '0', &vector);
 
     count = record.extractSubfields("689", "02", &vector);
 
-    std::vector<std::pair<size_t, size_t>> LOKs;
-    count = record.findAllLocalDataBlocks(&LOKs);
+    std::vector<std::pair<size_t, size_t>> lok_fields;
+    count = record.findAllLocalDataBlocks(&lok_fields);
 
     if (count > 0) {
         std::vector <size_t> indizes;
-        count = record.findFieldsInLocalBlock("852", "?1", LOKs[0], &indizes);
+        count = record.findFieldsInLocalBlock("852", "?1", lok_fields[0], &indizes);
     }
 
     record.filterTags({"LOK"});
-    count = record.findAllLocalDataBlocks(&LOKs);
+    count = record.findAllLocalDataBlocks(&lok_fields);
 
     Subfields subfields('x', 'y');
     subfields.addSubfield('a', "Test");
-    ssize_t index = record.insertField("TST", subfields.toString());
+    const size_t index(record.insertField("TST", subfields.toString()));
     record.extractFirstSubfield("TST", 'a');
 
     Subfields newSubfields('a', 'b');
@@ -61,14 +78,14 @@ MarcRecord testMarc21(File * const input) {
     record.deleteField(index);
     record.getFieldIndex("TST");
 
-    for (size_t i = 0; i < INSERTED_FIELDS_COUNT; ++i) {
+    for (size_t i(0); i < INSERTED_FIELDS_COUNT; ++i)
         record.insertField("TST", subfields.toString());
-    }
 
     return record;
 }
 
-MarcUtil::Record testOldRecord(File * const input) {
+
+MarcUtil::Record TestOldRecord(File * const input) {
     MarcUtil::Record record = MarcUtil::Record::BinaryFactory(input);
     if (not record) { return record; }
 
@@ -97,7 +114,7 @@ MarcUtil::Record testOldRecord(File * const input) {
     Subfields subfields('x', 'y');
     subfields.addSubfield('a', "Test");
     record.insertField("TST", subfields.toString());
-    ssize_t index = record.getFieldIndex("TST");
+    const size_t index(record.getFieldIndex("TST"));
     record.extractFirstSubfield("TST", 'a');
 
     Subfields newSubfields('a', 'b');
@@ -109,15 +126,14 @@ MarcUtil::Record testOldRecord(File * const input) {
     record.deleteField(index);
     record.getFieldIndex("TST");
 
-    for (size_t i = 0; i < INSERTED_FIELDS_COUNT; ++i) {
+    for (size_t i(0); i < INSERTED_FIELDS_COUNT; ++i)
         record.insertField("TST", subfields.toString());
-    }
 
     return record;
 }
 
-void speedTest(const std::string &inputFile) {
-    const std::string marc_input_filename(inputFile);
+void speedTest(const std::string &input_file) {
+    const std::string marc_input_filename(input_file);
     File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
@@ -127,21 +143,19 @@ void speedTest(const std::string &inputFile) {
         Error("can't open \"Marc21.test.mrc\" for writing!");
 
     WallClockTimer marc21Timer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
-    while (MarcRecord marcRecord = testMarc21(&marc_input)) {
+    while (const MarcRecord marcRecord = TestMarc21(&marc_input))
         MarcWriter::Write(marcRecord, &marc_output);
-    }
     marc21Timer.stop();
-    std::cout << "Marc21: " << marc21Timer.getTimeInMilliseconds() / 1000.0 << " sek\n";
+    std::cout << "Marc21: " << marc21Timer.getTimeInMilliseconds() / 1000.0 << " sec\n";
 
     marc_input.rewind();
     marc_output.rewind();
 
     WallClockTimer oldRecordTimer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
-    while (MarcUtil::Record oldRecord = testOldRecord(&marc_input)) {
+    while (const MarcUtil::Record oldRecord = TestOldRecord(&marc_input))
         oldRecord.write(&marc_output);
-    }
     oldRecordTimer.stop();
-    std::cout << "Old Marc: " << oldRecordTimer.getTimeInMilliseconds() / 1000.0<< " sek\n";
+    std::cout << "Old Marc: " << oldRecordTimer.getTimeInMilliseconds() / 1000.0<< " sec\n";
 }
 
 void speedTestWithoutChanges(const std::string &inputFile) {
@@ -155,21 +169,21 @@ void speedTestWithoutChanges(const std::string &inputFile) {
         Error("can't open \"Marc21.test.mrc\" for writing!");
 
     WallClockTimer marc21Timer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
-    while (MarcRecord marcRecord = MarcReader::Read(&marc_input)) {
+    while (const MarcRecord marcRecord = MarcReader::Read(&marc_input)) {
         MarcWriter::Write(marcRecord, &marc_output);
     }
     marc21Timer.stop();
-    std::cout << "Marc21: " <<marc21Timer.getTimeInMilliseconds() / 1000.0 << " sek\n";
+    std::cout << "Marc21: " <<marc21Timer.getTimeInMilliseconds() / 1000.0 << " sec\n";
 
     marc_input.rewind();
     marc_output.rewind();
 
     WallClockTimer oldRecordTimer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
-    while (MarcUtil::Record oldRecord = MarcUtil::Record::BinaryFactory(&marc_input)) {
+    while (const MarcUtil::Record oldRecord = MarcUtil::Record::BinaryFactory(&marc_input)) {
         oldRecord.write(&marc_output);
     }
     oldRecordTimer.stop();
-    std::cout << "Old Marc: " << oldRecordTimer.getTimeInMilliseconds() / 1000.0<< " sek\n";
+    std::cout << "Old Marc: " << oldRecordTimer.getTimeInMilliseconds() / 1000.0<< " sec\n";
 }
 
 void writeTestWithoutChanges (const std::string &inputFile) {
@@ -186,11 +200,11 @@ void writeTestWithoutChanges (const std::string &inputFile) {
     if (not old_output)
         Error("can't open \"Marc_old.test.mrc\" for writing!");
 
-    MarcRecord marcRecord = MarcReader::Read(&marc_input);
+    const MarcRecord marcRecord(MarcReader::Read(&marc_input));
     MarcWriter::Write(marcRecord, &marc21_output);
 
     marc_input.seek(0);
-    MarcUtil::Record oldRecord = MarcUtil::Record::BinaryFactory(&marc_input);
+    const MarcUtil::Record oldRecord(MarcUtil::Record::BinaryFactory(&marc_input));
     oldRecord.write(&old_output);
 }
 
@@ -208,12 +222,12 @@ void writeTestWithChanges(const std::string &inputFile) {
     if (not old_output)
         Error("can't open \"Marc_old.test.mrc\" for writing!");
 
-    MarcRecord marcRecord = testMarc21(&marc_input);
+    const MarcRecord marcRecord(TestMarc21(&marc_input));
     MarcWriter::Write(marcRecord, &marc21_output);
     marc21_output.close();
 
     marc_input.seek(0);
-    MarcUtil::Record oldRecord = testOldRecord(&marc_input);
+    MarcUtil::Record oldRecord = TestOldRecord(&marc_input);
     oldRecord.write(&old_output);
 }
 
@@ -227,10 +241,10 @@ void writeBigMarcFile(const std::string &inputFile) {
     if (not output)
         Error("can't open \"Marc21.test.big.mrc\" for writing!");
 
-    MarcRecord record = MarcReader::Read(&input);
+    MarcRecord record(MarcReader::Read(&input));
     Subfields subfields('x', 'y');
     subfields.addSubfield('a', "A very long String. FooBar. Erases the contents of the string, which becomes an empty string (with a length of 0 characters).");
-    for (size_t i = 0; i < 5000; ++i)
+    for (size_t i(0); i < 5000; ++i)
         record.insertField("TST", subfields.toString());
     std::cout << "Write number of Fields: " << record.getNumberOfFields() << "\n";
     MarcWriter::Write(record, &output);
@@ -257,6 +271,4 @@ int main(int argc, char **argv) {
         Usage();
 
     speedTestWithoutChanges(argv[1]);
-
-    return 0;
 }

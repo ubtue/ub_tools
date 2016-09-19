@@ -29,14 +29,13 @@
 #include <cstdlib>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 void Usage() {
@@ -56,7 +55,7 @@ bool RecordMonographControlNumbers(MarcRecord * const record, File * const /*out
                                    std::string * const /* err_msg */)
 {
     const Leader &leader(record->getLeader());
-    if (leader[7] == 'm') {
+    if (leader.isMonograph()) {
         monograph_control_numbers.insert(record->getControlNumber());
     }
 
@@ -89,7 +88,7 @@ bool HasMonographParent(const std::string &subfield, const MarcRecord &record) {
         return false;
 
     const Subfields &subfields(record.getSubfields(field_index));
-    const std::string subfield_contents(subfields.getFirstSubfieldValue(subfield_code));
+    const std::string &subfield_contents(subfields.getFirstSubfieldValue(subfield_code));
     if (subfield_contents.empty())
         return false;
 
@@ -118,7 +117,7 @@ bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MarcRe
 // Also writes all records to "output_ptr".
 bool PatchUpArticle(MarcRecord * const record, File * const output, std::string * const /*err_msg*/) {
     Leader &leader(record->getLeader());
-    if (leader[7] != 'a') {
+    if (not leaderisArticle()) {
         MarcWriter::Write(*record, output);
         return true;
     }
