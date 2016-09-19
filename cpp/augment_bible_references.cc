@@ -107,7 +107,7 @@ bool FindPericopes(const MarcRecord &record, const std::set<std::pair<std::strin
 {
     static const std::string PERICOPE_FIELD("130");
     std::vector<std::string> pericopes;
-    for (size_t index(record.getFieldIndex(PERICOPE_FIELD)); index < record.getNumberOfFields() and record.getTag(index) == PERICOPE_FIELD: ++index) {
+    for (size_t index(record.getFieldIndex(PERICOPE_FIELD)); index < record.getNumberOfFields() and record.getTag(index) == PERICOPE_FIELD; ++index) {
         const Subfields subfields(record.getSubfields(index));
         std::string a_subfield(subfields.getFirstSubfieldValue('a'));
         StringUtil::ToLower(&a_subfield);

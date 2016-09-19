@@ -80,7 +80,6 @@ bool MarcRecord::updateField(const size_t field_index, const std::string &new_fi
 
     entry.setFieldLength(length);
     entry.setFieldOffset(offset);
-    entry.setCache(new_field_value);
     raw_data_ += new_field_value + '\x1E';
 
     return true;
@@ -102,7 +101,6 @@ size_t MarcRecord::insertField(const std::string &new_field_tag, const std::stri
     raw_data_ += new_field_value + '\x1E';
 
     const size_t index(std::distance(directory_entries_.begin(), inserted_location));
-    directory_entries_[index].setCache(new_field_value);
     return index;
 }
 
@@ -281,8 +279,8 @@ void MarcRecord::combine(const MarcRecord &record) {
     // Ignore first field. We only need one 001-field.
     directory_entries_.reserve(record.directory_entries_.size() - 1);
     for (auto iter(record.directory_entries_.begin() + 1); iter < record.directory_entries_.end(); ++iter) {
-        auto entry = directory_entries_.emplace_back(*iter);
-        entry->setFieldOffset(iter->getFieldOffset() + offset);
+        directory_entries_.emplace_back(*iter);
+        directory_entries_.back().setFieldOffset(iter->getFieldOffset() + offset);
     }
 }
 

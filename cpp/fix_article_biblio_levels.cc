@@ -117,7 +117,7 @@ bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MarcRe
 // Also writes all records to "output_ptr".
 bool PatchUpArticle(MarcRecord * const record, File * const output, std::string * const /*err_msg*/) {
     Leader &leader(record->getLeader());
-    if (not leaderisArticle()) {
+    if (not leader.isArticle()) {
         MarcWriter::Write(*record, output);
         return true;
     }

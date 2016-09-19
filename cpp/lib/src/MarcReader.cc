@@ -67,16 +67,16 @@ MarcRecord MarcReader::ReadSingleRecord(File * const input) {
     // Parse directory entries.
     //
 
-    const ssize_t DIRECTORY_LENGTH(record.leader_.getBaseAddressOfData() - Leader::LEADER_LENGTH);
+    const size_t DIRECTORY_LENGTH(record.leader_.getBaseAddressOfData() - Leader::LEADER_LENGTH);
 #pragma GCC diagnostic ignored "-Wvla"
     char directory_buf[DIRECTORY_LENGTH];
 #pragma GCC diagnostic warning "-Wvla"
-    if ((read_count = input->read(directory_buf, directory_length)) != directory_length)
+    if ((read_count = input->read(directory_buf, DIRECTORY_LENGTH)) != static_cast<ssize_t>(DIRECTORY_LENGTH))
         throw std::runtime_error("in MarcReader::read: Short read for a directory or premature EOF in " + input->getPath()
                                  + "! (read count was " + std::to_string(read_count) + ", record_start_pos was "
                                  + std::to_string(record_start_pos) + ")");
 
-    if (not DirectoryEntry::ParseDirEntries(std::string(directory_buf, directory_length), &record.directory_entries_, &err_msg))
+    if (not DirectoryEntry::ParseDirEntries(std::string(directory_buf, DIRECTORY_LENGTH), &record.directory_entries_, &err_msg))
         throw std::runtime_error("in MarcReader::read: failed to parse directory entries: " + err_msg);
 
     //
@@ -87,16 +87,16 @@ MarcRecord MarcReader::ReadSingleRecord(File * const input) {
 #pragma GCC diagnostic ignored "-Wvla"
     char raw_field_data[FIELD_DATA_SIZE];
 #pragma GCC diagnostic warning "-Wvla"
-    if ((read_count = input->read(raw_field_data, field_data_size)) != static_cast<ssize_t>(field_data_size))
+    if ((read_count = input->read(raw_field_data, FIELD_DATA_SIZE)) != static_cast<ssize_t>(FIELD_DATA_SIZE))
         throw std::runtime_error("in MarcReader: Short read for field data or premature EOF in " + input->getPath()
-                                 + "! (Expected " + std::to_string(field_data_size) + " bytes, got "+ std::to_string(read_count)
+                                 + "! (Expected " + std::to_string(FIELD_DATA_SIZE) + " bytes, got "+ std::to_string(read_count)
                                  + " bytes, record_start_pos was " + std::to_string(record_start_pos) + ", current: " + std::to_string(input->tell()) + ")");
 
     // Sanity check for record end:
-    if (raw_field_data[field_data_size - 1] != '\x1D')
+    if (raw_field_data[FIELD_DATA_SIZE - 1] != '\x1D')
         throw std::runtime_error("in MarcReader::read: Record does not end with \\x1D! (in " + input->getPath() + ", record_start_pos was " + std::to_string(record_start_pos) + ", current: " + std::to_string(input->tell()) + ")");
 
-    record.raw_data_.append(raw_field_data, field_data_size);
+    record.raw_data_.append(raw_field_data, FIELD_DATA_SIZE);
 
     return record;
 }
