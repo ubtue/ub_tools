@@ -143,7 +143,7 @@ void speedTest(const std::string &input_file) {
         Error("can't open \"Marc21.test.mrc\" for writing!");
 
     WallClockTimer marc21Timer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
-    while (const MarcRecord marcRecord = TestMarc21(&marc_input))
+    while (MarcRecord marcRecord = TestMarc21(&marc_input))
         MarcWriter::Write(marcRecord, &marc_output);
     marc21Timer.stop();
     std::cout << "Marc21: " << marc21Timer.getTimeInMilliseconds() / 1000.0 << " sec\n";
@@ -152,7 +152,7 @@ void speedTest(const std::string &input_file) {
     marc_output.rewind();
 
     WallClockTimer oldRecordTimer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
-    while (const MarcUtil::Record oldRecord = TestOldRecord(&marc_input))
+    while (MarcUtil::Record oldRecord = TestOldRecord(&marc_input))
         oldRecord.write(&marc_output);
     oldRecordTimer.stop();
     std::cout << "Old Marc: " << oldRecordTimer.getTimeInMilliseconds() / 1000.0<< " sec\n";
@@ -169,7 +169,7 @@ void speedTestWithoutChanges(const std::string &inputFile) {
         Error("can't open \"Marc21.test.mrc\" for writing!");
 
     WallClockTimer marc21Timer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
-    while (const MarcRecord marcRecord = MarcReader::Read(&marc_input)) {
+    while (MarcRecord marcRecord = MarcReader::Read(&marc_input)) {
         MarcWriter::Write(marcRecord, &marc_output);
     }
     marc21Timer.stop();
@@ -179,7 +179,7 @@ void speedTestWithoutChanges(const std::string &inputFile) {
     marc_output.rewind();
 
     WallClockTimer oldRecordTimer(WallClockTimer::CUMULATIVE_WITH_AUTO_START);
-    while (const MarcUtil::Record oldRecord = MarcUtil::Record::BinaryFactory(&marc_input)) {
+    while (MarcUtil::Record oldRecord = MarcUtil::Record::BinaryFactory(&marc_input)) {
         oldRecord.write(&marc_output);
     }
     oldRecordTimer.stop();
@@ -200,11 +200,11 @@ void writeTestWithoutChanges (const std::string &inputFile) {
     if (not old_output)
         Error("can't open \"Marc_old.test.mrc\" for writing!");
 
-    const MarcRecord marcRecord(MarcReader::Read(&marc_input));
+    MarcRecord marcRecord(MarcReader::Read(&marc_input));
     MarcWriter::Write(marcRecord, &marc21_output);
 
     marc_input.seek(0);
-    const MarcUtil::Record oldRecord(MarcUtil::Record::BinaryFactory(&marc_input));
+    MarcUtil::Record oldRecord(MarcUtil::Record::BinaryFactory(&marc_input));
     oldRecord.write(&old_output);
 }
 
@@ -222,7 +222,7 @@ void writeTestWithChanges(const std::string &inputFile) {
     if (not old_output)
         Error("can't open \"Marc_old.test.mrc\" for writing!");
 
-    const MarcRecord marcRecord(TestMarc21(&marc_input));
+    MarcRecord marcRecord(TestMarc21(&marc_input));
     MarcWriter::Write(marcRecord, &marc21_output);
     marc21_output.close();
 

@@ -60,11 +60,11 @@ static void Usage() {
 }
 
 
-void FileLockedComposeAndWriteRecord(File * const output, const MarcRecord &record) {
+void FileLockedComposeAndWriteRecord(File * const output, MarcRecord * const record) {
     FileLocker file_locker(output, FileLocker::WRITE_ONLY);
     if (not output->seek(0, SEEK_END))
         Error("failed to seek to the end of \"" + output->getPath() + "\"!");
-    MarcWriter::Write(record, output);
+    MarcWriter::Write(*record, output);
     output->flush();
 }
 
@@ -127,7 +127,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     std::cout << "Skip " << skip_count << " records\n";
 
-    const off_t record_start = input->tell();
+    off_t record_start = input->tell();
     while (MarcRecord record = MarcReader::Read(input)) {
         if (total_record_count == max_record_count)
             break;
@@ -136,7 +136,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             continue;
 
         if (not FoundAtLeastOneNonReviewLink(record)) {
-            FileLockedComposeAndWriteRecord(output, record);
+            FileLockedComposeAndWriteRecord(output, &record);
             continue;
         }
 
