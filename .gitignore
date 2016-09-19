@@ -102,7 +102,7 @@ urlencode
 vufind_db_test
 xml_parser_test
 marc_compare
-Marc21Tests
+marc21_test
 
 bsz_daten
 bsz_daten_cumulated
