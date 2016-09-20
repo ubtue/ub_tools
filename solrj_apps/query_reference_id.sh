@@ -5,7 +5,7 @@ if [ $# != 3 ]; then
     exit 1;
 fi
 
-curl_base_string='http://localhost:8081/solr/biblio/select?fl=id&wt=csv'
+curl_base_string='http://localhost:8081/solr/biblio/select?fl=id&wt=csv&rows=1000000'
 
 outputdir=$1
 refterm=$2
