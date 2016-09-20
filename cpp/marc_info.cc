@@ -36,14 +36,18 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] marc_data\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] [--report-duplicate-ids] marc_data\n"
+              << "       If \"--report-duplicate-ids\" has been specified, the occurrence of duplicate ID's\n"
+              << "       will be reported, if it has not been sepcified, the programme will abort when it\n"
+              << "       it encounters the first duplicate ID.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void ProcessRecords(const bool verbose, const bool input_is_xml, File * const input) {
+void ProcessRecords(const bool verbose, const bool input_is_xml, const bool report_duplicate_ids, File * const input)
+{
     std::string raw_record;
-    unsigned record_count(0), max_record_length(0), max_local_block_count(0);
+    unsigned record_count(0), max_record_length(0), max_local_block_count(0), duplicate_id_count(0);
     std::unordered_set<std::string> control_numbers;
     std::map<Leader::RecordType, unsigned> record_types_and_counts;
 
@@ -66,9 +70,14 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
         if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
             Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
 
-        if (control_numbers.find(control_number) != control_numbers.end())
-            Error("found at least one duplicate control number: " + control_number);
-        control_numbers.insert(control_number);
+        if (control_numbers.find(control_number) != control_numbers.end()) {
+            if (report_duplicate_ids) {
+                std::cerr << "Found a duplicate control number: " << control_number << ".\n";
+                ++duplicate_id_count;
+            } else
+                Error("found at least one duplicate control number: " + control_number);
+        } else
+            control_numbers.insert(control_number);
 
         const Leader &leader(record.getLeader());
         const unsigned record_length(leader.getRecordLength());
@@ -90,6 +99,8 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
               << " classification record(s), " << record_types_and_counts[Leader::RecordType::CLASSIFICATION]
               << " authority record(s), and " << record_types_and_counts[Leader::RecordType::UNKNOWN]
               << " record(s) of unknown record type.\n";
+    if (report_duplicate_ids)
+        std::cout << "Found " << duplicate_id_count << " records w/ duplicate ID's.\n";
 }
 
 
@@ -101,6 +112,10 @@ int main(int argc, char *argv[]) {
 
     const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
     if (verbose)
+        --argc, ++argv;
+
+    const bool report_duplicate_ids(std::strcmp(argv[1], "--report-duplicate-ids") == 0);
+    if (report_duplicate_ids)
         --argc, ++argv;
 
     if (argc != 2)
@@ -119,7 +134,7 @@ int main(int argc, char *argv[]) {
         Error("can't open \"" + marc_input_filename + "\" for reading!");
 
     try {
-        ProcessRecords(verbose, input_is_xml, &marc_input);
+        ProcessRecords(verbose, input_is_xml, report_duplicate_ids, &marc_input);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
