@@ -82,8 +82,8 @@ public:
 
     inline int getFileDescriptor() const { return fileno(file_); }
 
-    inline long tell() const {
-        long file_pos(std::ftell(file_));
+    inline off_t tell() const {
+        const off_t file_pos(::ftello(file_));
         if (open_mode_ == WRITING)
             return file_pos;
         return file_pos - read_count_ + (buffer_ptr_ - buffer_);
