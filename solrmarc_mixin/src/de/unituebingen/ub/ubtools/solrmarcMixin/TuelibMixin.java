@@ -741,6 +741,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verlegerin", "hg");
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("herausgeber", "hg");
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("herausgeberin", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("hrsg", "hg");
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("übersetzer", "trl");
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("übersetzerin", "trl");
     }
