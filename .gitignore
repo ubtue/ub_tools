@@ -19,6 +19,7 @@ add_journal_subscription
 add_superior_and_alertable_flags
 add_synonyms
 add_title_keywords
+add_ub_sigil_to_articles
 append_marc_xml
 archive_reader_test
 archive_writer_test
