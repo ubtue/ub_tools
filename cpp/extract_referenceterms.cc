@@ -39,6 +39,7 @@
 #include "util.h"
 
 static unsigned record_count(0);
+static unsigned read_in_count(0);
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " reference_data_marc_input output\n";
@@ -72,8 +73,10 @@ void ExtractSynonyms(File * const reference_data_marc_input, const std::set<std:
             std::vector<std::string> synonym_values;              
 
             if (record.extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values) and 
-                record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values))
+                record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values)) {
                     (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values, ','));
+                    ++read_in_count;
+                }
         }
     }
 }
@@ -131,6 +134,9 @@ int main(int argc, char **argv) {
 
         // Write a '|' separated list file
         WriteReferenceTermFile(&output, synonym_maps);
+
+std::cerr << "Read in " << read_in_count << " record(s).\n";
+
 
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
