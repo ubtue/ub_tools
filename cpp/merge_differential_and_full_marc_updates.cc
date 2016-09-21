@@ -222,15 +222,15 @@ std::string AdvanceToDate(const std::string &reference_filename, const std::vect
 }
 
 
-void GetFilesMoreRecentThan(const std::string &cutoff_date, const std::string &filename_pattern,
-                            std::vector<std::string> * const filenames)
+void GetFilesMoreRecentThanOrEqual(const std::string &cutoff_date, const std::string &filename_pattern,
+                                   std::vector<std::string> * const filenames)
 {
     GetSortedListOfRegularFiles(filename_pattern, filenames);
 
     const auto first_deletion_position(filenames->begin());
     auto last_deletion_position(filenames->begin());
     while (last_deletion_position < filenames->end()
-           and ExtractDateFromFilenameOrDie(*last_deletion_position) <= cutoff_date)
+           and ExtractDateFromFilenameOrDie(*last_deletion_position) < cutoff_date)
         ++last_deletion_position;
 
     const auto erase_count(std::distance(first_deletion_position, last_deletion_position));
@@ -802,19 +802,20 @@ int main(int argc, char *argv[]) {
         const std::string complete_dump_filename_date(ExtractDateFromFilenameOrDie(complete_dump_filename));
 
         std::vector<std::string> deletion_list_filenames;
-        GetFilesMoreRecentThan(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
+        GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
         if (not deletion_list_filenames.empty())
             Log("identified " + std::to_string(deletion_list_filenames.size())
                 + " deletion list filenames for application.");
 
         std::vector<std::string> errors_list_filenames;
-        GetFilesMoreRecentThan(complete_dump_filename_date, errors_list_pattern, &errors_list_filenames);
+        GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, errors_list_pattern, &errors_list_filenames);
         if (not errors_list_filenames.empty())
             Log("identified " + std::to_string(errors_list_filenames.size())
                 + " errors list filenames for application.");
 
         std::vector<std::string> incremental_dump_filenames;
-        GetFilesMoreRecentThan(complete_dump_filename_date, incremental_dump_pattern, &incremental_dump_filenames);
+        GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_dump_pattern,
+                                      &incremental_dump_filenames);
         if (not incremental_dump_filenames.empty())
             Log("identified " + std::to_string(incremental_dump_filenames.size())
                 + " incremental dump filenames for application.");
