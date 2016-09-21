@@ -25,8 +25,7 @@ mkdir -p $tmpdir
 #Setup Solr in Ramdisk and import data
 
 #Query all matching IDs from Solr and write files for each term respectively
-#cat $reffile | awk --file rewrite_query_expression.awk | xargs -t -0 --max-args=2 --max-procs=8 java -cp $CLASSPATH  $QUERYREF_MAIN $tmpdir
-cat $reffile | awk --file rewrite_query_expression.awk | xargs -0 --max-args=2 --max-procs=8 ./query_reference_id.sh $tmpdir
+cat $reffile | awk -f <(sed -e '0,/^#!.*awk/d' $0) | xargs -0 --max-args=2 --max-procs=8 ./query_reference_id.sh $tmpdir
 
 #Remove all files without containing ids
 find $tmpdir -size 0 -print0 | xargs -0 rm
@@ -40,5 +39,41 @@ awk -F "|" 's != $1 || NR ==1{s=$1;if(p){print p};p=$0;next} {sub($1,"",$0);p=p"
 
 #Copy file
 cp $tmpdir/$MERGED_FILE $outputdir/$RESULT_FILE
-#find $tmpdir \( -name "*.ids" -o -name "*.terms" \) -print0 | xargs -0 rm
-#rm $tmpdir/$UNIFIED_FILE
+
+exit 0
+
+################################################################
+#!/usr/bin/awk -f
+BEGIN {
+    FS="([,|])"
+    FPAT="([^,|]+)"
+}
+
+{
+    printf("\"%s\"\0", $1)
+
+    printf("(")
+
+    for (i = 2; i <= NF; ++i) {
+        printf("topic_de:\"%s\"", $i)
+        if (i < NF)
+            printf(" AND ")
+    }
+
+    printf(") OR (")
+
+    for (i = 2; i <= NF; ++i) {
+        printf("key_word_chain_bag_de:\"%s\"", $i)
+        if (i < NF)
+            printf(" AND ")
+    }
+
+    print(")");
+
+    printf("%c", 0);
+
+}
+#################################################################
+
+
+
