@@ -52,7 +52,7 @@ def CreateRefTermFile(ref_data_archive, title_data_link_name, conf):
         date_string = re.search('\d{6}', title_data_file).group()
     except AttributeError:
         date_string = ''
-    ref_data_base_filename = "Hinweisdaten-" + date_string
+    ref_data_base_filename = "Hinweissätze-" + date_string
     ref_data_marc_file = ref_data_base_filename + ".mrc"
     # Convert tar.gz to mrc
     ExtractRefDataMarcFile(ref_data_archive, ref_data_marc_file, log_file_name)
