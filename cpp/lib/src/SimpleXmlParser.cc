@@ -131,7 +131,9 @@ inline bool SimpleXmlParser::extractName(std::string * const name) {
         ch = input_->get();
         if (unlikely(ch == EOF))
             return false;
-        if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.')) {
+        if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.'
+                 or ch == '-'))
+        {
             input_->putback(ch);
             return true;
         }
@@ -246,7 +248,7 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
 
             if (unlikely(ch != '>')) {
                 last_type_ = *type = ERROR;
-                last_error_message_ = "Error while parsing a opening tag on line " + std::to_string(line_no_) + "! ("
+                last_error_message_ = "Error while parsing an opening tag on line " + std::to_string(line_no_) + "! ("
                                       "Closing angle bracket not found.)";
                 return false;
             }
