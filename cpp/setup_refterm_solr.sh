@@ -68,17 +68,4 @@ $RAMDISK_DIR/$SOLR_START_SCRIPT start
 
 
 #Import the files
-$RAMDISK_DIR/import-marc.sh -p $RAMDISK_DIR/import/import-properties $1 2>&1 | tee $LOGDIR/import.log
-
-
-
-
-
-
-
-
-
-
-
-
-
+$RAMDISK_DIR/import-marc.sh -p $RAMDISK_DIR/import/import-properties $1 2>&1 

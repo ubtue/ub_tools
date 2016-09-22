@@ -25,7 +25,7 @@ mkdir -p $tmpdir
 #Setup Solr in Ramdisk and import data
 
 #Query all matching IDs from Solr and write files for each term respectively
-cat $reffile | awk -f <(sed -e '0,/^#!.*awk/d' $0) | xargs -0 --max-args=2 --max-procs=8 ./query_reference_id.sh $tmpdir
+cat $reffile | awk -f <(sed -e '0,/^#!.*awk/d' $0) | xargs -0 --max-args=2 --max-procs=8 query_reference_id.sh $tmpdir
 
 #Remove all files without containing ids
 find $tmpdir -size 0 -print0 | xargs -0 rm
@@ -39,6 +39,8 @@ awk -F "|" 's != $1 || NR ==1{s=$1;if(p){print p};p=$0;next} {sub($1,"",$0);p=p"
 
 #Copy file
 cp $tmpdir/$MERGED_FILE $outputdir/$RESULT_FILE
+
+echo "Successfully created Hinweissätze-Ergebnisse"
 
 exit 0
 
