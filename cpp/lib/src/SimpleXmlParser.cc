@@ -246,7 +246,7 @@ bool SimpleXmlParser::getNext(Type * const type, std::map<std::string, std::stri
 
             if (unlikely(ch != '>')) {
                 last_type_ = *type = ERROR;
-                last_error_message_ = "Error while parsing a opening tag on line " + std::to_string(line_no_) + "! ("
+                last_error_message_ = "Error while parsing an opening tag on line " + std::to_string(line_no_) + "! ("
                                       "Closing angle bracket not found.)";
                 return false;
             }
