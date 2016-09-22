@@ -95,8 +95,8 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
                          >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 
+
 StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, and Remove Sorting Chars\$a"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
     --input-format=marc-xml \
@@ -104,7 +104,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
     --remove-fields '856u:ixtheo\.de' \
     --filter-chars 130a:240a:245a '@' >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
+wait
 
 StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
 (extract_keywords_for_translation GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
@@ -134,11 +134,10 @@ wait
 
 
 StartPhase "Adding of ISBN's and ISSN's to Component Parts" 
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 (add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
+wait
 
 StartPhase "Extracting Keywords from Titles" 
 (enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
@@ -146,6 +145,7 @@ StartPhase "Extracting Keywords from Titles"
                                  ../cpp/data/stopwords.??? && \
 EndPhase) &
 wait
+
 
 StartPhase "Augment Bible References" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
@@ -182,9 +182,18 @@ StartPhase "Add Keyword Synonyms from Authority Data"
 EndPhase || Abort) &
 wait
 
+
 StartPhase "Fill in missing 773\$a Subfields"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 (augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
-                       GesamtTiteldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1 && \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \ >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Adding the Library Sigil to Articles Where Appropriate"
+(add_ub_sigil_to_articles \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    GesamtTiteldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
