@@ -45,18 +45,27 @@ def ExtractTitleDataMarcFile(link_name):
     return title_data_file_name[0]
 
 
-def CreateRefTermFile(ref_data_archive, title_data_file, conf):
+def CreateRefTermFile(ref_data_archive, title_data_link_name, conf):
     log_file_name = util.MakeLogFileName(os.path.basename(__file__), util.GetLogDirectory())
+    title_data_file = ExtractTitleDataMarcFile(title_data_link_name)
     try: 
         date_string = re.search('\d{6}', title_data_file).group()
     except AttributeError:
         date_string = ''
     ref_data_base_filename = "Hinweisdaten-" + date_string
     ref_data_marc_file = ref_data_base_filename + ".mrc"
+    # Convert tar.gz to mrc
     ExtractRefDataMarcFile(ref_data_archive, ref_data_marc_file, log_file_name)
     ref_data_synonym_file = ref_data_base_filename + ".txt"
-    print "ref_data_marc_file: "  + ref_data_marc_file 
+    # Make a refterm -> circumscription table file
     ExecOrDie("/usr/local/bin/extract_referenceterms", [ref_data_marc_file, ref_data_synonym_file] , log_file_name)
+    # Setup a temporary solr instance in a ramdisk and import title data
+    ExecOrDie("/usr/local/bin/setup_refterm_solr.sh", [title_data_file], log_file_name)
+    # Create a file with a list of refterms and containing ids
+    ExecOrDie("/usr/local/bin/create_reference_import_file.sh", [ref_data_synonym_file, os.getcwd()], log_file_name)
+    # Terminate the temporary solr instance
+    ExecOrDie("/usr/local/bin/shutdown_refterm_solr.sh", [] , log_file_name)
+  
 
 def Main():
     util.default_email_sender = "create_refterm_file@ub.uni-tuebingen.de"
@@ -76,8 +85,7 @@ def Main():
                         "No File matching pattern \"" + ref_data_pattern + "\" found\n", priority=1)
    
     if FoundNewBSZDataFile(link_name):
-        title_data_file = ExtractTitleDataMarcFile(link_name)
-        CreateRefTermFile(ref_data_archive, title_data_file, conf)
+        CreateRefTermFile(ref_data_archive, link_name, conf)
         util.SendEmail("Create Refterm File", "Refterm file successfully created.", priority=5)
     else:
         util.SendEmail("Create Refterm File", "No new data was found.", priority=5)
