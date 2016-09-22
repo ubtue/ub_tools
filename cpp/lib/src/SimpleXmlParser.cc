@@ -131,7 +131,9 @@ inline bool SimpleXmlParser::extractName(std::string * const name) {
         ch = input_->get();
         if (unlikely(ch == EOF))
             return false;
-        if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.')) {
+        if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.'
+                 or ch == '-'))
+        {
             input_->putback(ch);
             return true;
         }
