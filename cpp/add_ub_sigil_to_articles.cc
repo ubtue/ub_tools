@@ -165,10 +165,9 @@ int main(int argc, char **argv) {
     try {
         std::unordered_set<std::string> parent_ids;
         CollectParentIDs(verbose, marc_input.get(), &parent_ids);
-        marc_input->close();
-        
-        std::unique_ptr<File> marc_input2(FileUtil::OpenInputFileOrDie(marc_input_filename));
-        AddMissingSigilsToArticleEntries(verbose, marc_input2.get(), &marc_output, parent_ids);
+
+        marc_input->rewind();
+        AddMissingSigilsToArticleEntries(verbose, marc_input.get(), &marc_output, parent_ids);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
