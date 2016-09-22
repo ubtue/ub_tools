@@ -165,6 +165,14 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 EndPhase || Abort) &
 
 
+StartPhase "Adding the Library Sigil to Articles Where Appropriate"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
+(add_ub_sigil_to_articles \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \ >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Map DDC and RVK to IxTheo Notations" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 (map_ddc_and_rvk_to_ixtheo_notations \
