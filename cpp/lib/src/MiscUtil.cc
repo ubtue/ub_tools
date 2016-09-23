@@ -655,6 +655,19 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
 }
 
 
+char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit) {
+    if (unlikely(ppn_without_checksum_digit.length() != 8))
+        throw std::runtime_error("in MiscUtil::GeneratePPNChecksumDigit: argument's length is not 8!");
+
+    unsigned checksum(0);
+    for (unsigned i(0); i < 8; ++i)
+        checksum += (9 - i) * (ppn_without_checksum_digit[i] - '0');
+    checksum = (11 - (checksum % 11)) % 11;
+    
+    return checksum == 10 ? 'X' : '0' + checksum;
+}
+
+    
 bool IsValidPPN(const std::string &ppn_candidate) {
     if (ppn_candidate.length() != 9)
         return false;
@@ -664,13 +677,7 @@ bool IsValidPPN(const std::string &ppn_candidate) {
             return false;
     }
 
-    unsigned checksum(0);
-    for (unsigned i(0); i < 8; ++i)
-        checksum += (9 - i) * (ppn_candidate[i] - '0');
-    checksum = (11 - (checksum % 11)) % 11;
-    const char checksum_as_char(checksum == 10 ? 'X' : '0' + checksum);
-
-    return ppn_candidate[8] == checksum_as_char;
+    return ppn_candidate[8] == GeneratePPNChecksumDigit(ppn_candidate.substr(0, 8));
 }
 
 
