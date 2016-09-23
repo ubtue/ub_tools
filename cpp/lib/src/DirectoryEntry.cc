@@ -40,6 +40,17 @@ DirectoryEntry::DirectoryEntry(const std::string &raw_entry) {
 }
 
 
+DirectoryEntry &DirectoryEntry::operator=(const DirectoryEntry &rhs) {
+    if (&rhs != this) {
+        tag_          = rhs.tag_;
+        field_length_ = rhs.field_length_;
+        field_offset_ = rhs.field_offset_;
+    }
+
+    return *this;
+}
+
+
 std::string DirectoryEntry::toString() const {
     std::string field_as_string;
     field_as_string.reserve(DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
