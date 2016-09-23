@@ -23,6 +23,17 @@
 #include "StringUtil.h"
 
 
+Leader &Leader::operator=(const Leader &rhs) {
+    if (&rhs != this) {
+        raw_leader_           =  rhs.raw_leader_;
+        record_length_        = rhs.record_length_;
+        base_address_of_data_ = rhs.base_address_of_data_;
+    }
+
+    return *this;
+}
+
+
 bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader, std::string * const err_msg) {
     if (err_msg != nullptr)
         err_msg->clear();

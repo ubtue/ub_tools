@@ -108,6 +108,21 @@ static bool ReadFields(const std::string &raw_fields, const std::vector<Director
 namespace MarcUtil {
 
 
+Record &Record::operator=(const Record &rhs) {
+    if (&rhs != this) {
+            leader_                        = rhs.leader_;
+            raw_record_                    = rhs.raw_record_;
+            raw_record_is_out_of_date_     = rhs.raw_record_is_out_of_date_;
+            dir_entries_                   = rhs.dir_entries_;
+            fields_                        = rhs.fields_;
+            xml_file_start_offset_         = rhs.xml_file_start_offset_;
+            record_will_be_written_as_xml_ = rhs.record_will_be_written_as_xml_;
+    }
+
+    return *this;
+}
+
+    
 bool Record::recordSeemsCorrect(std::string * const err_msg) const {
     if (raw_record_is_out_of_date_)
         UpdateRawRecord();
