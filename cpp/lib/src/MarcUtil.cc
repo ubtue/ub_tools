@@ -109,7 +109,7 @@ namespace MarcUtil {
 
 
 Record &Record::operator=(const Record &rhs) {
-    if (&rhs != this) {
+    if (likely(&rhs != this)) {
             leader_                        = rhs.leader_;
             raw_record_                    = rhs.raw_record_;
             raw_record_is_out_of_date_     = rhs.raw_record_is_out_of_date_;
