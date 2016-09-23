@@ -58,7 +58,10 @@ public:
         record_will_be_written_as_xml_(other.record_will_be_written_as_xml_) { }
 
     /** Copy-assignment operator. */
-    Record &operator=(const Record &rhs) = default;
+    Record &operator=(Record rhs) {
+        std::swap(rhs, *this);
+        return *this;
+    }
     
     operator bool () const { return not dir_entries_.empty(); }
     bool recordWillBeWrittenAsXml() const { return record_will_be_written_as_xml_; }
