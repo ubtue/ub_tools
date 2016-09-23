@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DirectoryEntry class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "DirectoryEntry.h"
+#include "Compiler.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -41,7 +42,7 @@ DirectoryEntry::DirectoryEntry(const std::string &raw_entry) {
 
 
 DirectoryEntry &DirectoryEntry::operator=(const DirectoryEntry &rhs) {
-    if (&rhs != this) {
+    if (likely(&rhs != this)) {
         tag_          = rhs.tag_;
         field_length_ = rhs.field_length_;
         field_offset_ = rhs.field_offset_;
