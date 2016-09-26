@@ -12,15 +12,15 @@ if [[ ! "$1" =~ Hinweissätze-[0-9][0-9][0-9][0-9][0-9][0-9].txt ]]; then
     exit 1
 fi    
 
-reffile=$1
+reffile="$1"
 tmpdir="/mnt/zram/tmp"
-outputdir=$2
+outputdir="$2"
 date=$(echo $(echo "$reffile" | cut -d- -f 2) | cut -d. -f1)
 UNIFIED_FILE="UNIFIED"
 MERGED_FILE="MERGED"
 RESULT_FILE="Hinweissätze-Ergebnisse-${date}.txt"
 
-mkdir $tmpdir
+mkdir "$tmpdir"
 
 #Setup Solr in Ramdisk and import data
 
