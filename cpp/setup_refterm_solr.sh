@@ -59,7 +59,7 @@ mount -o relatime,nosuid /dev/zram0 "$RAMDISK_DIR"
 rsync --archive --recursive "$CONFIG_FILE_DIR/" "$RAMDISK_DIR"
 # Copy jars to zram
 rsync --archive --include='*.jar'  --exclude='*' "$STANDARD_VUFIND_SOLRMARC_HOME" "$RAMDISK_DIR/import"
-rsync --archive "$STANDARD_VUFIND_SOLRMARC_HOME"/lib"  "$RAMDISK_DIR"/import
+rsync --archive "$STANDARD_VUFIND_SOLRMARC_HOME"/lib  "$RAMDISK_DIR"/import
 rsync --archive "$STANDARD_VUFIND_SOLRMARC_HOME"/bin  "$RAMDISK_DIR"/import
 
 #Setup and start Solr

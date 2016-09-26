@@ -34,7 +34,7 @@ find "$tmpdir" -size 0 -print0 | xargs -0 rm
 cd "$tmpdir" && find "$tmpdir" -type f -printf '%P\0' | xargs -0 awk '{TERM = FILENAME; sub(/\..*$/, "", TERM); print $0 "|" TERM > (TERM ".terms")}'
 
 # Create a with with a list of IDs and all matching reference terms
-cat "$tmpdir/*.terms" | sort -k1 > "$tmpdir/UNIFIED"
+cat "$tmpdir"/*.terms | sort -k1 > "$tmpdir/UNIFIED"
 awk -F "|" 's != $1 || NR ==1{s=$1;if(p){print p};p=$0;next} {sub($1,"",$0);p=p""$0;}END{print p}' < "$tmpdir/$UNIFIED_FILE" > "$tmpdir/$MERGED_FILE"
 
 #Copy file
