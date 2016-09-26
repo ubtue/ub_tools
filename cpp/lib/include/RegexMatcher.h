@@ -64,6 +64,9 @@ public:
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return utf8_enabled_; }
 
+    /** \return The number of parenthesised groups in the pattern. */
+    unsigned getNoOfGroups() const;
+    
     /** \brief Returns either the full last match or matched substrings.
      *  \param group  When "group" is 0, the full last match will be returned, o/w the n-th substring match
      *                will be returned.
