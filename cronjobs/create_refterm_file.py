@@ -44,6 +44,7 @@ def ExtractTitleDataMarcFile(link_name):
     title_data_file_name = [ file_name for file_name in file_name_list if file_name.startswith('GesamtTiteldaten') ]
     return title_data_file_name[0]
 
+
 def CreateRefTermFile(ref_data_archive, title_data_link_name, conf):
     log_file_name = util.MakeLogFileName(os.path.basename(__file__), util.GetLogDirectory())
     title_data_file_orig = ExtractTitleDataMarcFile(title_data_link_name)
