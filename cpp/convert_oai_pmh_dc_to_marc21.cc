@@ -17,12 +17,15 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <iostream>
+#include <list>
 #include <map>
 #include <cstdlib>
+#include "Compiler.h"
 #include "FileUtil.h"
 #include "MarcUtil.h"
-#include "MiscUtil.h"
 #include "MarcXmlWriter.h"
+#include "MiscUtil.h"
+#include "RegexMatcher.h"
 #include "SimpleXmlParser.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -35,11 +38,98 @@ __attribute__((noreturn)) void Usage() {
 }
 
 
-void LoadConfig(File * const input, std::map<std::string, std::string> * const xml_tag_to_marc_entry_map) {
+// An instance of this class specifies a rule for if and how to extract XML data and how to map it to a MARC-21
+// field and subfield.
+class Matcher {
+    std::string field_tag_;
+    char subfield_code_;
+    const RegexMatcher * const matching_regex_;
+    const RegexMatcher * const extraction_regex_;
+public:
+    Matcher(const std::string &field_tag, const char subfield_code,
+            const RegexMatcher * const matching_regex = nullptr,
+            const RegexMatcher * const extraction_regex = nullptr)
+        : field_tag_(field_tag), subfield_code_(subfield_code), matching_regex_(matching_regex),
+          extraction_regex_(extraction_regex) { }
+
+    inline bool matched(const std::string &character_data) const {
+        return (matching_regex_ == nullptr) ? true : matching_regex_->matched(character_data);
+    }
+
+    /** \return That part of the character data that ought to be inserted into a MARC record. */
+    std::string getInsertionData(const std::string &character_data) const;
+
+    inline const std::string &getMarcFieldTag() const { return field_tag_; }
+    inline char getMarcSubfieldCode() const { return subfield_code_; }
+};
+
+
+std::string Matcher::getInsertionData(const std::string &character_data) const {
+    if (extraction_regex_ == nullptr)
+        return character_data;
+
+    if (not extraction_regex_->matched(character_data))
+        return "";
+    return (*extraction_regex_)[1];
+}
+
+
+// Expects the "string" that we extract to either contain no spaces or to be enclosed in double quotes.
+// Optional comments start with a hash sign.
+std::string ExtractOptionallyQuotedString(std::string::const_iterator &ch,
+                                          const std::string::const_iterator &end)
+{
+    if (ch == end)
+        return "";
+
+    std::string extracted_string;
+    if (*ch == '"') { // Extract quoted string.
+        ++ch;
+        
+        bool escaped(false);
+        while (ch != end and *ch != '"') {
+            if (unlikely(escaped)) {
+                escaped = false;
+                extracted_string += *ch;
+            } else if (unlikely(*ch == '\\'))
+                escaped = true;
+            else
+                extracted_string += *ch;
+            ++ch;
+        }
+
+        if (unlikely(*ch != '"'))
+            throw std::runtime_error("missing closing quote!");
+        ++ch;
+    } else { // Extract non-quoted string.
+        while (ch != end and *ch != ' ')
+            extracted_string += *ch++;
+    }
+
+    return extracted_string;
+}
+
+
+void SkipSpaces(std::string::const_iterator &ch, const std::string::const_iterator &end) {
+    while (ch != end and *ch == ' ')
+        ++ch;
+}
+
+
+// Loads a config file that specifies the mapping from XML elements to MARC fields.  An entry looks like this
+//
+//     xml_tag_name marc_field_and_subfield optional_match_regex optional_extraction_regex
+//
+// "xml_tag_name" is the tag for which the rule applies.  "marc_field_and_subfield" is the field which gets created
+// when we have a match.  "optional_match_regex" when present has to match the character data following the tag for
+// the rule to apply and "optional_extraction_regex" specifies which part of the data will be used (group 1).
+void LoadConfig(File * const input, std::map<std::string, std::list<Matcher>> * const xml_tag_to_marc_entry_map) {
     xml_tag_to_marc_entry_map->clear();
-    
+
+    unsigned line_no(0);
     while (not input->eof()) {
         std::string line(input->getline());
+        ++line_no;
 
         // Process optional comment:
         const std::string::size_type first_hash_pos(line.find('#'));
@@ -49,11 +139,59 @@ void LoadConfig(File * const input, std::map<std::string, std::string> * const x
         StringUtil::TrimWhite(&line);
         if (line.empty())
             continue;
+
+        try {
+            auto ch(line.cbegin());
+            const auto end(line.cend());
+            SkipSpaces(ch, end);
+            const std::string xml_tag(ExtractOptionallyQuotedString(ch, end));
+            if (unlikely(xml_tag.empty()))
+                throw std::runtime_error("missing or empty XML tag!");
+            SkipSpaces(ch, end);
+            const std::string marc_tag_and_subfield_code(ExtractOptionallyQuotedString(ch, end));
+            if (unlikely(marc_tag_and_subfield_code.length() != DirectoryEntry::TAG_LENGTH + 1))
+                throw std::runtime_error("bad MARC tag and subfield code!");
+            SkipSpaces(ch, end);
+
+            RegexMatcher *matching_regex(nullptr), *extraction_regex(nullptr);
+            if (ch != end) {
+                const std::string matching_regex_string(ExtractOptionallyQuotedString(ch, end));
+                std::string err_msg;
+                matching_regex = RegexMatcher::RegexMatcherFactory(matching_regex_string, &err_msg);
+                if (unlikely(not err_msg.empty()))
+                    throw std::runtime_error("failed to compile regular expression for the matching regex! ("
+                                             + err_msg + ")");
+
+                SkipSpaces(ch, end);
+                if (ch != end) {
+                    const std::string extraction_regex_string(ExtractOptionallyQuotedString(ch, end));
+                    extraction_regex = RegexMatcher::RegexMatcherFactory(extraction_regex_string, &err_msg);
+                    if (unlikely(not err_msg.empty()))
+                        throw std::runtime_error("failed to compile regular expression for the extraction regex! ("
+                                                 + err_msg + ")");
+                    if (unlikely(extraction_regex->getNoOfGroups() != 1))
+                        throw std::runtime_error("regular expression for the extraction regex needs exactly one "
+                                                 "capture group!");
+                }
+            }
+
+            Matcher new_matcher(marc_tag_and_subfield_code.substr(0, DirectoryEntry::TAG_LENGTH),
+                                marc_tag_and_subfield_code[DirectoryEntry::TAG_LENGTH],
+                                matching_regex, extraction_regex);
+            const auto xml_tag_and_entries(xml_tag_to_marc_entry_map->find(xml_tag));
+            if (xml_tag_and_entries == xml_tag_to_marc_entry_map->end())
+                xml_tag_to_marc_entry_map->emplace(xml_tag, std::list<Matcher>{ new_matcher });
+            else
+                xml_tag_and_entries->second.push_back(new_matcher);
+        } catch (const std::exception &x) {
+            throw std::runtime_error("error while parsing line #" + std::to_string(line_no) + " in \""
+                                     + input->getPath() + "\"! (" + std::string(x.what()) + ")");
+        }
     }
 }
 
 
-/** Generates a PPN by conting down from the largest possible PPN. */
+/** Generates a PPN by counting down from the largest possible PPN. */
 std::string GeneratePPN() {
     static unsigned next_ppn(99999999);
     const std::string ppn_without_checksum_digit(StringUtil::ToString(next_ppn, /* radix = */10, /* width = */8));
@@ -137,7 +275,7 @@ int main(int argc, char *argv[]) {
     const std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[4]));
 
     try {
-        std::map<std::string, std::string> xml_tag_to_marc_entry_map;
+        std::map<std::string, std::list<Matcher>> xml_tag_to_marc_entry_map;
         LoadConfig(config_input.get(), &xml_tag_to_marc_entry_map);
         ProcessRecords(verbose, output_format, input.get(), output.get());
     } catch (const std::exception &x) {
