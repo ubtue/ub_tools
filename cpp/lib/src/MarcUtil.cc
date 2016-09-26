@@ -122,7 +122,7 @@ Record &Record::operator=(const Record &rhs) {
     return *this;
 }
 
-    
+
 bool Record::recordSeemsCorrect(std::string * const err_msg) const {
     if (raw_record_is_out_of_date_)
         UpdateRawRecord();
@@ -139,7 +139,7 @@ bool Record::recordSeemsCorrect(std::string * const err_msg) const {
     }
 
     if (raw_record_.length() > 99999) {
-        Warning("record length (" + std::to_string(raw_record_.length())                                                         
+        Warning("record length (" + std::to_string(raw_record_.length())
                 + ") exceeds maxium legal record length (99999)!");
         return false;
     }
@@ -329,6 +329,13 @@ bool Record::insertField(const std::string &new_field_tag, const std::string &ne
 }
 
 
+bool Record::insertSubfield(const std::string &new_field_tag, const char subfield_code,
+                            const std::string &new_subfield_value)
+{
+    return insertField(new_field_tag, "  ""\x1F" + std::string(1, subfield_code) + new_subfield_value);
+}
+
+
 void Record::deleteField(const size_t field_index) {
     if (unlikely(field_index >= dir_entries_.size()))
         throw std::runtime_error("in MarcUtil::deleteField: \"field_index\" (" + std::to_string(field_index)
@@ -356,17 +363,17 @@ void Record::deleteField(const size_t field_index) {
 bool Record::replaceField(const size_t field_index, const std::string &new_field_contents) {
     const auto old_field_length(fields_[field_index].length());
     fields_[field_index] = new_field_contents;
-    
+
     if (not record_will_be_written_as_xml_) {
         if (not leader_.setRecordLength(leader_.getRecordLength() + new_field_contents.length() - old_field_length))
             return false;
     }
-    
+
     raw_record_is_out_of_date_ = true;
     return true;
 }
 
-    
+
 size_t Record::extractAllSubfields(const std::string &tags, std::vector<std::string> * const values,
                                    const std::string &ignore_subfield_codes) const
 {
@@ -454,7 +461,7 @@ size_t Record::extractSubfields(const std::string &tag, const std::string &subfi
 
     return values->size();
 }
-    
+
 
 void Record::filterTags(const std::unordered_set<std::string> &drop_tags) {
     std::vector<size_t> matched_slots;
@@ -782,7 +789,7 @@ Record Record::XmlFactory(File * const input) {
 
         // If we use FIFO's we may not use tell but have to skip over the start of the XML document anyway:
         struct stat st;
-        if ((not fstat(input->getFileDescriptor(), &st) and S_ISFIFO(st.st_mode)) or (input->tell() == 0)) 
+        if ((not fstat(input->getFileDescriptor(), &st) and S_ISFIFO(st.st_mode)) or (input->tell() == 0))
             SkipOverStartOfDocument(xml_parser);
     }
 
