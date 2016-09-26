@@ -8,10 +8,10 @@ fi
 
 curl_base_string='http://localhost:8081/solr/biblio/select?fl=id&wt=csv&rows=1000000'
 
-outputdir=$1
-refterm=$2
-query_string=$3
-outputfile=${outputdir}/${refterm}.ids
+outputdir="$1"
+refterm="$2"
+query_string="$3"
+outputfile="${outputdir}/${refterm}.ids"
 
 # Query Solr using csv writer to avoid overhard, strip the first line that contains the field names, strip possible trailing characters and redirect 
 # the id list to a file named after the original refterm
