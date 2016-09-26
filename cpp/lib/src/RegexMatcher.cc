@@ -151,6 +151,16 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
 }
 
 
+unsigned RegexMatcher::getNoOfGroups() const {
+    int capture_count;
+    if (unlikely(::pcre_fullinfo(pcre_, pcre_extra_, PCRE_INFO_CAPTURECOUNT, reinterpret_cast<void *>(&capture_count))
+                 != 0))
+        throw std::runtime_error("in RegexMatcher::getNoOfGroups: :pcre_fullinfo(3) failed!");
+
+    return static_cast<unsigned>(capture_count);
+}
+
+
 std::string RegexMatcher::operator[](const unsigned group) const throw(std::out_of_range) {
     if (unlikely(group >= last_match_count_))
         throw std::out_of_range("in RegexMatcher::operator[]: group(" + std::to_string(group) + ") >= "
