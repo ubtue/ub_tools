@@ -25,20 +25,20 @@ mkdir $tmpdir
 #Setup Solr in Ramdisk and import data
 
 #Query all matching IDs from Solr and write files for each term respectively
-cat $reffile | awk -f <(sed -e '0,/^#!.*awk/d' $0) | xargs -0 --max-args=2 --max-procs=8 query_reference_id.sh $tmpdir
+cat "$reffile" | awk -f <(sed -e '0,/^#!.*awk/d' "$0") | xargs -0 --max-args=2 --max-procs=8 query_reference_id.sh $tmpdir
 
 #Remove all files without containing ids
-find $tmpdir -size 0 -print0 | xargs -0 rm
+find "$tmpdir" -size 0 -print0 | xargs -0 rm
 
 #Now derive the reference term from the filename and insert it into the term files
-cd $tmpdir && find $tmpdir -type f -printf '%P\0' | xargs -0 awk '{TERM = FILENAME; sub(/\..*$/, "", TERM); print $0 "|" TERM > (TERM ".terms")}'
+cd "$tmpdir" && find "$tmpdir" -type f -printf '%P\0' | xargs -0 awk '{TERM = FILENAME; sub(/\..*$/, "", TERM); print $0 "|" TERM > (TERM ".terms")}'
 
 # Create a with with a list of IDs and all matching reference terms
-cat $tmpdir/*.terms | sort -k1 > $tmpdir/UNIFIED
-awk -F "|" 's != $1 || NR ==1{s=$1;if(p){print p};p=$0;next} {sub($1,"",$0);p=p""$0;}END{print p}' < $tmpdir/$UNIFIED_FILE > $tmpdir/$MERGED_FILE
+cat "$tmpdir/*.terms" | sort -k1 > "$tmpdir/UNIFIED"
+awk -F "|" 's != $1 || NR ==1{s=$1;if(p){print p};p=$0;next} {sub($1,"",$0);p=p""$0;}END{print p}' < "$tmpdir/$UNIFIED_FILE" > "$tmpdir/$MERGED_FILE"
 
 #Copy file
-cp $tmpdir/$MERGED_FILE $outputdir/$RESULT_FILE
+cp "$tmpdir/$MERGED_FILE" "$outputdir/$RESULT_FILE"
 
 echo "Successfully created Hinweissätze-Ergebnisse"
 

@@ -1,5 +1,6 @@
 #!/bin/bash
 # $Id: index_file.sh 17 2008-06-20 14:40:13Z wayne.graham $
+# Slight additions to adjust to ram disk instance (jr)
 #
 # Bash script to start the import of a binary marc file for Solr indexing.
 #
