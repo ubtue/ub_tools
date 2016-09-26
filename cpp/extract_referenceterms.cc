@@ -41,6 +41,7 @@
 static unsigned record_count(0);
 static unsigned read_in_count(0);
 
+
 void Usage() {
     std::cerr << "Usage: " << ::progname << " reference_data_marc_input output\n";
     std::exit(EXIT_FAILURE);
