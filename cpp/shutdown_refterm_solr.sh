@@ -15,7 +15,7 @@ EOF
 
 
 
-if [[ $EUID -ne 0 ]]; then
+if [[ "$EUID" -ne 0 ]]; then
     echo "We can only run as root" 2>&1
     exit 1
 fi
@@ -27,10 +27,10 @@ if [[ "$#" -ne 0 ]]; then
 fi
 
 
-if mount | grep $RAMDISK_PATH; then
-    $RAMDISK_PATH/solr.sh stop
-    umount $RAMDISK_PATH
+if mount | grep "$RAMDISK_PATH"; then
+    "$RAMDISK_PATH"/solr.sh stop
+    umount "$RAMDISK_PATH"
     rmmod zram
 else
-   echo "$RAMDISK_PATH not mounted - nothing to do"
+   echo "$RAMDISK_PATH" "not mounted - nothing to do"
 fi
