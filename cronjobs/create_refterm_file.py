@@ -3,16 +3,15 @@
 
 import datetime
 import glob
-import process_util
-import urllib2
 import os
+import process_util
 import struct
 import sys
 import traceback
-import util
 import tarfile
 import re
-
+import urllib2
+import util
 
 def ExecOrDie(cmd_name, args, log_file_name):
     if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,

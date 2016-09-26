@@ -6,7 +6,7 @@ export SOLR_PORT=8081
 
 RAMDISK_PATH=/mnt/zram
 
-usage() {
+Usage() {
     cat << EOF
     Shuts down the temporary Solr instance used to extract reference data"
 USAGE: ${0##*/} 
