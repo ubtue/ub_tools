@@ -7,11 +7,12 @@ import os
 import process_util
 import struct
 import sys
-import traceback
 import tarfile
+import traceback
 import re
 import urllib2
 import util
+
 
 def ExecOrDie(cmd_name, args, log_file_name):
     if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
@@ -88,6 +89,7 @@ def Main():
         util.SendEmail("Create Refterm File", "Refterm file successfully created.", priority=5)
     else:
         util.SendEmail("Create Refterm File", "No new data was found.", priority=5)
+
 
 try:
     Main()
