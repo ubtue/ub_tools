@@ -28,15 +28,9 @@ fi
 
 
 if mount | grep $RAMDISK_PATH; then
-
     $RAMDISK_PATH/solr.sh stop
     umount $RAMDISK_PATH
     rmmod zram
 else
    echo "$RAMDISK_PATH not mounted - nothing to do"
 fi
-
-
-
-
-

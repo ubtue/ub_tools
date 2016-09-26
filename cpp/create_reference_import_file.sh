@@ -20,7 +20,7 @@ UNIFIED_FILE="UNIFIED"
 MERGED_FILE="MERGED"
 RESULT_FILE="Hinweissätze-Ergebnisse-${date}.txt"
 
-mkdir -p $tmpdir
+mkdir $tmpdir
 
 #Setup Solr in Ramdisk and import data
 
@@ -30,7 +30,7 @@ cat $reffile | awk -f <(sed -e '0,/^#!.*awk/d' $0) | xargs -0 --max-args=2 --max
 #Remove all files without containing ids
 find $tmpdir -size 0 -print0 | xargs -0 rm
 
-#Now derive the reference term from the filename and insert it into the files
+#Now derive the reference term from the filename and insert it into the term files
 cd $tmpdir && find $tmpdir -type f -printf '%P\0' | xargs -0 awk '{TERM = FILENAME; sub(/\..*$/, "", TERM); print $0 "|" TERM > (TERM ".terms")}'
 
 # Create a with with a list of IDs and all matching reference terms
@@ -45,6 +45,7 @@ echo "Successfully created Hinweissätze-Ergebnisse"
 exit 0
 
 ################################################################
+# Rewrite the extracted terms to a Solr query
 #!/usr/bin/awk -f
 BEGIN {
     FS="([,|])"
@@ -53,7 +54,6 @@ BEGIN {
 
 {
     printf("\"%s\"\0", $1)
-
     printf("(")
 
     for (i = 2; i <= NF; ++i) {
@@ -71,7 +71,6 @@ BEGIN {
     }
 
     print(")");
-
     printf("%c", 0);
 
 }

@@ -22,7 +22,6 @@ USAGE: ${0##*/} FILE_TO_IMPORT
 EOF
 }
 
-
 #Abort if we are not root or the parameters do not match
 
 if [[ $EUID -ne 0 ]]; then
@@ -65,7 +64,6 @@ rsync --archive $STANDARD_VUFIND_SOLRMARC_HOME/bin  $RAMDISK_DIR/import
 
 #Setup and start Solr
 $RAMDISK_DIR/$SOLR_START_SCRIPT start
-
 
 #Import the files
 $RAMDISK_DIR/import-marc.sh -p $RAMDISK_DIR/import/import-properties $1 2>&1 

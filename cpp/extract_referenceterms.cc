@@ -37,6 +37,7 @@
 #include "Subfields.h"
 #include "util.h"
 
+
 static unsigned record_count(0);
 static unsigned read_in_count(0);
 
