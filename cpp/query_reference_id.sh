@@ -1,5 +1,5 @@
 #!/bin/bash
-# Use curl to query all matching IDs for a single refterm from the temporary Solr instance
+# Use curl to query all matching ID's for a single refterm from the temporary Solr instance
 
 if [ $# != 3 ]; then
     echo "usage: $0 outputdir refterm query_string"
