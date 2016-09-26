@@ -69,6 +69,9 @@ public:
         return *this;
     }
 
+    /** Copy-assignment operator. */
+    DirectoryEntry &operator=(const DirectoryEntry &rhs);
+
     const std::string &getTag() const { return tag_; }
 
     /** Includes the field terminator. */
