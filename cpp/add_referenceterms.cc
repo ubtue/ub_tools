@@ -65,7 +65,7 @@ void ExtractSynonyms(File * const reference_data_id_term_list_input, std::map<st
         std::vector<std::string> ids_and_terms;
         if (unlikely(StringUtil::SplitThenTrim(line, '|', "\"", &ids_and_terms) < 2))
             Error("Invalid line");
-        std::string id(ids_and_terms[0]);
+        const std::string id(ids_and_terms[0]);
         ids_and_terms.erase(ids_and_terms.begin());
         (*synonym_map)[id] = StringUtil::Join(ids_and_terms, ',');
     }
