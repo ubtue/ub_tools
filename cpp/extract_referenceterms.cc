@@ -81,6 +81,7 @@ void ExtractSynonyms(File * const reference_data_marc_input, const std::set<std:
     }
 }
 
+
 void WriteReferenceTermFile(File * const output, std::vector<std::map<std::string, std::string>> &synonym_maps){
     for (auto &sm : synonym_maps) {
         for (auto &entry : sm) {
