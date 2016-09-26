@@ -94,6 +94,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
                          >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 
+
 StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, and Remove Sorting Chars\$a"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
@@ -144,6 +145,7 @@ StartPhase "Extracting Keywords from Titles"
 EndPhase) &
 wait
 
+
 StartPhase "Augment Bible References" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 (augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
@@ -179,9 +181,18 @@ StartPhase "Add Keyword Synonyms from Authority Data"
 EndPhase || Abort) &
 wait
 
+
 StartPhase "Fill in missing 773\$a Subfields"
 (augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
-                       GesamtTiteldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1 && \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Adding the Library Sigil to Articles Where Appropriate"
+(add_ub_sigil_to_articles --verbose \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    GesamtTiteldaten-post-pipeline-"${date}".xml >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
