@@ -265,7 +265,7 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
     if len(downloaded_files) == 0:
         msg.append("No more recent file for pattern \"" + filename_pattern + "\"!\n")
     else:
-        msg.append("Successfully downloaded:\n" + string.join(downloaded_files, '\n'))
+        msg.append("Successfully downloaded:\n" + string.join(downloaded_files, '\n') + '\n')
         AddToCumulativeCollection(downloaded_files, config)
     return downloaded_files
 
@@ -306,7 +306,7 @@ def Main():
     if complete_data_filename is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filename)
     DownloadOtherData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
-    DownloadOtherData(config, "Hinweisabzug", ftp, download_cutoff_date, msg)
+    DownloadOtherData(config, "Hinweisabzug", ftp, 000000, msg)
     DownloadOtherData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     DownloadOtherData(config, "Errors", ftp, download_cutoff_date, msg)
     CleanUpCumulativeCollection(config)

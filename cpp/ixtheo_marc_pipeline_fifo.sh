@@ -89,7 +89,6 @@ StartPhase "Convert MARC-21 to MARC-XML"
 
 StartPhase "Filter out Local Data of Other Institutions" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
-#(delete_unused_local_data GesamtTiteldaten-"${date}".xml \
 (delete_unused_local_data GesamtTiteldaten-"${date}".xml \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
                          >> "${log}" 2>&1 &&
