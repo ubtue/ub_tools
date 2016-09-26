@@ -41,7 +41,7 @@ def ExtractTitleDataMarcFile(link_name):
     if not bsz_data.endswith(".tar.gz"):
         util.Error("BSZ data file must end in .tar.gz!")
     file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
-    title_data_file_name = [ file_name for file_name in file_name_list if file_name.startswith('GesamtTiteldaten')]
+    title_data_file_name = [ file_name for file_name in file_name_list if file_name.startswith('GesamtTiteldaten') ]
     return title_data_file_name[0]
 
 
