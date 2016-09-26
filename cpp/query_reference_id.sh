@@ -1,4 +1,5 @@
 #!/bin/bash
+# Use curl to query all matching IDs for a single refterm from the temporary Solr instance
 
 if [ $# != 3 ]; then
     echo "usage: $0 outputdir refterm query_string"
@@ -12,5 +13,6 @@ refterm=$2
 query_string=$3
 outputfile=${outputdir}/${refterm}.ids
 
-#Query solr using csv writer, strip the first line that contains the field names, strip the trailing and redirect to a file
+# Query Solr using csv writer to avoid overhard, strip the first line that contains the field names, strip possible trailing characters and redirect 
+# the id list to a file named after the original refterm
 curl --silent --get --data-urlencode "q=${query_string}" ${curl_base_string} | tail  -n +2 | sed -e 's/,$//' > "${outputfile}"

@@ -41,7 +41,6 @@
 
 static unsigned record_count(0);
 static unsigned modified_count(0);
-//static unsigned read_in_count(0);
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " reference_data_id_term_list marc_input marc_output\n";
@@ -61,12 +60,11 @@ std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 
 void ExtractSynonyms(File * const reference_data_id_term_list_input, std::map<std::string, std::string> * synonym_map) 
 {
-    std::string line;
-    std::string id;
-    std::string rest;
     while (not reference_data_id_term_list_input->eof()) {
-        line = reference_data_id_term_list_input->getline();
+        std::string line(reference_data_id_term_list_input->getline());
         std::cout << line << '\n';
+        std::string id;
+        std::string rest;
         StringUtil::SplitOnString(line, "|",  &id, &rest);
         std::cout << id << "          " << rest << '\n';
         std::vector<std::string> terms;
@@ -75,7 +73,6 @@ void ExtractSynonyms(File * const reference_data_id_term_list_input, std::map<st
         (*synonym_map)[id] = StringUtil::Join(terms, ',');
     }
 }
-
 
 
 void ProcessRecord(MarcUtil::Record * const record, const std::string &output_tag_and_subfield_code, const std::map<std::string, std::string> &synonym_map) {
@@ -91,19 +88,18 @@ void ProcessRecord(MarcUtil::Record * const record, const std::string &output_ta
 
     // Insert synonyms
     // Abort if field is already populated
-    std::string tag(GetTag(output_tag_and_subfield_code));
+    const std::string tag(GetTag(output_tag_and_subfield_code));
     if (record->getFieldIndex(tag) != -1)
         Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
-    std::string subfield_spec = GetSubfieldCodes(output_tag_and_subfield_code);
+    std::string subfield_spec(GetSubfieldCodes(output_tag_and_subfield_code));
     if (subfield_spec.size() != 1)
         Error("We currently only support a single subfield and thus specifying " + subfield_spec + " as output subfield is not valid\n");
     Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
-    subfields.addSubfield(subfield_spec.at(0), synonyms);
+    subfields.addSubfield(subfield_spec[0], synonyms);
     if (not(record->insertField(tag, subfields.toString())))
-        Warning("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+        Warning("Could not insert field " + tag + " for PPN " + record->getControlNumber());
     ++modified_count;
 }
-
 
 
 void InsertSynonyms(File * const marc_input, File * marc_output, const std::string &output_tag_and_subfield_code, const std::map<std::string, std::string> &synonym_map)
@@ -118,8 +114,6 @@ void InsertSynonyms(File * const marc_input, File * marc_output, const std::stri
 
     std::cerr << "Modified " << modified_count << " of " << record_count << " record(s).\n";
 }
-
-
 
 
 int main(int argc, char **argv) {
@@ -145,9 +139,7 @@ int main(int argc, char **argv) {
 
     const std::string TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS("187a");
 
-
     try {
-
         std::map<std::string, std::string> synonym_map;
         // Extract the synonyms from reference marc data
         ExtractSynonyms(reference_data_id_term_list_input.get(), &synonym_map);
