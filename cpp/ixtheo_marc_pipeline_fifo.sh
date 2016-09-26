@@ -183,11 +183,17 @@ wait
 
 
 StartPhase "Fill in missing 773\$a Subfields"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 (augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait
 
+
+StartPhase "Integrate Refterms"
+(add_referenceterms Hinweissätze-Ergebnisse-"${date}".txt GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
 
 StartPhase "Adding the Library Sigil to Articles Where Appropriate"
 (add_ub_sigil_to_articles --verbose \
