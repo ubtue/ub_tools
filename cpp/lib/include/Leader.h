@@ -2,7 +2,7 @@
  *  \brief  Interface for the Leader class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,12 +32,12 @@ class Leader {
 public:
     static const size_t LEADER_LENGTH = 24;
     enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
-private:
+public:
     std::string raw_leader_;
     unsigned record_length_;
     unsigned base_address_of_data_;
 public:
-    Leader() = default;
+    Leader(): raw_leader_("     n   a22        4500"), record_length_(0), base_address_of_data_(0) { }
 
     Leader(Leader &&other) noexcept
         : raw_leader_(std::move(other.raw_leader_)), record_length_(other.record_length_),
@@ -80,6 +80,7 @@ public:
     bool isSerial() const { return raw_leader_[7] == 's'; }
     bool isArticle() const { return raw_leader_[7] == 'a'; }
     RecordType getRecordType() const;
+    void setRecordType(const char new_record_type) { raw_leader_[6] = new_record_type; }
 
     /** \return A binary representation of the leader.  Can be used to construct a MARC-21 record. */ 
     std::string toString() const { return raw_leader_; }
