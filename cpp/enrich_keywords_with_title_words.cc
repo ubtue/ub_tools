@@ -1,4 +1,20 @@
 // A tool for adding keywords extracted from titles to MARC records.
+/*
+    Copyright (C) 2015,2016, Library of the University of Tübingen
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -374,10 +390,8 @@ void AugmentRecordsWithTitleKeywords(
         }
 
         // Augment the record with new keywords derived from title words:
-        for (const auto &new_keyword : new_keyphrases) {
-            const std::string field_contents("  ""\x1F""a" + new_keyword);
-            record.insertField("601", field_contents);
-        }
+        for (const auto &new_keyword : new_keyphrases)
+            record.insertSubfield("601", 'a', new_keyword);
 
         record.write(&xml_writer);
         ++augmented_record_count;
