@@ -92,9 +92,8 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
                     const std::string institution_and_call_number(institution + call_number_subfield);
                     ++add_sig_count;
                     modified_record = true;
-                    record->insertField("SIG",
-                                        "  ""\x1F""a" + institution_and_call_number
-                                        + (detailed_availability.empty() ? "" : "(" + detailed_availability + ")"));
+                    record->insertSubfield("SIG", 'a', institution_and_call_number
+                                           + (detailed_availability.empty() ? "" : "(" + detailed_availability + ")"));
                 } else { // Look for a URL.
                     std::vector <size_t> _856_field_indices;
                     if (record->findFieldsInLocalBlock("856", "4 ", block_start_and_end, &_856_field_indices) > 0) {
@@ -106,7 +105,7 @@ bool ProcessRecord(MarcUtil::Record * const record, XmlWriter * const xml_writer
                                 std::string anchor(HtmlUtil::HtmlEscape(subfields3.getFirstSubfieldValue('x')));
                                 if (anchor.empty())
                                     anchor = "Tübingen Online Resource";
-                                record->insertField("SIG", "  \x1F""a<a href=\"" + url + "\">" + anchor + "</a>");
+                                record->insertSubfield("SIG", 'a', "<a href=\"" + url + "\">" + anchor + "</a>");
                             }
                         }
                     }
