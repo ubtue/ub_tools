@@ -400,7 +400,7 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
 }
 
 
-bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record,
+bool FindGndCodes(const bool verbose, const std::string &tags, const MarcUtil::Record &record,
                   const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
                   &gnd_codes_to_bible_ref_codes_map, std::set<std::string> * const ranges)
 {
@@ -434,7 +434,9 @@ bool FindGndCodes(const std::string &tags, const MarcUtil::Record &record,
                     found_at_least_one = true;
                     for (const auto &range : gnd_code_and_ranges->second)
                         ranges->insert(range.first + ":" + range.second);
-                }
+                } else if (verbose)
+                    std::cerr << record.getControlNumber() << ": GND code \"" << gnd_code
+                              << "\" was not found in our map.\n";
             }
         }
     }
@@ -466,7 +468,9 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
             Error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
 
         std::set<std::string> ranges;
-        if (FindGndCodes("600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map, &ranges)) {
+        if (FindGndCodes(verbose, "600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map,
+                         &ranges))
+        {
             ++augment_count;
             std::string range_string;
             for (auto &range : ranges) {
@@ -476,8 +480,7 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
             }
 
             // Put the data into the $a subfield:
-            range_string = "  ""\x1F""a" + range_string;
-            record.insertField(BIB_REF_RANGE_TAG, range_string);
+            record.insertSubfield(BIB_REF_RANGE_TAG, 'a', range_string);
         }
 
         record.write(&xml_writer);
