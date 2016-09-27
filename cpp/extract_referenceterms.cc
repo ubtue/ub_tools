@@ -72,9 +72,11 @@ void ExtractSynonyms(File * const reference_data_marc_input, const std::set<std:
             // Fill maps with synonyms
             std::vector<std::string> primary_values; 
             std::vector<std::string> synonym_values;              
-
+          
+            // Partly, a very specific term has a very specific one term circumscription (e.g. Wilhelminische Epoche => Deutschland)
+            // Thus, we only insert terms we the synonym vector contains two elements to prevent inappropriate additions
             if (record.extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values) and 
-                record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values)) {
+                record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values) and synonym_values.size() > 1) {
                     (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values, ','));
                     ++read_in_count;
                 }
