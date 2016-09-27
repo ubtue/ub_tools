@@ -23,7 +23,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include <unordered_set>
+#include <unordered_map>
 #include <cstdlib>
 #include <cstring>
 #include "DirectoryEntry.h"
@@ -45,8 +45,29 @@ void Usage() {
 }
 
 
+// Returns true if we're dealing with a DE-21 block and we managed to extract some inventory information.
+bool ExtractInventoryInfoFromDE21Block(const size_t block_start_index, const size_t block_end_index,
+                                       const std::vector<std::string> &fields, std::string * const inventory_info)
+{
+    inventory_info->clear();
+    
+    bool is_de21_block(false);
+    for (size_t index(block_start_index); index < block_end_index; ++index) {
+        const Subfields subfields(fields[index]);
+        const std::string subfield0(subfields.getFirstSubfieldValue('0'));
+        if (subfield0 == "852  ") {
+            if (subfields.getFirstSubfieldValue('a') == "DE-21")
+                is_de21_block = true;
+        } else if (subfield0 == "86630")
+            *inventory_info = subfields.getFirstSubfieldValue('a');
+    }
+
+    return is_de21_block and not inventory_info->empty();
+}
+
+
 void CollectParentIDs(const bool verbose, File * const input,
-                      std::unordered_set<std::string> * const parent_ids)
+                      std::unordered_map<std::string, std::string> * const parent_ids_and_inventory_info)
 {
     if (verbose)
         std::cout << "Starting extraction of parent IDs.\n";
@@ -60,13 +81,14 @@ void CollectParentIDs(const bool verbose, File * const input,
         if (not leader.isSerial() and not leader.isMonograph())
             continue;
 
-        std::vector<size_t> lok_field_indices;
-        record.getFieldIndices("LOK", &lok_field_indices);
+        std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+        record.findAllLocalDataBlocks(&local_block_boundaries);
         const std::vector<std::string> &fields(record.getFields());
-        for (const auto lok_field_index : lok_field_indices) {
-            const Subfields subfields(fields[lok_field_index]);
-            if (subfields.getFirstSubfieldValue('0') == "852" and subfields.getFirstSubfieldValue('a') == "DE-21")
-                parent_ids->insert(record.getControlNumber());
+        for (const auto &local_block_boundary : local_block_boundaries) {
+            std::string inventory_info;
+            if (ExtractInventoryInfoFromDE21Block(local_block_boundary.first, local_block_boundary.second, fields,
+                                                  &inventory_info))
+                (*parent_ids_and_inventory_info)[record.getControlNumber()] = inventory_info;
         }
     }
 
@@ -75,13 +97,19 @@ void CollectParentIDs(const bool verbose, File * const input,
 
     if (verbose) {
         std::cerr << "Read " << count << " records.\n";
-        std::cerr << "Found " << parent_ids->size() << " relevant parent ID's.\n";
+        std::cerr << "Found " << parent_ids_and_inventory_info->size() << " relevant parent ID's.\n";
     }
 }
 
 
-void AddMissingSigilsToArticleEntries(const bool verbose, File * const input, File * const output,
-                                      const std::unordered_set<std::string> &parent_ids)
+bool IssueInInventory(const std::string &/*inventory_info*/, const MarcUtil::Record &/*issue_record*/) {
+    return true;
+}
+
+
+void AddMissingSigilsToArticleEntries(
+    const bool verbose, File * const input, File * const output,
+    const std::unordered_map<std::string, std::string> &parent_ids_and_inventory_info)
 {
     if (verbose)
         std::cout << "Starting augmentation of article entries.\n";
@@ -109,10 +137,6 @@ void AddMissingSigilsToArticleEntries(const bool verbose, File * const input, Fi
         const size_t index_773(entry_iterator - dir_entries.begin());
         const std::vector<std::string> &fields(record.getFields());
         Subfields subfields(fields[index_773]);
-        if (subfields.hasSubfield('x')) {
-            record.write(&xml_writer);
-            continue;
-        }
 
         auto begin_end = subfields.getIterators('w'); // Record control number of Host Item Entry.
         if (begin_end.first == begin_end.second) {
@@ -121,17 +145,25 @@ void AddMissingSigilsToArticleEntries(const bool verbose, File * const input, Fi
             continue;
         }
 
-        std::string host_id(begin_end.first->second);
-        if (StringUtil::StartsWith(host_id, "(DE-576)"))
-            host_id = host_id.substr(8);
-        auto const parent_id_iter(parent_ids.find(host_id));
-        if (parent_id_iter == parent_ids.end()) {
+        std::string host_id;
+        for (auto _773w_iter(begin_end.first); _773w_iter != begin_end.second; ++_773w_iter) {
+            if (StringUtil::StartsWith(_773w_iter->second, "(DE-576)")) {
+                host_id = _773w_iter->second.substr(8);
+                break;
+            }
+        }
+
+        auto const parent_id_iter(parent_ids_and_inventory_info.find(host_id));
+        if (parent_id_iter == parent_ids_and_inventory_info.end()) {
             record.write(&xml_writer);
             ++missing_parent_id_count;
             continue;
         }
 
-        record.insertField("LOK", "  ""\x1F""0852""\x1F""aDE-21");
+        if (IssueInInventory(parent_id_iter->second, record)) {
+            record.insertField("LOK", "  ""\x1F""0852""\x1F""aDE-21");
+            ++ids_added;
+        }
         record.write(&xml_writer);
     }
 
@@ -147,7 +179,8 @@ void AddMissingSigilsToArticleEntries(const bool verbose, File * const input, Fi
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if ((argc != 3 and argc != 4) or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
+    if ((argc != 3 and argc != 4)
+        or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
         Usage();
     const bool verbose(argc == 4);
 
@@ -163,11 +196,11 @@ int main(int argc, char **argv) {
         Error("can't open \"" + marc_output_filename + "\" for writing!");
 
     try {
-        std::unordered_set<std::string> parent_ids;
-        CollectParentIDs(verbose, marc_input.get(), &parent_ids);
+        std::unordered_map<std::string, std::string> parent_ids_and_inventory_info;
+        CollectParentIDs(verbose, marc_input.get(), &parent_ids_and_inventory_info);
 
         marc_input->rewind();
-        AddMissingSigilsToArticleEntries(verbose, marc_input.get(), &marc_output, parent_ids);
+        AddMissingSigilsToArticleEntries(verbose, marc_input.get(), &marc_output, parent_ids_and_inventory_info);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

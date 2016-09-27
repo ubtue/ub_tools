@@ -93,6 +93,9 @@ public:
 
     bool insertField(const std::string &new_field_tag, const std::string &new_field_value);
 
+    bool insertSubfield(const std::string &new_field_tag, const char subfield_code,
+                        const std::string &new_subfield_value);
+    
     /** \brief Deletes the field at index "field_index" and adjusts various field and records lengths. */
     void deleteField(const size_t field_index);
 
