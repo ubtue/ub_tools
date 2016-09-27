@@ -138,8 +138,8 @@ void ProcessRecords(File * const input, File * const output,
             }
         }
 
-        if (not ixtheo_notations_list.empty()) // Insert a new 652 field w/ a $a subfield.
-            record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list);
+        if (not ixtheo_notations_list.empty())
+            record.insertSubfield("652", 'a', ixtheo_notations_list);
         record.write(&xml_writer);
     }
 
