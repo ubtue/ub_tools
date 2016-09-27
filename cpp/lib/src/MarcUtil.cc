@@ -330,9 +330,10 @@ bool Record::insertField(const std::string &new_field_tag, const std::string &ne
 
 
 bool Record::insertSubfield(const std::string &new_field_tag, const char subfield_code,
-                            const std::string &new_subfield_value)
+                            const std::string &new_subfield_value, const char indicator1, const char indicator2)
 {
-    return insertField(new_field_tag, "  ""\x1F" + std::string(1, subfield_code) + new_subfield_value);
+    return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + "\x1F"
+                       + std::string(1, subfield_code) + new_subfield_value);
 }
 
 
