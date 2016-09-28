@@ -204,7 +204,7 @@ enum OutputFormat { MARC_BINARY, MARC_XML };
 
 
 void ProcessRecords(const bool verbose, const OutputFormat output_format, File * const input,
-                    File * const output)
+                    File * const output, const std::map<std::string, std::list<Matcher>> &xml_tag_to_marc_entry_map)
 {
     MarcXmlWriter *xml_writer;
     if (output_format == MARC_XML)
@@ -218,6 +218,8 @@ void ProcessRecords(const bool verbose, const OutputFormat output_format, File *
     SimpleXmlParser xml_parser(input);
     MarcUtil::Record record;
     unsigned record_count(0);
+    bool collect_character_data;
+    std::string character_data;
     while (xml_parser.getNext(&type, &attrib_map, &data)) {
         switch (type) {
         case SimpleXmlParser::END_OF_DOCUMENT:
@@ -229,15 +231,35 @@ void ProcessRecords(const bool verbose, const OutputFormat output_format, File *
             if (data == "record") {
                 record = MarcUtil::Record();
                 record.insertField("001", GeneratePPN());
-            }
+                collect_character_data = false;
+            } else if (xml_tag_to_marc_entry_map.find(data) != xml_tag_to_marc_entry_map.cend()) {
+                character_data.clear();
+                collect_character_data = true;
+            } else
+                collect_character_data = false;
             break;
         case SimpleXmlParser::CLOSING_TAG:
             if (data == "record") {
                 (xml_writer == nullptr) ? record.write(output) : record.write(xml_writer);
                 ++record_count;
+            } else {
+                const auto xml_tag_and_entries(xml_tag_to_marc_entry_map.find(data));
+                if (xml_tag_and_entries == xml_tag_to_marc_entry_map.cend())
+                    continue;
+                for (auto matcher(xml_tag_and_entries->second.cbegin());
+                     matcher != xml_tag_and_entries->second.cend(); ++matcher)
+                {
+                    if (matcher->matched(character_data)) {
+                        record.insertSubfield(matcher->getMarcFieldTag(), matcher->getMarcSubfieldCode(),
+                                              matcher->getInsertionData(character_data));
+                        continue;
+                    }
+                }
             }
             break;
         case SimpleXmlParser::CHARACTERS:
+            if (collect_character_data)
+                character_data += data;
             break;
         default:
             /* Intentionally empty! */;
@@ -277,7 +299,7 @@ int main(int argc, char *argv[]) {
     try {
         std::map<std::string, std::list<Matcher>> xml_tag_to_marc_entry_map;
         LoadConfig(config_input.get(), &xml_tag_to_marc_entry_map);
-        ProcessRecords(verbose, output_format, input.get(), output.get());
+        ProcessRecords(verbose, output_format, input.get(), output.get(), xml_tag_to_marc_entry_map);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

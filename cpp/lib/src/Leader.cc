@@ -68,7 +68,7 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader
     // Check indicator count:
     if (leader_string[10] != '2') {
         if (err_msg != nullptr)
-            *err_msg = "Invalid indicator count!";
+            *err_msg = "Invalid indicator count '" + leader_string.substr(10, 1) + "'!";
         return false;
     }
   
