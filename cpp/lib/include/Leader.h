@@ -32,7 +32,7 @@ class Leader {
 public:
     static const size_t LEADER_LENGTH = 24;
     enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
-public:
+private:
     std::string raw_leader_;
     unsigned record_length_;
     unsigned base_address_of_data_;
