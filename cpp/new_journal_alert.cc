@@ -30,6 +30,7 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
+#include "ExecUtil.h"
 #include "FileUtil.h"
 #include "HtmlUtil.h"
 #include "MiscUtil.h"
@@ -144,9 +145,11 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
 
 
 /** \return If "host_and_port" has a colon, the part before the colon else all of "host_and_port". */
-std::string GetHost(const std::string &host_and_port) {
-    const std::string::size_type colon_pos(host_and_port.find(':'));
-    return colon_pos == std::string::npos ? host_and_port : host_and_port.substr(0, colon_pos);
+std::string GetHostname() {
+    std::string hostname;
+    if (unlikely(not ExecUtil::ExecSubcommandAndCaptureStdout("/bin/hostname --fqdn", &hostname) or hostname.empty()))
+        Error("failed to execute /bin/hostname or got an empty hostname!");
+    return hostname;
 }
 
 
@@ -185,7 +188,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
         std::cerr << "Found " << new_issue_infos.size() << " new issues for " << " \"" << username << "\".\n";
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(firstname, lastname, email, GetHost(solr_host_and_port), new_issue_infos);
+        SendNotificationEmail(firstname, lastname, email, GetHostname(), new_issue_infos);
 
     // Update the database with the new last issue dates.
     for (const auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
