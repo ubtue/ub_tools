@@ -64,11 +64,12 @@ public:
 
 struct NewIssueInfo {
     std::string control_number_;
-    std::string title_;
+    std::string journal_title_;
+    std::string issue_title_;
     std::string last_issue_date_;
 public:
-    NewIssueInfo(const std::string &control_number, const std::string &title)
-        : control_number_(control_number), title_(title) { }
+    NewIssueInfo(const std::string &control_number, const std::string &journal_title, const std::string &issue_title)
+        : control_number_(control_number), journal_title_(journal_title), issue_title_(issue_title) { }
 };
 
 
@@ -83,8 +84,9 @@ bool ExtractNewIssueInfos(const std::string &json_document, std::vector<NewIssue
     bool found_at_least_one_new_issue(false);
     for (const auto &document : property_tree.get_child("response.docs.")) {
         const auto &id(document.second.get<std::string>("id"));
-        const auto &title(document.second.get<std::string>("title"));
-        new_issue_infos->emplace_back(id, title);
+        const auto &issue_title(document.second.get<std::string>("issue_title"));
+        const std::string journal_title(document.second.get<std::string>("journal_issue/0", "*No Journal Title*"));
+        new_issue_infos->emplace_back(id, journal_title, issue_title);
 
         const auto &recording_date(document.second.get<std::string>("recording_date"));
         if (recording_date > *max_last_issue_date) {
@@ -126,13 +128,15 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
     std::map<std::string, std::vector<std::string>> names_to_values_map;
     names_to_values_map["firstname"] = std::vector<std::string>{ firstname };
     names_to_values_map["lastname"] = std::vector<std::string>{ lastname };
-    std::vector<std::string> urls, titles;
+    std::vector<std::string> urls, journal_titles, issue_titles;
     for (const auto &new_issue_info : new_issue_infos) {
         urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
-        titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.title_));
+        journal_titles.emplace_back(new_issue_info.journal_title_);
+        issue_titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.issue_title_));
     }
-    names_to_values_map["url"] = urls;
-    names_to_values_map["title"] = titles;
+    names_to_values_map["url"]           = urls;
+    names_to_values_map["journal_title"] = journal_titles;
+    names_to_values_map["issue_title"]   = issue_titles;
     std::istringstream input(email_template);
     std::ostringstream email_contents;
     MiscUtil::ExpandTemplate(input, email_contents, names_to_values_map);
