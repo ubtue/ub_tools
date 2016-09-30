@@ -71,6 +71,7 @@ public:
 
     char getRecordStatus() const { return raw_leader_[5]; }
     char getBibliographicLevel() const { return raw_leader_[7]; }
+    void setBibliographicLevel(const char new_bibliographic_level) { raw_leader_[7] = new_bibliographic_level; }
     char getCharacterCodingScheme() const { return raw_leader_[9]; }
     std::string getImplementationDefined1() const { return raw_leader_.substr(7, 2); }
     std::string getImplementationDefined2() const { return raw_leader_.substr(17, 3); }
