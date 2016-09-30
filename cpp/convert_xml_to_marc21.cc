@@ -39,19 +39,29 @@ __attribute__((noreturn)) void Usage() {
 
 
 // An instance of this class specifies a rule for if and how to extract XML data and how to map it to a MARC-21
-// field and subfield.
+// field and subfield or leader positions.
 class Matcher {
     std::string field_tag_;
     char subfield_code_;
     const RegexMatcher * const matching_regex_;
     const RegexMatcher * const extraction_regex_;
+    const std::map<RegexMatcher *, std::string> regex_to_biblio_level_and_type_map_;
+public:
+    enum MatcherType { SINGLE_MATCH, MULTIPLE_MATCHES_AND_MAP };
 public:
     Matcher(const std::string &field_tag, const char subfield_code,
             const RegexMatcher * const matching_regex = nullptr,
             const RegexMatcher * const extraction_regex = nullptr)
         : field_tag_(field_tag), subfield_code_(subfield_code), matching_regex_(matching_regex),
           extraction_regex_(extraction_regex) { }
+    explicit Matcher(const std::map<RegexMatcher *, std::string> &regex_to_biblio_level_and_type_map)
+        : matching_regex_(nullptr), extraction_regex_(nullptr),
+          regex_to_biblio_level_and_type_map_(regex_to_biblio_level_and_type_map) { }
 
+    MatcherType getType() const {
+        return regex_to_biblio_level_and_type_map_.empty() ? SINGLE_MATCH : MULTIPLE_MATCHES_AND_MAP;
+    }
+    
     inline bool matched(const std::string &character_data) const {
         return (matching_regex_ == nullptr) ? true : matching_regex_->matched(character_data);
     }
@@ -61,6 +71,10 @@ public:
 
     inline const std::string &getMarcFieldTag() const { return field_tag_; }
     inline char getMarcSubfieldCode() const { return subfield_code_; }
+
+    /** \note Only call this if getType() returns MULTIPLE_MATCHES_AND_MAP. */
+    const std::map<RegexMatcher *, std::string> &getRegexToBiblioLevelAndTypeMap()  const
+        { return regex_to_biblio_level_and_type_map_; }
 };
 
 
@@ -116,11 +130,76 @@ void SkipSpaces(std::string::const_iterator &ch, const std::string::const_iterat
 }
 
 
+void ParseRequired(std::string::const_iterator &ch, const std::string::const_iterator &end,
+                   std::map<std::string, std::list<Matcher>> * const required_matchers)
+{
+    const std::string xml_tag(ExtractOptionallyQuotedString(ch, end));
+    if (unlikely(xml_tag.empty()))
+        throw std::runtime_error("missing or empty XML tag after \"required\" keyword!");
+                
+    SkipSpaces(ch, end);
+    const std::string matching_regex_string(ExtractOptionallyQuotedString(ch, end));
+    std::string err_msg;
+    const RegexMatcher * const matching_regex(RegexMatcher::RegexMatcherFactory(matching_regex_string, &err_msg));
+    if (unlikely(not err_msg.empty()))
+        throw std::runtime_error("failed to compile the regular expression for the matching regex for a "
+                                 "required condition! (" + err_msg + ")");
+
+    SkipSpaces(ch, end);
+    if (unlikely(ch != end))
+        throw std::runtime_error("junk after regular expression!");
+
+    const Matcher new_matcher("", '\0', matching_regex);
+    const auto xml_tag_and_matchers(required_matchers->find(xml_tag));
+    if (xml_tag_and_matchers == required_matchers->end())
+        required_matchers->emplace(xml_tag, std::list<Matcher>{ new_matcher });
+    else
+        xml_tag_and_matchers->second.push_back(new_matcher);
+}
+
+
+void ParseMapBiblioLevelAndType(std::string::const_iterator &ch, const std::string::const_iterator &end,
+                                std::map<std::string, std::list<Matcher>> * const xml_tag_to_marc_entry_map)
+{
+    SkipSpaces(ch, end);
+    const std::string xml_tag(ExtractOptionallyQuotedString(ch, end));
+    if (unlikely(xml_tag.empty()))
+        throw std::runtime_error("missing or empty XML tag!");
+
+    std::map<RegexMatcher *, std::string> regex_to_biblio_level_and_type_map;
+    SkipSpaces(ch, end);
+    while (ch != end) {
+        const std::string regex_string(ExtractOptionallyQuotedString(ch, end));
+        std::string err_msg;
+        RegexMatcher *matching_regex(RegexMatcher::RegexMatcherFactory(regex_string, &err_msg));
+
+        SkipSpaces(ch, end);
+        if (unlikely(ch == end))
+            throw std::runtime_error("missing level-and-type entry after regex!");
+
+        const std::string level_and_type(ExtractOptionallyQuotedString(ch, end));
+        if (unlikely(level_and_type.length() != 2))
+            throw std::runtime_error("bad level-and-type-entry \"" + level_and_type + "\"!");
+
+        regex_to_biblio_level_and_type_map.emplace(std::make_pair(matching_regex, level_and_type));
+
+        SkipSpaces(ch, end);
+    }
+
+    if (unlikely(regex_to_biblio_level_and_type_map.empty()))
+        throw std::runtime_error("missing regex and level-and-type entries!");
+
+    xml_tag_to_marc_entry_map->emplace(xml_tag, std::list<Matcher>{ Matcher(regex_to_biblio_level_and_type_map) });
+}
+
+
 // Loads a config file that specifies the mapping from XML elements to MARC fields.  An entry looks like this
 //
 //     xml_tag_name marc_field_and_subfield optional_match_regex optional_extraction_regex
 //                                     or
 //     "required" xml_tag_name match_regex
+//                                     or
+//     "map_biblio_level_and_type" xml_tag_name match_regex1 level_and_type1 ... match_regexN level_and_typeN 
 //
 // "xml_tag_name" is the tag for which the rule applies.  "marc_field_and_subfield" is the field which gets created
 // when we have a match.  "optional_match_regex" when present has to match the character data following the tag for
@@ -149,35 +228,19 @@ void LoadConfig(File * const input, std::map<std::string, std::list<Matcher>> * 
             auto ch(line.cbegin());
             const auto end(line.cend());
             SkipSpaces(ch, end);
-            const std::string xml_tag_or_required(ExtractOptionallyQuotedString(ch, end));
-            if (unlikely(xml_tag_or_required.empty()))
+            const std::string xml_tag_or_keyword(ExtractOptionallyQuotedString(ch, end));
+            if (unlikely(xml_tag_or_keyword.empty()))
                 throw std::runtime_error("missing or empty XML tag!");
             SkipSpaces(ch, end);
 
-            RegexMatcher *matching_regex(nullptr);
-            if (xml_tag_or_required == "required") {
-                const std::string xml_tag(ExtractOptionallyQuotedString(ch, end));
-                if (unlikely(xml_tag.empty()))
-                    throw std::runtime_error("missing or empty XML tag after \"required\" keyword!");
-                
-                SkipSpaces(ch, end);
-                const std::string matching_regex_string(ExtractOptionallyQuotedString(ch, end));
-                std::string err_msg;
-                matching_regex = RegexMatcher::RegexMatcherFactory(matching_regex_string, &err_msg);
-                if (unlikely(not err_msg.empty()))
-                    throw std::runtime_error("failed to compile the regular expression for the matching regex for a "
-                                             "required condition! (" + err_msg + ")");
-
-                SkipSpaces(ch, end);
-                if (unlikely(ch != end))
-                    throw std::runtime_error("junk after regular expression!");
-
-                const Matcher new_matcher("", '\0', matching_regex);
-                const auto xml_tag_and_matchers(required_matchers->find(xml_tag));
-                if (xml_tag_and_matchers == required_matchers->end())
-                    required_matchers->emplace(xml_tag, std::list<Matcher>{ new_matcher });
-                else
-                    xml_tag_and_matchers->second.push_back(new_matcher);
+            if (xml_tag_or_keyword == "required") {
+                ParseRequired(ch, end, required_matchers);
+                continue;
+            }
+            
+            if (xml_tag_or_keyword == "map_biblio_level_and_type") {
+                ParseMapBiblioLevelAndType(ch, end, xml_tag_to_marc_entry_map);
+                continue;
             }
 
             const std::string marc_tag_and_subfield_code(ExtractOptionallyQuotedString(ch, end));
@@ -185,7 +248,7 @@ void LoadConfig(File * const input, std::map<std::string, std::list<Matcher>> * 
                 throw std::runtime_error("bad MARC tag and subfield code!");
             SkipSpaces(ch, end);
 
-            RegexMatcher *extraction_regex(nullptr);
+            RegexMatcher *matching_regex(nullptr), *extraction_regex(nullptr);
             if (ch != end) {
                 const std::string matching_regex_string(ExtractOptionallyQuotedString(ch, end));
                 std::string err_msg;
@@ -214,9 +277,9 @@ void LoadConfig(File * const input, std::map<std::string, std::list<Matcher>> * 
             const Matcher new_matcher(marc_tag_and_subfield_code.substr(0, DirectoryEntry::TAG_LENGTH),
                                       marc_tag_and_subfield_code[DirectoryEntry::TAG_LENGTH],
                                       matching_regex, extraction_regex);
-            const auto xml_tag_and_matchers(xml_tag_to_marc_entry_map->find(xml_tag_or_required));
+            const auto xml_tag_and_matchers(xml_tag_to_marc_entry_map->find(xml_tag_or_keyword));
             if (xml_tag_and_matchers == xml_tag_to_marc_entry_map->end())
-                xml_tag_to_marc_entry_map->emplace(xml_tag_or_required, std::list<Matcher>{ new_matcher });
+                xml_tag_to_marc_entry_map->emplace(xml_tag_or_keyword, std::list<Matcher>{ new_matcher });
             else
                 xml_tag_and_matchers->second.push_back(new_matcher);
         } catch (const std::exception &x) {
@@ -290,8 +353,21 @@ void ProcessRecords(const bool verbose, const OutputFormat output_format, File *
                 const auto xml_tag_and_required_matchers(required_matchers.find(data));
                 if (xml_tag_and_required_matchers != required_matchers.cend()) {
                     for (const auto &matcher : xml_tag_and_required_matchers->second) {
-                        if (matcher.matched(character_data))
-                            ++met_required_conditions_count;
+                        if (matcher.getType() == Matcher::SINGLE_MATCH) {
+                            if (matcher.matched(character_data))
+                                ++met_required_conditions_count;
+                        } else if (matcher.getType() == Matcher::MULTIPLE_MATCHES_AND_MAP) {
+                            const std::map<RegexMatcher *, std::string> &map(matcher.getRegexToBiblioLevelAndTypeMap());
+                            for (const auto &regex_and_values : map) {
+                                if (regex_and_values.first->matched(data)) {
+                                    Leader &leader(record.getLeader());
+                                    leader.setRecordType(regex_and_values.second[0]);
+                                    leader.setBibliographicLevel(regex_and_values.second[1]);
+                                    continue;
+                                }
+                            }
+                            Warning("found no match for \"" + character_data + "\"! (XML tag was " + data + ".)");
+                        }
                     }
                 }
 
