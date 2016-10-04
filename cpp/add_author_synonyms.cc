@@ -26,8 +26,8 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"

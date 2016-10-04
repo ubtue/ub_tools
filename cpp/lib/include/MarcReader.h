@@ -20,6 +20,7 @@
 #ifndef MARC_READER
 #define MARC_READER
 
+
 #include "MarcRecord.h"
 
 class MarcReader {
@@ -32,5 +33,6 @@ public:
     static MarcRecord Read(File * const input);
     static MarcRecord ReadXML(File * const input);
 };
+
 
 #endif //MARC_READER
