@@ -126,7 +126,7 @@ void AugmentKeywordsWithTitleWords(const bool verbose, File * const input, File 
             continue;
         }
 
-        const Subfields &subfields(record.getSubfields(title_index));
+        const Subfields subfields(record.getSubfields(title_index));
         if (not subfields.hasSubfield('a')) {
             MarcWriter::Write(record, output);
             continue;

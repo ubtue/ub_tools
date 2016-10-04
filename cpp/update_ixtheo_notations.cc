@@ -72,7 +72,7 @@ bool LocalBlockIsFromUbTueTheologians(const std::pair<size_t, size_t> &local_blo
     record.findFieldsInLocalBlock("852", "  ", local_block_begin_and_end, &_852_indices);
 
     for (const auto index : _852_indices) {
-        const Subfields &subfields(record.getSubfields(index));
+        const Subfields subfields(record.getSubfields(index));
         if (subfields.hasSubfieldWithValue('a', "Tü 135"))
             return true;
     }
@@ -91,7 +91,7 @@ unsigned ExtractIxTheoNotations(const std::pair<size_t, size_t> &local_block_beg
 
     size_t found_count(0);
     for (const auto index : _936ln_indices) {
-        const Subfields &subfields(record.getSubfields(index));
+        const Subfields subfields(record.getSubfields(index));
         const std::string ixtheo_notation_candidate(subfields.getFirstSubfieldValue('a'));
         if (code_to_description_map.find(ixtheo_notation_candidate) != code_to_description_map.end()) {
             ++found_count;
@@ -133,7 +133,7 @@ void ProcessRecords(File * const input, File * const output,
         }
 
         if (not ixtheo_notations_list.empty()) // Insert a new 652 field w/ a $a subfield.
-            record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list);
+            record.insertSubfield("652", 'a', ixtheo_notations_list);
         MarcWriter::Write(record, output);
     }
 

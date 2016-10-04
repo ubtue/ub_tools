@@ -148,42 +148,59 @@ public class TuelibMixin extends SolrIndexerMixin {
         reviews_cache = reviewedRecords_cache = isils_cache = null;
     }
 
+    private String getTitleFromField(final DataField titleField) {
+        if (titleField == null)
+            return null;
+
+        final String titleA = (titleField.getSubfield('a') == null) ? null : titleField.getSubfield('a').getData();
+        final String titleB = (titleField.getSubfield('b') == null) ? null : titleField.getSubfield('b').getData();
+        if (titleA == null && titleB == null)
+            return null;
+
+        final StringBuilder completeTitle = new StringBuilder();
+        if (titleA == null)
+            completeTitle.append(Utils.cleanData(titleB));
+        else if (titleB == null)
+            completeTitle.append(Utils.cleanData(titleA));
+        else { // Neither titleA nor titleB are null.
+            completeTitle.append(Utils.cleanData(titleA));
+            completeTitle.append(" : ");
+            completeTitle.append(Utils.cleanData(titleB));
+        }
+
+        final String titleN = (titleField.getSubfield('n') == null) ? null : titleField.getSubfield('n').getData();
+        if (titleN != null) {
+            completeTitle.append(' ');
+            completeTitle.append(Utils.cleanData(titleN));
+        }
+
+        return completeTitle.toString();
+    }
+    
     /**
      * Determine Record Title
      *
      * @param record the record
      * @return String     nicely formatted title
      */
-    public String getTitle(final Record record) {
-        final DataField title = (DataField) record.getVariableField("245");
-        if (title == null)
-            return null;
-
-        final String title_a = (title.getSubfield('a') == null) ? null : title.getSubfield('a').getData();
-        final String title_b = (title.getSubfield('b') == null) ? null : title.getSubfield('b').getData();
-        if (title_a == null && title_b == null)
-            return null;
-
-        final StringBuilder complete_title = new StringBuilder();
-        if (title_a == null)
-            complete_title.append(Utils.cleanData(title_b));
-        else if (title_b == null)
-            complete_title.append(Utils.cleanData(title_a));
-        else { // Neither title_a nor title_b are null.
-            complete_title.append(Utils.cleanData(title_a));
-            complete_title.append(" : ");
-            complete_title.append(Utils.cleanData(title_b));
-        }
-
-        final String title_n = (title.getSubfield('n') == null) ? null : title.getSubfield('n').getData();
-        if (title_n != null) {
-            complete_title.append(' ');
-            complete_title.append(Utils.cleanData(title_n));
-        }
-
-        return complete_title.toString();
+    public String getMainTitle(final Record record) {
+        final DataField mainTitleField = (DataField) record.getVariableField("245");
+        return getTitleFromField(mainTitleField);
     }
 
+    public Set<String> getOtherTitles(final Record record) {
+        final List<VariableField> otherTitleFields = record.getVariableFields("246");
+
+        final Set<String> otherTitles = new TreeSet<>();
+        for (final VariableField otherTitleField : otherTitleFields) {
+            final String otherTitle = getTitleFromField((DataField) otherTitleField);
+            if (otherTitle != null)
+                otherTitles.add(otherTitle);
+        }
+        
+        return otherTitles;
+    }
+    
     /**
      * Determine Record Title Subfield
      *
@@ -741,6 +758,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verlegerin", "hg");
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("herausgeber", "hg");
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("herausgeberin", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("hrsg", "hg");
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("übersetzer", "trl");
         GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("übersetzerin", "trl");
     }

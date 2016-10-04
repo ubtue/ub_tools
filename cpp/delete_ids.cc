@@ -138,7 +138,7 @@ bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_
             Error("Every local data block has to have exactly one 001 field. (Record: " + record->getControlNumber()
                   + ", Local data block: " + std::to_string(local_block_boundary.first) + " - "
                   + std::to_string(local_block_boundary.second));
-        const Subfields &subfields(record->getSubfields(field_indices[0]));
+        const Subfields subfields(record->getSubfields(field_indices[0]));
         const std::string subfield_contents(subfields.getFirstSubfieldValue('0'));
         if (not StringUtil::StartsWith(subfield_contents, "001 ")
             or local_deletion_ids.find(subfield_contents.substr(4)) == local_deletion_ids.end())

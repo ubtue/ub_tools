@@ -87,7 +87,7 @@ bool HasMonographParent(const std::string &subfield, const MarcRecord &record) {
     if (field_index == MarcRecord::FIELD_NOT_FOUND)
         return false;
 
-    const Subfields &subfields(record.getSubfields(field_index));
+    const Subfields subfields(record.getSubfields(field_index));
     const std::string &subfield_contents(subfields.getFirstSubfieldValue(subfield_code));
     if (subfield_contents.empty())
         return false;
