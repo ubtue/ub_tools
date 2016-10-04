@@ -95,7 +95,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
 EndPhase || Abort) &
 
 
-StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, and Remove Sorting Chars\$a"
+StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, Superflous Subfield 2 in Topic Fields and Remove Sorting Chars\$a"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml \
     --input-format=marc-xml \
