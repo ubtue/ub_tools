@@ -18,8 +18,8 @@
  */
 
 #include "MarcRecord.h"
-#include "util.h"
 #include "MarcReader.h"
+#include "util.h"
 
 
 std::string MarcRecord::getFieldData(const std::string &tag) const {

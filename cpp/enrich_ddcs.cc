@@ -46,8 +46,7 @@ bool IsPossibleDDC(const std::string &ddc_candidate) {
 }
 
 
-void ExtractDDCsFromField(const std::string &tag, const MarcRecord &record, std::set<std::string> * const ddcs)
-{
+void ExtractDDCsFromField(const std::string &tag, const MarcRecord &record, std::set<std::string> * const ddcs) {
     for (size_t index = record.getFieldIndex(tag); index < record.getNumberOfFields() && record.getTag(index) == tag; ++index) {
         const Subfields subfields(record.getSubfields(index));
         if (subfields.hasSubfield('z')) // Auxillary table number => not a regular DDC in $a!

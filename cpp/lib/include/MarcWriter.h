@@ -20,6 +20,7 @@
 #ifndef MARC_WRITER
 #define MARC_WRITER
 
+
 #include "MarcRecord.h"
 #include "XmlWriter.h"
 

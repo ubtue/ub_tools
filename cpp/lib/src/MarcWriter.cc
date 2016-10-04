@@ -36,7 +36,7 @@ static bool inline HasDirectoryEntryEnoughSpace(const size_t baseAddress, const 
 /**
  * Intentionally we want a copy of directory_iter, so it behaves like a lookahead.
  */
-static void inline precalculateBaseAddressOfData(std::vector<DirectoryEntry>::const_iterator directory_iter, const std::vector<DirectoryEntry>::const_iterator &end_iter,
+static void inline PrecalculateBaseAddressOfData(std::vector<DirectoryEntry>::const_iterator directory_iter, const std::vector<DirectoryEntry>::const_iterator &end_iter,
                                           size_t *number_of_directory_entries, size_t *baseAddress, size_t *record_length) {
     *baseAddress += Leader::LEADER_LENGTH + 1 /* for directory separator byte */;
     *record_length += 1 /* for end of record byte */;
@@ -79,7 +79,7 @@ void MarcWriter::Write(MarcRecord &record, File * const output) {
         size_t number_of_directory_entries = 0;
         size_t record_length = ppn_field_length;
         size_t baseAddress = DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
-        precalculateBaseAddressOfData(directory_iter, record.directory_entries_.cend(), &number_of_directory_entries, &baseAddress, &record_length);
+        PrecalculateBaseAddressOfData(directory_iter, record.directory_entries_.cend(), &number_of_directory_entries, &baseAddress, &record_length);
 
         char *leader_pointer = write_buffer;
         char *directory_pointer = write_buffer + Leader::LEADER_LENGTH;
