@@ -57,7 +57,7 @@ bool ProcessRecord(MarcRecord * const record, File * const output, std::string *
         if (record->findFieldsInLocalBlock("852", "??", block_start_and_end, &_852_field_indices) == 0)
             continue;
         for (const size_t _852_index : _852_field_indices) {
-            const Subfields &subfields1(record->getSubfields(_852_index));
+            const Subfields subfields1(record->getSubfields(_852_index));
             const std::string not_available_subfield(subfields1.getFirstSubfieldValue('z'));
             if (not_available_subfield == "Kein Bestand am IfK; Nachweis für KrimDok")
                 continue;
@@ -70,7 +70,7 @@ bool ProcessRecord(MarcRecord * const record, File * const output, std::string *
             std::vector <size_t> _866_field_indices;
             if (record->findFieldsInLocalBlock("866", "30", block_start_and_end, &_866_field_indices) > 0) {
                 for (const size_t _866_index : _866_field_indices) {
-                    const Subfields &subfields2(record->getSubfields(_866_index));
+                    const Subfields subfields2(record->getSubfields(_866_index));
                     const std::string subfield_a(subfields2.getFirstSubfieldValue('a'));
                     if (not subfield_a.empty()) {
                         if (not detailed_availability.empty())
@@ -85,19 +85,18 @@ bool ProcessRecord(MarcRecord * const record, File * const output, std::string *
 
             const std::string institution(isil_subfield == "DE-21" ? "UB: " : "IFK: ");
             if (_852_index + 1 < block_start_and_end.second) {
-                const Subfields &subfields2(record->getSubfields(_852_index + 1));
+                const Subfields subfields2(record->getSubfields(_852_index + 1));
                 const std::string call_number_subfield(subfields2.getFirstSubfieldValue('c'));
                 if (not call_number_subfield.empty()) {
                     const std::string institution_and_call_number(institution + call_number_subfield);
                     ++add_sig_count;
                     modified_record = true;
-                    record->insertField("SIG",
-                                        "  ""\x1F""a" + institution_and_call_number
-                                        + (detailed_availability.empty() ? "" : "(" + detailed_availability + ")"));
+                    record->insertSubfield("SIG", 'a', institution_and_call_number
+                                           + (detailed_availability.empty() ? "" : "(" + detailed_availability + ")"));
                 } else { // Look for a URL.
                     std::vector <size_t> _856_field_indices;
                     if (record->findFieldsInLocalBlock("856", "4 ", block_start_and_end, &_856_field_indices) > 0) {
-                        const Subfields &subfields3(record->getSubfields(_856_field_indices.front()));
+                        const Subfields subfields3(record->getSubfields(_856_field_indices.front()));
                         if (subfields3.hasSubfield('u')) {
                             const std::string url(subfields3.getFirstSubfieldValue('u'));
                             if (alread_seen_urls.find(url) == alread_seen_urls.cend()) {
@@ -105,7 +104,7 @@ bool ProcessRecord(MarcRecord * const record, File * const output, std::string *
                                 std::string anchor(HtmlUtil::HtmlEscape(subfields3.getFirstSubfieldValue('x')));
                                 if (anchor.empty())
                                     anchor = "Tübingen Online Resource";
-                                record->insertField("SIG", "  \x1F""a<a href=\"" + url + "\">" + anchor + "</a>");
+                                record->insertSubfield("SIG", 'a', "<a href=\"" + url + "\">" + anchor + "</a>");
                             }
                         }
                     }

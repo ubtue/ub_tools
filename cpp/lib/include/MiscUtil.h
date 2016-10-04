@@ -70,6 +70,10 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
                     const std::map<std::string, std::vector<std::string>> &names_to_values_map);
 
 
+/** Given a Pica Production Number w/o the checksum digit, this function will return said digit. */
+char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit);
+
+    
 /** \return True if "ppn_candidate" is a possible Pica Production Number, else false. */
 bool IsValidPPN(const std::string &ppn_candidate);
 

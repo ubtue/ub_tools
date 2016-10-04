@@ -117,6 +117,12 @@ enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${da
 EndPhase
 
 
+StartPhase "Adding the Library Sigil to Articles Where Appropriate"
+add_ub_sigil_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
+EndPhase
+
+
 StartPhase "Augment Bible References"
 augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          Normdaten-"${date}".mrc \

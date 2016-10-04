@@ -97,7 +97,7 @@ void PopulateParentIdToISBNAndISSNMap(
         std::vector<size_t> _029_field_indices;
         record.getFieldIndices("029", &_029_field_indices);
         for (const auto &_029_field_index : _029_field_indices) {
-            const Subfields &subfields(record.getSubfields(_029_field_index));
+            const Subfields subfields(record.getSubfields(_029_field_index));
 
             // We only want fields with indicators 'x' and 'a':
             if (subfields.getIndicator1() != 'x' or subfields.getIndicator2() != 'a')
@@ -148,7 +148,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
             continue;
         }
 
-        const size_t &_773_index(record.getFieldIndex("773"));
+        const size_t _773_index(record.getFieldIndex("773"));
         if (_773_index == MarcRecord::FIELD_NOT_FOUND) {
             MarcWriter::Write(record, output);
             continue;
@@ -184,8 +184,8 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
         } else { // Deal with ISBNs.
             if (not record.extractFirstSubfield("020", 'a').empty())
                 continue; // We already have an ISBN.
-            std::string new_field_020("  ""\x1F""a" + parent_isbn_or_issn_iter->second);
-            record.insertField("020", new_field_020);
+
+            record.insertSubfield("020", 'a', parent_isbn_or_issn_iter->second);
             ++isbns_added;
         }
         MarcWriter::Write(record, output);

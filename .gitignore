@@ -19,6 +19,7 @@ add_journal_subscription
 add_superior_and_alertable_flags
 add_synonyms
 add_title_keywords
+add_ub_sigil_to_articles
 append_marc_xml
 archive_reader_test
 archive_writer_test
@@ -26,6 +27,7 @@ augment_773a
 augment_bible_references
 auto_temp_file_test
 backtrace_test
+base_tar_unpacker
 bib_ref_parser_test
 bib_ref_to_codes_tool
 categorise_marc_xml
@@ -33,6 +35,7 @@ chop_into_words_test
 compress_test
 control_number_filter
 convert_bible_references
+convert_xml_to_marc21
 create_author_synonym_map
 create_full_text_db
 db_lookup

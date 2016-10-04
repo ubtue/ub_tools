@@ -45,7 +45,7 @@ static void Usage() {
 
 void ProcessRecords(const bool verbose, const bool input_is_xml, File * const input) {
     std::string raw_record;
-    unsigned record_count(0), max_record_length(0), max_local_block_count(0);
+    unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0);
     std::unordered_set<std::string> control_numbers;
     std::map<Leader::RecordType, unsigned> record_types_and_counts;
 
@@ -74,6 +74,8 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
         const unsigned record_length(leader.getRecordLength());
         if (record_length > max_record_length)
             max_record_length = record_length;
+        if (record_length >= 100000)
+            ++oversized_record_count;
 
         std::vector<std::pair<size_t, size_t>> local_block_boundaries;
         const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
@@ -90,6 +92,7 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
               << " classification record(s), " << record_types_and_counts[Leader::RecordType::CLASSIFICATION]
               << " authority record(s), and " << record_types_and_counts[Leader::RecordType::UNKNOWN]
               << " record(s) of unknown record type.\n";
+    std::cout << "Found " << oversized_record_count << " oversized records.\n";
 }
 
 

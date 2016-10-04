@@ -49,7 +49,7 @@ bool IsPossibleDDC(const std::string &ddc_candidate) {
 void ExtractDDCsFromField(const std::string &tag, const MarcRecord &record, std::set<std::string> * const ddcs)
 {
     for (size_t index = record.getFieldIndex(tag); index < record.getNumberOfFields() && record.getTag(index) == tag; ++index) {
-        const Subfields &subfields(record.getSubfields(index));
+        const Subfields subfields(record.getSubfields(index));
         if (subfields.hasSubfield('z')) // Auxillary table number => not a regular DDC in $a!
             continue;
 
@@ -103,7 +103,7 @@ void ExtractTopicIDs(const std::string &tags, const MarcRecord &record, const st
 
     for (const auto &tag : individual_tags) {
         for (size_t index(record.getFieldIndex(tag)); index < record.getNumberOfFields() and record.getTag(index) == tag; ++index) {
-            const Subfields &subfields(record.getSubfields(index));
+            const Subfields subfields(record.getSubfields(index));
             const auto begin_end(subfields.getIterators('0'));
             for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
                 if (not StringUtil::StartsWith(subfield0->second, "(DE-576)"))

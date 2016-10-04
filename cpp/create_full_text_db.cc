@@ -88,7 +88,7 @@ bool IsProbablyAReview(const Subfields &subfields) {
 
 bool FoundAtLeastOneNonReviewLink(const MarcRecord &record) {
     for (size_t _856_index(record.getFieldIndex("856")); _856_index < record.getNumberOfFields() and record.getTag(_856_index) == "856"; ++_856_index) {
-        const Subfields &subfields(record.getSubfields(_856_index));
+        const Subfields subfields(record.getSubfields(_856_index));
         if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;
 

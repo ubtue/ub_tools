@@ -86,6 +86,14 @@ bool MarcRecord::updateField(const size_t field_index, const std::string &new_fi
 }
 
 
+bool MarcRecord::insertSubfield(const std::string &new_field_tag, const char subfield_code,
+                            const std::string &new_subfield_value, const char indicator1, const char indicator2)
+{
+    return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + "\x1F"
+                                      + std::string(1, subfield_code) + new_subfield_value);
+}
+
+
 size_t MarcRecord::insertField(const std::string &new_field_tag, const std::string &new_field_value) {
     if (unlikely(new_field_tag.length() != DirectoryEntry::TAG_LENGTH))
         throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of 3!");

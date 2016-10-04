@@ -41,11 +41,13 @@ void Usage() {
     std::cerr << "usage: " << ::progname
               << " marc_input marc_output [[--input-format=(marc-xml|marc-21)] [--output-format=(marc-xml|marc-21)] op1 [op2 .. opN]\n"
               << "       where each operation must start with the operation type. Operation-type flags\n"
-              << "       are --drop, --keep, --remove-fields, or --filter-chars.\n"
-              << "       Arguments for all operations except for --filter-chars are field_or_subfieldspec1:regex1 "
+              << "       are --drop, --keep, --drop-biblio-level, --keep-biblio-level --remove-fields, or\n"
+              << "       --filter-chars.\n"
+              << "       Arguments for --keep and --drop are field_or_subfieldspec1:regex1 "
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
               << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
+              << "       --drop-biblio-level and --keep-biblio-level arguments must be a single character.\n"
               << "       --filter-chars' arguments are subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
 
@@ -174,7 +176,7 @@ namespace {
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
-enum class FilterType { KEEP, DROP, REMOVE_FIELDS, FILTER_CHARS };
+enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS, FILTER_CHARS };
 
 
 } // unnamed namespace
@@ -186,8 +188,10 @@ private:
     std::vector<CompiledPattern *> compiled_patterns_;
     std::vector<std::string> subfield_specs_;
     std::string chars_to_delete_;
+    char biblio_level_;
 public:
     inline FilterType getFilterType() const { return filter_type_; }
+    inline char getBiblioLevel() const { return biblio_level_; }
 
     /** \note Only call this if the filter type is not FILTER_CHARS! */
     inline const std::vector<CompiledPattern *> getCompiledPatterns() const { return compiled_patterns_; }
@@ -204,6 +208,12 @@ public:
     inline static FilterDescriptor MakeKeepFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::KEEP, compiled_patterns);
     }
+    inline static FilterDescriptor MakeDropBiblioLevelFilter(const char biblio_level) {
+        return FilterDescriptor(FilterType::DROP_BIBLIOGRAPHIC_LEVEL, biblio_level);
+    }
+    inline static FilterDescriptor MakeKeepBiblioLevelFilter(const char biblio_level) {
+        return FilterDescriptor(FilterType::KEEP_BIBLIOGRAPHIC_LEVEL, biblio_level);
+    }
     inline static FilterDescriptor MakeRemoveFieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::REMOVE_FIELDS, compiled_patterns);
     }
@@ -217,6 +227,8 @@ private:
     FilterDescriptor(const std::vector<std::string> &subfield_specs, const std::string &chars_to_delete)
         : filter_type_(FilterType::FILTER_CHARS), subfield_specs_(subfield_specs),
           chars_to_delete_(chars_to_delete) { }
+    FilterDescriptor(const FilterType filter_type, const char biblio_level)
+        : filter_type_(filter_type), biblio_level_(biblio_level) { }
 };
 
 
@@ -282,6 +294,16 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
             if (filter.getFilterType() == FilterType::FILTER_CHARS) {
                 if (FilterCharacters(filter.getSubfieldSpecs(), filter.getCharsToDelete(), &record))
                     modified_record = true;
+            } else if (filter.getFilterType() == FilterType::DROP_BIBLIOGRAPHIC_LEVEL) {
+                if (record.getLeader().getBibliographicLevel() == filter.getBiblioLevel()) {
+                    deleted_record = true;
+                    break;
+                }
+            } else if (filter.getFilterType() == FilterType::KEEP_BIBLIOGRAPHIC_LEVEL) {
+                if (record.getLeader().getBibliographicLevel() != filter.getBiblioLevel()) {
+                    deleted_record = true;
+                    break;
+                }
             } else {
                 std::vector<size_t> matched_field_indices;
                 if (Matched(record, filter.getCompiledPatterns(), &matched_field_indices)) {
@@ -314,6 +336,7 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
     delete xml_writer;
 
     std::cerr << "Processed a total of " << total_count << " record(s).\n";
+    std::cerr << "Kept " << (total_count - deleted_count) << " record(s).\n";
     std::cerr << "Modified " << modified_count << " record(s).\n";
     std::cerr << "Deleted " << deleted_count << " record(s).\n";
 }
@@ -355,6 +378,19 @@ bool ArePlausibleSubfieldSpecs(const std::vector<std::string> &subfield_specs) {
 }
 
 
+char GetBiblioLevelArgument(char ***argvp) {
+    ++*argvp;
+    if (*argvp == nullptr)
+        Error("missing bibliographic level after --drop-biblio-level or --keep-biblio-level flag!");
+    const std::string bibliographic_level_candidate(**argvp);
+    ++*argvp;
+
+    if (bibliographic_level_candidate.length() != 1)
+        Error("bad bibliographic level \"" + bibliographic_level_candidate + "\"!");
+    return bibliographic_level_candidate[0];
+}
+
+
 void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filters) {
     while (*argv != nullptr) {
         std::vector<CompiledPattern *> compiled_patterns;
@@ -362,6 +398,10 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             filters->emplace_back(FilterDescriptor::MakeDropFilter(CollectAndCompilePatterns(&argv)));
         else if (std::strcmp(*argv, "--keep") == 0)
             filters->emplace_back(FilterDescriptor::MakeKeepFilter(CollectAndCompilePatterns(&argv)));
+        else if (std::strcmp(*argv, "--drop-biblio-level") == 0)
+            filters->emplace_back(FilterDescriptor::MakeDropBiblioLevelFilter(GetBiblioLevelArgument(&argv)));
+        else if (std::strcmp(*argv, "--keep-biblio-level") == 0)
+            filters->emplace_back(FilterDescriptor::MakeKeepBiblioLevelFilter(GetBiblioLevelArgument(&argv)));
         else if (std::strcmp(*argv, "--remove-fields") == 0)
             filters->emplace_back(FilterDescriptor::MakeRemoveFieldsFilter(CollectAndCompilePatterns(&argv)));
         else if (std::strcmp(*argv, "--filter-chars") == 0) {

@@ -108,6 +108,21 @@ static bool ReadFields(const std::string &raw_fields, const std::vector<Director
 namespace MarcUtil {
 
 
+Record &Record::operator=(const Record &rhs) {
+    if (likely(&rhs != this)) {
+            leader_                        = rhs.leader_;
+            raw_record_                    = rhs.raw_record_;
+            raw_record_is_out_of_date_     = rhs.raw_record_is_out_of_date_;
+            dir_entries_                   = rhs.dir_entries_;
+            fields_                        = rhs.fields_;
+            xml_file_start_offset_         = rhs.xml_file_start_offset_;
+            record_will_be_written_as_xml_ = rhs.record_will_be_written_as_xml_;
+    }
+
+    return *this;
+}
+
+
 bool Record::recordSeemsCorrect(std::string * const err_msg) const {
     if (raw_record_is_out_of_date_)
         UpdateRawRecord();
@@ -124,7 +139,7 @@ bool Record::recordSeemsCorrect(std::string * const err_msg) const {
     }
 
     if (raw_record_.length() > 99999) {
-        Warning("record length (" + std::to_string(raw_record_.length())                                                         
+        Warning("record length (" + std::to_string(raw_record_.length())
                 + ") exceeds maxium legal record length (99999)!");
         return false;
     }
@@ -272,8 +287,9 @@ void Record::updateField(const size_t field_index, const std::string &new_field_
 
 
 bool Record::insertField(const std::string &new_field_tag, const std::string &new_field_value) {
-    if (new_field_tag.length() != 3)
-        throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of 3!");
+    if (new_field_tag.length() != DirectoryEntry::TAG_LENGTH)
+        throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of "
+                                 + std::to_string(DirectoryEntry::TAG_LENGTH) + "!");
 
     if (not record_will_be_written_as_xml_) {
        if (not leader_.setRecordLength(leader_.getRecordLength() + new_field_value.length()
@@ -288,8 +304,14 @@ bool Record::insertField(const std::string &new_field_tag, const std::string &ne
         ++dir_entry;
 
     if (dir_entry == dir_entries_.end()) {
-        auto previous_dir_entry = (dir_entries_.end() - 1);
-        const size_t offset = previous_dir_entry->getFieldOffset() + previous_dir_entry->getFieldLength();
+        size_t offset;
+        if (dir_entry == dir_entries_.begin())
+            offset = Leader::LEADER_LENGTH + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + 1;
+        else {
+            const auto previous_dir_entry(dir_entries_.end() - 1);
+            offset = previous_dir_entry->getFieldOffset() + previous_dir_entry->getFieldLength();
+        }
+        
         dir_entries_.emplace_back(new_field_tag, new_field_value.length() + 1, offset);
         fields_.emplace_back(new_field_value);
         return true;
@@ -311,6 +333,14 @@ bool Record::insertField(const std::string &new_field_tag, const std::string &ne
     raw_record_is_out_of_date_ = true;
 
     return true;
+}
+
+
+bool Record::insertSubfield(const std::string &new_field_tag, const char subfield_code,
+                            const std::string &new_subfield_value, const char indicator1, const char indicator2)
+{
+    return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + "\x1F"
+                       + std::string(1, subfield_code) + new_subfield_value);
 }
 
 
@@ -341,17 +371,17 @@ void Record::deleteField(const size_t field_index) {
 bool Record::replaceField(const size_t field_index, const std::string &new_field_contents) {
     const auto old_field_length(fields_[field_index].length());
     fields_[field_index] = new_field_contents;
-    
+
     if (not record_will_be_written_as_xml_) {
         if (not leader_.setRecordLength(leader_.getRecordLength() + new_field_contents.length() - old_field_length))
             return false;
     }
-    
+
     raw_record_is_out_of_date_ = true;
     return true;
 }
 
-    
+
 size_t Record::extractAllSubfields(const std::string &tags, std::vector<std::string> * const values,
                                    const std::string &ignore_subfield_codes) const
 {
@@ -439,7 +469,7 @@ size_t Record::extractSubfields(const std::string &tag, const std::string &subfi
 
     return values->size();
 }
-    
+
 
 void Record::filterTags(const std::unordered_set<std::string> &drop_tags) {
     std::vector<size_t> matched_slots;
@@ -767,7 +797,7 @@ Record Record::XmlFactory(File * const input) {
 
         // If we use FIFO's we may not use tell but have to skip over the start of the XML document anyway:
         struct stat st;
-        if ((not fstat(input->getFileDescriptor(), &st) and S_ISFIFO(st.st_mode)) or (input->tell() == 0)) 
+        if ((not fstat(input->getFileDescriptor(), &st) and S_ISFIFO(st.st_mode)) or (input->tell() == 0))
             SkipOverStartOfDocument(xml_parser);
     }
 

@@ -55,7 +55,7 @@ static DbConnection *shared_connection;
 
 void ExtractGermanSynonyms(const MarcRecord &record, std::vector<std::pair<std::string, std::string>> * const text_and_language_codes) {
     for (size_t _450_index(record.getFieldIndex("450")); _450_index < record.getNumberOfFields() and record.getTag(_450_index) == "450"; ++_450_index) {
-        const Subfields &_450_subfields(record.getSubfields(_450_index));
+        const Subfields _450_subfields(record.getSubfields(_450_index));
         if (_450_subfields.hasSubfield('a')) {
             text_and_language_codes->emplace_back(std::make_pair(_450_subfields.getFirstSubfieldValue('a'), "deu"));
             ++synonym_count;
@@ -68,7 +68,7 @@ void ExtractNonGermanTranslations(const MarcRecord &record,
                                   std::vector<std::pair<std::string, std::string>> * const text_and_language_codes) {
     for (size_t index(record.getFieldIndex("750"));
          index < record.getNumberOfFields() and record.getTag(index) == "750"; ++index) {
-        const Subfields &_750_subfields(record.getSubfields(index));
+        const Subfields _750_subfields(record.getSubfields(index));
         auto start_end(_750_subfields.getIterators('9'));
         if (start_end.first == start_end.second)
             continue;
