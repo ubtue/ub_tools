@@ -105,7 +105,8 @@ urlencode
 vufind_db_test
 xml_parser_test
 marc_compare
-marc21_test
+add_referenceterms
+extract_referenceterms
 
 bsz_daten
 bsz_daten_cumulated
