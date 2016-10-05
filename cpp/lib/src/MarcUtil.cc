@@ -288,8 +288,8 @@ void Record::updateField(const size_t field_index, const std::string &new_field_
 
 bool Record::insertField(const std::string &new_field_tag, const std::string &new_field_value) {
     if (new_field_tag.length() != DirectoryEntry::TAG_LENGTH)
-        throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of "
-                                 + std::to_string(DirectoryEntry::TAG_LENGTH) + "!");
+        throw std::runtime_error("in MarcUtil::Record::insertField: new field tag \"" + new_field_tag
+                                 + "\" must have a length of " + std::to_string(DirectoryEntry::TAG_LENGTH) + "!");
 
     if (not record_will_be_written_as_xml_) {
        if (not leader_.setRecordLength(leader_.getRecordLength() + new_field_value.length()
