@@ -201,8 +201,8 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
 
         const std::string REPLACE_STMT("REPLACE INTO ixtheo_journal_subscriptions SET id=" + user_id
                                        + ",last_issue_date='" + control_number_and_last_issue_date.last_issue_date_
-                                       + "',journal_control_number="
-                                       + control_number_and_last_issue_date.serial_control_number_);
+                                       + "',journal_control_number='"
+                                       + control_number_and_last_issue_date.serial_control_number_ + "'");
         if (unlikely(not db_connection->query(REPLACE_STMT)))
             Error("Replace failed: " + REPLACE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
     }
