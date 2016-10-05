@@ -27,8 +27,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Leader.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "util.h"
@@ -38,7 +38,7 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] marc_data\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] marc_data\n";
     std::exit(EXIT_FAILURE);
 }
 

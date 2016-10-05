@@ -29,12 +29,14 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << ::progname << " marc_lhs marc_rhs\n\n";
+    std::cerr << "Usage: " << ::progname << " marc_lhs marc_rhs\n\n";
     std::exit(EXIT_FAILURE);
 }
 
+
 static bool lhs_is_xml(false);
 static bool rhs_is_xml(false);
+
 
 void compare(File * const lhs_file, File * const rhs_file) {
     while(true) {
@@ -60,20 +62,18 @@ void compare(File * const lhs_file, File * const rhs_file) {
 
             std::string lhs_data(lhs.getFieldData(index));
             std::string rhs_data(rhs.getFieldData(index));
-            while(lhs_data.find("\x1F") != std::string::npos) {
+            while (lhs_data.find("\x1F") != std::string::npos)
                 lhs_data.replace(lhs_data.find("\x1F"), 1, " $");
-            }
-            while(rhs_data.find("\x1F") != std::string::npos) {
+            while (rhs_data.find("\x1F") != std::string::npos)
                 rhs_data.replace(rhs_data.find("\x1F"), 1, " $");
-            }
-            if (lhs_data.compare(rhs_data)) {
+            if (lhs_data.compare(rhs_data))
                 Error("Subfield mismatch (" + lhs.getControlNumber() + ", Tag: " + lhs.getTag(index) + "): \nLHS:" + lhs_data + "\nRHS:" + rhs_data);
-            }
         }
     }
 }
 
-bool is_xml(File * const file) {
+
+bool IsXML(File * const file) {
     const std::string media_type(MediaTypeUtil::GetFileMediaType(file->getPath()));
     if (unlikely(media_type.empty()))
         Error("can't determine media type of \"" + file->getPath() + "\"!");
@@ -81,6 +81,7 @@ bool is_xml(File * const file) {
         Error("\"" + file->getPath() + "\" is neither XML nor MARC-21 data! It is: " + media_type);
     return (media_type == "application/xml");
 }
+
 
 int main(int argc, char **argv) {
     ::progname = argv[0];
@@ -91,8 +92,8 @@ int main(int argc, char **argv) {
     std::unique_ptr<File> lhs(FileUtil::OpenInputFileOrDie(argv[1]));
     std::unique_ptr<File> rhs(FileUtil::OpenInputFileOrDie(argv[2]));
 
-    lhs_is_xml = is_xml(lhs.get());
-    rhs_is_xml = is_xml(rhs.get());
+    lhs_is_xml = IsXML(lhs.get());
+    rhs_is_xml = IsXML(rhs.get());
 
     compare(lhs.get(), rhs.get());
 

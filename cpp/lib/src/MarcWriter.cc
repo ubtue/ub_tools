@@ -17,12 +17,10 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "util.h"
 
-//
-// Marc 21 stuff:
-//
 
 static const size_t MAX_MARC_21_RECORD_LENGTH(99999);
 static char write_buffer[MAX_MARC_21_RECORD_LENGTH];
@@ -121,10 +119,6 @@ void MarcWriter::Write(MarcRecord &record, File * const output) {
         output->write(write_buffer, record_length);
     }
 }
-
-//
-// XML stuff:
-//
 
 
 void MarcWriter::Write(MarcRecord &record, XmlWriter * const xml_writer) {

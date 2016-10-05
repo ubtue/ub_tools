@@ -60,7 +60,7 @@ std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 
 
 void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::string> &primary_tags_and_subfield_codes,
-                     const std::set<std::string> &synonym_tags_and_subfield_codes,  std::vector<std::map<std::string, std::string>> * const synonym_maps) 
+                     const std::set<std::string> &synonym_tags_and_subfield_codes, std::vector<std::map<std::string, std::string>> * const synonym_maps)
 {
     while (const MarcRecord record = MarcReader::Read(norm_data_marc_input)) {
         std::set<std::string>::const_iterator primary;

@@ -18,9 +18,17 @@
  */
 
 #include "MarcRecord.h"
-#include "MarcReader.h"
 #include "util.h"
 
+
+MarcRecord &MarcRecord::operator=(const MarcRecord &rhs) {
+    if (likely(&rhs != this)) {
+        leader_            = rhs.leader_;
+        raw_data_          = rhs.raw_data_;
+        directory_entries_ = rhs.directory_entries_;
+    }
+    return *this;
+}
 
 std::string MarcRecord::getFieldData(const std::string &tag) const {
     return getFieldData(getFieldIndex(tag));
@@ -119,19 +127,19 @@ void MarcRecord::deleteField(const size_t field_index) {
 
 
 void MarcRecord::markFieldAsDeleted(const size_t field_index) {
-    deleted_field_indices.insert(field_index);
+    deleted_field_indices_.insert(field_index);
 }
 
 
 void MarcRecord::commitDeletionMarks() {
-    if (deleted_field_indices.empty())
+    if (deleted_field_indices_.empty())
         return;
 
     std::vector<DirectoryEntry> new_entries;
-    new_entries.reserve(directory_entries_.size() - deleted_field_indices.size());
+    new_entries.reserve(directory_entries_.size() - deleted_field_indices_.size());
 
     size_t index(0);
-    for (const size_t deleted_index : deleted_field_indices) {
+    for (const size_t deleted_index : deleted_field_indices_) {
         for (/*Empty*/; index < getNumberOfFields() and index != deleted_index; ++index)
             new_entries.push_back(std::move(directory_entries_[index]));
         ++index;
@@ -140,7 +148,7 @@ void MarcRecord::commitDeletionMarks() {
     for (auto iter = new_entries.begin(); iter < new_entries.end(); ++iter) {
         directory_entries_.push_back(std::move(*iter));
     }
-    deleted_field_indices.clear();
+    deleted_field_indices_.clear();
 }
 
 

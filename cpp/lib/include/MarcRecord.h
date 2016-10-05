@@ -17,8 +17,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MARC_RECORD
-#define MARC_RECORD
+#ifndef MARC_RECORD_H
+#define MARC_RECORD_H
 
 
 #include <iostream>
@@ -31,30 +31,35 @@
 #include "DirectoryEntry.h"
 #include "File.h"
 #include "Leader.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "Subfields.h"
 #include "XmlWriter.h"
 
 
 class MarcRecord {
-    friend class MarcReader;
-    friend class MarcWriter;
+    friend MarcRecord ReadSingleRecord(File * const input);
+    friend MarcRecord MarcReader::Read(File * const input);
+    friend MarcRecord MarcReader::ReadXML(File * const input);
+    friend void MarcWriter::Write(MarcRecord &record, File * const output);
+    friend void MarcWriter::Write(MarcRecord &record, XmlWriter * const xml_writer);
 public:
     static const size_t FIELD_NOT_FOUND =  std::numeric_limits<size_t>::max();
 private:
     Leader leader_;
     std::vector<DirectoryEntry> directory_entries_;
     std::string raw_data_;
-    std::set<size_t> deleted_field_indices;
+    std::set<size_t> deleted_field_indices_;
 
-    MarcRecord() = default;
     MarcRecord(Leader &leader, std::vector<DirectoryEntry> directory_entries, std::string &raw_data)
         : leader_(std::move(leader)), directory_entries_(std::move(directory_entries)), raw_data_(std::move(raw_data)) {}
-
 public:
+    MarcRecord() = default;
     MarcRecord(MarcRecord &&other) noexcept
-    : leader_(std::move(other.leader_)), directory_entries_(std::move(other.directory_entries_)),
-      raw_data_(std::move(other.raw_data_)) { }
+        : leader_(std::move(other.leader_)), directory_entries_(std::move(other.directory_entries_)),
+          raw_data_(std::move(other.raw_data_)) { }
 
+    MarcRecord &operator=(const MarcRecord &rhs);
     operator bool () const { return not directory_entries_.empty(); }
     const Leader &getLeader() const { return leader_; }
     Leader &getLeader() { return leader_; }
@@ -187,4 +192,4 @@ private:
 };
 
 
-#endif /* MARC_RECORD */
+#endif /* MARC_RECORD_H */
