@@ -47,7 +47,7 @@ void Usage() {
 
 void RemoveCommasDuplicatesAndEmptyEntries(std::vector<std::string> * const vector) {
     std::vector<std::string> cleaned_up_vector;
-    std::set<std::string> uniqe_entries;
+    std::set<std::string> unique_entries;
 
     for (auto &entry : *vector) {
         StringUtil::RemoveChars(",", &entry);
@@ -55,7 +55,7 @@ void RemoveCommasDuplicatesAndEmptyEntries(std::vector<std::string> * const vect
         if (entry.empty())
             continue;
 
-        const bool is_new_entry(uniqe_entries.emplace(entry).second);
+        const bool is_new_entry(unique_entries.emplace(entry).second);
         if (is_new_entry)
             cleaned_up_vector.emplace_back(std::move(entry));
     }
@@ -89,8 +89,7 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
         if (primary_name_field_index == MarcRecord::FIELD_NOT_FOUND)
             continue;
 
-        const std::string primary_name(ExtractNameFromSubfields(record.getFieldData(primary_name_field_index),
-                                                                tags_and_subfield_codes[0].substr(3)));
+        const std::string primary_name(ExtractNameFromSubfields(record.getFieldData(primary_name_field_index), tags_and_subfield_codes[0].substr(3)));
         if (unlikely(primary_name.empty()))
             continue;
 
@@ -105,8 +104,7 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
             size_t secondary_name_field_index(record.getFieldIndex(tag));
             while (secondary_name_field_index < record.getNumberOfFields() and record.getTag(secondary_name_field_index) == tag)
             {
-                const std::string secondary_name(ExtractNameFromSubfields(record.getFieldData(primary_name_field_index),
-                                                                          secondary_field_subfield_codes));
+                const std::string secondary_name(ExtractNameFromSubfields(record.getFieldData(secondary_name_field_index), secondary_field_subfield_codes));
                 if (not secondary_name.empty())
                     alternatives.emplace_back(secondary_name);
                 ++secondary_name_field_index;
