@@ -17,22 +17,25 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MARC_READER
-#define MARC_READER
+#ifndef MARC_READER_H
+#define MARC_READER_H
 
 
-#include "MarcRecord.h"
-
-class MarcReader {
-    friend class MarcRecord;
-
-private:
-    static MarcRecord ReadSingleRecord(File * const input);
-
-public:
-    static MarcRecord Read(File * const input);
-    static MarcRecord ReadXML(File * const input);
-};
+#include "File.h"
 
 
-#endif //MARC_READER
+// Forward declaration.
+class MarcRecord;
+
+
+namespace MarcReader {
+
+
+MarcRecord Read(File * const input);
+MarcRecord ReadXML(File * const input);
+
+
+} // namespace MarcReader
+
+
+#endif // MARC_READER_H

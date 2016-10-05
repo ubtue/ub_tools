@@ -23,15 +23,15 @@
 #include <iostream>
 #include <cstdlib>
 #include "DirectoryEntry.h"
-#include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "util.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " tag_regex input_filename\n";
+    std::cerr << "Usage: " << ::progname << " tag_regex input_filename\n";
     std::exit(EXIT_FAILURE);
 }
 

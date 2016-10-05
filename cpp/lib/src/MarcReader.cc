@@ -18,30 +18,13 @@
  */
 
 #include "MarcReader.h"
+#include "MarcRecord.h"
 #include "SimpleXmlParser.h"
-
 #include <sys/types.h>
 #include <sys/stat.h>
 
-//
-// Marc 21 stuff:
-//
 
-MarcRecord MarcReader::Read(File * const input) {
-    MarcRecord current_record(MarcReader::ReadSingleRecord(input));
-    if (not current_record)
-        return current_record;
-
-    bool isMultiPart(current_record.leader_.isMultiPartRecord());
-    while (isMultiPart) {
-        const MarcRecord &next_record(MarcReader::ReadSingleRecord(input));
-        current_record.combine(next_record);
-        isMultiPart = next_record.leader_.isMultiPartRecord();
-    }
-    return current_record;
-}
-
-MarcRecord MarcReader::ReadSingleRecord(File * const input) {
+MarcRecord ReadSingleRecord(File * const input) {
     MarcRecord record;
     if (input->eof())
         return record; // Return an empty instance!
@@ -58,7 +41,7 @@ MarcRecord MarcReader::ReadSingleRecord(File * const input) {
     }
 
     std::string err_msg;
-    if (not Leader::ParseLeader(std::string(leader_buf, Leader::LEADER_LENGTH), &record.leader_, &err_msg)) {
+    if (not Leader::ParseLeader(std::string(leader_buf, Leader::LEADER_LENGTH), &record.getLeader(), &err_msg)) {
         err_msg.append(" (Bad record started at file offset " + std::to_string(record_start_pos) + " in " + input->getPath() + ".)");
         throw std::runtime_error("in MarcReader::read: failed to parse leader bytes: " + err_msg);
     }
@@ -67,7 +50,7 @@ MarcRecord MarcReader::ReadSingleRecord(File * const input) {
     // Parse directory entries.
     //
 
-    const size_t DIRECTORY_LENGTH(record.leader_.getBaseAddressOfData() - Leader::LEADER_LENGTH);
+    const size_t DIRECTORY_LENGTH(record.getLeader().getBaseAddressOfData() - Leader::LEADER_LENGTH);
 #pragma GCC diagnostic ignored "-Wvla"
     char directory_buf[DIRECTORY_LENGTH];
 #pragma GCC diagnostic warning "-Wvla"
@@ -83,7 +66,7 @@ MarcRecord MarcReader::ReadSingleRecord(File * const input) {
     // Read variable fields.
     //
 
-    const size_t FIELD_DATA_SIZE(record.leader_.getRecordLength() - record.leader_.getBaseAddressOfData());
+    const size_t FIELD_DATA_SIZE(record.getLeader().getRecordLength() - record.getLeader().getBaseAddressOfData());
 #pragma GCC diagnostic ignored "-Wvla"
     char raw_field_data[FIELD_DATA_SIZE];
 #pragma GCC diagnostic warning "-Wvla"
@@ -102,9 +85,20 @@ MarcRecord MarcReader::ReadSingleRecord(File * const input) {
 }
 
 
-//
-// XML stuff:
-//
+MarcRecord MarcReader::Read(File * const input) {
+    MarcRecord current_record(ReadSingleRecord(input));
+    if (not current_record)
+        return current_record;
+
+    bool isMultiPart(current_record.getLeader().isMultiPartRecord());
+    while (isMultiPart) {
+        const MarcRecord &next_record(ReadSingleRecord(input));
+        current_record.combine(next_record);
+        isMultiPart = next_record.getLeader().isMultiPartRecord();
+    }
+    return current_record;
+}
+
 
 static void ParseLeader(const std::string &input_filename, Leader * const leader, SimpleXmlParser * const xml_parser) {
     SimpleXmlParser::Type type;

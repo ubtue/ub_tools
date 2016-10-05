@@ -17,18 +17,26 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MARC_WRITER
-#define MARC_WRITER
+#ifndef MARC_WRITER_H
+#define MARC_WRITER_H
 
 
-#include "MarcRecord.h"
+#include "File.h"
 #include "XmlWriter.h"
 
-class MarcWriter {
-public:
-    static void Write(MarcRecord &record, File * const output);
-    static void Write(MarcRecord &record, XmlWriter * const xml_writer);
-};
+
+// Forward declaration.
+class MarcRecord;
 
 
-#endif //MARC_WRITER
+namespace MarcWriter {
+
+
+void Write(MarcRecord &record, File * const output);
+void Write(MarcRecord &record, XmlWriter * const xml_writer);
+
+
+} // namespace MarcWriter
+
+
+#endif // MARC_WRITER_H
