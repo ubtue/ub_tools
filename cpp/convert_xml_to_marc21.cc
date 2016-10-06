@@ -169,15 +169,16 @@ void ParseMapBiblioLevelAndType(std::string::const_iterator &ch, const std::stri
     std::map<RegexMatcher *, std::string> regex_to_biblio_level_and_type_map;
     SkipSpaces(ch, end);
     while (ch != end) {
-        const std::string regex_string(ExtractOptionallyQuotedString(ch, end));
+        const std::string regex_and_level_and_type(ExtractOptionallyQuotedString(ch, end));
+        const std::string::size_type first_colon_pos(regex_and_level_and_type.find(':'));
+        if (unlikely(first_colon_pos == std::string::npos))
+            throw std::runtime_error("colon missing in (regex, level-and-type-entry) pair!");
+
+        const std::string regex_string(regex_and_level_and_type.substr(0, first_colon_pos));
         std::string err_msg;
         RegexMatcher *matching_regex(RegexMatcher::RegexMatcherFactory(regex_string, &err_msg));
 
-        SkipSpaces(ch, end);
-        if (unlikely(ch == end))
-            throw std::runtime_error("missing level-and-type entry after regex!");
-
-        const std::string level_and_type(ExtractOptionallyQuotedString(ch, end));
+        const std::string level_and_type(regex_and_level_and_type.substr(first_colon_pos + 1));
         if (unlikely(level_and_type.length() != 2))
             throw std::runtime_error("bad level-and-type-entry \"" + level_and_type + "\"!");
 
@@ -321,6 +322,7 @@ void ProcessRecords(const bool verbose, const OutputFormat output_format, File *
     bool collect_character_data;
     std::string character_data;
     unsigned met_required_conditions_count;
+xml_parse_loop:
     while (xml_parser.getNext(&type, &attrib_map, &data)) {
         switch (type) {
         case SimpleXmlParser::END_OF_DOCUMENT:
@@ -353,32 +355,34 @@ void ProcessRecords(const bool verbose, const OutputFormat output_format, File *
                 const auto xml_tag_and_required_matchers(required_matchers.find(data));
                 if (xml_tag_and_required_matchers != required_matchers.cend()) {
                     for (const auto &matcher : xml_tag_and_required_matchers->second) {
-                        if (matcher.getType() == Matcher::SINGLE_MATCH) {
                             if (matcher.matched(character_data))
                                 ++met_required_conditions_count;
-                        } else if (matcher.getType() == Matcher::MULTIPLE_MATCHES_AND_MAP) {
-                            const std::map<RegexMatcher *, std::string> &map(matcher.getRegexToBiblioLevelAndTypeMap());
-                            for (const auto &regex_and_values : map) {
-                                if (regex_and_values.first->matched(data)) {
-                                    Leader &leader(record.getLeader());
-                                    leader.setRecordType(regex_and_values.second[0]);
-                                    leader.setBibliographicLevel(regex_and_values.second[1]);
-                                    continue;
-                                }
-                            }
-                            Warning("found no match for \"" + character_data + "\"! (XML tag was " + data + ".)");
-                        }
                     }
                 }
 
                 const auto xml_tag_and_matchers(xml_tag_to_marc_entry_map.find(data));
                 if (xml_tag_and_matchers == xml_tag_to_marc_entry_map.cend())
                     continue;
+
                 for (const auto &matcher : xml_tag_and_matchers->second) {
                     if (matcher.matched(character_data)) {
-                        record.insertSubfield(matcher.getMarcFieldTag(), matcher.getMarcSubfieldCode(),
-                                              matcher.getInsertionData(character_data));
-                        break;
+                        if (matcher.getType() == Matcher::SINGLE_MATCH)
+                            record.insertSubfield(matcher.getMarcFieldTag(), matcher.getMarcSubfieldCode(),
+                                                  matcher.getInsertionData(character_data));
+                        else if (matcher.getType() == Matcher::MULTIPLE_MATCHES_AND_MAP) {
+                            const std::map<RegexMatcher *, std::string> &
+                                map(matcher.getRegexToBiblioLevelAndTypeMap());
+                            for (const auto &regex_and_values : map) {
+                                if (regex_and_values.first->matched(character_data)) {
+                                    Leader &leader(record.getLeader());
+                                    leader.setRecordType(regex_and_values.second[0]);
+                                    leader.setBibliographicLevel(regex_and_values.second[1]);
+                                    goto xml_parse_loop;
+                                }
+                            }
+                            Warning("found no match for \"" + character_data + "\"! (XML tag was " + data + ".)");
+                            break;
+                        }
                     }
                 }
             }
