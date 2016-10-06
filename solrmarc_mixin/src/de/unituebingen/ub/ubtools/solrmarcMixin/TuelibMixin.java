@@ -1459,7 +1459,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 System.err.println("getPublicationSortDate [No matching 936 field:] " + record.getControlNumber());
             }
 
-        // Case 2: Otherwise gert from 260c 
+        // Case 2: Otherwise get from 260c 
         } else {
 
             final Set<String> dates = new LinkedHashSet<>();
