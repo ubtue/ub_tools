@@ -1461,7 +1461,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         // Case 2: Otherwise get from 260c 
         } else {
-
             final Set<String> dates = new LinkedHashSet<>();
             final List<VariableField> list260 = record.getVariableFields("260");
             for (final VariableField vf : list260) {
@@ -1488,5 +1487,4 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return "";
     }
-
 }
