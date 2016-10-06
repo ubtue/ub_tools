@@ -1228,10 +1228,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             result.add("Manuscript");
             break;
         }
-        // if (!result.isEmpty()) {
-        // return result;
-        // }
-
+ 
         // check the Leader at position 7
         leaderBit = leader.charAt(7);
         switch (Character.toUpperCase(leaderBit)) {
