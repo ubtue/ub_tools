@@ -27,6 +27,7 @@ augment_773a
 augment_bible_references
 auto_temp_file_test
 backtrace_test
+base_tar_unpacker
 bib_ref_parser_test
 bib_ref_to_codes_tool
 categorise_marc_xml
@@ -34,7 +35,7 @@ chop_into_words_test
 compress_test
 control_number_filter
 convert_bible_references
-convert_oai_pmh_dc_to_marc21
+convert_xml_to_marc21
 create_author_synonym_map
 create_full_text_db
 db_lookup

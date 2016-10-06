@@ -2,7 +2,7 @@
  *  \brief  Interface for the Leader class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -37,7 +37,7 @@ private:
     unsigned record_length_;
     unsigned base_address_of_data_;
 public:
-    Leader() = default;
+    Leader(): raw_leader_("     n   a22        4500"), record_length_(0), base_address_of_data_(0) { }
 
     Leader(Leader &&other) noexcept
         : raw_leader_(std::move(other.raw_leader_)), record_length_(other.record_length_),
@@ -71,6 +71,7 @@ public:
 
     char getRecordStatus() const { return raw_leader_[5]; }
     char getBibliographicLevel() const { return raw_leader_[7]; }
+    void setBibliographicLevel(const char new_bibliographic_level) { raw_leader_[7] = new_bibliographic_level; }
     char getCharacterCodingScheme() const { return raw_leader_[9]; }
     std::string getImplementationDefined1() const { return raw_leader_.substr(7, 2); }
     std::string getImplementationDefined2() const { return raw_leader_.substr(17, 3); }
@@ -80,6 +81,7 @@ public:
     bool isSerial() const { return raw_leader_[7] == 's'; }
     bool isArticle() const { return raw_leader_[7] == 'a'; }
     RecordType getRecordType() const;
+    void setRecordType(const char new_record_type) { raw_leader_[6] = new_record_type; }
 
     /** \return A binary representation of the leader.  Can be used to construct a MARC-21 record. */ 
     std::string toString() const { return raw_leader_; }
