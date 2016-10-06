@@ -84,7 +84,7 @@ bool ExtractNewIssueInfos(const std::string &json_document, std::vector<NewIssue
     bool found_at_least_one_new_issue(false);
     for (const auto &document : property_tree.get_child("response.docs.")) {
         const auto &id(document.second.get<std::string>("id"));
-        const auto &issue_title(document.second.get<std::string>("issue_title"));
+        const auto &issue_title(document.second.get<std::string>("title"));
         const std::string journal_title(document.second.get<std::string>("journal_issue/0", "*No Journal Title*"));
         new_issue_infos->emplace_back(id, journal_title, issue_title);
 
