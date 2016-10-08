@@ -25,6 +25,7 @@
 #include "DirectoryEntry.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
+#include "MarcTag.h"
 #include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "util.h"
@@ -51,8 +52,8 @@ void TagGrep(const std::string &regex, const std::string &input_filename) {
         ++count;
         bool at_least_one_field_matched(false);
         for (size_t index(0); index < record.getNumberOfFields(); ++index) {
-            const std::string &tag(record.getTag(index));
-            if (matcher->matched(tag)) {
+            const MarcTag &tag(record.getTag(index));
+            if (matcher->matched(tag.to_string())) {
                 std::cout << record.getControlNumber() << ':' << tag << ':' << record.getFieldData(index) << '\n';
                 ++field_matched_count;
                 at_least_one_field_matched = true;

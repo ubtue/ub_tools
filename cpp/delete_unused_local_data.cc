@@ -64,25 +64,20 @@ bool IsUnusedLocalBlock(const MarcRecord * const record, const std::pair<size_t,
 }
 
 
-void DeleteLocalBlock(MarcRecord * const record, const std::pair<size_t, size_t> &block_start_and_end) {
-    for (size_t field_index(block_start_and_end.second - 1); field_index >= block_start_and_end.first; --field_index)
-        record->markFieldAsDeleted(field_index);
-}
-
-
 bool ProcessRecord(MarcRecord * const record) {
     std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+    std::vector<std::pair<size_t, size_t>> local_blocks_to_delete;
     ssize_t local_data_count = record->findAllLocalDataBlocks(&local_block_boundaries);
     std::reverse(local_block_boundaries.begin(), local_block_boundaries.end());
 
     before_count += local_data_count;
-    for (const std::pair<size_t, size_t> &block_start_and_end : local_block_boundaries) {
+    for (const auto &block_start_and_end : local_block_boundaries) {
         if (IsUnusedLocalBlock(record, block_start_and_end)) {
-            DeleteLocalBlock(record, block_start_and_end);
+            local_blocks_to_delete.emplace_back(block_start_and_end);
             --local_data_count;
         }
     }
-    record->commitDeletionMarks();
+    record->deleteFields(local_blocks_to_delete);
 
     after_count += local_data_count;
     return local_data_count != 0;

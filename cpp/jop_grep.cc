@@ -32,6 +32,7 @@
 #include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
+#include "MarcTag.h"
 #include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -62,7 +63,7 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
 
         std::string isbn, issn;
         for (size_t i(0); i < record.getNumberOfFields(); ++i) {
-            const std::string &tag(record.getTag(i));
+            const MarcTag &tag(record.getTag(i));
             if (tag == "020" or tag == "022") {
                 const Subfields subfields(record.getSubfields(i));
                 auto begin_end = subfields.getIterators('a');
