@@ -70,45 +70,44 @@ public:
     size_t getNumberOfFields() const { return directory_entries_.size(); }
 
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
-    std::string getFieldData(const std::string &tag) const;
+    std::string getFieldData(const MarcTag &tag) const;
 
     /** \brief Returns the content of the field at given index or an empty string if this index is not present. **/
     std::string getFieldData(const size_t tag_index) const;
 
     /** \brief Returns the subfields of the first field with given tag or an empty Subfields if the tag is not present. **/
-    Subfields getSubfields(const std::string &tag) const;
+    Subfields getSubfields(const MarcTag &tag) const;
 
     /** \brief Returns the subfields of the first field with given tag or an empty Subfield if this index is not present. **/
     Subfields getSubfields(const size_t field_index) const;
 
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
-    std::string getTag(const size_t index) const;
+    MarcTag getTag(const size_t index) const;
 
     /** \brief Returns the tag of the field at given index or an empty string if this index is not present. **/
-    size_t getFieldIndex(const std::string &field_tag) const;
+    size_t getFieldIndex(const MarcTag &field_tag) const;
 
     /** \return The number of field indices for the tag "tag". */
-    size_t getFieldIndices(const std::string &field_tag, std::vector<size_t> * const field_indices) const;
+    size_t getFieldIndices(const MarcTag &field_tag, std::vector<size_t> * const field_indices) const;
 
     /** \brief Updates the field at index "field_index" and adjusts various field and records lengths. */
     bool updateField(const size_t field_index, const std::string &new_field_contents);
 
-    bool insertSubfield(const std::string &new_field_tag, const char subfield_code,
+    bool insertSubfield(const MarcTag &new_field_tag, const char subfield_code,
                    const std::string &new_subfield_value, const char indicator1 = ' ', const char indicator2 = ' ');
 
-    size_t insertField(const std::string &new_field_tag, const std::string &new_field_value);
+    size_t insertField(const MarcTag &new_field_tag, const std::string &new_field_value);
 
     /** \brief Deletes the field at index "field_index" and adjusts various field and records lengths. */
     void deleteField(const size_t field_index);
 
-    void markFieldAsDeleted(const size_t field_index);
-    void commitDeletionMarks();
-
+    /** \brief Expecting a sorted, non-overlapping list of ranges, which should be deleted. */
+    void deleteFields(const std::vector<std::pair<size_t, size_t>> &blocks);
 
     /** \brief Extracts the first occurrence of subfield "subfield_code" in field "tag".
      *  \return The value of the extracted subfield or the empty string if the tag or subfield were not found.
      */
-    std::string extractFirstSubfield(const std::string &tag, const char subfield_code) const;
+    std::string extractFirstSubfield(const MarcTag &tag, const char subfield_code) const;
 
     /** \brief Extract values from all subfields from a list of fields.
      *  \param tags    A colon-separated list of field tags.
@@ -125,7 +124,7 @@ public:
      *  \param values         Here the extracted subfield values will be returned.
      *  \return The number of values that have been extracted.
      */
-    size_t extractSubfield(const std::string &tag, const char subfield_code, std::vector<std::string> * const values) const;
+    size_t extractSubfield(const MarcTag &tag, const char subfield_code, std::vector<std::string> * const values) const;
 
     /** \brief Extract values from possibly repeated, subfields.
      *  \param tag             A field tag.
@@ -133,7 +132,7 @@ public:
      *  \param values          The extracted subfield values will be returned here.
      *  \return The number of values that have been extracted.
      */
-    size_t extractSubfields(const std::string &tag, const std::string &subfield_codes, std::vector<std::string> * const values)
+    size_t extractSubfields(const MarcTag &tag, const std::string &subfield_codes, std::vector<std::string> * const values)
             const;
 
     /** \brief Finds local ("LOK") block boundaries.
@@ -151,13 +150,13 @@ public:
      *                              block that we're scanning and "second" one past the last entry.
      *  \return The number of times the field was found in the block.
      */
-    size_t findFieldsInLocalBlock(const std::string &field_tag, const std::string &indicators,
+    size_t findFieldsInLocalBlock(const MarcTag &field_tag, const std::string &indicators,
                                   const std::pair<size_t, size_t> &block_start_and_end,
                                   std::vector<size_t> * const field_indices) const;
 
 
     /** \brief Remove matching tags and corresponding fields. */
-    void filterTags(const std::unordered_set<std::string> &drop_tags);
+    void filterTags(const std::unordered_set<MarcTag> &drop_tags);
 
 
     /** \brief Returns 3-letter language codes from field 041a. */

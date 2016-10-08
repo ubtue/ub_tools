@@ -18,6 +18,7 @@
  */
 
 #include "MarcRecord.h"
+#include "MarcTag.h"
 #include "util.h"
 
 
@@ -30,7 +31,7 @@ MarcRecord &MarcRecord::operator=(const MarcRecord &rhs) {
     return *this;
 }
 
-std::string MarcRecord::getFieldData(const std::string &tag) const {
+std::string MarcRecord::getFieldData(const MarcTag &tag) const {
     return getFieldData(getFieldIndex(tag));
 }
 
@@ -43,7 +44,7 @@ std::string MarcRecord::getFieldData(const size_t index) const {
 }
 
 
-Subfields MarcRecord::getSubfields(const std::string &tag) const {
+Subfields MarcRecord::getSubfields(const MarcTag &tag) const {
     return getSubfields(getFieldIndex(tag));
 }
 
@@ -55,20 +56,23 @@ Subfields MarcRecord::getSubfields(const size_t index) const {
 }
 
 
-std::string MarcRecord::getTag(const size_t index) const {
+MarcTag MarcRecord::getTag(const size_t index) const {
     if (directory_entries_.cbegin() + index >= directory_entries_.cend())
         return "";
     return directory_entries_[index].getTag();
 }
 
 
-size_t MarcRecord::getFieldIndex(const std::string &field_tag) const {
-    auto const iter(DirectoryEntry::FindField(field_tag, directory_entries_));
-    return (iter == directory_entries_.end()) ? MarcRecord::FIELD_NOT_FOUND : std::distance(directory_entries_.begin(), iter);
+size_t MarcRecord::getFieldIndex(const MarcTag &field_tag) const {
+    for (size_t i(0); i < getNumberOfFields(); ++i) {
+        if (directory_entries_[i].getTag() == field_tag)
+            return i;
+    }
+    return MarcRecord::FIELD_NOT_FOUND;
 }
 
 
-size_t MarcRecord::getFieldIndices(const std::string &field_tag, std::vector<size_t> * const field_indices) const {
+size_t MarcRecord::getFieldIndices(const MarcTag &field_tag, std::vector<size_t> * const field_indices) const {
     field_indices->clear();
 
     size_t field_index(getFieldIndex(field_tag));
@@ -94,7 +98,7 @@ bool MarcRecord::updateField(const size_t field_index, const std::string &new_fi
 }
 
 
-bool MarcRecord::insertSubfield(const std::string &new_field_tag, const char subfield_code,
+bool MarcRecord::insertSubfield(const MarcTag &new_field_tag, const char subfield_code,
                             const std::string &new_subfield_value, const char indicator1, const char indicator2)
 {
     return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + "\x1F"
@@ -102,9 +106,7 @@ bool MarcRecord::insertSubfield(const std::string &new_field_tag, const char sub
 }
 
 
-size_t MarcRecord::insertField(const std::string &new_field_tag, const std::string &new_field_value) {
-    if (unlikely(new_field_tag.length() != DirectoryEntry::TAG_LENGTH))
-        throw std::runtime_error("in MarcUtil::Record::insertField: \"new_field_tag\" must have a length of 3!");
+size_t MarcRecord::insertField(const MarcTag &new_field_tag, const std::string &new_field_value) {
 
     // Find the insertion location:
     auto insertion_location(directory_entries_.begin());
@@ -126,33 +128,21 @@ void MarcRecord::deleteField(const size_t field_index) {
 }
 
 
-void MarcRecord::markFieldAsDeleted(const size_t field_index) {
-    deleted_field_indices_.insert(field_index);
-}
-
-
-void MarcRecord::commitDeletionMarks() {
-    if (deleted_field_indices_.empty())
-        return;
-
+void MarcRecord::deleteFields(const std::vector<std::pair<size_t, size_t>> &blocks) {
     std::vector<DirectoryEntry> new_entries;
-    new_entries.reserve(directory_entries_.size() - deleted_field_indices_.size());
+    new_entries.reserve(directory_entries_.size());
 
-    size_t index(0);
-    for (const size_t deleted_index : deleted_field_indices_) {
-        for (/*Empty*/; index < getNumberOfFields() and index != deleted_index; ++index)
-            new_entries.push_back(std::move(directory_entries_[index]));
-        ++index;
+    size_t copy_start(0);
+    for (const std::pair<size_t, size_t> block : blocks) {
+        new_entries.insert(new_entries.end(), directory_entries_.begin() + copy_start, directory_entries_.begin() + block.first);
+        copy_start = block.second;
     }
-    directory_entries_.clear();
-    for (auto iter = new_entries.begin(); iter < new_entries.end(); ++iter) {
-        directory_entries_.push_back(std::move(*iter));
-    }
-    deleted_field_indices_.clear();
+    new_entries.insert(new_entries.end(), directory_entries_.begin() + copy_start, directory_entries_.end());
+    new_entries.swap(directory_entries_);
 }
 
 
-std::string MarcRecord::extractFirstSubfield(const std::string &tag, const char subfield_code) const {
+std::string MarcRecord::extractFirstSubfield(const MarcTag &tag, const char subfield_code) const {
     return getSubfields(tag).getFirstSubfieldValue(subfield_code);
 }
 
@@ -166,7 +156,7 @@ size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector<std:
     StringUtil::Split(tags, ':', &individual_tags);
     for (const auto &tag : individual_tags) {
         size_t field_index(getFieldIndex(tag));
-        while (static_cast<size_t>(field_index) < directory_entries_.size() and tag == directory_entries_[field_index].getTag()) {
+        while (static_cast<size_t>(field_index) < directory_entries_.size() and directory_entries_[field_index].getTag() == tag) {
             const Subfields subfields(getSubfields(field_index));
             for (const auto &subfield_code_and_value : subfields.getAllSubfields()) {
                 if (ignore_subfield_codes.find(subfield_code_and_value.first) == std::string::npos)
@@ -179,7 +169,7 @@ size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector<std:
 }
 
 
-size_t MarcRecord::extractSubfield(const std::string &tag, const char subfield_code, std::vector<std::string> * const values) const {
+size_t MarcRecord::extractSubfield(const MarcTag &tag, const char subfield_code, std::vector<std::string> * const values) const {
     values->clear();
 
     size_t field_index(getFieldIndex(tag));
@@ -194,7 +184,7 @@ size_t MarcRecord::extractSubfield(const std::string &tag, const char subfield_c
 }
 
 
-size_t MarcRecord::extractSubfields(const std::string &tag, const std::string &subfield_codes, std::vector<std::string> * const values) const {
+size_t MarcRecord::extractSubfields(const MarcTag &tag, const std::string &subfield_codes, std::vector<std::string> * const values) const {
     values->clear();
 
     size_t field_index(getFieldIndex(tag));
@@ -239,17 +229,14 @@ static bool IndicatorsMatch(const std::string &indicator_pattern, const std::str
 }
 
 
-size_t MarcRecord::findFieldsInLocalBlock(const std::string &field_tag, const std::string &indicators,
+size_t MarcRecord::findFieldsInLocalBlock(const MarcTag &field_tag, const std::string &indicators,
                               const std::pair<size_t, size_t> &block_start_and_end,
                               std::vector<size_t> * const field_indices) const {
     field_indices->clear();
-
-    if (unlikely(field_tag.length() != 3))
-        Error("in MarcUtil::FindFieldInLocalBlock: field_tag must be precisely 3 characters long!");
     if (unlikely(indicators.length() != 2))
         Error("in MarcUtil::FindFieldInLocalBlock: indicators must be precisely 2 characters long!");
 
-    const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag);
+    const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.to_string());
     for (size_t index(block_start_and_end.first); index < block_start_and_end.second; ++index) {
         const std::string &current_field(getFieldData(index));
         if (StringUtil::StartsWith(current_field, FIELD_PREFIX)
@@ -260,12 +247,19 @@ size_t MarcRecord::findFieldsInLocalBlock(const std::string &field_tag, const st
 }
 
 
-void MarcRecord::filterTags(const std::unordered_set<std::string> &drop_tags) {
-    for (auto entry = directory_entries_.rbegin(); entry < directory_entries_.rend(); ++entry) {
-        if (drop_tags.find(entry->getTag()) != drop_tags.end())
-            markFieldAsDeleted(std::distance(directory_entries_.rbegin(), entry));
+void MarcRecord::filterTags(const std::unordered_set<MarcTag> &drop_tags) {
+    std::vector<std::pair<size_t, size_t>> deleted_blocks;
+    for (auto entry = directory_entries_.begin(); entry < directory_entries_.end(); ++entry) {
+        const auto tag_iter = drop_tags.find(entry->getTag());
+        if (tag_iter == drop_tags.cend())
+            continue;
+        const size_t block_start = std::distance(directory_entries_.begin(), entry);
+        for (/* empty */; entry < directory_entries_.end() && entry->getTag() == *tag_iter; ++entry);
+        const size_t block_end = std::distance(directory_entries_.begin(), entry);
+
+        deleted_blocks.emplace_back(block_start, block_end);
     }
-    commitDeletionMarks();
+    deleteFields(deleted_blocks);
 }
 
 
@@ -278,13 +272,15 @@ std::string MarcRecord::getLanguage(const std::string &default_language_code) co
 
 
 std::string MarcRecord::getLanguageCode() const {
-    auto const entry(DirectoryEntry::FindField("008", directory_entries_));
-
+    const size_t _008_index(getFieldIndex("008"));
+    if (_008_index == FIELD_NOT_FOUND)
+        return "";
     // Language codes start at offset 35 and have a length of 3.
-    if (entry == directory_entries_.end() || entry->getFieldLength() < 38)
+    const auto entry = directory_entries_[_008_index];
+    if (entry.getFieldLength() < 38)
         return "";
 
-    return std::string(raw_data_, entry->getFieldOffset() + 35, 3);
+    return std::string(raw_data_, entry.getFieldOffset() + 35, 3);
 }
 
 

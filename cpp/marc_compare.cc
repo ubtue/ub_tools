@@ -58,7 +58,7 @@ void compare(File * const lhs_file, File * const rhs_file) {
 
         for (size_t index(0); index < lhs.getNumberOfFields(); ++index) {
             if (lhs.getTag(index) != rhs.getTag(index))
-                Error("Tag mismatch (" + lhs.getControlNumber() + "):\nLHS: " + lhs.getTag(index) + "\nRHS: " + rhs.getTag(index));
+                Error("Tag mismatch (" + lhs.getControlNumber() + "):\nLHS: " + lhs.getTag(index).to_string() + "\nRHS: " + rhs.getTag(index).to_string());
 
             std::string lhs_data(lhs.getFieldData(index));
             std::string rhs_data(rhs.getFieldData(index));
@@ -67,7 +67,7 @@ void compare(File * const lhs_file, File * const rhs_file) {
             while (rhs_data.find("\x1F") != std::string::npos)
                 rhs_data.replace(rhs_data.find("\x1F"), 1, " $");
             if (lhs_data.compare(rhs_data))
-                Error("Subfield mismatch (" + lhs.getControlNumber() + ", Tag: " + lhs.getTag(index) + "): \nLHS:" + lhs_data + "\nRHS:" + rhs_data);
+                Error("Subfield mismatch (" + lhs.getControlNumber() + ", Tag: " + lhs.getTag(index).to_string() + "): \nLHS:" + lhs_data + "\nRHS:" + rhs_data);
         }
     }
 }

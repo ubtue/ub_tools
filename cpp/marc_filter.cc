@@ -26,8 +26,9 @@
 #include "DirectoryEntry.h"
 #include "FileUtil.h"
 #include "Leader.h"
-#include "MarcReader.h"
 #include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcTag.h"
 #include "MarcWriter.h"
 #include "MarcXmlWriter.h"
 #include "MediaTypeUtil.h"
@@ -232,11 +233,11 @@ private:
 };
 
 
-std::string GetSubfieldCodes(const std::string &tag, const std::vector<std::string> &subfield_specs) {
+std::string GetSubfieldCodes(const MarcTag &tag, const std::vector<std::string> &subfield_specs) {
     std::string subfield_codes;
 
     for (const auto &subfield_spec : subfield_specs) {
-        if (subfield_spec.substr(0, DirectoryEntry::TAG_LENGTH) == tag)
+        if (tag == subfield_spec.substr(0, DirectoryEntry::TAG_LENGTH))
             subfield_codes += subfield_spec[DirectoryEntry::TAG_LENGTH];
     }
 

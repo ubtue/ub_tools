@@ -99,7 +99,7 @@ void MarcWriter::Write(MarcRecord &record, File * const output) {
 
         const std::vector<DirectoryEntry>::const_iterator &end_iter = directory_iter + number_of_directory_entries;
         for (; directory_iter < end_iter; ++directory_iter) {
-            writeToBuffer(directory_pointer, directory_iter->getTag());
+            writeToBuffer(directory_pointer, directory_iter->getTag().to_string());
             writeToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(directory_iter->getFieldLength()), 4, '0'));
             writeToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(written_data_offset), 5, '0'));
 
@@ -131,12 +131,12 @@ void MarcWriter::Write(MarcRecord &record, XmlWriter * const xml_writer) {
     for (unsigned entry_no(0); entry_no < record.directory_entries_.size(); ++entry_no) {
         const DirectoryEntry &dir_entry(record.directory_entries_[entry_no]);
         if (dir_entry.isControlFieldEntry())
-            xml_writer->writeTagsWithData("marc:controlfield", { std::make_pair("tag", dir_entry.getTag()) }, record.getFieldData(entry_no),
+            xml_writer->writeTagsWithData("marc:controlfield", { std::make_pair("tag", dir_entry.getTag().to_string()) }, record.getFieldData(entry_no),
                     /* suppress_newline = */ true);
         else { // We have a data field.
             const std::string data(record.getFieldData(entry_no));
             xml_writer->openTag("marc:datafield",
-                                { std::make_pair("tag", dir_entry.getTag()),
+                                { std::make_pair("tag", dir_entry.getTag().to_string()),
                                   std::make_pair("ind1", std::string(1, data[0])),
                                   std::make_pair("ind2", std::string(1, data[1]))
                                 });
