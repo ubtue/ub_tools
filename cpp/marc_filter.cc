@@ -45,7 +45,7 @@ void Usage() {
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
               << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
-              << "       Arguments for --remove-subfields are constructed accordingly but both field and subfield specification must be present\n"
+              << "       Arguments for --remove-subfields are constructed accordingly but only subfield specs are permissible\n"
               << "       --drop-biblio-level and --keep-biblio-level arguments must be a single character.\n"
               << "       --filter-chars' arguments are subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
