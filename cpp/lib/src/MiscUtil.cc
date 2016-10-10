@@ -516,6 +516,7 @@ bool GetVariableCardinality(const std::string variable_name_candidate,
     *cardinality = name_and_values->second.size();
     return true;
 }
+
     
 void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const loop_vars, unsigned * const loop_count,
                const std::map<std::string, std::vector<std::string>> &names_to_values_map)
@@ -524,39 +525,36 @@ void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const lo
     
     TemplateScanner::TokenType token(scanner->getToken(/* emit_output = */false));
     if (unlikely(token != TemplateScanner::VARIABLE_NAME))
-        throw std::runtime_error("in MiscUtil::ParseLoop: error on line "
-                                 + std::to_string(scanner->getLineNo()) + ": variable name expected, found "
-                                 + TemplateScanner::TokenTypeToString(token) + " instead!");
+        throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
+                                 + ": variable name expected, found " + TemplateScanner::TokenTypeToString(token)
+                                 + " instead!");
     std::string variable_name_candidate(scanner->getLastVariableName());
     if (unlikely(not GetVariableCardinality(variable_name_candidate, names_to_values_map, loop_count)))
-        throw std::runtime_error("in MiscUtil::ParseLoop: error on line "
-                                 + std::to_string(scanner->getLineNo())
+        throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
                                  + ": undefined loop variable \"" + variable_name_candidate + "\"!");
     loop_vars->insert(variable_name_candidate);
 
     while ((token = scanner->getToken(/* emit_output = */false)) == TemplateScanner::COMMA) {
         token = scanner->getToken(/* emit_output = */false);
         if (unlikely(token != TemplateScanner::VARIABLE_NAME))
-            throw std::runtime_error("in MiscUtil::ParseLoop: error on line "
+            throw std::runtime_error("error on line "
                                      + std::to_string(scanner->getLineNo())
                                      + ": variable name expected after comma, found "
                                      + TemplateScanner::TokenTypeToString(token) + " instead!");
         variable_name_candidate = scanner->getLastVariableName();
         unsigned cardinality;
         if (unlikely(not GetVariableCardinality(variable_name_candidate, names_to_values_map, &cardinality)))
-            throw std::runtime_error("in MiscUtil::ParseLoop: error on line "
-                                     + std::to_string(scanner->getLineNo())
-                                     + ": undefined loop variable \"" + variable_name_candidate + "\"!");
+            throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
+                                     + ": undefined loop variable \"" + variable_name_candidate + "\"!"
+                                     + "Possible loop variables are: " + StringUtil::Join(*loop_vars, ", ") + "()");
         if (unlikely(cardinality != *loop_count))
-            throw std::runtime_error("in MiscUtil::ParseLoop: error on line "
-                                     + std::to_string(scanner->getLineNo())
+            throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
                                      + " loop variables do not all have the same cardinality!");
         loop_vars->insert(variable_name_candidate);
     }
 
     if (unlikely(token != TemplateScanner::END_OF_SYNTAX))
-        throw std::runtime_error("in MiscUtil::ParseLoop: error on line "
-                                 + std::to_string(scanner->getLineNo())
+        throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
                                  + " expected '}' at end of LOOP construct but found "
                                  + TemplateScanner::TokenTypeToString(token) + " instead!");
 }
@@ -610,7 +608,11 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
         } else if (token == TemplateScanner::LOOP) {
             std::set<std::string> loop_vars;
             unsigned loop_count;
-            ParseLoop(&scanner, &loop_vars, &loop_count, names_to_values_map);
+            try {
+                ParseLoop(&scanner, &loop_vars, &loop_count, names_to_values_map);
+            } catch (const std::exception &x) {
+                throw std::runtime_error("in MiscUtil::ExpandTemplate: " + std::string(x.what()));
+            }
             const unsigned start_line_no(scanner.getLineNo());
             scopes.push_back(Scope::MakeLoopScope(start_line_no, scanner.getInputStreamPos(), loop_vars, loop_count));
         } else if (token == TemplateScanner::ENDLOOP) {
