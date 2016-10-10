@@ -342,15 +342,13 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (rawLink.startsWith("urn:"))
                     link = "https://nbn-resolving.org/" + rawLink;
                 else if (rawLink.startsWith("http://nbn-resolving.de"))
-                    link = "https://nbn-resolving.org/" + rawLink.substring(23); // Replace
-                                                                                 // HTTP
-                                                                                 // w/
-                                                                                 // HTTPS.
+                    // Replace HTTP w/ HTTPS.
+                    link = "https://nbn-resolving.org/" + rawLink.substring(23); 
+                                                                                 
+                                                                                 
                 else if (rawLink.startsWith("http://nbn-resolving.org"))
-                    link = "https://nbn-resolving.org/" + rawLink.substring(24); // Replace
-                                                                                 // HTTP
-                                                                                 // w/
-                                                                                 // HTTPS.
+                    // Replace HTTP w/ HTTPS.
+                    link = "https://nbn-resolving.org/" + rawLink.substring(24); 
                 else
                     link = rawLink;
                 URLs.add(link);
