@@ -79,7 +79,7 @@ public:
      *  \param  output_data      Where to put the decompressed data.
      *  \param  output_data_size The available space in "output_data."
      *  \param  bytes_consumed   The actual number for bytes from "input_data" that have been decompressed.
-     *  \param  bytes_produced   The length of the compressed output "output_data" actually used.
+     *  \param  bytes_produced   The length of the decompressed output "output_data" actually used.
      *  \return Returns true if more decompressed data can be retrieved and false otherwise.
      *  \note   After passing in all data to be decompressed you can call "decompress" with "input_data" set to
      *          nullptr and/or "input_data_size" set to 0 and retrieve "output_data" until "decompress" returns false.
