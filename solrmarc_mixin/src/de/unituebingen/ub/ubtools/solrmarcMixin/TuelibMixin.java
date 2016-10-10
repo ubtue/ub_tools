@@ -1228,10 +1228,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             result.add("Manuscript");
             break;
         }
-        // if (!result.isEmpty()) {
-        // return result;
-        // }
-
+ 
         // check the Leader at position 7
         leaderBit = leader.charAt(7);
         switch (Character.toUpperCase(leaderBit)) {
@@ -1462,9 +1459,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                 System.err.println("getPublicationSortDate [No matching 936 field:] " + record.getControlNumber());
             }
 
-        // Case 2: Otherwise gert from 260c 
+        // Case 2: Otherwise get from 260c 
         } else {
-
             final Set<String> dates = new LinkedHashSet<>();
             final List<VariableField> list260 = record.getVariableFields("260");
             for (final VariableField vf : list260) {
@@ -1491,5 +1487,4 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return "";
     }
-
 }
