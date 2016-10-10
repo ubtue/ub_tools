@@ -920,7 +920,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return dates;
     }
 
-
     public String isSuperiorWork(final Record record) {
         final DataField sprField = (DataField) record.getVariableField("SPR");
         if (sprField == null)
@@ -1228,7 +1227,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             result.add("Manuscript");
             break;
         }
- 
+
         // check the Leader at position 7
         leaderBit = leader.charAt(7);
         switch (Character.toUpperCase(leaderBit)) {
@@ -1428,6 +1427,39 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
+     * Helper to calculate the first publication date
+     * 
+     * @param dates
+     *            String of possible publication dates
+     * @return the first publication date
+     */
+
+    public String calculateFirstPublicationDate(Set<String> dates) {
+        String firstPublicationDate = null;
+        for (final String current : dates) {
+            if (firstPublicationDate == null || current != null && Integer.parseInt(current) < Integer.parseInt(firstPublicationDate))
+                firstPublicationDate = current;
+        }
+        return firstPublicationDate;
+    }
+
+    /**
+     * Helper to cope with differing dates and possible special characters
+     * 
+     * @param dates
+     *            String of possible publication dates
+     * @return the first publication date
+     */
+    public String getCleanAndNormalizedDate(final String dateString) {
+        // We have to normalize dates that follow a different calculation of
+        // time, e.g. works with hindu time
+        final String DIFFERENT_CALCULATION_OF_TIME_REGEX = ".*?\\[(.*?)\\=\\s*(\\d+)\\s*\\].*";
+        Matcher differentCalcOfTimeMatcher = Pattern.compile(DIFFERENT_CALCULATION_OF_TIME_REGEX).matcher(dateString);
+        return differentCalcOfTimeMatcher.find() ? differentCalcOfTimeMatcher.group(2) : Utils.cleanDate(dateString);
+
+    }
+
+    /**
      * Determine the publication date for "date ascending/descending" sorting in
      * accordance with the rules stated in issue 227
      *
@@ -1449,8 +1481,11 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (_936Field != null) {
                 final Subfield jSubfield = _936Field.getSubfield('j');
                 if (jSubfield != null) {
-                    final String yearOrYearRange = jSubfield.getData();
+                    String yearOrYearRange = jSubfield.getData();
+                    // Make sure we do away with brackets
+                    yearOrYearRange = yearOrYearRange.replaceAll("[\\[|\\]]", "");
                     return yearOrYearRange.length() > 4 ? yearOrYearRange.substring(0, 4) : yearOrYearRange;
+
                 } else {
                     System.err.println("getPublicationSortDate [No matching subfield 'j' in field 936]: " + record.getControlNumber());
                 }
@@ -1458,33 +1493,68 @@ public class TuelibMixin extends SolrIndexerMixin {
 
                 System.err.println("getPublicationSortDate [No matching 936 field:] " + record.getControlNumber());
             }
-
-        // Case 2: Otherwise get from 260c 
-        } else {
-            final Set<String> dates = new LinkedHashSet<>();
-            final List<VariableField> list260 = record.getVariableFields("260");
-            for (final VariableField vf : list260) {
-                final DataField df = (DataField) vf;
-                final List<Subfield> currentDates = df.getSubfields('c');
-                for (final Subfield sf : currentDates) {
-                    // We have possibly a date that follows a different
-                    // calculation of times
-                    String currentDateStr = sf.getData();
-                    final String DIFFERENT_CALCULATION_OF_TIME_REGEX = ".*?\\[(.*?)\\=\\s*(\\d+)\\s*\\].*";
-                    Matcher differentCalcOfTimeMatcher = Pattern.compile(DIFFERENT_CALCULATION_OF_TIME_REGEX).matcher(currentDateStr);
-                    currentDateStr = differentCalcOfTimeMatcher.find() ? differentCalcOfTimeMatcher.group(2) : Utils.cleanDate(currentDateStr);
-                    dates.add(currentDateStr);
-                }
-            }
-
-            String first_publication_date = null;
-            for (final String current : dates) {
-                if (first_publication_date == null || current != null && Integer.parseInt(current) < Integer.parseInt(first_publication_date))
-                    first_publication_date = current;
-            }
-            return first_publication_date;
+            return "";
         }
 
+        // Case 2: Get RDA 264 dates:
+        // Now track down relevant RDA-style 264c dates; we only care about
+        // copyright and publication dates (and ignore copyright dates if
+        // publication dates are present).
+        final Set<String> dates = new LinkedHashSet<>();
+        final Set<String> pubDates = new LinkedHashSet<>();
+        final Set<String> copyDates = new LinkedHashSet<>();
+        final List<VariableField> list264 = record.getVariableFields("264");
+        for (final VariableField vf : list264) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates) {
+                final String currentDateStr = getCleanAndNormalizedDate(sf.getData());
+                final char ind2 = df.getIndicator2();
+                switch (ind2) {
+                case '1':
+                    pubDates.add(currentDateStr);
+                    break;
+                case '4':
+                    copyDates.add(currentDateStr);
+                    break;
+                }
+            }
+        }
+        if (!pubDates.isEmpty()) {
+            dates.addAll(pubDates);
+        } else if (!copyDates.isEmpty()) {
+            dates.addAll(copyDates);
+        }
+
+        if (!dates.isEmpty())
+            return calculateFirstPublicationDate(dates);
+
+        // Case 3: Get old-style 260c
+        final List<VariableField> list260 = record.getVariableFields("260");
+        for (final VariableField vf : list260) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates)
+                dates.add(getCleanAndNormalizedDate(sf.getData()));
+        }
+
+        if (!dates.isEmpty())
+            return calculateFirstPublicationDate(dates);
+
+        // Case 4: Get old-style 534
+        final List<VariableField> list534 = record.getVariableFields("534");
+        for (final VariableField vf : list534) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates) {
+                dates.add(getCleanAndNormalizedDate(sf.getData()));
+            }
+        }
+        if (!dates.isEmpty()) {
+            return calculateFirstPublicationDate(dates);
+        }
+
+        // Else we do not know what to do
         return "";
     }
 }
