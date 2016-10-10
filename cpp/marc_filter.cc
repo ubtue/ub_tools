@@ -176,8 +176,8 @@ bool Matched(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &
 
 
 bool MatchedSubfield(const MarcUtil::Record &record, const std::vector<DirectoryEntry> &dir_entries,
-             const std::vector<std::string> &fields, const std::vector<CompiledPattern *> &compiled_patterns,
-             std::vector<std::pair<size_t,char>> * const matched_field_indices_and_subfields)
+                     const std::vector<std::string> &fields, const std::vector<CompiledPattern *> &compiled_patterns,
+                     std::vector<std::pair<size_t,char>> * const matched_field_indices_and_subfields)
 {
     matched_field_indices_and_subfields->clear();
 
@@ -208,7 +208,6 @@ bool MatchedSubfield(const MarcUtil::Record &record, const std::vector<Directory
 
     return matched_at_least_one;
 }
-
 
 
 namespace {
