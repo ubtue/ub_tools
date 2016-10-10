@@ -41,10 +41,11 @@ void Usage() {
               << "       where each operation must start with the operation type. Operation-type flags\n"
               << "       are --drop, --keep, --drop-biblio-level, --keep-biblio-level --remove-fields, --remove-subfields or\n"
               << "       --filter-chars.\n"
-              << "       Arguments for --keep, --drop, --remove-field and --remove-subfields are field_or_subfieldspec1:regex1 "
+              << "       Arguments for --keep, --drop, --remove-field  are field_or_subfieldspec1:regex1 "
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
               << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
+              << "       Arguments for --remove-subfields are constructed accordingly but both field and subfield specification must be present\n"
               << "       --drop-biblio-level and --keep-biblio-level arguments must be a single character.\n"
               << "       --filter-chars' arguments are subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
