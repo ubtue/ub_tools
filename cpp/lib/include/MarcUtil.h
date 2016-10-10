@@ -100,6 +100,9 @@ public:
     
     /** \brief Deletes the field at index "field_index" and adjusts various field and records lengths. */
     void deleteField(const size_t field_index);
+    
+    /** \brief Deletes subfield for field index "field_index" and subfield code "subfield_code". */
+    void deleteSubfield(const size_t field_index, const char subfield_code);
 
     /** \brief Attempts to replace the contents of a field.
      *  \return True if we succeeded and false if the record would be too large w/ the new field contents.
