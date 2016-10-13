@@ -420,7 +420,7 @@ void ProcessRecords(const bool verbose, const OutputFormat output_format, File *
     bool collect_character_data;
     std::string character_data;
     unsigned met_required_conditions_count;
-    std::set<const Matcher *> matchers;
+    std::vector<const Matcher *> matchers;
 xml_parse_loop:
     while (xml_parser.getNext(&type, &attrib_map, &data)) {
         switch (type) {
@@ -442,7 +442,7 @@ xml_parse_loop:
                 if (tags_and_matchers != xml_tag_to_matchers_map.cend()) {
                     for (const auto matcher : tags_and_matchers->second) {
                         if (matcher->Matcher::xmlTagAttribsAndValuesMatched(attrib_map))
-                            matchers.emplace(matcher);
+                            matchers.emplace_back(matcher);
                     }
                 }
                 collect_character_data = not matchers.empty();
