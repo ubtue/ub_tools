@@ -298,14 +298,18 @@ void ParseSimpleMatchRequirement(const std::string &xml_tag, std::string::const_
 
     char indicator1(' '), indicator2(' ');
     if (marc_tag_and_subfield_code_and_optional_indicators.length() == LENGTH_WITH_INDICATORS) {
-        indicator1 = marc_tag_and_subfield_code_and_optional_indicators[DirectoryEntry::TAG_LENGTH + 1 + 0];
-        indicator2 = marc_tag_and_subfield_code_and_optional_indicators[DirectoryEntry::TAG_LENGTH + 1 + 1];
+        indicator1 = marc_tag_and_subfield_code_and_optional_indicators[0];
+        indicator2 = marc_tag_and_subfield_code_and_optional_indicators[1];
     }
 
+    std::string marc_tag;
+    if (marc_tag_and_subfield_code_and_optional_indicators.length() == LENGTH_WITH_INDICATORS)
+        marc_tag = marc_tag_and_subfield_code_and_optional_indicators.substr(2, DirectoryEntry::TAG_LENGTH);
+    else
+        marc_tag = marc_tag_and_subfield_code_and_optional_indicators.substr(0, DirectoryEntry::TAG_LENGTH);
+
     const SingleMatchMatcher * const new_matcher(
-        new SingleMatchMatcher(marc_tag_and_subfield_code_and_optional_indicators.substr(
-                                   0, DirectoryEntry::TAG_LENGTH),
-                               marc_tag_and_subfield_code_and_optional_indicators[DirectoryEntry::TAG_LENGTH],
+        new SingleMatchMatcher(marc_tag, marc_tag_and_subfield_code_and_optional_indicators.back(),
                                required_attribs, required, matching_regex, extraction_regex, indicator1, indicator2));
     const auto xml_tag_and_matchers(xml_tag_to_matchers_map->find(xml_tag));
     if (xml_tag_and_matchers == xml_tag_to_matchers_map->end())
@@ -317,9 +321,8 @@ void ParseSimpleMatchRequirement(const std::string &xml_tag, std::string::const_
 
 // Loads a config file that specifies the mapping from XML elements to MARC fields.  An entry looks like this
 //
-//     ["required"] xml_tag_name marc_field_and_subfield [match_regex [extraction_regex]]
-//                                     or
-//     ["required"] xml_tag_name marc_field_subfield_and_indicators [match_regex [extraction_regex]]
+//     ["required"] xml_tag_name (marc_field_and_subfield|marc_field_subfield_and_indicators) [match_regex [
+//         extraction_regex]]
 //                                     or
 //     "map_biblio_level_and_type" xml_tag_name match_regex1 level_and_type1 ... match_regexN level_and_typeN
 //
@@ -386,7 +389,7 @@ std::string GeneratePPN() {
 
 unsigned CountRequiredMatchers(const std::map<std::string, std::list<const Matcher *>> &xml_tag_to_matchers_map) {
     unsigned required_matcher_count(0);
-    
+
     for (const auto &tag_and_matchers : xml_tag_to_matchers_map) {
         for (const auto matcher : tag_and_matchers.second) {
             if (matcher->isRequired())
@@ -438,6 +441,7 @@ xml_parse_loop:
                 met_required_conditions_count = 0;
             } else {
                 matchers.clear();
+                character_data.clear();
                 const auto tags_and_matchers(xml_tag_to_matchers_map.find(data));
                 if (tags_and_matchers != xml_tag_to_matchers_map.cend()) {
                     for (const auto matcher : tags_and_matchers->second) {
