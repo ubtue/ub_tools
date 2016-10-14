@@ -367,7 +367,7 @@ private:
 bool Scope::isLoopVariable(const std::string &variable_name) const {
     if (unlikely(type_ != LOOP))
         Error("in MiscUtil::Scope::isLoopVariable: this should never happen! (type is "
-              + TypeToString(type_) + "");
+              + TypeToString(type_) + ", variable is \"" + variable_name + "\")");
 
     return loop_vars_.find(variable_name) != loop_vars_.cend();
 }
