@@ -418,7 +418,7 @@ std::string Scope::TypeToString(const Type type) {
 }
 
     
-// Returns true, if "variable_nam" exists and can be accessed as a scalar based on the current scope.
+// Returns true, if "variable_name" exists and can be accessed as a scalar based on the current scope.
 bool GetScalarValue(const std::string &variable_name,
                     const std::map<std::string, std::vector<std::string>> &names_to_values_map,
                     const std::vector<Scope> &active_scopes, std::string * const value)
