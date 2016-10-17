@@ -262,12 +262,14 @@ void ParseSimpleMatchRequirement(const std::string &xml_tag, std::string::const_
 
     const size_t LENGTH_WITHOUT_INDICATORS(DirectoryEntry::TAG_LENGTH + 1);
     const size_t LENGTH_WITH_INDICATORS(DirectoryEntry::TAG_LENGTH + 1 + 2);
-    const std::string marc_tag_and_subfield_code_and_optional_indicators(
+    const std::string optional_indicators_marc_tag_and_subfield_code(
         ExtractOptionallyQuotedString(ch, end));
-    if (unlikely(marc_tag_and_subfield_code_and_optional_indicators.length() != LENGTH_WITHOUT_INDICATORS
-                 and marc_tag_and_subfield_code_and_optional_indicators.length() != LENGTH_WITH_INDICATORS))
-        throw std::runtime_error("bad MARC tag and subfield code and optional indicators \""
-                                 + marc_tag_and_subfield_code_and_optional_indicators + "\"!");
+    const bool do_not_copy(optional_indicators_marc_tag_and_subfield_code == "do_not_copy");
+    if (unlikely(not do_not_copy
+                 and optional_indicators_marc_tag_and_subfield_code.length() != LENGTH_WITHOUT_INDICATORS
+                 and optional_indicators_marc_tag_and_subfield_code.length() != LENGTH_WITH_INDICATORS))
+        throw std::runtime_error("bad optional indicators, MARC tag and subfield code \""
+                                 + optional_indicators_marc_tag_and_subfield_code + "\"!");
     SkipSpaces(ch, end);
 
     RegexMatcher *matching_regex(nullptr), *extraction_regex(nullptr);
@@ -297,20 +299,23 @@ void ParseSimpleMatchRequirement(const std::string &xml_tag, std::string::const_
     }
 
     char indicator1(' '), indicator2(' ');
-    if (marc_tag_and_subfield_code_and_optional_indicators.length() == LENGTH_WITH_INDICATORS) {
-        indicator1 = marc_tag_and_subfield_code_and_optional_indicators[0];
-        indicator2 = marc_tag_and_subfield_code_and_optional_indicators[1];
-    }
-
     std::string marc_tag;
-    if (marc_tag_and_subfield_code_and_optional_indicators.length() == LENGTH_WITH_INDICATORS)
-        marc_tag = marc_tag_and_subfield_code_and_optional_indicators.substr(2, DirectoryEntry::TAG_LENGTH);
-    else
-        marc_tag = marc_tag_and_subfield_code_and_optional_indicators.substr(0, DirectoryEntry::TAG_LENGTH);
+    if (likely(not do_not_copy)) {
+        if (optional_indicators_marc_tag_and_subfield_code.length() == LENGTH_WITH_INDICATORS) {
+            indicator1 = optional_indicators_marc_tag_and_subfield_code[0];
+            indicator2 = optional_indicators_marc_tag_and_subfield_code[1];
+        }
 
+        if (optional_indicators_marc_tag_and_subfield_code.length() == LENGTH_WITH_INDICATORS)
+            marc_tag = optional_indicators_marc_tag_and_subfield_code.substr(2, DirectoryEntry::TAG_LENGTH);
+        else
+            marc_tag = optional_indicators_marc_tag_and_subfield_code.substr(0, DirectoryEntry::TAG_LENGTH);
+    }
+    
     const SingleMatchMatcher * const new_matcher(
-        new SingleMatchMatcher(marc_tag, marc_tag_and_subfield_code_and_optional_indicators.back(),
-                               required_attribs, required, matching_regex, extraction_regex, indicator1, indicator2));
+        new SingleMatchMatcher(do_not_copy ? "do_not_copy" : marc_tag,
+                               optional_indicators_marc_tag_and_subfield_code.back(), required_attribs, required,
+                               matching_regex, extraction_regex, indicator1, indicator2));
     const auto xml_tag_and_matchers(xml_tag_to_matchers_map->find(xml_tag));
     if (xml_tag_and_matchers == xml_tag_to_matchers_map->end())
         xml_tag_to_matchers_map->emplace(xml_tag, std::list<const Matcher *>{ new_matcher });
@@ -321,14 +326,16 @@ void ParseSimpleMatchRequirement(const std::string &xml_tag, std::string::const_
 
 // Loads a config file that specifies the mapping from XML elements to MARC fields.  An entry looks like this
 //
-//     ["required"] xml_tag_name (marc_field_and_subfield|marc_field_subfield_and_indicators) [match_regex [
-//         extraction_regex]]
+//     ["required"] xml_tag_name [indicators]marc_field_and_subfield [match_regex [extraction_regex]]
 //                                     or
 //     "map_biblio_level_and_type" xml_tag_name match_regex1 level_and_type1 ... match_regexN level_and_typeN
 //
 // "xml_tag_name" is the tag for which the rule applies.  "marc_field_and_subfield" is the field which gets created
 // when we have a match.  "optional_match_regex" when present has to match the character data following the tag for
-// the rule to apply and "optional_extraction_regex" specifies which part of the data will be used (group 1).
+// the rule to apply and "optional_extraction_regex" specifies which part of the data will be used (group 1).  The
+// field and subfield code can also be substituted with "do_no_copy".  This is really only useful in conjunction with
+// "required".  Please note that there can be no spaces between the optional indicators, if present, and the following
+// MARC tag specification.
 void LoadConfig(File * const input, std::map<std::string, std::list<const Matcher *>> * const xml_tag_to_matchers_map)
 {
     xml_tag_to_matchers_map->clear();
@@ -450,6 +457,8 @@ xml_parse_loop:
                     }
                 }
                 collect_character_data = not matchers.empty();
+                if (matchers.empty() and verbose)
+                    std::cerr << "No matcher found for XML tag \"" << data << "\".\n";
             }
             break;
         case SimpleXmlParser::CLOSING_TAG:
@@ -469,11 +478,12 @@ xml_parse_loop:
                         if (single_match_matcher->matched(character_data)) {
                             if (matcher->isRequired())
                                 ++met_required_conditions_count;
-                            record.insertSubfield(single_match_matcher->getMarcFieldTag(),
-                                                  single_match_matcher->getMarcSubfieldCode(),
-                                                  single_match_matcher->getInsertionData(character_data),
-                                                  single_match_matcher->getIndicator1(),
-                                                  single_match_matcher->getIndicator2());
+                            if (likely(single_match_matcher->getMarcFieldTag() != "do_not_copy"))
+                                record.insertSubfield(single_match_matcher->getMarcFieldTag(),
+                                                      single_match_matcher->getMarcSubfieldCode(),
+                                                      single_match_matcher->getInsertionData(character_data),
+                                                      single_match_matcher->getIndicator1(),
+                                                      single_match_matcher->getIndicator2());
                         }
                         break;
                     }
