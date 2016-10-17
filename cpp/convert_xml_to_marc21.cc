@@ -304,11 +304,8 @@ void ParseSimpleMatchRequirement(const std::string &xml_tag, std::string::const_
         if (optional_indicators_marc_tag_and_subfield_code.length() == LENGTH_WITH_INDICATORS) {
             indicator1 = optional_indicators_marc_tag_and_subfield_code[0];
             indicator2 = optional_indicators_marc_tag_and_subfield_code[1];
-        }
-
-        if (optional_indicators_marc_tag_and_subfield_code.length() == LENGTH_WITH_INDICATORS)
             marc_tag = optional_indicators_marc_tag_and_subfield_code.substr(2, DirectoryEntry::TAG_LENGTH);
-        else
+        } else
             marc_tag = optional_indicators_marc_tag_and_subfield_code.substr(0, DirectoryEntry::TAG_LENGTH);
     }
     
