@@ -371,7 +371,7 @@ void Record::deleteField(const size_t field_index) {
 void Record::deleteSubfield(const size_t field_index, const char subfield_code) {
    Subfields subfields(fields_[field_index]);
    subfields.erase(subfield_code);
-   replaceField(field_index, subfields.toString());
+   updateField(field_index, subfields.toString());
 }
 
 
