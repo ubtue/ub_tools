@@ -104,10 +104,6 @@ public:
     /** \brief Deletes subfield for field index "field_index" and subfield code "subfield_code". */
     void deleteSubfield(const size_t field_index, const char subfield_code);
 
-    /** \brief Attempts to replace the contents of a field.
-     *  \return True if we succeeded and false if the record would be too large w/ the new field contents.
-     */
-    bool replaceField(const size_t field_index, const std::string &new_field_contents);
 
     /** \brief Extract values from all subfields from a list of fields.
      *  \param tags    A colon-separated list of field tags.
