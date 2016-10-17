@@ -319,7 +319,7 @@ bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std:
 
         if (modified_at_least_one_subfield) {
             modified_at_least_one_field = true;
-            record->replaceField(field_index, subfields.toString());
+            record->updateField(field_index, subfields.toString());
         }
     }
 
