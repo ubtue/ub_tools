@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
     if (unlikely(media_type.empty()))
         Error("can't determine media type of \"" + marc_input_filename + "\"!");
     if (media_type != "application/xml" and media_type != "application/marc")
-        Error("\"input_filename\" is neither XML nor MARC-21 data!");
+        Error("\"" + marc_input_filename + "\" is neither XML nor MARC-21 data!");
     const bool input_is_xml(media_type == "application/xml");
 
     File marc_input(marc_input_filename, "r");
