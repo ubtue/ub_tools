@@ -466,7 +466,7 @@ xml_parse_loop:
                 }
 
                 ++record_count;
-            } else {
+            } else if (not character_data.empty()) {
                 for (const auto &matcher : matchers) {
                     switch (matcher->getType()) {
                     case Matcher::SINGLE_MATCH: {
