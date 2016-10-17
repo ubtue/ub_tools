@@ -471,7 +471,7 @@ xml_parse_loop:
                     switch (matcher->getType()) {
                     case Matcher::SINGLE_MATCH: {
                         const SingleMatchMatcher * const single_match_matcher(
-                            dynamic_cast<const SingleMatchMatcher * const >(matcher));
+                            (const SingleMatchMatcher * const)(matcher));
                         if (single_match_matcher->matched(character_data)) {
                             if (matcher->isRequired())
                                 ++met_required_conditions_count;
@@ -486,7 +486,7 @@ xml_parse_loop:
                     }
                     case Matcher::MULTIPLE_MATCHES_AND_MAP: {
                         const MultipleMatchMatcher * const multiple_match_matcher(
-                            dynamic_cast<const MultipleMatchMatcher * const>(matcher));
+                            (const MultipleMatchMatcher * const)(matcher));
                         const std::map<RegexMatcher *, std::string> &
                             map(multiple_match_matcher->getRegexToBiblioLevelAndTypeMap());
                         for (const auto &regex_and_values : map) {
