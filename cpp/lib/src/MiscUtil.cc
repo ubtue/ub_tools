@@ -360,12 +360,14 @@ private:
                    const std::set<std::string> &loop_vars, const unsigned loop_count)
         : type_(type), start_line_number_(start_line_number), iteration_count_(0), loop_count_(loop_count),
           start_stream_pos_(start_stream_pos), loop_vars_(loop_vars) { }
+    static std::string TypeToString(const Type type);
 };
 
 
 bool Scope::isLoopVariable(const std::string &variable_name) const {
     if (unlikely(type_ != LOOP))
-        Error("in MiscUtil::Scope::isLoopVariable: this should never happen!");
+        Error("in MiscUtil::Scope::isLoopVariable: this should never happen! (type is "
+              + TypeToString(type_) + ", variable is \"" + variable_name + "\")");
 
     return loop_vars_.find(variable_name) != loop_vars_.cend();
 }
@@ -373,7 +375,8 @@ bool Scope::isLoopVariable(const std::string &variable_name) const {
 
 unsigned Scope::getCurrentIterationCount() const {
     if (unlikely(type_ != LOOP))
-        Error("in MiscUtil::Scope::getCurrentIterationCount: this should never happen!");
+        Error("in MiscUtil::Scope::getCurrentIterationCount: this should never happen! (type is "
+              + TypeToString(type_) + ")");
 
     return iteration_count_;
 }
@@ -403,7 +406,19 @@ std::istream::streampos Scope::getStartStreamPos() const {
 }
 
 
-// Returns true, if "variable_nam" exists and can be accessed as a scalar based on the current scope.
+std::string Scope::TypeToString(const Type type) {
+    switch (type) {
+    case TOP_LEVEL:
+        return "TOP_LEVEL";
+    case IF:
+        return "IF";
+    case LOOP:
+        return "LOOP";
+    }
+}
+
+    
+// Returns true, if "variable_name" exists and can be accessed as a scalar based on the current scope.
 bool GetScalarValue(const std::string &variable_name,
                     const std::map<std::string, std::vector<std::string>> &names_to_values_map,
                     const std::vector<Scope> &active_scopes, std::string * const value)

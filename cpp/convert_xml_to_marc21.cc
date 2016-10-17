@@ -40,15 +40,17 @@ __attribute__((noreturn)) void Usage() {
 
 class Matcher {
     std::map<std::string, std::string> required_attribs_and_values_;
+    bool required_;
 public:
-    enum MatcherType { SINGLE_MATCH, MULTIPLE_MATCHES_AND_MAP, REQUIRED };
+    enum MatcherType { SINGLE_MATCH, MULTIPLE_MATCHES_AND_MAP };
 protected:
-    explicit Matcher(const std::map<std::string, std::string> &required_attribs_and_values)
-        : required_attribs_and_values_(required_attribs_and_values) { }
+    Matcher(const std::map<std::string, std::string> &required_attribs_and_values, const bool required)
+        : required_attribs_and_values_(required_attribs_and_values), required_(required) { }
 public:
     virtual ~Matcher() { }
 
     virtual MatcherType getType() const = 0;
+    bool isRequired() const { return required_; }
     bool xmlTagAttribsAndValuesMatched(const std::map<std::string, std::string> &attrib_map) const;
 };
 
@@ -61,7 +63,7 @@ bool Matcher::xmlTagAttribsAndValuesMatched(const std::map<std::string, std::str
         if (iter->second != required_attrib_and_value.second)
             return false;
     }
-    
+
     return true;
 }
 
@@ -75,16 +77,16 @@ class SingleMatchMatcher:public Matcher {
     const RegexMatcher * const extraction_regex_;
 public:
     SingleMatchMatcher(const std::string &field_tag, const char subfield_code,
-                       const std::map<std::string, std::string> &required_attribs_and_values,
+                       const std::map<std::string, std::string> &required_attribs_and_values, const bool required,
                        const RegexMatcher * const matching_regex = nullptr,
                        const RegexMatcher * const extraction_regex = nullptr, const char indicator1 = ' ',
                        const char indicator2 = ' ')
-        : Matcher(required_attribs_and_values), field_tag_(field_tag), subfield_code_(subfield_code),
+        : Matcher(required_attribs_and_values, required), field_tag_(field_tag), subfield_code_(subfield_code),
           indicator1_(indicator1), indicator2_(indicator2), matching_regex_(matching_regex),
           extraction_regex_(extraction_regex) { }
 
     virtual MatcherType getType() const { return SINGLE_MATCH; }
-    
+
     inline bool matched(const std::string &character_data) const {
         return (matching_regex_ == nullptr) ? true : matching_regex_->matched(character_data);
     }
@@ -103,29 +105,15 @@ class MultipleMatchMatcher: public Matcher {
     const std::map<RegexMatcher *, std::string> regex_to_biblio_level_and_type_map_;
 public:
     explicit MultipleMatchMatcher(const std::map<std::string, std::string> &required_attribs_and_values,
+                                  const bool required,
                                   const std::map<RegexMatcher *, std::string> &regex_to_biblio_level_and_type_map)
-        : Matcher(required_attribs_and_values),
+        : Matcher(required_attribs_and_values, required),
           regex_to_biblio_level_and_type_map_(regex_to_biblio_level_and_type_map) { }
-    
+
     virtual MatcherType getType() const { return MULTIPLE_MATCHES_AND_MAP; }
 
     const std::map<RegexMatcher *, std::string> &getRegexToBiblioLevelAndTypeMap()  const
         { return regex_to_biblio_level_and_type_map_; }
-};
-
-
-class RequiredMatcher: public Matcher {
-    const RegexMatcher * const matching_regex_;
-public:
-    explicit RequiredMatcher(const std::map<std::string, std::string> &required_attribs_and_values,
-                             const RegexMatcher * const matching_regex)
-        : Matcher(required_attribs_and_values), matching_regex_(matching_regex) { }
-
-    virtual MatcherType getType() const { return REQUIRED; }
-    
-    inline bool matched(const std::string &character_data) const {
-        return (matching_regex_ == nullptr) ? true : matching_regex_->matched(character_data);
-    }
 };
 
 
@@ -176,7 +164,7 @@ std::string ExtractOptionallyQuotedString(std::string::const_iterator &ch,
 }
 
 
-void SkipSpaces(std::string::const_iterator &ch, const std::string::const_iterator &end) {
+inline void SkipSpaces(std::string::const_iterator &ch, const std::string::const_iterator &end) {
     while (ch != end and *ch == ' ')
         ++ch;
 }
@@ -211,49 +199,21 @@ void ParseOptionalRequiredAttributes(std::string::const_iterator &ch, const std:
         if (unlikely(ch == end))
             throw std::runtime_error("unexpected end-of-line while parsing an attibute value on line "
                                      + std::to_string(line_no) + "!");
+
+        required_attribs->emplace(attrib_name, attrib_value);
     }
 
     if (unlikely(ch == end))
         throw std::runtime_error("unexpected end-of-line while parsing an attibute/value list on line "
                                  + std::to_string(line_no) + "!");
-}
 
-
-void ParseRequired(std::string::const_iterator &ch, const std::string::const_iterator &end, const unsigned line_no,
-                   std::map<std::string, std::list<const Matcher *>> * const required_matchers)
-{
-    SkipSpaces(ch, end);
-    const std::string xml_tag(ExtractOptionallyQuotedString(ch, end));
-    if (unlikely(xml_tag.empty()))
-        throw std::runtime_error("missing or empty XML tag on line " + std::to_string(line_no) + "!");
-
-    std::map<std::string, std::string> required_attribs;
-    ParseOptionalRequiredAttributes(ch, end, line_no, &required_attribs);
-                
-    SkipSpaces(ch, end);
-    const std::string matching_regex_string(ExtractOptionallyQuotedString(ch, end));
-    std::string err_msg;
-    const RegexMatcher * const matching_regex(RegexMatcher::RegexMatcherFactory(matching_regex_string, &err_msg));
-    if (unlikely(not err_msg.empty()))
-        throw std::runtime_error("failed to compile the regular expression for the matching regex for a "
-                                 "required condition on line " + std::to_string(line_no) + "! (" + err_msg + ")");
-
-    SkipSpaces(ch, end);
-    if (unlikely(ch != end))
-        throw std::runtime_error("junk after regular expression on line " + std::to_string(line_no) + "!");
-
-    const RequiredMatcher * const new_matcher(new RequiredMatcher(required_attribs, matching_regex));
-    const auto xml_tag_and_matchers(required_matchers->find(xml_tag));
-    if (xml_tag_and_matchers == required_matchers->end())
-        required_matchers->emplace(xml_tag, std::list<const Matcher *>{ new_matcher });
-    else
-        xml_tag_and_matchers->second.push_back(new_matcher);
+    ++ch; // Skip over the closing parenthesis.
 }
 
 
 void ParseMapBiblioLevelAndType(std::string::const_iterator &ch, const std::string::const_iterator &end,
-                                const unsigned line_no,
-                                std::map<std::string, std::list<const Matcher *>> * const xml_tag_to_marc_entry_map)
+                                const unsigned line_no, const bool required,
+                                std::map<std::string, std::list<const Matcher *>> * const xml_tag_to_matchers_map)
 {
     SkipSpaces(ch, end);
     const std::string xml_tag(ExtractOptionallyQuotedString(ch, end));
@@ -287,25 +247,29 @@ void ParseMapBiblioLevelAndType(std::string::const_iterator &ch, const std::stri
     if (unlikely(regex_to_biblio_level_and_type_map.empty()))
         throw std::runtime_error("missing regex and level-and-type entries!");
 
-    xml_tag_to_marc_entry_map->emplace(xml_tag, std::list<const Matcher *>{
-            new MultipleMatchMatcher(required_attribs, regex_to_biblio_level_and_type_map) });
+    xml_tag_to_matchers_map->emplace(xml_tag, std::list<const Matcher *>{
+            new MultipleMatchMatcher(required_attribs, required, regex_to_biblio_level_and_type_map) });
 }
 
 
 void ParseSimpleMatchRequirement(const std::string &xml_tag, std::string::const_iterator &ch,
-                                 const std::string::const_iterator &end, const unsigned line_no,
-                                 std::map<std::string, std::list<const Matcher *>> * const xml_tag_to_marc_entry_map)
+                                 const std::string::const_iterator &end, const unsigned line_no, const bool required,
+                                 std::map<std::string, std::list<const Matcher *>> * const xml_tag_to_matchers_map)
 {
     std::map<std::string, std::string> required_attribs;
     ParseOptionalRequiredAttributes(ch, end, line_no, &required_attribs);
+    SkipSpaces(ch, end);
 
     const size_t LENGTH_WITHOUT_INDICATORS(DirectoryEntry::TAG_LENGTH + 1);
     const size_t LENGTH_WITH_INDICATORS(DirectoryEntry::TAG_LENGTH + 1 + 2);
-    const std::string marc_tag_and_subfield_code_and_optional_indicators(
-                                                                         ExtractOptionallyQuotedString(ch, end));
-    if (unlikely(marc_tag_and_subfield_code_and_optional_indicators.length() != LENGTH_WITHOUT_INDICATORS
-                 and marc_tag_and_subfield_code_and_optional_indicators.length() != LENGTH_WITH_INDICATORS))
-        throw std::runtime_error("bad MARC tag and subfield code and optional indicators!");
+    const std::string optional_indicators_marc_tag_and_subfield_code(
+        ExtractOptionallyQuotedString(ch, end));
+    const bool do_not_copy(optional_indicators_marc_tag_and_subfield_code == "do_not_copy");
+    if (unlikely(not do_not_copy
+                 and optional_indicators_marc_tag_and_subfield_code.length() != LENGTH_WITHOUT_INDICATORS
+                 and optional_indicators_marc_tag_and_subfield_code.length() != LENGTH_WITH_INDICATORS))
+        throw std::runtime_error("bad optional indicators, MARC tag and subfield code \""
+                                 + optional_indicators_marc_tag_and_subfield_code + "\"!");
     SkipSpaces(ch, end);
 
     RegexMatcher *matching_regex(nullptr), *extraction_regex(nullptr);
@@ -335,19 +299,23 @@ void ParseSimpleMatchRequirement(const std::string &xml_tag, std::string::const_
     }
 
     char indicator1(' '), indicator2(' ');
-    if (marc_tag_and_subfield_code_and_optional_indicators.length() == LENGTH_WITH_INDICATORS) {
-        indicator1 = marc_tag_and_subfield_code_and_optional_indicators[DirectoryEntry::TAG_LENGTH + 1 + 0];
-        indicator2 = marc_tag_and_subfield_code_and_optional_indicators[DirectoryEntry::TAG_LENGTH + 1 + 1];
+    std::string marc_tag;
+    if (likely(not do_not_copy)) {
+        if (optional_indicators_marc_tag_and_subfield_code.length() == LENGTH_WITH_INDICATORS) {
+            indicator1 = optional_indicators_marc_tag_and_subfield_code[0];
+            indicator2 = optional_indicators_marc_tag_and_subfield_code[1];
+            marc_tag = optional_indicators_marc_tag_and_subfield_code.substr(2, DirectoryEntry::TAG_LENGTH);
+        } else
+            marc_tag = optional_indicators_marc_tag_and_subfield_code.substr(0, DirectoryEntry::TAG_LENGTH);
     }
-            
+    
     const SingleMatchMatcher * const new_matcher(
-        new SingleMatchMatcher(marc_tag_and_subfield_code_and_optional_indicators.substr(
-                                   0, DirectoryEntry::TAG_LENGTH),
-                               marc_tag_and_subfield_code_and_optional_indicators[DirectoryEntry::TAG_LENGTH],
-                               required_attribs, matching_regex, extraction_regex, indicator1, indicator2));
-    const auto xml_tag_and_matchers(xml_tag_to_marc_entry_map->find(xml_tag));
-    if (xml_tag_and_matchers == xml_tag_to_marc_entry_map->end())
-        xml_tag_to_marc_entry_map->emplace(xml_tag, std::list<const Matcher *>{ new_matcher });
+        new SingleMatchMatcher(do_not_copy ? "do_not_copy" : marc_tag,
+                               optional_indicators_marc_tag_and_subfield_code.back(), required_attribs, required,
+                               matching_regex, extraction_regex, indicator1, indicator2));
+    const auto xml_tag_and_matchers(xml_tag_to_matchers_map->find(xml_tag));
+    if (xml_tag_and_matchers == xml_tag_to_matchers_map->end())
+        xml_tag_to_matchers_map->emplace(xml_tag, std::list<const Matcher *>{ new_matcher });
     else
         xml_tag_and_matchers->second.emplace_back(new_matcher);
 }
@@ -355,23 +323,19 @@ void ParseSimpleMatchRequirement(const std::string &xml_tag, std::string::const_
 
 // Loads a config file that specifies the mapping from XML elements to MARC fields.  An entry looks like this
 //
-//     xml_tag_name marc_field_and_subfield optional_match_regex optional_extraction_regex
+//     ["required"] xml_tag_name [indicators]marc_field_and_subfield [match_regex [extraction_regex]]
 //                                     or
-//     xml_tag_name marc_field_subfield_and_indicators optional_match_regex optional_extraction_regex
-//                                     or
-//     "required" xml_tag_name match_regex
-//                                     or
-//     "map_biblio_level_and_type" xml_tag_name match_regex1 level_and_type1 ... match_regexN level_and_typeN 
+//     "map_biblio_level_and_type" xml_tag_name match_regex1 level_and_type1 ... match_regexN level_and_typeN
 //
 // "xml_tag_name" is the tag for which the rule applies.  "marc_field_and_subfield" is the field which gets created
 // when we have a match.  "optional_match_regex" when present has to match the character data following the tag for
-// the rule to apply and "optional_extraction_regex" specifies which part of the data will be used (group 1).
-void LoadConfig(File * const input,
-                std::map<std::string, std::list<const Matcher *>> * const xml_tag_to_marc_entry_map,
-                std::map<std::string, std::list<const Matcher *>> * const required_matchers)
+// the rule to apply and "optional_extraction_regex" specifies which part of the data will be used (group 1).  The
+// field and subfield code can also be substituted with "do_no_copy".  This is really only useful in conjunction with
+// "required".  Please note that there can be no spaces between the optional indicators, if present, and the following
+// MARC tag specification.
+void LoadConfig(File * const input, std::map<std::string, std::list<const Matcher *>> * const xml_tag_to_matchers_map)
 {
-    xml_tag_to_marc_entry_map->clear();
-    required_matchers->clear();
+    xml_tag_to_matchers_map->clear();
 
     unsigned line_no(0);
     while (not input->eof()) {
@@ -391,22 +355,25 @@ void LoadConfig(File * const input,
             auto ch(line.cbegin());
             const auto end(line.cend());
             SkipSpaces(ch, end);
-            const std::string xml_tag_or_keyword(ExtractOptionallyQuotedString(ch, end));
+            std::string xml_tag_or_keyword(ExtractOptionallyQuotedString(ch, end, { ' ', '(' }));
             if (unlikely(xml_tag_or_keyword.empty()))
-                throw std::runtime_error("missing or empty XML tag!");
+                throw std::runtime_error("missing or empty XML tag (1)!");
             SkipSpaces(ch, end);
 
-            if (xml_tag_or_keyword == "required") {
-                ParseRequired(ch, end, line_no, required_matchers);
-                continue;
+            const bool required(xml_tag_or_keyword == "required");
+            if (required) {
+                xml_tag_or_keyword = ExtractOptionallyQuotedString(ch, end, { ' ', '(' });
+                if (unlikely(xml_tag_or_keyword.empty()))
+                    throw std::runtime_error("missing or empty XML tag (2)!");
+                SkipSpaces(ch, end);
             }
-            
+
             if (xml_tag_or_keyword == "map_biblio_level_and_type") {
-                ParseMapBiblioLevelAndType(ch, end, line_no, xml_tag_to_marc_entry_map);
+                ParseMapBiblioLevelAndType(ch, end, line_no, required, xml_tag_to_matchers_map);
                 continue;
             }
 
-            ParseSimpleMatchRequirement(xml_tag_or_keyword, ch, end, line_no, xml_tag_to_marc_entry_map);
+            ParseSimpleMatchRequirement(xml_tag_or_keyword, ch, end, line_no, required, xml_tag_to_matchers_map);
         } catch (const std::exception &x) {
             throw std::runtime_error("error while parsing line #" + std::to_string(line_no) + " in \""
                                      + input->getPath() + "\"! (" + std::string(x.what()) + ")");
@@ -424,14 +391,27 @@ std::string GeneratePPN() {
 }
 
 
+unsigned CountRequiredMatchers(const std::map<std::string, std::list<const Matcher *>> &xml_tag_to_matchers_map) {
+    unsigned required_matcher_count(0);
+
+    for (const auto &tag_and_matchers : xml_tag_to_matchers_map) {
+        for (const auto matcher : tag_and_matchers.second) {
+            if (matcher->isRequired())
+                ++required_matcher_count;
+        }
+    }
+
+    return required_matcher_count;
+}
+
+
 enum OutputFormat { MARC_BINARY, MARC_XML };
 
 
-void ProcessRecords(const bool verbose, const OutputFormat output_format, File * const input,
-                    File * const output,
-                    const std::map<std::string, std::list<const Matcher *>> &xml_tag_to_marc_entry_map,
-                    const std::map<std::string, std::list<const Matcher *>> &required_matchers)
+void ProcessRecords(const bool verbose, const OutputFormat output_format, File * const input, File * const output,
+                    const std::map<std::string, std::list<const Matcher *>> &xml_tag_to_matchers_map)
 {
+    const unsigned REQUIRED_CONDITIONS_COUNT(CountRequiredMatchers(xml_tag_to_matchers_map));
     MarcXmlWriter *xml_writer;
     if (output_format == MARC_XML)
         xml_writer = new MarcXmlWriter(output);
@@ -447,6 +427,7 @@ void ProcessRecords(const bool verbose, const OutputFormat output_format, File *
     bool collect_character_data;
     std::string character_data;
     unsigned met_required_conditions_count;
+    std::vector<const Matcher *> matchers;
 xml_parse_loop:
     while (xml_parser.getNext(&type, &attrib_map, &data)) {
         switch (type) {
@@ -462,64 +443,65 @@ xml_parse_loop:
                 record.insertField("001", GeneratePPN());
                 collect_character_data = false;
                 met_required_conditions_count = 0;
-            } else if (xml_tag_to_marc_entry_map.find(data) != xml_tag_to_marc_entry_map.cend()) {
+            } else {
+                matchers.clear();
                 character_data.clear();
-                collect_character_data = true;
-            } else
-                collect_character_data = false;
+                const auto tags_and_matchers(xml_tag_to_matchers_map.find(data));
+                if (tags_and_matchers != xml_tag_to_matchers_map.cend()) {
+                    for (const auto matcher : tags_and_matchers->second) {
+                        if (matcher->Matcher::xmlTagAttribsAndValuesMatched(attrib_map))
+                            matchers.emplace_back(matcher);
+                    }
+                }
+                collect_character_data = not matchers.empty();
+                if (matchers.empty() and verbose)
+                    std::cerr << "No matcher found for XML tag \"" << data << "\".\n";
+            }
             break;
         case SimpleXmlParser::CLOSING_TAG:
             if (data == "record") {
-                if (met_required_conditions_count == required_matchers.size()) {
+                if (met_required_conditions_count == REQUIRED_CONDITIONS_COUNT) {
                     (xml_writer == nullptr) ? record.write(output) : record.write(xml_writer);
                     ++written_record_count;
                 }
 
                 ++record_count;
             } else {
-                const auto xml_tag_and_required_matchers(required_matchers.find(data));
-                if (xml_tag_and_required_matchers != required_matchers.cend()) {
-                    for (const auto &matcher : xml_tag_and_required_matchers->second) {
-                        const RequiredMatcher *required_matcher(dynamic_cast<const RequiredMatcher *>(matcher));
-                        if (unlikely(required_matcher == nullptr))
-                            Error("bad dynamic cast to \"const RequiredMatcher *\"!");
-                        if (required_matcher->matched(character_data))
-                            ++met_required_conditions_count;
-                    }
-                }
-
-                const auto xml_tag_and_matchers(xml_tag_to_marc_entry_map.find(data));
-                if (xml_tag_and_matchers == xml_tag_to_marc_entry_map.cend())
-                    continue;
-
-                for (const auto &matcher : xml_tag_and_matchers->second) {
-                    if (matcher->xmlTagAttribsAndValuesMatched(attrib_map)) {
-                        if (matcher->getType() == Matcher::SINGLE_MATCH) {
-                            const SingleMatchMatcher * const single_match_matcher(
-                                dynamic_cast<const SingleMatchMatcher * const >(matcher));
-                            if (single_match_matcher->matched(character_data))
+                for (const auto &matcher : matchers) {
+                    switch (matcher->getType()) {
+                    case Matcher::SINGLE_MATCH: {
+                        const SingleMatchMatcher * const single_match_matcher(
+                            dynamic_cast<const SingleMatchMatcher * const >(matcher));
+                        if (single_match_matcher->matched(character_data)) {
+                            if (matcher->isRequired())
+                                ++met_required_conditions_count;
+                            if (likely(single_match_matcher->getMarcFieldTag() != "do_not_copy"))
                                 record.insertSubfield(single_match_matcher->getMarcFieldTag(),
                                                       single_match_matcher->getMarcSubfieldCode(),
                                                       single_match_matcher->getInsertionData(character_data),
                                                       single_match_matcher->getIndicator1(),
                                                       single_match_matcher->getIndicator2());
-                        } else if (matcher->getType() == Matcher::MULTIPLE_MATCHES_AND_MAP) {
-                            const MultipleMatchMatcher * const multiple_match_matcher(
-                                dynamic_cast<const MultipleMatchMatcher * const>(matcher));
-                            const std::map<RegexMatcher *, std::string> &
-                                map(multiple_match_matcher->getRegexToBiblioLevelAndTypeMap());
-                            for (const auto &regex_and_values : map) {
-                                if (regex_and_values.first->matched(character_data)) {
-                                    Leader &leader(record.getLeader());
-                                    leader.setRecordType(regex_and_values.second[0]);
-                                    leader.setBibliographicLevel(regex_and_values.second[1]);
-                                    goto xml_parse_loop;
-                                }
+                        }
+                        break;
+                    }
+                    case Matcher::MULTIPLE_MATCHES_AND_MAP: {
+                        const MultipleMatchMatcher * const multiple_match_matcher(
+                            dynamic_cast<const MultipleMatchMatcher * const>(matcher));
+                        const std::map<RegexMatcher *, std::string> &
+                            map(multiple_match_matcher->getRegexToBiblioLevelAndTypeMap());
+                        for (const auto &regex_and_values : map) {
+                            if (regex_and_values.first->matched(character_data)) {
+                                if (matcher->isRequired())
+                                    ++met_required_conditions_count;
+                                Leader &leader(record.getLeader());
+                                leader.setRecordType(regex_and_values.second[0]);
+                                leader.setBibliographicLevel(regex_and_values.second[1]);
+                                goto xml_parse_loop;
                             }
-                            Warning("found no match for \"" + character_data + "\"! (XML tag was " + data + ".)");
-                            break;
-                        } else
-                            Error("unknown matcher type: " + std::to_string(matcher->getType()) + "!");
+                        }
+                        Warning("found no match for \"" + character_data + "\"! (XML tag was " + data + ".)");
+                        break;
+                    }
                     }
                 }
             }
@@ -564,10 +546,9 @@ int main(int argc, char *argv[]) {
     const std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[4]));
 
     try {
-        std::map<std::string, std::list<const Matcher *>> xml_tag_to_marc_entry_map, required_matchers;
-        LoadConfig(config_input.get(), &xml_tag_to_marc_entry_map, &required_matchers);
-        ProcessRecords(verbose, output_format, input.get(), output.get(), xml_tag_to_marc_entry_map,
-                       required_matchers);
+        std::map<std::string, std::list<const Matcher *>> xml_tag_to_matchers_map;
+        LoadConfig(config_input.get(), &xml_tag_to_matchers_map);
+        ProcessRecords(verbose, output_format, input.get(), output.get(), xml_tag_to_matchers_map);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
