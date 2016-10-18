@@ -561,7 +561,7 @@ void ParseLoop(TemplateScanner * const scanner, std::set<std::string> * const lo
         if (unlikely(not GetVariableCardinality(variable_name_candidate, names_to_values_map, &cardinality)))
             throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
                                      + ": undefined loop variable \"" + variable_name_candidate + "\"!"
-                                     + "Possible loop variables are: " + StringUtil::Join(*loop_vars, ", ") + "()");
+                                     + " (Possible loop variables are: " + StringUtil::Join(*loop_vars, ", ") + ")");
         if (unlikely(cardinality != *loop_count))
             throw std::runtime_error("error on line " + std::to_string(scanner->getLineNo())
                                      + " loop variables do not all have the same cardinality!");
