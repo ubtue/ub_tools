@@ -996,4 +996,16 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return genres;
     }
+
+    public String getZDBNumber(final Record record) {
+        final DataField _035Field = (DataField)record.getVariableField("035");
+        if (_035Field == null)
+            return null;
+
+        final Subfield subfieldA = _035Field.getSubfield('a');
+        if (subfieldA == null || !subfieldA.getData().startsWith("(DE-599)ZDB"))
+            return null;
+
+        return subfieldA.getData().substring(11);
+    }
 }
