@@ -38,7 +38,7 @@ static void inline PrecalculateBaseAddressOfData(std::vector<DirectoryEntry>::co
                                           size_t *number_of_directory_entries, size_t *baseAddress, size_t *record_length) {
     *baseAddress += Leader::LEADER_LENGTH + 1 /* for directory separator byte */;
     *record_length += 1 /* for end of record byte */;
-    for (; directory_iter < end_iter && HasDirectoryEntryEnoughSpace(*baseAddress, *record_length, directory_iter->getFieldLength()); ++directory_iter) {
+    for (/* empty */; directory_iter < end_iter and HasDirectoryEntryEnoughSpace(*baseAddress, *record_length, directory_iter->getFieldLength()); ++directory_iter) {
         *baseAddress += DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
         *record_length += directory_iter->getFieldLength();
         ++*number_of_directory_entries;
@@ -70,7 +70,7 @@ void MarcWriter::Write(MarcRecord &record, File * const output) {
 
     auto directory_iter = record.directory_entries_.cbegin();
     if (directory_iter->getTag() != "001")
-        Error("First directory entry has to be 001!");
+        Error("First directory entry has to be 001! Found: " + directory_iter->getTag().to_string() + " (PPN: " + record.getControlNumber() + ")");
     ++directory_iter;
 
     while (directory_iter < record.directory_entries_.cend()) {

@@ -79,10 +79,8 @@ void ProcessRecord(File * const output, MarcRecord * const record) {
         superior_subfield.addSubfield('b', "1");
 
     if (not superior_subfield.empty()) {
-        if (unlikely(not record->insertField("SPR", superior_subfield.toString())))
-            Warning("Not enough room to add an SPR field! (Control number: " + record->getControlNumber() + ")");
-        else
-            ++modified_count;
+        record->insertField("SPR", superior_subfield.toString());
+        ++modified_count;
     }
 
     MarcWriter::Write(*record, output);

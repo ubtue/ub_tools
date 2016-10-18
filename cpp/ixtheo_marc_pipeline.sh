@@ -50,7 +50,7 @@ function CalculateTimeDifference {
 
 function EndPhase {
     PHASE_DURATION=$(CalculateTimeDifference $START $(date +%s.%N))
-    echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+    echo -e "Done after ${PHASE_DURATION} minutes.\n" | tee --append "${log}"
 }
 
 
@@ -118,8 +118,8 @@ EndPhase
 
 
 StartPhase "Adding the Library Sigil to Articles Where Appropriate"
-add_ub_sigil_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
-                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml
+add_ub_sigil_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase
 
 
@@ -175,5 +175,5 @@ rm -f child_refs child_titles parent_refs
 EndPhase
 
 
-echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes."
+echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "${log}"
 echo "*** IXTHEO MARC PIPELINE DONE - $(date) ***" | tee --append "${log}"

@@ -101,16 +101,15 @@ void ExtractSynonyms(File * const marc_input, std::map<std::string, std::string>
         for (unsigned i(1); i < tags_and_subfield_codes.size(); ++i) {
             const std::string tag(tags_and_subfield_codes[i].substr(0, 3));
             const std::string secondary_field_subfield_codes(tags_and_subfield_codes[i].substr(3));
-            size_t secondary_name_field_index(record.getFieldIndex(tag));
-            while (secondary_name_field_index < record.getNumberOfFields() and record.getTag(secondary_name_field_index) == tag)
+            for (size_t secondary_name_field_index(record.getFieldIndex(tag));
+                 secondary_name_field_index < record.getNumberOfFields() and record.getTag(secondary_name_field_index) == tag;
+                 ++secondary_name_field_index)
             {
                 const std::string secondary_name(ExtractNameFromSubfields(record.getFieldData(secondary_name_field_index), secondary_field_subfield_codes));
                 if (not secondary_name.empty())
                     alternatives.emplace_back(secondary_name);
-                ++secondary_name_field_index;
             }
         }
-
         RemoveCommasDuplicatesAndEmptyEntries(&alternatives);
         if (alternatives.size() <= 1)
             continue;

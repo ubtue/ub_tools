@@ -94,8 +94,8 @@ StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856
     --output-format=marc-21 \
     --drop 935a:mtex \
     --remove-fields '856u:ixtheo\.de' \
-    --filter-chars 130a:240a:245a '@' \
-    --remove-fields '6002:.*' '6102:.*' '6302:.*' '6892:.*' '6502:.*' '6512:.*' '6552:.*' >> "${log}" 2>&1 && \
+    --filter-chars 130a:240a:245a '@' >> "${log}" 2>&1 && \
+#    --remove-fields '6002:.*' '6102:.*' '6302:.*' '6892:.*' '6502:.*' '6512:.*' '6552:.*' >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
