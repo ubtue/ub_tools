@@ -110,13 +110,13 @@ namespace MarcUtil {
 
 Record &Record::operator=(const Record &rhs) {
     if (likely(&rhs != this)) {
-            leader_                        = rhs.leader_;
-            raw_record_                    = rhs.raw_record_;
-            raw_record_is_out_of_date_     = rhs.raw_record_is_out_of_date_;
-            dir_entries_                   = rhs.dir_entries_;
-            fields_                        = rhs.fields_;
-            xml_file_start_offset_         = rhs.xml_file_start_offset_;
-            record_will_be_written_as_xml_ = rhs.record_will_be_written_as_xml_;
+        leader_                        = rhs.leader_;
+        raw_record_                    = rhs.raw_record_;
+        raw_record_is_out_of_date_     = rhs.raw_record_is_out_of_date_;
+        dir_entries_                   = rhs.dir_entries_;
+        fields_                        = rhs.fields_;
+        xml_file_start_offset_         = rhs.xml_file_start_offset_;
+        record_will_be_written_as_xml_ = rhs.record_will_be_written_as_xml_;
     }
 
     return *this;
@@ -368,17 +368,10 @@ void Record::deleteField(const size_t field_index) {
 }
 
 
-bool Record::replaceField(const size_t field_index, const std::string &new_field_contents) {
-    const auto old_field_length(fields_[field_index].length());
-    fields_[field_index] = new_field_contents;
-
-    if (not record_will_be_written_as_xml_) {
-        if (not leader_.setRecordLength(leader_.getRecordLength() + new_field_contents.length() - old_field_length))
-            return false;
-    }
-
-    raw_record_is_out_of_date_ = true;
-    return true;
+void Record::deleteSubfield(const size_t field_index, const char subfield_code) {
+   Subfields subfields(fields_[field_index]);
+   subfields.erase(subfield_code);
+   updateField(field_index, subfields.toString());
 }
 
 
