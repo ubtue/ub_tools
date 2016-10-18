@@ -79,14 +79,13 @@ std::string IxTheoMapper::map(const std::string &hierarchy_classification) const
 }
 
 
-void LoadCSVFile(const bool verbose, const std::string &filename, std::vector<IxTheoMapper> * const mappers) {
+void LoadCSVFile(const std::string &filename, std::vector<IxTheoMapper> * const mappers) {
     DSVReader csv_reader(filename);
     std::vector<std::string> csv_values;
     while (csv_reader.readLine(&csv_values))
         mappers->emplace_back(csv_values);
 
-    if (verbose)
-        std::cerr << "Read " << mappers->size() << " mappings from \"" << filename << "\".\n";
+    std::cerr << "Read " << mappers->size() << " mappings from \"" << filename << "\".\n";
 }
 
 
@@ -177,12 +176,10 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
         MarcWriter::Write(record, output);
     }
 
-    if (verbose) {
-        std::cerr << "Read " << count << " records.\n";
-        std::cerr << records_with_ixtheo_notations << " records had Ixtheo notations.\n";
-        std::cerr << records_with_new_notations << " records received new Ixtheo notations.\n";
-        std::cerr << skipped_group_count << " records where skipped because they were in a group that we are not interested in.\n";
-    }
+    std::cerr << "Read " << count << " records.\n";
+    std::cerr << records_with_ixtheo_notations << " records had Ixtheo notations.\n";
+    std::cerr << records_with_new_notations << " records received new Ixtheo notations.\n";
+    std::cerr << skipped_group_count << " records where skipped because they were in a group that we are not interested in.\n";
 }
 
 
@@ -211,10 +208,10 @@ int main(int argc, char **argv) {
 
     try {
         std::vector<IxTheoMapper> ddc_to_ixtheo_notation_mappers;
-        LoadCSVFile(verbose, argv[verbose ? 4 : 3], &ddc_to_ixtheo_notation_mappers);
+        LoadCSVFile(argv[verbose ? 4 : 3], &ddc_to_ixtheo_notation_mappers);
 
         std::vector<IxTheoMapper> rvk_to_ixtheo_notation_mappers;
-//      LoadCSVFile(verbose, argv[verbose ? 5 : 4], &rvk_to_ixtheo_notation_mappers);
+//      LoadCSVFile(argv[verbose ? 5 : 4], &rvk_to_ixtheo_notation_mappers);
 
         ProcessRecords(verbose, &marc_input, &marc_output, ddc_to_ixtheo_notation_mappers, rvk_to_ixtheo_notation_mappers);
     } catch (const std::exception &x) {

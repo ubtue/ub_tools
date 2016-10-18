@@ -84,7 +84,7 @@ bool ExtractNewIssueInfos(const std::string &json_document, std::vector<NewIssue
     bool found_at_least_one_new_issue(false);
     for (const auto &document : property_tree.get_child("response.docs.")) {
         const auto &id(document.second.get<std::string>("id"));
-        const auto &issue_title(document.second.get<std::string>("issue_title"));
+        const auto &issue_title(document.second.get<std::string>("title"));
         const std::string journal_title(document.second.get<std::string>("journal_issue/0", "*No Journal Title*"));
         new_issue_infos->emplace_back(id, journal_title, issue_title);
 
@@ -201,8 +201,8 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
 
         const std::string REPLACE_STMT("REPLACE INTO ixtheo_journal_subscriptions SET id=" + user_id
                                        + ",last_issue_date='" + control_number_and_last_issue_date.last_issue_date_
-                                       + "',journal_control_number="
-                                       + control_number_and_last_issue_date.serial_control_number_);
+                                       + "',journal_control_number='"
+                                       + control_number_and_last_issue_date.serial_control_number_ + "'");
         if (unlikely(not db_connection->query(REPLACE_STMT)))
             Error("Replace failed: " + REPLACE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
     }

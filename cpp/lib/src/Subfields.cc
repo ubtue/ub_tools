@@ -48,11 +48,8 @@ Subfields::Subfields(const std::string &field_data) {
         std::string subfield_data;
         while (ch != field_data.end() and *ch != '\x1F')
             subfield_data += *ch++;
-        if (subfield_data.empty())
-            throw std::runtime_error("in Subfields::Subfields(const std::string &): empty subfield for code '"
-                                     + std::to_string(subfield_code) + "'! " + field_data);
-
-        subfield_code_to_data_map_.insert(std::make_pair(subfield_code, subfield_data));
+        if (not subfield_data.empty())
+          subfield_code_to_data_map_.insert(std::make_pair(subfield_code, subfield_data));
     }
 }
 

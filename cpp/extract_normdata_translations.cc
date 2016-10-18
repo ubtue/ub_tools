@@ -139,7 +139,7 @@ void ExtractTranslations(File * const marc_norm_input,
         }   
  
         for (auto all_translations_it = all_translations.begin(); all_translations_it != all_translations.end(); ++all_translations_it) {
-            std::string german_term(all_translations_it->first);
+            const std::string german_term(all_translations_it->first);
 
             for (auto translation_vector_it(all_translations_it->second.begin());
                  translation_vector_it != all_translations_it->second.end();
@@ -149,6 +149,8 @@ void ExtractTranslations(File * const marc_norm_input,
                 // FIXME: auch in falscher Reihenfolge kommen. Siehe PPN 208836667:
                 // FIXME: Abakus: {Abacus, lcsh, Abaques (mathématiques), ram}
                 // FIXME: - Obenland, 18.09.2016
+                if (translation_vector_it + 1 == all_translations_it->second.end())
+                    break;
 
                 if (*translation_vector_it == "IxTheo_eng")
                     term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
@@ -162,6 +164,7 @@ void ExtractTranslations(File * const marc_norm_input,
         }
         ++count;
     }
+    std::cerr << "Found EN: " << term_to_translation_maps[EN].size() << ", FR: " << term_to_translation_maps[FR].size() << " in " << count << " records.\n";
 }
 
 
@@ -198,7 +201,7 @@ int main(int argc, char **argv) {
     File *lang_files[NUMBER_OF_LANGUAGES];
   
     // Derive output components from given input filename
-    std::string extension = (output_file_components.size() > 1) ? output_file_components.back() : "";
+    const std::string extension = (output_file_components.size() > 1) ? output_file_components.back() : "";
     std::string basename;
     if (not extension.empty())
         output_file_components.pop_back();

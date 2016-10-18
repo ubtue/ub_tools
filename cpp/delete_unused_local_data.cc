@@ -28,11 +28,10 @@
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
-#include "RegexMatcher.h"
 #include "util.h"
 
 
-static ssize_t count(0), before_count(0), after_count(0), no_local_data_records_count(0);
+static ssize_t count(0), before_count(0), after_count(0);
 
 
 void Usage() {
@@ -42,33 +41,33 @@ void Usage() {
 
 
 bool IsUnusedLocalBlock(const MarcRecord * const record, const std::pair<size_t, size_t> &block_start_and_end) {
-    static RegexMatcher *matcher(nullptr);
-    std::string err_msg;
-    if (unlikely(matcher == nullptr)) {
-        matcher = RegexMatcher::RegexMatcherFactory("^.*aDE-21.*$|^.*aDE-21-24.*$|^.*aDE-21-110.*$|^.*aTü 135.*$", &err_msg);
-        if (matcher == nullptr)
-            Error(err_msg);
-    }
-
     std::vector<size_t> field_indices;
     record->findFieldsInLocalBlock("852", "??", block_start_and_end, &field_indices);
 
-    for (size_t field_index = 0; field_index < record->getNumberOfFields(); ++field_index) {
-        const bool matched = matcher->matched(record->getFieldData(field_index), &err_msg);
-        if (not matched and not err_msg.empty())
-            Error("Unexpected error while trying to match a field in IsUnusedLocalBlock: " + err_msg);
-        if (matched)
+    for (size_t field_index : field_indices) {
+        const std::string field_data(record->getFieldData(field_index));
+        if (field_data.find("aTü 135") != std::string::npos)
+            return false;
+        const size_t index = field_data.find("aDE-21");
+        if (index == std::string::npos)
+            continue;
+        if (field_data.find("-", index + 6) == std::string::npos)
+            return false;
+        if (field_data.find("24", index + 7) != std::string::npos)
+            return false;
+        if (field_data.find("110", index + 7) != std::string::npos)
             return false;
     }
     return true;
 }
 
 
-bool ProcessRecord(MarcRecord * const record) {
+void ProcessRecord(MarcRecord * const record) {
     std::vector<std::pair<size_t, size_t>> local_block_boundaries;
     std::vector<std::pair<size_t, size_t>> local_blocks_to_delete;
     ssize_t local_data_count = record->findAllLocalDataBlocks(&local_block_boundaries);
-    std::reverse(local_block_boundaries.begin(), local_block_boundaries.end());
+    if (local_data_count == 0)
+        return;
 
     before_count += local_data_count;
     for (const auto &block_start_and_end : local_block_boundaries) {
@@ -80,7 +79,6 @@ bool ProcessRecord(MarcRecord * const record) {
     record->deleteFields(local_blocks_to_delete);
 
     after_count += local_data_count;
-    return local_data_count != 0;
 }
 
 
@@ -92,7 +90,6 @@ void DeleteUnusedLocalData(File * const input, File * const output) {
     }
 
     std::cerr << ::progname << ": Deleted " << (before_count - after_count) << " of " << before_count << " local data blocks.\n";
-    std::cerr << ::progname << ": Deleted " << no_local_data_records_count << " of " << count << "records without local data.\n";
 }
 
 

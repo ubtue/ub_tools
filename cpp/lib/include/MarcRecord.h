@@ -81,6 +81,9 @@ public:
     /** \brief Returns the subfields of the first field with given tag or an empty Subfield if this index is not present. **/
     Subfields getSubfields(const size_t field_index) const;
 
+    /** \brief Deletes subfield for field index "field_index" and subfield code "subfield_code". */
+    void deleteSubfield(const size_t field_index, const char subfield_code);
+
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
     MarcTag getTag(const size_t index) const;
 

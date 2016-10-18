@@ -42,12 +42,13 @@ void Usage() {
     std::cerr << "usage: " << ::progname
               << " marc_input marc_output [[--input-format=(marc-xml|marc-21)] [--output-format=(marc-xml|marc-21)] op1 [op2 .. opN]\n"
               << "       where each operation must start with the operation type. Operation-type flags\n"
-              << "       are --drop, --keep, --drop-biblio-level, --keep-biblio-level --remove-fields, or\n"
+              << "       are --drop, --keep, --drop-biblio-level, --keep-biblio-level --remove-fields, --remove-subfields or\n"
               << "       --filter-chars.\n"
-              << "       Arguments for --keep and --drop are field_or_subfieldspec1:regex1 "
+              << "       Arguments for --keep, --drop, --remove-field  are field_or_subfieldspec1:regex1 "
               << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
               << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
               << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
+              << "       Arguments for --remove-subfields are constructed accordingly but only subfield specs are permissible\n"
               << "       --drop-biblio-level and --keep-biblio-level arguments must be a single character.\n"
               << "       --filter-chars' arguments are subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
@@ -173,11 +174,45 @@ bool Matched(const MarcRecord &record, const std::vector<CompiledPattern *> &com
 }
 
 
+bool MatchedSubfield(const MarcRecord &record, const std::vector<CompiledPattern *> &compiled_patterns,
+                     std::vector<std::pair<size_t,char>> * const matched_field_indices_and_subfields)
+{
+    matched_field_indices_and_subfields->clear();
+
+    bool matched_at_least_one(false);
+    for (const auto &compiled_pattern : compiled_patterns) {
+        ssize_t index(record.getFieldIndex(compiled_pattern->getTag()));
+        if (index == -1)
+            continue;
+
+        for (/* Intentionally empty! */;
+             static_cast<size_t>(index) < record.getNumberOfFields() and record.getTag(index) == compiled_pattern->getTag();
+             ++index)
+        {
+            if (compiled_pattern->hasSubfieldCode()) {
+                const Subfields subfields(record.getSubfields(index));
+                const auto begin_end(subfields.getIterators(compiled_pattern->getSubfieldCode()));
+                for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
+                     ++subfield_code_and_value)
+                {
+                    if (compiled_pattern->subfieldMatched(subfield_code_and_value->second)) {
+                        matched_field_indices_and_subfields->emplace_back(index, subfield_code_and_value->first);
+                        matched_at_least_one = true;
+                    }
+                }
+            } 
+        }
+    }
+
+    return matched_at_least_one;
+}
+
+
 namespace {
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
-enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS, FILTER_CHARS };
+enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS, REMOVE_SUBFIELDS, FILTER_CHARS };
 
 
 } // unnamed namespace
@@ -218,6 +253,10 @@ public:
     inline static FilterDescriptor MakeRemoveFieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::REMOVE_FIELDS, compiled_patterns);
     }
+    inline static FilterDescriptor MakeRemoveSubfieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
+        return FilterDescriptor(FilterType::REMOVE_SUBFIELDS, compiled_patterns);
+    }
+
     inline static FilterDescriptor MakeFilterCharsFilter(const std::vector<std::string> &subfield_specs,
                                                          const std::string &chars_to_delete) {
         return FilterDescriptor(subfield_specs, chars_to_delete);
@@ -289,7 +328,6 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
     unsigned total_count(0), deleted_count(0), modified_count(0);
     while (MarcRecord record = input_is_xml ? MarcReader::ReadXML(input) : MarcReader::Read(input)) {
         ++total_count;
-
         bool deleted_record(false), modified_record(false);
         for (const auto &filter : filters) {
             if (filter.getFilterType() == FilterType::FILTER_CHARS) {
@@ -305,7 +343,16 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
                     deleted_record = true;
                     break;
                 }
-            } else {
+            } else if (filter.getFilterType() == FilterType::REMOVE_SUBFIELDS) {
+               std::vector<std::pair<size_t, char>> matched_field_indices_and_subfields;
+               if (MatchedSubfield(record, filter.getCompiledPatterns(), &matched_field_indices_and_subfields)) {
+                   std::sort(matched_field_indices_and_subfields.begin(), matched_field_indices_and_subfields.end());
+                   for (const auto field_index_and_subfield : matched_field_indices_and_subfields) 
+                        record.deleteSubfield(field_index_and_subfield.first, field_index_and_subfield.second);
+                   modified_record = true;
+                   break;
+               }
+           } else {
                 std::vector<size_t> matched_field_indices;
                 if (Matched(record, filter.getCompiledPatterns(), &matched_field_indices)) {
                     if (filter.getFilterType() == FilterType::DROP) {
@@ -315,7 +362,6 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
                         std::sort(matched_field_indices.begin(), matched_field_indices.end(), std::greater<size_t>());
                         for (const auto field_index : matched_field_indices)
                             record.deleteField(field_index);
-                        xml_writer != nullptr ? MarcWriter::Write(record, xml_writer) : MarcWriter::Write(record, output);
                         modified_record = true;
                     }
                 } else if (filter.getFilterType() == FilterType::KEEP) {
@@ -405,6 +451,8 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             filters->emplace_back(FilterDescriptor::MakeKeepBiblioLevelFilter(GetBiblioLevelArgument(&argv)));
         else if (std::strcmp(*argv, "--remove-fields") == 0)
             filters->emplace_back(FilterDescriptor::MakeRemoveFieldsFilter(CollectAndCompilePatterns(&argv)));
+        else if (std::strcmp(*argv, "--remove-subfields") == 0)
+            filters->emplace_back(FilterDescriptor::MakeRemoveSubfieldsFilter(CollectAndCompilePatterns(&argv)));
         else if (std::strcmp(*argv, "--filter-chars") == 0) {
             ++argv;
             std::vector<std::string> subfield_specs;

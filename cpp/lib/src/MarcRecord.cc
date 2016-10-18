@@ -20,12 +20,13 @@
 #include "MarcRecord.h"
 #include "MarcTag.h"
 #include "util.h"
+#include <iostream>
 
 
 MarcRecord &MarcRecord::operator=(const MarcRecord &rhs) {
     if (likely(&rhs != this)) {
-        leader_            = rhs.leader_;
-        raw_data_          = rhs.raw_data_;
+        leader_ = rhs.leader_;
+        raw_data_ = rhs.raw_data_;
         directory_entries_ = rhs.directory_entries_;
     }
     return *this;
@@ -56,6 +57,13 @@ Subfields MarcRecord::getSubfields(const size_t index) const {
 }
 
 
+void MarcRecord::deleteSubfield(const size_t field_index, const char subfield_code) {
+    Subfields subfields(getSubfields(field_index));
+    subfields.erase(subfield_code);
+    updateField(field_index, subfields.toString());
+}
+
+
 MarcTag MarcRecord::getTag(const size_t index) const {
     if (directory_entries_.cbegin() + index >= directory_entries_.cend())
         return "";
@@ -72,11 +80,12 @@ size_t MarcRecord::getFieldIndex(const MarcTag &field_tag) const {
 }
 
 
-size_t MarcRecord::getFieldIndices(const MarcTag &field_tag, std::vector<size_t> * const field_indices) const {
+size_t MarcRecord::getFieldIndices(const MarcTag &field_tag, std::vector <size_t> *const field_indices) const {
     field_indices->clear();
 
     size_t field_index(getFieldIndex(field_tag));
-    while (static_cast<size_t>(field_index) < directory_entries_.size() and directory_entries_[field_index].getTag() == field_tag) {
+    while (static_cast<size_t>(field_index) < directory_entries_.size() and
+           directory_entries_[field_index].getTag() == field_tag) {
         field_indices->emplace_back(field_index);
         ++field_index;
     }
@@ -99,8 +108,7 @@ bool MarcRecord::updateField(const size_t field_index, const std::string &new_fi
 
 
 bool MarcRecord::insertSubfield(const MarcTag &new_field_tag, const char subfield_code,
-                            const std::string &new_subfield_value, const char indicator1, const char indicator2)
-{
+                                const std::string &new_subfield_value, const char indicator1, const char indicator2) {
     return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + "\x1F"
                                       + std::string(1, subfield_code) + new_subfield_value);
 }
@@ -128,13 +136,14 @@ void MarcRecord::deleteField(const size_t field_index) {
 }
 
 
-void MarcRecord::deleteFields(const std::vector<std::pair<size_t, size_t>> &blocks) {
-    std::vector<DirectoryEntry> new_entries;
+void MarcRecord::deleteFields(const std::vector <std::pair<size_t, size_t>> &blocks) {
+    std::vector <DirectoryEntry> new_entries;
     new_entries.reserve(directory_entries_.size());
 
     size_t copy_start(0);
-    for (const std::pair<size_t, size_t> block : blocks) {
-        new_entries.insert(new_entries.end(), directory_entries_.begin() + copy_start, directory_entries_.begin() + block.first);
+    for (const std::pair <size_t, size_t> block : blocks) {
+        new_entries.insert(new_entries.end(), directory_entries_.begin() + copy_start,
+                           directory_entries_.begin() + block.first);
         copy_start = block.second;
     }
     new_entries.insert(new_entries.end(), directory_entries_.begin() + copy_start, directory_entries_.end());
@@ -143,20 +152,23 @@ void MarcRecord::deleteFields(const std::vector<std::pair<size_t, size_t>> &bloc
 
 
 std::string MarcRecord::extractFirstSubfield(const MarcTag &tag, const char subfield_code) const {
+    size_t index = getFieldIndex(tag);
+    if (index == FIELD_NOT_FOUND)
+        return "";
     return getSubfields(tag).getFirstSubfieldValue(subfield_code);
 }
 
 
-size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector<std::string> * const values,
-                           const std::string &ignore_subfield_codes) const
-{
+size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector <std::string> *const values,
+                                       const std::string &ignore_subfield_codes) const {
     values->clear();
 
-    std::vector<std::string> individual_tags;
+    std::vector <std::string> individual_tags;
     StringUtil::Split(tags, ':', &individual_tags);
     for (const auto &tag : individual_tags) {
         size_t field_index(getFieldIndex(tag));
-        while (static_cast<size_t>(field_index) < directory_entries_.size() and directory_entries_[field_index].getTag() == tag) {
+        while (static_cast<size_t>(field_index) < directory_entries_.size() and
+               directory_entries_[field_index].getTag() == tag) {
             const Subfields subfields(getSubfields(field_index));
             for (const auto &subfield_code_and_value : subfields.getAllSubfields()) {
                 if (ignore_subfield_codes.find(subfield_code_and_value.first) == std::string::npos)
@@ -169,14 +181,17 @@ size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector<std:
 }
 
 
-size_t MarcRecord::extractSubfield(const MarcTag &tag, const char subfield_code, std::vector<std::string> * const values) const {
+size_t MarcRecord::extractSubfield(const MarcTag &tag, const char subfield_code,
+                                   std::vector <std::string> *const values) const {
     values->clear();
 
     size_t field_index(getFieldIndex(tag));
-    while (static_cast<size_t>(field_index) < directory_entries_.size() and tag == directory_entries_[field_index].getTag()) {
+    while (static_cast<size_t>(field_index) < directory_entries_.size() and
+           tag == directory_entries_[field_index].getTag()) {
         const Subfields subfields(getSubfields(field_index));
         const auto begin_end(subfields.getIterators(subfield_code));
-        for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second; ++subfield_code_and_value)
+        for (auto subfield_code_and_value(begin_end.first);
+             subfield_code_and_value != begin_end.second; ++subfield_code_and_value)
             values->emplace_back(subfield_code_and_value->second);
         ++field_index;
     }
@@ -184,11 +199,13 @@ size_t MarcRecord::extractSubfield(const MarcTag &tag, const char subfield_code,
 }
 
 
-size_t MarcRecord::extractSubfields(const MarcTag &tag, const std::string &subfield_codes, std::vector<std::string> * const values) const {
+size_t MarcRecord::extractSubfields(const MarcTag &tag, const std::string &subfield_codes,
+                                    std::vector <std::string> *const values) const {
     values->clear();
 
     size_t field_index(getFieldIndex(tag));
-    while (static_cast<size_t>(field_index) < directory_entries_.size() and tag == directory_entries_[field_index].getTag()) {
+    while (static_cast<size_t>(field_index) < directory_entries_.size() and
+           tag == directory_entries_[field_index].getTag()) {
         const Subfields subfields(getSubfields(field_index));
         const std::unordered_multimap<char, std::string> &code_to_data_map(subfields.getAllSubfields());
         for (const auto &code_and_value : code_to_data_map) {
@@ -202,10 +219,13 @@ size_t MarcRecord::extractSubfields(const MarcTag &tag, const std::string &subfi
 }
 
 
-size_t MarcRecord::findAllLocalDataBlocks(std::vector<std::pair<size_t, size_t>> * const local_block_boundaries) const {
+size_t MarcRecord::findAllLocalDataBlocks(std::vector <std::pair<size_t, size_t>> *const local_block_boundaries) const {
     local_block_boundaries->clear();
 
     size_t local_block_start(getFieldIndex("LOK"));
+    if (local_block_start == FIELD_NOT_FOUND)
+        return 0;
+
     size_t local_block_end(local_block_start + 1);
     while (local_block_end < directory_entries_.size()) {
         if (StringUtil::StartsWith(getFieldData(local_block_end), "  ""\x1F""0000")) {
@@ -230,8 +250,8 @@ static bool IndicatorsMatch(const std::string &indicator_pattern, const std::str
 
 
 size_t MarcRecord::findFieldsInLocalBlock(const MarcTag &field_tag, const std::string &indicators,
-                              const std::pair<size_t, size_t> &block_start_and_end,
-                              std::vector<size_t> * const field_indices) const {
+                                          const std::pair <size_t, size_t> &block_start_and_end,
+                                          std::vector <size_t> *const field_indices) const {
     field_indices->clear();
     if (unlikely(indicators.length() != 2))
         Error("in MarcUtil::FindFieldInLocalBlock: indicators must be precisely 2 characters long!");
@@ -247,14 +267,14 @@ size_t MarcRecord::findFieldsInLocalBlock(const MarcTag &field_tag, const std::s
 }
 
 
-void MarcRecord::filterTags(const std::unordered_set<MarcTag> &drop_tags) {
-    std::vector<std::pair<size_t, size_t>> deleted_blocks;
+void MarcRecord::filterTags(const std::unordered_set <MarcTag> &drop_tags) {
+    std::vector <std::pair<size_t, size_t>> deleted_blocks;
     for (auto entry = directory_entries_.begin(); entry < directory_entries_.end(); ++entry) {
         const auto tag_iter = drop_tags.find(entry->getTag());
         if (tag_iter == drop_tags.cend())
             continue;
         const size_t block_start = std::distance(directory_entries_.begin(), entry);
-        for (/* empty */; entry < directory_entries_.end() && entry->getTag() == *tag_iter; ++entry);
+        for (/* empty */; entry < directory_entries_.end() and entry->getTag() == *tag_iter; ++entry);
         const size_t block_end = std::distance(directory_entries_.begin(), entry);
 
         deleted_blocks.emplace_back(block_start, block_end);
@@ -297,7 +317,8 @@ void MarcRecord::combine(const MarcRecord &record) {
 }
 
 
-bool MarcRecord::ProcessRecords(File * const input, File * const output, RecordFunc process_record, std::string * const err_msg) {
+bool MarcRecord::ProcessRecords(File *const input, File *const output, RecordFunc process_record,
+                                std::string *const err_msg) {
     err_msg->clear();
 
     while (MarcRecord record = MarcReader::Read(input)) {
@@ -310,7 +331,8 @@ bool MarcRecord::ProcessRecords(File * const input, File * const output, RecordF
 }
 
 
-bool MarcRecord::ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer, std::string * const err_msg) {
+bool MarcRecord::ProcessRecords(File *const input, XmlRecordFunc process_record, XmlWriter *const xml_writer,
+                                std::string *const err_msg) {
     err_msg->clear();
 
     while (MarcRecord record = MarcReader::ReadXML(input)) {

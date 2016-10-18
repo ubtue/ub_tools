@@ -28,14 +28,17 @@
 #define MARC_TAG_H
 
 
+#include <arpa/inet.h>
 #include <string>
 #include <stdint.h>
 #include "util.h"
 
-
 class MarcTag {
+    /* We have to double this up, so we have one little endian integer for comparison, and one big endian integer
+     * containing a char[4] for printig.
+     */
     union {
-        int32_t as_int_;
+        uint32_t as_int_;
         char as_cstring_[4];
     } tag_;
 public:
@@ -59,24 +62,24 @@ public:
     /** Copy constructor. */
     MarcTag(const MarcTag &other_tag): tag_(other_tag.tag_) {}
 
-    bool operator==(const MarcTag &rhs) const { return tag_.as_int_ == rhs.tag_.as_int_; }
-    bool operator!=(const MarcTag &rhs) const { return tag_.as_int_ != rhs.tag_.as_int_; }
-    bool operator>(const MarcTag &rhs) const  { return tag_.as_int_ >  rhs.tag_.as_int_; }
-    bool operator>=(const MarcTag &rhs) const { return tag_.as_int_ >= rhs.tag_.as_int_; }
-    bool operator<(const MarcTag &rhs) const  { return tag_.as_int_ <  rhs.tag_.as_int_; }
-    bool operator<=(const MarcTag &rhs) const { return tag_.as_int_ <= rhs.tag_.as_int_; }
+    bool operator==(const MarcTag &rhs) const { return to_int() == rhs.to_int(); }
+    bool operator!=(const MarcTag &rhs) const { return to_int() != rhs.to_int(); }
+    bool operator>(const MarcTag &rhs) const  { return to_int() >  rhs.to_int(); }
+    bool operator>=(const MarcTag &rhs) const { return to_int() >= rhs.to_int(); }
+    bool operator<(const MarcTag &rhs) const  { return to_int() <  rhs.to_int(); }
+    bool operator<=(const MarcTag &rhs) const { return to_int() <= rhs.to_int(); }
 
-    bool operator==(const std::string &rhs) const { return rhs.size() == 3 && strcmp(c_str(), rhs.c_str()); }
-    bool operator==(const char rhs[4]) const { return rhs[3] == '\0' && strcmp(c_str(), rhs); }
+    bool operator==(const std::string &rhs) const { return ::strcmp(c_str(), rhs.c_str()) == 0; }
+    bool operator==(const char rhs[4]) const { return ::strcmp(c_str(), rhs) == 0; }
 
     std::ostream& operator<<(std::ostream& os) const { return os << to_string(); }
     friend std::ostream &operator<<(std::ostream &output,  const MarcTag &tag) { return output << tag.to_string(); }
 
     inline const char *c_str() const { return tag_.as_cstring_; }
     inline const std::string to_string() const { return std::string(c_str(), 3); }
-    inline int to_int() const { return tag_.as_int_; }
+    inline uint32_t to_int() const { return htonl(tag_.as_int_); }
 
-    inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' && tag_.as_cstring_[1] == '0'; }
+    inline bool isTagOfControlField() const { return tag_.as_cstring_[2] == '0' && tag_.as_cstring_[1] == '0'; }
 };
 
 
