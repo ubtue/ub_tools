@@ -42,9 +42,11 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port] vufind_config_file_path\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port] hostname\n";
     std::cerr << "  Sends out notification emails for journal subscribers.\n";
     std::cerr << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n";
+    std::cerr << "  \"hostname\" should be the symbolic hostname which will be used in constructing\n";
+    std::cerr<< "   URL's that a user might see.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -148,17 +150,8 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
 }
 
 
-/** \return If "host_and_port" has a colon, the part before the colon else all of "host_and_port". */
-std::string GetHostname() {
-    std::string hostname;
-    if (unlikely(not ExecUtil::ExecSubcommandAndCaptureStdout("/bin/hostname --fqdn", &hostname) or hostname.empty()))
-        Error("failed to execute /bin/hostname or got an empty hostname!");
-    return hostname;
-}
-
-
 void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, const std::string &user_id,
-                       const std::string &solr_host_and_port,
+                       const std::string &solr_host_and_port, const std::string &hostname,
                        std::vector<SerialControlNumberAndLastIssueDate> &control_numbers_and_last_issue_dates)
 {
     const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user WHERE id=" + user_id);
@@ -192,7 +185,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
         std::cerr << "Found " << new_issue_infos.size() << " new issues for " << " \"" << username << "\".\n";
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(firstname, lastname, email, GetHostname(), new_issue_infos);
+        SendNotificationEmail(firstname, lastname, email, hostname, new_issue_infos);
 
     // Update the database with the new last issue dates.
     for (const auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
@@ -210,7 +203,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
 
 
 void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection,
-                          const std::string &solr_host_and_port)
+                          const std::string &solr_host_and_port, const std::string &hostname)
 {
     const std::string SELECT_IDS_STMT("SELECT DISTINCT id FROM ixtheo_journal_subscriptions");
     if (unlikely(not db_connection->query(SELECT_IDS_STMT)))
@@ -234,7 +227,8 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
                 row["journal_control_number"], row["last_issue_date"]));
             ++subscription_count;
         }
-        ProcessSingleUser(verbose, db_connection, user_id, solr_host_and_port, control_numbers_and_last_issue_dates);
+        ProcessSingleUser(verbose, db_connection, hostname, user_id, solr_host_and_port,
+                          control_numbers_and_last_issue_dates);
     }
 
     if (verbose)
@@ -265,14 +259,14 @@ int main(int argc, char **argv) {
         --argc, ++argv;
     } else
         Usage();
-    const std::string vufind_config_path(argv[1]);
+    const std::string hostname(argv[1]);
 
     try {
         std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url, vufind_config_path);
+        VuFind::GetMysqlURL(&mysql_url);
         DbConnection db_connection(mysql_url);
 
-        ProcessSubscriptions(verbose, &db_connection, solr_host_and_port);
+        ProcessSubscriptions(verbose, &db_connection, solr_host_and_port, hostname);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
