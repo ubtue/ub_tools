@@ -185,10 +185,10 @@ int main(int argc, char **argv) {
 
     try {
         // Determine possible mappings
-        const std::string AUTHORITY_DATA_PRIMARY_SPEC("110abcd:111abcd:130abcd:150abcd:151abcd");
-        const std::string AUTHORITY_DATA_SYNONYM_SPEC("410abcd:411abcd:430abcd:450abcd:451abcd");
-        const std::string TITLE_DATA_PRIMARY_SPEC("610abcd:611abcd:630abcd:650abcd:651abcd:689abcd");
-        const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a");
+        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd:110abcd:111abcd:130abcd:150abcd:151abcd");
+        const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd:410abcd:411abcd:430abcd:450abcd:451abcd");
+        const std::string TITLE_DATA_PRIMARY_SPEC("600abcd:610abcd:611abcd:630abcd:650abcd:651abcd:689abcd");
+        const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a:186a");
 
         // Determine fields to handle
         std::set<std::string> primary_tags_and_subfield_codes;
