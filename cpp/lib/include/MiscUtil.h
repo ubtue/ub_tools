@@ -78,6 +78,38 @@ char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit);
 bool IsValidPPN(const std::string &ppn_candidate);
 
 
+/** \brief  A safe (i.e. throws on error) wrapper around getenv(3).
+ *  \param  name  The name of an environment variable.
+ *  \return The value of the environment variable if set (else throws an exception).
+ */
+std::string GetEnv(const char * const name);
+inline std::string GetEnv(const std::string &name) { return GetEnv(name.c_str()); }
+
+
+/** \brief  A safe wrapper around getenv(3).
+ *  \param  name  The name of an environment variable.
+ *  \return The value of the environment variable if set otherwise the empty string.
+ */
+std::string SafeGetEnv(const char * const name);
+inline std::string SafeGetEnv(const std::string &name) { return SafeGetEnv(name.c_str()); }
+
+
+/** \brief Checks for existence of an environment variable
+ *  \param  name  The name of an environment variable.
+ *  \return true of the variable exists, false otherwise.
+ */
+bool EnvironmentVariableExists(const std::string &name);
+
+
+/** \brief A wrapper around setenv(3).
+ *  \param name      The name of the environment variable.
+ *  \param value     The value of the environment variable.
+ *  \param overwrite Whether or not the current value for the given environment variable may be overwritten.
+ *  \return          True if the addition of "name=value" is successful.
+ */
+void SetEnv(const std::string &name, const std::string &value, const bool overwrite = true);
+
+
 } // namespace MiscUtil
 
 
