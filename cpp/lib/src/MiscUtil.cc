@@ -698,4 +698,31 @@ bool IsValidPPN(const std::string &ppn_candidate) {
 }
 
 
+std::string GetEnv(const char * const name) {
+    const char * const value(::getenv(name));
+    if (value == nullptr)
+        throw std::runtime_error("in MiscUtil::GetEnv: ::getenv(\"" + std::string(name) + "\") failed!");
+
+    return value;
+}
+
+
+std::string SafeGetEnv(const char * const name) {
+    const char * const value(::getenv(name));
+    return value == nullptr ? "" : value;
+}
+
+
+void SetEnv(const std::string &name, const std::string &value, const bool overwrite) {
+    if (unlikely(::setenv(name.c_str(), value.c_str(), overwrite ? 1 : 0) != 0))
+        throw std::runtime_error("in MiscUtil::SetEnv: setenv(3) failed!");
+}
+
+
+bool EnvironmentVariableExists(const std::string &name) {
+    const char * const value(::getenv(name.c_str()));
+    return value != nullptr;
+}
+
+
 } // namespace MiscUtil
