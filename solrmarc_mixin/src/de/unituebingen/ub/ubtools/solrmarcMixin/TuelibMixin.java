@@ -343,12 +343,12 @@ public class TuelibMixin extends SolrIndexerMixin {
                     link = "https://nbn-resolving.org/" + rawLink;
                 else if (rawLink.startsWith("http://nbn-resolving.de"))
                     // Replace HTTP w/ HTTPS.
-                    link = "https://nbn-resolving.org/" + rawLink.substring(23); 
-                                                                                 
-                                                                                 
+                    link = "https://nbn-resolving.org/" + rawLink.substring(23);
+
+
                 else if (rawLink.startsWith("http://nbn-resolving.org"))
                     // Replace HTTP w/ HTTPS.
-                    link = "https://nbn-resolving.org/" + rawLink.substring(24); 
+                    link = "https://nbn-resolving.org/" + rawLink.substring(24);
                 else
                     link = rawLink;
                 URLs.add(link);
@@ -1426,7 +1426,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     /**
      * Helper to calculate the first publication date
-     * 
+     *
      * @param dates
      *            String of possible publication dates
      * @return the first publication date
@@ -1443,7 +1443,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     /**
      * Helper to cope with differing dates and possible special characters
-     * 
+     *
      * @param dates
      *            String of possible publication dates
      * @return the first publication date
@@ -1554,5 +1554,17 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         // Else we do not know what to do
         return "";
+    }
+
+    public String getZDBNumber(final Record record) {
+        final DataField _035Field = (DataField)record.getVariableField("035");
+        if (_035Field == null)
+            return null;
+
+        final Subfield subfieldA = _035Field.getSubfield('a');
+        if (subfieldA == null || !subfieldA.getData().startsWith("(DE-599)ZDB"))
+            return null;
+
+        return subfieldA.getData().substring(11);
     }
 }
