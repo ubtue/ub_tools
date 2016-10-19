@@ -42,7 +42,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port]\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port] vufind_config_file_path\n";
     std::cerr << "  Sends out notification emails for journal subscribers.\n";
     std::cerr << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n";
     std::exit(EXIT_FAILURE);
@@ -245,26 +245,31 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if (argc > 3)
+    if (argc < 2)
         Usage();
 
-    bool verbose(false);
-    std::string solr_host_and_port("localhost:8080");
-    if (argc == 3) {
-        if (std::strcmp("--verbose", argv[1]) != 0)
+    bool verbose;
+    if (std::strcmp("--verbose", argv[1]) == 0) {
+        if (argc < 3)
             Usage();
         verbose = true;
-        solr_host_and_port = argv[2];
-    } else if (argc == 2) {
-        if (std::strcmp("--verbose", argv[1]) == 0)
-            verbose = true;
-        else
-            solr_host_and_port = argv[1];
-    }
+        --argc, ++argv;
+    } else
+        verbose = false;
+    
+    std::string solr_host_and_port;
+    if (argc == 2)
+        solr_host_and_port = "localhost:8080";
+    else if (argc == 3) {
+        solr_host_and_port = argv[1];
+        --argc, ++argv;
+    } else
+        Usage();
+    const std::string vufind_config_path(argv[1]);
 
     try {
         std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
+        VuFind::GetMysqlURL(&mysql_url, vufind_config_path);
         DbConnection db_connection(mysql_url);
 
         ProcessSubscriptions(verbose, &db_connection, solr_host_and_port);
