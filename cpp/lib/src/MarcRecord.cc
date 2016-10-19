@@ -23,6 +23,8 @@
 #include <iostream>
 
 
+const size_t MarcRecord::FIELD_NOT_FOUND;
+
 MarcRecord &MarcRecord::operator=(const MarcRecord &rhs) {
     if (likely(&rhs != this)) {
         leader_ = rhs.leader_;
