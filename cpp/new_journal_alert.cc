@@ -42,11 +42,12 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port] hostname\n";
-    std::cerr << "  Sends out notification emails for journal subscribers.\n";
-    std::cerr << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n";
-    std::cerr << "  \"hostname\" should be the symbolic hostname which will be used in constructing\n";
-    std::cerr<< "   URL's that a user might see.\n\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port] user_type hostname\n"
+              << "  Sends out notification emails for journal subscribers.\n"
+              << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
+              << "  \"user_type\" must be \"ixtheo\" or \"relbib\"."
+              << "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
+              << "  URL's that a user might see.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -110,8 +111,8 @@ bool GetNewIssues(const std::string &solr_host_and_port, const std::string &seri
     const std::string QUERY("superior_ppn:" + serial_control_number + " AND recording_date:{" + last_issue_date
                             + " TO *}");
     std::string json_result;
-    if (unlikely(not Solr::Query(QUERY, "id,title,author,recording_date", &json_result, solr_host_and_port,
-                                 /* timeout = */ 5, Solr::JSON)))
+    if (unlikely(not Solr::Query(QUERY, "id,title,recording_date,journal_issue", &json_result,
+                                 solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         Error("Solr query failed or timed-out: \"" + QUERY + "\".");
 
     return ExtractNewIssueInfos(json_result, new_issue_infos, max_last_issue_date);
@@ -203,9 +204,12 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
 
 
 void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection,
-                          const std::string &solr_host_and_port, const std::string &hostname)
+                          const std::string &solr_host_and_port, const std::string &user_type,
+                          const std::string &hostname)
 {
-    const std::string SELECT_IDS_STMT("SELECT DISTINCT id FROM ixtheo_journal_subscriptions");
+    const std::string SELECT_IDS_STMT("SELECT DISTINCT id FROM ixtheo_journal_subscriptions WHERE "
+                                      "ixtheo_user.user_type = '" + user_type + "' AND "
+                                      "ixtheo_journal_subscriptions.id = ixtheo_user.id");
     if (unlikely(not db_connection->query(SELECT_IDS_STMT)))
         Error("Select failed: " + SELECT_IDS_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
@@ -237,14 +241,14 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
-    if (argc < 2)
+    if (argc < 3)
         Usage();
 
     bool verbose;
     if (std::strcmp("--verbose", argv[1]) == 0) {
-        if (argc < 3)
+        if (argc < 4)
             Usage();
         verbose = true;
         --argc, ++argv;
@@ -252,21 +256,26 @@ int main(int argc, char **argv) {
         verbose = false;
     
     std::string solr_host_and_port;
-    if (argc == 2)
+    if (argc == 3)
         solr_host_and_port = "localhost:8080";
-    else if (argc == 3) {
+    else if (argc == 4) {
         solr_host_and_port = argv[1];
         --argc, ++argv;
     } else
         Usage();
-    const std::string hostname(argv[1]);
+    
+    const std::string user_type(argv[1]);
+    if (user_type != "ixtheo" and user_type != "relbib")
+        Error("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
+    
+    const std::string hostname(argv[2]);
 
     try {
         std::string mysql_url;
         VuFind::GetMysqlURL(&mysql_url);
         DbConnection db_connection(mysql_url);
 
-        ProcessSubscriptions(verbose, &db_connection, solr_host_and_port, hostname);
+        ProcessSubscriptions(verbose, &db_connection, solr_host_and_port, user_type, hostname);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
