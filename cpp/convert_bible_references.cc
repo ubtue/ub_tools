@@ -55,9 +55,8 @@ void ProcessRecord(MarcRecord * const record, File * const output) {
     _040_subfields.setSubfield('e', "rda");
     record->updateField(_040_index, _040_subfields.toString());
 
-    if (not (_130_subfields.hasSubfield('p') and _130_subfields.getFirstSubfieldValue('a') == "Bibel")) {
-        if (not _130_subfields.moveSubfield('a', 'p'))
-            return;
+    if (not _130_subfields.hasSubfield('p') and _130_subfields.getFirstSubfieldValue('a') != "Bibel") {
+        _130_subfields.moveSubfield('a', 'p');
         _130_subfields.setSubfield('a', "Bibel");
         record->updateField(static_cast<size_t>(_130_index), _130_subfields.toString());
     }

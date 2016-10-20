@@ -172,9 +172,9 @@ size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector <std
         while (static_cast<size_t>(field_index) < directory_entries_.size() and
                directory_entries_[field_index].getTag() == tag) {
             const Subfields subfields(getSubfields(field_index));
-            for (const auto &subfield_code_and_value : subfields.getAllSubfields()) {
-                if (ignore_subfield_codes.find(subfield_code_and_value.first) == std::string::npos)
-                    values->emplace_back(subfield_code_and_value.second);
+            for (const auto &subfield : subfields) {
+                if (ignore_subfield_codes.find(subfield.code_) == std::string::npos)
+                    values->emplace_back(subfield.value_);
             }
             ++field_index;
         }
@@ -194,7 +194,7 @@ size_t MarcRecord::extractSubfield(const MarcTag &tag, const char subfield_code,
         const auto begin_end(subfields.getIterators(subfield_code));
         for (auto subfield_code_and_value(begin_end.first);
              subfield_code_and_value != begin_end.second; ++subfield_code_and_value)
-            values->emplace_back(subfield_code_and_value->second);
+            values->emplace_back(subfield_code_and_value->value_);
         ++field_index;
     }
     return values->size();
@@ -209,10 +209,9 @@ size_t MarcRecord::extractSubfields(const MarcTag &tag, const std::string &subfi
     while (static_cast<size_t>(field_index) < directory_entries_.size() and
            tag == directory_entries_[field_index].getTag()) {
         const Subfields subfields(getSubfields(field_index));
-        const std::unordered_multimap<char, std::string> &code_to_data_map(subfields.getAllSubfields());
-        for (const auto &code_and_value : code_to_data_map) {
-            if (subfield_codes.find(code_and_value.first) != std::string::npos)
-                values->emplace_back(code_and_value.second);
+        for (const auto &subfield : subfields) {
+            if (subfield_codes.find(subfield.code_) != std::string::npos)
+                values->emplace_back(subfield.value_);
         }
         ++field_index;
     }
