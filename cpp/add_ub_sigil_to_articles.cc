@@ -143,8 +143,8 @@ void AddMissingSigilsToArticleEntries(
 
         std::string host_id;
         for (auto _773w_iter(begin_end.first); _773w_iter != begin_end.second; ++_773w_iter) {
-            if (StringUtil::StartsWith(_773w_iter->second, "(DE-576)")) {
-                host_id = _773w_iter->second.substr(8);
+            if (StringUtil::StartsWith(_773w_iter->value_, "(DE-576)")) {
+                host_id = _773w_iter->value_.substr(8);
                 break;
             }
         }

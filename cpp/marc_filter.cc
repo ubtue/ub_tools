@@ -158,7 +158,7 @@ bool Matched(const MarcRecord &record, const std::vector<CompiledPattern *> &com
                 for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
                      ++subfield_code_and_value)
                 {
-                    if (compiled_pattern->subfieldMatched(subfield_code_and_value->second)) {
+                    if (compiled_pattern->subfieldMatched(subfield_code_and_value->value_)) {
                         matched_field_indices->emplace_back(index);
                         matched_at_least_one = true;
                     }
@@ -195,8 +195,8 @@ bool MatchedSubfield(const MarcRecord &record, const std::vector<CompiledPattern
                 for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
                      ++subfield_code_and_value)
                 {
-                    if (compiled_pattern->subfieldMatched(subfield_code_and_value->second)) {
-                        matched_field_indices_and_subfields->emplace_back(index, subfield_code_and_value->first);
+                    if (compiled_pattern->subfieldMatched(subfield_code_and_value->value_)) {
+                        matched_field_indices_and_subfields->emplace_back(index, subfield_code_and_value->code_);
                         matched_at_least_one = true;
                     }
                 }
@@ -301,9 +301,9 @@ bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std:
         for (const auto subfield_code : subfield_codes) {
             const auto begin_end(subfields.getIterators(subfield_code));
             for (auto subfield(begin_end.first); subfield != begin_end.second; ++subfield) {
-                const auto old_length(subfield->second.length());
-                StringUtil::RemoveChars(chars_to_delete, &(subfield->second));
-                if (subfield->second.length() != old_length)
+                const auto old_length(subfield->value_.length());
+                StringUtil::RemoveChars(chars_to_delete, &(subfield->value_));
+                if (subfield->value_.length() != old_length)
                     modified_at_least_one_subfield = true;
             }
         }

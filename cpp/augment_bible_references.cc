@@ -412,10 +412,10 @@ bool FindGndCodes(const bool verbose, const std::string &tags, const MarcRecord 
 
             const auto begin_end(subfields.getIterators('0'));
             for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
-                if (not StringUtil::StartsWith(subfield0->second, "(DE-588)"))
+                if (not StringUtil::StartsWith(subfield0->value_, "(DE-588)"))
                     continue;
 
-                const std::string gnd_code(subfield0->second.substr(8));
+                const std::string gnd_code(subfield0->value_.substr(8));
                 const auto gnd_code_and_ranges(gnd_codes_to_bible_ref_codes_map.find(gnd_code));
                 if (gnd_code_and_ranges != gnd_codes_to_bible_ref_codes_map.end()) {
                     found_at_least_one = true;

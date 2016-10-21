@@ -75,6 +75,7 @@ marc_filter
 marc_grep
 marc_grep_tokenizer_test
 marc_info
+marc_split
 marc_tag_grep
 merge_differential_and_full_marc_updates
 mysql_test

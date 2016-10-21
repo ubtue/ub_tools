@@ -54,8 +54,8 @@ void ExtractDDCsFromField(const std::string &tag, const MarcRecord &record, std:
 
         const auto subfield_a_begin_end(subfields.getIterators('a'));
         for (auto ddc(subfield_a_begin_end.first); ddc != subfield_a_begin_end.second; ++ddc) {
-            if (IsPossibleDDC(ddc->second))
-                ddcs->insert(ddc->second);
+            if (IsPossibleDDC(ddc->value_))
+                ddcs->insert(ddc->value_);
         }
     }
 }
@@ -105,10 +105,10 @@ void ExtractTopicIDs(const std::string &tags, const MarcRecord &record, const st
             const Subfields subfields(record.getSubfields(index));
             const auto begin_end(subfields.getIterators('0'));
             for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
-                if (not StringUtil::StartsWith(subfield0->second, "(DE-576)"))
+                if (not StringUtil::StartsWith(subfield0->value_, "(DE-576)"))
                     continue;
 
-                const std::string topic_id(subfield0->second.substr(8));
+                const std::string topic_id(subfield0->value_.substr(8));
                 if (existing_ddcs.find(topic_id) == existing_ddcs.end()) // This one is new!
                     topic_ids->insert(topic_id);
             }

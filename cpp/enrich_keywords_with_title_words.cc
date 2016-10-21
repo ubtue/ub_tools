@@ -308,7 +308,7 @@ void AugmentRecordsWithTitleKeywords(
         for (const char subfield_code : "abp") {
             const auto begin_end = subfields.getIterators(subfield_code);
             if (begin_end.first != begin_end.second)
-            title += " " + begin_end.first->second;
+            title += " " + begin_end.first->value_;
         }
         assert(not title.empty());
 

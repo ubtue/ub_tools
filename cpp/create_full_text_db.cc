@@ -73,12 +73,12 @@ void FileLockedComposeAndWriteRecord(File * const output, MarcRecord * const rec
 bool IsProbablyAReview(const Subfields &subfields) {
     const auto &_3_begin_end(subfields.getIterators('3'));
     if (_3_begin_end.first != _3_begin_end.second) {
-        if (StringUtil::StartsWith(_3_begin_end.first->second, "Rezension"))
+        if (StringUtil::StartsWith(_3_begin_end.first->value_, "Rezension"))
             return true;
     } else {
         const auto &z_begin_end(subfields.getIterators('z'));
         if (z_begin_end.first != z_begin_end.second
-            and StringUtil::StartsWith(z_begin_end.first->second, "Rezension"))
+            and StringUtil::StartsWith(z_begin_end.first->value_, "Rezension"))
             return true;
     }
 

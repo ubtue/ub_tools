@@ -74,8 +74,8 @@ void ExtractNonGermanTranslations(const MarcRecord &record,
             continue;
         std::string language_code;
         for (auto code_and_value(start_end.first); code_and_value != start_end.second; ++code_and_value) {
-            if (StringUtil::StartsWith(code_and_value->second, "L:"))
-                language_code = code_and_value->second.substr(2);
+            if (StringUtil::StartsWith(code_and_value->value_, "L:"))
+                language_code = code_and_value->value_.substr(2);
         }
         if (language_code.empty() and _750_subfields.hasSubfield('2')) {
             const std::string _750_2(_750_subfields.getFirstSubfieldValue('2'));

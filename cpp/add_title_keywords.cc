@@ -133,10 +133,10 @@ void AugmentKeywordsWithTitleWords(const bool verbose, File * const input, File 
         }
 
         const auto begin_end_a = subfields.getIterators('a');
-        std::string title(begin_end_a.first->second);
+        std::string title(begin_end_a.first->value_);
         const auto begin_end_b = subfields.getIterators('b');
         if (begin_end_b.first != begin_end_b.second) {
-            title += " " + begin_end_b.first->second;
+            title += " " + begin_end_b.first->value_;
         }
 
         ++title_count;

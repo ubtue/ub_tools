@@ -167,7 +167,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
             continue;
         }
 
-        std::string host_id(begin_end.first->second);
+        std::string host_id(begin_end.first->value_);
         if (StringUtil::StartsWith(host_id, "(DE-576)"))
             host_id = host_id.substr(8);
         const auto &parent_isbn_or_issn_iter(parent_id_to_isbn_and_issn_map.find(host_id));
