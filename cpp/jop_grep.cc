@@ -69,18 +69,18 @@ void JOP_Grep(const std::string &input_filename, const unsigned max_result_count
                 auto begin_end = subfields.getIterators('a');
                 if (begin_end.first != begin_end.second) {
                     if (tag == "020")
-                        isbn = begin_end.first->second;
+                        isbn = begin_end.first->value_;
                     else // Assume tag == "022".
-                        issn = begin_end.first->second;
+                        issn = begin_end.first->value_;
                 }
             } else if (is_article and tag == "773") {
                 const Subfields subfields(record.getSubfields(i));
                 auto begin_end = subfields.getIterators('x'); // ISSN
                 if (begin_end.first != begin_end.second)
-                    issn = begin_end.first->second;
+                    issn = begin_end.first->value_;
                 begin_end = subfields.getIterators('z'); // ISBN
                 if (begin_end.first != begin_end.second)
-                    isbn = begin_end.first->second;
+                    isbn = begin_end.first->value_;
             }
             
             if (not issn.empty() or not isbn.empty()) {

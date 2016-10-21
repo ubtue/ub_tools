@@ -218,7 +218,7 @@ bool EnqueueSubfields(const std::string &tag, const char subfield_code, const st
     const auto begin_end(subfields.getIterators(subfield_code));
     bool emitted_at_least_one(false);
     for (auto code_and_subfield(begin_end.first); code_and_subfield != begin_end.second; ++code_and_subfield) {
-        tags_and_contents->push(TagAndContents(tag_plus_subfield_code, code_and_subfield->second));
+        tags_and_contents->push(TagAndContents(tag_plus_subfield_code, code_and_subfield->value_));
         emitted_at_least_one = true;
     }
 
@@ -252,7 +252,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
         for (auto subfield_contents(sub_begin_end.first); subfield_contents != sub_begin_end.second;
              ++subfield_contents)
             {
-                if (cond_desc.getDataMatcher().matched(subfield_contents->second, &err_msg)) {
+                if (cond_desc.getDataMatcher().matched(subfield_contents->value_, &err_msg)) {
                     matched_at_least_one = true;
                     break;
                 } else if (unlikely(not err_msg.empty()))
@@ -365,7 +365,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
                 for (auto code_and_value(sub_begin_end.first); code_and_value != sub_begin_end.second;
                      ++code_and_value)
                 {
-                    if (cond_desc.getDataMatcher().matched(code_and_value->second, &err_msg)) {
+                    if (cond_desc.getDataMatcher().matched(code_and_value->value_, &err_msg)) {
                         matched_at_least_one = true;
                         break;
                     } else if (unlikely(not err_msg.empty()))
