@@ -20,6 +20,7 @@
 #include "VuFind.h"
 #include <stdexcept>
 #include "File.h"
+#include "FileUtil.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 
@@ -27,12 +28,22 @@
 namespace VuFind {
 
 
+static const std::string DATABASE_CONF("local/config/vufind/local_overrides/database.conf");
+static const std::string DATABASE_CONF_ALTERNATIVE("local/local_overrides/database.conf");
+
+
+std::string GetDefaultDatabaseConf() {
+    const std::string VUFIND_HOME(MiscUtil::GetEnv("VUFIND_HOME"));
+    const std::string database_conf(VUFIND_HOME + "/" + VuFind::DATABASE_CONF);
+    return FileUtil::Exists(database_conf)  ? database_conf : VUFIND_HOME + "/" + VuFind::DATABASE_CONF_ALTERNATIVE;
+}
+
+
 void GetMysqlURL(std::string * const mysql_url, const std::string &vufind_config_file_path)
         throw(std::exception)
 {
-    const std::string VUFIND_HOME(MiscUtil::GetEnv("VUFIND_HOME"));
     const std::string database_conf_filename(vufind_config_file_path.empty()
-                                             ? VUFIND_HOME + "/" + VuFind::DATABASE_CONF : vufind_config_file_path);
+                                             ? GetDefaultDatabaseConf() : vufind_config_file_path);
     File database_conf(database_conf_filename, "r", File::THROW_ON_ERROR);
     const std::string line(database_conf.getline());
     const size_t schema_pos(line.find("mysql://"));
