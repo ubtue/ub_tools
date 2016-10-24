@@ -31,6 +31,7 @@ namespace VuFind {
 static const std::string DATABASE_CONF("local/config/vufind/local_overrides/database.conf");
 static const std::string DATABASE_CONF_ALTERNATIVE("local/local_overrides/database.conf");
 
+
 std::string GetDefaultDatabaseConf() {
     const std::string VUFIND_HOME(MiscUtil::GetEnv("VUFIND_HOME"));
     const std::string database_conf(VUFIND_HOME + "/" + VuFind::DATABASE_CONF);
