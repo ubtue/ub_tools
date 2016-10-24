@@ -27,10 +27,6 @@
 namespace VuFind {
 
 
-static const std::string DATABASE_CONF("local/config/vufind/local_overrides/database.conf");
-static const std::string DATABASE_CONF_ALTERNATIVE("local/local_overrides/database.conf");
-
-
 /** \brief Extracts the MySQL connection URL from a VuFind config file.
  *  \param mysql_url                Here the MySQL authentication/access URL will be returned.
  *  \param vufind_config_file_path  If not specified, $VUFIND_HOME + "/" + VuFind::DATABASE_CONF will be used.
