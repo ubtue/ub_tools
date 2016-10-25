@@ -207,9 +207,8 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
                           const std::string &solr_host_and_port, const std::string &user_type,
                           const std::string &hostname)
 {
-    const std::string SELECT_IDS_STMT("SELECT DISTINCT id FROM ixtheo_journal_subscriptions WHERE "
-                                      "ixtheo_user.user_type = '" + user_type + "' AND "
-                                      "ixtheo_journal_subscriptions.id = ixtheo_user.id");
+    const std::string SELECT_IDS_STMT("SELECT DISTINCT id FROM ixtheo_journal_subscriptions "
+                                      "WHERE id IN (SELECT id FROM ixtheo_user WHERE ixtheo.user = '" + user_type  + "')");
     if (unlikely(not db_connection->query(SELECT_IDS_STMT)))
         Error("Select failed: " + SELECT_IDS_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
