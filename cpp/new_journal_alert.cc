@@ -155,7 +155,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
                        const std::string &solr_host_and_port, const std::string &hostname,
                        std::vector<SerialControlNumberAndLastIssueDate> &control_numbers_and_last_issue_dates)
 {
-    const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user WHERE id=" + user_id);
+    const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user WHERE id='" + user_id + "'");
     if (unlikely(not db_connection->query(SELECT_USER_ATTRIBUTES)))
         Error("Select failed: " + SELECT_USER_ATTRIBUTES + " (" + db_connection->getLastErrorMessage() + ")");
     DbResultSet result_set(db_connection->getLastResultSet());
@@ -230,7 +230,7 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
                 row["journal_control_number"], row["last_issue_date"]));
             ++subscription_count;
         }
-        ProcessSingleUser(verbose, db_connection, hostname, user_id, solr_host_and_port,
+        ProcessSingleUser(verbose, db_connection, user_id, solr_host_and_port, hostname,
                           control_numbers_and_last_issue_dates);
     }
 
