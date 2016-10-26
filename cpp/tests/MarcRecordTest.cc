@@ -1,11 +1,32 @@
+/** \brief Test cases for MarcRecord
+ *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *
+ *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #define BOOST_TEST_MODULE MarcRecord
 #define BOOST_TEST_DYN_LINK
 
 #include <boost/test/unit_test.hpp>
+#include <typeinfo>
 #include <vector>
 #include "File.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
+#include <iterator>
 
 
 TEST(empty) {
@@ -106,7 +127,40 @@ TEST(findAllLocalDataBlocks) {
         BOOST_CHECK_EQUAL(count, 6);
         BOOST_CHECK_EQUAL(local_blocks.size(), count);
 
- //       BOOST_CHECK_EQUAL(local_blocks[0], std::make_pair());
+        const auto first_block_length(local_blocks[0].second - local_blocks[0].first);
+        BOOST_CHECK_EQUAL(first_block_length, 9);
+
+        const auto second_block_length(local_blocks[1].second - local_blocks[1].first);
+        BOOST_CHECK_EQUAL(second_block_length, 9);
+
+        const auto third_block_length(local_blocks[2].second - local_blocks[2].first);
+        BOOST_CHECK_EQUAL(third_block_length, 11);
+}
+
+TEST(extractSubfield) {
+        File input("data/000596574.mrc", "r");
+        MarcRecord record(MarcReader::Read(&input));
+
+        std::vector<std::string> values;
+        record.extractSubfield("591", 'a', &values);
+        BOOST_CHECK_EQUAL(values.size(), 1);
+
+        record.extractSubfield("LOK", '0', &values);
+        BOOST_CHECK_EQUAL(values.size(), 58);
+}
+
+TEST(filterTags) {
+        File input("data/000596574.mrc", "r");
+        MarcRecord record(MarcReader::Read(&input));
+
+        std::unordered_set<MarcTag> tags;
+        tags.emplace("LOK");
+
+        record.filterTags(tags);
+
+        std::vector<std::pair<size_t, size_t>> local_blocks;
+        size_t count(record.findAllLocalDataBlocks(&local_blocks));
+        BOOST_CHECK_EQUAL(count, 0);
 }
 
 TEST(getLanguage) {
