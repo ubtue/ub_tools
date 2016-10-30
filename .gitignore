@@ -112,11 +112,6 @@ marc_compare
 add_referenceterms
 extract_referenceterms
 
-MarcRecordTest
-MarcTagTest
-SubfieldsTest
-cpp/tests/output/
-
 bsz_daten
 bsz_daten_cumulated
 KeywordChainParser-*.jar

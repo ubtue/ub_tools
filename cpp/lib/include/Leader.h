@@ -87,7 +87,7 @@ public:
     std::string toString() const { return raw_leader_; }
 
     bool isMultiPartRecord() const { return raw_leader_[23] == 'Y'; }
-    void setMultiPartRecord(bool is_multi_part) { raw_leader_[23] = is_multi_part ? 'Y' : 'N'; }
+    void setMultiPartRecord(bool is_multi_part) { raw_leader_[23] = is_multi_part ? 'Y' : '0'; }
 };
 
 

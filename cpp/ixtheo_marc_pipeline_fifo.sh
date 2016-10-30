@@ -2,7 +2,6 @@
 # Runs through the phases of the IxTheo MARC processing pipeline.
 set -o errexit -o nounset
 
-
 function ExitHandler {
     (setsid kill -- -$$) &
     exit 1
@@ -210,5 +209,5 @@ rm GesamtTiteldaten-"${date}".mrc
 rm -f child_refs child_titles parent_refs
 EndPhase
 
-echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes."
+echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "${log}"
 echo "*** IXTHEO MARC PIPELINE DONE - $(date) ***" | tee --append "${log}"
