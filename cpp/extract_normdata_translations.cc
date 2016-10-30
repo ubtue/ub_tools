@@ -25,10 +25,10 @@
    Currently there are two different kinds of translations:
    IxTheo-Translations with the following definitions:
 
-   710: Körperschaft - fremdsprachige Äquivalenz        
-   711: Konferenz - fremdsprachige Äquivalenz  
-   700: Person - fremdsprachige Äquivalenz     
-   730: Titel - fremdsprachige Äquivalenz      
+   700: Person - fremdsprachige Äquivalenz
+   710: Körperschaft - fremdsprachige Äquivalenz
+   711: Konferenz - fremdsprachige Äquivalenz
+   730: Titel - fremdsprachige Äquivalenz
    750: Sachbegriff - fremdsprachige Äquivalenz  
    751: Geografikum - fremdsprachige Äquivalenz    
 
@@ -89,6 +89,20 @@ void AugmentIxTheoTagWithLanguage(const MarcRecord &record, const std::string &t
     }
 }
 
+/*
+std::map<std::string, std::string> AugmentTranslations(const MarcRecord &record, const std::string &tag, std::vector<std::string> &translations) {
+    std::map<std::string, std::string> translation_mapping;
+    for (size_t iterator(translations.begin()); iterator < translations.end(); iterator += 2) {
+        const std::string language = *iterator;
+        const std::string translation = *(iterator + 1);
+
+        if (language == "IxTheo") {
+            std::vector<std::string> ixtheo_lang_codes;
+            record.extractSubfields(tag, "9", &ixtheo_lang_codes);
+        }
+    }
+}
+*/
 
 void ExtractTranslations(File * const marc_norm_input, 
                          const std::string &german_term_field_spec,
@@ -103,11 +117,10 @@ void ExtractTranslations(File * const marc_norm_input,
     if (unlikely(StringUtil::Split(translation_field_spec, ':', &translation_tags_and_subfield_codes) < 1))
         Error("ExtractTranslations: Need at least one translation field");
     
-    if (unlikely(not(german_tags_and_subfield_codes.size() == translation_tags_and_subfield_codes.size())))
+    if (unlikely(german_tags_and_subfield_codes.size() != translation_tags_and_subfield_codes.size()))
         Error("ExtractTranslations: Number of German fields and number of translation fields must be equal");
     
     unsigned count(0);
-    
     while (const MarcRecord record = MarcReader::Read(marc_norm_input)) {
         std::map<std::string, std::vector<std::string>> all_translations;
 
@@ -119,22 +132,28 @@ void ExtractTranslations(File * const marc_norm_input,
              const std::string german_subfields((*german_and_translations_it.first).substr(3));
              const std::string translation_tag((*german_and_translations_it.second).substr(0, 3));
              const std::string translation_subfields((*german_and_translations_it.second).substr(3));
- 
-             for (auto subfield_iterator = std::make_pair(german_subfields.begin(), translation_subfields.cbegin());
-                  subfield_iterator.first != german_subfields.cend();
-                  ++subfield_iterator.first, ++subfield_iterator.second) 
-             {
-                  std::vector<std::string> german_term_for_one_field;
-                  record.extractSubfields(german_tag, std::string(1, *subfield_iterator.first), &german_term_for_one_field);
- 
-                  std::vector<std::string> translations;
-                  // Always extract subfield 2 where "IxTheo" is located
-                  record.extractSubfields(translation_tag, std::string(1, *subfield_iterator.second) + "2", &translations);
 
-                  // For IxTheo-Translations add the language code in the same field
-                  AugmentIxTheoTagWithLanguage(record, translation_tag, &translations);
-                  if (not german_term_for_one_field.empty())
-                      all_translations.insert(std::make_pair(StringUtil::Join(german_term_for_one_field, ' '), translations));
+            auto german_subfield_code_iterator(german_subfields.begin());
+            auto translation_subfield_code_iterator(translation_subfields.begin());
+             for (/* empty */; german_subfield_code_iterator != german_subfields.cend(); ++german_subfield_code_iterator, ++translation_subfield_code_iterator) {
+                  std::vector<std::string> german_terms;
+                  record.extractSubfield(german_tag, *german_subfield_code_iterator, &german_terms);
+                 if (not german_terms.empty())
+                     continue;
+
+                 // Always extract subfield 2 where "IxTheo" is located
+                 std::vector<std::string> translations;
+                 record.extractSubfields(translation_tag, std::string(1, *translation_subfield_code_iterator) + "2", &translations);
+                 if (translations.empty())
+                     continue;
+
+                 // For IxTheo-Translations add the language code in the same field
+                 AugmentIxTheoTagWithLanguage(record, translation_tag, &translations);
+                 std::cout << record.getControlNumber() << " " << StringUtil::Join(german_terms, ' ') << "{ ";
+                 for (auto translation : translations)
+                     std::cout << translation << ", ";
+                 std::cout << "}\n";
+                 all_translations.insert(std::make_pair(StringUtil::Join(german_terms, ' '), translations));
             }
         }   
  

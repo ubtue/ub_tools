@@ -88,7 +88,6 @@ void DeleteUnusedLocalData(File * const input, File * const output) {
         ProcessRecord(&record);
         MarcWriter::Write(record, output);
     }
-
     std::cerr << ::progname << ": Deleted " << (before_count - after_count) << " of " << before_count << " local data blocks.\n";
 }
 

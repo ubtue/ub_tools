@@ -33,7 +33,7 @@ TEST(empty) {
         MarcRecord emptyRecord;
         BOOST_CHECK_EQUAL(emptyRecord, false);
 
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
         BOOST_CHECK_EQUAL(record, true);
 }
@@ -42,22 +42,22 @@ TEST(getNumberOfFields) {
         MarcRecord emptyRecord;
         BOOST_CHECK_EQUAL(emptyRecord.getNumberOfFields(), 0);
 
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
-        BOOST_CHECK_EQUAL(record.getNumberOfFields(), 84);
+        BOOST_CHECK_EQUAL(record.getNumberOfFields(), 13);
 
         size_t index(record.insertSubfield("TST", 'a', "TEST"));
-        BOOST_CHECK_EQUAL(record.getNumberOfFields(), 85);
+        BOOST_CHECK_EQUAL(record.getNumberOfFields(), 14);
         
         record.deleteField(index);
-        BOOST_CHECK_EQUAL(record.getNumberOfFields(), 84);
+        BOOST_CHECK_EQUAL(record.getNumberOfFields(), 13);
 }
 
 TEST(getFieldIndex) {
         MarcRecord emptyRecord;
         BOOST_CHECK_EQUAL(emptyRecord.getFieldIndex("001"), MarcRecord::FIELD_NOT_FOUND);
 
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
 
         BOOST_CHECK_NE(record.getFieldIndex("001"), MarcRecord::FIELD_NOT_FOUND);
@@ -76,7 +76,7 @@ TEST(getFieldIndices) {
         count = emptyRecord.getFieldIndices("001", &indices);
         BOOST_CHECK_EQUAL(count, 0);
 
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
         count = record.getFieldIndices("001", &indices);
         BOOST_CHECK_EQUAL(count, 1);
@@ -87,7 +87,7 @@ TEST(getFieldIndices) {
         BOOST_CHECK_EQUAL(indices.size(), count);
 
         count = record.getFieldIndices("LOK", &indices);
-        BOOST_CHECK_EQUAL(count, 57);
+        BOOST_CHECK_EQUAL(count, 5);
         BOOST_CHECK_EQUAL(indices.size(), count);
 }
 
@@ -95,50 +95,48 @@ TEST(getTag) {
         MarcRecord emptyRecord;
         BOOST_CHECK_EQUAL(emptyRecord.getTag(0), "");
 
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
 
         BOOST_CHECK_EQUAL(record.getTag(0), "001");
 }
 
 TEST(deleteFields) {
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
 
         std::vector<std::pair<size_t, size_t>> indices;
-        indices.emplace_back(0, 5);
-        indices.emplace_back(10, 15);
+        indices.emplace_back(1, 3);
+        indices.emplace_back(5, 10);
 
-        BOOST_CHECK_EQUAL(record.getNumberOfFields(), 84);
+        BOOST_CHECK_EQUAL(record.getNumberOfFields(), 13);
 
         record.deleteFields(indices);
 
-        BOOST_CHECK_EQUAL(record.getNumberOfFields(), 74);
+        BOOST_CHECK_EQUAL(record.getNumberOfFields(), 6);
 
 }
 
 TEST(findAllLocalDataBlocks) {
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
 
         std::vector<std::pair<size_t, size_t>> local_blocks;
         size_t count(record.findAllLocalDataBlocks(&local_blocks));
 
-        BOOST_CHECK_EQUAL(count, 6);
+        BOOST_CHECK_EQUAL(count, 2);
         BOOST_CHECK_EQUAL(local_blocks.size(), count);
 
         const auto first_block_length(local_blocks[0].second - local_blocks[0].first);
-        BOOST_CHECK_EQUAL(first_block_length, 9);
+        BOOST_CHECK_EQUAL(first_block_length, 2);
 
         const auto second_block_length(local_blocks[1].second - local_blocks[1].first);
-        BOOST_CHECK_EQUAL(second_block_length, 9);
+        BOOST_CHECK_EQUAL(second_block_length, 3);
 
-        const auto third_block_length(local_blocks[2].second - local_blocks[2].first);
-        BOOST_CHECK_EQUAL(third_block_length, 11);
 }
 
 TEST(extractSubfield) {
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
 
         std::vector<std::string> values;
@@ -146,11 +144,11 @@ TEST(extractSubfield) {
         BOOST_CHECK_EQUAL(values.size(), 1);
 
         record.extractSubfield("LOK", '0', &values);
-        BOOST_CHECK_EQUAL(values.size(), 58);
+        BOOST_CHECK_EQUAL(values.size(), 5);
 }
 
 TEST(filterTags) {
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
 
         std::unordered_set<MarcTag> tags;
@@ -168,7 +166,7 @@ TEST(getLanguage) {
         BOOST_CHECK_EQUAL(emptyRecord.getLanguage("not found"), "not found");
         BOOST_CHECK_EQUAL(emptyRecord.getLanguage(), "ger");
 
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
         BOOST_CHECK_EQUAL(record.getLanguage("not found"), "ger");
         BOOST_CHECK_EQUAL(record.getLanguage(), "ger");
@@ -178,7 +176,7 @@ TEST(getLanguageCode) {
         MarcRecord emptyRecord;
         BOOST_CHECK_EQUAL(emptyRecord.getLanguageCode(), "");
 
-        File input("data/000596574.mrc", "r");
+        File input("data/marc_record_test.mrc", "r");
         MarcRecord record(MarcReader::Read(&input));
         BOOST_CHECK_EQUAL(record.getLanguageCode(), "ger");
 }

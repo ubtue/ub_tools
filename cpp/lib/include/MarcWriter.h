@@ -31,8 +31,15 @@ class MarcRecord;
 
 namespace MarcWriter {
 
-
+/**
+ * \brief writes the given record to the output file,
+ * but only if the record contains more than one field.
+ */
 void Write(MarcRecord &record, File * const output);
+
+/**
+ * \brief writes the given record to the output file using a XML writer.
+ */
 void Write(MarcRecord &record, XmlWriter * const xml_writer);
 
 

@@ -29,8 +29,8 @@
 #include "MarcWriter.h"
 
 TEST(read_write_read) {
-        File input("data/000596574.mrc", "r");
-        File output("/tmp/000596574.out.mrc", "w");
+        File input("data/default.mrc", "r");
+        File output("/tmp/default.out.mrc", "w");
         MarcRecord record(MarcReader::Read(&input));
         MarcWriter::Write(record, &output);
         std::cout << ("marc_compare " + input.getPath() + " " + output.getPath()) << "\n";
@@ -41,8 +41,8 @@ TEST(read_write_read) {
 }
 
 TEST(large_record) {
-        File input("data/000596574.mrc", "r");
-        File output("/tmp/000596574.out.mrc", "w");
+        File input("data/default.mrc", "r");
+        File output("/tmp/default.out.mrc", "w");
         MarcRecord record(MarcReader::Read(&input));
 
         Subfields subfields(' ', ' ');
@@ -58,7 +58,7 @@ TEST(large_record) {
         MarcWriter::Write(record, &output);
         output.close();
 
-        File new_input("/tmp/000596574.out.mrc", "r");
+        File new_input("/tmp/default.out.mrc", "r");
         MarcRecord new_record(MarcReader::Read(&new_input));
 
         std::vector<std::string> values;
