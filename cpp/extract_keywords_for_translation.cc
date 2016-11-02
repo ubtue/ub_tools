@@ -172,7 +172,7 @@ bool ExtractTranslationsForASingleRecord(MarcUtil::Record * const record, XmlWri
     std::string gnd_code;
     if (not MarcUtil::GetGNDCode(*record, &gnd_code)) {
         ++no_gnd_code_count;
-        return true;
+        gnd_code = "0";
     }
     
     const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (ppn,gnd_code,language_code,"
@@ -205,7 +205,7 @@ void ExtractTranslationsForAllRecords(File * const norm_data_input) {
     if (not MarcUtil::ProcessRecords(norm_data_input, ExtractTranslationsForASingleRecord, nullptr, &err_msg))
         Error("error while extracting translations from \"" + norm_data_input->getPath() + "\": " + err_msg);
 
-    std::cerr << "Added " << keyword_count << " to the translation database.\n";
+    std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
     std::cerr << "Found " << translation_count << " translations in the norm data. (" << additional_hits
               << " due to 'ram' and 'lcsh' entries.)\n";
     std::cerr << "Found " << synonym_count << " synonym entries.\n";
