@@ -147,6 +147,9 @@ std::string GenerateLanguageCodeWhereClause(
 }
 
 
+static unsigned no_gnd_code_count;
+
+
 bool ExtractTranslationsForASingleRecord(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
                                          std::string * const /* err_msg */)
 {
@@ -167,8 +170,11 @@ bool ExtractTranslationsForASingleRecord(MarcUtil::Record * const record, XmlWri
         Error("Delete failed: " + DELETE_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
 
     std::string gnd_code;
-    if (not MarcUtil::GetGNDCode(*record, &gnd_code))
-        Error("failed to get a GND code for PPN " + ppn + "!");
+    if (not MarcUtil::GetGNDCode(*record, &gnd_code)) {
+        ++no_gnd_code_count;
+        return true;
+    }
+    
     const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (ppn,gnd_code,language_code,"
                                              "translation,preexists) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
@@ -203,6 +209,7 @@ void ExtractTranslationsForAllRecords(File * const norm_data_input) {
     std::cerr << "Found " << translation_count << " translations in the norm data. (" << additional_hits
               << " due to 'ram' and 'lcsh' entries.)\n";
     std::cerr << "Found " << synonym_count << " synonym entries.\n";
+    std::cerr << no_gnd_code_count << " authority records had no GND code.\n";
 }
 
 
