@@ -57,7 +57,7 @@ char HexDigit(const unsigned value);
  *  you must duplicate them.  Variable names as defined by "names_to_values_map" must start with a lowercase ASCII
  *  letter, followed by lowercase ASCII letters, underscores or ASCII digits.  All keywords are all uppercase.
  *  The list of keywords is IF, ELSE, ENDIF, DEFINED, LOOP and ENDLOOP.  The conditionals for an IF are either
- *  DEFINED(var), var == "value" var1 == var2, var != "value" and va1 != var2.  The DEFINED(var) returns true if
+ *  DEFINED(var), var == "value" var1 == var2, var != "value" and var1 != var2.  The DEFINED(var) returns true if
  *  "var" is a key in "names_to_values_map", else false.  Two conditions may be combined with the keywords AND or OR
  *  String constants must start and end with a double quote.  Three backslash escapes are supported, "\\" for a
  *  literal backslash, "\n" for a newline and "\"" for an embedded double quote.  Output gets suppressed if a
