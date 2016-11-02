@@ -34,10 +34,11 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " command [args]\n\n";
+    std::cerr << "Usage: " << ::progname << " command [args]\n\n";
     std::cerr << "       Possible commands are:\n";
     std::cerr << "       get_missing language_code\n";
-    std::cerr << "       insert index language_code category text\n";
+    std::cerr << "       insert token language_code text\n";
+    std::cerr << "       insert ppn gnd_code language_code text\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -59,6 +60,7 @@ std::string EscapeCommasAndBackslashes(const std::string &text) {
 
     return escaped_text;
 }
+
 
 unsigned GetMissing(DbConnection * const connection, const std::string &table_name, 
                     const std::string &table_key_name, const std::string &category,
@@ -83,7 +85,8 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
     
     while (row = result_set.getNextRow())
         std::cout << row[table_key_name] << ',' << count << ',' << row["language_code"] << ','
-                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category << '\n';
+                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category << ',' << row["gnd_code"]
+                  << '\n';
 
     return result_set.size();
 }
@@ -99,7 +102,7 @@ unsigned GetMissingKeywordTranslations(DbConnection * const connection, const st
 }
 
 
-void InsertIntoVuFindTranslations(DbConnection * const connection, const std::string token,
+void InsertIntoVuFindTranslations(DbConnection * const connection, const std::string &token,
                                   const std::string &language_code, const std::string &text)
 {
     ExecSqlOrDie("INSERT INTO vufind_translations SET token=\"" + token + "\",language_code=\"" + language_code
@@ -107,10 +110,12 @@ void InsertIntoVuFindTranslations(DbConnection * const connection, const std::st
 }
 
 
-void InsertIntoKeywordTranslations(DbConnection * const connection, const std::string ID,
-                                   const std::string &language_code, const std::string &text)
+void InsertIntoKeywordTranslations(DbConnection * const connection, const std::string &ppn,
+                                   const std::string &gnd_code, const std::string &language_code,
+                                   const std::string &text)
 {
-    ExecSqlOrDie("INSERT INTO keyword_translations SET ppn=\"" + ID + "\",language_code=\"" + language_code + "\",translation=\""
+    ExecSqlOrDie("INSERT INTO keyword_translations SET ppn=\"" + ppn + ",gnd_code=\"" + gnd_code
+                 + "\",language_code=\"" + language_code + "\", gnd_code=\"" + gnd_code + "\",translation=\""
                  + connection->escapeString(text) + "\";", connection);
 }
 
@@ -119,7 +124,7 @@ const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
 int main(int argc, char *argv[]) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     try {
         if (argc < 2)
@@ -140,22 +145,18 @@ int main(int argc, char *argv[]) {
             if (not GetMissingVuFindTranslations(&db_connection, language_code))
                 GetMissingKeywordTranslations(&db_connection, language_code);
         } else if (std::strcmp(argv[1], "insert") == 0) {
-            if (argc != 6)
-                Error("\"insert\" requires exactly four arguments: index, language_code, category, and text!");
+            if (argc != 5 and argc != 6)
+                Error("\"insert\" requires three or four arguments: token or ppn, gnd_code (if ppn), "
+                      "language_code, and text!");
 
-            const std::string language_code(argv[3]);
+            const std::string language_code(argv[(argc == 6) ? 3 : 4]);
             if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
                 Error("\"" + language_code + "\" is not a valid German 3-letter language code!");
 
-            const std::string category(argv[4]);
-            if (category != "vufind_translations" and category != "keywords")
-                Error("\"" + category + "\" is not a valid category, valid categories are: 'vufind_translations' "
-                      " and 'keywords'.");
-
-            if (category == "vufind_translations")
-                InsertIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[5]);
+            if (argc == 5)
+                InsertIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4]);
             else
-                InsertIntoKeywordTranslations(&db_connection, argv[2], language_code, argv[5]);
+                InsertIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5]);
         } else
             Error("unknown command \"" + std::string(argv[1]) + "\"!");
     } catch (const std::exception &x) {
