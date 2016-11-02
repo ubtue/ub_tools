@@ -966,4 +966,22 @@ bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter 
 }
 
 
+bool GetGNDCode(const Record &record, std::string * const gnd_code) {
+    gnd_code->clear();
+
+    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
+    const std::vector<std::string> &field_data(record.getFields());
+
+    const auto _035_iter(DirectoryEntry::FindField("035", dir_entries));
+    if (_035_iter == dir_entries.end())
+        return false;
+    const Subfields _035_subfields(field_data[_035_iter - dir_entries.begin()]);
+    const std::string _035a_field(_035_subfields.getFirstSubfieldValue('a'));
+    if (not StringUtil::StartsWith(_035a_field, "(DE-588)"))
+        return false;
+    *gnd_code = _035a_field.substr(8);
+    return not gnd_code->empty();
+}
+
+
 } // namespace MarcUtil
