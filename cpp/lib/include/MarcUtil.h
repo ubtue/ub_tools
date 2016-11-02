@@ -216,6 +216,10 @@ using XmlRecordFunc = bool (&)(Record * const record, XmlWriter * const xml_writ
 bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer, std::string * const err_msg);
 
 
+/** \brief True if a GND code was found in 035$a else false. */
+bool GetGNDCode(const Record &record, std::string * const gnd_code);
+
+
 } // namespace MarcUtil
 
 

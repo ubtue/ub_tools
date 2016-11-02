@@ -81,24 +81,6 @@ void LoadBibleOrderMap(const bool verbose, File * const input,
 }
 
 
-/** \brief True if a GND code was found in 035$a else false. */
-bool GetGNDCode(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
-                std::string * const gnd_code)
-{
-    gnd_code->clear();
-
-    const auto _035_iter(DirectoryEntry::FindField("035", dir_entries));
-    if (_035_iter == dir_entries.end())
-        return false;
-    const Subfields _035_subfields(field_data[_035_iter - dir_entries.begin()]);
-    const std::string _035a_field(_035_subfields.getFirstSubfieldValue('a'));
-    if (not StringUtil::StartsWith(_035a_field, "(DE-588)"))
-        return false;
-    *gnd_code = _035a_field.substr(8);
-    return not gnd_code->empty();
-}
-
-
 /* Pericopes are found in 130$a if there are also bible references in the 430 field. You should therefore
    only call this after acertaining that one or more 430 fields contain a bible reference. */
 bool FindPericopes(const std::vector<DirectoryEntry> &dir_entries, const std::vector<std::string> &field_data,
@@ -371,7 +353,7 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
         const std::vector<std::string> &fields(record.getFields());
         const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
         std::string gnd_code;
-        if (not GetGNDCode(dir_entries, fields, &gnd_code))
+        if (not MarcUtil::GetGNDCode(record, &gnd_code))
             continue;
 
         std::set<std::pair<std::string, std::string>> ranges;
