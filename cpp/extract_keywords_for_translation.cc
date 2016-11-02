@@ -169,7 +169,7 @@ bool ExtractTranslationsForASingleRecord(MarcUtil::Record * const record, XmlWri
     std::string gnd_code;
     if (not MarcUtil::GetGNDCode(*record, &gnd_code))
         Error("failed to get a GND code for PPN " + ppn + "!");
-    const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (ppn,gnd_number,language_code,"
+    const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (ppn,gnd_code,language_code,"
                                              "translation,preexists) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
 
