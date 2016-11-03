@@ -503,7 +503,8 @@ bool ParseIfCondition(TemplateScanner * const scanner,
         if (unlikely(token != TemplateScanner::VARIABLE_NAME and token != TemplateScanner::STRING_CONSTANT))
             throw std::runtime_error("in MiscUtil::ParseIfCondition: error on line "
                                      + std::to_string(scanner->getLineNo())
-                                     + " variable name or string constant expected after comparison operator!");
+                                     + " variable name or string constant expected after comparison operator! ("
+                                     "Found " + TemplateScanner::TokenTypeToString(token) + " instead.)");
         std::string rhs;
         if (token == TemplateScanner::STRING_CONSTANT)
             rhs = scanner->getLastStringConstant();
