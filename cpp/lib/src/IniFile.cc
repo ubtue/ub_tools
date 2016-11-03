@@ -282,7 +282,8 @@ void IniFile::processFile(const std::string &filename) {
     }
     std::ifstream ini_file(filename.c_str());
     if (ini_file.fail())
-        throw std::runtime_error("in IniFile::processFile: can't open \"" + filename + "\"!");
+        throw std::runtime_error("in IniFile::processFile: can't open \"" + filename + "\"! ("
+                                 + std::string(::strerror(errno)) + ")");
 
     include_file_infos_.push(IncludeFileInfo(filename));
 
