@@ -28,6 +28,7 @@
 #include "DbRow.h"
 #include "IniFile.h"
 #include "SimpleXmlParser.h"
+#include "SqlUtil.h"
 #include "StringUtil.h"
 #include "TranslationUtil.h"
 #include "util.h"
@@ -82,11 +83,14 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
     DbResultSet result_set(connection->getLastResultSet());
     if (result_set.empty())
         return 0;
+
+    const std::set<std::string> column_names(SqlUtil::GetColumnNames(connection, table_name));
+    const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
     
     while (row = result_set.getNextRow())
         std::cout << row[table_key_name] << ',' << count << ',' << row["language_code"] << ','
-                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category << ',' << row["gnd_code"]
-                  << '\n';
+                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category
+                  << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
 
     return result_set.size();
 }
