@@ -34,6 +34,9 @@
 #include "DirectoryEntry.h"
 #include "IniFile.h"
 #include "Leader.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "MarcUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -51,63 +54,43 @@ static unsigned keyword_count, translation_count, additional_hits, synonym_count
 static DbConnection *shared_connection;
 
 
-void ExtractGermanSynonyms(const MarcUtil::Record &record,
-                           std::vector<std::pair<std::string, std::string>> * const text_and_language_codes)
-{
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-    const std::vector<std::string> &fields(record.getFields());
-
-    ssize_t _450_index(record.getFieldIndex("450"));
-    if (_450_index != -1) {
-        for (/* Intentionally empty! */;
-             static_cast<size_t>(_450_index) < fields.size() and dir_entries[_450_index].getTag() == "450";
-             ++_450_index)
-        {
-            const Subfields _450_subfields(fields[_450_index]);
-            if (_450_subfields.hasSubfield('a')) {
-                text_and_language_codes->emplace_back(std::make_pair(_450_subfields.getFirstSubfieldValue('a'),
-                                                                     "deu"));
-                ++synonym_count;
-            }
+void ExtractGermanSynonyms(const MarcRecord &record, std::vector<std::pair<std::string, std::string>> * const text_and_language_codes) {
+    for (size_t _450_index(record.getFieldIndex("450")); _450_index < record.getNumberOfFields() and record.getTag(_450_index) == "450"; ++_450_index) {
+        const Subfields _450_subfields(record.getSubfields(_450_index));
+        if (_450_subfields.hasSubfield('a')) {
+            text_and_language_codes->emplace_back(std::make_pair(_450_subfields.getFirstSubfieldValue('a'), "deu"));
+            ++synonym_count;
         }
     }
 }
 
 
-void ExtractNonGermanTranslations(const MarcUtil::Record &record,
-                                  std::vector<std::pair<std::string, std::string>> * const text_and_language_codes)
-{
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-    const std::vector<std::string> &fields(record.getFields());
-
-    const ssize_t first_750_index(record.getFieldIndex("750"));
-    if (first_750_index != -1) {
-        for (size_t index(first_750_index); index < dir_entries.size() and dir_entries[index].getTag() == "750";
-             ++index)
-        {
-            const Subfields _750_subfields(fields[index]);
-            auto start_end(_750_subfields.getIterators('9'));
-            if (start_end.first == start_end.second)
-                continue;
-            std::string language_code;
-            for (auto code_and_value(start_end.first); code_and_value != start_end.second; ++code_and_value) {
-                if (StringUtil::StartsWith(code_and_value->second, "L:"))
-                    language_code = code_and_value->second.substr(2);
-            }
-            if (language_code.empty() and _750_subfields.hasSubfield('2')) {
-                const std::string _750_2(_750_subfields.getFirstSubfieldValue('2'));
-                if (_750_2 == "lcsh")
-                    language_code = "eng";
-                else if (_750_2 == "ram")
-                    language_code ="fra";
-                if (not language_code.empty())
-                    ++additional_hits;
-            }
-            if (not language_code.empty()) {
-                ++translation_count;
-                text_and_language_codes->emplace_back(std::make_pair(_750_subfields.getFirstSubfieldValue('a'),
-                                                                     language_code));
-            }
+void ExtractNonGermanTranslations(const MarcRecord &record,
+                                  std::vector<std::pair<std::string, std::string>> * const text_and_language_codes) {
+    for (size_t index(record.getFieldIndex("750"));
+         index < record.getNumberOfFields() and record.getTag(index) == "750"; ++index) {
+        const Subfields _750_subfields(record.getSubfields(index));
+        auto start_end(_750_subfields.getIterators('9'));
+        if (start_end.first == start_end.second)
+            continue;
+        std::string language_code;
+        for (auto code_and_value(start_end.first); code_and_value != start_end.second; ++code_and_value) {
+            if (StringUtil::StartsWith(code_and_value->value_, "L:"))
+                language_code = code_and_value->value_.substr(2);
+        }
+        if (language_code.empty() and _750_subfields.hasSubfield('2')) {
+            const std::string _750_2(_750_subfields.getFirstSubfieldValue('2'));
+            if (_750_2 == "lcsh")
+                language_code = "eng";
+            else if (_750_2 == "ram")
+                language_code = "fra";
+            if (not language_code.empty())
+                ++additional_hits;
+        }
+        if (not language_code.empty()) {
+            ++translation_count;
+            text_and_language_codes->emplace_back(std::make_pair(_750_subfields.getFirstSubfieldValue('a'),
+                                                                 language_code));
         }
     }
 }
@@ -150,7 +133,7 @@ std::string GenerateLanguageCodeWhereClause(
 static unsigned no_gnd_code_count;
 
 
-bool ExtractTranslationsForASingleRecord(MarcUtil::Record * const record, XmlWriter * const /*xml_writer*/,
+bool ExtractTranslationsForASingleRecord(MarcRecord * const record, File * const /*output*/,
                                          std::string * const /* err_msg */)
 {
     // Extract all synonyms and translations:
@@ -202,7 +185,7 @@ bool ExtractTranslationsForASingleRecord(MarcUtil::Record * const record, XmlWri
 
 void ExtractTranslationsForAllRecords(File * const norm_data_input) {
     std::string err_msg;
-    if (not MarcUtil::ProcessRecords(norm_data_input, ExtractTranslationsForASingleRecord, nullptr, &err_msg))
+    if (not MarcRecord::ProcessRecords(norm_data_input, nullptr, ExtractTranslationsForASingleRecord, &err_msg))
         Error("error while extracting translations from \"" + norm_data_input->getPath() + "\": " + err_msg);
 
     std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";

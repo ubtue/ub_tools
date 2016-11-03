@@ -32,8 +32,9 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcUtil.h"
-#include "MarcXmlWriter.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -59,9 +60,9 @@ std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 
 
 void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::string> &primary_tags_and_subfield_codes,
-                     const std::set<std::string> &synonym_tags_and_subfield_codes,  std::vector<std::map<std::string, std::string>> * const synonym_maps) 
+                     const std::set<std::string> &synonym_tags_and_subfield_codes, std::vector<std::map<std::string, std::string>> * const synonym_maps)
 {
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(norm_data_marc_input)) {
+    while (const MarcRecord record = MarcReader::Read(norm_data_marc_input)) {
         std::set<std::string>::const_iterator primary;
         std::set<std::string>::const_iterator synonym;
         unsigned int i(0);
@@ -87,7 +88,7 @@ inline std::string GetMapValueOrEmptyString(const std::map<std::string, std::str
 }
 
 
-void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<std::string, std::string>> &synonym_maps, 
+void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::string, std::string>> &synonym_maps,
                    const std::set<std::string> &primary_tags_and_subfield_codes,
                    const std::set<std::string> &output_tags_and_subfield_codes) 
 {
@@ -130,7 +131,7 @@ void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<s
                 // Insert synonyms
                 // Abort if field is already populated
                 std::string tag(GetTag(*output));
-                if (record->getFieldIndex(tag) != -1)
+                if (record->getFieldIndex(tag) != MarcRecord::FIELD_NOT_FOUND)
                     Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
                 std::string subfield_spec = GetSubfieldCodes(*output);
                 if (subfield_spec.size() != 1)
@@ -146,14 +147,12 @@ void ProcessRecord(MarcUtil::Record * const record, const std::vector<std::map<s
 }   
 
 
-void InsertSynonyms(File * const marc_input, File * marc_output, const std::set<std::string> &primary_tags_and_subfield_codes,
+void InsertSynonyms(File * const marc_input, File * const marc_output, const std::set<std::string> &primary_tags_and_subfield_codes,
                     const std::set<std::string> &output_tags_and_subfield_codes, std::vector<std::map<std::string, std::string>> &synonym_maps) 
 {
-    MarcXmlWriter xml_writer(marc_output);
-
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_input)) {
+    while (MarcRecord record = MarcReader::Read(marc_input)) {
         ProcessRecord(&record, synonym_maps, primary_tags_and_subfield_codes, output_tags_and_subfield_codes);
-        record.write(&xml_writer);
+        MarcWriter::Write(record, marc_output);
         ++record_count;
     }
 
