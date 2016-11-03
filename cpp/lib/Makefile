@@ -23,8 +23,11 @@ endif
 
 # Rules for building:
 $(OBJ)/%.o: $(SRC)/%.cc
-	$(CCC) $(CCOPTS) $< -c -o $@ -DLZ4_PATH=\"$(LZ4_PATH)\"
+	@echo "Compiling $<..."
+	@$(CCC) $(CCOPTS) $< -c -o $@ -DLZ4_PATH=\"$(LZ4_PATH)\"
+
 $(OBJ)/%_amd64.o: $(SRC)/%.cc
+	@echo "Compiling (AMD64)$<..."
 	$(CCC) $(AMD64_CCOPTS) $< -c -o $@ -DLZ4_PATH=\"$(LZ4_PATH)\"
 
 all: /usr/local/bin/iViaCore-mkdep .deps libstemmer/libstemmer.a libubtue.a

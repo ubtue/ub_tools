@@ -31,7 +31,9 @@
 #include "ExecUtil.h"
 #include "FileLocker.h"
 #include "FileUtil.h"
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "PdfUtil.h"
 #include "SmartDownloader.h"
@@ -89,7 +91,7 @@ static std::map<std::string, std::string> marc_to_tesseract_language_codes_map {
 };
 
 
-std::string GetTesseractLanguageCode(const MarcUtil::Record &record) {
+std::string GetTesseractLanguageCode(const MarcRecord &record) {
     const auto map_iter(marc_to_tesseract_language_codes_map.find(
         record.getLanguageCode()));
     return (map_iter == marc_to_tesseract_language_codes_map.cend()) ? "" : map_iter->second;
@@ -97,7 +99,7 @@ std::string GetTesseractLanguageCode(const MarcUtil::Record &record) {
 
 
 bool GetTextFromImagePDF(const std::string &document, const std::string &media_type, const std::string &original_url,
-                         const MarcUtil::Record &record, const std::string &pdf_images_script, std::string * const extracted_text)
+                         const MarcRecord &record, const std::string &pdf_images_script, std::string * const extracted_text)
 {
     extracted_text->clear();
 
@@ -140,12 +142,12 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
 bool IsProbablyAReview(const Subfields &subfields) {
     const auto _3_begin_end(subfields.getIterators('3'));
     if (_3_begin_end.first != _3_begin_end.second) {
-        if (StringUtil::StartsWith(_3_begin_end.first->second, "Rezension"))
+        if (StringUtil::StartsWith(_3_begin_end.first->value_, "Rezension"))
             return true;
     } else {
         const auto z_begin_end(subfields.getIterators('z'));
         if (z_begin_end.first != z_begin_end.second
-            and StringUtil::StartsWith(z_begin_end.first->second, "Rezension"))
+            and StringUtil::StartsWith(z_begin_end.first->value_, "Rezension"))
             return true;
     }
 
@@ -208,21 +210,17 @@ bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std:
 bool ProcessRecord(File * const input, const std::string &marc_output_filename,
                    const std::string &pdf_images_script, const std::string &db_filename)
 {
-    MarcUtil::Record record(MarcUtil::Record::XmlFactory(input));
-    record.setRecordWillBeWrittenAsXml(true);
+    MarcRecord record(MarcReader::Read(input));
 
-    ssize_t _856_index(record.getFieldIndex("856"));
-    if (_856_index == -1)
+    size_t _856_index(record.getFieldIndex("856"));
+    if (_856_index == MarcRecord::FIELD_NOT_FOUND)
         Error("no 856 tag found!");
 
     constexpr unsigned PER_DOC_TIMEOUT(40);
     bool succeeded(false);
 
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-    const std::vector<std::string> &fields(record.getFields());
-    const ssize_t dir_entry_count(static_cast<ssize_t>(dir_entries.size()));
-    for (/* Empty! */; _856_index < dir_entry_count and dir_entries[_856_index].getTag() == "856"; ++_856_index) {
-        Subfields subfields(fields[_856_index]);
+    for (/* Empty! */; _856_index < record.getNumberOfFields() and record.getTag(_856_index) == "856"; ++_856_index) {
+        Subfields subfields(record.getSubfields(_856_index));
         if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;
 
@@ -266,8 +264,7 @@ bool ProcessRecord(File * const input, const std::string &marc_output_filename,
     File marc_output(marc_output_filename, "ab");
     if (not marc_output)
         Error("can't open \"" + marc_output_filename + "\" for appending!");
-    XmlWriter xml_writer(&marc_output, XmlWriter::DoNotWriteTheXmlDeclaration);
-    record.write(&xml_writer);
+    MarcWriter::Write(record, &marc_output);
 
     return succeeded;
 }

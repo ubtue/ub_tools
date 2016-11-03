@@ -31,7 +31,9 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcUtil.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -61,7 +63,7 @@ std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 void ExtractSynonyms(File * const reference_data_marc_input, const std::set<std::string> &primary_tags_and_subfield_codes,
                      const std::set<std::string> &synonym_tags_and_subfield_codes,  std::vector<std::map<std::string, std::string>> * const synonym_maps) 
 {
-    while (const MarcUtil::Record record = MarcUtil::Record::BinaryFactory(reference_data_marc_input)) {
+    while (const MarcRecord record = MarcReader::Read(reference_data_marc_input)) {
         std::set<std::string>::const_iterator primary;
         std::set<std::string>::const_iterator synonym;
         unsigned int i(0);

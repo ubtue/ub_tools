@@ -26,7 +26,9 @@
 #include <unordered_map>
 #include <cctype>
 #include <cstdlib>
-#include "MarcUtil.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "MarcXmlWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -77,14 +79,13 @@ std::string IxTheoMapper::map(const std::string &hierarchy_classification) const
 }
 
 
-void LoadCSVFile(const bool verbose, const std::string &filename, std::vector<IxTheoMapper> * const mappers) {
+void LoadCSVFile(const std::string &filename, std::vector<IxTheoMapper> * const mappers) {
     DSVReader csv_reader(filename);
     std::vector<std::string> csv_values;
     while (csv_reader.readLine(&csv_values))
         mappers->emplace_back(csv_values);
 
-    if (verbose)
-        std::cerr << "Read " << mappers->size() << " mappings from \"" << filename << "\".\n";
+    std::cerr << "Read " << mappers->size() << " mappings from \"" << filename << "\".\n";
 }
 
 
@@ -116,26 +117,20 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
                     const std::vector<IxTheoMapper> &ddc_to_ixtheo_notation_mappers,
                     const std::vector<IxTheoMapper> &/*rvk_to_ixtheo_notation_mappers*/)
 {
-    MarcXmlWriter xml_writer(output);
     unsigned count(0), records_with_ixtheo_notations(0), records_with_new_notations(0), skipped_group_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        record.setRecordWillBeWrittenAsXml(true);
+    while (MarcRecord record = MarcReader::Read(input)) {
         ++count;
-
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        if (dir_entries[0].getTag() != "001")
-            Error("First field is not \"001\"!");
 
         std::string ixtheo_notations_list(record.extractFirstSubfield("652", 'a'));
         if (not ixtheo_notations_list.empty()) {
             ++records_with_ixtheo_notations;
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             continue;
         }
 
         std::vector<std::string> ddc_values;
         if (record.extractSubfield("082", 'a', &ddc_values) == 0) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             continue;
         }
 
@@ -155,8 +150,7 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
 
         UpdateIxTheoNotations(ddc_to_ixtheo_notation_mappers, ddc_values, &ixtheo_notations_list);
         if (verbose and not ixtheo_notations_list.empty()) {
-            const std::vector<std::string> &fields(record.getFields());
-            std::cout << fields[0] << ": " << StringUtil::Join(ddc_values, ',') << " -> " << ixtheo_notations_list << '\n';
+            std::cout << record.getControlNumber() << ": " << StringUtil::Join(ddc_values, ',') << " -> " << ixtheo_notations_list << '\n';
         }
 
 /*
@@ -179,15 +173,13 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
             record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list + "\x1F""bDDCoderRVK");
         }
 
-        record.write(&xml_writer);
+        MarcWriter::Write(record, output);
     }
 
-    if (verbose) {
-        std::cerr << "Read " << count << " records.\n";
-        std::cerr << records_with_ixtheo_notations << " records had Ixtheo notations.\n";
-        std::cerr << records_with_new_notations << " records received new Ixtheo notations.\n";
-        std::cerr << skipped_group_count << " records where skipped because they were in a group that we are not interested in.\n";
-    }
+    std::cerr << "Read " << count << " records.\n";
+    std::cerr << records_with_ixtheo_notations << " records had Ixtheo notations.\n";
+    std::cerr << records_with_new_notations << " records received new Ixtheo notations.\n";
+    std::cerr << skipped_group_count << " records where skipped because they were in a group that we are not interested in.\n";
 }
 
 
@@ -216,10 +208,10 @@ int main(int argc, char **argv) {
 
     try {
         std::vector<IxTheoMapper> ddc_to_ixtheo_notation_mappers;
-        LoadCSVFile(verbose, argv[verbose ? 4 : 3], &ddc_to_ixtheo_notation_mappers);
+        LoadCSVFile(argv[verbose ? 4 : 3], &ddc_to_ixtheo_notation_mappers);
 
         std::vector<IxTheoMapper> rvk_to_ixtheo_notation_mappers;
-//      LoadCSVFile(verbose, argv[verbose ? 5 : 4], &rvk_to_ixtheo_notation_mappers);
+//      LoadCSVFile(argv[verbose ? 5 : 4], &rvk_to_ixtheo_notation_mappers);
 
         ProcessRecords(verbose, &marc_input, &marc_output, ddc_to_ixtheo_notation_mappers, rvk_to_ixtheo_notation_mappers);
     } catch (const std::exception &x) {
