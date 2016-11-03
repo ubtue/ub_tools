@@ -37,6 +37,7 @@
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
+#include "MarcUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "TimeUtil.h"
@@ -99,7 +100,7 @@ void ExtractNonGermanTranslations(const MarcRecord &record,
 void FlushToDatabase(std::string &insert_statement) {
     // Remove trailing comma and space:
     insert_statement.resize(insert_statement.size() - 2);
-    
+
     insert_statement += ';';
     if (not shared_connection->query(insert_statement))
         Error("Insert failed: " + insert_statement + " (" + shared_connection->getLastErrorMessage() + ")");
@@ -111,7 +112,7 @@ std::string GenerateLanguageCodeWhereClause(
     const std::vector<std::pair<std::string, std::string>> &text_and_language_codes)
 {
     std::string partial_where_clause;
-    
+
     partial_where_clause += '(';
     std::set<std::string> already_seen;
     for (const auto &text_and_language_code : text_and_language_codes) {
@@ -129,6 +130,9 @@ std::string GenerateLanguageCodeWhereClause(
 }
 
 
+static unsigned no_gnd_code_count;
+
+
 bool ExtractTranslationsForASingleRecord(MarcRecord * const record, File * const /*output*/,
                                          std::string * const /* err_msg */)
 {
@@ -141,25 +145,32 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, File * const
 
     ++keyword_count;
 
-    // Remove entries for which authoritative translation were shipped to us from the BSZ: 
+    // Remove entries for which authoritative translation were shipped to us from the BSZ:
     const std::string ppn(record->getControlNumber());
     const std::string DELETE_STMT("DELETE FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND "
                                   + GenerateLanguageCodeWhereClause(text_and_language_codes));
     if (not shared_connection->query(DELETE_STMT))
         Error("Delete failed: " + DELETE_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
+
+    std::string gnd_code;
+    if (not MarcUtil::GetGNDCode(*record, &gnd_code)) {
+        ++no_gnd_code_count;
+        gnd_code = "0";
+    }
     
-    const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (ppn,language_code,translation,"
-                                             "preexists) VALUES ");
+    const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (ppn,gnd_code,language_code,"
+                                             "translation,preexists) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
-    
+
     size_t row_counter(0);
     const size_t MAX_ROW_COUNT(1000);
-    
+
     // Update the database:
     for (const auto &text_and_language_code : text_and_language_codes) {
         const std::string language_code(shared_connection->escapeString(text_and_language_code.second));
         const std::string translation(shared_connection->escapeString(text_and_language_code.first));
-        insert_statement += "('" + ppn + "', '" + language_code + "', '" + translation + "', TRUE), ";
+        insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + language_code + "', '" + translation
+                            + "', TRUE), ";
         if (++row_counter > MAX_ROW_COUNT) {
             FlushToDatabase(insert_statement);
             insert_statement = INSERT_STATEMENT_START;
@@ -167,7 +178,7 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, File * const
         }
     }
     FlushToDatabase(insert_statement);
-    
+
     return true;
 }
 
@@ -177,13 +188,14 @@ void ExtractTranslationsForAllRecords(File * const norm_data_input) {
     if (not MarcRecord::ProcessRecords(norm_data_input, nullptr, ExtractTranslationsForASingleRecord, &err_msg))
         Error("error while extracting translations from \"" + norm_data_input->getPath() + "\": " + err_msg);
 
-    std::cerr << "Added " << keyword_count << " to the translation database.\n";
+    std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
     std::cerr << "Found " << translation_count << " translations in the norm data. (" << additional_hits
               << " due to 'ram' and 'lcsh' entries.)\n";
     std::cerr << "Found " << synonym_count << " synonym entries.\n";
+    std::cerr << no_gnd_code_count << " authority records had no GND code.\n";
 }
 
-                             
+
 const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
@@ -192,7 +204,7 @@ int main(int argc, char **argv) {
 
     if (argc != 3)
         Usage();
-    
+
     const std::string marc_input_filename(argv[1]);
     File marc_input(marc_input_filename, "r");
     if (not marc_input)
@@ -210,7 +222,7 @@ int main(int argc, char **argv) {
         const std::string sql_password(ini_file.getString("", "sql_password"));
         DbConnection db_connection(sql_database, sql_username, sql_password);
         shared_connection = &db_connection;
-    
+
         ExtractTranslationsForAllRecords(&norm_data_marc_input);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));

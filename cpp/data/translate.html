@@ -2,14 +2,18 @@
     <body>
         <h1>Translating for IxTheo ({category}, {remaining_count} remaining)</h1>
         <form action="/cgi-bin/translate_chainer">
-            <em>Translation target language:</em> 
+            <em>Translation target language:</em>
             <select name="language_code" onchange="this.form.submit()">
                 <option value="eng" {IF target_language_code == "eng"} selected{ENDIF}>English</option>
                 <option value="deu" {IF target_language_code == "deu"} selected{ENDIF}>German</option>
                 <option value="fra" {IF target_language_code == "fra"} selected{ENDIF}>French</option>
             </select>
         </form>
-        
+
+        <br />
+        {IF DEFINED(gnd_code) AND gnd_code != "0"}<a href="http://d-nb.info/gnd/{gnd_code}">GND entry</a>{ENDIF}
+        <br />
+
         <h2>Existing translation(s):</h2>
         <table>
             {LOOP language_code,example_text}
@@ -26,6 +30,7 @@
             <input type="hidden" name="language_code" value="{target_language_code}" />
             <input type="hidden" name="index" value="{index}" />
             <input type="hidden" name="category" value="{category}" />
+            {IF DEFINED(gnd_code)}<input type="hidden" name="gnd_code" value="{gnd_code}" />{ENDIF}
             <input type="submit" value="Submit">
         </form>
     </body>

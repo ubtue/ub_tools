@@ -64,6 +64,7 @@ full_text_lookup
 generate_vufind_translation_files
 get_file_media_type_test
 getfilename_test
+getusername_test
 insert_translation_gaps
 iViaCore-mkdep
 json_parser_test
