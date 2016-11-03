@@ -453,7 +453,7 @@ bool GetScalarValue(const std::string &variable_name,
 
 bool ParseIfCondition(TemplateScanner * const scanner,
                       const std::map<std::string, std::vector<std::string>> &names_to_values_map,
-                      const std::vector<Scope> &active_scopes)
+                      const std::vector<Scope> &active_scopes, const bool parse_only = false)
 {
     scanner->skipWhitespace();
     TemplateScanner::TokenType token(scanner->getToken(/* emit_output = */false));
@@ -487,7 +487,7 @@ bool ParseIfCondition(TemplateScanner * const scanner,
     } else { // Comparison.
         std::string variable_name(scanner->getLastVariableName());
         std::string lhs;
-        if (unlikely(not GetScalarValue(variable_name, names_to_values_map, active_scopes, &lhs)))
+        if (not parse_only and unlikely(not GetScalarValue(variable_name, names_to_values_map, active_scopes, &lhs)))
             throw std::runtime_error("in MiscUtil::ParseIfCondition: error on line "
                                      + std::to_string(scanner->getLineNo())
                                      + " unknown or non-scalar variable name \"" + variable_name + "\"!");
@@ -541,11 +541,20 @@ bool ParseIf(TemplateScanner * const scanner,
                                  + " '}' expected but found " + TemplateScanner::TokenTypeToString(token)
                                  + " instead!");
 
-    const bool condition2(ParseIfCondition(scanner, names_to_values_map, active_scopes));
-    if (token == TemplateScanner::AND)
-        return condition1 and condition2;
-    else
-        return condition1 or condition2;
+    // Syntax check only:
+    const auto start_of_condition(scanner->getInputStreamPos());
+    const unsigned start_of_condition_lineno(scanner->getLineNo());
+    ParseIfCondition(scanner, names_to_values_map, active_scopes, /*parse_only =*/true);
+
+    if (token == TemplateScanner::AND) {
+        if (not condition1)
+            return false;
+    } else { // token == TemplateScanner::OR
+        if (condition1)
+            return true;
+    }
+    scanner->seek(start_of_condition, start_of_condition_lineno);
+    return ParseIfCondition(scanner, names_to_values_map, active_scopes);
 }
 
 
@@ -761,5 +770,5 @@ std::string GetUserName() {
     return username;
 }
 
-    
+
 } // namespace MiscUtil
