@@ -32,6 +32,7 @@
 #include <stack>
 #include <stdexcept>
 #include <cctype>
+#include <unistd.h>
 #include "Compiler.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -748,4 +749,12 @@ bool EnvironmentVariableExists(const std::string &name) {
 }
 
 
+std::string GetUserName() {
+    char username[200];
+    if (unlikely(::getlogin_r(username, sizeof username) != 0))
+        return "*unknown user*";
+    return username;
+}
+
+    
 } // namespace MiscUtil
