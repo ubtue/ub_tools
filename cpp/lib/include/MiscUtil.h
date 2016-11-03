@@ -74,7 +74,7 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
 /** Given a Pica Production Number w/o the checksum digit, this function will return said digit. */
 char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit);
 
-    
+
 /** \return True if "ppn_candidate" is a possible Pica Production Number, else false. */
 bool IsValidPPN(const std::string &ppn_candidate);
 
@@ -109,6 +109,10 @@ bool EnvironmentVariableExists(const std::string &name);
  *  \return          True if the addition of "name=value" is successful.
  */
 void SetEnv(const std::string &name, const std::string &value, const bool overwrite = true);
+
+
+// \return The POSIX login name. */
+std::string GetUserName();
 
 
 } // namespace MiscUtil
