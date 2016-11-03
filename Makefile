@@ -23,4 +23,7 @@ clean:
 	$(MAKE) -C cronjobs clean;
 	$(MAKE) -C solr_plugins clean;
 	$(MAKE) -C solrmarc_mixin clean;
+
+test:
+	$(MAKE) -C cpp/tests test;
 # DO NOT DELETE
