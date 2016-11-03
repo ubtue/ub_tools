@@ -752,7 +752,7 @@ bool EnvironmentVariableExists(const std::string &name) {
 std::string GetUserName() {
     char username[200];
     if (unlikely(::getlogin_r(username, sizeof username) != 0))
-        return "*unknown user*";
+        return "*unknown user* [" + std::string(::strerror(errno)) + "]";
     return username;
 }
 
