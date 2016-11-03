@@ -27,6 +27,7 @@
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "IniFile.h"
+#include "MiscUtil.h"
 #include "SimpleXmlParser.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -164,6 +165,6 @@ int main(int argc, char *argv[]) {
         } else
             Error("unknown command \"" + std::string(argv[1]) + "\"!");
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()) + " (login is " + MiscUtil::GetUserName() + ")");
     }
 }
