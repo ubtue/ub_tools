@@ -1,5 +1,5 @@
 DeleteUnusedLocalDataTests
-MarcRecordTest
+MarcRecordTests
 MarcReaderAndWriterTests
-MarcTagTest
-SubfieldsTest
+MarcTagTests
+SubfieldsTests

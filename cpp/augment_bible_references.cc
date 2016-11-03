@@ -38,6 +38,7 @@
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
+#include "MarcUtil.h"
 #include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -364,7 +365,7 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
         ++count;
 
         std::string gnd_code;
-        if (not GetGNDCode(record, &gnd_code))
+        if (not MarcUtil::GetGNDCode(record, &gnd_code))
             continue;
 
         std::set<std::pair<std::string, std::string>> ranges;

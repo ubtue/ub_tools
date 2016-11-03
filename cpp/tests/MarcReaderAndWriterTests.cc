@@ -29,40 +29,40 @@
 #include "MarcWriter.h"
 
 TEST(read_write_read) {
-        File input("data/default.mrc", "r");
-        File output("/tmp/default.out.mrc", "w");
-        MarcRecord record(MarcReader::Read(&input));
-        MarcWriter::Write(record, &output);
-        std::cout << ("marc_compare " + input.getPath() + " " + output.getPath()) << "\n";
-        output.close();
+    File input("data/default.mrc", "r");
+    File output("/tmp/default.out.mrc", "w");
+    MarcRecord record(MarcReader::Read(&input));
+    MarcWriter::Write(record, &output);
+    std::cout << ("marc_compare " + input.getPath() + " " + output.getPath()) << "\n";
+    output.close();
 
-        const auto return_value(std::system(("marc_compare " + input.getPath() + " " + output.getPath()).c_str()));
-        BOOST_CHECK_EQUAL(return_value, 0);
+    const auto return_value(std::system(("marc_compare " + input.getPath() + " " + output.getPath()).c_str()));
+    BOOST_CHECK_EQUAL(return_value, 0);
 }
 
 TEST(large_record) {
-        File input("data/default.mrc", "r");
-        File output("/tmp/default.out.mrc", "w");
-        MarcRecord record(MarcReader::Read(&input));
+    File input("data/default.mrc", "r");
+    File output("/tmp/default.out.mrc", "w");
+    MarcRecord record(MarcReader::Read(&input));
 
-        Subfields subfields(' ', ' ');
-        subfields.addSubfield('a', "This is a test string.");
-        subfields.addSubfield('b', "This is a test string.");
-        subfields.addSubfield('c', "This is a test string.");
-        subfields.addSubfield('d', "This is a test string.");
+    Subfields subfields(' ', ' ');
+    subfields.addSubfield('a', "This is a test string.");
+    subfields.addSubfield('b', "This is a test string.");
+    subfields.addSubfield('c', "This is a test string.");
+    subfields.addSubfield('d', "This is a test string.");
 
-        const size_t NUMBER_OF_FIELDS_TO_ADD(3000);
-        for (size_t i = 0; i < NUMBER_OF_FIELDS_TO_ADD; ++i)
-            record.insertField("TST", subfields.toString());
+    const size_t NUMBER_OF_FIELDS_TO_ADD(3000);
+    for (size_t i = 0; i < NUMBER_OF_FIELDS_TO_ADD; ++i)
+        record.insertField("TST", subfields.toString());
 
-        MarcWriter::Write(record, &output);
-        output.close();
+    MarcWriter::Write(record, &output);
+    output.close();
 
-        File new_input("/tmp/default.out.mrc", "r");
-        MarcRecord new_record(MarcReader::Read(&new_input));
+    File new_input("/tmp/default.out.mrc", "r");
+    MarcRecord new_record(MarcReader::Read(&new_input));
 
-        std::vector<std::string> values;
-        new_record.extractSubfield("TST", 'a', &values);
-        std::cout << "-> " << new_record.getNumberOfFields() << "\n";
-        BOOST_CHECK_EQUAL(values.size(), NUMBER_OF_FIELDS_TO_ADD);
+    std::vector<std::string> values;
+    new_record.extractSubfield("TST", 'a', &values);
+    std::cout << "-> " << new_record.getNumberOfFields() << "\n";
+    BOOST_CHECK_EQUAL(values.size(), NUMBER_OF_FIELDS_TO_ADD);
 }

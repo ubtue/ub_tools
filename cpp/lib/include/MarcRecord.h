@@ -188,6 +188,7 @@ public:
     // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
     static bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer, std::string * const err_msg);
 
+
 private:
     // Copies all field data from record into this record and extends the directory_entries_ of this record accordingly.
     void combine(const MarcRecord &record);

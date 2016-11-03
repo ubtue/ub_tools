@@ -41,10 +41,10 @@ void DumpCgiArgs(const std::multimap<std::string, std::string> &cgi_args) {
 
 void ParseEscapedCommaSeparatedList(const std::string &escaped_text, std::vector<std::string> * const list) {
     list->clear();
-    
+
     std::string unescaped_text;
     bool last_char_was_backslash(false);
-    
+
     for (const auto ch : escaped_text) {
         if (last_char_was_backslash) {
             last_char_was_backslash = false;
@@ -60,27 +60,31 @@ void ParseEscapedCommaSeparatedList(const std::string &escaped_text, std::vector
 
     if (unlikely(last_char_was_backslash))
         Error("weird escaped string ends in backslash \"" + escaped_text + "\"!");
-    
+
     list->emplace_back(StringUtil::RightTrim(&unescaped_text, '\n'));
 }
 
 
 struct Translation {
-    std::string index_, remaining_count_, language_code_, text_, category_;
+    std::string index_, remaining_count_, language_code_, text_, category_, gnd_code_;
 };
+
+
+const std::string NO_GND_CODE("-1");
 
 
 void ParseGetMissingLine(const std::string &line, Translation * const translation) {
     std::vector<std::string> parts;
     ParseEscapedCommaSeparatedList(line, &parts);
-    if (unlikely(parts.size() != 5))
-        Error("expected 5 parts, found \"" + line + "\"!");
-    
+    if (unlikely(parts.size() != 5 and parts.size() != 6))
+        Error("expected 5 or 6 parts, found \"" + line + "\"!");
+
     translation->index_           = parts[0];
     translation->remaining_count_ = parts[1];
     translation->language_code_   = parts[2];
     translation->text_            = parts[3];
     translation->category_        = parts[4];
+    translation->gnd_code_        = (parts.size() == 5) ? NO_GND_CODE : parts[5];
 }
 
 
@@ -97,11 +101,22 @@ void ParseTranslationsDbToolOutput(const std::string &output, std::vector<Transl
 
 
 std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &cgi_args,
-                                 const std::string &parameter_name) 
+                                 const std::string &parameter_name)
 {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
         Error("expected a(n) \"" + parameter_name + "\" parameter!");
+
+    return key_and_value->second;
+}
+
+
+std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::string> &cgi_args,
+                                         const std::string &parameter_name)
+{
+    const auto key_and_value(cgi_args.find(parameter_name));
+    if (key_and_value == cgi_args.cend())
+        return "";
 
     return key_and_value->second;
 }
@@ -123,6 +138,9 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
                                                    std::vector<std::string>{ language_code }));
         names_to_values_map.emplace(std::make_pair(std::string("category"),
                                                    std::vector<std::string>{ translations.front().category_ }));
+        if (translations.front().gnd_code_ != NO_GND_CODE)
+            names_to_values_map.emplace(std::make_pair(std::string("gnd_code"),
+                                                       std::vector<std::string>{ translations.front().gnd_code_ }));
 
         std::vector<std::string> language_codes, example_texts;
         for (const auto &translation : translations) {
@@ -154,16 +172,19 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
-    const std::string category(GetCGIParameterOrDie(cgi_args, "category"));
+    const std::string gnd_code(GetCGIParameterOrEmptyString(cgi_args, "gnd_code"));
 
     if (translation.empty())
         return;
-    
-    const std::string INSERT_COMMAND("/usr/local/bin/translation_db_tool insert '" + index + "' " + language_code
-                                     + " " + category + " '" + translation + "'");
+
+    std::string insert_command("/usr/local/bin/translation_db_tool insert '" + index);
+    if (not gnd_code.empty())
+        insert_command += "' '" + gnd_code;
+    insert_command += "' " + language_code + " '" + translation + "'";
+
     std::string output;
-    if (not ExecUtil::ExecSubcommandAndCaptureStdout(INSERT_COMMAND, &output))
-        Error("failed to execute \"" + INSERT_COMMAND + "\" or it returned a non-zero exit code!");
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
+        Error("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
 }
 
 
@@ -173,7 +194,7 @@ int main(int argc, char *argv[]) {
     try {
         std::multimap<std::string, std::string> cgi_args;
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
-        
+
         if (cgi_args.size() == 1) {
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             GetMissing(cgi_args);
