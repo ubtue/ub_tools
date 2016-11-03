@@ -8,6 +8,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2016 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -30,8 +31,13 @@
 #define SQL_UTIL_H
 
 
+#include <set>
 #include <string>
 #include <ctime>
+
+
+// Forward declaration:
+class DbConnection;
 
 
 namespace SqlUtil {
@@ -68,6 +74,11 @@ std::string TmToDatetime(const struct tm &time_struct);
 
 /** Checks if "datetime" is in format that an SQL database can use ("YYYY-MM-DD" or "YYYY-MM-DD hh:mm:ss"). */
 bool IsValidDatetime(const std::string &datetime);
+
+
+/** \return A set that contains the names of the columns in "table_name". */
+std::set<std::string> GetColumnNames(DbConnection * const connection, const std::string &table_name);
+
 
 
 } // namespace SqlUtil

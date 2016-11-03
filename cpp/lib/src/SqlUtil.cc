@@ -31,6 +31,9 @@
 #include <stdexcept>
 #include <cstdio>
 #include "Compiler.h"
+#include "DbConnection.h"
+#include "DbResultSet.h"
+#include "DbRow.h"
 
 
 namespace SqlUtil {
@@ -129,6 +132,20 @@ bool IsValidDatetime(const std::string &datetime) {
             (day >= 1 and day <= 365) and hour <= 23 and minute <= 59 and second <= 61;
     } else
         return false;
+}
+
+
+std::set<std::string> GetColumnNames(DbConnection * const connection, const std::string &table_name) {
+    const std::string SHOW_COUMNS_STMT("SHOW COLUMNS FROM `" + table_name + "`;");
+    if (not connection->query(SHOW_COUMNS_STMT))
+        throw std::runtime_error("in SqlUtil::GetColumnNames: Show columns failed: " + SHOW_COUMNS_STMT
+                                 + " (" + connection->getLastErrorMessage() + ")");
+    DbResultSet result_set(connection->getLastResultSet());
+    std::set<std::string> column_names;
+    while (const DbRow row = result_set.getNextRow())
+        column_names.insert(row["Field"]);
+
+    return column_names;
 }
 
 
