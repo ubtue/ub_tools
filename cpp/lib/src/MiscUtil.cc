@@ -684,13 +684,14 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
                 scanner.seek(current_scope.getStartStreamPos(), current_scope.getStartLineNumber());
         } else if (token == TemplateScanner::VARIABLE_NAME) {
             const std::string &last_variable_name(scanner.getLastVariableName());
-            std::string variable_value;
-            if (not GetScalarValue(last_variable_name, names_to_values_map, scopes, &variable_value))
-                throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
-                                         + std::to_string(scanner.getLineNo()) + ": found unexpected variable \""
-                                         + last_variable_name + "\"!");
-            if (skipping.empty() or not skipping.top())
+            if (skipping.empty() or not skipping.top()) {
+                std::string variable_value;
+                if (not GetScalarValue(last_variable_name, names_to_values_map, scopes, &variable_value))
+                    throw std::runtime_error("in MiscUtil::ExpandTemplate: error on line "
+                                             + std::to_string(scanner.getLineNo()) + ": found unexpected variable \""
+                                             + last_variable_name + "\"!");
                 output << variable_value;
+            }
             ProcessEndOfSyntax("variable expansion", &scanner);
         }
     }
