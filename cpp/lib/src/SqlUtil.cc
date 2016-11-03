@@ -136,7 +136,7 @@ bool IsValidDatetime(const std::string &datetime) {
 
 
 std::set<std::string> GetColumnNames(DbConnection * const connection, const std::string &table_name) {
-    const std::string SHOW_COUMNS_STMT("SHOW COLUMNS FROM \"" + table_name + "\";");
+    const std::string SHOW_COUMNS_STMT("SHOW COLUMNS FROM `" + table_name + "`;");
     if (not connection->query(SHOW_COUMNS_STMT))
         throw std::runtime_error("in SqlUtil::GetColumnNames: Show columns failed: " + SHOW_COUMNS_STMT
                                  + " (" + connection->getLastErrorMessage() + ")");
