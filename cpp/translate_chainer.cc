@@ -70,18 +70,21 @@ struct Translation {
 };
 
 
+const std::string NO_GND_CODE("-1");
+
+
 void ParseGetMissingLine(const std::string &line, Translation * const translation) {
     std::vector<std::string> parts;
     ParseEscapedCommaSeparatedList(line, &parts);
-    if (unlikely(parts.size() != 6))
-        Error("expected 6 parts, found \"" + line + "\"!");
+    if (unlikely(parts.size() != 5 and parts.size() != 6))
+        Error("expected 5 or 6 parts, found \"" + line + "\"!");
 
     translation->index_           = parts[0];
     translation->remaining_count_ = parts[1];
     translation->language_code_   = parts[2];
     translation->text_            = parts[3];
     translation->category_        = parts[4];
-    translation->category_        = parts[5];
+    translation->gnd_code_        = (parts.size() == 5) ? NO_GND_CODE : parts[5];
 }
 
 
@@ -135,8 +138,9 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
                                                    std::vector<std::string>{ language_code }));
         names_to_values_map.emplace(std::make_pair(std::string("category"),
                                                    std::vector<std::string>{ translations.front().category_ }));
-        names_to_values_map.emplace(std::make_pair(std::string("gnd_code"),
-                                                   std::vector<std::string>{ translations.front().gnd_code_ }));
+        if (translations.front().gnd_code_ != NO_GND_CODE)
+            names_to_values_map.emplace(std::make_pair(std::string("gnd_code"),
+                                                       std::vector<std::string>{ translations.front().gnd_code_ }));
 
         std::vector<std::string> language_codes, example_texts;
         for (const auto &translation : translations) {
