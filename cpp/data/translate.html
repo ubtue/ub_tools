@@ -11,7 +11,7 @@
         </form>
 
         <br />
-        {IF DEFINED(gnd_code) AND gnd_code != 0}<a href="http://d-nb.info/gnd/{gnd_code}">GND entry</a>{endif}
+        {IF DEFINED(gnd_code) AND gnd_code != "0"}<a href="http://d-nb.info/gnd/{gnd_code}">GND entry</a>{ENDIF}
         <br />
 
         <h2>Existing translation(s):</h2>
@@ -30,7 +30,7 @@
             <input type="hidden" name="language_code" value="{target_language_code}" />
             <input type="hidden" name="index" value="{index}" />
             <input type="hidden" name="category" value="{category}" />
-            {if defined(gnd_code)}<input type="hidden" name="gnd_code" value="{gnd_code}" />{endif}
+            {IF DEFINED(gnd_code)}<input type="hidden" name="gnd_code" value="{gnd_code}" />{ENDIF}
             <input type="submit" value="Submit">
         </form>
     </body>
