@@ -87,7 +87,7 @@ void Subfields::replace(const char subfield_code, const std::string &old_value, 
     bool found(false);
 
     const auto begin_end(getIterators(subfield_code));
-    for (Iterator code_and_value(begin_end.first); code_and_value != begin_end.second; ++code_and_value) {
+    for (auto code_and_value(begin_end.first); code_and_value != begin_end.second; ++code_and_value) {
         if (code_and_value->value_ == old_value) {
             found = true;
             code_and_value->value_ = new_value;
@@ -150,7 +150,7 @@ std::string Subfields::toString() const {
     as_string += indicator1_;
     as_string += indicator2_;
 
-    for (ConstIterator code_and_value(cbegin()); code_and_value != cend(); ++code_and_value) {
+    for (const_iterator code_and_value(cbegin()); code_and_value != cend(); ++code_and_value) {
         as_string += '\x1F';
         as_string += code_and_value->code_;
         as_string += code_and_value->value_;
