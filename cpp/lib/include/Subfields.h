@@ -36,16 +36,16 @@ public:
 };
 
 struct SubfieldCodeLessThan {
-    bool operator() (const Subfield &lhs, const Subfield &rhs) { return lhs.code_ < rhs.code_; }
-    bool operator() (const Subfield &lhs, const char &rhs) { return lhs.code_ < rhs; }
-    bool operator() (const char &lhs, const Subfield &rhs) { return lhs < rhs.code_; }
+    bool operator() (const Subfield &lhs, const Subfield &rhs) const { return lhs.code_ < rhs.code_; }
+    bool operator() (const Subfield &lhs, const char &rhs) const { return lhs.code_ < rhs; }
+    bool operator() (const char &lhs, const Subfield &rhs) const { return lhs < rhs.code_; }
 };
 
 struct CompareSubfieldCode {
     char code_;
 public:
     explicit CompareSubfieldCode(const char code) : code_(code) {}
-    bool operator() (const Subfield &subfield) { return subfield.code_ == code_; }
+    bool operator() (const Subfield &subfield) const { return subfield.code_ == code_; }
 };
 
 /** \class Subfields
@@ -56,8 +56,8 @@ class Subfields {
 
     std::vector<Subfield> subfields_;
 public:
-    typedef std::vector<Subfield>::const_iterator ConstIterator;
-    typedef std::vector<Subfield>::iterator Iterator;
+    typedef std::vector<Subfield>::const_iterator const_iterator;
+    typedef std::vector<Subfield>::iterator iterator;
 public:
     Subfields() : indicator1_('\0'), indicator2_('\0') { }
     Subfields(const char indicator1, const char indicator2)
@@ -79,11 +79,11 @@ public:
     bool hasSubfieldWithValue(const char subfield_code, const std::string &value) const;
 
     /** \return The bounds of the range of entries that have a subfield code of "subfield_code". */
-    std::pair<ConstIterator, ConstIterator> getIterators(const char subfield_code) const
+    std::pair<const_iterator, const_iterator> getIterators(const char subfield_code) const
         { return std::equal_range(begin(), end(), subfield_code, SubfieldCodeLessThan()); }
 
     /** \return The bounds of the range of entries that have a subfield code of "subfield_code". */
-    std::pair<Iterator, Iterator> getIterators(const char subfield_code)
+    std::pair<iterator, iterator> getIterators(const char subfield_code)
         { return std::equal_range(begin(), end(), subfield_code, SubfieldCodeLessThan()); }
 
     /** \return The content of the first subfield with code "subfield_code" or the empty string if it doesn't exist.
@@ -93,11 +93,15 @@ public:
     /** Swaps out all subfields' data whose subfield code is "subfield_code" and whose data value is "old_value". */
     void replace(const char subfield_code, const std::string &old_value, const std::string &new_value);
 
+    /** erases all subfields with subfield code "subfield_code". **/
     void erase(const char subfield_code);
+
+    /** erases all subfields with subfield code "subfield_code" iff the subfield value is "value". */
     void erase(const char subfield_code, const std::string &value);
 
     void addSubfield(const char subfield_code, const std::string &subfield_data);
 
+    /** Replaces all subfields with subfield code "subfield_code" with the given subfield data. **/
     void setSubfield(const char subfield_code, const std::string &subfield_data)
         { erase(subfield_code); addSubfield(subfield_code, subfield_data); }
 
@@ -106,12 +110,12 @@ public:
      */
     void moveSubfield(const char from_subfield_code, const char to_subfield_code);
 
-    Iterator begin() { return subfields_.begin(); }
-    Iterator end() { return subfields_.end(); }
-    ConstIterator begin() const { return subfields_.begin(); }
-    ConstIterator end() const { return subfields_.end(); }
-    ConstIterator cbegin() const { return subfields_.cbegin(); }
-    ConstIterator cend() const { return subfields_.cend(); }
+    iterator begin() { return subfields_.begin(); }
+    iterator end() { return subfields_.end(); }
+    const_iterator begin() const { return subfields_.begin(); }
+    const_iterator end() const { return subfields_.end(); }
+    const_iterator cbegin() const { return subfields_.cbegin(); }
+    const_iterator cend() const { return subfields_.cend(); }
 
     /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
      *  \return The number of fields that were extracted or, equivalently, the size of "subfield_values" after the call

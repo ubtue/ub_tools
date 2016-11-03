@@ -96,7 +96,7 @@ void Subfields::replace(const char subfield_code, const std::string &old_value, 
 
     if (not found)
         throw std::runtime_error(
-                "Unexpected: tried to replace \"" + old_value + "\" with \"" + new_value + "\" in subfield '"
+                "Subfields::replace: tried to replace \"" + old_value + "\" with \"" + new_value + "\" in subfield '"
                 + subfield_code + "' but did not find the original value!");
 }
 
