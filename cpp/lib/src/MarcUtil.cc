@@ -24,7 +24,7 @@
 
 namespace MarcUtil {
 
-    
+
 bool GetGNDCode(const MarcRecord &record, std::string * const gnd_code) {
     gnd_code->clear();
     const size_t _035_index(record.getFieldIndex("035"));
