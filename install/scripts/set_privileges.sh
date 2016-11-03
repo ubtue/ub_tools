@@ -89,6 +89,7 @@ if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
     set_se_permissions var_log_t "/var/log/$SYSTEM_TYPE"
     set_se_permissions bin_t "/usr/local/bin"
     set_se_permissions bin_t "/var/www/cgi-bin"
+    set_se_permissions httpd_sys_content_t "/usr/local/ub_tools/configs/ixtheo/translations.conf"
     
     if [ -f "/var/lib/tuelib/full_text.db" ]; then
       set_se_permissions public_content_t "/var/lib/tuelib/full_text.db"
