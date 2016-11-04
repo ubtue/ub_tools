@@ -40,6 +40,7 @@ OWNER="$USER_NAME:$USER_GROUP"
 
 chmod +xr "$VUFIND_HOME"
 chmod +xr "$VUFIND_LOCAL_DIR"
+mkdir "$VUFIND_LOCAL_DIR/logs"
 touch "$VUFIND_LOCAL_DIR/logs/record.xml"
 touch "$VUFIND_LOCAL_DIR/logs/search.xml"
 
