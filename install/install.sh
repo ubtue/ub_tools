@@ -54,7 +54,7 @@ fi
 
 
 export VUFIND_HOME="/usr/local/vufind2"
-export VUFIND_LOCAL_DIR="$VUFIND_HOME/local/ixTheo"
+export VUFIND_LOCAL_DIR="$VUFIND_HOME/local"
 
 NAME=""
 VUFIND_CLONE_DIRECTORY=""
