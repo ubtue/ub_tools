@@ -154,10 +154,16 @@ void MarcRecord::deleteFields(const std::vector <std::pair<size_t, size_t>> &blo
 
 
 std::string MarcRecord::extractFirstSubfield(const MarcTag &tag, const char subfield_code) const {
-    size_t index = getFieldIndex(tag);
+    const size_t index(getFieldIndex(tag));
     if (index == FIELD_NOT_FOUND)
         return "";
     return getSubfields(tag).getFirstSubfieldValue(subfield_code);
+}
+
+
+std::string MarcRecord::extractFirstSubfield(const size_t field_index, const char subfield_code) const {
+    const Subfields subfields(getFieldData(field_index));
+    return subfields.getFirstSubfieldValue(subfield_code);
 }
 
 
