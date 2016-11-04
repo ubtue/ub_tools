@@ -112,6 +112,11 @@ public:
      */
     std::string extractFirstSubfield(const MarcTag &tag, const char subfield_code) const;
 
+    /** \brief Extracts the first occurrence of subfield "subfield_code" from field w/ index "field_index".
+     *  \return The value of the extracted subfield or the empty string if the tag or subfield were not found.
+     */
+    std::string extractFirstSubfield(const size_t field_index, const char subfield_code) const;
+
     /** \brief Extract values from all subfields from a list of fields.
      *  \param tags    A colon-separated list of field tags.
      *  \param values  Here the extracted subfield values will be returned.
