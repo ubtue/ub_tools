@@ -12,13 +12,13 @@
 
         <br />
         {IF DEFINED(gnd_code) AND gnd_code != "0"}<a href="http://d-nb.info/gnd/{gnd_code}">GND entry</a>{ENDIF}
-        <br />
 
         <h2>Existing translation(s):</h2>
         <table>
             {LOOP language_code,example_text}
             <tr>
-                <td><b>{language_code}:</b></td><td>{example_text}</td>
+              <td><b>{language_code}:</b></td>
+              <td><a href="{ixtheo_base_url}/Search/Results?join=AND&lookfor0%5B%5D={url_escaped_example_text}&type0%5B%5D=Subject&lookfor0%5B%5D=&type0%5B%5D=AllFields&lookfor0%5B%5D=&type0%5B%5D=AllFields&bool0%5B%5D=AND&daterange%5B%5D=publishDate&publishDatefrom=&publishDateto=&limit=20">{example_text}</a></td>
             </tr>
             {ENDLOOP}
         </table>
