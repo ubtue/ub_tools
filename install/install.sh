@@ -329,7 +329,7 @@ fi
 # start server
 ##############################################################################
 
-if [[ -e "/etc/systemd/system/httpd.conf" ]]
+if [[ -e "/etc/systemd/system/httpd.conf" ]]; then
   if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
