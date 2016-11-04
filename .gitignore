@@ -8,6 +8,9 @@
 *.tar.gz
 *.timestamp
 *.class
+*.gcda
+*.gcno
+*.info
 out
 .deps
 LOEPPN-*
@@ -73,6 +76,7 @@ marc_filter
 marc_grep
 marc_grep_tokenizer_test
 marc_info
+marc_split
 marc_tag_grep
 merge_differential_and_full_marc_updates
 mysql_test
@@ -105,6 +109,9 @@ update_ixtheo_notations
 urlencode
 vufind_db_test
 xml_parser_test
+marc_compare
+add_referenceterms
+extract_referenceterms
 
 bsz_daten
 bsz_daten_cumulated

@@ -25,11 +25,12 @@
 #include <cstring>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 bool IsPossibleDDC(const std::string &ddc_candidate) {
@@ -45,19 +46,16 @@ bool IsPossibleDDC(const std::string &ddc_candidate) {
 }
 
 
-void ExtractDDCsFromField(const std::string &tag, const std::vector<DirectoryEntry> &dir_entries,
-                          const std::vector<std::string> &fields, std::set<std::string> * const ddcs)
-{
-    const auto begin_end(DirectoryEntry::FindFields(tag, dir_entries));
-    for (auto iter(begin_end.first); iter != begin_end.second; ++iter) {
-        const Subfields subfields(fields[iter - dir_entries.begin()]);
+void ExtractDDCsFromField(const std::string &tag, const MarcRecord &record, std::set<std::string> * const ddcs) {
+    for (size_t index = record.getFieldIndex(tag); index < record.getNumberOfFields() and record.getTag(index) == tag; ++index) {
+        const Subfields subfields(record.getSubfields(index));
         if (subfields.hasSubfield('z')) // Auxillary table number => not a regular DDC in $a!
             continue;
 
         const auto subfield_a_begin_end(subfields.getIterators('a'));
         for (auto ddc(subfield_a_begin_end.first); ddc != subfield_a_begin_end.second; ++ddc) {
-            if (IsPossibleDDC(ddc->second))
-                ddcs->insert(ddc->second);
+            if (IsPossibleDDC(ddc->value_))
+                ddcs->insert(ddc->value_);
         }
     }
 }
@@ -71,23 +69,19 @@ void ExtractDDCsFromNormdata(const bool verbose, File * const norm_input,
         std::cerr << "Starting loading of norm data.\n";
 
     unsigned count(0), ddc_record_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(norm_input)) {
+    while (const MarcRecord &record = MarcReader::Read(norm_input)) {
         ++count;
 
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        const auto _001_iter(DirectoryEntry::FindField("001", dir_entries));
-        if (_001_iter == dir_entries.end())
+        const size_t _001_index = record.getFieldIndex("001");
+        if (_001_index == MarcRecord::FIELD_NOT_FOUND)
             continue;
-        const std::vector<std::string> &fields(record.getFields());
-        const std::string &control_number(fields[_001_iter - dir_entries.begin()]);
-
         std::set<std::string> ddcs;
-        ExtractDDCsFromField("083", dir_entries, fields, &ddcs);
-        ExtractDDCsFromField("089", dir_entries, fields, &ddcs);
+        ExtractDDCsFromField("083", record, &ddcs);
+        ExtractDDCsFromField("089", record, &ddcs);
 
         if (not ddcs.empty()) {
             ++ddc_record_count;
-            norm_ids_to_ddcs_map->insert(std::make_pair(control_number, ddcs));
+            norm_ids_to_ddcs_map->insert(std::make_pair(record.getControlNumber(), ddcs));
         }
     }
 
@@ -98,7 +92,7 @@ void ExtractDDCsFromNormdata(const bool verbose, File * const norm_input,
 }
 
 
-void ExtractTopicIDs(const std::string &tags, const MarcUtil::Record &record, const std::set<std::string> &existing_ddcs,
+void ExtractTopicIDs(const std::string &tags, const MarcRecord &record, const std::set<std::string> &existing_ddcs,
                      std::set<std::string> * const topic_ids)
 {
     topic_ids->clear();
@@ -106,21 +100,15 @@ void ExtractTopicIDs(const std::string &tags, const MarcUtil::Record &record, co
     std::vector<std::string> individual_tags;
     StringUtil::Split(tags, ':', &individual_tags);
 
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-    const std::vector<std::string> &fields(record.getFields());
     for (const auto &tag : individual_tags) {
-        const ssize_t first_index(record.getFieldIndex(tag));
-        if (first_index == -1)
-            continue;
-
-        for (size_t index(first_index); index < dir_entries.size() and dir_entries[index].getTag() == tag; ++index) {
-            const Subfields subfields(fields[index]);
+        for (size_t index(record.getFieldIndex(tag)); index < record.getNumberOfFields() and record.getTag(index) == tag; ++index) {
+            const Subfields subfields(record.getSubfields(index));
             const auto begin_end(subfields.getIterators('0'));
             for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
-                if (not StringUtil::StartsWith(subfield0->second, "(DE-576)"))
+                if (not StringUtil::StartsWith(subfield0->value_, "(DE-576)"))
                     continue;
 
-                const std::string topic_id(subfield0->second.substr(8));
+                const std::string topic_id(subfield0->value_.substr(8));
                 if (existing_ddcs.find(topic_id) == existing_ddcs.end()) // This one is new!
                     topic_ids->insert(topic_id);
             }
@@ -135,29 +123,21 @@ void AugmentRecordsWithDDCs(const bool verbose, File * const title_input, File *
     if (verbose)
         std::cerr << "Starting augmenting of data.\n";
 
-    XmlWriter xml_writer(title_output);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     unsigned count(0), augmented_count(0), already_had_ddcs(0), never_had_ddcs_and_now_have_ddcs(0);
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(title_input)) {
-        record.setRecordWillBeWrittenAsXml(true);
+    while (MarcRecord record = MarcReader::Read(title_input)) {
         ++count;
 
         // Extract already existing DDCs:
         std::set<std::string> existing_ddcs;
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        const std::vector<std::string> &fields(record.getFields());
-        ExtractDDCsFromField("082", dir_entries, fields, &existing_ddcs);
-        ExtractDDCsFromField("083", dir_entries, fields, &existing_ddcs);
+        ExtractDDCsFromField("082", record, &existing_ddcs);
+        ExtractDDCsFromField("083", record, &existing_ddcs);
         if (not existing_ddcs.empty())
             ++already_had_ddcs;
         
         std::set<std::string> topic_ids; // = the IDs of the corresponding norm data records
         ExtractTopicIDs("600:610:611:630:650:653:656:689", record, existing_ddcs, &topic_ids);
         if (topic_ids.empty()) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, title_output);
             continue;
         }
 
@@ -178,9 +158,8 @@ void AugmentRecordsWithDDCs(const bool verbose, File * const title_input, File *
             }
         }
 
-        record.write(&xml_writer);
+        MarcWriter::Write(record, title_output);
     }
-    xml_writer.closeTag();
 
     if (verbose) {
         std::cerr << "Read " << count << " title data records.\n";
