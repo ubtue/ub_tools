@@ -22,7 +22,9 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcUtil.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "MarcXmlWriter.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
@@ -422,7 +424,7 @@ void ProcessRecords(const bool verbose, const OutputFormat output_format, File *
     std::string data;
     std::map<std::string, std::string> attrib_map;
     SimpleXmlParser xml_parser(input);
-    MarcUtil::Record record;
+    MarcRecord record;
     unsigned record_count(0), written_record_count(0);
     bool collect_character_data;
     std::string character_data;
@@ -439,7 +441,7 @@ xml_parse_loop:
             return;
         case SimpleXmlParser::OPENING_TAG:
             if (data == "record") {
-                record = MarcUtil::Record();
+                record = MarcRecord();
                 record.insertField("001", GeneratePPN());
                 collect_character_data = false;
                 met_required_conditions_count = 0;
@@ -461,7 +463,7 @@ xml_parse_loop:
         case SimpleXmlParser::CLOSING_TAG:
             if (data == "record") {
                 if (met_required_conditions_count == REQUIRED_CONDITIONS_COUNT) {
-                    (xml_writer == nullptr) ? record.write(output) : record.write(xml_writer);
+                    (xml_writer == nullptr) ? MarcWriter::Write(record, output) : MarcWriter::Write(record, xml_writer);
                     ++written_record_count;
                 }
 

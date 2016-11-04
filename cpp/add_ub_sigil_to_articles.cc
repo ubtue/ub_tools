@@ -29,7 +29,9 @@
 #include "DirectoryEntry.h"
 #include "FileUtil.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -47,13 +49,13 @@ void Usage() {
 
 // Returns true if we're dealing with a DE-21 block and we managed to extract some inventory information.
 bool ExtractInventoryInfoFromDE21Block(const size_t block_start_index, const size_t block_end_index,
-                                       const std::vector<std::string> &fields, std::string * const inventory_info)
+                                       const MarcRecord &record, std::string * const inventory_info)
 {
     inventory_info->clear();
     
     bool is_de21_block(false);
     for (size_t index(block_start_index); index < block_end_index; ++index) {
-        const Subfields subfields(fields[index]);
+        const Subfields subfields(record.getSubfields(index));
         const std::string subfield0(subfields.getFirstSubfieldValue('0'));
         if (subfield0 == "852  ") {
             if (subfields.getFirstSubfieldValue('a') == "DE-21")
@@ -74,7 +76,7 @@ void CollectParentIDs(const bool verbose, File * const input,
 
     unsigned count(0);
     std::string err_msg;
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+    while (const MarcRecord record = MarcReader::Read(input)) {
         ++count;
 
         const Leader &leader(record.getLeader());
@@ -83,10 +85,9 @@ void CollectParentIDs(const bool verbose, File * const input,
 
         std::vector<std::pair<size_t, size_t>> local_block_boundaries;
         record.findAllLocalDataBlocks(&local_block_boundaries);
-        const std::vector<std::string> &fields(record.getFields());
         for (const auto &local_block_boundary : local_block_boundaries) {
             std::string inventory_info;
-            if (ExtractInventoryInfoFromDE21Block(local_block_boundary.first, local_block_boundary.second, fields,
+            if (ExtractInventoryInfoFromDE21Block(local_block_boundary.first, local_block_boundary.second, record,
                                                   &inventory_info))
                 (*parent_ids_and_inventory_info)[record.getControlNumber()] = inventory_info;
         }
@@ -102,7 +103,7 @@ void CollectParentIDs(const bool verbose, File * const input,
 }
 
 
-bool IssueInInventory(const std::string &/*inventory_info*/, const MarcUtil::Record &/*issue_record*/) {
+bool IssueInInventory(const std::string &/*inventory_info*/, const MarcRecord &/*issue_record*/) {
     return true;
 }
 
@@ -114,48 +115,43 @@ void AddMissingSigilsToArticleEntries(
     if (verbose)
         std::cout << "Starting augmentation of article entries.\n";
 
-    MarcXmlWriter xml_writer(output);
     unsigned count(0), ids_added(0), missing_host_record_ctrl_num_count(0),
              missing_parent_id_count(0);
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-        record.setRecordWillBeWrittenAsXml(true);
+    while (MarcRecord record = MarcReader::Read(input)) {
         ++count;
 
         const Leader &leader(record.getLeader());
         if (not leader.isArticle()) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             continue;
         }
 
-        const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        auto entry_iterator(DirectoryEntry::FindField("773", dir_entries));
-        if (entry_iterator == dir_entries.end()) {
-            record.write(&xml_writer);
+        const size_t index_773 = record.getFieldIndex("773");
+        if (index_773 == MarcRecord::FIELD_NOT_FOUND) {
+            MarcWriter::Write(record, output);
             continue;
         }
 
-        const size_t index_773(entry_iterator - dir_entries.begin());
-        const std::vector<std::string> &fields(record.getFields());
-        Subfields subfields(fields[index_773]);
+        Subfields subfields(record.getSubfields(index_773));
 
         auto begin_end = subfields.getIterators('w'); // Record control number of Host Item Entry.
         if (begin_end.first == begin_end.second) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             ++missing_host_record_ctrl_num_count;
             continue;
         }
 
         std::string host_id;
         for (auto _773w_iter(begin_end.first); _773w_iter != begin_end.second; ++_773w_iter) {
-            if (StringUtil::StartsWith(_773w_iter->second, "(DE-576)")) {
-                host_id = _773w_iter->second.substr(8);
+            if (StringUtil::StartsWith(_773w_iter->value_, "(DE-576)")) {
+                host_id = _773w_iter->value_.substr(8);
                 break;
             }
         }
 
         auto const parent_id_iter(parent_ids_and_inventory_info.find(host_id));
         if (parent_id_iter == parent_ids_and_inventory_info.end()) {
-            record.write(&xml_writer);
+            MarcWriter::Write(record, output);
             ++missing_parent_id_count;
             continue;
         }
@@ -164,7 +160,7 @@ void AddMissingSigilsToArticleEntries(
             record.insertField("LOK", "  ""\x1F""0852""\x1F""aDE-21");
             ++ids_added;
         }
-        record.write(&xml_writer);
+        MarcWriter::Write(record, output);
     }
 
     if (verbose) {
