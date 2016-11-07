@@ -52,13 +52,13 @@ const char FULL_RECORD_DELETE_INDICATORS[] = { 'A', 'B', 'C', 'D', 'E' };
 const char LOCAL_DATA_DELETE_INDICATORS[] = { '3', '4', '5', '9' };
 const size_t MIN_LINE_LENGTH = 21;
 
+
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
                         std::unordered_set <std::string> * const local_deletion_ids)
 {
-
-    const size_t PPN_LENGTH = 9;
-    const size_t PPN_START_INDEX = 12;
-    const size_t SEPARATOR_INDEX = PPN_START_INDEX - 1;
+    const size_t PPN_LENGTH(9);
+    const size_t PPN_START_INDEX(12);
+    const size_t SEPARATOR_INDEX(PPN_START_INDEX - 1);
 
     unsigned line_no(0);
 loop_top:
