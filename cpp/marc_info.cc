@@ -53,7 +53,7 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
     {
         ++record_count;
 
-        if (unlikely(record.getNumberOfFields()))
+        if (unlikely(record.getNumberOfFields() == 0))
             Error("record #" + std::to_string(record_count) + " has zero fields!");
         const std::string &control_number(record.getControlNumber());
 
@@ -81,6 +81,15 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
         const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
         if (local_block_count > max_local_block_count)
             max_local_block_count = local_block_count;
+        for (const auto local_block_boundary : local_block_boundaries) {
+            std::vector<size_t> field_indices;
+            record.findFieldsInLocalBlock("001", "??", local_block_boundary, &field_indices);
+            if (field_indices.size() != 1)
+                Error("Every local data block has to have exactly one 001 field. (Record: "
+                      + record.getControlNumber() + ", Local data block: "
+                      + std::to_string(local_block_boundary.first) + " - "
+                      + std::to_string(local_block_boundary.second));
+        }
     }
 
     std::cout << "Data set contains " << record_count << " MARC record(s).\n";
