@@ -86,7 +86,7 @@ public:
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
     MarcTag getTag(const size_t index) const;
 
-    /** \brief Returns the tag of the field at given index or an empty string if this index is not present. **/
+    /** \brief Returns the tag of the field at given index or MarcRecord::FIELD_NOT_FOUND if the tag is not present **/
     size_t getFieldIndex(const MarcTag &field_tag) const;
 
     /** \return The number of field indices for the tag "tag". */
