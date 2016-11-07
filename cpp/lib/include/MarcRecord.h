@@ -50,7 +50,6 @@ private:
     Leader leader_;
     std::vector<DirectoryEntry> directory_entries_;
     std::string raw_data_;
-    std::set<size_t> deleted_field_indices_;
 
     MarcRecord(Leader &leader, std::vector<DirectoryEntry> directory_entries, std::string &raw_data)
         : leader_(std::move(leader)), directory_entries_(std::move(directory_entries)), raw_data_(std::move(raw_data)) {}
@@ -187,7 +186,8 @@ public:
     static bool ProcessRecords(MarcReader * const marc_reader, RecordFunc process_record,
                                MarcWriter * const marc_writer, std::string * const err_msg);
 private:
-    // Copies all field data from record into this record and extends the directory_entries_ of this record accordingly.
+    // Copies all field data from record into this record and extends the directory_entries_ of this record
+    // accordingly.
     void combine(const MarcRecord &record);
 };
 
