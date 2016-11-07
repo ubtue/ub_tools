@@ -162,7 +162,8 @@ std::string MarcRecord::extractFirstSubfield(const MarcTag &tag, const char subf
 
 
 size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector <std::string> *const values,
-                                       const std::string &ignore_subfield_codes) const {
+                                       const std::string &ignore_subfield_codes) const
+{
     values->clear();
 
     std::vector <std::string> individual_tags;
@@ -184,7 +185,8 @@ size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector <std
 
 
 size_t MarcRecord::extractSubfield(const MarcTag &tag, const char subfield_code,
-                                   std::vector <std::string> *const values) const {
+                                   std::vector <std::string> *const values) const
+{
     values->clear();
 
     size_t field_index(getFieldIndex(tag));
@@ -202,7 +204,8 @@ size_t MarcRecord::extractSubfield(const MarcTag &tag, const char subfield_code,
 
 
 size_t MarcRecord::extractSubfields(const MarcTag &tag, const std::string &subfield_codes,
-                                    std::vector <std::string> *const values) const {
+                                    std::vector <std::string> *const values) const
+{
     values->clear();
 
     size_t field_index(getFieldIndex(tag));
@@ -252,7 +255,8 @@ static bool IndicatorsMatch(const std::string &indicator_pattern, const std::str
 
 size_t MarcRecord::findFieldsInLocalBlock(const MarcTag &field_tag, const std::string &indicators,
                                           const std::pair <size_t, size_t> &block_start_and_end,
-                                          std::vector <size_t> *const field_indices) const {
+                                          std::vector <size_t> *const field_indices) const
+{
     field_indices->clear();
     if (unlikely(indicators.length() != 2))
         Error("in MarcUtil::FindFieldInLocalBlock: indicators must be precisely 2 characters long!");
@@ -260,6 +264,7 @@ size_t MarcRecord::findFieldsInLocalBlock(const MarcTag &field_tag, const std::s
     const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.to_string());
     for (size_t index(block_start_and_end.first); index < block_start_and_end.second; ++index) {
         const std::string &current_field(getFieldData(index));
+        std::cout << current_field << "\n";
         if (StringUtil::StartsWith(current_field, FIELD_PREFIX)
             and IndicatorsMatch(indicators, current_field.substr(7, 2)))
             field_indices->emplace_back(index);
@@ -319,7 +324,8 @@ void MarcRecord::combine(const MarcRecord &record) {
 
 
 bool MarcRecord::ProcessRecords(File *const input, File *const output, RecordFunc process_record,
-                                std::string *const err_msg) {
+                                std::string *const err_msg)
+{
     err_msg->clear();
 
     while (MarcRecord record = MarcReader::Read(input)) {
@@ -333,7 +339,8 @@ bool MarcRecord::ProcessRecords(File *const input, File *const output, RecordFun
 
 
 bool MarcRecord::ProcessRecords(File *const input, XmlRecordFunc process_record, XmlWriter *const xml_writer,
-                                std::string *const err_msg) {
+                                std::string *const err_msg)
+{
     err_msg->clear();
 
     while (MarcRecord record = MarcReader::ReadXML(input)) {
@@ -343,4 +350,10 @@ bool MarcRecord::ProcessRecords(File *const input, XmlRecordFunc process_record,
     }
 
     return err_msg->empty();
+}
+
+void MarcRecord::debug() const {
+    for (size_t index(0); index < directory_entries_.size(); ++index) {
+        std::cout << index << "\t" << directory_entries_[index].getTag() << ": " << getSubfields(index).toString() << "\n";
+    }
 }
