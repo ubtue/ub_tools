@@ -80,25 +80,6 @@ public class IxTheo extends SolrIndexerMixin {
         return subfields;
     }
 
-    final static String TRUE = "true";
-    final static String FALSE = "false";
-                                     
-    public String getIsDefinitelyReligiousStudies(final Record record) {
-        final List<VariableField> _084Fields = record.getVariableFields("084");
-        for (final VariableField _084Field : _084Fields) {
-            final DataField dataField = (DataField)_084Field;
-            final Subfield subfield2 = dataField.getSubfield('2');
-            if (subfield2 == null || !subfield2.getData().equals("ssgn"))
-                continue;
-
-            final Subfield subfieldA = dataField.getSubfield('a');
-            if (subfieldA != null && subfieldA.getData().equals("0"))
-                return TRUE;
-        }
-
-        return FALSE;
-    }
-    
 
     /*
      * Get the appropriate translation map
