@@ -1,7 +1,8 @@
 /** \brief Interface for the MarcRecord class.
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -37,12 +38,12 @@
 #include "XmlWriter.h"
 
 
+// Forward declarations.
+class MarcReader;
+class MarcWriter;
+
+
 class MarcRecord {
-    friend MarcRecord ReadSingleRecord(File * const input);
-    friend MarcRecord MarcReader::Read(File * const input);
-    friend MarcRecord MarcReader::ReadXML(File * const input);
-    friend void MarcWriter::Write(MarcRecord &record, File * const output);
-    friend void MarcWriter::Write(MarcRecord &record, XmlWriter * const xml_writer);
 public:
     static const size_t FIELD_NOT_FOUND =  std::numeric_limits<size_t>::max();
 private:
@@ -132,7 +133,8 @@ public:
      *  \param values         Here the extracted subfield values will be returned.
      *  \return The number of values that have been extracted.
      */
-    size_t extractSubfield(const MarcTag &tag, const char subfield_code, std::vector<std::string> * const values) const;
+    size_t extractSubfield(const MarcTag &tag, const char subfield_code,
+                           std::vector<std::string> * const values) const;
 
     /** \brief Extract values from possibly repeated, subfields.
      *  \param tag             A field tag.
@@ -140,8 +142,8 @@ public:
      *  \param values          The extracted subfield values will be returned here.
      *  \return The number of values that have been extracted.
      */
-    size_t extractSubfields(const MarcTag &tag, const std::string &subfield_codes, std::vector<std::string> * const values)
-            const;
+    size_t extractSubfields(const MarcTag &tag, const std::string &subfield_codes,
+                            std::vector<std::string> * const values) const;
 
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the index of the first field of a local block in "first"
@@ -175,38 +177,15 @@ public:
      */
     std::string getLanguageCode() const;
 
-
-    using RecordFunc = bool (&)(MarcRecord * const record, File * const output, std::string * const err_msg);
-
-    // Returns false on error and EOF.  To distinguish between the two: on EOF "err_msg" is empty but not when an
-    // error has been detected.
-    // Each record read from "input" will be parsed and will be passed into "process_record". If "process_record"
-    // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
-    static bool ProcessRecords(File * const input, File * const output, RecordFunc process_record,
-                               std::string * const err_msg);
-
-    using XmlRecordFunc = bool (&)(MarcRecord * const record, XmlWriter * const xml_writer,
-                                   std::string * const err_msg);
+    using RecordFunc = bool (&)(MarcRecord * const record, MarcWriter * const marc_writer,
+                                std::string * const err_msg);
 
     // Returns false on error and EOF.  To distinguish between the two: on EOF "err_msg" is empty but not when an
     // error has been detected.
     // Each record read from "input" will be parsed and will be passed into "process_record". If "process_record"
     // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
-    static bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer,
-                               std::string * const err_msg);
-
-    // Either "output" or "xml_writer" should be NULL when this function is being called.
-    using UniversalRecordFunc = bool (&)(MarcRecord * const record, File * const output, XmlWriter * const xml_writer,
-                                         std::string * const err_msg);
-
-    // Returns false on error and EOF.  To distinguish between the two: on EOF "err_msg" is empty but not when an
-    // error has been detected.
-    // Each record read from "input" will be parsed and will be passed into "process_record". If "process_record"
-    // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
-    // If we would like to generate XML output, "output" should be NULL when calling this o/w "xml_writer" should
-    // be NULL.
-    static bool ProcessRecords(File * const input, File* const output, UniversalRecordFunc process_record,
-                               XmlWriter * const xml_writer, std::string * const err_msg);
+    static bool ProcessRecords(MarcReader * const marc_reader, RecordFunc process_record,
+                               MarcWriter * const marc_writer, std::string * const err_msg);
 private:
     // Copies all field data from record into this record and extends the directory_entries_ of this record accordingly.
     void combine(const MarcRecord &record);
