@@ -363,13 +363,8 @@ bool MarcRecord::ProcessRecords(File * const input, File * const output, Univers
     err_msg->clear();
 
     while (MarcRecord record = (output == nullptr) ? MarcReader::ReadXML(input) : MarcReader::Read(input)) {
-        if (output == nullptr) {
-            if (not (*process_record)(&record, output, xml_writer, err_msg))
-                return false;
-        } else {
-            if (not (*process_record)(&record, output, xml_writer, err_msg))
-                return false;
-        }
+        if (not (*process_record)(&record, output, xml_writer, err_msg))
+            return false;
         err_msg->clear();
     }
 
