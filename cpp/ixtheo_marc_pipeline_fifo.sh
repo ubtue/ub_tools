@@ -211,7 +211,7 @@ wait
 
 
 StartPhase "Cleanup of Intermediate Files"
-for p in $(seq "$((PHASE-1))"); do
+for p in $(seq 0 "$((PHASE-1))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
 done
 rm -f child_refs child_titles parent_refs
