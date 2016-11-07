@@ -22,30 +22,22 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #include <iostream>
 #include <unordered_map>
-#include <vector>
 #include <cstdlib>
 #include "Compiler.h"
-#include "DirectoryEntry.h"
 #include "FileUtil.h"
-#include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
-#include "RegexMatcher.h"
-#include "StringUtil.h"
-#include "Subfields.h"
 #include "util.h"
 
 static unsigned modified_count(0);
 static unsigned record_count(0);
 
-const std::string relbib_relevant_ids_filename = "/usr/local/ub_tools/cpp/data/relbib_auto_list.txt";
-const std::string relbib_relevant_tag = "191";
-const char relbib_subfield = 'a';
-
+const std::string RELBIB_RELEVANT_IDS_FILENAME("/usr/local/ub_tools/cpp/data/relbib_auto_list.txt");
+const std::string RELBIB_RELEVANT_TAG("191");
+const char RELBIB_SUBFIELD('a');
 
 void Usage() {
     std::cerr << "Usage: " << progname << " marc_input marc_output\n"
@@ -55,17 +47,17 @@ void Usage() {
 }
 
 
-void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::string> &relbib_relevant_set) {
-     if (relbib_relevant_set.find(record->getControlNumber()) != relbib_relevant_set.end()){
-         if (record->getFieldIndex(relbib_relevant_tag) != MarcRecord::FIELD_NOT_FOUND)
-             Error("Field " + relbib_relevant_tag + " already populated for PPN " + record->getControlNumber());
-         record->insertSubfield(relbib_relevant_tag, relbib_subfield, "1");
+void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::string> * relbib_relevant_set) {
+     if (not(relbib_relevant_set->find(record->getControlNumber()) == relbib_relevant_set->end())){
+         if (record->getFieldIndex(RELBIB_RELEVANT_TAG) != MarcRecord::FIELD_NOT_FOUND)
+             Error("Field " + RELBIB_RELEVANT_TAG + " already populated for PPN " + record->getControlNumber());
+         record->insertSubfield(RELBIB_RELEVANT_TAG, RELBIB_SUBFIELD, "1");
          ++modified_count;
      }
 }
 
 
-void TagRelevantRecords(File * const marc_input, File * const marc_output, std::unordered_set<std::string> &relbib_relevant_set) {
+void TagRelevantRecords(File * const marc_input, File * const marc_output, const std::unordered_set<std::string> * relbib_relevant_set) {
     while (MarcRecord record = MarcReader::Read(marc_input)) {
         ProcessRecord(&record, relbib_relevant_set);
         MarcWriter::Write(record, marc_output);
@@ -75,8 +67,8 @@ void TagRelevantRecords(File * const marc_input, File * const marc_output, std::
 }
 
 
-void SetupRelBibRelevantSet(std::unordered_set<std::string> &relbib_relevant_set) {
-    std::unique_ptr<File> relbib_relevant(FileUtil::OpenInputFileOrDie(relbib_relevant_ids_filename));
+void SetupRelBibRelevantSet(std::unordered_set<std::string> * relbib_relevant_set) {
+    std::unique_ptr<File> relbib_relevant(FileUtil::OpenInputFileOrDie(RELBIB_RELEVANT_IDS_FILENAME));
     std::string line;
     int retval;
     while (retval = relbib_relevant->getline(&line, '\n')){
@@ -84,15 +76,15 @@ void SetupRelBibRelevantSet(std::unordered_set<std::string> &relbib_relevant_set
             if (relbib_relevant->anErrorOccurred())
                 Error("Error on reading in relbib relevant file " + relbib_relevant->getPath());
             if (relbib_relevant->eof()) {
-                relbib_relevant->close();
                 return;                             
             }
             continue;
         }
-        relbib_relevant_set.emplace(line);
+        relbib_relevant_set->emplace(line);
     }
     
 }
+
 
 int main(int argc, char **argv) {
     ::progname = argv[0];
@@ -102,19 +94,17 @@ int main(int argc, char **argv) {
 
     const std::string marc_input_filename(argv[1]);
     std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(marc_input_filename));
-  
+     
     const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Title data input file name equals output file name!");
 
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+    std::unique_ptr<File> marc_output(FileUtil::OpenOutputFileOrDie(marc_output_filename));
 
     try {
         std::unordered_set<std::string> relbib_relevant_set;
-        SetupRelBibRelevantSet(relbib_relevant_set);
-        TagRelevantRecords(marc_input.get(), &marc_output, relbib_relevant_set);
+        SetupRelBibRelevantSet(&relbib_relevant_set);
+        TagRelevantRecords(marc_input.get(), marc_output.get(), &relbib_relevant_set);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
