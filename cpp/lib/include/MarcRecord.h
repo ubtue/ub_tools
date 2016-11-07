@@ -1,4 +1,4 @@
-/** \brief Marc-Implementation
+/** \brief Interface for the MarcRecord class.
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
  *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
@@ -49,7 +49,6 @@ private:
     Leader leader_;
     std::vector<DirectoryEntry> directory_entries_;
     std::string raw_data_;
-    std::set<size_t> deleted_field_indices_;
 
     MarcRecord(Leader &leader, std::vector<DirectoryEntry> directory_entries, std::string &raw_data)
         : leader_(std::move(leader)), directory_entries_(std::move(directory_entries)), raw_data_(std::move(raw_data)) {}
@@ -87,7 +86,7 @@ public:
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
     MarcTag getTag(const size_t index) const;
 
-    /** \brief Returns the tag of the field at given index or an empty string if this index is not present. **/
+    /** \brief Returns the tag of the field at given index or MarcRecord::FIELD_NOT_FOUND if the tag is not present **/
     size_t getFieldIndex(const MarcTag &field_tag) const;
 
     /** \return The number of field indices for the tag "tag". */
@@ -111,6 +110,11 @@ public:
      *  \return The value of the extracted subfield or the empty string if the tag or subfield were not found.
      */
     std::string extractFirstSubfield(const MarcTag &tag, const char subfield_code) const;
+
+    /** \brief Extracts the first occurrence of subfield "subfield_code" from field w/ index "field_index".
+     *  \return The value of the extracted subfield or the empty string if the tag or subfield were not found.
+     */
+    std::string extractFirstSubfield(const size_t field_index, const char subfield_code) const;
 
     /** \brief Extract values from all subfields from a list of fields.
      *  \param tags    A colon-separated list of field tags.
@@ -187,7 +191,6 @@ public:
     // Each record read from "input" will be parsed and will be passed into "process_record". If "process_record"
     // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
     static bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer, std::string * const err_msg);
-
 
 private:
     // Copies all field data from record into this record and extends the directory_entries_ of this record accordingly.

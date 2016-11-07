@@ -27,34 +27,64 @@
 #define BOOST_CHECK_FALSE(__EXPR__) BOOST_CHECK(! __EXPR__ )
 
 TEST(order) {
-    size_t number_of_tags = 10;
-    MarcTag unique_ordered_tags[] = { "001", "002", "010", "011", "012", "100", "101", "110", "111", "112" };
-    MarcTag ordered_tags[] = { "001", "002", "011", "011", "012", "100", "101", "112", "112", "112" };
+        size_t number_of_tags = 10;
+        MarcTag unique_ordered_tags[] = { "001", "002", "010", "011", "012", "100", "101", "110", "111", "112" };
+        MarcTag ordered_tags[] = { "001", "002", "011", "011", "012", "100", "101", "112", "112", "112" };
 
-    // Test for <
-    for (size_t i = 0; i + 1 < number_of_tags; ++i) {
-        BOOST_CHECK_LT(unique_ordered_tags[i], unique_ordered_tags[i + 1]);
-    }
+        // Test for <
+        for (size_t i = 0; i + 1 < number_of_tags; ++i) {
+            BOOST_CHECK_LT(unique_ordered_tags[i], unique_ordered_tags[i + 1]);
+        }
 
-    // Test for >
-    for (size_t i = number_of_tags - 1; i > 1; --i) {
-        BOOST_CHECK_GT(unique_ordered_tags[i], unique_ordered_tags[i - 1]);
-    }
+        // Test for >
+        for (size_t i = number_of_tags - 1; i > 1; --i) {
+            BOOST_CHECK_GT(unique_ordered_tags[i], unique_ordered_tags[i - 1]);
+        }
 
-    // Test for <=
-    for (size_t i = 0; i + 1 < number_of_tags; ++i) {
-        BOOST_CHECK_LE(ordered_tags[i], ordered_tags[i + 1]);
-    }
+        // Test for <=
+        for (size_t i = 0; i + 1 < number_of_tags; ++i) {
+            BOOST_CHECK_LE(ordered_tags[i], ordered_tags[i + 1]);
+        }
 
-    // Test for >=
-    for (size_t i = number_of_tags - 1; i > 1; --i) {
-        BOOST_CHECK_GE(ordered_tags[i], ordered_tags[i - 1]);
-    }
+        // Test for >=
+        for (size_t i = number_of_tags - 1; i > 1; --i) {
+            BOOST_CHECK_GE(ordered_tags[i], ordered_tags[i - 1]);
+        }
 
-    // Test for !=
-    for (size_t i = number_of_tags - 1; i > 1; --i) {
-        BOOST_CHECK_NE(unique_ordered_tags[i], unique_ordered_tags[i - 1]);
-    }
+        // Test for !=
+        for (size_t i = number_of_tags - 1; i > 1; --i) {
+            BOOST_CHECK_NE(unique_ordered_tags[i], unique_ordered_tags[i - 1]);
+        }
+}
+
+TEST(order2) {
+        size_t number_of_tags = 6;
+        MarcTag ordered_tags[] = { MarcTag("000"), MarcTag("001"), MarcTag("004"), MarcTag("005"), MarcTag("008"), MarcTag("852") };
+
+        // Test for <
+        for (size_t i = 0; i + 1 < number_of_tags; ++i) {
+            BOOST_CHECK_LT(ordered_tags[i], ordered_tags[i + 1]);
+        }
+
+        // Test for >
+        for (size_t i = number_of_tags - 1; i > 1; --i) {
+            BOOST_CHECK_GT(ordered_tags[i], ordered_tags[i - 1]);
+        }
+
+        // Test for <=
+        for (size_t i = 0; i + 1 < number_of_tags; ++i) {
+            BOOST_CHECK_LE(ordered_tags[i], ordered_tags[i + 1]);
+        }
+
+        // Test for >=
+        for (size_t i = number_of_tags - 1; i > 1; --i) {
+            BOOST_CHECK_GE(ordered_tags[i], ordered_tags[i - 1]);
+        }
+
+        // Test for !=
+        for (size_t i = number_of_tags - 1; i > 1; --i) {
+            BOOST_CHECK_NE(ordered_tags[i], ordered_tags[i - 1]);
+        }
 }
 
 TEST(Equals) {
