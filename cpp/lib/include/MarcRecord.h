@@ -49,7 +49,6 @@ private:
     Leader leader_;
     std::vector<DirectoryEntry> directory_entries_;
     std::string raw_data_;
-    std::set<size_t> deleted_field_indices_;
 
     MarcRecord(Leader &leader, std::vector<DirectoryEntry> directory_entries, std::string &raw_data)
         : leader_(std::move(leader)), directory_entries_(std::move(directory_entries)), raw_data_(std::move(raw_data)) {}
@@ -188,6 +187,7 @@ public:
     // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
     static bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer, std::string * const err_msg);
 
+    void debug() const;
 
 private:
     // Copies all field data from record into this record and extends the directory_entries_ of this record accordingly.
