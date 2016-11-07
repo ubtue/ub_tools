@@ -1,4 +1,4 @@
-/** \brief Marc-Implementation
+/** \brief Interface for the MarcRecord class.
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
  *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
