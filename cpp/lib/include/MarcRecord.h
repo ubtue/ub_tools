@@ -182,18 +182,31 @@ public:
     // error has been detected.
     // Each record read from "input" will be parsed and will be passed into "process_record". If "process_record"
     // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
-    static bool ProcessRecords(File * const input, File * const output, RecordFunc process_record, std::string * const err_msg);
+    static bool ProcessRecords(File * const input, File * const output, RecordFunc process_record,
+                               std::string * const err_msg);
 
-
-    using XmlRecordFunc = bool (&)(MarcRecord * const record, XmlWriter * const xml_writer, std::string * const err_msg);
+    using XmlRecordFunc = bool (&)(MarcRecord * const record, XmlWriter * const xml_writer,
+                                   std::string * const err_msg);
 
     // Returns false on error and EOF.  To distinguish between the two: on EOF "err_msg" is empty but not when an
     // error has been detected.
     // Each record read from "input" will be parsed and will be passed into "process_record". If "process_record"
     // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
-    static bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer, std::string * const err_msg);
+    static bool ProcessRecords(File * const input, XmlRecordFunc process_record, XmlWriter * const xml_writer,
+                               std::string * const err_msg);
 
+    // Either "output" or "xml_writer" should be NULL when this function is being called.
+    using UniversalRecordFunc = bool (&)(MarcRecord * const record, File * const output, XmlWriter * const xml_writer,
+                                         std::string * const err_msg);
 
+    // Returns false on error and EOF.  To distinguish between the two: on EOF "err_msg" is empty but not when an
+    // error has been detected.
+    // Each record read from "input" will be parsed and will be passed into "process_record". If "process_record"
+    // returns false, ProcessRecords will be aborted and the error message will be passed up to the caller.
+    // If we would like to generate XML output, "output" should be NULL when calling this o/w "xml_writer" should
+    // be NULL.
+    static bool ProcessRecords(File * const input, File* const output, UniversalRecordFunc process_record,
+                               XmlWriter * const xml_writer, std::string * const err_msg);
 private:
     // Copies all field data from record into this record and extends the directory_entries_ of this record accordingly.
     void combine(const MarcRecord &record);
