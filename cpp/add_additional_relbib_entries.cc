@@ -51,7 +51,7 @@ void Usage() {
 
 
 void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::string> * relbib_relevant_set) {
-     if (relbib_relevant_set->find(record->getControlNumber()) != relbib_relevant_set->end())) {
+     if (relbib_relevant_set->find(record->getControlNumber()) != relbib_relevant_set->end()) {
          if (record->getFieldIndex(RELBIB_RELEVANT_TAG) != MarcRecord::FIELD_NOT_FOUND)
              Error("Field " + RELBIB_RELEVANT_TAG + " already populated for PPN " + record->getControlNumber());
          record->insertSubfield(RELBIB_RELEVANT_TAG, RELBIB_SUBFIELD, "1");
@@ -70,7 +70,7 @@ void TagRelevantRecords(File * const marc_input, File * const marc_output, const
 }
 
 
-void SetupRelBibRelevantSet(const std::unordered_set<std::string> * relbib_relevant_set) {
+void SetupRelBibRelevantSet(std::unordered_set<std::string> * const relbib_relevant_set) {
     std::unique_ptr<File> relbib_relevant(FileUtil::OpenInputFileOrDie(RELBIB_RELEVANT_IDS_FILENAME));
     std::string line;
     int retval;
