@@ -39,6 +39,7 @@ const std::string RELBIB_RELEVANT_IDS_FILENAME("/usr/local/ub_tools/cpp/data/rel
 const std::string RELBIB_RELEVANT_TAG("191");
 const char RELBIB_SUBFIELD('a');
 
+
 void Usage() {
     std::cerr << "Usage: " << progname << " marc_input marc_output\n"
               << "       Tag entries that are not yet officially part of the set of titles relevant for relbib\n"
@@ -67,12 +68,12 @@ void TagRelevantRecords(File * const marc_input, File * const marc_output, const
 }
 
 
-void SetupRelBibRelevantSet(std::unordered_set<std::string> * relbib_relevant_set) {
+void SetupRelBibRelevantSet(const std::unordered_set<std::string> * relbib_relevant_set) {
     std::unique_ptr<File> relbib_relevant(FileUtil::OpenInputFileOrDie(RELBIB_RELEVANT_IDS_FILENAME));
     std::string line;
     int retval;
-    while (retval = relbib_relevant->getline(&line, '\n')){
-        if (!retval) {
+    while (retval = relbib_relevant->getline(&line, '\n')) {
+        if (not retval) {
             if (relbib_relevant->anErrorOccurred())
                 Error("Error on reading in relbib relevant file " + relbib_relevant->getPath());
             if (relbib_relevant->eof()) {
@@ -82,7 +83,6 @@ void SetupRelBibRelevantSet(std::unordered_set<std::string> * relbib_relevant_se
         }
         relbib_relevant_set->emplace(line);
     }
-    
 }
 
 
@@ -109,7 +109,3 @@ int main(int argc, char **argv) {
         Error("caught exception: " + std::string(x.what()));
     }
 }
-
-
-
-
