@@ -9,4 +9,4 @@
 # This is needed to let jetty extract the libraries, which are needed by
 # our solr plugins and co.
 
-make -C "$VUFIND_HOME/../ub_tools" root_install
+make -C "$VUFIND_HOME/../ub_tools" install

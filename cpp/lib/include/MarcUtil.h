@@ -22,7 +22,9 @@
 #ifndef MARC_UTIL_H
 #define MARC_UTIL_H
 
+
 #include "MarcRecord.h"
+
 
 namespace MarcUtil {
 
@@ -31,7 +33,7 @@ namespace MarcUtil {
 bool GetGNDCode(const MarcRecord &record, std::string *const gnd_code);
 
 
-}
+} // namespace MarcUtil
 
 
 #endif //MARC_UTIL_H

@@ -130,6 +130,7 @@ bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_
 
     std::vector<std::pair<size_t, size_t>> local_block_boundaries;
     record->findAllLocalDataBlocks(&local_block_boundaries);
+    std::vector<std::pair<size_t, size_t>> local_block_boundaries_for_deletion;
 
     for (const auto local_block_boundary : local_block_boundaries) {
         std::vector<size_t> field_indices;
@@ -137,17 +138,17 @@ bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_
         if (field_indices.size() != 1)
             Error("Every local data block has to have exactly one 001 field. (Record: " + record->getControlNumber()
                   + ", Local data block: " + std::to_string(local_block_boundary.first) + " - "
-                  + std::to_string(local_block_boundary.second));
+                  + std::to_string(local_block_boundary.second) + ". Found " + std::to_string(field_indices.size()) + ")");
         const Subfields subfields(record->getSubfields(field_indices[0]));
         const std::string subfield_contents(subfields.getFirstSubfieldValue('0'));
         if (not StringUtil::StartsWith(subfield_contents, "001 ")
             or local_deletion_ids.find(subfield_contents.substr(4)) == local_deletion_ids.end())
             continue;
 
-        for (size_t dir_entry_index(local_block_boundary.second - 1); dir_entry_index >= local_block_boundary.first; --dir_entry_index)
-            record->deleteField(dir_entry_index);
+        local_block_boundaries_for_deletion.emplace_back(local_block_boundary);
         modified = true;
     }
+    record->deleteFields(local_block_boundaries_for_deletion);
 
     return modified;
 }
