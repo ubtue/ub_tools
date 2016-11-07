@@ -8,4 +8,4 @@
 # Description:       VuFind Starter
 ### END INIT INFO
 cd /usr/local/vufind2
-./vufind.sh $*
+./solr.sh $*
