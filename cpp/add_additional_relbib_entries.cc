@@ -32,8 +32,10 @@
 #include "MarcWriter.h"
 #include "util.h"
 
+
 static unsigned modified_count(0);
 static unsigned record_count(0);
+
 
 const std::string RELBIB_RELEVANT_IDS_FILENAME("/usr/local/ub_tools/cpp/data/relbib_auto_list.txt");
 const std::string RELBIB_RELEVANT_TAG("191");
@@ -49,7 +51,7 @@ void Usage() {
 
 
 void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::string> * relbib_relevant_set) {
-     if (not(relbib_relevant_set->find(record->getControlNumber()) == relbib_relevant_set->end())){
+     if (relbib_relevant_set->find(record->getControlNumber()) != relbib_relevant_set->end())) {
          if (record->getFieldIndex(RELBIB_RELEVANT_TAG) != MarcRecord::FIELD_NOT_FOUND)
              Error("Field " + RELBIB_RELEVANT_TAG + " already populated for PPN " + record->getControlNumber());
          record->insertSubfield(RELBIB_RELEVANT_TAG, RELBIB_SUBFIELD, "1");
@@ -74,11 +76,10 @@ void SetupRelBibRelevantSet(const std::unordered_set<std::string> * relbib_relev
     int retval;
     while (retval = relbib_relevant->getline(&line, '\n')) {
         if (not retval) {
-            if (relbib_relevant->anErrorOccurred())
+            if (unlikely(relbib_relevant->anErrorOccurred()))
                 Error("Error on reading in relbib relevant file " + relbib_relevant->getPath());
-            if (relbib_relevant->eof()) {
+            if (unlikely(relbib_relevant->eof()))
                 return;                             
-            }
             continue;
         }
         relbib_relevant_set->emplace(line);
