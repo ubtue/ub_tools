@@ -170,7 +170,8 @@ std::string MarcRecord::extractFirstSubfield(const size_t field_index, const cha
 
 
 size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector <std::string> *const values,
-                                       const std::string &ignore_subfield_codes) const {
+                                       const std::string &ignore_subfield_codes) const
+{
     values->clear();
 
     std::vector <std::string> individual_tags;
@@ -192,7 +193,8 @@ size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector <std
 
 
 size_t MarcRecord::extractSubfield(const MarcTag &tag, const char subfield_code,
-                                   std::vector <std::string> *const values) const {
+                                   std::vector <std::string> *const values) const
+{
     values->clear();
 
     size_t field_index(getFieldIndex(tag));
@@ -210,7 +212,8 @@ size_t MarcRecord::extractSubfield(const MarcTag &tag, const char subfield_code,
 
 
 size_t MarcRecord::extractSubfields(const MarcTag &tag, const std::string &subfield_codes,
-                                    std::vector <std::string> *const values) const {
+                                    std::vector <std::string> *const values) const
+{
     values->clear();
 
     size_t field_index(getFieldIndex(tag));
@@ -269,6 +272,7 @@ size_t MarcRecord::findFieldsInLocalBlock(const MarcTag &field_tag, const std::s
     const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.to_string());
     for (size_t index(block_start_and_end.first); index < block_start_and_end.second; ++index) {
         const std::string &current_field(getFieldData(index));
+        std::cout << current_field << "\n";
         if (StringUtil::StartsWith(current_field, FIELD_PREFIX)
             and IndicatorsMatch(indicators, current_field.substr(7, 2)))
             field_indices->emplace_back(index);
