@@ -43,7 +43,7 @@ const char RELBIB_SUBFIELD('a');
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " marc_input marc_output\n"
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n"
               << "       Tag entries that are not yet officially part of the set of titles relevant for relbib\n"
               << "       but have been identified to be probably relevant.\n";
     std::exit(EXIT_FAILURE);
@@ -60,10 +60,12 @@ void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::stri
 }
 
 
-void TagRelevantRecords(File * const marc_input, File * const marc_output, const std::unordered_set<std::string> * relbib_relevant_set) {
-    while (MarcRecord record = MarcReader::Read(marc_input)) {
+void TagRelevantRecords(MarcReader * const marc_reader, MarcWriter * const marc_writer,
+                        const std::unordered_set<std::string> * relbib_relevant_set)
+{
+    while (MarcRecord record = marc_reader->read()) {
         ProcessRecord(&record, relbib_relevant_set);
-        MarcWriter::Write(record, marc_output);
+        marc_writer->write(record);
         ++record_count;
     }
     std::cerr << "Modified " << modified_count << " of " << record_count << " record(s).\n";
@@ -94,18 +96,17 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(marc_input_filename));
-     
     const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Title data input file name equals output file name!");
 
-    std::unique_ptr<File> marc_output(FileUtil::OpenOutputFileOrDie(marc_output_filename));
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     try {
         std::unordered_set<std::string> relbib_relevant_set;
         SetupRelBibRelevantSet(&relbib_relevant_set);
-        TagRelevantRecords(marc_input.get(), marc_output.get(), &relbib_relevant_set);
+        TagRelevantRecords(marc_reader.get(), marc_writer.get(), &relbib_relevant_set);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
