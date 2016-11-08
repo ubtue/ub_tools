@@ -410,15 +410,10 @@ unsigned CountRequiredMatchers(const std::map<std::string, std::list<const Match
 enum OutputFormat { MARC_BINARY, MARC_XML };
 
 
-void ProcessRecords(const bool verbose, const OutputFormat output_format, File * const input, File * const output,
+void ProcessRecords(const bool verbose, File * const input, MarcWriter * const marc_writer,
                     const std::map<std::string, std::list<const Matcher *>> &xml_tag_to_matchers_map)
 {
     const unsigned REQUIRED_CONDITIONS_COUNT(CountRequiredMatchers(xml_tag_to_matchers_map));
-    MarcXmlWriter *xml_writer;
-    if (output_format == MARC_XML)
-        xml_writer = new MarcXmlWriter(output);
-    else
-        xml_writer = nullptr;
 
     SimpleXmlParser::Type type;
     std::string data;
@@ -437,7 +432,6 @@ xml_parse_loop:
             if (verbose)
                 std::cout << "Wrote " << written_record_count << " record(s) of " << record_count
                           << " record(s) which were found in the XML input stream.\n";
-            delete xml_writer;
             return;
         case SimpleXmlParser::OPENING_TAG:
             if (data == "record") {
@@ -463,7 +457,7 @@ xml_parse_loop:
         case SimpleXmlParser::CLOSING_TAG:
             if (data == "record") {
                 if (met_required_conditions_count == REQUIRED_CONDITIONS_COUNT) {
-                    (xml_writer == nullptr) ? MarcWriter::Write(record, output) : MarcWriter::Write(record, xml_writer);
+                    marc_writer->write(record);
                     ++written_record_count;
                 }
 
@@ -545,12 +539,13 @@ int main(int argc, char *argv[]) {
 
     const std::unique_ptr<File> config_input(FileUtil::OpenInputFileOrDie(argv[2]));
     const std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(argv[3]));
-    const std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[4]));
+    const std::unique_ptr<MarcWriter> marc_writer(
+        MarcWriter::Factory(argv[4], output_format == MARC_BINARY ? MarcWriter::BINARY : MarcWriter::XML));
 
     try {
         std::map<std::string, std::list<const Matcher *>> xml_tag_to_matchers_map;
         LoadConfig(config_input.get(), &xml_tag_to_matchers_map);
-        ProcessRecords(verbose, output_format, input.get(), output.get(), xml_tag_to_matchers_map);
+        ProcessRecords(verbose, input.get(), marc_writer.get(), xml_tag_to_matchers_map);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
