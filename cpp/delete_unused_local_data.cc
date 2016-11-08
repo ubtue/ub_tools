@@ -82,13 +82,14 @@ void ProcessRecord(MarcRecord * const record) {
 }
 
 
-void DeleteUnusedLocalData(File * const input, File * const output) {
-    while (MarcRecord record = MarcReader::Read(input)) {
+void DeleteUnusedLocalData(MarcReader * const marc_reader, MarcWriter * const marc_writer) {
+    while (MarcRecord record = marc_reader->read()) {
         ++count;
         ProcessRecord(&record);
-        MarcWriter::Write(record, output);
+        marc_writer->write(record);
     }
-    std::cerr << ::progname << ": Deleted " << (before_count - after_count) << " of " << before_count << " local data blocks.\n";
+    std::cerr << ::progname << ": Deleted " << (before_count - after_count) << " of " << before_count
+              << " local data blocks.\n";
 }
 
 
@@ -98,18 +99,11 @@ int main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
-    const std::string input_filename(argv[1]);
-    File input(input_filename, "r");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
-
-    const std::string output_filename(argv[2]);
-    File output(output_filename, "w");
-    if (not output)
-        Error("can't open \"" + output_filename + "\" for writing!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
 
     try {
-        DeleteUnusedLocalData(&input, &output);
+        DeleteUnusedLocalData(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
