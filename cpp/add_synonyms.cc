@@ -40,8 +40,10 @@
 #include "Subfields.h"
 #include "util.h"
 
+
 static unsigned modified_count(0);
 static unsigned record_count(0);
+
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " master_marc_input norm_data_marc_input marc_output\n";
@@ -59,10 +61,12 @@ std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 }
 
 
-void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::string> &primary_tags_and_subfield_codes,
-                     const std::set<std::string> &synonym_tags_and_subfield_codes, std::vector<std::map<std::string, std::string>> * const synonym_maps)
+void ExtractSynonyms(MarcReader * const authority_reader,
+                     const std::set<std::string> &primary_tags_and_subfield_codes,
+                     const std::set<std::string> &synonym_tags_and_subfield_codes,
+                     std::vector<std::map<std::string, std::string>> * const synonym_maps)
 {
-    while (const MarcRecord record = MarcReader::Read(norm_data_marc_input)) {
+    while (const MarcRecord record = authority_reader->read()) {
         std::set<std::string>::const_iterator primary;
         std::set<std::string>::const_iterator synonym;
         unsigned int i(0);
@@ -76,13 +80,16 @@ void ExtractSynonyms(File * const norm_data_marc_input, const std::set<std::stri
 
             if (record.extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values) and 
                 record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values))
-                    (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values, ','));
+                    (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','),
+                                               StringUtil::Join(synonym_values, ','));
         }
     }
 }
 
 
-inline std::string GetMapValueOrEmptyString(const std::map<std::string, std::string> &map, const std::string &searchterm) {
+inline std::string GetMapValueOrEmptyString(const std::map<std::string, std::string> &map,
+                                            const std::string &searchterm)
+{
     auto value(map.find(searchterm));
     return (value != map.cend()) ? value->second : "";
 }
@@ -135,7 +142,8 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                     Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
                 std::string subfield_spec = GetSubfieldCodes(*output);
                 if (subfield_spec.size() != 1)
-                    Error("We currently only support a single subfield and thus specifying " + subfield_spec + " as output subfield is not valid\n");
+                    Error("We currently only support a single subfield and thus specifying " + subfield_spec
+                          + " as output subfield is not valid\n");
                 Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
                 subfields.addSubfield(subfield_spec.at(0), synonyms);
                 if (not(record->insertField(tag, subfields.toString())))
@@ -147,12 +155,14 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
 }   
 
 
-void InsertSynonyms(File * const marc_input, File * const marc_output, const std::set<std::string> &primary_tags_and_subfield_codes,
-                    const std::set<std::string> &output_tags_and_subfield_codes, std::vector<std::map<std::string, std::string>> &synonym_maps) 
+void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * const marc_writer,
+                    const std::set<std::string> &primary_tags_and_subfield_codes,
+                    const std::set<std::string> &output_tags_and_subfield_codes,
+                    std::vector<std::map<std::string, std::string>> &synonym_maps) 
 {
-    while (MarcRecord record = MarcReader::Read(marc_input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ProcessRecord(&record, synonym_maps, primary_tags_and_subfield_codes, output_tags_and_subfield_codes);
-        MarcWriter::Write(record, marc_output);
+        marc_writer->write(record);
         ++record_count;
     }
 
@@ -167,20 +177,18 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(marc_input_filename));
-
-    const std::string norm_data_marc_input_filename(argv[2]);
-    std::unique_ptr<File> norm_data_marc_input(FileUtil::OpenInputFileOrDie(norm_data_marc_input_filename));
-
+    const std::string authority_data_marc_input_filename(argv[2]);
     const std::string marc_output_filename(argv[3]);
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Title data input file name equals output file name!");
-    if (unlikely(norm_data_marc_input_filename == marc_output_filename))
+    if (unlikely(authority_data_marc_input_filename == marc_output_filename))
         Error("Authority data input file name equals output file name!");
 
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcReader> authority_reader(MarcReader::Factory(authority_data_marc_input_filename,
+                                                                     MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     try {
         // Determine possible mappings
@@ -204,7 +212,8 @@ int main(int argc, char **argv) {
         if (unlikely(StringUtil::Split(TITLE_DATA_PRIMARY_SPEC, ":", &input_tags_and_subfield_codes) < 1))
             Error("Need at least one input field");
 
-        if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ":", &output_tags_and_subfield_codes) < 1))
+        if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ":", &output_tags_and_subfield_codes)
+                     < 1))
             Error("Need at least one output field");
 
         unsigned num_of_authority_entries(primary_tags_and_subfield_codes.size());
@@ -214,13 +223,16 @@ int main(int argc, char **argv) {
         if (input_tags_and_subfield_codes.size() != output_tags_and_subfield_codes.size())
             Error("Number of fields title entry specs must match number of output specs");
              
-        std::vector<std::map<std::string, std::string>> synonym_maps(num_of_authority_entries, std::map<std::string, std::string>());
+        std::vector<std::map<std::string, std::string>> synonym_maps(num_of_authority_entries,
+                                                                     std::map<std::string, std::string>());
         
         // Extract the synonyms from authority data
-        ExtractSynonyms(norm_data_marc_input.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes, &synonym_maps);
+        ExtractSynonyms(authority_reader.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes,
+                        &synonym_maps);
 
         // Iterate over the title data
-        InsertSynonyms(marc_input.get(), &marc_output, input_tags_and_subfield_codes, output_tags_and_subfield_codes, synonym_maps);
+        InsertSynonyms(marc_reader.get(), marc_writer.get(), input_tags_and_subfield_codes,
+                       output_tags_and_subfield_codes, synonym_maps);
 
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));

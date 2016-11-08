@@ -49,7 +49,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname
+    std::cerr << "Usage: " << ::progname
               << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
     std::exit(EXIT_FAILURE);
 }
@@ -326,9 +326,11 @@ bool GetBibleRanges(const std::string &field_tag, const MarcRecord &record,
             ranges->insert(
                 std::make_pair(
                     book_codes.front()
-                    + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '0'),
+                    + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH,
+                                  '0'),
                     book_codes.back()
-                    + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '9')
+                    + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH,
+                                  '9')
                 )
             );
         else if (not BibleReferenceParser::ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
@@ -348,7 +350,7 @@ bool GetBibleRanges(const std::string &field_tag, const MarcRecord &record,
    ranges and will in a later processing phase be added to title data.  We also extract pericopes which will be
    saved to a file that maps periope names to bible ranges. */
 void LoadNormData(const bool verbose, const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
-                  File * const norm_input,
+                  MarcReader * const authority_reader,
                   std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const
                       gnd_codes_to_bible_ref_codes_map)
 {
@@ -361,7 +363,7 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
 
     unsigned count(0), bible_ref_count(0), pericope_count(0);
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
-    while (const MarcRecord record = MarcReader::Read(norm_input)) {
+    while (const MarcRecord record = authority_reader->read()) {
         ++count;
 
         std::string gnd_code;
@@ -435,7 +437,7 @@ bool FindGndCodes(const bool verbose, const std::string &tags, const MarcRecord 
 
 /* Augments MARC title records that contain bible references by pointing at bible reference norm data records
    by adding a new MARC field with tag BIB_REF_RANGE_TAG.  This field is filled in with bible ranges. */
-void AugmentBibleRefs(const bool verbose, File * const input, File * const output,
+void AugmentBibleRefs(const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer,
                       const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
                           &gnd_codes_to_bible_ref_codes_map)
 {
@@ -443,7 +445,7 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
         std::cerr << "Starting augmentation of title records.\n";
 
     unsigned total_count(0), augment_count(0);
-    while (MarcRecord record = MarcReader::Read(input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ++total_count;
 
         // Make sure that we don't use a bible reference tag that is already in use for another
@@ -468,7 +470,7 @@ void AugmentBibleRefs(const bool verbose, File * const input, File * const outpu
             record.insertSubfield(BIB_REF_RANGE_TAG, 'a', range_string);
         }
 
-        MarcWriter::Write(record, output);
+        marc_writer->write(record);
     }
 
     if (verbose)
@@ -488,25 +490,16 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
-    File title_input(title_input_filename, "r");
-    if (not title_input)
-        Error("can't open \"" + title_input_filename + "\" for reading!");
-
-    const std::string norm_input_filename(argv[verbose ? 3 : 2]);
-    File norm_input(norm_input_filename, "r");
-    if (not norm_input)
-        Error("can't open \"" + norm_input_filename + "\" for reading!");
-
+    const std::string authority_input_filename(argv[verbose ? 3 : 2]);
     const std::string title_output_filename(argv[verbose ? 4 : 3]);
-    File title_output(title_output_filename, "w");
-    if (not title_output)
-        Error("can't open \"" + title_output_filename + "\" for writing!");
-
     if (unlikely(title_input_filename == title_output_filename))
         Error("Title input file name equals title output file name!");
-
-    if (unlikely(norm_input_filename == title_output_filename))
+    if (unlikely(authority_input_filename == title_output_filename))
         Error("Norm data input file name equals title output file name!");
+
+    std::unique_ptr<MarcReader> title_reader(MarcReader::Factory(title_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcReader> authority_reader(MarcReader::Factory(authority_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> title_writer(MarcWriter::Factory(title_output_filename, MarcWriter::BINARY));
 
     const std::string books_of_the_bible_to_code_map_filename(
         "/var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map");
@@ -520,8 +513,9 @@ int main(int argc, char **argv) {
 
         std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>>
             gnd_codes_to_bible_ref_codes_map;
-        LoadNormData(verbose, books_of_the_bible_to_code_map, &norm_input, &gnd_codes_to_bible_ref_codes_map);
-        AugmentBibleRefs(verbose, &title_input, &title_output, gnd_codes_to_bible_ref_codes_map);
+        LoadNormData(verbose, books_of_the_bible_to_code_map, authority_reader.get(),
+                     &gnd_codes_to_bible_ref_codes_map);
+        AugmentBibleRefs(verbose, title_reader.get(), title_writer.get(), gnd_codes_to_bible_ref_codes_map);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

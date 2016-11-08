@@ -1,7 +1,7 @@
 /** \brief Implementation of the MarcRecord class.
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -330,28 +330,13 @@ void MarcRecord::combine(const MarcRecord &record) {
 }
 
 
-bool MarcRecord::ProcessRecords(File *const input, File *const output, RecordFunc process_record,
-                                std::string *const err_msg)
+bool MarcRecord::ProcessRecords(MarcReader * const marc_reader, RecordFunc process_record,
+                                MarcWriter * const marc_writer, std::string * const err_msg)
 {
     err_msg->clear();
 
-    while (MarcRecord record = MarcReader::Read(input)) {
-        if (not (*process_record)(&record, output, err_msg))
-            return false;
-        err_msg->clear();
-    }
-
-    return err_msg->empty();
-}
-
-
-bool MarcRecord::ProcessRecords(File *const input, XmlRecordFunc process_record, XmlWriter *const xml_writer,
-                                std::string *const err_msg)
-{
-    err_msg->clear();
-
-    while (MarcRecord record = MarcReader::ReadXML(input)) {
-        if (not (*process_record)(&record, xml_writer, err_msg))
+    while (MarcRecord record = marc_reader->read()) {
+        if (not (*process_record)(&record, marc_writer, err_msg))
             return false;
         err_msg->clear();
     }

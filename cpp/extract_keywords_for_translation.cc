@@ -46,7 +46,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " title_input norm_data_input\n";
+    std::cerr << "Usage: " << ::progname << " title_input norm_data_input\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -54,8 +54,12 @@ static unsigned keyword_count, translation_count, additional_hits, synonym_count
 static DbConnection *shared_connection;
 
 
-void ExtractGermanSynonyms(const MarcRecord &record, std::vector<std::pair<std::string, std::string>> * const text_and_language_codes) {
-    for (size_t _450_index(record.getFieldIndex("450")); _450_index < record.getNumberOfFields() and record.getTag(_450_index) == "450"; ++_450_index) {
+void ExtractGermanSynonyms(const MarcRecord &record,
+                           std::vector<std::pair<std::string, std::string>> * const text_and_language_codes)
+{
+    for (size_t _450_index(record.getFieldIndex("450"));
+         _450_index < record.getNumberOfFields() and record.getTag(_450_index) == "450"; ++_450_index)
+    {
         const Subfields _450_subfields(record.getSubfields(_450_index));
         if (_450_subfields.hasSubfield('a')) {
             text_and_language_codes->emplace_back(std::make_pair(_450_subfields.getFirstSubfieldValue('a'), "deu"));
@@ -133,7 +137,7 @@ std::string GenerateLanguageCodeWhereClause(
 static unsigned no_gnd_code_count;
 
 
-bool ExtractTranslationsForASingleRecord(MarcRecord * const record, File * const /*output*/,
+bool ExtractTranslationsForASingleRecord(MarcRecord * const record, MarcWriter * const /*marc_writer*/,
                                          std::string * const /* err_msg */)
 {
     // Extract all synonyms and translations:
@@ -183,10 +187,10 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, File * const
 }
 
 
-void ExtractTranslationsForAllRecords(File * const norm_data_input) {
+void ExtractTranslationsForAllRecords(MarcReader * const authority_reader) {
     std::string err_msg;
-    if (not MarcRecord::ProcessRecords(norm_data_input, nullptr, ExtractTranslationsForASingleRecord, &err_msg))
-        Error("error while extracting translations from \"" + norm_data_input->getPath() + "\": " + err_msg);
+    if (not MarcRecord::ProcessRecords(authority_reader, ExtractTranslationsForASingleRecord, nullptr, &err_msg))
+        Error("error while extracting translations from \"" + authority_reader->getPath() + "\": " + err_msg);
 
     std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
     std::cerr << "Found " << translation_count << " translations in the norm data. (" << additional_hits
@@ -205,15 +209,14 @@ int main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
+    /*FIXME
     const std::string marc_input_filename(argv[1]);
     File marc_input(marc_input_filename, "r");
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
-
-    const std::string norm_data_marc_input_filename(argv[2]);
-    File norm_data_marc_input(norm_data_marc_input_filename, "r");
-    if (not norm_data_marc_input)
-        Error("can't open \"" + norm_data_marc_input_filename + "\" for reading!");
+    */
+    
+    std::unique_ptr<MarcReader> authority_marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
 
     try {
         const IniFile ini_file(CONF_FILE_PATH);
@@ -223,7 +226,7 @@ int main(int argc, char **argv) {
         DbConnection db_connection(sql_database, sql_username, sql_password);
         shared_connection = &db_connection;
 
-        ExtractTranslationsForAllRecords(&norm_data_marc_input);
+        ExtractTranslationsForAllRecords(authority_marc_reader.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

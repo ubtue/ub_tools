@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015, 2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -36,7 +36,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] marc_input marc_output ddc_to_ixtheo_notations_map "
+    std::cerr << "Usage: " << ::progname << " [--verbose] marc_input marc_output ddc_to_ixtheo_notations_map "
               << "rvk_to_ixtheo_notations_map\n";
     std::exit(EXIT_FAILURE);
 }
@@ -113,24 +113,24 @@ void UpdateIxTheoNotations(const std::vector<IxTheoMapper> &mappers, const std::
 }
 
 
-void ProcessRecords(const bool verbose, File * const input, File * const output,
+void ProcessRecords(const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer,
                     const std::vector<IxTheoMapper> &ddc_to_ixtheo_notation_mappers,
                     const std::vector<IxTheoMapper> &/*rvk_to_ixtheo_notation_mappers*/)
 {
     unsigned count(0), records_with_ixtheo_notations(0), records_with_new_notations(0), skipped_group_count(0);
-    while (MarcRecord record = MarcReader::Read(input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ++count;
 
         std::string ixtheo_notations_list(record.extractFirstSubfield("652", 'a'));
         if (not ixtheo_notations_list.empty()) {
             ++records_with_ixtheo_notations;
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
         std::vector<std::string> ddc_values;
         if (record.extractSubfield("082", 'a', &ddc_values) == 0) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
@@ -173,7 +173,7 @@ void ProcessRecords(const bool verbose, File * const input, File * const output,
             record.insertField("652", "  ""\x1F""a" + ixtheo_notations_list + "\x1F""bDDCoderRVK");
         }
 
-        MarcWriter::Write(record, output);
+        marc_writer->write(record);
     }
 
     std::cerr << "Read " << count << " records.\n";
@@ -196,15 +196,8 @@ int main(int argc, char **argv) {
         verbose = true;
     }
 
-    const std::string marc_input_filename(argv[verbose ? 2 : 1]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
-    const std::string marc_output_filename(argv[verbose ? 3 : 2]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[verbose ? 2 : 1], MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[verbose ? 3 : 2], MarcWriter::BINARY));
 
     try {
         std::vector<IxTheoMapper> ddc_to_ixtheo_notation_mappers;
@@ -213,7 +206,8 @@ int main(int argc, char **argv) {
         std::vector<IxTheoMapper> rvk_to_ixtheo_notation_mappers;
 //      LoadCSVFile(argv[verbose ? 5 : 4], &rvk_to_ixtheo_notation_mappers);
 
-        ProcessRecords(verbose, &marc_input, &marc_output, ddc_to_ixtheo_notation_mappers, rvk_to_ixtheo_notation_mappers);
+        ProcessRecords(verbose, marc_reader.get(), marc_writer.get(), ddc_to_ixtheo_notation_mappers,
+                       rvk_to_ixtheo_notation_mappers);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
