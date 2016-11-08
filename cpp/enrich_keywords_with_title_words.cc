@@ -40,7 +40,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] marc_input marc_output [stopwords_files]\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] marc_input marc_output [stopwords_files]\n";
     std::cerr << "       The MARC-21 output will have enriched keywords based on title words that were\n";
     std::cerr << "       similar to keywords found in the MARC-21 input file.\n";
     std::cerr << "       Stopword files must be named \"stopwords.xxx\" where xxx has to be a 3-letter\n";
@@ -228,7 +228,7 @@ size_t ExtractAllKeywords(
 
 
 void ExtractStemmedKeywords(
-    const bool verbose, File * const input,
+    const bool verbose, MarcReader * const marc_reader,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
     std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
 {
@@ -236,7 +236,7 @@ void ExtractStemmedKeywords(
         std::cerr << "Starting extraction and stemming of pre-existing keywords.\n";
 
     unsigned total_count(0), records_with_keywords_count(0), keywords_count(0);
-    while (const MarcRecord record = MarcReader::Read(input)) {
+    while (const MarcRecord record = marc_reader->read()) {
         ++total_count;
 
         const size_t extracted_count(
@@ -279,7 +279,7 @@ constexpr auto MIN_SINGLE_STEMMED_KEYWORD_LENGTH(7);
 
 
 void AugmentRecordsWithTitleKeywords(
-    const bool verbose, File * const input, File * const output,
+    const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer,
     const std::unordered_map<std::string, std::set<std::string>> &stemmed_keyword_to_stemmed_keyphrases_map,
     const std::unordered_map<std::string, std::string> &stemmed_keyphrases_to_unstemmed_keyphrases_map,
     const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
@@ -288,20 +288,20 @@ void AugmentRecordsWithTitleKeywords(
         std::cerr << "Starting augmentation of stopwords.\n";
 
     unsigned total_count(0), augmented_record_count(0);
-    while (MarcRecord record = MarcReader::Read(input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ++total_count;
 
         // Look for a title...
         const size_t title_index(record.getFieldIndex("245"));
         if (title_index == MarcRecord::FIELD_NOT_FOUND) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
         // ...in subfields 'a', 'b', 'c' and 'p':
         Subfields subfields(record.getSubfields(title_index));
         if (not subfields.hasSubfield('a')) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
         std::string title;
@@ -326,7 +326,7 @@ void AugmentRecordsWithTitleKeywords(
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
@@ -370,7 +370,7 @@ void AugmentRecordsWithTitleKeywords(
         }
 
         if (new_keyphrases.empty()) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
@@ -378,7 +378,7 @@ void AugmentRecordsWithTitleKeywords(
         for (const auto &new_keyword : new_keyphrases)
             record.insertSubfield("601", 'a', new_keyword);
 
-        MarcWriter::Write(record, output);
+        marc_writer->write(record);
         ++augmented_record_count;
     }
 
@@ -389,7 +389,7 @@ void AugmentRecordsWithTitleKeywords(
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc < 3)
         Usage();
@@ -399,17 +399,12 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[verbose ? 2 : 1]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
     const std::string marc_output_filename(argv[verbose ? 3 : 2]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
-
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("MARC input file name equals MARC output file name!");
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     // Read optional stopword lists:
     std::map<std::string, std::unordered_set<std::string>> language_codes_to_stopword_sets;
@@ -435,11 +430,13 @@ int main(int argc, char **argv) {
     try {
         std::unordered_map<std::string, std::set<std::string>> stemmed_keyword_to_stemmed_keyphrases_map;
         std::unordered_map<std::string, std::string> stemmed_keyphrases_to_unstemmed_keyphrases_map;
-        ExtractStemmedKeywords(verbose, &marc_input, &stemmed_keyword_to_stemmed_keyphrases_map,
+        ExtractStemmedKeywords(verbose, marc_reader.get(), &stemmed_keyword_to_stemmed_keyphrases_map,
                                &stemmed_keyphrases_to_unstemmed_keyphrases_map);
-        marc_input.rewind();
-        AugmentRecordsWithTitleKeywords(verbose, &marc_input, &marc_output, stemmed_keyword_to_stemmed_keyphrases_map,
-                                        stemmed_keyphrases_to_unstemmed_keyphrases_map, language_codes_to_stopword_sets);
+        marc_reader->rewind();
+        AugmentRecordsWithTitleKeywords(verbose, marc_reader.get(), marc_writer.get(),
+                                        stemmed_keyword_to_stemmed_keyphrases_map,
+                                        stemmed_keyphrases_to_unstemmed_keyphrases_map,
+                                        language_codes_to_stopword_sets);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

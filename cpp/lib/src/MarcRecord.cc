@@ -331,43 +331,13 @@ void MarcRecord::combine(const MarcRecord &record) {
 }
 
 
-bool MarcRecord::ProcessRecords(File *const input, File *const output, RecordFunc process_record,
-                                std::string *const err_msg)
+bool MarcRecord::ProcessRecords(MarcReader * const marc_reader, RecordFunc process_record,
+                                MarcWriter * const marc_writer, std::string * const err_msg)
 {
     err_msg->clear();
 
-    while (MarcRecord record = MarcReader::Read(input)) {
-        if (not (*process_record)(&record, output, err_msg))
-            return false;
-        err_msg->clear();
-    }
-
-    return err_msg->empty();
-}
-
-
-bool MarcRecord::ProcessRecords(File *const input, XmlRecordFunc process_record, XmlWriter *const xml_writer,
-                                std::string *const err_msg)
-{
-    err_msg->clear();
-
-    while (MarcRecord record = MarcReader::ReadXML(input)) {
-        if (not (*process_record)(&record, xml_writer, err_msg))
-            return false;
-        err_msg->clear();
-    }
-
-    return err_msg->empty();
-}
-
-
-bool MarcRecord::ProcessRecords(File * const input, File * const output, UniversalRecordFunc process_record,
-                                XmlWriter * const xml_writer, std::string * const err_msg)
-{
-    err_msg->clear();
-
-    while (MarcRecord record = (output == nullptr) ? MarcReader::ReadXML(input) : MarcReader::Read(input)) {
-        if (not (*process_record)(&record, output, xml_writer, err_msg))
+    while (MarcRecord record = marc_reader->read()) {
+        if (not (*process_record)(&record, marc_writer, err_msg))
             return false;
         err_msg->clear();
     }

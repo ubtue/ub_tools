@@ -1,7 +1,7 @@
 /** \brief Utility for deleting partial or entire MARC records based on an input list.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -38,12 +38,13 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << progname << " deletion_list input_marc output_marc\n";
+    std::cerr << "Usage: " << ::progname << " deletion_list input_marc output_marc\n";
     std::exit(EXIT_FAILURE);
 }
 
 
 static std::set<std::string> unknown_types;
+
 
 // Use the following indicators to select whether to fully delete a record or remove its local data
 // For a description of indicators
@@ -138,7 +139,8 @@ bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_
         if (field_indices.size() != 1)
             Error("Every local data block has to have exactly one 001 field. (Record: " + record->getControlNumber()
                   + ", Local data block: " + std::to_string(local_block_boundary.first) + " - "
-                  + std::to_string(local_block_boundary.second) + ". Found " + std::to_string(field_indices.size()) + ")");
+                  + std::to_string(local_block_boundary.second) + ". Found " + std::to_string(field_indices.size())
+                  + ")");
         const Subfields subfields(record->getSubfields(field_indices[0]));
         const std::string subfield_contents(subfields.getFirstSubfieldValue('0'));
         if (not StringUtil::StartsWith(subfield_contents, "001 ")
@@ -155,22 +157,22 @@ bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_
 
 
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
-                    const std::unordered_set <std::string> &local_deletion_ids, File * const input,
-                    File * const output)
+                    const std::unordered_set <std::string> &local_deletion_ids, MarcReader * const marc_reader,
+                    MarcWriter * const marc_writer)
 {
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
-    while (MarcRecord record = MarcReader::Read(input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ++total_record_count;
 
         if (title_deletion_ids.find(record.getControlNumber()) != title_deletion_ids.end())
             ++deleted_record_count;
         else { // Look for local (LOK) data sets that may need to be deleted.
             if (not DeleteLocalSections(local_deletion_ids, &record))
-                MarcWriter::Write(record, output);
+                marc_writer->write(record);
             else {
                 // Unlike former versions we no longer delete records without local data
                 ++modified_record_count;
-                MarcWriter::Write(record, output);
+                marc_writer->write(record);
             }
         }
     }
@@ -182,7 +184,7 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
 
 
 int main(int argc, char *argv[]) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 4)
         Usage();
@@ -195,18 +197,11 @@ int main(int argc, char *argv[]) {
     std::unordered_set <std::string> title_deletion_ids, local_deletion_ids;
     ExtractDeletionIds(&deletion_list, &title_deletion_ids, &local_deletion_ids);
 
-    const std::string marc_input_filename(argv[2]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
-    const std::string marc_output_filename(argv[3]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3], MarcWriter::BINARY));
 
     try {
-        ProcessRecords(title_deletion_ids, local_deletion_ids, &marc_input, &marc_output);
+        ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }

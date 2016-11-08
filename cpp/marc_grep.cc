@@ -192,7 +192,7 @@ public:
     const std::string &getTagOrTagPlusSubfieldCode() const { return tag_or_tag_plus_subfield_code_; }
     const std::string &getContents() const { return contents_; }
 
-    bool operator<(const TagAndContents &rhs) const 
+    bool operator<(const TagAndContents &rhs) const
         { return tag_or_tag_plus_subfield_code_ > rhs.tag_or_tag_plus_subfield_code_; }
 };
 
@@ -392,24 +392,15 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
                const std::unordered_set<std::string> &control_numbers, const std::string &input_filename,
                const QueryDescriptor &query_desc, const OutputLabel output_format)
 {
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(input_filename));
+    std::unique_ptr<MarcWriter> marc_writer(nullptr);
+    if (output_format == MARC_BINARY or output_format == MARC_XML)
+        marc_writer = MarcWriter::Factory("/proc/self/fd/1",
+                                          (output_format == MARC_XML) ? MarcWriter::XML : MarcWriter::BINARY);
 
-    const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
-    if (unlikely(media_type.empty()))
-        Error("can't determine media type of \"" + input_filename + "\"!");
-    if (media_type != "application/xml" and media_type != "application/marc")
-        Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
-    const bool input_is_xml(media_type == "application/xml");
-
-    File output(STDOUT_FILENO);
     std::string err_msg;
     unsigned count(0), matched_count(0), rate_counter(0);
-
-    std::unique_ptr<MarcXmlWriter> xml_writer;
-    if (output_format == MARC_XML)
-        xml_writer.reset(new MarcXmlWriter(&output));
-
-    while (MarcRecord record = input_is_xml ? MarcReader::ReadXML(input.get()) : MarcReader::Read(input.get())) {
+    while (MarcRecord record = marc_reader->read()) {
         // If we use a control number filter, only process a record if it is in our list:
         if (not control_numbers.empty() and control_numbers.find(record.getControlNumber()) == control_numbers.cend())
             continue;
@@ -448,10 +439,8 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
         if (matched) {
             ++matched_count;
 
-            if (output_format == MARC_BINARY)
-                MarcWriter::Write(record, &output);
-            else if (output_format == MARC_XML)
-                MarcWriter::Write(record, xml_writer.get());
+            if (output_format == MARC_BINARY or output_format == MARC_XML)
+                marc_writer->write(record);
             else {
                 // Determine the control number:
                 const auto &control_number_iter(field_to_content_map.find("001"));

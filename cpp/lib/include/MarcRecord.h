@@ -24,35 +24,31 @@
 
 #include <iostream>
 #include <limits>
-#include <set>
 #include <string>
 #include <unordered_set>
 #include <vector>
-#include "Compiler.h"
 #include "DirectoryEntry.h"
-#include "File.h"
 #include "Leader.h"
 #include "MarcReader.h"
 #include "MarcWriter.h"
 #include "Subfields.h"
-#include "XmlWriter.h"
-
-
-// Forward declarations.
-class MarcReader;
-class MarcWriter;
 
 
 class MarcRecord {
+    friend class BinaryMarcReader;
+    friend class XmlMarcReader;
+    friend class BinaryMarcWriter;
+    friend class XmlMarcWriter;
 public:
-    static const size_t FIELD_NOT_FOUND =  std::numeric_limits<size_t>::max();
+    static const size_t FIELD_NOT_FOUND = std::numeric_limits<size_t>::max();
 private:
-    Leader leader_;
+    mutable Leader leader_;
     std::vector<DirectoryEntry> directory_entries_;
     std::string raw_data_;
 
     MarcRecord(Leader &leader, std::vector<DirectoryEntry> directory_entries, std::string &raw_data)
-        : leader_(std::move(leader)), directory_entries_(std::move(directory_entries)), raw_data_(std::move(raw_data)) {}
+        : leader_(std::move(leader)), directory_entries_(std::move(directory_entries)),
+          raw_data_(std::move(raw_data)) { }
 public:
     MarcRecord() = default;
     MarcRecord(MarcRecord &&other) noexcept
@@ -189,6 +185,8 @@ private:
     // Copies all field data from record into this record and extends the directory_entries_ of this record
     // accordingly.
     void combine(const MarcRecord &record);
+    
+    static MarcRecord ReadSingleRecord(File * const input);
 };
 
 

@@ -24,6 +24,7 @@
 #include <iostream>
 #include <set>
 #include <cstdlib>
+#include "Compiler.h"
 #include "DirectoryEntry.h"
 #include "HtmlUtil.h"
 #include "Leader.h"
@@ -31,22 +32,130 @@
 #include "MarcReader.h"
 #include "MarcWriter.h"
 #include "MarcXmlWriter.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
+
+
+class Range {
+    unsigned start_volume_;
+    unsigned start_year_;
+    unsigned end_volume_;
+    unsigned end_year_;
+public:
+    Range(const unsigned start_volume, const unsigned start_year, const unsigned end_volume, const unsigned end_year)
+        : start_volume_(start_volume), start_year_(start_year), end_volume_(end_volume), end_year_(end_year) { }
+
+    inline bool inRange(const unsigned volume, const unsigned year) const {
+        return start_volume_ < volume < end_volume_ and start_year_ < year < end_year_;
+    }
+};
 
 
 static unsigned modified_record_count;
 static unsigned add_sig_count;
 
 
-bool ProcessRecord(MarcRecord * const record, File * const output, std::string * const /*err_msg*/) {
+// Returns UB and criminology sigils or the empty string.
+std::string FindSigil(MarcRecord * const record, const std::pair<size_t, size_t> &block_start_and_end) {
+    std::vector<size_t> field_indices;
+    record->findFieldsInLocalBlock("852", "  ", block_start_and_end, &field_indices);
+    for (size_t field_index : field_indices) {
+        const std::string _852a_contents(record->extractFirstSubfield(field_index, 'a'));
+        if (StringUtil::StartsWith(_852a_contents, "DE-21"))
+            return _852a_contents;
+    }
+
+    return "";
+}
+
+
+void ParseRanges(const std::string &_866a_contents, std::vector<Range> * const ranges) {
+    ranges->clear();
+
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("(\\d+)\\.(\\d+)\\s*-\\s*(\\d+)\\.(\\d+)"));
+    std::vector<std::string> individual_ranges;
+    StringUtil::SplitThenTrimWhite(_866a_contents, ';', &individual_ranges);
+    for (const auto &individual_range : individual_ranges) {
+        if (not matcher->matched(individual_range))
+            Warning("couldn't match rage: \"" + individual_range + "\"!");
+        else {
+            unsigned start_volume;
+            if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
+                Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+                continue;
+            }
+            
+            unsigned start_year;
+            if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
+                Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+                continue;
+            }
+            if (start_year < 1900) {
+                Warning("start year is less than 1900 (" + std::to_string(start_year) + ")!");
+                continue;
+            }
+            
+            unsigned end_volume;
+            if (not StringUtil::ToUnsigned((*matcher)[3], &end_volume)) {
+                Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
+                continue;
+            }
+            
+            unsigned end_year;
+            if (not StringUtil::ToUnsigned((*matcher)[4], &end_year)) {
+                Warning("can't convert \"" + (*matcher)[4] + "\" to an unsigned end year!");
+                continue;
+            }
+            if (end_year < 1900) {
+                Warning("end year is less than 1900 (" + std::to_string(end_year) + ")!");
+                continue;
+            }
+
+            ranges->emplace_back(Range(start_volume, start_year, end_volume, end_year));
+        }
+    }
+}
+
+
+bool ProcessSerialRecord(MarcRecord * const record, MarcWriter * const /*output*/, std::string * const /*err_msg*/) {
+    if (not record->getLeader().isSerial())
+        return true;
+
+    std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+    record->findAllLocalDataBlocks(&local_block_boundaries);
+    for (const auto &block_start_and_end : local_block_boundaries) {
+        const std::string sigil(FindSigil(record, block_start_and_end));
+        if (sigil != "DE-21" and sigil != "DE-21-110")
+            continue;
+
+        std::vector<size_t> field_indices;
+        record->findFieldsInLocalBlock("866", "30", block_start_and_end, &field_indices);
+        if (field_indices.empty())
+            continue;
+
+        for (size_t field_index : field_indices) {
+            const std::string _866a_contents(record->extractFirstSubfield(field_index, 'a'));
+            if (unlikely(_866a_contents.empty()))
+                continue;
+
+            std::vector<Range> ranges;
+            ParseRanges(_866a_contents, &ranges);
+        }
+    }
+
+    return true;
+}
+
+
+bool ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer, std::string * const /*err_msg*/) {
     std::vector <std::pair<size_t, size_t>> local_block_boundaries;
     record->findAllLocalDataBlocks(&local_block_boundaries);
 
@@ -92,7 +201,8 @@ bool ProcessRecord(MarcRecord * const record, File * const output, std::string *
                     ++add_sig_count;
                     modified_record = true;
                     record->insertSubfield("SIG", 'a', institution_and_call_number
-                                           + (detailed_availability.empty() ? "" : "(" + detailed_availability + ")"));
+                                           + (detailed_availability.empty() ? "" : "(" + detailed_availability
+                                              + ")"));
                 } else { // Look for a URL.
                     std::vector <size_t> _856_field_indices;
                     if (record->findFieldsInLocalBlock("856", "4 ", block_start_and_end, &_856_field_indices) > 0) {
@@ -117,14 +227,19 @@ bool ProcessRecord(MarcRecord * const record, File * const output, std::string *
     if (modified_record)
         ++modified_record_count;
 
-    MarcWriter::Write(*record, output);
+    marc_writer->write(*record);
     return true;
 }
 
 
-void PopulateTheInTuebingenAvailableField(const bool verbose, File * const input, File * const output) {
+void PopulateTheInTuebingenAvailableField(const bool verbose, MarcReader * const marc_reader,
+                                          MarcWriter * const marc_writer)
+{
     std::string err_msg;
-    if (not MarcRecord::ProcessRecords(input, output, ProcessRecord, &err_msg))
+    if (not MarcRecord::ProcessRecords(marc_reader, ProcessSerialRecord, marc_writer, &err_msg))
+        Error("error while processing serial records: " + err_msg);
+
+    if (not MarcRecord::ProcessRecords(marc_reader, ProcessRecord, marc_writer, &err_msg))
         Error("error while processing records: " + err_msg);
 
     if (verbose) {
@@ -135,7 +250,7 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, File * const input
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 3 and argc != 4)
         Usage();
@@ -149,15 +264,11 @@ int main(int argc, char **argv) {
         verbose = true;
     }
 
-    const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
-    const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
-
-    PopulateTheInTuebingenAvailableField(verbose, &marc_input, &marc_output);
+    try {
+        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[argc == 3 ? 1 : 2], MarcReader::BINARY));
+        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[argc == 3 ? 2 : 3], MarcWriter::BINARY));
+        PopulateTheInTuebingenAvailableField(verbose, marc_reader.get(), marc_writer.get());
+    } catch (const std::exception &x) {
+        Error("caught exception: " + std::string(x.what()));
+    }
 }

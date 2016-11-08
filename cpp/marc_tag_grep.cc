@@ -38,9 +38,7 @@ void Usage() {
 
 
 void TagGrep(const std::string &regex, const std::string &input_filename) {
-    File input(input_filename, "r");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(input_filename));
 
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex, &err_msg));
@@ -48,7 +46,7 @@ void TagGrep(const std::string &regex, const std::string &input_filename) {
         Error("bad regex: " + err_msg);
 
     unsigned count(0), field_matched_count(0), record_matched_count(0);
-    while (const MarcRecord record = MarcReader::Read(&input)) {
+    while (const MarcRecord record = marc_reader->read()) {
         ++count;
         bool at_least_one_field_matched(false);
         for (size_t index(0); index < record.getNumberOfFields(); ++index) {
@@ -69,7 +67,7 @@ void TagGrep(const std::string &regex, const std::string &input_filename) {
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 3)
         Usage();
