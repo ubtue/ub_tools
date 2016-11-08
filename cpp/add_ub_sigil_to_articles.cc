@@ -68,7 +68,7 @@ bool ExtractInventoryInfoFromDE21Block(const size_t block_start_index, const siz
 }
 
 
-void CollectParentIDs(const bool verbose, File * const input,
+void CollectParentIDs(const bool verbose, MarcReader * const marc_reader,
                       std::unordered_map<std::string, std::string> * const parent_ids_and_inventory_info)
 {
     if (verbose)
@@ -76,7 +76,7 @@ void CollectParentIDs(const bool verbose, File * const input,
 
     unsigned count(0);
     std::string err_msg;
-    while (const MarcRecord record = MarcReader::Read(input)) {
+    while (const MarcRecord record = marc_reader->read()) {
         ++count;
 
         const Leader &leader(record.getLeader());
@@ -109,7 +109,7 @@ bool IssueInInventory(const std::string &/*inventory_info*/, const MarcRecord &/
 
 
 void AddMissingSigilsToArticleEntries(
-    const bool verbose, File * const input, File * const output,
+    const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer,
     const std::unordered_map<std::string, std::string> &parent_ids_and_inventory_info)
 {
     if (verbose)
@@ -117,18 +117,18 @@ void AddMissingSigilsToArticleEntries(
 
     unsigned count(0), ids_added(0), missing_host_record_ctrl_num_count(0),
              missing_parent_id_count(0);
-    while (MarcRecord record = MarcReader::Read(input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ++count;
 
         const Leader &leader(record.getLeader());
         if (not leader.isArticle()) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
         const size_t index_773 = record.getFieldIndex("773");
         if (index_773 == MarcRecord::FIELD_NOT_FOUND) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
@@ -136,7 +136,7 @@ void AddMissingSigilsToArticleEntries(
 
         auto begin_end = subfields.getIterators('w'); // Record control number of Host Item Entry.
         if (begin_end.first == begin_end.second) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             ++missing_host_record_ctrl_num_count;
             continue;
         }
@@ -151,7 +151,7 @@ void AddMissingSigilsToArticleEntries(
 
         auto const parent_id_iter(parent_ids_and_inventory_info.find(host_id));
         if (parent_id_iter == parent_ids_and_inventory_info.end()) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             ++missing_parent_id_count;
             continue;
         }
@@ -160,7 +160,7 @@ void AddMissingSigilsToArticleEntries(
             record.insertField("LOK", "  ""\x1F""0852""\x1F""aDE-21");
             ++ids_added;
         }
-        MarcWriter::Write(record, output);
+        marc_writer->write(record);
     }
 
     if (verbose) {
@@ -181,22 +181,20 @@ int main(int argc, char **argv) {
     const bool verbose(argc == 4);
 
     const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
-    std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(marc_input_filename));
-
     const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Master input file name equals output file name!");
-    std::string output_mode("w");
-    File marc_output(marc_output_filename, output_mode);
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     try {
         std::unordered_map<std::string, std::string> parent_ids_and_inventory_info;
-        CollectParentIDs(verbose, marc_input.get(), &parent_ids_and_inventory_info);
+        CollectParentIDs(verbose, marc_reader.get(), &parent_ids_and_inventory_info);
 
-        marc_input->rewind();
-        AddMissingSigilsToArticleEntries(verbose, marc_input.get(), &marc_output, parent_ids_and_inventory_info);
+        marc_reader->rewind();
+        AddMissingSigilsToArticleEntries(verbose, marc_reader.get(), marc_writer.get(),
+                                         parent_ids_and_inventory_info);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
