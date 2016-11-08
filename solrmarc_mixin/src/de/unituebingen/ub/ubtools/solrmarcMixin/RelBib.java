@@ -46,7 +46,7 @@ public class RelBib extends IxTheo {
     final static String FALSE = "false";
 
     // Integrate DDC 220-289
-    String RELSTUDIES_DDC_RANGE_PATTERN = "2[2-8][0-9]\\.?.*";
+    String RELSTUDIES_DDC_RANGE_PATTERN = "2[2-8][0-9]\\.?[^.]*";
     Pattern relStudiesDDCPattern = Pattern.compile(RELSTUDIES_DDC_RANGE_PATTERN);
 
     public String getIsReligiousStudiesDDC(final Record record) {
