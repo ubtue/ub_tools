@@ -74,8 +74,9 @@ void ExtractSynonyms(File * const reference_data_id_term_list_input, std::map<st
 }
 
 
-void ProcessRecord(MarcRecord * const record, const std::string &output_tag_and_subfield_code, const std::map<std::string, std::string> &synonym_map) {
-
+void ProcessRecord(MarcRecord * const record, const std::string &output_tag_and_subfield_code,
+                   const std::map<std::string, std::string> &synonym_map)
+{
     std::map<std::string, std::string>::const_iterator iter(synonym_map.find(record->getControlNumber()));
 
     // Abort if not found
@@ -101,11 +102,13 @@ void ProcessRecord(MarcRecord * const record, const std::string &output_tag_and_
 }
 
 
-void InsertSynonyms(File * const marc_input, File * marc_output, const std::string &output_tag_and_subfield_code, const std::map<std::string, std::string> &synonym_map)
+void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * marc_writer,
+                    const std::string &output_tag_and_subfield_code,
+                    const std::map<std::string, std::string> &synonym_map)
 {
-    while (MarcRecord record = MarcReader::Read(marc_input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ProcessRecord(&record, output_tag_and_subfield_code, synonym_map);
-        MarcWriter::Write(record, marc_output);
+        marc_writer->write(record);
         ++record_count;
     }
 
@@ -120,19 +123,16 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string reference_data_id_term_list_filename(argv[1]);
-    std::unique_ptr<File> reference_data_id_term_list_input(FileUtil::OpenInputFileOrDie(reference_data_id_term_list_filename));
+    std::unique_ptr<File> reference_data_id_term_list_input(
+        FileUtil::OpenInputFileOrDie(reference_data_id_term_list_filename));
 
     const std::string marc_input_filename(argv[2]);
-    const std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(marc_input_filename));
-
     const std::string marc_output_filename(argv[3]);
-    if (unlikely(marc_input_filename == marc_output_filename))
-        Error("Title data input file name equals output file name!");
-
     if (unlikely(reference_data_id_term_list_filename == marc_output_filename))
         Error("Reference data id term list input file name equals output file name!");
 
-    std::unique_ptr<File> marc_output(FileUtil::OpenOutputFileOrDie(marc_output_filename));
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     const std::string TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS("187a");
 
@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
         std::map<std::string, std::string> synonym_map;
         // Extract the synonyms from reference marc data
         ExtractSynonyms(reference_data_id_term_list_input.get(), &synonym_map);
-        InsertSynonyms(marc_input.get(), marc_output.get(), TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS, synonym_map);
+        InsertSynonyms(marc_reader.get(), marc_writer.get(), TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS, synonym_map);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
