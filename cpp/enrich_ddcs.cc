@@ -1,7 +1,7 @@
 /** \brief A tool to add DDC metadata to title data using various means.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -47,7 +47,9 @@ bool IsPossibleDDC(const std::string &ddc_candidate) {
 
 
 void ExtractDDCsFromField(const std::string &tag, const MarcRecord &record, std::set<std::string> * const ddcs) {
-    for (size_t index = record.getFieldIndex(tag); index < record.getNumberOfFields() and record.getTag(index) == tag; ++index) {
+    for (size_t index = record.getFieldIndex(tag); index < record.getNumberOfFields() and record.getTag(index) == tag;
+         ++index)
+    {
         const Subfields subfields(record.getSubfields(index));
         if (subfields.hasSubfield('z')) // Auxillary table number => not a regular DDC in $a!
             continue;
@@ -61,15 +63,15 @@ void ExtractDDCsFromField(const std::string &tag, const MarcRecord &record, std:
 }
 
 
-void ExtractDDCsFromNormdata(const bool verbose, File * const norm_input,
-                             std::unordered_map<std::string, std::set<std::string>> * const norm_ids_to_ddcs_map)
+void ExtractDDCsFromAuthorityData(const bool verbose, MarcReader * const authority_reader,
+                                  std::unordered_map<std::string, std::set<std::string>> * const norm_ids_to_ddcs_map)
 {
     norm_ids_to_ddcs_map->clear();
     if (verbose)
         std::cerr << "Starting loading of norm data.\n";
 
     unsigned count(0), ddc_record_count(0);
-    while (const MarcRecord &record = MarcReader::Read(norm_input)) {
+    while (const MarcRecord record = authority_reader->read()) {
         ++count;
 
         const size_t _001_index = record.getFieldIndex("001");
@@ -101,7 +103,9 @@ void ExtractTopicIDs(const std::string &tags, const MarcRecord &record, const st
     StringUtil::Split(tags, ':', &individual_tags);
 
     for (const auto &tag : individual_tags) {
-        for (size_t index(record.getFieldIndex(tag)); index < record.getNumberOfFields() and record.getTag(index) == tag; ++index) {
+        for (size_t index(record.getFieldIndex(tag));
+             index < record.getNumberOfFields() and record.getTag(index) == tag; ++index)
+        {
             const Subfields subfields(record.getSubfields(index));
             const auto begin_end(subfields.getIterators('0'));
             for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
@@ -117,14 +121,14 @@ void ExtractTopicIDs(const std::string &tags, const MarcRecord &record, const st
 }
 
 
-void AugmentRecordsWithDDCs(const bool verbose, File * const title_input, File * const title_output,
+void AugmentRecordsWithDDCs(const bool verbose, MarcReader * const title_reader, MarcWriter * const title_writer,
                             const std::unordered_map<std::string, std::set<std::string>> &norm_ids_to_ddcs_map)
 {
     if (verbose)
         std::cerr << "Starting augmenting of data.\n";
 
     unsigned count(0), augmented_count(0), already_had_ddcs(0), never_had_ddcs_and_now_have_ddcs(0);
-    while (MarcRecord record = MarcReader::Read(title_input)) {
+    while (MarcRecord record = title_reader->read()) {
         ++count;
 
         // Extract already existing DDCs:
@@ -137,7 +141,7 @@ void AugmentRecordsWithDDCs(const bool verbose, File * const title_input, File *
         std::set<std::string> topic_ids; // = the IDs of the corresponding norm data records
         ExtractTopicIDs("600:610:611:630:650:653:656:689", record, existing_ddcs, &topic_ids);
         if (topic_ids.empty()) {
-            MarcWriter::Write(record, title_output);
+            title_writer->write(record);
             continue;
         }
 
@@ -158,7 +162,7 @@ void AugmentRecordsWithDDCs(const bool verbose, File * const title_input, File *
             }
         }
 
-        MarcWriter::Write(record, title_output);
+        title_writer->write(record);
     }
 
     if (verbose) {
@@ -190,30 +194,22 @@ int main(int argc, char *argv[]) {
     }
 
     const std::string title_input_filename(argv[verbose ? 2 : 1]);
-    File title_input(title_input_filename, "r");
-    if (not title_input)
-        Error("can't open \"" + title_input_filename + "\" for reading!");
-
-    const std::string norm_input_filename(argv[verbose ? 3 : 2]);
-    File norm_input(norm_input_filename, "r");
-    if (not norm_input)
-        Error("can't open \"" + norm_input_filename + "\" for reading!");
-
+    const std::string authority_input_filename(argv[verbose ? 3 : 2]);
     const std::string title_output_filename(argv[verbose ? 4 : 3]);
-    File title_output(title_output_filename, "w");
-    if (not title_output)
-        Error("can't open \"" + title_output_filename + "\" for writing!");
 
     if (unlikely(title_input_filename == title_output_filename))
         Error("Title input file name equals title output file name!");
 
-    if (unlikely(norm_input_filename == title_output_filename))
-        Error("Norm data input file name equals title output file name!");
+    if (unlikely(authority_input_filename == title_output_filename))
+        Error("Authority data input file name equals title output file name!");
 
+    std::unique_ptr<MarcReader> title_reader(MarcReader::Factory(title_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcReader> authority_reader(MarcReader::Factory(authority_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> title_writer(MarcWriter::Factory(title_output_filename, MarcWriter::BINARY));
     try {
-        std::unordered_map<std::string, std::set<std::string>> norm_ids_to_ddcs_map;
-        ExtractDDCsFromNormdata(verbose, &norm_input, &norm_ids_to_ddcs_map);
-        AugmentRecordsWithDDCs(verbose, &title_input, &title_output, norm_ids_to_ddcs_map);
+        std::unordered_map<std::string, std::set<std::string>> authority_ids_to_ddcs_map;
+        ExtractDDCsFromAuthorityData(verbose, authority_reader.get(), &authority_ids_to_ddcs_map);
+        AugmentRecordsWithDDCs(verbose, title_reader.get(), title_writer.get(), authority_ids_to_ddcs_map);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

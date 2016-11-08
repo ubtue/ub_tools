@@ -43,14 +43,13 @@ static void Usage() {
 }
 
 
-void ProcessRecords(const bool verbose, const bool input_is_xml, File * const input) {
+void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0);
     std::unordered_set<std::string> control_numbers;
     std::map<Leader::RecordType, unsigned> record_types_and_counts;
 
-    while (const MarcRecord record = input_is_xml ? MarcReader::ReadXML(input) : MarcReader::Read(input))
-    {
+    while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
 
         if (unlikely(record.getNumberOfFields() == 0))
@@ -61,10 +60,6 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
         ++record_types_and_counts[record_type];
         if (verbose and record_type == Leader::RecordType::UNKNOWN)
             std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number << ".\n";
-
-        std::string err_msg;
-//        if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
-//            Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
 
         if (control_numbers.find(control_number) != control_numbers.end())
             Error("found at least one duplicate control number: " + control_number);
@@ -106,7 +101,7 @@ void ProcessRecords(const bool verbose, const bool input_is_xml, File * const in
 
 
 int main(int argc, char *argv[]) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc < 2)
         Usage();
@@ -118,20 +113,10 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    const std::string marc_input_filename(argv[1]);
-    const std::string media_type(MediaTypeUtil::GetFileMediaType(marc_input_filename));
-    if (unlikely(media_type.empty()))
-        Error("can't determine media type of \"" + marc_input_filename + "\"!");
-    if (media_type != "application/xml" and media_type != "application/marc")
-        Error("\"" + marc_input_filename + "\" is neither XML nor MARC-21 data!");
-    const bool input_is_xml(media_type == "application/xml");
-
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
 
     try {
-        ProcessRecords(verbose, input_is_xml, &marc_input);
+        ProcessRecords(verbose, marc_reader.get());
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }

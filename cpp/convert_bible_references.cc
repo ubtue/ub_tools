@@ -35,7 +35,7 @@ static unsigned conversion_count(0);
 // Spits out those records that have a 040$e field which starts with "rak" and has a 130 field.
 // In that case it sets 040$e to "rda", move the contents of 130$a to 130$p and sets 130$a
 // to "Bibel".
-void ProcessRecord(MarcRecord * const record, File * const output) {
+void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
     const size_t _040_index(record->getFieldIndex("040"));
     if (_040_index == MarcRecord::FIELD_NOT_FOUND)
         return; // Nothing to do!
@@ -61,44 +61,42 @@ void ProcessRecord(MarcRecord * const record, File * const output) {
         record->updateField(static_cast<size_t>(_130_index), _130_subfields.toString());
     }
 
-    MarcWriter::Write(*record, output);
+    marc_writer->write(*record);
 
     ++conversion_count;
 }
 
 
-void ConvertBibleRefs(File * const input, File * const output) {
-    while (MarcRecord record = MarcReader::Read(input))
-        ProcessRecord(&record, output);
+void ConvertBibleRefs(MarcReader * const marc_reader, MarcWriter * const marc_writer) {
+    while (MarcRecord record = marc_reader->read())
+        ProcessRecord(&record, marc_writer);
 
     std::cerr << "Converted " << conversion_count << " record(s).\n";
 }
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " norm_data_input norm_data_output\n";
+    std::cerr << "Usage: " << ::progname << " norm_data_input norm_data_output\n";
     std::exit(EXIT_FAILURE);
 }
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 3)
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
     const std::string marc_output_filename(argv[2]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+    if (marc_input_filename == marc_output_filename)
+        Error("input filename can't equal the output filename!");
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     try {
-        ConvertBibleRefs(&marc_input, &marc_output);
+        ConvertBibleRefs(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
