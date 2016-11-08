@@ -60,10 +60,10 @@ bool SeriesHasNotBeenCompleted(const MarcRecord &record) {
 }
 
 
-void ProcessRecord(File * const output, MarcRecord * const record) {
+void ProcessRecord(MarcWriter * const marc_writer, MarcRecord * const record) {
     // Don't add the flag twice:
     if (record->getFieldIndex("SPR") != MarcRecord::FIELD_NOT_FOUND) {
-        MarcWriter::Write(*record, output);
+        marc_writer->write(*record);
         return;
     }
 
@@ -83,13 +83,13 @@ void ProcessRecord(File * const output, MarcRecord * const record) {
         ++modified_count;
     }
 
-    MarcWriter::Write(*record, output);
+    marc_writer->write(*record);
 }
 
 
-void AddSuperiorFlag(File * const input, File * const output) {
-    while (MarcRecord record = MarcReader::Read(input))
-        ProcessRecord(output, &record);
+void AddSuperiorFlag(MarcReader * const marc_reader, MarcWriter * const marc_writer) {
+    while (MarcRecord record = marc_reader->read())
+        ProcessRecord(marc_writer, &record);
 
     std::cerr << "Modified " << modified_count << " record(s).\n";
 }
@@ -115,13 +115,13 @@ int main(int argc, char **argv) {
     if (argc != 4)
         Usage();
 
-    const std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(argv[1]));
-    const std::unique_ptr<File> marc_output(FileUtil::OpenOutputFileOrDie(argv[2]));
+    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
+    const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
     const std::unique_ptr<File> superior_ppn_input(FileUtil::OpenInputFileOrDie(argv[3]));
 
     try {
         LoadSuperiorPPNs(superior_ppn_input.get());
-        AddSuperiorFlag(marc_input.get(), marc_output.get());
+        AddSuperiorFlag(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

@@ -60,12 +60,12 @@ static void Usage() {
 }
 
 
-void FileLockedComposeAndWriteRecord(File * const output, MarcRecord * const record) {
-    FileLocker file_locker(output, FileLocker::WRITE_ONLY);
-    if (not output->seek(0, SEEK_END))
-        Error("failed to seek to the end of \"" + output->getPath() + "\"!");
-    MarcWriter::Write(*record, output);
-    output->flush();
+void FileLockedComposeAndWriteRecord(MarcWriter * const marc_writer, MarcRecord * const record) {
+    FileLocker file_locker(&(marc_writer->getFile()), FileLocker::WRITE_ONLY);
+    if (not (marc_writer->getFile().seek(0, SEEK_END)))
+        Error("failed to seek to the end of \"" + marc_writer->getFile().getPath() + "\"!");
+    marc_writer->write(*record);
+    marc_writer->getFile().flush();
 }
 
 
@@ -87,7 +87,9 @@ bool IsProbablyAReview(const Subfields &subfields) {
 
 
 bool FoundAtLeastOneNonReviewLink(const MarcRecord &record) {
-    for (size_t _856_index(record.getFieldIndex("856")); _856_index < record.getNumberOfFields() and record.getTag(_856_index) == "856"; ++_856_index) {
+    for (size_t _856_index(record.getFieldIndex("856"));
+         _856_index < record.getNumberOfFields() and record.getTag(_856_index) == "856"; ++_856_index)
+    {
         const Subfields subfields(record.getSubfields(_856_index));
         if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;
@@ -114,9 +116,9 @@ unsigned CleanUpZombies(const unsigned zombies_to_collect) {
 }
 
 
-void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, File * const input,
-                    File * const output, const std::string &db_filename, const unsigned process_count_low_watermark,
-                    const unsigned process_count_high_watermark)
+void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, MarcReader * const marc_reader,
+                    MarcWriter * const marc_writer, const std::string &db_filename,
+                    const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
 {
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
@@ -127,8 +129,8 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     std::cout << "Skip " << skip_count << " records\n";
 
-    off_t record_start = input->tell();
-    while (MarcRecord record = MarcReader::Read(input)) {
+    off_t record_start = marc_reader->tell();
+    while (MarcRecord record = marc_reader->read()) {
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;
@@ -136,12 +138,13 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             continue;
 
         if (not FoundAtLeastOneNonReviewLink(record)) {
-            FileLockedComposeAndWriteRecord(output, &record);
+            FileLockedComposeAndWriteRecord(marc_writer, &record);
             continue;
         }
 
         ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
-                        { std::to_string(record_start), input->getPath(), output->getPath(), db_filename });
+                        { std::to_string(record_start), marc_reader->getPath(), marc_writer->getFile().getPath(),
+                          db_filename });
         ++active_child_count;
         ++spawn_count;
 
@@ -149,7 +152,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             child_reported_failure_count += CleanUpZombies(active_child_count - process_count_low_watermark);
             active_child_count = process_count_low_watermark;
         }
-        record_start = input->tell();
+        record_start = marc_reader->tell();
     }
 
     // Wait for stragglers:
@@ -212,14 +215,12 @@ int main(int argc, char **argv) {
     }
 
     const std::string marc_input_filename(*argv++);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
     const std::string marc_output_filename(*argv++);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+    if (marc_input_filename == marc_output_filename)
+        Error("input filename must not equal output filename!");
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     const std::string db_filename(*argv);
     kyotocabinet::HashDB db;
@@ -230,8 +231,8 @@ int main(int argc, char **argv) {
     db.close();
 
     try {
-        ProcessRecords(max_record_count, skip_count, &marc_input, &marc_output, db_filename, process_count_low_watermark,
-                       process_count_high_watermark);
+        ProcessRecords(max_record_count, skip_count, marc_reader.get(), marc_writer.get(), db_filename,
+                       process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }

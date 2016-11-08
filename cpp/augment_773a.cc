@@ -38,7 +38,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] marc_input marc_output\n"
+    std::cerr << "Usage: " << ::progname << " [--verbose] marc_input marc_output\n"
               << "       \"marc_input\" is the file that will be augmented and converted.\n"
               << "       \"marc_input\" will be scoured for titles that\n"
               << "       may be filled into 773$a fields where appropriate.\n"
@@ -50,7 +50,7 @@ void Usage() {
 static std::unordered_map<std::string, std::string> control_numbers_to_titles_map;
 
 
-bool RecordControlNumberToTitleMapping(MarcRecord * const record, File * const /*output*/,
+bool RecordControlNumberToTitleMapping(MarcRecord * const record, MarcWriter * const /*marc_writer*/,
                  std::string * const /* err_msg */)
 {
     size_t _245_index;
@@ -68,12 +68,13 @@ bool RecordControlNumberToTitleMapping(MarcRecord * const record, File * const /
 }
 
 
-void CollectControlNumberToTitleMappings(const bool verbose, File * const input) {
+void CollectControlNumberToTitleMappings(const bool verbose, MarcReader * const marc_reader) {
     if (verbose)
-        std::cout << "Extracting control numbers to title mappings from \"" << input->getPath() << "\".\n";
+        std::cout << "Extracting control numbers to title mappings from \"" << marc_reader->getPath() << "\".\n";
 
     std::string err_msg;
-    if (not MarcRecord::ProcessRecords(input, /* output = */ nullptr, RecordControlNumberToTitleMapping, &err_msg))
+    if (not MarcRecord::ProcessRecords(marc_reader, RecordControlNumberToTitleMapping,
+                                       /* marc_writer = */nullptr, &err_msg))
         Error("error while looking for control numbers to title mappings: " + err_msg);
 
     if (verbose)
@@ -85,7 +86,7 @@ static unsigned patch_count;
 
 
 // Looks for the existence of a 773 field.  Iff such a field exists and 773$a is missing, we try to add it.
-bool PatchUpOne773a(MarcRecord * const record, File * const output, std::string * const /*err_msg*/) {
+bool PatchUpOne773a(MarcRecord * const record, MarcWriter * const marc_writer, std::string * const /*err_msg*/) {
     size_t _773_index;
     if ((_773_index = record->getFieldIndex("773")) != MarcRecord::FIELD_NOT_FOUND) {
         Subfields _773_subfields(record->getSubfields(_773_index));
@@ -103,16 +104,16 @@ bool PatchUpOne773a(MarcRecord * const record, File * const output, std::string 
         }
     }
 
-    MarcWriter::Write(*record, output);
+    marc_writer->write(*record);
 
     return true;
 }
 
 
 // Iterates over all records in a collection and attempts to in 773$a subfields were they are missing.
-void PatchUp773aSubfields(const bool verbose, File * const input, File * const output) {
+void PatchUp773aSubfields(const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer) {
     std::string err_msg;
-    if (not MarcRecord::ProcessRecords(input, output, PatchUpOne773a, &err_msg))
+    if (not MarcRecord::ProcessRecords(marc_reader, PatchUpOne773a, marc_writer, &err_msg))
         Error("error while adding 773$a subfields to some records: " + err_msg);
 
     if (verbose)
@@ -121,7 +122,7 @@ void PatchUp773aSubfields(const bool verbose, File * const input, File * const o
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc < 2)
         Usage();
@@ -136,21 +137,14 @@ int main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
-    const std::string marc_input_filename(argv[1]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
-    const std::string marc_output_filename(argv[2]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
 
     try {
-        CollectControlNumberToTitleMappings(verbose, &marc_input);
+        CollectControlNumberToTitleMappings(verbose, marc_reader.get());
 
-        marc_input.rewind();
-        PatchUp773aSubfields(verbose, &marc_input, &marc_output);
+        marc_reader->rewind();
+        PatchUp773aSubfields(verbose, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
