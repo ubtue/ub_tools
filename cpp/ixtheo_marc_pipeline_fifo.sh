@@ -182,11 +182,19 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
+StartPhase "Tag further potential relbib entries"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(add_additional_relbib_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Integrate Refterms"
 (add_referenceterms Hinweissätze-Ergebnisse-"${date}".txt GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
 
 StartPhase "Adding the Library Sigil to Articles Where Appropriate"
 (add_ub_sigil_to_articles --verbose \
@@ -201,11 +209,11 @@ StartPhase "Extract Normdata Translations"
 EndPhase || Abort) &
 wait 
 
+
 StartPhase "Cleanup of Intermediate Files"
-for p in $(seq "$((PHASE-1))"); do
+for p in $(seq 0 "$((PHASE-1))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
 done
-rm GesamtTiteldaten-"${date}".mrc
 rm -f child_refs child_titles parent_refs
 EndPhase
 

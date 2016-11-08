@@ -39,4 +39,43 @@ public class RelBib extends IxTheo {
         }
         return relBibNotations;    
     }
+
+
+    final static String TRUE = "true";
+    final static String FALSE = "false";
+
+    public String getIsDefinitelyReligiousStudies(final Record record) {
+        final List<VariableField> _084Fields = record.getVariableFields("084");
+        for (final VariableField _084Field : _084Fields) {
+            final DataField dataField = (DataField)_084Field;
+            final Subfield subfield2 = dataField.getSubfield('2');
+            if (subfield2 == null || !subfield2.getData().equals("ssgn"))
+                continue;
+
+            final Subfield subfieldA = dataField.getSubfield('a');
+            if (subfieldA != null && subfieldA.getData().equals("0"))
+                return TRUE;
+        }
+
+        return FALSE;
+    }
+
+    public String getIsProbablyReligiousStudies(final Record record) {
+        final List<VariableField> _191Fields = record.getVariableFields("191");
+        for (final VariableField _191Field : _191Fields) {
+            final DataField dataField = (DataField)_191Field;
+            final Subfield subfieldA = dataField.getSubfield('a');
+            if (subfieldA != null && subfieldA.getData().equals("1"))
+                return TRUE;
+        }
+
+        return FALSE;
+    }
+
+
+    public String getIsReligiousStudies(final Record record) {
+        return getIsDefinitelyReligiousStudies(record).equals(TRUE) || getIsProbablyReligiousStudies(record).equals(TRUE) ?
+               TRUE : FALSE;
+    }
+
 }
