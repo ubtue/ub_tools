@@ -272,7 +272,6 @@ size_t MarcRecord::findFieldsInLocalBlock(const MarcTag &field_tag, const std::s
     const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.to_string());
     for (size_t index(block_start_and_end.first); index < block_start_and_end.second; ++index) {
         const std::string &current_field(getFieldData(index));
-        std::cout << current_field << "\n";
         if (StringUtil::StartsWith(current_field, FIELD_PREFIX)
             and IndicatorsMatch(indicators, current_field.substr(7, 2)))
             field_indices->emplace_back(index);
