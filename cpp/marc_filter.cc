@@ -318,15 +318,11 @@ bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std:
 }
 
 
-void Filter(const bool input_is_xml, const OutputFormat output_format, const std::vector<FilterDescriptor> &filters,
-            File * const input, File * const output)
+void Filter(const std::vector<FilterDescriptor> &filters, MarcReader * const marc_reader,
+            MarcWriter * const marc_writer)
 {
-    MarcXmlWriter *xml_writer(nullptr);
-    if ((output_format == OutputFormat::SAME_AS_INPUT and input_is_xml) or output_format == OutputFormat::MARC_XML)
-        xml_writer = new MarcXmlWriter(output);
-
     unsigned total_count(0), deleted_count(0), modified_count(0);
-    while (MarcRecord record = input_is_xml ? MarcReader::ReadXML(input) : MarcReader::Read(input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ++total_count;
         bool deleted_record(false), modified_record(false);
         for (const auto &filter : filters) {
@@ -376,11 +372,9 @@ void Filter(const bool input_is_xml, const OutputFormat output_format, const std
         else {
             if (modified_record)
                 ++modified_count;
-            xml_writer != nullptr ? MarcWriter::Write(record, xml_writer) : MarcWriter::Write(record, output);
+            marc_writer->write(record);
         }
     }
-
-    delete xml_writer;
 
     std::cerr << "Processed a total of " << total_count << " record(s).\n";
     std::cerr << "Kept " << (total_count - deleted_count) << " record(s).\n";
@@ -477,42 +471,34 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string input_filename(*argv++);
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
-    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(*argv++));
+    const std::string output_filename(*argv++ );
 
-    bool input_is_xml(false), already_determined_input_format(false);
+    MarcReader::ReaderType reader_type(MarcReader::AUTO);
     if (std::strcmp("--input-format=marc-xml", *argv) == 0) {
-        input_is_xml = true;
+        reader_type = MarcReader::XML;
         ++argv;
-        already_determined_input_format = true;
     } else if (std::strcmp("--input-format=marc-21", *argv) == 0) {
+        reader_type = MarcReader::BINARY;
         ++argv;
-        already_determined_input_format = true;
     }
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(input_filename, reader_type));
 
-    OutputFormat output_format(OutputFormat::SAME_AS_INPUT);
+    MarcWriter::WriterType writer_type;
     if (std::strcmp("--output-format=marc-xml", *argv) == 0) {
-        output_format = OutputFormat::MARC_XML;
+        writer_type = MarcWriter::XML;
         ++argv;
     } else if (std::strcmp("--output-format=marc-21", *argv) == 0) {
-        output_format = OutputFormat::MARC_21;
+        writer_type = MarcWriter::BINARY;
         ++argv;
-    }
-
-    if (not already_determined_input_format) {
-        const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
-        if (unlikely(media_type.empty()))
-            Error("can't determine media type of \"" + input_filename + "\"!");
-        if (media_type != "application/xml" and media_type != "application/marc")
-            Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
-        input_is_xml = (media_type == "application/xml");
-    }
+    } else
+        writer_type = (typeid(marc_reader) == typeid(BinaryMarcReader *)) ? MarcWriter::BINARY : MarcWriter::XML;
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(output_filename, writer_type));
 
     try {
         std::vector<FilterDescriptor> filters;
         ProcessFilterArgs(argv, &filters);
 
-        Filter(input_is_xml, output_format, filters, input.get(), output.get());
+        Filter(filters, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

@@ -29,19 +29,22 @@
 #include "StringUtil.h"
 #include "util.h"
 
+
 void Usage() {
-    std::cerr << "usage: " << ::progname << " marc_input marc_output_name splits\n";
+    std::cerr << "usage: " << ::progname << " marc_input marc_output_name split_count\n";
     std::exit(EXIT_FAILURE);
 }
 
-void Split(File * const input, std::vector<File*> & outputs) {
-    unsigned index = 0;
-    while (MarcRecord record = MarcReader::Read(input)) {
-        MarcWriter::Write(record, outputs[index % outputs.size()]);
+
+void Split(MarcReader * const marc_reader, std::vector<std::unique_ptr<MarcWriter>> &marc_writers) {
+    unsigned index(0);
+    while (const MarcRecord record = marc_reader->read()) {
+        marc_writers[index % marc_writers.size()]->write(record);
         ++index ;
     }
-    std::cout << "~" << (index / outputs.size()) << " records per file.\n";
+    std::cout << "~" << (index / marc_writers.size()) << " records per file.\n";
 }
+
 
 int main(int argc, char* argv[]) {
     ::progname = argv[0];
@@ -49,21 +52,18 @@ int main(int argc, char* argv[]) {
     if (argc != 4)
         Usage();
 
-    const std::string input_filename(argv[1]);
-    File input(input_filename, "r");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
 
-    unsigned splits;
-    if (not StringUtil::ToUnsigned(argv[3], &splits))
-        Error("bad split: \"" + std::string(argv[3]) + "\"!");
+    unsigned split_count;
+    if (not StringUtil::ToUnsigned(argv[3], &split_count))
+        Error("bad split count: \"" + std::string(argv[3]) + "\"!");
 
     const std::string output_prefix(argv[2]);
 
-    std::vector<File*> outputs;
-    for (size_t i(0); i < splits; ++i) {
+    std::vector<std::unique_ptr<MarcWriter>> marc_writers;
+    for (size_t i(0); i < split_count; ++i) {
         const std::string output_filename(output_prefix + "_" + std::to_string(i) + ".mrc");
-        outputs.emplace_back(new File(output_filename, "w"));
+        marc_writers.emplace_back(MarcWriter::Factory(output_filename, MarcWriter::BINARY));
     }
-    Split(&input, outputs);
+    Split(marc_reader.get(), marc_writers);
 }
