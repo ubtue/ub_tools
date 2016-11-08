@@ -35,7 +35,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " marc_input marc_output code_to_description_map\n";
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output code_to_description_map\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -106,16 +106,16 @@ unsigned ExtractIxTheoNotations(const std::pair<size_t, size_t> &local_block_beg
 }
 
 
-void ProcessRecords(File * const input, File * const output,
+void ProcessRecords(MarcReader * const marc_reader, MarcWriter * const marc_writer,
                     const std::unordered_map<std::string, std::string> &code_to_description_map)
 {
     unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0);
-    while (MarcRecord record = MarcReader::Read(input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ++count;
 
         std::vector<std::pair<size_t, size_t>> local_block_boundaries;
         if (record.findAllLocalDataBlocks(&local_block_boundaries) == 0) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
@@ -134,7 +134,7 @@ void ProcessRecords(File * const input, File * const output,
 
         if (not ixtheo_notations_list.empty()) // Insert a new 652 field w/ a $a subfield.
             record.insertSubfield("652", 'a', ixtheo_notations_list);
-        MarcWriter::Write(record, output);
+        marc_writer->write(record);
     }
 
     std::cerr << "Read " << count << " records.\n";
@@ -144,20 +144,13 @@ void ProcessRecords(File * const input, File * const output,
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 4)
         Usage();
 
-    const std::string marc_input_filename(argv[1]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
-    const std::string marc_output_filename(argv[2]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
 
     const std::string code_to_description_map_filename(argv[3]);
     File code_to_description_map_file(code_to_description_map_filename, "r");
@@ -167,7 +160,7 @@ int main(int argc, char **argv) {
     try {
         std::unordered_map<std::string, std::string> code_to_description_map;
         LoadCodeToDescriptionMap(&code_to_description_map_file, &code_to_description_map);
-        ProcessRecords(&marc_input, &marc_output, code_to_description_map);
+        ProcessRecords(marc_reader.get(), marc_writer.get(), code_to_description_map);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

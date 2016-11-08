@@ -7,7 +7,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015,2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,7 +39,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] marc_input1 [marc_input2 ... marc_inputN] marc_output\n"
+    std::cerr << "Usage: " << ::progname << " [--verbose] marc_input1 [marc_input2 ... marc_inputN] marc_output\n"
               << "       Collects information about which superior/collective works are serials from the various\n"
               << "       MARC inputs and then patches up records in \"marc_input1\" which have been marked as a book\n"
               << "       component and changes them to be flagged as an article instead.  The patched up version is\n"
@@ -51,7 +51,7 @@ void Usage() {
 static std::unordered_set<std::string> monograph_control_numbers;
 
 
-bool RecordMonographControlNumbers(MarcRecord * const record, File * const /*output*/,
+bool RecordMonographControlNumbers(MarcRecord * const record, MarcWriter * const /*marc_writer*/,
                                    std::string * const /* err_msg */)
 {
     const Leader &leader(record->getLeader());
@@ -63,12 +63,13 @@ bool RecordMonographControlNumbers(MarcRecord * const record, File * const /*out
 }
 
 
-void CollectMonographs(const bool verbose, const std::vector<File *> &inputs) {
+void CollectMonographs(const bool verbose, const std::vector<std::unique_ptr<MarcReader>> &marc_readers) {
     std::string err_msg;
-    for (auto &input : inputs) {
+    for (auto &marc_reader : marc_readers) {
         if (verbose)
-            std::cout << "Extracting serial control numbers from \"" << input->getPath() << "\".\n";
-        if (not MarcRecord::ProcessRecords(input, /* output = */nullptr, RecordMonographControlNumbers, &err_msg))
+            std::cout << "Extracting serial control numbers from \"" << marc_reader->getPath() << "\".\n";
+        if (not MarcRecord::ProcessRecords(marc_reader.get(), RecordMonographControlNumbers,
+                                           /* marc_writer = */nullptr, &err_msg))
             Error("error while looking for serials: " + err_msg);
     }
 
@@ -113,23 +114,23 @@ bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MarcRe
 }
 
 
-// Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is not a monograph.
-// Also writes all records to "output_ptr".
-bool PatchUpArticle(MarcRecord * const record, File * const output, std::string * const /*err_msg*/) {
+// Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is not a
+// monograph.  Also writes all records to "output_ptr".
+bool PatchUpArticle(MarcRecord * const record, MarcWriter * const marc_writer, std::string * const /*err_msg*/) {
     Leader &leader(record->getLeader());
     if (not leader.isArticle()) {
-        MarcWriter::Write(*record, output);
+        marc_writer->write(*record);
         return true;
     }
 
     if (HasAtLeastOneMonographParent("800w:810w:830w:773w", *record)) {
-        MarcWriter::Write(*record, output);
+        marc_writer->write(*record);
         return true;
     }
 
     leader[7] = 'b';
     ++patch_count;
-    MarcWriter::Write(*record, output);
+    marc_writer->write(*record);
 
     return true;
 }
@@ -137,9 +138,9 @@ bool PatchUpArticle(MarcRecord * const record, File * const output, std::string 
 
 // Iterates over all records in a collection and retags all book component parts as artcles
 // unless the object has a monograph as a parent.
-void PatchUpBookComponentParts(const bool verbose, File * const input, File * const output) {
+void PatchUpBookComponentParts(const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer) {
     std::string err_msg;
-    if (not MarcRecord::ProcessRecords(input, output, PatchUpArticle, &err_msg))
+    if (not MarcRecord::ProcessRecords(marc_reader, PatchUpArticle, marc_writer, &err_msg))
         Error("error while patching up article records: " + err_msg);
 
     if (verbose)
@@ -148,7 +149,7 @@ void PatchUpBookComponentParts(const bool verbose, File * const input, File * co
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc == 1)
         Usage();
@@ -158,29 +159,17 @@ int main(int argc, char **argv) {
     if (verbose and argc < 4 or not verbose and argc < 3)
         Usage();
 
-    std::vector<File *> marc_inputs;
-    for (int arg_no(verbose ? 2 : 1); arg_no < (argc - 1) ; ++arg_no) {
-        const std::string marc_input_filename(argv[arg_no]);
-        File *marc_input = new File(marc_input_filename, "r");
-        if (not *marc_input)
-            Error("can't open \"" + marc_input_filename + "\" for reading!");
-        marc_inputs.push_back(marc_input);
-    }
-
-    const std::string marc_output_filename(argv[argc - 1]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+    std::vector<std::unique_ptr<MarcReader>> marc_readers;
+    for (int arg_no(verbose ? 2 : 1); arg_no < (argc - 1) ; ++arg_no)
+        marc_readers.emplace_back(MarcReader::Factory(argv[arg_no], MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[argc - 1], MarcWriter::BINARY));
 
     try {
-        CollectMonographs(verbose, marc_inputs);
+        CollectMonographs(verbose, marc_readers);
 
-        marc_inputs[0]->rewind();
-        PatchUpBookComponentParts(verbose, marc_inputs[0], &marc_output);
+        marc_readers[0]->rewind();
+        PatchUpBookComponentParts(verbose, marc_readers[0].get(), marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
-
-    for (const auto &marc_input : marc_inputs)
-        marc_input->close();
 }

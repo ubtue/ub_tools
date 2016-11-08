@@ -26,14 +26,14 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << progname << " marc_xml_input\n";
+    std::cerr << "usage: " << ::progname << " marc_xml_input\n";
     std::exit(EXIT_FAILURE);
 }
 
 
 /** \brief Appends "source" to "target". */
-void Categorise(File * const input) {
-    while (const MarcRecord &record = MarcReader::Read(input)) {
+void Categorise(MarcReader * const marc_reader) {
+    while (const MarcRecord record = marc_reader->read()) {
         switch (record.getRecordType()) {
         case Leader::RecordType::AUTHORITY:
             std::cout << "AUTHORITY\n";
@@ -58,9 +58,9 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    const std::unique_ptr<File> &input(FileUtil::OpenInputFileOrDie(argv[1]));
+    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
     try {
-        Categorise(input.get());
+        Categorise(marc_reader.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

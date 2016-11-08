@@ -1,7 +1,7 @@
-/** \brief Writer for marc files.
- *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+/** \brief Interface declarations for MARC writer classes.
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,29 +21,53 @@
 #define MARC_WRITER_H
 
 
+#include <memory>
 #include "File.h"
-#include "XmlWriter.h"
+#include "MarcXmlWriter.h"
 
 
 // Forward declaration.
 class MarcRecord;
 
 
-namespace MarcWriter {
+class MarcWriter {
+public:
+    enum WriterType { XML, BINARY };
+public:
+    virtual ~MarcWriter() { }
 
-/**
- * \brief writes the given record to the output file,
- * but only if the record contains more than one field.
- */
-void Write(MarcRecord &record, File * const output);
+    virtual void write(const MarcRecord &record) = 0;
 
-/**
- * \brief writes the given record to the output file using a XML writer.
- */
-void Write(MarcRecord &record, XmlWriter * const xml_writer);
+    /** \return a reference to the underlying, assocaiated file. */
+    virtual File &getFile() = 0;
+
+    static std::unique_ptr<MarcWriter> Factory(const std::string &output_filename, const WriterType writer_type);
+};
 
 
-} // namespace MarcWriter
+class BinaryMarcWriter: public MarcWriter {
+    File * const output_;
+public:
+    explicit BinaryMarcWriter(File * const output): output_(output) { }
+
+    virtual void write(const MarcRecord &record) final;
+
+    /** \return a reference to the underlying, assocaiated file. */
+    virtual File &getFile() final { return *output_; }
+};
+
+
+class XmlMarcWriter: public MarcWriter {
+    MarcXmlWriter *xml_writer_;
+public:
+    explicit XmlMarcWriter(File * const output_file, const unsigned indent_amount = 0,
+                           const XmlWriter::TextConversionType text_conversion_type = XmlWriter::NoConversion);
+
+    virtual void write(const MarcRecord &record) final;
+
+    /** \return a reference to the underlying, assocaiated file. */
+    virtual File &getFile() final { return *xml_writer_->getAssociatedOutputFile(); }
+};
 
 
 #endif // MARC_WRITER_H

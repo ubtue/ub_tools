@@ -55,7 +55,7 @@
 
 
 // Languages to handle
-const unsigned int NUMBER_OF_LANGUAGES = 2;
+const unsigned int NUMBER_OF_LANGUAGES(2);
 const std::vector<std::string> languages_to_create{ "en", "fr" };
 enum Languages { EN, FR };
 
@@ -66,7 +66,9 @@ void Usage() {
 }
 
 
-void AugmentIxTheoTagWithLanguage(const MarcRecord &record, const std::string &tag, std::vector<std::string> * const translations) {
+void AugmentIxTheoTagWithLanguage(const MarcRecord &record, const std::string &tag,
+                                  std::vector<std::string> * const translations)
+{
     auto ixtheo_pos(std::find(translations->begin(), translations->end(), "IxTheo"));
     if (ixtheo_pos != translations->end()) {
         std::vector<std::string> ixtheo_lang_codes;
@@ -89,23 +91,8 @@ void AugmentIxTheoTagWithLanguage(const MarcRecord &record, const std::string &t
     }
 }
 
-/*
-std::map<std::string, std::string> AugmentTranslations(const MarcRecord &record, const std::string &tag, std::vector<std::string> &translations) {
-    std::map<std::string, std::string> translation_mapping;
-    for (size_t iterator(translations.begin()); iterator < translations.end(); iterator += 2) {
-        const std::string language = *iterator;
-        const std::string translation = *(iterator + 1);
 
-        if (language == "IxTheo") {
-            std::vector<std::string> ixtheo_lang_codes;
-            record.extractSubfields(tag, "9", &ixtheo_lang_codes);
-        }
-    }
-}
-*/
-
-void ExtractTranslations(File * const marc_norm_input, 
-                         const std::string &german_term_field_spec,
+void ExtractTranslations(MarcReader * const marc_reader, const std::string &german_term_field_spec,
                          const std::string &translation_field_spec,
                          std::map<std::string, std::string> term_to_translation_maps[])
 {
@@ -121,10 +108,11 @@ void ExtractTranslations(File * const marc_norm_input,
         Error("ExtractTranslations: Number of German fields and number of translation fields must be equal");
     
     unsigned count(0);
-    while (const MarcRecord record = MarcReader::Read(marc_norm_input)) {
+    while (const MarcRecord record = marc_reader->read()) {
         std::map<std::string, std::vector<std::string>> all_translations;
 
-        for (auto german_and_translations_it(std::make_pair(german_tags_and_subfield_codes.cbegin(), translation_tags_and_subfield_codes.cbegin()));
+        for (auto german_and_translations_it(std::make_pair(german_tags_and_subfield_codes.cbegin(),
+                                                            translation_tags_and_subfield_codes.cbegin()));
              german_and_translations_it.first != german_tags_and_subfield_codes.cend();
              ++german_and_translations_it.first, ++german_and_translations_it.second) 
         {
@@ -135,7 +123,9 @@ void ExtractTranslations(File * const marc_norm_input,
 
             auto german_subfield_code_iterator(german_subfields.begin());
             auto translation_subfield_code_iterator(translation_subfields.begin());
-             for (/* empty */; german_subfield_code_iterator != german_subfields.cend(); ++german_subfield_code_iterator, ++translation_subfield_code_iterator) {
+             for (/* empty */; german_subfield_code_iterator != german_subfields.cend();
+                             ++german_subfield_code_iterator, ++translation_subfield_code_iterator)
+             {
                   std::vector<std::string> german_terms;
                   record.extractSubfield(german_tag, *german_subfield_code_iterator, &german_terms);
                  if (german_terms.empty())
@@ -143,7 +133,8 @@ void ExtractTranslations(File * const marc_norm_input,
 
                  // Always extract subfield 2 where "IxTheo" is located
                  std::vector<std::string> translations;
-                 record.extractSubfields(translation_tag, std::string(1, *translation_subfield_code_iterator) + "2", &translations);
+                 record.extractSubfields(translation_tag, std::string(1, *translation_subfield_code_iterator) + "2",
+                                         &translations);
                  if (translations.empty())
                      continue;
 
@@ -153,7 +144,9 @@ void ExtractTranslations(File * const marc_norm_input,
             }
         }   
  
-        for (auto all_translations_it = all_translations.begin(); all_translations_it != all_translations.end(); ++all_translations_it) {
+        for (auto all_translations_it = all_translations.begin(); all_translations_it != all_translations.end();
+             ++all_translations_it)
+        {
             const std::string german_term(all_translations_it->first);
 
             for (auto translation_vector_it(all_translations_it->second.begin());
@@ -179,7 +172,8 @@ void ExtractTranslations(File * const marc_norm_input,
         }
         ++count;
     }
-    std::cerr << "Found EN: " << term_to_translation_maps[EN].size() << ", FR: " << term_to_translation_maps[FR].size() << " in " << count << " records.\n";
+    std::cerr << "Found EN: " << term_to_translation_maps[EN].size() << ", FR: "
+              << term_to_translation_maps[FR].size() << " in " << count << " records.\n";
 }
 
 
@@ -201,12 +195,12 @@ int main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
-    const std::string norm_data_marc_input_filename(argv[1]);
-    std::unique_ptr<File> norm_data_marc_input(OpenInputFile(norm_data_marc_input_filename));
-
+    const std::string authority_data_marc_input_filename(argv[1]);
     const std::string extracted_translations_filename(argv[2]);
-    if (unlikely(norm_data_marc_input_filename == extracted_translations_filename))
-        Error("Norm data input file name equals output file name!");
+    if (unlikely(authority_data_marc_input_filename == extracted_translations_filename))
+        Error("Authority data input file name equals output file name!");
+    std::unique_ptr<MarcReader> authority_data_reader(MarcReader::Factory(authority_data_marc_input_filename,
+                                                                          MarcReader::BINARY));
     
     // Create a file for each language
     std::vector<std::string> output_file_components;
@@ -226,10 +220,8 @@ int main(int argc, char **argv) {
     unsigned i(0);
     for (auto lang : languages_to_create) {
         lang = StringUtil::Trim(lang);
-
         const std::string lang_file_name_str(extension.empty() ? basename + "_" + lang : basename + "_" + lang + "."
                                              + extension);
-
         lang_files[i] = new File(lang_file_name_str, "w");
         if (lang_files[i]->fail())
             Error("can't open \"" + lang_file_name_str + "\" for writing!");
@@ -238,7 +230,7 @@ int main(int argc, char **argv) {
 
     try {
         std::map<std::string, std::string> term_to_translation_maps[NUMBER_OF_LANGUAGES];
-        ExtractTranslations(norm_data_marc_input.get(),
+        ExtractTranslations(authority_data_reader.get(),
                             "100a:110a:111a:130a:150a:151a", 
                             "700a:710a:711a:730a:750a:751a",
                             term_to_translation_maps);
