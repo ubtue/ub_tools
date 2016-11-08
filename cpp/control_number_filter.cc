@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015, 2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -34,7 +34,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << "(--keep|--delete)] pattern marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << "(--keep|--delete)] pattern marc_input marc_output\n";
     std::cerr << "  Removes records whose control numbers match \"pattern\" if \"--delete\" has been specified\n";
     std::cerr << "  or only keeps those records whose control numbers match \"pattern\" if \"--keep\" has\n";
     std::cerr << "  been specified.  (\"pattern\" must be a PCRE.)\n";
@@ -42,7 +42,9 @@ void Usage() {
 }
 
 
-void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File * const input, File * const output) {
+void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcReader * const marc_reader,
+                       MarcWriter * const marc_writer)
+{
     std::string err_msg;
     const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)
@@ -50,7 +52,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File *
 
     unsigned count(0), kept_or_deleted_count(0);
 
-    while (MarcRecord record = MarcReader::Read(input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ++count;
 
         const bool matched(matcher->matched(record.getControlNumber(), &err_msg));
@@ -59,7 +61,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File *
 
         if ((keep and matched) or (not keep and not matched)) {
             ++kept_or_deleted_count;
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
         }
     }
 
@@ -72,7 +74,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File *
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 5)
         Usage();
@@ -82,17 +84,11 @@ int main(int argc, char **argv) {
     const std::string regex_pattern(argv[2]);
 
     const std::string marc_input_filename(argv[3]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
     const std::string marc_output_filename(argv[4]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
-
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Master input file name equals output file name!");
 
-    FilterMarcRecords(keep, regex_pattern, &marc_input, &marc_output);
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    FilterMarcRecords(keep, regex_pattern, marc_reader.get(), marc_writer.get());
 }
