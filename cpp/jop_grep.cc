@@ -4,7 +4,7 @@
  *
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -47,12 +47,10 @@ void Usage() {
 
 
 void JOP_Grep(const std::string &input_filename, const unsigned max_result_count) {
-    File input(input_filename, "r");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(input_filename, MarcReader::BINARY));
 
     unsigned count(0), result_count(0);
-    while (const MarcRecord &record = MarcReader::Read(&input)) {
+    while (const MarcRecord record = marc_reader->read()) {
         ++count;
 
         const Leader &leader(record.getLeader());

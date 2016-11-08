@@ -67,7 +67,7 @@ bool IsPossibleISSN(const std::string &issn_candidate) {
 
 
 void PopulateParentIdToISBNAndISSNMap(
-    const bool verbose, File * const input,
+    const bool verbose, MarcReader * const marc_reader,
     std::unordered_map<std::string, std::string> * const parent_id_to_isbn_and_issn_map)
 {
     if (verbose)
@@ -75,7 +75,7 @@ void PopulateParentIdToISBNAndISSNMap(
 
     unsigned count(0), extracted_isbn_count(0), extracted_issn_count(0);
     std::string err_msg;
-    while (const MarcRecord &record = MarcReader::Read(input)) {
+    while (const MarcRecord record = marc_reader->read()) {
         ++count;
 
         const Leader &leader(record.getLeader());
@@ -131,38 +131,39 @@ void PopulateParentIdToISBNAndISSNMap(
 }
 
 
-void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const input, File * const output,
-                                            const std::unordered_map<std::string,
+void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, MarcReader * const marc_reader,
+                                            MarcWriter * const marc_writer, const std::unordered_map<std::string,
                                             std::string> &parent_id_to_isbn_and_issn_map)
 {
     if (verbose)
         std::cout << "Starting augmentation of article entries.\n";
 
-    unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0), missing_isbn_or_issn_count(0);
-    while (MarcRecord record = MarcReader::Read(input)) {
+    unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0),
+             missing_isbn_or_issn_count(0);
+    while (MarcRecord record = marc_reader->read()) {
         ++count;
 
         const Leader &leader(record.getLeader());
         if (not leader.isArticle()) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
         const size_t _773_index(record.getFieldIndex("773"));
         if (_773_index == MarcRecord::FIELD_NOT_FOUND) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
         Subfields subfields(record.getSubfields(_773_index));
         if (subfields.hasSubfield('x')) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
         const auto &begin_end(subfields.getIterators('w')); // Record control number of Host Item Entry.
         if (begin_end.first == begin_end.second) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             ++missing_host_record_ctrl_num_count;
             continue;
         }
@@ -172,7 +173,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
             host_id = host_id.substr(8);
         const auto &parent_isbn_or_issn_iter(parent_id_to_isbn_and_issn_map.find(host_id));
         if (parent_isbn_or_issn_iter == parent_id_to_isbn_and_issn_map.end()) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             ++missing_isbn_or_issn_count;
             continue;
         }
@@ -188,7 +189,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
             record.insertSubfield("020", 'a', parent_isbn_or_issn_iter->second);
             ++isbns_added;
         }
-        MarcWriter::Write(record, output);
+        marc_writer->write(record);
     }
 
     if (verbose) {
@@ -204,28 +205,26 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, File * const inp
 int main(int argc, char **argv) {
     progname = argv[0];
 
-    if ((argc != 3 and argc != 4) or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
+    if ((argc != 3 and argc != 4)
+        or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
         Usage();
     const bool verbose(argc == 4);
 
     const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
-    std::unique_ptr<File> marc_input(FileUtil::OpenInputFileOrDie(marc_input_filename));
-
     const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Master input file name equals output file name!");
-    std::string output_mode("w");
-    File marc_output(marc_output_filename, output_mode);
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     try {
         std::unordered_map<std::string, std::string> parent_id_to_isbn_and_issn_map;
-        PopulateParentIdToISBNAndISSNMap(verbose, marc_input.get(), &parent_id_to_isbn_and_issn_map);
-        marc_input->close();
+        PopulateParentIdToISBNAndISSNMap(verbose, marc_reader.get(), &parent_id_to_isbn_and_issn_map);
+        marc_reader->rewind();
         
-        std::unique_ptr<File> marc_input2(FileUtil::OpenInputFileOrDie(marc_input_filename));
-        AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_input2.get(), &marc_output, parent_id_to_isbn_and_issn_map);
+        AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_reader.get(), marc_writer.get(),
+                                               parent_id_to_isbn_and_issn_map);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

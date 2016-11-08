@@ -1,7 +1,7 @@
 /** \brief A tool for adding keywords extracted from titles to MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,7 +39,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--verbose] master_marc_input marc_output [stopwords_files]\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] master_marc_input marc_output [stopwords_files]\n";
     std::cerr << "       Stopword files must be named \"stopwords.xxx\" where xxx has to be a 3-letter\n";
     std::cerr << "       language code.\n";
     std::exit(EXIT_FAILURE);
@@ -104,31 +104,32 @@ bool HasExpertAssignedKeywords(const MarcRecord &record) {
 }
 
 
-void AugmentKeywordsWithTitleWords(const bool verbose, File * const input, File * const output,
+void AugmentKeywordsWithTitleWords(const bool verbose, MarcReader * const marc_reader,
+    MarcWriter * const marc_writer,
     const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
 {
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
     unsigned total_count(0), augment_count(0), title_count(0);
-    while (MarcRecord record = MarcReader::Read(input)) {
+    while (MarcRecord record = marc_reader->read()) {
         ++total_count;
 
         // Do not attempt to generate title keywords if we have expert-assigned keywords:
         if (HasExpertAssignedKeywords(record)) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
         const size_t title_index(record.getFieldIndex("245"));
         if (title_index == MarcRecord::FIELD_NOT_FOUND) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
         const Subfields subfields(record.getSubfields(title_index));
         if (not subfields.hasSubfield('a')) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
@@ -153,7 +154,7 @@ void AugmentKeywordsWithTitleWords(const bool verbose, File * const input, File 
             FilterOutStopwords(language_codes_to_stopword_sets.find("eng")->second, &title_words);
 
         if (title_words.empty()) {
-            MarcWriter::Write(record, output);
+            marc_writer->write(record);
             continue;
         }
 
@@ -172,7 +173,7 @@ void AugmentKeywordsWithTitleWords(const bool verbose, File * const input, File 
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc < 3)
         Usage();
@@ -182,17 +183,12 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string marc_input_filename(argv[verbose ? 2 : 1]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
     const std::string marc_output_filename(argv[verbose ? 3 : 2]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
-
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("MARC input file name equals MARC output file name!");
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     // Read optional stopword lists:
     std::map<std::string, std::unordered_set<std::string>> language_codes_to_stopword_sets;
@@ -214,5 +210,5 @@ int main(int argc, char **argv) {
     if (language_codes_to_stopword_sets.find("eng") == language_codes_to_stopword_sets.end())
         Error("You always need to provide \"stopwords.eng\"!");
 
-    AugmentKeywordsWithTitleWords(verbose, &marc_input, &marc_output, language_codes_to_stopword_sets);
+    AugmentKeywordsWithTitleWords(verbose, marc_reader.get(), marc_writer.get(), language_codes_to_stopword_sets);
 }
