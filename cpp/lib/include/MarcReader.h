@@ -51,6 +51,8 @@ public:
     /** \return The current file position of the underlying file. */
     inline off_t tell() const { return input_->tell(); }
 
+    inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
+    
     /** \return a BinaryMarcReader or an XmlMarcReader. */
     static std::unique_ptr<MarcReader> Factory(const std::string &input_filename,
                                                ReaderType reader_type = AUTO);
