@@ -49,7 +49,7 @@ public class RelBib extends IxTheo {
     String RELSTUDIES_DDC_RANGE_PATTERN = "2[2-8][0-9]\\.?[^.]*";
     Pattern relStudiesDDCPattern = Pattern.compile(RELSTUDIES_DDC_RANGE_PATTERN);
 
-    public String getIsReligiousStudiesDDC(final Record record) {
+    public String getIsNotReligiousStudiesDDC(final Record record) {
         final List<VariableField> _082Fields = record.getVariableFields("082");
         for (final VariableField _082Field : _082Fields) {
             final DataField dataField = (DataField) _082Field;
@@ -63,8 +63,8 @@ public class RelBib extends IxTheo {
         return FALSE;
     }
 
-    // Integrate IxTheo Notation A* and B*
-    String RELSTUDIES_IXTHEO_PATTERN = ".*\\:?(A|B)[A-Z].*";
+    // Integrate IxTheo Notations A*.B*,T*,V*,X*,Z*
+    String RELSTUDIES_IXTHEO_PATTERN = ".*\\:?(A|B|T|V|X|Z)[A-Z].*";
     Pattern relStudiesIxTheoPattern = Pattern.compile(RELSTUDIES_IXTHEO_PATTERN);
 
     public String getIsReligiousStudiesIxTheo(final Record record) {
@@ -75,7 +75,7 @@ public class RelBib extends IxTheo {
             if (subfieldA == null)
                 continue;
             Matcher matcher = relStudiesIxTheoPattern.matcher(subfieldA.getData());
-            if (matcher.matches())
+            if (matcher.matches() && getIsNotReligiousStudiesDDC(record).equals(true))
                 return TRUE;
         }
         return FALSE;
@@ -98,8 +98,7 @@ public class RelBib extends IxTheo {
 
     public String getIsDefinitelyReligiousStudies(final Record record) {
 
-        return getIsReligiousStudiesSSGN(record).equals(TRUE) || getIsReligiousStudiesIxTheo(record).equals(TRUE)
-                || getIsReligiousStudiesDDC(record).equals(TRUE) ? TRUE : FALSE;
+        return getIsReligiousStudiesSSGN(record).equals(TRUE) || getIsReligiousStudiesIxTheo(record).equals(TRUE) ? TRUE : FALSE;
     }
 
     public String getIsProbablyReligiousStudies(final Record record) {
