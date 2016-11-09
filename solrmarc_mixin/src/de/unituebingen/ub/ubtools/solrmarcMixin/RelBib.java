@@ -64,7 +64,7 @@ public class RelBib extends IxTheo {
     }
 
     // Integrate IxTheo Notations A*.B*,T*,V*,X*,Z*
-    String RELSTUDIES_IXTHEO_PATTERN = ".*\\:?(A|B|T|V|X|Z)[A-Z].*";
+    String RELSTUDIES_IXTHEO_PATTERN = "^[ABTVXZ][A-Z].*|.*:[ABTVXZ][A-Z].*";
     Pattern relStudiesIxTheoPattern = Pattern.compile(RELSTUDIES_IXTHEO_PATTERN);
 
     public String getIsReligiousStudiesIxTheo(final Record record) {
