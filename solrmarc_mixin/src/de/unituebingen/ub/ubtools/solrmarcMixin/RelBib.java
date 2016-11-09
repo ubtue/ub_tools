@@ -75,7 +75,7 @@ public class RelBib extends IxTheo {
             if (subfieldA == null)
                 continue;
             Matcher matcher = relStudiesIxTheoPattern.matcher(subfieldA.getData());
-            if (matcher.matches() && getIsNotReligiousStudiesDDC(record).equals(true))
+            if (matcher.matches())
                 return TRUE;
         }
         return FALSE;
@@ -98,7 +98,7 @@ public class RelBib extends IxTheo {
 
     public String getIsDefinitelyReligiousStudies(final Record record) {
 
-        return getIsReligiousStudiesSSGN(record).equals(TRUE) || getIsReligiousStudiesIxTheo(record).equals(TRUE) ? TRUE : FALSE;
+        return (getIsReligiousStudiesSSGN(record).equals(TRUE) || getIsReligiousStudiesIxTheo(record).equals(TRUE)) && getIsNotReligiousStudiesDDC(record).equals(FALSE) ? TRUE : FALSE;
     }
 
     public String getIsProbablyReligiousStudies(final Record record) {
