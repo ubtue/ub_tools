@@ -446,11 +446,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final VariableField variableField : record.getVariableFields("787")) {
             final DataField field = (DataField) variableField;
             final Subfield reviewTypeSubfield = getFirstNonEmptySubfield(field, 'i');
-            final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
             final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't');
-            final Subfield idSubfield = field.getSubfield('w');
-
-            if (reviewerSubfield == null || titleSubfield == null || reviewTypeSubfield == null)
+            if (titleSubfield == null || reviewTypeSubfield == null)
                 continue;
 
             String title = titleSubfield.getData();
@@ -459,16 +456,20 @@ public class TuelibMixin extends SolrIndexerMixin {
                 title = title + " (" + locationAndPublisher.getData() + ")";
 
             String parentId = "000000000";
+            final Subfield idSubfield = field.getSubfield('w');
             if (idSubfield != null) {
                 final Matcher matcher = EXTRACTION_PATTERN.matcher(idSubfield.getData());
                 if (matcher.matches())
                     parentId = matcher.group(1);
             }
 
+            final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
+            final String reviewer = (reviewerSubfield == null) ? "" : reviewerSubfield.getData();
+
             if (reviewTypeSubfield.getData().equals("Rezension")) {
                 reviews_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + title);
             } else if (reviewTypeSubfield.getData().equals("Rezension von")) {
-                reviewedRecords_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + title);
+                reviewedRecords_cache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
             }
         }
     }
