@@ -22,6 +22,7 @@
 */
 
 #include <iostream>
+#include <limits>
 #include <set>
 #include <cstdlib>
 #include "Compiler.h"
@@ -45,6 +46,10 @@ void Usage() {
 
 
 class Range {
+public:
+    static const unsigned INFINITE_VOLUME = std::numeric_limits<unsigned>::max();
+    static const unsigned INFINITE_YEAR = std::numeric_limits<unsigned>::max();
+public:
     unsigned start_volume_;
     unsigned start_year_;
     unsigned end_volume_;
@@ -77,51 +82,166 @@ std::string FindSigil(MarcRecord * const record, const std::pair<size_t, size_t>
 }
 
 
-void ParseRanges(const std::string &_866a_contents, std::vector<Range> * const ranges) {
-    ranges->clear();
-
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("(\\d+)\\.(\\d+)\\s*-\\s*(\\d+)\\.(\\d+)"));
-    std::vector<std::string> individual_ranges;
-    StringUtil::SplitThenTrimWhite(_866a_contents, ';', &individual_ranges);
+bool ParseRanges1(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
+        "^\\s*(\\d+)\\.(\\d{4})\\s*-\\s*(\\d+)\\.(\\d{4})\\s*$"));
+    bool found_at_least_one_match(false);
     for (const auto &individual_range : individual_ranges) {
         if (not matcher->matched(individual_range))
-            Warning("couldn't match rage: \"" + individual_range + "\"!");
-        else {
-            unsigned start_volume;
-            if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-                Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
-                continue;
-            }
-            
-            unsigned start_year;
-            if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-                Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
-                continue;
-            }
-            if (start_year < 1900) {
-                Warning("start year is less than 1900 (" + std::to_string(start_year) + ")!");
-                continue;
-            }
-            
-            unsigned end_volume;
-            if (not StringUtil::ToUnsigned((*matcher)[3], &end_volume)) {
-                Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
-                continue;
-            }
-            
-            unsigned end_year;
-            if (not StringUtil::ToUnsigned((*matcher)[4], &end_year)) {
-                Warning("can't convert \"" + (*matcher)[4] + "\" to an unsigned end year!");
-                continue;
-            }
-            if (end_year < 1900) {
-                Warning("end year is less than 1900 (" + std::to_string(end_year) + ")!");
-                continue;
-            }
+            continue;
 
-            ranges->emplace_back(Range(start_volume, start_year, end_volume, end_year));
+        unsigned start_volume;
+        if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
+            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            continue;
         }
+
+        unsigned start_year;
+        if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
+            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            continue;
+        }
+
+        unsigned end_volume;
+        if (not StringUtil::ToUnsigned((*matcher)[3], &end_volume)) {
+            Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
+            continue;
+        }
+
+        unsigned end_year;
+        if (not StringUtil::ToUnsigned((*matcher)[4], &end_year)) {
+            Warning("can't convert \"" + (*matcher)[4] + "\" to an unsigned end year!");
+            continue;
+        }
+
+        ranges->emplace_back(Range(start_volume, start_year, end_volume, end_year));
+        found_at_least_one_match = true;
     }
+
+    return found_at_least_one_match;
+}
+
+
+bool ParseRanges2(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\s*(\\d{4})\\.(\\d{4})\\s*-\\s*$"));
+    bool found_at_least_one_match(false);
+    for (const auto &individual_range : individual_ranges) {
+        if (not matcher->matched(individual_range))
+            continue;
+
+        unsigned start_volume;
+        if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
+            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            continue;
+        }
+
+        unsigned start_year;
+        if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
+            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            continue;
+        }
+
+        ranges->emplace_back(Range(start_volume, start_year, Range::INFINITE_VOLUME, Range::INFINITE_YEAR));
+        found_at_least_one_match = true;
+    }
+
+    return found_at_least_one_match;
+}
+
+
+bool ParseRanges3(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\s*(\\d{4})\\s*-\\s*(\\d{4})\\s*$"));
+    bool found_at_least_one_match(false);
+    for (const auto &individual_range : individual_ranges) {
+        if (not matcher->matched(individual_range))
+            continue;
+
+        unsigned start_year;
+        if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
+            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            continue;
+        }
+
+        unsigned end_year;
+        if (not StringUtil::ToUnsigned((*matcher)[2], &end_year)) {
+            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end year!");
+            continue;
+        }
+
+        ranges->emplace_back(Range(Range::INFINITE_VOLUME, start_year, Range::INFINITE_VOLUME, end_year));
+        found_at_least_one_match = true;
+    }
+
+    return found_at_least_one_match;
+}
+
+
+bool ParseRanges5(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\s*(\\d{4})/(\\d{2})\\s*$"));
+    bool found_at_least_one_match(false);
+    for (const auto &individual_range : individual_ranges) {
+        if (not matcher->matched(individual_range))
+            continue;
+
+        unsigned start_year;
+        if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
+            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            continue;
+        }
+
+        const std::string end_year_string((*matcher)[1].substr(0, 2) + (*matcher)[2]);
+        unsigned end_year;
+        if (not StringUtil::ToUnsigned(end_year_string, &end_year)) {
+            Warning("can't convert \"" + end_year_string + "\" to an unsigned end year!");
+            continue;
+        }
+
+        ranges->emplace_back(Range(Range::INFINITE_VOLUME, start_year, Range::INFINITE_VOLUME, end_year));
+        found_at_least_one_match = true;
+    }
+
+    return found_at_least_one_match;
+}
+
+
+bool ParseRanges4(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\s*(\\d{4})\\s*$"));
+    bool found_at_least_one_match(false);
+    for (const auto &individual_range : individual_ranges) {
+        if (not matcher->matched(individual_range))
+            continue;
+
+        unsigned start_year;
+        if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
+            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            continue;
+        }
+
+        ranges->emplace_back(Range(Range::INFINITE_VOLUME, start_year, Range::INFINITE_VOLUME, Range::INFINITE_YEAR));
+        found_at_least_one_match = true;
+    }
+
+    return found_at_least_one_match;
+}
+
+
+void ParseRanges(const std::string &_866a_contents, std::vector<Range> * const ranges) {
+    ranges->clear();
+    std::vector<std::string> individual_ranges;
+    StringUtil::SplitThenTrimWhite(_866a_contents, ';', &individual_ranges);
+    if (ParseRanges1(individual_ranges, ranges))
+        return;
+    if (ParseRanges2(individual_ranges, ranges))
+        return;
+    if (ParseRanges3(individual_ranges, ranges))
+        return;
+    if (ParseRanges4(individual_ranges, ranges))
+        return;
+    if (ParseRanges5(individual_ranges, ranges))
+        return;
+
+    for (const auto &individual_range : individual_ranges)
+        Warning("couldn't match range: \"" + individual_range + "\"!");
 }
 
 
@@ -265,7 +385,7 @@ int main(int argc, char **argv) {
     }
 
     try {
-        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[argc == 3 ? 1 : 2], MarcReader::BINARY));
+        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[argc == 3 ? 1 : 2]));
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[argc == 3 ? 2 : 3], MarcWriter::BINARY));
         PopulateTheInTuebingenAvailableField(verbose, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
