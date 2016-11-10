@@ -40,17 +40,18 @@
 
 void Usage() {
     std::cerr << "usage: " << ::progname
-              << " marc_input marc_output [[--input-format=(marc-xml|marc-21)] [--output-format=(marc-xml|marc-21)] op1 [op2 .. opN]\n"
+              << "       marc_input marc_output [[--input-format=(marc-xml|marc-21)]\n"
+              << "       [--output-format=(marc-xml|marc-21)] op1 [op2 .. opN]\n"
               << "       where each operation must start with the operation type. Operation-type flags\n"
-              << "       are --drop, --keep, --drop-biblio-level, --keep-biblio-level --remove-fields, --remove-subfields or\n"
-              << "       --filter-chars.\n"
-              << "       Arguments for --keep, --drop, --remove-field  are field_or_subfieldspec1:regex1 "
-              << "[field_or_subfieldspec2:regex2 .. field_or_subfieldspecN:regexN]\n"
-              << "       where \"field_or_subfieldspec\" must either be a MARC tag or a MARC tag followed by a\n"
-              << "       single-character subfield code and \"regex\" is a Perl-compatible regular expression.\n"
-              << "       Arguments for --remove-subfields are constructed accordingly but only subfield specs are permissible\n"
-              << "       --drop-biblio-level and --keep-biblio-level arguments must be a single character.\n"
-              << "       --filter-chars' arguments are subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
+              << "       are --drop, --keep, --drop-biblio-level, --keep-biblio-level --remove-fields,\n"
+              << "       --remove-subfields or --filter-chars.  Arguments for --keep, --drop, --remove-field are\n"
+              << "       field_or_subfieldspec1:regex1 [field_or_subfieldspec2:regex2 ..\n"
+              << "       field_or_subfieldspecN:regexN] where \"field_or_subfieldspec\" must either be a MARC tag\n"
+              << "       or a MARC tag followed by a single-character subfield code and \"regex\" is a Perl-\n"
+              << "       compatible regular expression.  Arguments for --remove-subfields are constructed\n"
+              << "       accordingly but only subfield specs are permissible --drop-biblio-level and\n"
+              << "       --keep-biblio-level arguments must be a single character.  --filter-chars' arguments are\n"
+              << "       subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
 
     std::exit(EXIT_FAILURE);
@@ -186,8 +187,8 @@ bool MatchedSubfield(const MarcRecord &record, const std::vector<CompiledPattern
             continue;
 
         for (/* Intentionally empty! */;
-             static_cast<size_t>(index) < record.getNumberOfFields() and record.getTag(index) == compiled_pattern->getTag();
-             ++index)
+             static_cast<size_t>(index) < record.getNumberOfFields()
+             and record.getTag(index) == compiled_pattern->getTag(); ++index)
         {
             if (compiled_pattern->hasSubfieldCode()) {
                 const Subfields subfields(record.getSubfields(index));
@@ -212,7 +213,8 @@ namespace {
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
-enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS, REMOVE_SUBFIELDS, FILTER_CHARS };
+enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS,
+                        REMOVE_SUBFIELDS, FILTER_CHARS };
 
 
 } // unnamed namespace
@@ -253,7 +255,8 @@ public:
     inline static FilterDescriptor MakeRemoveFieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::REMOVE_FIELDS, compiled_patterns);
     }
-    inline static FilterDescriptor MakeRemoveSubfieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
+    inline static FilterDescriptor MakeRemoveSubfieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns)
+    {
         return FilterDescriptor(FilterType::REMOVE_SUBFIELDS, compiled_patterns);
     }
 
@@ -471,7 +474,7 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::string input_filename(*argv++);
-    const std::string output_filename(*argv++ );
+    const std::string output_filename(*argv++);
 
     MarcReader::ReaderType reader_type(MarcReader::AUTO);
     if (std::strcmp("--input-format=marc-xml", *argv) == 0) {
