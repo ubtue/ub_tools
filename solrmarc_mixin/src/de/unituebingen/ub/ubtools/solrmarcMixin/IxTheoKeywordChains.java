@@ -78,7 +78,11 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                     if (keyword.length() > 0) {
                         if (subfield.getCode() == 'n') {
                             keyword.append(" ");
-                        } else {
+                        } 
+                        else if (subfield.getCode() == 'p') {
+                            keyword.append(". ");
+                        }
+                        else {
                             keyword.append(", ");
                         }
                     }
