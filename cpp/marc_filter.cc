@@ -494,7 +494,7 @@ int main(int argc, char **argv) {
         writer_type = MarcWriter::BINARY;
         ++argv;
     } else
-        writer_type = (typeid(marc_reader) == typeid(BinaryMarcReader *)) ? MarcWriter::BINARY : MarcWriter::XML;
+        writer_type = (marc_reader->getReaderType() == MarcReader::BINARY) ? MarcWriter::BINARY : MarcWriter::XML;
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(output_filename, writer_type));
 
     try {

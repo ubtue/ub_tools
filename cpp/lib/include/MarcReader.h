@@ -40,6 +40,7 @@ protected:
 public:
     virtual ~MarcReader() { delete input_; }
 
+    virtual ReaderType getReaderType() = 0;
     virtual MarcRecord read() = 0;
 
     /** \brief Rewind the underlying file. */
@@ -64,6 +65,7 @@ public:
     explicit BinaryMarcReader(File * const input): MarcReader(input) { }
     virtual ~BinaryMarcReader() final = default;
 
+    virtual ReaderType getReaderType() final { return MarcReader::BINARY; }
     virtual MarcRecord read() final;
     virtual void rewind() final { input_->rewind(); }
 };
@@ -75,6 +77,7 @@ public:
     explicit XmlMarcReader(File * const input);
     virtual ~XmlMarcReader() final;
 
+    virtual ReaderType getReaderType() final { return MarcReader::XML; }
     virtual MarcRecord read() final;
     virtual void rewind() final;
 };
