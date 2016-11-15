@@ -2,7 +2,7 @@
  *  \brief  Implementation of the Subfields class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -36,16 +36,16 @@ Subfields::Subfields(const std::string &field_data) {
     while (ch != field_data.end()) {
         if (*ch != '\x1F')
             std::runtime_error(
-                    "in Subfields::Subfields(const std::string &): expected subfield code delimiter not found! "
-                            "Found " + std::string(1, *ch) + " in " + field_data + " indicators: "
-                    + std::string(1, indicator1_) + ", " + std::string(1, indicator2_) + "! " + field_data);
+                "in Subfields::Subfields(const std::string &): expected subfield code delimiter not found! "
+                "Found " + std::string(1, *ch) + " in " + field_data + " indicators: "
+                + std::string(1, indicator1_) + ", " + std::string(1, indicator2_) + "! " + field_data);
 
         ++ch;
         if (ch == field_data.end())
             std::runtime_error(
-                    "in Subfields::Subfields(const std::string &): unexpected subfield data end while expecting "
-                            "a subfield code! " + field_data);
-        const char subfield_code = *ch++;
+                "in Subfields::Subfields(const std::string &): unexpected subfield data end while expecting "
+                "a subfield code! " + field_data);
+        const char subfield_code(*ch++);
 
         std::string subfield_data;
         while (ch != field_data.end() and *ch != '\x1F')
