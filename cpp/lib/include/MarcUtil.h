@@ -33,6 +33,9 @@ namespace MarcUtil {
 bool GetGNDCode(const MarcRecord &record, std::string *const gnd_code);
 
 
+bool UBTueIsElectronicResource(const MarcRecord &marc_record);
+
+
 } // namespace MarcUtil
 
 
