@@ -110,7 +110,7 @@ std::string Base64Encode(const std::string &s, const char symbol63 = '+', const 
  *  \param also_escape_whitespace  if true, whitespace characters tab, vertical tab, newline, space and
  *         hard space will also be escaped.
  */
-std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace);
+std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace = false);
 
     
 } // namespace TextUtil
