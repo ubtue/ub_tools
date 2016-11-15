@@ -355,7 +355,7 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
     escaped_string.reserve(original_string.size() * 2);
 
     for (char ch : original_string) {
-        if (std::iscntrl(ch) and (not also_escape_whitespace or IsWhiteSpace(ch)))
+        if (std::iscntrl(ch) or (not also_escape_whitespace or IsWhiteSpace(ch)))
             escaped_string += OctalEscape(ch);
         else
             escaped_string += ch;
