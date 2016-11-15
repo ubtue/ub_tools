@@ -141,7 +141,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                         // First case: Look up synonyms only in one category
                         if (i < synonym_maps.size()) {
                             const auto &synonym_map(synonym_maps[i]);
-                            const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
+                            const auto synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
                             if (not synonym.empty())
                                 synonym_values.insert(synonym);
                         }
