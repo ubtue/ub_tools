@@ -168,7 +168,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                 if (record->getFieldIndex(tag) != MarcRecord::FIELD_NOT_FOUND)
                     Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
                 std::string subfield_spec = GetSubfieldCodes(*output);
-                if (subfield_spec.size() != 1)
+                if (unlikely(subfield_spec.size() != 1))
                     Error("We currently only support a single subfield and thus specifying " + subfield_spec
                           + " as output subfield is not valid\n");
                 Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
