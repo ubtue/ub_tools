@@ -53,7 +53,7 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
     if (chunk.type_ == HtmlParser::TEXT)
         extracted_text_ += chunk.text_;
 }
-   
+
 
 } // unnamned namespace
 
@@ -91,7 +91,7 @@ bool IsRomanNumeral(const std::string &s) {
 
     return retcode;
 }
-    
+
 
 bool IsUnsignedInteger(const std::string &s) {
     std::string err_msg;
@@ -218,7 +218,7 @@ template<typename ContainerType> bool ChopIntoWords(const std::string &text, Con
             if (word.length() >= min_word_length) {
                 if (unlikely(not WCharToUTF8String(word, &utf8_word)))
                     return false;
-                words->insert(words->end(), utf8_word); 
+                words->insert(words->end(), utf8_word);
             }
             word.clear();
             leading = true;
@@ -264,7 +264,7 @@ bool ChopIntoWords(const std::string &text, std::vector<std::string> * const wor
 {
     return ChopIntoWords<std::vector<std::string>> (text, words, min_word_length);
 }
-    
+
 
 std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack,
                                                        const std::vector<std::string> &needle)
@@ -338,6 +338,31 @@ std::string Base64Encode(const std::string &s, const char symbol63, const char s
 
     return encoded_chars;
 }
-    
+
+
+inline bool IsWhiteSpace(const char ch) {
+    return ch == ' ' or ch == '\t' or ch == '\n' or ch == '\v' or ch == '\xA0';
+}
+
+
+inline std::string OctalEscape(const char ch) {
+    return "\\" + StringUtil::ToString(static_cast<unsigned>(ch), 8, 3);
+}
+
+
+std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace) {
+    std::string escaped_string;
+    escaped_string.reserve(original_string.size() * 2);
+
+    for (char ch : original_string) {
+        if (std::iscntrl(ch) and (not also_escape_whitespace or IsWhiteSpace(ch)))
+            escaped_string += OctalEscape(ch);
+        else
+            escaped_string += ch;
+    }
+
+    return escaped_string;
+}
+
 
 } // namespace TextUtil
