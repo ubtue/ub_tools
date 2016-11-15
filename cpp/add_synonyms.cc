@@ -62,22 +62,22 @@ std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 }
 
 
-bool FilterPasses(const MarcRecord &record, const std::map<std::string, std::pair<std::string, std::string>> &filter_specs, std::string field_spec) {
-      auto filter_spec = filter_specs.find(field_spec);
+bool FilterPasses(const MarcRecord &record, const std::map<std::string, std::pair<std::string, std::string>> &filter_specs, const std::string &field_spec) {
+      auto filter_spec(filter_specs.find(field_spec));
       if (filter_spec == filter_specs.cend())
           return true;
 
-      auto rule = filter_spec->second;
+      auto rule(filter_spec->second);
       // We have field_spec in key and rule to match in value
       std::string subfield_value;
-      std::string subfield_code = GetSubfieldCodes(rule.first);
-      if(subfield_code.length() != 1)
-         Error("Invalid subfield specification "  + subfield_code + " for filter");
+      std::string subfield_codes(GetSubfieldCodes(rule.first));
+      if (subfield_codes.length() != 1)
+         Error("Invalid subfield specification "  + subfield_codes + " for filter");
 
-      if ((subfield_value = record.extractFirstSubfield(GetTag(rule.first), subfield_code.c_str()[0])) == "")
+      if ((subfield_value = record.extractFirstSubfield(GetTag(rule.first), subfield_codes.c_str()[0])).empty())
           return false;
 
-      return (subfield_value == rule.second) ? true : false;
+      return subfield_value == rule.second;
 }
 
 
