@@ -347,7 +347,7 @@ inline bool IsWhiteSpace(const char ch) {
 
 
 inline std::string OctalEscape(const char ch) {
-    char buf[3 + 1];
+    char buf[1 + 3 + 1];
     std::sprintf(buf, "\\%03o", static_cast<unsigned>(ch));
     return buf;
 }
