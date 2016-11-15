@@ -1,5 +1,6 @@
 /** \brief Implementation of the MarcRecord class.
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
  *
@@ -314,6 +315,31 @@ std::string MarcRecord::getLanguageCode() const {
         return "";
 
     return std::string(raw_data_, entry.getFieldOffset() + 35, 3);
+}
+
+
+bool MarcRecord::isElectronicResource() const {
+    if (std::toupper(leader_[6]) == 'M')
+        return true;
+
+    const std::string title_field(getFieldData("245"));
+    if (likely(not title_field.empty())) {
+        Subfields title_subfields(title_field);
+        if (::strcasecmp(title_subfields.getFirstSubfieldValue('h').c_str(), "[electronic resource]"))
+            return true;
+    }
+
+    if (leader_.isMonograph()) {
+        std::vector<size_t> _007_field_indices;
+        getFieldIndices("007", &_007_field_indices);
+        for (auto _007_field_index : _007_field_indices) {
+            const std::string _007_field_contents(getFieldData(_007_field_index));
+            if (not _007_field_contents.empty() and std::toupper(_007_field_contents[0]) == 'C')
+                return true;
+        }
+    }
+
+    return false;
 }
 
 
