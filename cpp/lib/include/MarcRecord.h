@@ -172,6 +172,8 @@ public:
      */
     std::string getLanguageCode() const;
 
+    bool isElectronicResource() const;
+
     using RecordFunc = bool (&)(MarcRecord * const record, MarcWriter * const marc_writer,
                                 std::string * const err_msg);
 
@@ -185,7 +187,7 @@ private:
     // Copies all field data from record into this record and extends the directory_entries_ of this record
     // accordingly.
     void combine(const MarcRecord &record);
-    
+
     static MarcRecord ReadSingleRecord(File * const input);
 };
 
