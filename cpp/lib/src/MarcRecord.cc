@@ -322,13 +322,6 @@ bool MarcRecord::isElectronicResource() const {
     if (std::toupper(leader_[6]) == 'M')
         return true;
 
-    const std::string title_field(getFieldData("245"));
-    if (likely(not title_field.empty())) {
-        Subfields title_subfields(title_field);
-        if (::strcasecmp(title_subfields.getFirstSubfieldValue('h').c_str(), "[electronic resource]"))
-            return true;
-    }
-
     if (leader_.isMonograph()) {
         std::vector<size_t> _007_field_indices;
         getFieldIndices("007", &_007_field_indices);
