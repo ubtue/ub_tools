@@ -148,8 +148,8 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                        
                         // Second case: Look up synonyms in all categories
                         else {
-                            for (auto &sm : synonym_maps) {
-                                const auto &synonym(GetMapValueOrEmptyString(sm, searchterm));
+                            for (auto &synonym_map : synonym_maps) {
+                                const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
                                 if (not synonym.empty())
                                    synonym_values.insert(synonym);
                             }
@@ -197,8 +197,8 @@ void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * const marc_writ
 }
 
 
-int ParseSpec(std::string spec_str, std::set<std::string> * field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
-    std::set<std::string>  raw_field_specs;
+int ParseSpec(std::string spec_str, const std::set<std::string> * field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
+    std::set<std::string> raw_field_specs;
 
     if (unlikely(StringUtil::Split(spec_str, ":", &raw_field_specs) < 1)){
         Error("Need at least one field");
@@ -214,7 +214,7 @@ int ParseSpec(std::string spec_str, std::set<std::string> * field_specs, std::ma
     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("(\\d{1,3}[a-z]+)\\[(\\d{1,3}[a-z])=(.*)\\]"));
 
     for (auto field_spec : raw_field_specs) {
-        if (matcher->matched(field_spec)){
+        if (matcher->matched(field_spec)) {
             filter_specs->emplace((*matcher)[1], std::make_pair((*matcher)[2], (*matcher)[3]));  
             auto bracket = field_spec.find("[");
             field_spec = (bracket != std::string::npos) ? field_spec.erase(bracket, field_spec.length()) : field_spec;
