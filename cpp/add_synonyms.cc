@@ -36,6 +36,7 @@
 #include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "MediaTypeUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -61,10 +62,30 @@ std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 }
 
 
+bool FilterPasses(const MarcRecord &record, const std::map<std::string, std::pair<std::string, std::string>> &filter_specs, std::string field_spec) {
+      auto filter_spec = filter_specs.find(field_spec);
+      if (filter_spec == filter_specs.cend())
+          return true;
+
+      auto rule = filter_spec->second;
+      // We have field_spec in key and rule to match in value
+      std::string subfield_value;
+      std::string subfield_code = GetSubfieldCodes(rule.first);
+      if(subfield_code.length() != 1)
+         Error("Invalid subfield specification "  + subfield_code + " for filter");
+
+      if ((subfield_value = record.extractFirstSubfield(GetTag(rule.first), subfield_code.c_str()[0])) == "")
+          return false;
+
+      return (subfield_value == rule.second) ? true : false;
+}
+
+
 void ExtractSynonyms(MarcReader * const authority_reader,
                      const std::set<std::string> &primary_tags_and_subfield_codes,
                      const std::set<std::string> &synonym_tags_and_subfield_codes,
-                     std::vector<std::map<std::string, std::string>> * const synonym_maps)
+                     std::vector<std::map<std::string, std::string>> * const synonym_maps,
+                     const std::map<std::string, std::pair<std::string, std::string>> &filter_spec)
 {
     while (const MarcRecord record = authority_reader->read()) {
         std::set<std::string>::const_iterator primary;
@@ -78,8 +99,9 @@ void ExtractSynonyms(MarcReader * const authority_reader,
             std::vector<std::string> primary_values; 
             std::vector<std::string> synonym_values;              
 
-            if (record.extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values) and 
-                record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values))
+            if (FilterPasses(record, filter_spec, *primary) and
+                record.extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values) and 
+                record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values)) 
                     (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','),
                                                StringUtil::Join(synonym_values, ','));
         }
@@ -110,28 +132,33 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
         {
             std::vector<std::string> primary_values;
             std::set<std::string> synonym_values;
-            if (record->extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values)) {
-               for (const auto &searchterm : primary_values) {
-                    // First case: Look up synonyms only in one category
-                    if (i < synonym_maps.size()) {
-                        const auto &synonym_map(synonym_maps[i]);
-                        const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
-                        if (not synonym.empty())
-                            synonym_values.insert(synonym);
-                    }
-                    
-                    // Second case: Look up synonyms in all categories
-                    else {
-                        for (auto &sm : synonym_maps) {
-                            const auto &synonym(GetMapValueOrEmptyString(sm, searchterm));
+            std::vector<size_t> field_indices;
+            if (record->getFieldIndices(GetTag(*primary), &field_indices) != MarcRecord::FIELD_NOT_FOUND) {
+                for (auto field_index : field_indices) {
+                     primary_values.clear();
+                     if (record->getSubfields(field_index).extractSubfields(GetSubfieldCodes(*primary), &primary_values)) {
+                        std::string searchterm = StringUtil::Join(primary_values, ',');
+                        // First case: Look up synonyms only in one category
+                        if (i < synonym_maps.size()) {
+                            const auto &synonym_map(synonym_maps[i]);
+                            const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
                             if (not synonym.empty())
                                 synonym_values.insert(synonym);
                         }
+                       
+                        // Second case: Look up synonyms in all categories
+                        else {
+                            for (auto &sm : synonym_maps) {
+                                const auto &synonym(GetMapValueOrEmptyString(sm, searchterm));
+                                if (not synonym.empty())
+                                   synonym_values.insert(synonym);
+                            }
+                        }
                     }
-                }
+                 }
 
                 if (synonym_values.empty())
-                    continue;
+                     continue;
                 
                 const std::string synonyms(StringUtil::Join(synonym_values, ','));
  
@@ -170,6 +197,34 @@ void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * const marc_writ
 }
 
 
+int ParseSpec(std::string spec_str, std::set<std::string> * field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
+    std::set<std::string>  raw_field_specs;
+
+    if (unlikely(StringUtil::Split(spec_str, ":", &raw_field_specs) < 1)){
+        Error("Need at least one field");
+        return -1;
+    }
+
+    if (filter_specs == nullptr) {
+        *field_specs = raw_field_specs;
+	return 0;
+    }
+
+    // Iterate over all Field-specs and extract possible filters
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("(\\d{1,3}[a-z]+)\\[(\\d{1,3}[a-z])=(.*)\\]"));
+
+    for (auto field_spec : raw_field_specs) {
+        if (matcher->matched(field_spec)){
+            filter_specs->emplace((*matcher)[1], std::make_pair((*matcher)[2], (*matcher)[3]));  
+            auto bracket = field_spec.find("[");
+            field_spec = (bracket != std::string::npos) ? field_spec.erase(bracket, field_spec.length()) : field_spec;
+        }
+        field_specs->insert(field_spec);
+    }
+    return 0;
+}
+
+
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
@@ -192,7 +247,8 @@ int main(int argc, char **argv) {
 
     try {
         // Determine possible mappings
-        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd:110abcd:111abcd:130abcd:150abcd:151abcd");
+        // Values in square brackets specify a positive criterion for values to be taken into account
+        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd[079v=piz]:110abcd:111abcd:130abcd:150abcd:151abcd");
         const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd:410abcd:411abcd:430abcd:450abcd:451abcd");
         const std::string TITLE_DATA_PRIMARY_SPEC("600abcd:610abcd:611abcd:630abcd:650abcd:651abcd:689abcd");
         const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a:186a");
@@ -203,8 +259,10 @@ int main(int argc, char **argv) {
         std::set<std::string> input_tags_and_subfield_codes;
         std::set<std::string> output_tags_and_subfield_codes;
 
-        if (unlikely(StringUtil::Split(AUTHORITY_DATA_PRIMARY_SPEC, ":", &primary_tags_and_subfield_codes) < 1))
-            Error("Need at least one primary field");
+        std::map<std::string, std::pair<std::string, std::string>> filter_specs;
+
+        if (unlikely(ParseSpec(AUTHORITY_DATA_PRIMARY_SPEC, &primary_tags_and_subfield_codes, &filter_specs) < 0))
+            Error("Could not properly parse " + AUTHORITY_DATA_PRIMARY_SPEC);
 
         if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) < 1))
             Error("Need at least one synonym field");
@@ -228,7 +286,7 @@ int main(int argc, char **argv) {
         
         // Extract the synonyms from authority data
         ExtractSynonyms(authority_reader.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes,
-                        &synonym_maps);
+                        &synonym_maps, filter_specs);
 
         // Iterate over the title data
         InsertSynonyms(marc_reader.get(), marc_writer.get(), input_tags_and_subfield_codes,
