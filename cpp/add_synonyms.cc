@@ -197,7 +197,7 @@ void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * const marc_writ
 }
 
 
-int ParseSpec(std::string spec_str, const std::set<std::string> * field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
+int ParseSpec(std::string spec_str, std::set<std::string> * const field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
     std::set<std::string> raw_field_specs;
 
     if (unlikely(StringUtil::Split(spec_str, ":", &raw_field_specs) < 1)){
