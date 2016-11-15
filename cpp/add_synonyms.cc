@@ -200,7 +200,7 @@ void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * const marc_writ
 int ParseSpec(std::string spec_str, std::set<std::string> * const field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
     std::set<std::string> raw_field_specs;
 
-    if (unlikely(StringUtil::Split(spec_str, ":", &raw_field_specs) < 1)){
+    if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs) < 1)) {
         Error("Need at least one field");
         return -1;
     }
@@ -264,14 +264,14 @@ int main(int argc, char **argv) {
         if (unlikely(ParseSpec(AUTHORITY_DATA_PRIMARY_SPEC, &primary_tags_and_subfield_codes, &filter_specs) < 0))
             Error("Could not properly parse " + AUTHORITY_DATA_PRIMARY_SPEC);
 
-        if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) < 1))
+        if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) == 0))
             Error("Need at least one synonym field");
 
-        if (unlikely(StringUtil::Split(TITLE_DATA_PRIMARY_SPEC, ":", &input_tags_and_subfield_codes) < 1))
+        if (unlikely(StringUtil::Split(TITLE_DATA_PRIMARY_SPEC, ":", &input_tags_and_subfield_codes) == 0))
             Error("Need at least one input field");
 
         if (unlikely(StringUtil::Split(TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS, ":", &output_tags_and_subfield_codes)
-                     < 1))
+                     == 0))
             Error("Need at least one output field");
 
         unsigned num_of_authority_entries(primary_tags_and_subfield_codes.size());
