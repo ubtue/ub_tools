@@ -2,7 +2,7 @@
  *  \brief  Interface for the Leader class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014-2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2016 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -54,7 +54,8 @@ public:
      *  \param err_msg        If not nullptr and a parse error occurred an informational text will be returned here.
      *  \return True if the parse succeeded, else false.
      */
-    static bool ParseLeader(const std::string &leader_string, Leader * const leader, std::string * const err_msg = nullptr);
+    static bool ParseLeader(const std::string &leader_string, Leader * const leader,
+                            std::string * const err_msg = nullptr);
 
     /** \brief Index operator returning the n'th byte of the leader.
      *  \param pos  The offset of the byte to return.  Must be < Leader::LEADER_LENGTH.
