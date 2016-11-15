@@ -261,8 +261,7 @@ int main(int argc, char **argv) {
 
         std::map<std::string, std::pair<std::string, std::string>> filter_specs;
 
-        if (unlikely(ParseSpec(AUTHORITY_DATA_PRIMARY_SPEC, &primary_tags_and_subfield_codes, &filter_specs) < 0))
-            Error("Could not properly parse " + AUTHORITY_DATA_PRIMARY_SPEC);
+        if (unlikely(ParseSpec(AUTHORITY_DATA_PRIMARY_SPEC, &primary_tags_and_subfield_codes, &filter_specs) == false))
 
         if (unlikely(StringUtil::Split(AUTHORITY_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) == 0))
             Error("Need at least one synonym field");
