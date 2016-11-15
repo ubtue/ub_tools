@@ -106,6 +106,13 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 std::string Base64Encode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/');
 
 
+/** \brief Replaces non-printable characters with octal C-style escapes.
+ *  \param also_escape_whitespace  if true, whitespace characters tab, vertical tab, newline, space and
+ *         hard space will also be escaped.
+ */
+std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace);
+
+    
 } // namespace TextUtil
 
 
