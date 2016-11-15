@@ -69,11 +69,11 @@ bool FilterPasses(const MarcRecord &record, const std::map<std::string, std::pai
 
       auto rule(filter_spec->second);
       // We have field_spec in key and rule to match in value
-      std::string subfield_value;
       std::string subfield_codes(GetSubfieldCodes(rule.first));
       if (subfield_codes.length() != 1)
          Error("Invalid subfield specification "  + subfield_codes + " for filter");
 
+      std::string subfield_value;
       if ((subfield_value = record.extractFirstSubfield(GetTag(rule.first), subfield_codes.c_str()[0])).empty())
           return false;
 
