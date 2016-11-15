@@ -200,7 +200,7 @@ void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * const marc_writ
 bool ParseSpec(std::string spec_str, std::set<std::string> * const field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
     std::set<std::string> raw_field_specs;
 
-    if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs) < 1)) {
+    if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs) == 0)) {
         Error("Need at least one field");
         return false;
     }
