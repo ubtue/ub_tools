@@ -29,6 +29,7 @@
 #include "TextUtil.h"
 #include <algorithm>
 #include <exception>
+#include <cstdio>
 #include <cwctype>
 #include "Compiler.h"
 #include "Locale.h"
@@ -346,7 +347,9 @@ inline bool IsWhiteSpace(const char ch) {
 
 
 inline std::string OctalEscape(const char ch) {
-    return "\\" + StringUtil::ToString(static_cast<unsigned>(ch), 8, 3);
+    char buf[3 + 1];
+    std::sprintf(buf, "\\%03o", static_cast<unsigned>(ch));
+    return buf;
 }
 
 
