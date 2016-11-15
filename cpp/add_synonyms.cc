@@ -197,17 +197,17 @@ void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * const marc_writ
 }
 
 
-int ParseSpec(std::string spec_str, std::set<std::string> * const field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
+bool ParseSpec(std::string spec_str, std::set<std::string> * const field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
     std::set<std::string> raw_field_specs;
 
     if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs) < 1)) {
         Error("Need at least one field");
-        return -1;
+        return false;
     }
 
     if (filter_specs == nullptr) {
         *field_specs = raw_field_specs;
-	return 0;
+	return true;
     }
 
     // Iterate over all Field-specs and extract possible filters
@@ -221,7 +221,7 @@ int ParseSpec(std::string spec_str, std::set<std::string> * const field_specs, s
         }
         field_specs->insert(field_spec);
     }
-    return 0;
+    return true;
 }
 
 
