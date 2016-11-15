@@ -39,4 +39,19 @@ bool GetGNDCode(const MarcRecord &record, std::string * const gnd_code) {
 }
 
 
+bool UBTueIsElectronicResource(const MarcRecord &marc_record) {
+    if (marc_record.isElectronicResource())
+        return true;
+
+    const std::string title_field(marc_record.getFieldData("245"));
+    if (likely(not title_field.empty())) {
+        Subfields title_subfields(title_field);
+        if (::strcasecmp(title_subfields.getFirstSubfieldValue('h').c_str(), "[electronic resource]"))
+            return true;
+    }
+
+    return false;
 }
+
+
+} // namespace MarcUtil
