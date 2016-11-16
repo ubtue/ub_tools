@@ -20,6 +20,8 @@
  */
 
 #include "MarcUtil.h"
+#include "MiscUtil.h"
+#include "RegexMatcher.h"
 
 
 namespace MarcUtil {
@@ -51,6 +53,21 @@ bool UBTueIsElectronicResource(const MarcRecord &marc_record) {
     }
 
     return false;
+}
+
+
+std::string GetParentControlNumber(const MarcRecord &marc_record) {
+    static const std::vector<std::string> parent_reference_fields{ "800", "810", "830", "773" };
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\([^)]+\\)(.+)$"));
+    for (auto tag : parent_reference_fields) {
+        if (matcher->matched(marc_record.getSubfields(tag).getFirstSubfieldValue('w'))) {
+            const std::string ppn_candidate((*matcher)[1]);
+            if (MiscUtil::IsValidPPN(ppn_candidate))
+                return ppn_candidate;
+        }
+    }
+
+    return "";
 }
 
 
