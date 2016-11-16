@@ -46,7 +46,7 @@ public:
     explicit SignalBlocker(const int signal_to_block);
     ~SignalBlocker();
 };
-	
+        
 
 /** \brief  Run a subcommand to completion.
  *  \param  command             The path to the command that should be executed.
@@ -60,8 +60,8 @@ public:
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
 int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
-	 const std::string &new_stdout = "", const std::string &new_stderr = "",
-	 const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
+         const std::string &new_stdout = "", const std::string &new_stderr = "",
+         const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
 
 
 /** \brief  Kicks off a subcommand and returns.
@@ -73,7 +73,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args = {}, 
  *  \return The PID of the child.
  */
 int Spawn(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
-	  const std::string &new_stdout = "", const std::string &new_stderr = "");
+          const std::string &new_stdout = "", const std::string &new_stderr = "");
 
 
 /** \brief Tries to find a path, with the help of the environment variable PATH, to "executable_candidate".
@@ -81,6 +81,14 @@ int Spawn(const std::string &command, const std::vector<std::string> &args = {},
  *          "executable_candidate" is not executable.
  */
 std::string Which(const std::string &executable_candidate);
+
+
+/**  \brief Retrieve the stdout of a subcommand.
+ *   \param command        A shell command.  Can include arguments. E.g. "ls -l".
+ *   \param stdout_output  Where to store the output of the command.
+ *   \note  The command will be executed by passing it to the standard shell interpreter: "/bin/sh -c command".
+ */
+bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output);
 
 
 } // namespace ExecUtil

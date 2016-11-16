@@ -46,19 +46,19 @@ public:
 ReplaceEnvVar::ReplaceEnvVar(const std::string &variable_name, const std::string &temp_value) {
     const char * const old_value(::getenv(variable_name.c_str()));
     if (old_value != nullptr) {
-	variable_name_ = variable_name;
-	old_value_     = old_value;
+        variable_name_ = variable_name;
+        old_value_     = old_value;
     }
 
     if (unlikely(::setenv(variable_name.c_str(), temp_value.c_str(), /* overwrite = */ true) != 0))
-	Error("setenv(3) failed in ReplaceEnvVar::ReplaceEnvVar! (errno: " + std::to_string(errno) + ")");
+        Error("setenv(3) failed in ReplaceEnvVar::ReplaceEnvVar! (errno: " + std::to_string(errno) + ")");
 }
     
 
 ReplaceEnvVar:: ~ReplaceEnvVar() {
     if (not variable_name_.empty()) {
-	if (unlikely(::setenv(variable_name_.c_str(), old_value_.c_str(), /* overwrite = */ true) != 0))
-	    Error("setenv(3) failed in ReplaceEnvVar::~ReplaceEnvVar! (errno: " + std::to_string(errno) + ")");
+        if (unlikely(::setenv(variable_name_.c_str(), old_value_.c_str(), /* overwrite = */ true) != 0))
+            Error("setenv(3) failed in ReplaceEnvVar::~ReplaceEnvVar! (errno: " + std::to_string(errno) + ")");
     }
 }
 
@@ -70,14 +70,14 @@ namespace EmailSender {
 
 
 bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
-	       const std::string &message_body, const Priority priority)
+               const std::string &message_body, const Priority priority, const Format format)
 {
     static std::string mutt_path;
     if (mutt_path.empty()) {
-	ReplaceEnvVar replace_env_var("PATH", "/bin:/usr/bin");
-	mutt_path = ExecUtil::Which("mutt");
-	if (unlikely(mutt_path.empty()))
-	    Error("in EmailSender::SendEmail: can't find \"mutt\"!");
+        ReplaceEnvVar replace_env_var("PATH", "/bin:/usr/bin");
+        mutt_path = ExecUtil::Which("mutt");
+        if (unlikely(mutt_path.empty()))
+            Error("in EmailSender::SendEmail: can't find \"mutt\"!");
     }
 
     FileUtil::AutoTempFile auto_temp_file;
@@ -88,14 +88,18 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
     message += "To: " + recipient + "\n";
     message += "Subject: " + subject + "\n";
     if (priority != DO_NOT_SET_PRIORITY)
-	message += "X-Priority: " + std::to_string(priority) + "\n";
+        message += "X-Priority: " + std::to_string(priority) + "\n";
     message += '\n';
     message += message_body;
     
     if (not FileUtil::WriteString(stdin_replacement_for_mutt, message))
-	Error("in EmailSender::SendEmail: can't write the message body into a temporary file!");
+        Error("in EmailSender::SendEmail: can't write the message body into a temporary file!");
 
-    return ExecUtil::Exec(mutt_path, { "-H", "-" }, stdin_replacement_for_mutt) == 0;
+    if (format == PLAIN_TEXT)
+        return ExecUtil::Exec(mutt_path, { "-H", "-" }, stdin_replacement_for_mutt) == 0;
+    else // Send icky HTML email.
+        return ExecUtil::Exec(mutt_path, { "-H", "-", "-e set content_type=text/html" },
+                              stdin_replacement_for_mutt) == 0;
 }
 
 

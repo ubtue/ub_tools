@@ -2,7 +2,7 @@
  *  \brief  Implementation of the MARC-21 Leader class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -18,9 +18,21 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Leader.h"
+#include "Compiler.h"
 #include <cctype>
 #include <cstdio>
 #include "StringUtil.h"
+
+
+Leader &Leader::operator=(const Leader &rhs) {
+    if (likely(&rhs != this)) {
+        raw_leader_           =  rhs.raw_leader_;
+        record_length_        = rhs.record_length_;
+        base_address_of_data_ = rhs.base_address_of_data_;
+    }
+
+    return *this;
+}
 
 
 bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader, std::string * const err_msg) {
@@ -37,7 +49,8 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader
     unsigned record_length;
     if (std::sscanf(leader_string.substr(0, 5).data(), "%5u", &record_length) != 1) {
         if (err_msg != nullptr)
-            *err_msg = "Can't parse record length! (Found \"" + StringUtil::CStyleEscape(leader_string.substr(0, 5)) + "\")";
+            *err_msg = "Can't parse record length! (Found \"" + StringUtil::CStyleEscape(leader_string.substr(0, 5))
+                       + "\")";
         return false;
     }
 
@@ -55,7 +68,7 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader
     // Check indicator count:
     if (leader_string[10] != '2') {
         if (err_msg != nullptr)
-            *err_msg = "Invalid indicator count!";
+            *err_msg = "Invalid indicator count '" + leader_string.substr(10, 1) + "'!";
         return false;
     }
   
@@ -67,7 +80,7 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader
     }
 
     // Check entry map:
-    if (leader_string.substr(20, 4) != "4500") {
+    if (leader_string.substr(20, 3) != "450") {
         if (err_msg != nullptr)
             *err_msg = "Invalid entry map!";
         return false;
@@ -104,3 +117,11 @@ void Leader::setBaseAddressOfData(const unsigned new_base_address_of_data) {
                   + raw_leader_.substr(17);
 }
 
+
+Leader::RecordType Leader::getRecordType() const {
+    if (raw_leader_[6] == 'z')
+        return AUTHORITY;
+    if (raw_leader_[6] == 'w')
+        return CLASSIFICATION;
+    return std::strchr("acdefgijkmoprt", raw_leader_[6]) == nullptr ? UNKNOWN : BIBLIOGRAPHIC;
+}

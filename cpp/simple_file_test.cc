@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 2)
-	Usage();
+        Usage();
 
     const std::string input_filename(argv[1]);
     File input(input_filename, "r");
@@ -25,13 +25,13 @@ int main(int argc, char *argv[]) {
         Error("can't open \"" + input_filename + "\" for reading!");
 
     try {
-	uint64_t count(0);
-	char dummy;
-	while ((dummy = input.get()) != EOF)
-	    ++count;
-	std::cout << "Read " << count << " bytes from \"" + input_filename + "\".\n";
+        uint64_t count(0);
+        char dummy;
+        while ((dummy = input.get()) != EOF)
+            ++count;
+        std::cout << "Read " << count << " bytes from \"" + input_filename + "\".\n";
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 
 }

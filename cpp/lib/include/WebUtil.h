@@ -69,9 +69,9 @@ std::string WwwFormUrlEncode(const StringMap &post_args, const bool generate_con
  *  \return True if no error occurred, otherwise false.
  */
 bool ProcessPOST(const std::string &username_password, const std::string &address, const unsigned short port,
-		 const TimeLimit &time_limit, const std::string &path, const StringMap &post_args,
-		 std::string * const document_source, std::string * const error_message,
-		 const std::string &accept = "text/html,text/xhtml,text/plain,www/source", const bool include_http_header = false);
+                 const TimeLimit &time_limit, const std::string &path, const StringMap &post_args,
+                 std::string * const document_source, std::string * const error_message,
+                 const std::string &accept = "text/html,text/xhtml,text/plain,www/source", const bool include_http_header = false);
 
 
 /** \brief  Excutes a CGI script via POST.
@@ -87,13 +87,13 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
  *  \return True if no error occurred, otherwise false.
  */
 inline bool ProcessPOST(const std::string &address, const unsigned short port, const TimeLimit &time_limit,
-			const std::string &path, const StringMap &post_args, std::string * const document_source,
-			std::string * const error_message,
-			const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
-			const bool include_http_header = false)
+                        const std::string &path, const StringMap &post_args, std::string * const document_source,
+                        std::string * const error_message,
+                        const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
+                        const bool include_http_header = false)
 {
-	return ProcessPOST("", address, port, time_limit, path, post_args, document_source, error_message, accept,
-			   include_http_header);
+        return ProcessPOST("", address, port, time_limit, path, post_args, document_source, error_message, accept,
+                           include_http_header);
 }
 
 
@@ -122,6 +122,31 @@ FileUtil::FileType GuessFileType(const std::string &url);
  *  http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
  */
 std::string GuessMediaType(const std::string &url);
+
+
+/** \brief  Parse all arguments from HTTP POST (via std::cin) into a multimap. */
+void GetPostArgs(std::multimap<std::string, std::string> * const post_args);
+
+
+/** \brief  Parse all multipart arguments (via std::cin) into a multimap. */
+void GetMultiPartArgs(std::multimap<std::string, std::string> * const post_args, const bool save_file_to_disk = true);
+
+
+/** \brief  Parse all arguments from HTTP GET (via std::cin) into a multimap. */
+void GetGetArgs(std::multimap<std::string, std::string> * const get_args);
+
+
+/** \brief  Parse all arguments from the command line into a multimap. */
+void GetArgvArgs(const int argc, char * argv[], std::multimap<std::string, std::string> * const argv_args);
+
+
+/** \brief  Obtains all arguments from CGI (submitted in GET or POST methods or provided on the command line).
+ *  \param  cgi_args  The map that holds that variable -> value relation upon exit.
+ *  \param  argc      The argument count as provided to the main function.
+ *  \param  argv      The argument list as provided to the main function.
+ *  \note   If "argc" and "argv" are set to their default values only HTTP GET and POST arguments will be extracted!
+*/
+void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int argc = 1, char *argv[] = NULL);
 
 
 } // namespace WebUtil

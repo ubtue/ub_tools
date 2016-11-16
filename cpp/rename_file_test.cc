@@ -35,26 +35,26 @@ __attribute__((noreturn)) void Usage() {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
     if (argc < 2)
-	Usage();
+        Usage();
 
     bool remove_target(false);
     if (std::strcmp(argv[1], "--remove-target") == 0) {
-	remove_target = true;
-	--argc;
-	++argv;
+        remove_target = true;
+        --argc;
+        ++argv;
     }
     if (argc != 3)
-	Usage();
+        Usage();
 
     const std::string old_name(argv[1]);
     const std::string new_name(argv[2]);
 
     try {
-	if (FileUtil::RenameFile(old_name, new_name, remove_target))
-	    std::cout << "Successfully renamed \"" << old_name << "\" to \"" << new_name << "\".\n";
-	else
-	    std::cout << "Failed to rename \"" << old_name << "\" to \"" << new_name << "\". (" << ::strerror(errno) << ")\n";
+        if (FileUtil::RenameFile(old_name, new_name, remove_target))
+            std::cout << "Successfully renamed \"" << old_name << "\" to \"" << new_name << "\".\n";
+        else
+            std::cout << "Failed to rename \"" << old_name << "\" to \"" << new_name << "\". (" << ::strerror(errno) << ")\n";
     } catch(const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }  
 }

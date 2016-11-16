@@ -12,10 +12,6 @@ all: iViaCore-mkdep
 
 install: iViaCore-mkdep
 	@echo "Installing $< ..."
-	@/usr/bin/install -c -s -m755 iViaCore-mkdep ~/bin/
-
-root_install: iViaCore-mkdep
-	@echo "Installing $< ..."
 	@/usr/bin/install -c -s -m755 iViaCore-mkdep /usr/local/bin/
 
 clean:

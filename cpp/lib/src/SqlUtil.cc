@@ -31,6 +31,9 @@
 #include <stdexcept>
 #include <cstdio>
 #include "Compiler.h"
+#include "DbConnection.h"
+#include "DbResultSet.h"
+#include "DbRow.h"
 
 
 namespace SqlUtil {
@@ -43,24 +46,24 @@ std::string &EscapeBlob(std::string * const s) {
     encoded_string.reserve(s->size() * 2);
 
     for (const char ch : *s) {
-	if (unlikely(ch == '\'')) {
-	    encoded_string += '\\';
-	    encoded_string += '\'';
-	}
-	else if (unlikely(ch == '"')) {
-	    encoded_string += '\\';
-	    encoded_string += '"';
-	}
-	else if (unlikely(ch == '\\')) {
-	    encoded_string += '\\';
-	    encoded_string += '\\';
-	}
-	else if (unlikely(ch == '\0')) {
-	    encoded_string += '\\';
-	    encoded_string += '\0';
-	}
-	else
-	    encoded_string += ch;
+        if (unlikely(ch == '\'')) {
+            encoded_string += '\\';
+            encoded_string += '\'';
+        }
+        else if (unlikely(ch == '"')) {
+            encoded_string += '\\';
+            encoded_string += '"';
+        }
+        else if (unlikely(ch == '\\')) {
+            encoded_string += '\\';
+            encoded_string += '\\';
+        }
+        else if (unlikely(ch == '\0')) {
+            encoded_string += '\\';
+            encoded_string += '\0';
+        }
+        else
+            encoded_string += ch;
     }
 
     std::swap(*s, encoded_string);
@@ -70,7 +73,7 @@ std::string &EscapeBlob(std::string * const s) {
 
 tm DatetimeToTm(const std::string &datetime) {
     if (not IsValidDatetime(datetime))
-	throw std::runtime_error("in SqlUtil::DateToTm: invalid \"datetime\" argument \"" + datetime + "\"!");
+        throw std::runtime_error("in SqlUtil::DateToTm: invalid \"datetime\" argument \"" + datetime + "\"!");
 
     // current time format is YYYY-MM-DD hh:mm:ss
     tm time_struct;
@@ -95,8 +98,8 @@ time_t DatetimeToTimeT(const std::string &datetime) {
 std::string TmToDatetime(const struct tm &time_struct) {
     char sql_datetime[30 + 1];
     std::sprintf(sql_datetime, "%04u-%02u-%02u %02u:%02u:%02u", time_struct.tm_year + 1900,
-		 time_struct.tm_mon + 1, time_struct.tm_mday, time_struct.tm_hour,
-		 time_struct.tm_min, time_struct.tm_sec);
+                 time_struct.tm_mon + 1, time_struct.tm_mday, time_struct.tm_hour,
+                 time_struct.tm_min, time_struct.tm_sec);
 
     return sql_datetime;
 }
@@ -109,26 +112,40 @@ std::string TimeTToDatetime(const time_t time) {
 
 bool IsValidDatetime(const std::string &datetime) {
     if (datetime.length() == 10) {
-	// Presumably "YYYY-MM-DD".
+        // Presumably "YYYY-MM-DD".
 
-	unsigned year, month, day;
-	if (std::sscanf(datetime.c_str(), "%4u-%2u-%2u", &year, &month, &day) != 3)
-	    return false;
+        unsigned year, month, day;
+        if (std::sscanf(datetime.c_str(), "%4u-%2u-%2u", &year, &month, &day) != 3)
+            return false;
 
-	return (year >= 1000 and year <= 9999) and (month >= 1 and month <= 12) and
-	    (day >= 1 and day <= 365);
+        return (year >= 1000 and year <= 9999) and (month >= 1 and month <= 12) and
+            (day >= 1 and day <= 365);
     } else if (datetime.length() == 19) {
-	// Presumably "YYYY-MM-DD hh:mm:ss".
+        // Presumably "YYYY-MM-DD hh:mm:ss".
 
-	unsigned year, month, day, hour, minute, second;
-	if (std::sscanf(datetime.c_str(), "%4u-%2u-%2u %2u:%2u:%2u", &year, &month, &day, &hour,
-			&minute, &second) != 6)
-	    return false;
+        unsigned year, month, day, hour, minute, second;
+        if (std::sscanf(datetime.c_str(), "%4u-%2u-%2u %2u:%2u:%2u", &year, &month, &day, &hour,
+                        &minute, &second) != 6)
+            return false;
 
-	return (year >= 1000 and year <= 9999) and (month >= 1 and month <= 12) and
-	    (day >= 1 and day <= 365) and hour <= 23 and minute <= 59 and second <= 61;
+        return (year >= 1000 and year <= 9999) and (month >= 1 and month <= 12) and
+            (day >= 1 and day <= 365) and hour <= 23 and minute <= 59 and second <= 61;
     } else
-	return false;
+        return false;
+}
+
+
+std::set<std::string> GetColumnNames(DbConnection * const connection, const std::string &table_name) {
+    const std::string SHOW_COUMNS_STMT("SHOW COLUMNS FROM `" + table_name + "`;");
+    if (not connection->query(SHOW_COUMNS_STMT))
+        throw std::runtime_error("in SqlUtil::GetColumnNames: Show columns failed: " + SHOW_COUMNS_STMT
+                                 + " (" + connection->getLastErrorMessage() + ")");
+    DbResultSet result_set(connection->getLastResultSet());
+    std::set<std::string> column_names;
+    while (const DbRow row = result_set.getNextRow())
+        column_names.insert(row["Field"]);
+
+    return column_names;
 }
 
 

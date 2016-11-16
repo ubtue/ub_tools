@@ -1,55 +1,58 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
-
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexerMixin;
-
+import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 import java.util.*;
-
 
 public class IxTheoKeywordChains extends SolrIndexerMixin {
 
     private final static String KEYWORD_DELIMITER = "/";
     private final static String SUBFIELD_CODES = "abctnp";
+    private final static IxTheo ixTheoObject = new IxTheo();
 
-    public Set<String> getKeyWordChain(final Record record, final String fieldSpec) {
+    public Set<String> getKeyWordChain(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
         final Map<Character, List<String>> keyWordChains = new HashMap<>();
 
         for (final VariableField variableField : variableFields) {
             final DataField dataField = (DataField) variableField;
-            processField(dataField, keyWordChains);
+            processField(dataField, keyWordChains, lang);
         }
         return concatenateKeyWordsToChains(keyWordChains);
     }
 
-    public Set<String> getKeyWordChainBag(final Record record, final String fieldSpec) {
+    /**
+     * Create set version of the terms contained in the keyword chains
+     */
+
+    public Set<String> getKeyWordChainBag(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
-        final Set<String> keyWordChainsBag = new HashSet<>();
+        final Map<Character, List<String>> keyWordChains = new HashMap<>();
+        final Set<String> keyWordChainBag = new HashSet<>();
 
         for (final VariableField variableField : variableFields) {
             final DataField dataField = (DataField) variableField;
-            final List<Subfield> subfields = dataField.getSubfields('a');
-            for (final Subfield subfield : subfields) {
-                final String subfield_data = subfield.getData();
-                if (subfield_data.length() > 1) {
-                    keyWordChainsBag.add(subfield_data);
-                }
-            }
+            processField(dataField, keyWordChains, lang);
         }
-        return keyWordChainsBag;
+
+        for (List<String> keyWordChain : keyWordChains.values()) {
+            keyWordChainBag.addAll(keyWordChain);
+        }
+
+        return keyWordChainBag;
     }
 
-    public Set<String> getKeyWordChainSorted(final Record record, final String fieldSpec) {
+    public Set<String> getKeyWordChainSorted(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
         final Map<Character, List<String>> keyWordChains = new HashMap<>();
 
         for (final VariableField variableField : variableFields) {
             final DataField dataField = (DataField) variableField;
-            processField(dataField, keyWordChains);
+            processField(dataField, keyWordChains, lang);
 
             // Sort keyword chain
             final char chainID = dataField.getIndicator1();
@@ -60,43 +63,51 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
     }
 
     /**
-     * Extracts the keyword from data field and inserts it into the right keyword chain.
+     * Extracts the keyword from data field and inserts it into the right
+     * keyword chain.
      */
-    private void processField(final DataField dataField, final Map<Character, List<String>> keyWordChains) {
+    private void processField(final DataField dataField, final Map<Character, List<String>> keyWordChains, String lang) {
         final char chainID = dataField.getIndicator1();
         final List<String> keyWordChain = getKeyWordChain(keyWordChains, chainID);
 
-	boolean gnd_seen = false;
-	StringBuilder keyword = new StringBuilder();
-	for (final Subfield subfield :  dataField.getSubfields()) {
-	    if (gnd_seen) {
-		if (SUBFIELD_CODES.indexOf(subfield.getCode()) != -1) {
-		    if (keyword.length() > 0){
-                        if(subfield.getCode() == 'n') {
-                           keyword.append(" ");
-                        }   
-                        else { 
-			  keyword.append(", ");
+        boolean gnd_seen = false;
+        StringBuilder keyword = new StringBuilder();
+        for (final Subfield subfield : dataField.getSubfields()) {
+            if (gnd_seen) {
+                if (SUBFIELD_CODES.indexOf(subfield.getCode()) != -1) {
+                    if (keyword.length() > 0) {
+                        if (subfield.getCode() == 'n') {
+                            keyword.append(" ");
+                        } 
+                        else if (subfield.getCode() == 'p') {
+                            keyword.append(". ");
+                        }
+                        else {
+                            keyword.append(", ");
                         }
                     }
-		    keyword.append(subfield.getData());
-		} else if (subfield.getCode() == '9' && keyword.length() > 0 && subfield.getData().startsWith("g:")) {
-		    keyword.append(" (");
-		    keyword.append(subfield.getData().substring(2));
-		    keyword.append(')');
-		}
-	    } else if (subfield.getCode() == '2' && subfield.getData().equals("gnd"))
-		gnd_seen = true;
-	}
+                    // keyword.append(subfield.getData());
+                    keyword.append(ixTheoObject.translateTopic(subfield.getData(), lang));
+                } else if (subfield.getCode() == '9' && keyword.length() > 0 && subfield.getData().startsWith("g:")) {
+                    keyword.append(" (");
+                    keyword.append(ixTheoObject.translateTopic(subfield.getData().substring(2), lang));
+                    keyword.append(')');
+                }
+            } else if (subfield.getCode() == '2' && subfield.getData().equals("gnd"))
+                gnd_seen = true;
+        }
 
-	if (keyword.length() > 0)
-	    keyWordChain.add(keyword.toString());
+        if (keyword.length() > 0) {
+            String keywordString = keyword.toString();
+            keyWordChain.add(keywordString);
+        }
     }
 
     /**
      * Finds the right keyword chain for a given chain id.
      *
-     * @return A map containing the keywords of the chain (id -> keyword), or an empty map.
+     * @return A map containing the keywords of the chain (id -> keyword), or an
+     *         empty map.
      */
     private List<String> getKeyWordChain(final Map<Character, List<String>> keyWordChains, final char chainID) {
         List<String> keyWordChain = keyWordChains.get(chainID);

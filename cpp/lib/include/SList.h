@@ -37,10 +37,10 @@
 
 template<typename EntryType> class SList {
     struct Node {
-	EntryType data_;
-	Node *next_;
+        EntryType data_;
+        Node *next_;
     public:
-	explicit Node(const EntryType &data): data_(data) { }
+        explicit Node(const EntryType &data): data_(data) { }
     };
     Node *head_, *tail_;
     size_t size_;
@@ -50,37 +50,37 @@ public:
     class const_iterator;
 
     class iterator: public std::iterator<std::forward_iterator_tag, EntryType> {
-	friend class SList<EntryType>;
-	friend class SList<EntryType>::const_iterator;
-	Node *previous_, *current_;
+        friend class SList<EntryType>;
+        friend class SList<EntryType>::const_iterator;
+        Node *previous_, *current_;
     public:
-	iterator(const iterator &rhs): previous_(rhs.previous_), current_(rhs.current_) { }
-	iterator(): previous_(nullptr), current_(nullptr) { }
-	iterator(const const_iterator &rhs): previous_(rhs.previous_), current_(rhs.current_) { }
-	EntryType *operator->() { return &(current_->data_); }
-	EntryType &operator*() { return current_->data_; }
-	iterator operator++() { previous_ = current_; current_ = current_->next_; return *this; }
-	iterator operator++(int) { iterator last(*this); previous_ = current_; current_ = current_->next_; return last; }
-	bool operator==(const iterator &rhs) const { return rhs.current_ == current_; }
-	bool operator!=(const iterator &rhs) const { return not operator==(rhs); }
+        iterator(const iterator &rhs): previous_(rhs.previous_), current_(rhs.current_) { }
+        iterator(): previous_(nullptr), current_(nullptr) { }
+        iterator(const const_iterator &rhs): previous_(rhs.previous_), current_(rhs.current_) { }
+        EntryType *operator->() { return &(current_->data_); }
+        EntryType &operator*() { return current_->data_; }
+        iterator operator++() { previous_ = current_; current_ = current_->next_; return *this; }
+        iterator operator++(int) { iterator last(*this); previous_ = current_; current_ = current_->next_; return last; }
+        bool operator==(const iterator &rhs) const { return rhs.current_ == current_; }
+        bool operator!=(const iterator &rhs) const { return not operator==(rhs); }
     private:
-	iterator(Node * const previous, Node * const current): previous_(previous), current_(current) { }
+        iterator(Node * const previous, Node * const current): previous_(previous), current_(current) { }
     };
 
     class const_iterator: public std::iterator<std::forward_iterator_tag, EntryType> {
-	friend class SList;
-	Node *previous_, *current_;
+        friend class SList;
+        Node *previous_, *current_;
     public:
-	const_iterator(const const_iterator &rhs): previous_(rhs.previous_), current_(rhs.current_) { }
-	const_iterator(iterator rhs): previous_(rhs.previous_), current_(rhs.current_) { }
-	const EntryType *operator->() const { return &(current_->data_); }
-	const EntryType &operator*() const { return current_->data_; }
-	const_iterator operator++() { previous_ = current_; current_ = current_->next_; return *this; }
-	const_iterator operator++(int) {iterator last(*this); previous_ = current_; current_ = current_->next_; return last; }
-	bool operator==(const const_iterator &rhs) const { return rhs.current_ == current_; }
-	bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
+        const_iterator(const const_iterator &rhs): previous_(rhs.previous_), current_(rhs.current_) { }
+        const_iterator(iterator rhs): previous_(rhs.previous_), current_(rhs.current_) { }
+        const EntryType *operator->() const { return &(current_->data_); }
+        const EntryType &operator*() const { return current_->data_; }
+        const_iterator operator++() { previous_ = current_; current_ = current_->next_; return *this; }
+        const_iterator operator++(int) {iterator last(*this); previous_ = current_; current_ = current_->next_; return last; }
+        bool operator==(const const_iterator &rhs) const { return rhs.current_ == current_; }
+        bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
     private:
-	const_iterator(Node * const previous, Node * const current): previous_(previous), current_(current) { }
+        const_iterator(Node * const previous, Node * const current): previous_(previous), current_(current) { }
     };
 public:
     SList(): head_(nullptr), tail_(nullptr), size_(0) { }
@@ -124,20 +124,20 @@ public:
 template<typename EntryType> SList<EntryType>::SList(const SList &rhs) {
     // Avoid self assignment:
     if (&rhs != this) {
-	if (rhs.head_ == nullptr)
-	    head_ = tail_ = nullptr;
-	else {
-	    Node **last(&head_);
-	    Node *new_node(nullptr);
-	    for (Node *node(rhs.head_); node != nullptr; node = node->next_) {
-		new_node = new Node(node->data_);
-		*last = new_node;
-		last = &new_node->next_;
-	    }
-	    tail_ = new_node;
-	    tail_->next_ = nullptr;
-	}
-	size_ = rhs.size_;
+        if (rhs.head_ == nullptr)
+            head_ = tail_ = nullptr;
+        else {
+            Node **last(&head_);
+            Node *new_node(nullptr);
+            for (Node *node(rhs.head_); node != nullptr; node = node->next_) {
+                new_node = new Node(node->data_);
+                *last = new_node;
+                last = &new_node->next_;
+            }
+            tail_ = new_node;
+            tail_->next_ = nullptr;
+        }
+        size_ = rhs.size_;
     }
 }
 
@@ -145,9 +145,9 @@ template<typename EntryType> SList<EntryType>::SList(const SList &rhs) {
 template<typename EntryType> SList<EntryType>::~SList() {
     Node *node(head_);
     while (node != nullptr) {
-	Node *temp(node);
-	node = node->next_;
-	delete temp;
+        Node *temp(node);
+        node = node->next_;
+        delete temp;
     }
 }
 
@@ -155,22 +155,22 @@ template<typename EntryType> SList<EntryType>::~SList() {
 template<typename EntryType> typename SList<EntryType>::SList &SList<EntryType>::operator=(const SList<EntryType> &rhs) {
     // Avoid self-assignment:
     if (&rhs != this) {
-	this->~SList();
-	if (rhs.head_ == nullptr)
-	    head_ = tail_ = nullptr;
-	else {
-	    Node **last(&head_);
-	    Node *new_node;
-	    for (Node *node(rhs.head_); node != nullptr; node = node->next_) {
-		new_node = new Node(node->data_);
-		*last = new_node;
-		tail_ = *last;
-		last = &new_node->next_;
-	    }
-	    tail_ = new_node;
-	    tail_->next_ = nullptr;
-	}
-	size_ = rhs.size_;
+        this->~SList();
+        if (rhs.head_ == nullptr)
+            head_ = tail_ = nullptr;
+        else {
+            Node **last(&head_);
+            Node *new_node;
+            for (Node *node(rhs.head_); node != nullptr; node = node->next_) {
+                new_node = new Node(node->data_);
+                *last = new_node;
+                tail_ = *last;
+                last = &new_node->next_;
+            }
+            tail_ = new_node;
+            tail_->next_ = nullptr;
+        }
+        size_ = rhs.size_;
     }
 
     return *this;
@@ -179,14 +179,14 @@ template<typename EntryType> typename SList<EntryType>::SList &SList<EntryType>:
 
 template<typename EntryType> bool SList<EntryType>::operator==(const SList<EntryType> &rhs) const {
     if (head_ == nullptr)
-	return rhs.head_ == nullptr;
+        return rhs.head_ == nullptr;
     else if (size_ != rhs.size_)
-	return false;
+        return false;
 
     Node *rhs_node(rhs.head_), *node(head_);
     for (/* Empty. */; node != nullptr; node = node->next_, rhs_node = rhs_node->next_) {
-	if (node->data_ != rhs_node->data_)
-	    return false;
+        if (node->data_ != rhs_node->data_)
+            return false;
     }
 
     return true;
@@ -202,17 +202,17 @@ template<typename EntryType> void SList<EntryType>::clear() {
 
 template<typename EntryType> void SList<EntryType>::swap(SList<EntryType> &other) {
     if (likely(this != &other)) {
-	Node *temp(head_);
-	head_ = other.head_;
-	other.head_ = temp;
+        Node *temp(head_);
+        head_ = other.head_;
+        other.head_ = temp;
 
-	temp  = tail_;
-	tail_ = other.tail_;
-	other.tail_ = temp;
+        temp  = tail_;
+        tail_ = other.tail_;
+        other.tail_ = temp;
 
-	size_t temp_size(size_);
-	size_ = other.size_;
-	other.size_ = temp_size;
+        size_t temp_size(size_);
+        size_ = other.size_;
+        other.size_ = temp_size;
     }
 }
 
@@ -222,7 +222,7 @@ template<typename EntryType> void SList<EntryType>::push_front(const EntryType &
 
     // Empty list?
     if (head_ == nullptr)
-	tail_ = new_node;
+        tail_ = new_node;
 
     new_node->next_ = head_;
     head_ = new_node;
@@ -236,9 +236,9 @@ template<typename EntryType> void SList<EntryType>::push_back(const EntryType &n
 
     // Empty list?
     if (tail_ == nullptr)
-	head_ = new_node;
+        head_ = new_node;
     else
-	tail_->next_ = new_node;
+        tail_->next_ = new_node;
 
     tail_ = new_node;
     ++size_;
@@ -247,14 +247,14 @@ template<typename EntryType> void SList<EntryType>::push_back(const EntryType &n
 
 template<typename EntryType> void SList<EntryType>::pop_front() {
     if (unlikely(head_ == nullptr))
-	throw std::runtime_error("in SList<EntryType>::pop_front: can't pop an empty list!");
+        throw std::runtime_error("in SList<EntryType>::pop_front: can't pop an empty list!");
 
     Node *temp(head_);
     head_ = head_->next_;
 
     // Do we have an empty list now?
     if (head_ == nullptr)
-	tail_ = nullptr;
+        tail_ = nullptr;
 
     delete temp;
     --size_;
@@ -262,45 +262,45 @@ template<typename EntryType> void SList<EntryType>::pop_front() {
 
 
 template<typename EntryType> typename SList<EntryType>::iterator SList<EntryType>::insert(SList<EntryType>::iterator where,
-											  const EntryType &new_entry)
+                                                                                          const EntryType &new_entry)
 {
     if (where == begin()) {
-	push_front(new_entry);
-	return begin();
+        push_front(new_entry);
+        return begin();
     }
     else if (where == end()) {
-	Node *temp(tail_);
-	push_back(new_entry);
-	return iterator(temp, tail_);
+        Node *temp(tail_);
+        push_back(new_entry);
+        return iterator(temp, tail_);
     }
     else {
-	Node *new_node(new Node(new_entry));
-	where.previous_->next_ = new_node;
-	new_node->next_ = where.current_;
-	++size_;
-	return iterator(where.previous_, new_node);
+        Node *new_node(new Node(new_entry));
+        where.previous_->next_ = new_node;
+        new_node->next_ = where.current_;
+        ++size_;
+        return iterator(where.previous_, new_node);
     }
 }
 
 
 template<typename EntryType> typename SList<EntryType>::iterator SList<EntryType>::erase(SList<EntryType>::iterator where) {
     if (unlikely(head_ == nullptr))
-	throw std::runtime_error("in SList<EntryType>::erase: can't erase an element from an empty list!");
+        throw std::runtime_error("in SList<EntryType>::erase: can't erase an element from an empty list!");
 
     if (where == begin()) {
-	pop_front();
-	return iterator(nullptr, head_);
+        pop_front();
+        return iterator(nullptr, head_);
     }
     else if (unlikely(where == end()))
-	throw std::runtime_error("in SList<EntryType>::erase: can't erase end()!");
+        throw std::runtime_error("in SList<EntryType>::erase: can't erase end()!");
     else {
-	Node *temp(where.current_);
-	where.previous_->next_ = temp->next_;
-	if (temp == tail_)
-	    tail_ = where.previous_;
-	delete temp;
-	--size_;
-	return iterator(where.previous_, where.previous_->next_);
+        Node *temp(where.current_);
+        where.previous_->next_ = temp->next_;
+        if (temp == tail_)
+            tail_ = where.previous_;
+        delete temp;
+        --size_;
+        return iterator(where.previous_, where.previous_->next_);
     }
 }
 
@@ -309,7 +309,7 @@ template<typename EntryType> typename SList<EntryType>::iterator SList<EntryType
     SList<EntryType>::iterator first, SList<EntryType>::iterator last)
 {
     while (first != last)
-	first = erase(first);
+        first = erase(first);
 
     return first;
 }
@@ -317,12 +317,12 @@ template<typename EntryType> typename SList<EntryType>::iterator SList<EntryType
 
 template<typename EntryType> void SList<EntryType>::append(SList<EntryType> * const other_list) {
     if (other_list->empty())
-	return;
+        return;
 
     if (head_ == nullptr)
-	head_ = other_list->head_;
+        head_ = other_list->head_;
     else
-	tail_->next_ = other_list->head_;
+        tail_->next_ = other_list->head_;
     tail_ = other_list->tail_;
     size_ += other_list->size_;
 
@@ -332,12 +332,12 @@ template<typename EntryType> void SList<EntryType>::append(SList<EntryType> * co
 
 
 template<typename EntryType> void SList<EntryType>::RandomShuffle(const SList<EntryType>::iterator &first,
-								  const SList<EntryType>::iterator &last)
+                                                                  const SList<EntryType>::iterator &last)
 {
     // 1. Copy data to be shuffled into a random-access container:
     std::vector<EntryType> temp;
     for (iterator i(first); i != last; ++i)
-	temp.push_back(i.current_->data_);
+        temp.push_back(i.current_->data_);
 
     // 2. Perform an O(N) shuffle:
     std::random_shuffle(temp.begin(), temp.end());
@@ -345,7 +345,7 @@ template<typename EntryType> void SList<EntryType>::RandomShuffle(const SList<En
     // 3. Overwrite the original data with the shuffled data:
     typename std::vector<EntryType>::const_iterator randomized_i(temp.begin());
     for (iterator i(first); i != last; ++i, ++randomized_i)
-	(i.current_)->data_ = *randomized_i;
+        (i.current_)->data_ = *randomized_i;
 }
 
 

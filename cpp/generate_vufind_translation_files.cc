@@ -23,12 +23,14 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include <cstring>
 #include "File.h"
 #include "FileUtil.h"
 #include "TranslationUtil.h"
+#include "StringUtil.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
@@ -42,54 +44,67 @@ void Usage() {
 }
 
 
-// Generates a XX.ini output file with sorted entries.  The XX is a 2-letter language code.
-void ProcessLanguage(const std::string &output_file_path, const std::string &_3letter_code, DbConnection * const db_connection) {
+// Generates a XX.ini output file with entries like the original file.  The XX is a 2-letter language code.
+void ProcessLanguage(const std::string &output_file_path, const std::string &_3letter_code,
+                     DbConnection * const db_connection)
+{
+    std::unordered_map<std::string, std::pair<unsigned, std::string>> token_to_line_no_and_other_map;
+    TranslationUtil::ReadIniFile(output_file_path, &token_to_line_no_and_other_map);
+
     if (unlikely(not FileUtil::RenameFile(output_file_path, output_file_path + ".bak", /* remove_target = */true)))
-	Error("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"! ("
-	      + std::string(::strerror(errno)) + ")");
+        Error("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"! ("
+              + std::string(::strerror(errno)) + ")");
 
     File output(output_file_path, "w");
     if (unlikely(output.fail()))
-	Error("failed to open \"" + output_file_path + "\" for writing!");
+        Error("failed to open \"" + output_file_path + "\" for writing!");
 
-    const std::string SELECT_STMT("SELECT token,text FROM translations WHERE language_code='" + _3letter_code + "' AND "
-				  "category='vufind_translations'");
+    const std::string SELECT_STMT("SELECT token,translation FROM vufind_translations WHERE language_code='" + _3letter_code
+                                  + "'");
     if (unlikely(not db_connection->query(SELECT_STMT)))
-	Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+        Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
     DbResultSet result_set(db_connection->getLastResultSet());
     if (unlikely(result_set.empty()))
-	Error("found no translations for language code \"" + _3letter_code + "\"!");
+        Error("found no translations for language code \"" + _3letter_code + "\"!");
 
-    std::vector<std::pair<std::string, std::string>> tokens_and_texts;
-    while (const DbRow row = result_set.getNextRow())
-	tokens_and_texts.emplace_back(row[0], row[1]);
+    std::vector<std::tuple<unsigned, std::string, std::string>> line_nos_tokens_and_translations;
+    while (const DbRow row = result_set.getNextRow()) {
+        const auto &token_to_line_no_and_other(token_to_line_no_and_other_map.find(row[0]));
+        if (token_to_line_no_and_other != token_to_line_no_and_other_map.cend())
+            line_nos_tokens_and_translations.emplace_back(token_to_line_no_and_other->second.first, row[0], row[1]);
+        else
+            line_nos_tokens_and_translations.emplace_back(token_to_line_no_and_other_map.size() + 1, row[0], row[1]);
+    }
 
-    std::sort(tokens_and_texts.begin(), tokens_and_texts.end(),
-	      [](const std::pair<std::string,std::string> &left, const std::pair<std::string,std::string> &right)
-	          { return left.first < right.first; });
+    std::sort(line_nos_tokens_and_translations.begin(), line_nos_tokens_and_translations.end(),
+              [](const std::tuple<unsigned, std::string,std::string> &left,
+                 const std::tuple<unsigned, std::string,std::string> &right)
+              { return std::get<0>(left) < std::get<0>(right); });
 
-    for (const auto &token_and_text : tokens_and_texts)
-	output << token_and_text.first << " = \"" << token_and_text.second << "\"\n";
+    for (const auto &line_no_token_and_translation : line_nos_tokens_and_translations)
+        output << std::get<1>(line_no_token_and_translation) << " = \""
+               << std::get<2>(line_no_token_and_translation) << "\"\n";
 
-    std::cout << "Wrote " << tokens_and_texts.size() << " language mappings to \"" << output_file_path << "\"\n";
+    std::cout << "Wrote " << line_nos_tokens_and_translations.size() << " language mappings to \""
+              << output_file_path << "\"\n";
 }
 
 
 void GetLanguageCodes(DbConnection * const db_connection, std::map<std::string, std::string> * language_codes) {
-    const std::string SELECT_STMT("SELECT DISTINCT language_code FROM translations WHERE category = 'vufind_translations'");
+    const std::string SELECT_STMT("SELECT DISTINCT language_code FROM vufind_translations");
     if (unlikely(not db_connection->query(SELECT_STMT)))
-	Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+        Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
     DbResultSet language_codes_result_set(db_connection->getLastResultSet());
     if (unlikely(language_codes_result_set.empty()))
-	Error("no language codes found, expected multiple!");
+        Error("no language codes found, expected multiple!");
 
     while (const DbRow row = language_codes_result_set.getNextRow())
-	language_codes->emplace(TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode(row[0]), row[0]);
+        language_codes->emplace(TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode(row[0]), row[0]);
 }
 
-			     
+                             
 const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
@@ -101,21 +116,21 @@ int main(int argc, char **argv) {
 
     const std::string output_directory(argv[1]);
     if (unlikely(not FileUtil::IsDirectory(output_directory)))
-	Error("\"" + output_directory + "\" is not a directory or can't be read!");
+        Error("\"" + output_directory + "\" is not a directory or can't be read!");
 
     try {
-	const IniFile ini_file(CONF_FILE_PATH);
-	const std::string sql_database(ini_file.getString("", "sql_database"));
-	const std::string sql_username(ini_file.getString("", "sql_username"));
-	const std::string sql_password(ini_file.getString("", "sql_password"));
-	DbConnection db_connection(sql_database, sql_username, sql_password);
+        const IniFile ini_file(CONF_FILE_PATH);
+        const std::string sql_database(ini_file.getString("", "sql_database"));
+        const std::string sql_username(ini_file.getString("", "sql_username"));
+        const std::string sql_password(ini_file.getString("", "sql_password"));
+        DbConnection db_connection(sql_database, sql_username, sql_password);
 
-	std::map<std::string, std::string> _2letter_and_3letter_codes;
-	GetLanguageCodes(&db_connection, &_2letter_and_3letter_codes);
-	for (const auto &_2letter_intl_code_and_german_3letter_code : _2letter_and_3letter_codes)
-	    ProcessLanguage(output_directory + "/" + _2letter_intl_code_and_german_3letter_code.first + ".ini",
-			    _2letter_intl_code_and_german_3letter_code.second, &db_connection);
+        std::map<std::string, std::string> _2letter_and_3letter_codes;
+        GetLanguageCodes(&db_connection, &_2letter_and_3letter_codes);
+        for (const auto &_2letter_intl_code_and_german_3letter_code : _2letter_and_3letter_codes)
+            ProcessLanguage(output_directory + "/" + _2letter_intl_code_and_german_3letter_code.first + ".ini",
+                            _2letter_intl_code_and_german_3letter_code.second, &db_connection);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

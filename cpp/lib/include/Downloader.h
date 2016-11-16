@@ -65,31 +65,31 @@ private:
     static std::string default_user_agent_string_;
 public:
     enum TextTranslationMode {
-	TRANSPARENT   = 0, //< If set, perform no character set translations.
-	MAP_TO_LATIN9 = 1  //< If set, attempt to convert from whatever to Latin-9.  Note: Currently only used for HTTP and HTTPS!
+        TRANSPARENT   = 0, //< If set, perform no character set translations.
+        MAP_TO_LATIN9 = 1  //< If set, attempt to convert from whatever to Latin-9.  Note: Currently only used for HTTP and HTTPS!
     };
 
     static std::string DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG;
 
     struct Params {
-	std::string user_agent_;
-	std::string acceptable_languages_;
-	long max_redirect_count_; // Must always be between 0 and MAX_MAX_REDIRECT_COUNT.
-	long dns_cache_timeout_;  // How long to keep cache entries around.  (In seconds.)  -1 means forever
-	bool honour_robots_dot_txt_;
-	TextTranslationMode text_translation_mode_;
-	PerlCompatRegExps banned_reg_exps_; // Do not download anything matching these regular expressions.
-	bool debugging_;
-	bool follow_redirects_;
+        std::string user_agent_;
+        std::string acceptable_languages_;
+        long max_redirect_count_; // Must always be between 0 and MAX_MAX_REDIRECT_COUNT.
+        long dns_cache_timeout_;  // How long to keep cache entries around.  (In seconds.)  -1 means forever
+        bool honour_robots_dot_txt_;
+        TextTranslationMode text_translation_mode_;
+        PerlCompatRegExps banned_reg_exps_; // Do not download anything matching these regular expressions.
+        bool debugging_;
+        bool follow_redirects_;
 
     public:
-	explicit Params(const std::string &user_agent = GetDefaultUserAgentString(),
-			const std::string &acceptable_languages = DEFAULT_ACCEPTABLE_LANGUAGES,
-			const long max_redirect_count = DEFAULT_MAX_REDIRECTS,
-			const long dns_cache_timeout = DEFAULT_DNS_CACHE_TIMEOUT, const bool honour_robots_dot_txt = false,
-			const TextTranslationMode text_translation_mode = MAP_TO_LATIN9,
-			const PerlCompatRegExps &banned_reg_exps = PerlCompatRegExps(), const bool debugging = false,
-			const bool follow_redirects = true);
+        explicit Params(const std::string &user_agent = GetDefaultUserAgentString(),
+                        const std::string &acceptable_languages = DEFAULT_ACCEPTABLE_LANGUAGES,
+                        const long max_redirect_count = DEFAULT_MAX_REDIRECTS,
+                        const long dns_cache_timeout = DEFAULT_DNS_CACHE_TIMEOUT, const bool honour_robots_dot_txt = false,
+                        const TextTranslationMode text_translation_mode = MAP_TO_LATIN9,
+                        const PerlCompatRegExps &banned_reg_exps = PerlCompatRegExps(), const bool debugging = false,
+                        const bool follow_redirects = true);
     } params_;
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
@@ -102,7 +102,7 @@ public:
         { init(); }
     explicit Downloader(const Url &url, const Params &params = Params(), const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
     explicit Downloader(const std::string &url, const Params &params = Params(), const TimeLimit &time_limit = DEFAULT_TIME_LIMIT,
-			bool multimode = false);
+                        bool multimode = false);
     virtual ~Downloader();
 
     bool newUrl(const Url &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
@@ -149,9 +149,9 @@ protected:
 
 private:
     static void InitCurlEasyHandle(const long dns_cache_timeout, const char * const error_buffer, const bool debugging,
-				   WriteFunc write_func, LockFunc lock_func, UnlockFunc unlock_func, HeaderFunc header_func,
-				   DebugFunc debug_func, CURL ** const easy_handle, std::string * const user_agent,
-				   const bool follow_redirect);
+                                   WriteFunc write_func, LockFunc lock_func, UnlockFunc unlock_func, HeaderFunc header_func,
+                                   DebugFunc debug_func, CURL ** const easy_handle, std::string * const user_agent,
+                                   const bool follow_redirect);
     void init();
     bool internalNewUrl(const Url &url, const TimeLimit &time_limit);
     size_t writeFunction(void *data, size_t size, size_t nmemb);

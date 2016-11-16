@@ -23,47 +23,42 @@
 #include <iostream>
 #include <cstdlib>
 #include "DirectoryEntry.h"
-#include "MarcUtil.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcTag.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "util.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " tag_regex input_filename\n";
+    std::cerr << "Usage: " << ::progname << " tag_regex input_filename\n";
     std::exit(EXIT_FAILURE);
 }
 
 
 void TagGrep(const std::string &regex, const std::string &input_filename) {
-    File input(input_filename, "r");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(input_filename));
 
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex, &err_msg));
     if (unlikely(matcher == nullptr))
-	Error("bad regex: " + err_msg);
+        Error("bad regex: " + err_msg);
 
     unsigned count(0), field_matched_count(0), record_matched_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
+    while (const MarcRecord record = marc_reader->read()) {
         ++count;
-
-	const std::vector<std::string> &fields(record.getFields());
-	const std::string &control_number(fields[0]);
-	unsigned index(0);
-	bool at_least_one_field_matched(false);
-	for (const auto dir_entry : record.getDirEntries()) {
-	    const std::string &tag(dir_entry.getTag());
-	    if (matcher->matched(tag)) {
-		std::cout << control_number << ':' << tag << ':' << fields[index] << '\n';
-		++field_matched_count;
-		at_least_one_field_matched = true;
-	    }
-
-	    ++index;
-	}
-	if (at_least_one_field_matched)
-	    ++record_matched_count;
+        bool at_least_one_field_matched(false);
+        for (size_t index(0); index < record.getNumberOfFields(); ++index) {
+            const MarcTag &tag(record.getTag(index));
+            if (matcher->matched(tag.to_string())) {
+                std::cout << record.getControlNumber() << ':' << tag << ':' << record.getFieldData(index) << '\n';
+                ++field_matched_count;
+                at_least_one_field_matched = true;
+            }
+        }
+        if (at_least_one_field_matched)
+            ++record_matched_count;
     }
 
     std::cerr << "Matched " << record_matched_count << " records of " << count << " overall records.\n";
@@ -72,14 +67,14 @@ void TagGrep(const std::string &regex, const std::string &input_filename) {
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 3)
         Usage();
 
     try {
-	TagGrep(argv[1], argv[2]);
+        TagGrep(argv[1], argv[2]);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }
