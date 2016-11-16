@@ -160,8 +160,6 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                 if (synonym_values.empty())
                      continue;
                 
-                const std::string synonyms(StringUtil::Join(synonym_values, ','));
- 
                 // Insert synonyms
                 // Abort if field is already populated
                 std::string tag(GetTag(*output));
@@ -171,10 +169,35 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                 if (unlikely(subfield_spec.size() != 1))
                     Error("We currently only support a single subfield and thus specifying " + subfield_spec
                           + " as output subfield is not valid\n");
-                Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
-                subfields.addSubfield(subfield_spec.at(0), synonyms);
-                if (not(record->insertField(tag, subfields.toString())))
-                    Warning("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+
+                std::string synonyms;
+                unsigned current_length(0);
+                unsigned indicator2(0);
+
+                for (auto synonym_it(synonym_values.cbegin()); synonym_it != synonym_values.cend(); /*Intentionally empty*/) {
+                   
+                    if (i > 9)
+                        Error ("Currently cannot handle synonyms with total length greater " + std::to_string(9 * MarcRecord::MAX_FIELD_LENGTH) + '\n');
+                    
+                    if (current_length + (*synonym_it).length() < MarcRecord::MAX_FIELD_LENGTH) {
+                         bool synonyms_empty(synonyms.empty());
+                         synonyms += (synonyms_empty ? *synonym_it : " , " + *synonym_it);
+                         current_length += (*synonym_it).length() + (synonyms_empty ? 0 : 3);
+                         ++synonym_it;
+                    }
+                    else {
+                        if (not(record->insertSubfield(tag, subfield_spec.at(0), synonyms, '0', indicator2 + '0')))
+                            Error("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+                        synonyms = "";
+                        current_length = 0;
+                        ++i;
+                    }
+                }
+                // Write rest of data
+                if (not synonyms.empty()) {
+                    if (not(record->insertSubfield(tag, subfield_spec.at(0), synonyms, '0', indicator2 + '0')))
+                            Error("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+                }
                 ++modified_count;
             }   
         }
