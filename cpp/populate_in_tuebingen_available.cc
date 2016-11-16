@@ -39,7 +39,6 @@
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
-#include "TextUtil.h"//XXX
 #include "util.h"
 
 
