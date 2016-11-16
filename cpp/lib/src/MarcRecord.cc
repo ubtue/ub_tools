@@ -21,7 +21,6 @@
 #include "MarcRecord.h"
 #include "MarcTag.h"
 #include "util.h"
-#include <iostream>
 
 
 const size_t MarcRecord::FIELD_NOT_FOUND;
@@ -37,29 +36,16 @@ MarcRecord &MarcRecord::operator=(const MarcRecord &rhs) {
 }
 
 
-std::string MarcRecord::getFieldData(const MarcTag &tag) const {
-    const size_t index(getFieldIndex(tag));
-    if (index == MarcRecord::FIELD_NOT_FOUND)
-        return "";
-    return getFieldData(index);
-}
-
-
 std::string MarcRecord::getFieldData(const size_t index) const {
-    if (directory_entries_.cbegin() + index >= directory_entries_.cend())
+    if (index == MarcRecord::FIELD_NOT_FOUND or directory_entries_.cbegin() + index >= directory_entries_.cend())
         return "";
     const DirectoryEntry &entry(directory_entries_[index]);
     return std::string(raw_data_, entry.getFieldOffset(), entry.getFieldLength() - 1);
 }
 
 
-Subfields MarcRecord::getSubfields(const MarcTag &tag) const {
-    return getSubfields(getFieldIndex(tag));
-}
-
-
 Subfields MarcRecord::getSubfields(const size_t index) const {
-    if (directory_entries_.cbegin() + index >= directory_entries_.cend())
+    if (index == MarcRecord::FIELD_NOT_FOUND or directory_entries_.cbegin() + index >= directory_entries_.cend())
         return Subfields();
     return Subfields(getFieldData(index));
 }
@@ -102,7 +88,7 @@ size_t MarcRecord::getFieldIndices(const MarcTag &field_tag, std::vector <size_t
 }
 
 
-bool MarcRecord::updateField(const size_t field_index, const std::string &new_field_value) {
+void MarcRecord::updateField(const size_t field_index, const std::string &new_field_value) {
     DirectoryEntry &entry(directory_entries_[field_index]);
     size_t offset = raw_data_.size();
     size_t length = new_field_value.length() + 1 /* For new field separator. */;
@@ -110,8 +96,6 @@ bool MarcRecord::updateField(const size_t field_index, const std::string &new_fi
     entry.setFieldLength(length);
     entry.setFieldOffset(offset);
     raw_data_ += new_field_value + '\x1E';
-
-    return true;
 }
 
 
