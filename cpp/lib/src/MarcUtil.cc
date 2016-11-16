@@ -56,7 +56,7 @@ bool UBTueIsElectronicResource(const MarcRecord &marc_record) {
 }
 
 
-std::string GetParentControlNumber(const MarcRecord &marc_record) {
+std::string GetParentPPN(const MarcRecord &marc_record) {
     static const std::vector<std::string> parent_reference_fields{ "800", "810", "830", "773" };
     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\([^)]+\\)(.+)$"));
     for (auto tag : parent_reference_fields) {
