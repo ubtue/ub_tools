@@ -124,6 +124,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
     std::set<std::string>::const_iterator primary;
     std::set<std::string>::const_iterator output;
     unsigned int i(0);
+    bool modified_record(false);
 
     if (primary_tags_and_subfield_codes.size() == output_tags_and_subfield_codes.size()) {
         for (primary = primary_tags_and_subfield_codes.begin(), output = output_tags_and_subfield_codes.begin();
@@ -189,16 +190,19 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                         synonyms.clear();
                         current_length = 0;
                         ++indicator2;
+                        modified_record = true;
                     }
                 }
                 // Write rest of data
                 if (not synonyms.empty()) {
                     if (not(record->insertSubfield(tag, subfield_spec[0], synonyms, '0', indicator2 + '0')))
                             Error("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+                    modified_record = true;
                 }
-                ++modified_count;
             }   
         }
+        if (modified_record) 
+            ++modified_count;
     }
 }   
 
