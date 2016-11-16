@@ -176,7 +176,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
 
                 for (auto synonym_it(synonym_values.cbegin()); synonym_it != synonym_values.cend(); /*Intentionally empty*/) {
                    
-                    if (i > 9)
+                    if (indicator2 > 9)
                         Error ("Currently cannot handle synonyms with total length greater " + std::to_string(9 * MarcRecord::MAX_FIELD_LENGTH) + '\n');
                     
                     if (current_length + (*synonym_it).length() < MarcRecord::MAX_FIELD_LENGTH) {
@@ -190,7 +190,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                             Error("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
                         synonyms = "";
                         current_length = 0;
-                        ++i;
+                        ++indicator2;
                     }
                 }
                 // Write rest of data
