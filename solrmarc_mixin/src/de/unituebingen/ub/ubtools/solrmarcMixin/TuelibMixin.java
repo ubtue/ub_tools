@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 public class TuelibMixin extends SolrIndexerMixin {
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
-    private final static Pattern EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
+    private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
         {
@@ -425,7 +425,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (titleSubfield == null || idSubfield == null)
                     continue;
 
-                final Matcher matcher = EXTRACTION_PATTERN.matcher(idSubfield.getData());
+                final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(idSubfield.getData());
                 if (!matcher.matches())
                     continue;
                 final String parentId = matcher.group(1);
@@ -459,7 +459,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             String parentId = "000000000";
             final Subfield idSubfield = field.getSubfield('w');
             if (idSubfield != null) {
-                final Matcher matcher = EXTRACTION_PATTERN.matcher(idSubfield.getData());
+                final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(idSubfield.getData());
                 if (matcher.matches())
                     parentId = matcher.group(1);
             }
