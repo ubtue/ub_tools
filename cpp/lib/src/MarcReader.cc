@@ -65,7 +65,7 @@ MarcRecord MarcRecord::ReadSingleRecord(File * const input) {
 
     if (not DirectoryEntry::ParseDirEntries(std::string(directory_buf, DIRECTORY_LENGTH), &record.directory_entries_,
                                             &err_msg))
-        throw std::runtime_error("in MarcReader::read: failed to parse directory entries: " + err_msg);
+        throw std::runtime_error("in ReadSingleRecord: failed to parse directory entries: " + err_msg);
 
     //
     // Read variable fields.
