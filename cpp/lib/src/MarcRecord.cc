@@ -88,6 +88,10 @@ size_t MarcRecord::getFieldIndices(const MarcTag &field_tag, std::vector <size_t
 
 
 void MarcRecord::updateField(const size_t field_index, const std::string &new_field_value) {
+    if (unlikely(new_field_value.size() > MAX_FIELD_LENGTH))
+        throw std::runtime_error("in MarcRecord::updateField: can't accept more than MarcRecord::MAX_FIELD_LENGTH "
+                                 "of field data!");
+    
     DirectoryEntry &entry(directory_entries_[field_index]);
     size_t offset = raw_data_.size();
     size_t length = new_field_value.length() + 1 /* For new field separator. */;
@@ -106,6 +110,9 @@ bool MarcRecord::insertSubfield(const MarcTag &new_field_tag, const char subfiel
 
 
 size_t MarcRecord::insertField(const MarcTag &new_field_tag, const std::string &new_field_value) {
+    if (unlikely(new_field_value.size() > MAX_FIELD_LENGTH))
+        throw std::runtime_error("in MarcRecord::insertField: can't accept more than MarcRecord::MAX_FIELD_LENGTH "
+                                 "of field data!");
 
     // Find the insertion location:
     auto insertion_location(directory_entries_.begin());
