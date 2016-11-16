@@ -36,6 +36,10 @@ bool GetGNDCode(const MarcRecord &record, std::string *const gnd_code);
 bool UBTueIsElectronicResource(const MarcRecord &marc_record);
 
 
+/** \return A Non-empty string if we managed to find a parent PPN o/w the empty string. */
+std::string GetParentPPN(const MarcRecord &marc_record);
+
+
 } // namespace MarcUtil
 
 
