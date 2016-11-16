@@ -78,8 +78,7 @@ size_t MarcRecord::getFieldIndices(const MarcTag &field_tag, std::vector <size_t
     field_indices->clear();
 
     size_t field_index(getFieldIndex(field_tag));
-    while (static_cast<size_t>(field_index) < directory_entries_.size() and
-           directory_entries_[field_index].getTag() == field_tag) {
+    while (field_index < directory_entries_.size() and directory_entries_[field_index].getTag() == field_tag) {
         field_indices->emplace_back(field_index);
         ++field_index;
     }
@@ -147,12 +146,12 @@ std::string MarcRecord::extractFirstSubfield(const MarcTag &tag, const char subf
     const size_t index(getFieldIndex(tag));
     if (index == FIELD_NOT_FOUND)
         return "";
-    return getSubfields(tag).getFirstSubfieldValue(subfield_code);
+    return getSubfields(index).getFirstSubfieldValue(subfield_code);
 }
 
 
 std::string MarcRecord::extractFirstSubfield(const size_t field_index, const char subfield_code) const {
-    const Subfields subfields(getFieldData(field_index));
+    const Subfields subfields(getSubfields(field_index));
     return subfields.getFirstSubfieldValue(subfield_code);
 }
 
@@ -166,8 +165,7 @@ size_t MarcRecord::extractAllSubfields(const std::string &tags, std::vector <std
     StringUtil::Split(tags, ':', &individual_tags);
     for (const auto &tag : individual_tags) {
         size_t field_index(getFieldIndex(tag));
-        while (static_cast<size_t>(field_index) < directory_entries_.size() and
-               directory_entries_[field_index].getTag() == tag) {
+        while (field_index < directory_entries_.size() and directory_entries_[field_index].getTag() == tag) {
             const Subfields subfields(getSubfields(field_index));
             for (const auto &subfield : subfields) {
                 if (ignore_subfield_codes.find(subfield.code_) == std::string::npos)
@@ -186,8 +184,7 @@ size_t MarcRecord::extractSubfield(const MarcTag &tag, const char subfield_code,
     values->clear();
 
     size_t field_index(getFieldIndex(tag));
-    while (static_cast<size_t>(field_index) < directory_entries_.size() and
-           tag == directory_entries_[field_index].getTag()) {
+    while (field_index < directory_entries_.size() and tag == directory_entries_[field_index].getTag()) {
         const Subfields subfields(getSubfields(field_index));
         const auto begin_end(subfields.getIterators(subfield_code));
         for (auto subfield_code_and_value(begin_end.first);
@@ -205,8 +202,7 @@ size_t MarcRecord::extractSubfields(const MarcTag &tag, const std::string &subfi
     values->clear();
 
     size_t field_index(getFieldIndex(tag));
-    while (static_cast<size_t>(field_index) < directory_entries_.size() and
-           tag == directory_entries_[field_index].getTag()) {
+    while (field_index < directory_entries_.size() and tag == directory_entries_[field_index].getTag()) {
         const Subfields subfields(getSubfields(field_index));
         for (const auto &subfield : subfields) {
             if (subfield_codes.find(subfield.code_) != std::string::npos)
