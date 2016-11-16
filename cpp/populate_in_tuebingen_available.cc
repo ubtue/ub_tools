@@ -33,6 +33,7 @@
 #include "Leader.h"
 #include "MarcRecord.h"
 #include "MarcReader.h"
+#include "MarcUtil.h"
 #include "MarcWriter.h"
 #include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
@@ -71,7 +72,34 @@ public:
         start_issue_ = start_issue;
         end_issue_   = end_issue;
     }
+
+    bool matched(const unsigned issue, const unsigned year, const unsigned volume) const;
 };
+
+
+bool Range::matched(const unsigned issue, const unsigned year, const unsigned volume) const {
+    if (issue != ISSUE_WILDCARD) {
+        if (start_issue_ != ISSUE_WILDCARD and issue < start_issue_)
+            return false;
+        if (end_issue_ != ISSUE_WILDCARD and issue > end_issue_)
+            return false;
+    }
+
+    // We always need a matching year.
+    if (start_year_ != YEAR_WILDCARD and year < start_year_)
+        return false;
+    if (end_year_ != YEAR_WILDCARD and year > end_year_)
+        return false;
+
+    if (volume != VOLUME_WILDCARD) {
+        if (start_volume_ != VOLUME_WILDCARD and volume < start_volume_)
+            return false;
+        if (end_volume_ != VOLUME_WILDCARD and volume > end_volume_)
+            return false;
+    }
+
+    return true;
+}
 
 
 static unsigned modified_record_count;
@@ -975,6 +1003,9 @@ void ParseRanges(const std::string &_866a_contents, std::vector<Range> * const r
 }
 
 
+std::unordered_map<std::string, std::vector<Range>> parent_ppn_to_ranges_map;
+
+
 bool ProcessSerialRecord(MarcRecord * const record, MarcWriter * const /*output*/, std::string * const /*err_msg*/) {
     if (not record->getLeader().isSerial())
         return true;
@@ -998,10 +1029,70 @@ bool ProcessSerialRecord(MarcRecord * const record, MarcWriter * const /*output*
 
             std::vector<Range> ranges;
             ParseRanges(_866a_contents, &ranges);
+            if (not ranges.empty())
+                parent_ppn_to_ranges_map.emplace(record->getControlNumber(), ranges);
         }
     }
 
     return true;
+}
+
+
+bool ElectronicArticleIsAvailableInTuebingen(const MarcRecord &record) {
+    if (MarcUtil::UBTueIsElectronicResource(record) and record.getLeader().isArticle()) {
+        const std::string parent_ppn(MarcUtil::GetParentPPN(record));
+        if (parent_ppn.empty())
+            return false;
+
+        const auto parent_ppn_and_ranges(parent_ppn_to_ranges_map.find(parent_ppn));
+        if (parent_ppn_and_ranges == parent_ppn_to_ranges_map.end())
+            return false;
+
+        const Subfields _936_subfields(record.getSubfields("936"));
+        const std::string issue_string(_936_subfields.getFirstSubfieldValue('e'));
+        const std::string year_string(_936_subfields.getFirstSubfieldValue('j'));
+        const std::string volume_string(_936_subfields.getFirstSubfieldValue('d'));
+        if (issue_string.empty() and year_string.empty() and volume_string.empty())
+            return false;
+        unsigned issue;
+        if (not StringUtil::ToUnsigned(issue_string, &issue))
+            issue = Range::ISSUE_WILDCARD;
+        unsigned year;
+        if (not StringUtil::ToUnsigned(year_string, &year))
+            return false; // Need at least the year!
+        unsigned volume;
+        if (not StringUtil::ToUnsigned(volume_string, &volume))
+            volume = Range::VOLUME_WILDCARD;
+
+        for (const auto &range : parent_ppn_and_ranges->second) {
+            if (range.matched(issue, year, volume))
+                return true;
+        }
+    }
+
+    return false;
+}
+
+
+bool Get856URLAndAnchor(const std::string &_856_field_contents, std::string * const url, std::string * const anchor) {
+    url->clear(), anchor->clear();
+
+    const Subfields subfields(_856_field_contents);
+    if (subfields.hasSubfield('u')) {
+        *url = subfields.getFirstSubfieldValue('u');
+        if (url->empty())
+            return false;
+
+        const std::string x_subfield(subfields.getFirstSubfieldValue('x'));
+        if (x_subfield.empty())
+            *anchor = "Tübingen Online Resource";
+        else
+            *anchor = HtmlUtil::HtmlEscape(x_subfield);
+
+        return true;
+    }
+
+    return false;
 }
 
 
@@ -1051,21 +1142,18 @@ bool ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer, st
                     ++add_sig_count;
                     modified_record = true;
                     record->insertSubfield("SIG", 'a', institution_and_call_number
-                                           + (detailed_availability.empty() ? "" : "(" + detailed_availability
-                                              + ")"));
+                                           + (detailed_availability.empty() ? ""
+                                                                            : "(" + detailed_availability + ")"));
                 } else { // Look for a URL.
                     std::vector <size_t> _856_field_indices;
                     if (record->findFieldsInLocalBlock("856", "4 ", block_start_and_end, &_856_field_indices) > 0) {
-                        const Subfields subfields3(record->getSubfields(_856_field_indices.front()));
-                        if (subfields3.hasSubfield('u')) {
-                            const std::string url(subfields3.getFirstSubfieldValue('u'));
-                            if (alread_seen_urls.find(url) == alread_seen_urls.cend()) {
-                                alread_seen_urls.insert(url);
-                                std::string anchor(HtmlUtil::HtmlEscape(subfields3.getFirstSubfieldValue('x')));
-                                if (anchor.empty())
-                                    anchor = "Tübingen Online Resource";
-                                record->insertSubfield("SIG", 'a', "<a href=\"" + url + "\">" + anchor + "</a>");
-                            }
+                        std::string url, anchor;
+                        if (not Get856URLAndAnchor(record->getFieldData(_856_field_indices.front()), &url, &anchor))
+                            continue;
+                        if (alread_seen_urls.find(url) == alread_seen_urls.cend()) {
+                            alread_seen_urls.insert(url);
+                            record->insertSubfield("SIG", 'a', "<a href=\"" + url + "\">" + anchor + "</a>");
+                            modified_record = true;
                         }
                     }
                 }
@@ -1076,8 +1164,19 @@ bool ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer, st
 
     if (modified_record)
         ++modified_record_count;
+    else if (ElectronicArticleIsAvailableInTuebingen(*record)) {
+        std::string url, anchor;
+        if (Get856URLAndAnchor(record->getFieldData("856"), &url, &anchor)) {
+            if (alread_seen_urls.find(url) == alread_seen_urls.cend()) {
+                alread_seen_urls.insert(url);
+                record->insertSubfield("SIG", 'a', "<a href=\"" + url + "\">" + anchor + "</a>");
+                ++modified_record_count;
+            }
+        }
+    }
 
     marc_writer->write(*record);
+
     return true;
 }
 
@@ -1106,6 +1205,7 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, MarcReader * const
                   << " (" << bad_match_count << ") publication ranges.\n";
     }
 
+    marc_reader->rewind();
     if (not MarcRecord::ProcessRecords(marc_reader, ProcessRecord, marc_writer, &err_msg))
         Error("error while processing records: " + err_msg);
 

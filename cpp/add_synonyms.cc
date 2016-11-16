@@ -124,6 +124,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
     std::set<std::string>::const_iterator primary;
     std::set<std::string>::const_iterator output;
     unsigned int i(0);
+    bool modified_record(false);
 
     if (primary_tags_and_subfield_codes.size() == output_tags_and_subfield_codes.size()) {
         for (primary = primary_tags_and_subfield_codes.begin(), output = output_tags_and_subfield_codes.begin();
@@ -160,24 +161,48 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                 if (synonym_values.empty())
                      continue;
                 
-                const std::string synonyms(StringUtil::Join(synonym_values, ','));
- 
                 // Insert synonyms
                 // Abort if field is already populated
                 std::string tag(GetTag(*output));
                 if (record->getFieldIndex(tag) != MarcRecord::FIELD_NOT_FOUND)
                     Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
-                std::string subfield_spec = GetSubfieldCodes(*output);
+                std::string subfield_spec(GetSubfieldCodes(*output));
                 if (unlikely(subfield_spec.size() != 1))
                     Error("We currently only support a single subfield and thus specifying " + subfield_spec
                           + " as output subfield is not valid\n");
-                Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
-                subfields.addSubfield(subfield_spec.at(0), synonyms);
-                if (not(record->insertField(tag, subfields.toString())))
-                    Warning("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
-                ++modified_count;
+
+                std::string synonyms;
+                unsigned current_length(0);
+                unsigned indicator2(0);
+
+                for (auto synonym_it(synonym_values.cbegin()); synonym_it != synonym_values.cend(); /*Intentionally empty*/) {
+                    if (indicator2 > 9)
+                        Error ("Currently cannot handle synonyms with total length greater than " + std::to_string(9 * (MarcRecord::MAX_FIELD_LENGTH - 4)) + '\n');
+                    
+                    if (current_length + synonym_it->length() < MarcRecord::MAX_FIELD_LENGTH - 4) {
+                         bool synonyms_empty(synonyms.empty());
+                         synonyms += (synonyms_empty ? *synonym_it : " , " + *synonym_it);
+                         current_length += synonym_it->length() + (synonyms_empty ? 0 : 3);
+                         ++synonym_it;
+                    } else {
+                        if (not(record->insertSubfield(tag, subfield_spec[0], synonyms, '0', indicator2 + '0')))
+                            Error("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+                        synonyms.clear();
+                        current_length = 0;
+                        ++indicator2;
+                        modified_record = true;
+                    }
+                }
+                // Write rest of data
+                if (not synonyms.empty()) {
+                    if (not(record->insertSubfield(tag, subfield_spec[0], synonyms, '0', indicator2 + '0')))
+                            Error("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+                    modified_record = true;
+                }
             }   
         }
+        if (modified_record) 
+            ++modified_count;
     }
 }   
 
