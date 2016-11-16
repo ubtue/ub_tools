@@ -123,7 +123,7 @@ krimdok_marc_pipeline.sh_no_fulltext
 new_journal_alert
 convert_oai_pmh_dc_to_marc21
 marc_char_filter
-
+normalise_urls
 
 bsz_daten
 bsz_daten_cumulated
