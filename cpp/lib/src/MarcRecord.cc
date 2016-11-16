@@ -38,7 +38,10 @@ MarcRecord &MarcRecord::operator=(const MarcRecord &rhs) {
 
 
 std::string MarcRecord::getFieldData(const MarcTag &tag) const {
-    return getFieldData(getFieldIndex(tag));
+    const size_t index(getFieldIndex(tag));
+    if (index == MarcRecord::FIELD_NOT_FOUND)
+        return "";
+    return getFieldData(index);
 }
 
 
