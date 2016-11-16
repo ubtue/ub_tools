@@ -56,14 +56,14 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
             Error("record #" + std::to_string(record_count) + " has zero fields!");
         const std::string &control_number(record.getControlNumber());
 
+        if (control_numbers.find(control_number) != control_numbers.end())
+            Error("found at least one duplicate control number: " + control_number);
+        control_numbers.insert(control_number);
+
         const Leader::RecordType record_type(record.getRecordType());
         ++record_types_and_counts[record_type];
         if (verbose and record_type == Leader::RecordType::UNKNOWN)
             std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number << ".\n";
-
-        if (control_numbers.find(control_number) != control_numbers.end())
-            Error("found at least one duplicate control number: " + control_number);
-        control_numbers.insert(control_number);
 
         const Leader &leader(record.getLeader());
         const unsigned record_length(leader.getRecordLength());
