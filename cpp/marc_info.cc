@@ -48,7 +48,6 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
     unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0);
     std::unordered_set<std::string> control_numbers;
     std::map<Leader::RecordType, unsigned> record_types_and_counts;
-    std::string last_control_number;
 
     while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
@@ -57,10 +56,9 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
             Error("record #" + std::to_string(record_count) + " has zero fields!");
         const std::string &control_number(record.getControlNumber());
 
-        if (control_number != last_control_number and control_numbers.find(control_number) != control_numbers.end())
+        if (control_numbers.find(control_number) != control_numbers.end())
             Error("found at least one duplicate control number: " + control_number);
         control_numbers.insert(control_number);
-        last_control_number = control_number;
 
         const Leader::RecordType record_type(record.getRecordType());
         ++record_types_and_counts[record_type];
