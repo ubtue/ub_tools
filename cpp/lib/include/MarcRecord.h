@@ -41,7 +41,7 @@ class MarcRecord {
     friend class XmlMarcWriter;
 public:
     static const size_t FIELD_NOT_FOUND = std::numeric_limits<size_t>::max();
-    static const size_t MAX_FIELD_LENGTH = 9999;
+    static const size_t MAX_FIELD_LENGTH = 9998; // Substract size of trailing 0x1E
 private:
     mutable Leader leader_;
     std::vector<DirectoryEntry> directory_entries_;
