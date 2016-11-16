@@ -66,13 +66,13 @@ public:
     size_t getNumberOfFields() const { return directory_entries_.size(); }
 
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
-    std::string getFieldData(const MarcTag &tag) const;
+    inline std::string getFieldData(const MarcTag &tag) const { return getFieldData(getFieldIndex(tag)); }
 
     /** \brief Returns the content of the field at given index or an empty string if this index is not present. **/
     std::string getFieldData(const size_t tag_index) const;
 
     /** \brief Returns the subfields of the first field with given tag or an empty Subfields if the tag is not present. **/
-    Subfields getSubfields(const MarcTag &tag) const;
+    inline Subfields getSubfields(const MarcTag &tag) const { return getSubfields(getFieldIndex(tag)); }
 
     /** \brief Returns the subfields of the first field with given tag or an empty Subfield if this index is not present. **/
     Subfields getSubfields(const size_t field_index) const;
@@ -90,7 +90,7 @@ public:
     size_t getFieldIndices(const MarcTag &field_tag, std::vector<size_t> * const field_indices) const;
 
     /** \brief Updates the field at index "field_index" and adjusts various field and records lengths. */
-    bool updateField(const size_t field_index, const std::string &new_field_contents);
+    void updateField(const size_t field_index, const std::string &new_field_contents);
 
     bool insertSubfield(const MarcTag &new_field_tag, const char subfield_code,
                    const std::string &new_subfield_value, const char indicator1 = ' ', const char indicator2 = ' ');
