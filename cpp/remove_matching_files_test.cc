@@ -39,28 +39,28 @@ __attribute__((noreturn)) void Usage() {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
     if (argc < 2)
-	Usage();
+        Usage();
 
     bool include_directories(false);
     if (std::strcmp(argv[1], "--include-directories") == 0) {
-	include_directories = true;
-	--argc;
-	++argv;
+        include_directories = true;
+        --argc;
+        ++argv;
     }
 
     if (argc != 2 and argc != 3)
-	Usage();
+        Usage();
     const std::string directory_to_scan(argc == 2 ? "." : argv[2]);
 
     try {
-	const std::string filename_regex(argv[1]);
-	std::cout << "filename_regex = " << filename_regex << '\n';
-	std::cout << "directory_to_scan = " << directory_to_scan << '\n';
-	const ssize_t count(FileUtil::RemoveMatchingFiles(filename_regex, include_directories, directory_to_scan));
-	if (count == -1)
-	    Error("failed to delete one or more matching files or directories!");
-	std::cout << "Deleted " << count << " matching files and or directories.\n";
+        const std::string filename_regex(argv[1]);
+        std::cout << "filename_regex = " << filename_regex << '\n';
+        std::cout << "directory_to_scan = " << directory_to_scan << '\n';
+        const ssize_t count(FileUtil::RemoveMatchingFiles(filename_regex, include_directories, directory_to_scan));
+        if (count == -1)
+            Error("failed to delete one or more matching files or directories!");
+        std::cout << "Deleted " << count << " matching files and or directories.\n";
     } catch(const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }  
 }

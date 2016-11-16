@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 #include "StringUtil.h"
+#include "MarcTag.h"
 
 
 /** \class DirectoryEntry
@@ -35,7 +36,7 @@ public:
     static const size_t DIRECTORY_ENTRY_LENGTH; //< The fixed length of a directory entry according to the standard.
     static const size_t TAG_LENGTH;             //< The fixed length of a field tag according to the standard.
 private:
-    std::string tag_;
+    MarcTag tag_;
     unsigned field_length_;
     unsigned field_offset_;
 public:
@@ -48,10 +49,7 @@ public:
 
     /** Move constructor. */
     DirectoryEntry(DirectoryEntry &&other)
-	: field_length_(other.field_length_), field_offset_(other.field_offset_)
-    {
-	tag_.swap(other.tag_);
-    }
+        : tag_(other.tag_), field_length_(other.field_length_), field_offset_(other.field_offset_) {}
 
     /** \brief Constructs a DirectoryEntry from its component parts.
      *
@@ -59,7 +57,7 @@ public:
      *  \param field_length  Must be less than 10,000.
      *  \param field_offset  Must be less than 10,000.
      */
-    DirectoryEntry(const std::string &tag, const unsigned field_length, const unsigned field_offset)
+    DirectoryEntry(const MarcTag &tag, const unsigned field_length, const unsigned field_offset)
         : tag_(tag), field_length_(field_length), field_offset_(field_offset) {}
 
     inline DirectoryEntry &operator=(DirectoryEntry &&other) {
@@ -69,7 +67,10 @@ public:
         return *this;
     }
 
-    const std::string &getTag() const { return tag_; }
+    /** Copy-assignment operator. */
+    DirectoryEntry &operator=(const DirectoryEntry &rhs);
+
+    const MarcTag &getTag() const { return tag_; }
 
     /** Includes the field terminator. */
     unsigned getFieldLength() const { return field_length_; }
@@ -83,7 +84,7 @@ public:
     void setFieldOffset(const unsigned new_field_offset) { field_offset_ = new_field_offset; }
 
     /** \return True if this DirectoryEntry corresponds to a control field, else false. */
-    bool isControlFieldEntry() const { return StringUtil::StartsWith(tag_, "00"); }
+    bool isControlFieldEntry() const { return tag_.isTagOfControlField(); }
 
     // Returns the string representation of a DirectoryEntry but w/o the trailing field terminator.
     std::string toString() const;
@@ -98,29 +99,6 @@ public:
      */
     static bool ParseDirEntries(const std::string &entries_string, std::vector<DirectoryEntry> * const entries,
                                 std::string * const err_msg = nullptr);
-
-    /** \brief Locate the first occurrence of a field tag in a vector of DirectoryEntry's.
-     *
-     *  \param tag           The field tag we're looking for.
-     *  \param field_entries The vector we're looking in.
-     *
-     *  \return An iterator referencing the first occurrence of the tag we were looking for or
-     *          field_entries.end() if there were no n occurrences of the tag in "field_entries".
-     */
-    static std::vector<DirectoryEntry>::const_iterator FindField(const std::string &tag,
-                                                                 const std::vector<DirectoryEntry> &field_entries);
-
-    /** \brief Locate all occurrences of a field tag in a vector of DirectoryEntry's.
-     *
-     *  \param tag           The field tag we're looking for.
-     *  \param field_entries The vector we're looking in.
-     *
-     *  \return An iterator pair indicating the range of the entries that match the tag.  The pair's "first"
-     *          field will be field_entries.end() if no occurrence of "tag" was found.  Otherwise the pair's
-     *          "second" field will point one past the last occurrence of "tag".
-     */
-    static std::pair<std::vector<DirectoryEntry>::const_iterator, std::vector<DirectoryEntry>::const_iterator>
-        FindFields(const std::string &tag, const std::vector<DirectoryEntry> &field_entries);
 };
 
 

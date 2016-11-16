@@ -80,13 +80,13 @@ DSVReader::DSVReader(const std::string &filename, const char field_separator, co
 {
     input_ = std::fopen(filename.c_str(), "rm");
     if (input_ == nullptr)
-	throw std::runtime_error("in DSVReader::DSVReader: can't open \"" + filename + "\" for reading!");
+        throw std::runtime_error("in DSVReader::DSVReader: can't open \"" + filename + "\" for reading!");
 }
 
 
 DSVReader::~DSVReader() {
     if (input_ != nullptr)
-	std::fclose(input_);
+        std::fclose(input_);
 }
 
 
@@ -96,7 +96,7 @@ namespace {
 void SkipFieldPadding(FILE * const input) {
     int ch = std::fgetc(input);
     while (isblank(ch))
-	ch = std::fgetc(input);
+        ch = std::fgetc(input);
     std::ungetc(ch, input);
 }
 
@@ -105,20 +105,20 @@ std::string ReadQuotedValue(FILE * const input, const char field_delimiter) {
     std::string value;
     bool delimiter_seen(false);
     for (;;) {
-	const int ch(std::fgetc(input));
-	if (ch == EOF)
-	    throw std::runtime_error("unexpected EOF while reading a quoted DSV value!");
-	if (ch == field_delimiter) {
-	    if (delimiter_seen) {
-		value += static_cast<char>(ch);
-		delimiter_seen = false;
-	    } else
-		delimiter_seen = true;
-	} else if (delimiter_seen) {
-	    std::ungetc(ch, input);
-	    return value;
-	} else
-	    value += static_cast<char>(ch);
+        const int ch(std::fgetc(input));
+        if (ch == EOF)
+            throw std::runtime_error("unexpected EOF while reading a quoted DSV value!");
+        if (ch == field_delimiter) {
+            if (delimiter_seen) {
+                value += static_cast<char>(ch);
+                delimiter_seen = false;
+            } else
+                delimiter_seen = true;
+        } else if (delimiter_seen) {
+            std::ungetc(ch, input);
+            return value;
+        } else
+            value += static_cast<char>(ch);
     }
 }
 
@@ -127,9 +127,9 @@ std::string ReadQuotedValue(FILE * const input, const char field_delimiter) {
 std::string TrimBlanks(std::string * s) {
     std::string::const_reverse_iterator it(s->crbegin());
     for (/* Empty! */; it != s->crend() and std::isblank(*it); ++it)
-	/* Intentionally Empty! */;
+        /* Intentionally Empty! */;
     if (it != s->crbegin())
-	*s = s->substr(0, std::distance(it, s->crend()));
+        *s = s->substr(0, std::distance(it, s->crend()));
 
     return *s;
 }
@@ -138,12 +138,12 @@ std::string TrimBlanks(std::string * s) {
 std::string ReadNonQuotedValue(FILE * const input, const char field_separator) {
     std::string value;
     for (;;) {
-	const int ch(std::fgetc(input));
-	if (ch == EOF or ch == '\n' or ch == field_separator) {
-	    std::ungetc(ch, input);
-	    return TrimBlanks(&value);
-	}
-	value += static_cast<char>(ch);
+        const int ch(std::fgetc(input));
+        if (ch == EOF or ch == '\n' or ch == field_separator) {
+            std::ungetc(ch, input);
+            return TrimBlanks(&value);
+        }
+        value += static_cast<char>(ch);
     }
 }
 
@@ -154,7 +154,7 @@ void BacktraceSignalHandler(int signal_no) {
     char err_msg[1024] = "Caught signal ";
     char *cp = err_msg + std::strlen(err_msg);
     if (signal_no > 10)
-	*cp++ = '0' + (signal_no / 10);
+        *cp++ = '0' + (signal_no / 10);
     *cp++ = '0' + (signal_no % 10);
     *cp++ = '.';
     *cp++ = '\n';
@@ -184,33 +184,33 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
 
     int ch;
     for (;;) {
-	if (not values->empty()) {
-	    SkipFieldPadding(input_);
-	    ch = std::fgetc(input_);
-	    if (ch == EOF)
-		return false;
-	    if (ch == '\n')
-		return true;
-	    if (ch != field_separator_)
-		throw std::runtime_error("in DSVReader::readLine: on line " + std::to_string(line_no_)
-					 + ": field separator expected, found '"
-					 + std::string(1, static_cast<char>(ch)) + "' instead!");
-	}
+        if (not values->empty()) {
+            SkipFieldPadding(input_);
+            ch = std::fgetc(input_);
+            if (ch == EOF)
+                return false;
+            if (ch == '\n')
+                return true;
+            if (ch != field_separator_)
+                throw std::runtime_error("in DSVReader::readLine: on line " + std::to_string(line_no_)
+                                         + ": field separator expected, found '"
+                                         + std::string(1, static_cast<char>(ch)) + "' instead!");
+        }
 
-	SkipFieldPadding(input_);
-	ch = std::fgetc(input_);
-	if (ch == '\n')
-	    return true;
-	if (ch == EOF)
-	    return false;
-	if (ch == field_separator_) {
-	    std::ungetc(ch, input_);
-	    values->emplace_back("");
-	} else if (ch == field_delimiter_)
-	    values->emplace_back(ReadQuotedValue(input_, field_delimiter_));
-	else {
-	    std::ungetc(ch, input_);
-	    values->emplace_back(ReadNonQuotedValue(input_, field_separator_));
-	}
+        SkipFieldPadding(input_);
+        ch = std::fgetc(input_);
+        if (ch == '\n')
+            return true;
+        if (ch == EOF)
+            return false;
+        if (ch == field_separator_) {
+            std::ungetc(ch, input_);
+            values->emplace_back("");
+        } else if (ch == field_delimiter_)
+            values->emplace_back(ReadQuotedValue(input_, field_delimiter_));
+        else {
+            std::ungetc(ch, input_);
+            values->emplace_back(ReadNonQuotedValue(input_, field_separator_));
+        }
     }
 }

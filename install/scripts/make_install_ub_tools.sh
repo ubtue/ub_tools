@@ -9,16 +9,4 @@
 # This is needed to let jetty extract the libraries, which are needed by
 # our solr plugins and co.
 
-
-WAR_FILE="$VUFIND_HOME/solr/jetty/webapps/solr.war"
-WAR_TARGET="$VUFIND_HOME/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp"
-
-if [ ! -d "$WAR_TARGET/WEB-INF/lib" ] ; then
-	echo "$WAR_TARGET doesn't exists"
-	mkdir --parent "$WAR_TARGET"
-	unzip "$WAR_FILE" -d "$WAR_TARGET"
-else
-	echo "$WAR_TARGET does exists"
-fi
-
-make -C "$VUFIND_HOME/../ub_tools" root_install
+make -C "$VUFIND_HOME/../ub_tools" install

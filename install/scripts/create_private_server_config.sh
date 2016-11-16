@@ -38,9 +38,10 @@ SERVER_URL="$1"
 NAME="$2"
 EMAIL="$3"
 VUFIND_PASSWORD="$4"
-LOCAL_OVERRIDES="$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
+LOCAL_OVERRIDES="$VUFIND_LOCAL_DIR/local_overrides"
 SITE_CONFIG="$LOCAL_OVERRIDES/site.conf"
 DATABASE_CONFIG="$LOCAL_OVERRIDES/database.conf"
+DATABASE_SOLRMARC_CONFIG="$LOCAL_OVERRIDES/database_solrmarc.conf"
 HTTP_CONFIG="$LOCAL_OVERRIDES/http.conf"
 
 if [ ! -d  "$LOCAL_OVERRIDES" ] ; then
@@ -56,6 +57,12 @@ echo "title = \"$NAME\""         >> "$SITE_CONFIG"
 # Database configs
 sh -c "> $DATABASE_CONFIG"
 echo "database = \"mysql://vufind:$VUFIND_PASSWORD@localhost/vufind\"" >> "$DATABASE_CONFIG"
+
+# Database config for SolrMarc
+sh -c "> $DATABASE_SOLRMARC_CONFIG"
+echo "[Database]" >> "$DATABASE_SOLRMARC_CONFIG" >> "$DATABASE_SOLRMARC_CONFIG"
+echo "database = \"mysql://vufind:$VUFIND_PASSWORD@localhost/vufind\"" >> "$DATABASE_SOLRMARC_CONFIG"
+
 
 # Http configs
 if [[ -r /etc/pki/tls/cert.pem ]] ; then

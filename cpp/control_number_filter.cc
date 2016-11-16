@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015, 2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -26,13 +26,15 @@
 #include <cstring>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "util.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << "(--keep|--delete)] pattern marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << "(--keep|--delete)] pattern marc_input marc_output\n";
     std::cerr << "  Removes records whose control numbers match \"pattern\" if \"--delete\" has been specified\n";
     std::cerr << "  or only keeps those records whose control numbers match \"pattern\" if \"--keep\" has\n";
     std::cerr << "  been specified.  (\"pattern\" must be a PCRE.)\n";
@@ -40,39 +42,29 @@ void Usage() {
 }
 
 
-void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File * const input, File * const output) {
+void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcReader * const marc_reader,
+                       MarcWriter * const marc_writer)
+{
     std::string err_msg;
     const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)
-	Error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
+        Error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
-    XmlWriter xml_writer(output);
-    xml_writer.openTag("marc:collection",
-                       { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                         std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                         std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
     unsigned count(0), kept_or_deleted_count(0);
 
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+    while (MarcRecord record = marc_reader->read()) {
         ++count;
 
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-        if (dir_entries[0].getTag() != "001")
-            Error("First field is not \"001\"!");
+        const bool matched(matcher->matched(record.getControlNumber(), &err_msg));
+        if (not err_msg.empty())
+            Error("regex matching error: " + err_msg);
 
-	const std::vector<std::string> &fields(record.getFields());
-	const bool matched(matcher->matched(fields[0], &err_msg));
-	if (not err_msg.empty())
-	    Error("regex matching error: " + err_msg);
-
-	if ((keep and matched) or (not keep and not matched)) {
-	    ++kept_or_deleted_count;
-	    record.write(&xml_writer);
-	}
+        if ((keep and matched) or (not keep and not matched)) {
+            ++kept_or_deleted_count;
+            marc_writer->write(record);
+        }
     }
-    xml_writer.closeTag();
-    
+
     if (not err_msg.empty())
         Error(err_msg);
 
@@ -82,27 +74,21 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, File *
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 5)
         Usage();
     if (std::strcmp(argv[1], "--keep") != 0 and std::strcmp(argv[1], "--delete") != 0)
-	Usage();
+        Usage();
     const bool keep(std::strcmp(argv[1], "--keep") == 0);
     const std::string regex_pattern(argv[2]);
 
     const std::string marc_input_filename(argv[3]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
     const std::string marc_output_filename(argv[4]);
-    File marc_output(marc_output_filename, "wb");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
-
     if (unlikely(marc_input_filename == marc_output_filename))
         Error("Master input file name equals output file name!");
 
-    FilterMarcRecords(keep, regex_pattern, &marc_input, &marc_output);
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    FilterMarcRecords(keep, regex_pattern, marc_reader.get(), marc_writer.get());
 }

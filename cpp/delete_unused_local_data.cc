@@ -25,13 +25,13 @@
 */
 
 #include <iostream>
-#include "MarcUtil.h"
-#include "MarcXmlWriter.h"
-#include "RegexMatcher.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "util.h"
 
 
-static ssize_t count(0), before_count(0), after_count(0), no_local_data_records_count(0);
+static ssize_t count(0), before_count(0), after_count(0);
 
 
 void Usage() {
@@ -40,66 +40,56 @@ void Usage() {
 }
 
 
-bool IsUnusedLocalBlock(const MarcUtil::Record * const record, const std::pair<size_t, size_t> &block_start_and_end) {
-    static RegexMatcher *matcher(nullptr);
-    std::string err_msg;
-    if (unlikely(matcher == nullptr)) {
-        matcher = RegexMatcher::RegexMatcherFactory("^.*aDE-21.*$|^.*aDE-21-24.*$|^.*aDE-21-110.*$|^.*aTü 135.*$", &err_msg);
-        if (matcher == nullptr)
-            Error(err_msg);
-    }
-
+bool IsUnusedLocalBlock(const MarcRecord * const record, const std::pair<size_t, size_t> &block_start_and_end) {
     std::vector<size_t> field_indices;
     record->findFieldsInLocalBlock("852", "??", block_start_and_end, &field_indices);
 
-    const std::vector<std::string> &fields(record->getFields());
-    for (const auto field_index : field_indices) {
-        const bool matched = matcher->matched(fields[field_index], &err_msg);
-        if (not matched and not err_msg.empty())
-            Error("Unexpected error while trying to match a field in IsUnusedLocalBlock: " + err_msg);
-        if (matched)
+    for (size_t field_index : field_indices) {
+        const std::string field_data(record->getFieldData(field_index));
+        if (field_data.find("aTü 135") != std::string::npos)
+            return false;
+        const size_t index = field_data.find("aDE-21");
+        if (index == std::string::npos)
+            continue;
+        if (field_data.find("-", index + 6) == std::string::npos)
+            return false;
+        if (field_data.find("24", index + 7) != std::string::npos)
+            return false;
+        if (field_data.find("110", index + 7) != std::string::npos)
             return false;
     }
     return true;
 }
 
 
-void DeleteLocalBlock(MarcUtil::Record * const record, const std::pair<size_t, size_t> &block_start_and_end) {
-    for (size_t field_index(block_start_and_end.second - 1); field_index >= block_start_and_end.first; --field_index)
-        record->deleteField(field_index);
-}
-
-
-bool ProcessRecord(MarcUtil::Record * const record) {
+void ProcessRecord(MarcRecord * const record) {
     std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+    std::vector<std::pair<size_t, size_t>> local_blocks_to_delete;
     ssize_t local_data_count = record->findAllLocalDataBlocks(&local_block_boundaries);
-    std::reverse(local_block_boundaries.begin(), local_block_boundaries.end());
+    if (local_data_count == 0)
+        return;
 
     before_count += local_data_count;
-    for (const std::pair<size_t, size_t> &block_start_and_end : local_block_boundaries) {
+    for (const auto &block_start_and_end : local_block_boundaries) {
         if (IsUnusedLocalBlock(record, block_start_and_end)) {
-            DeleteLocalBlock(record, block_start_and_end);
+            local_blocks_to_delete.emplace_back(block_start_and_end);
             --local_data_count;
         }
     }
+    record->deleteFields(local_blocks_to_delete);
 
     after_count += local_data_count;
-    return local_data_count != 0;
 }
 
 
-void DeleteUnusedLocalData(File * const input, File * const output) {
-    MarcXmlWriter xml_writer(output);
-
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
+void DeleteUnusedLocalData(MarcReader * const marc_reader, MarcWriter * const marc_writer) {
+    while (MarcRecord record = marc_reader->read()) {
         ++count;
-        record.setRecordWillBeWrittenAsXml(true);
         ProcessRecord(&record);
-        record.write(&xml_writer);
+        marc_writer->write(record);
     }
-
-    std::cerr << ::progname << ": Deleted " << (before_count - after_count) << " of " << before_count << " local data blocks.\n";
-    std::cerr << ::progname << ": Deleted " << no_local_data_records_count << " of " << count << "records without local data.\n";
+    std::cerr << ::progname << ": Deleted " << (before_count - after_count) << " of " << before_count
+              << " local data blocks.\n";
 }
 
 
@@ -109,18 +99,11 @@ int main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
-    const std::string input_filename(argv[1]);
-    File input(input_filename, "r");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
-
-    const std::string output_filename(argv[2]);
-    File output(output_filename, "w");
-    if (not output)
-        Error("can't open \"" + output_filename + "\" for writing!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
 
     try {
-        DeleteUnusedLocalData(&input, &output);
+        DeleteUnusedLocalData(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

@@ -21,7 +21,7 @@ package de.uni_tuebingen.ub.ixTheo.handler.component;
 import de.uni_tuebingen.ub.ixTheo.common.params.FacetPrefixSortParams;
 import de.uni_tuebingen.ub.ixTheo.common.util.KeywordChainMetric;
 import de.uni_tuebingen.ub.ixTheo.common.util.KeywordSort;
-import de.uni_tuebingen.ub.ixTheo.request.SimplePrefixSortFacets;
+import org.apache.solr.request.SimplePrefixSortFacets;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.FacetParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
@@ -29,7 +29,7 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.handler.component.*;
-
+import org.apache.commons.lang.LocaleUtils;
 import org.apache.commons.lang.*;
 
 import java.io.IOException;
@@ -49,7 +49,7 @@ import java.text.Collator;
  */
 @SuppressWarnings("rawtypes")
 // public class FacetComponent extends SearchComponent {
-public class FacetPrefixSortComponent extends FacetComponent {
+public class FacetPrefixSortComponent extends org.apache.solr.handler.component.FacetComponent {
 
     // We should split at spaces but pay attention to quoted strings which
     // can have internally escaped quotes again. The regex is based on
@@ -58,7 +58,11 @@ public class FacetPrefixSortComponent extends FacetComponent {
     private final static Pattern WHITE_SPACES_WITH_QUOTES_SPLITTING_PATTERN = Pattern
             .compile("((?<![\\\\])['\"]|\\\\\")((?:.(?!(?<![\\\\])\\1))*.?)\\1|([^\\s]+)");
 
-    private final static Comparator<Entry<Entry<String, Object>, Double>> ENTRY_COMPARATOR = new Comparator<Entry<Entry<String, Object>, Double>>() {
+    private final static Pattern LANG_CODE_TRANSFORMATION_PATTERN = Pattern.compile("([a-zA-Z]{2})(-)?([a-zA-Z]{2})?");
+
+    private Collator collator;
+
+    private final Comparator<Entry<Entry<String, Object>, Double>> ENTRY_COMPARATOR = new Comparator<Entry<Entry<String, Object>, Double>>() {
         public int compare(Entry<Entry<String, Object>, Double> e1, Entry<Entry<String, Object>, Double> e2) {
 
             // We would like to score according to the second element
@@ -67,27 +71,60 @@ public class FacetPrefixSortComponent extends FacetComponent {
             if (compval != 0) {
                 return compval;
             } else {
-                // Make sure Umlauts are sorted correctly
-                Collator germanCollator = Collator.getInstance(Locale.GERMAN);            
-                return germanCollator.compare(e1.getKey().getKey(), e2.getKey().getKey());
+                // Sort according to the chosen language
+                return collator.compare(e1.getKey().getKey(), e2.getKey().getKey());
             }
         }
     };
 
-    // Redefined for finishStage() since private in FacetComponent
-    int pivotRefinementCounter = 0;
     private static final String PIVOT_KEY = "facet_pivot";
+
+    /**
+     * Choose the collator according to the selected language
+     */
+
+    private void setCollator(final String langCode) {
+
+        Locale locale = Locale.GERMAN;
+        String transformedLangCode = "";
+
+        // Rewrite lang parameter to required layout
+        Matcher m = LANG_CODE_TRANSFORMATION_PATTERN.matcher(langCode);
+        StringBuffer sb = new StringBuffer(langCode.length());
+        while (m.find()) {
+            if (m.group(1) != null)
+                sb.append(m.group(1).toLowerCase());
+
+            if (m.group(2) != null)
+                sb.append(m.group(2).equals("-") ? "_" : "");
+
+            if (m.group(3) != null)
+                sb.append(m.group(3).toUpperCase());
+
+            transformedLangCode = sb.toString();
+        }
+
+        try {
+            locale = LocaleUtils.toLocale(transformedLangCode);
+        } catch (IllegalArgumentException e) {
+        }
+
+        if (LocaleUtils.isAvailableLocale(locale))
+            collator = Collator.getInstance(locale);
+        else
+            collator = Collator.getInstance(Locale.GERMAN);
+    };
 
     /**
      * Actually run the query
      */
     @Override
     public void process(ResponseBuilder rb) throws IOException {
-
         if (rb.doFacets) {
             final ModifiableSolrParams params = new ModifiableSolrParams();
             final SolrParams origParams = rb.req.getParams();
             final Iterator<String> iter = origParams.getParameterNamesIterator();
+            setCollator(origParams.get("lang"));
             while (iter.hasNext()) {
                 final String paramName = iter.next();
                 // Deduplicate the list with LinkedHashSet, but _only_ for facet
@@ -100,14 +137,12 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 params.add(paramName, deDupe.toArray(new String[deDupe.size()]));
             }
 
-            final SimplePrefixSortFacets facets = new SimplePrefixSortFacets(rb.req, rb.getResults().docSet, params,
-                    rb);
-            final NamedList<Object> counts = facets.getFacetCounts();
+            final SimplePrefixSortFacets facets = new SimplePrefixSortFacets(rb.req, rb.getResults().docSet, params, rb);
+            final NamedList<Object> counts = org.apache.solr.handler.component.FacetComponent.getFacetCounts(facets);
 
             final String[] pivots = params.getParams(FacetParams.FACET_PIVOT);
             if (pivots != null && pivots.length > 0) {
-                PivotFacetProcessor pivotProcessor = new PivotFacetProcessor(rb.req, rb.getResults().docSet, params,
-                        rb);
+                PivotFacetProcessor pivotProcessor = new PivotFacetProcessor(rb.req, rb.getResults().docSet, params, rb);
                 SimpleOrderedMap<List<NamedList<Object>>> v = pivotProcessor.process(pivots);
                 if (v != null) {
                     counts.add(PIVOT_KEY, v);
@@ -135,11 +170,12 @@ public class FacetPrefixSortComponent extends FacetComponent {
                     }
                 }
 
-		// In some contexts, i.e. in KWC that are derived from ordinary keywords or if
-                // wildcards occur, also add all the query terms as a single phrase term
+                // In some contexts, i.e. in KWC that are derived from ordinary
+                // keywords or if
+                // wildcards occur, also add all the query terms as a single
+                // phrase term
                 // with stripped wildcards
-
-		StringBuilder sb = new StringBuilder();
+                StringBuilder sb = new StringBuilder();
                 for (String s : queryTermsCollection) {
                     s = s.replace("*", "");
                     sb.append(s);
@@ -147,10 +183,8 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 }
 
                 queryTermsCollection.add(sb.toString().trim());
-                
-                queryTerms = queryTermsCollection.toArray(new String[queryTermsCollection.size()]);
-               
-                final ArrayList<String> queryList = new ArrayList<>(Arrays.asList(queryTerms));
+
+                final ArrayList<String> queryList = new ArrayList<>(queryTermsCollection);
                 final String facetfield = params.get(FacetParams.FACET_FIELD);
 
                 // Get the current facet entry and make it compatible with our
@@ -161,13 +195,13 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 final NamedList<Object> facetFieldsNamedList = (NamedList<Object>) counts.get("facet_fields");
                 final NamedList<Object> facetFields = (NamedList<Object>) facetFieldsNamedList.get(facetfield);
 
-                final Map<Map.Entry<String, Object>, Double> facetMapPrefixScored = new HashMap<>();
+                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScored = new ArrayList<>();
                 for (final Entry<String, Object> entry : facetFields) {
                     final String facetTerms = entry.getKey();
 
                     // Split up each KWC and calculate the scoring
 
-                    ArrayList<String> facetList = new ArrayList<>(Arrays.asList(facetTerms.split("/")));
+                    ArrayList<String> facetList = new ArrayList<>(Arrays.asList(facetTerms.split("/|\\\\/")));
 
                     // For usability reasons sort the result facets according to
                     // the order of the search
@@ -178,16 +212,12 @@ public class FacetPrefixSortComponent extends FacetComponent {
                     // Collect the result in a sorted list and throw away
                     // garbage
                     if (score > 0) {
-
                         String facetTermsSorted = StringUtils.join(facetList, "/");
-                        Map.Entry<String, Object> sortedEntry = new AbstractMap.SimpleEntry<String, Object>(
-                                facetTermsSorted, entry.getValue());
-                        facetMapPrefixScored.put(sortedEntry, score);
+                        Map.Entry<String, Object> sortedEntry = new AbstractMap.SimpleEntry<>(facetTermsSorted, entry.getValue());
+                        facetPrefixListScored.add(new AbstractMap.SimpleEntry<>(sortedEntry, score));
                     }
                 }
 
-                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScored = new ArrayList<>(
-                        facetMapPrefixScored.entrySet());
                 Collections.sort(facetPrefixListScored, ENTRY_COMPARATOR);
 
                 // Extract all the values wrap it back to NamedList again and
@@ -199,10 +229,8 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 // We had to disable all limits and offsets sort according
                 // Handle this accordingly now
 
-                int offset = (params.getInt(FacetParams.FACET_OFFSET) != null) ? params.getInt(FacetParams.FACET_OFFSET)
-                        : 0;
-                int limit = (params.getInt(FacetParams.FACET_LIMIT) != null) ? params.getInt(FacetParams.FACET_LIMIT)
-                        : 100;
+                int offset = (params.getInt(FacetParams.FACET_OFFSET) != null) ? params.getInt(FacetParams.FACET_OFFSET) : 0;
+                int limit = (params.getInt(FacetParams.FACET_LIMIT) != null) ? params.getInt(FacetParams.FACET_LIMIT) : 100;
 
                 // Strip uneeded elements
                 int s = facetPrefixListScored.size();
@@ -211,8 +239,7 @@ public class FacetPrefixSortComponent extends FacetComponent {
                 // param, i.e. unlimited results
                 int lim = (offset + limit <= s) ? (offset + limit) : s;
 
-                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScoredTruncated = facetPrefixListScored
-                        .subList(off, lim);
+                final List<Entry<Entry<String, Object>, Double>> facetPrefixListScoredTruncated = facetPrefixListScored.subList(off, lim);
 
                 for (Entry<Entry<String, Object>, Double> e : facetPrefixListScoredTruncated) {
                     facetNamedListSorted.add(e.getKey().getKey(), e.getKey().getValue());
@@ -231,148 +258,8 @@ public class FacetPrefixSortComponent extends FacetComponent {
         }
     }
 
-    private static final String commandPrefix = "{!" + CommonParams.TERMS + "=$";
-
-    @Override
-    public void handleResponses(ResponseBuilder rb, ShardRequest sreq) {
-        super.handleResponses(rb, sreq);
-    }
-
-    @Override
-    public void finishStage(ResponseBuilder rb) {
-        pivotRefinementCounter = 0;
-        if (!rb.doFacets || rb.stage != ResponseBuilder.STAGE_GET_FIELDS)
-            return;
-        // wait until STAGE_GET_FIELDS
-        // so that "result" is already stored in the response (for aesthetics)
-
-        FacetInfo fi = rb._facetInfo;
-
-        NamedList<Object> facet_counts = new SimpleOrderedMap<>();
-
-        NamedList<Number> facet_queries = new SimpleOrderedMap<>();
-        facet_counts.add("facet_queries", facet_queries);
-        for (QueryFacet qf : fi.queryFacets.values()) {
-            facet_queries.add(qf.getKey(), num(qf.count));
-        }
-
-        NamedList<Object> facet_fields = new SimpleOrderedMap<>();
-        facet_counts.add("facet_fields", facet_fields);
-
-        for (DistribFieldFacet dff : fi.facets.values()) {
-            // order is important for facet values, so use NamedList
-            NamedList<Object> fieldCounts = new NamedList<>();
-            facet_fields.add(dff.getKey(), fieldCounts);
-
-            ShardFacetCount[] counts;
-            boolean countSorted = dff.sort.equals(FacetParams.FACET_SORT_COUNT);
-            if (countSorted) {
-                counts = dff.countSorted;
-                if (counts == null || dff.needRefinements) {
-                    counts = dff.getCountSorted();
-                }
-            } else if (dff.sort.equals(FacetParams.FACET_SORT_INDEX)) {
-                counts = dff.getLexSorted();
-            } else { // TODO: log error or throw exception?
-                counts = dff.getLexSorted();
-            }
-
-            if (countSorted) {
-                int end = dff.limit < 0 ? counts.length : Math.min(dff.offset + dff.limit, counts.length);
-                for (int i = dff.offset; i < end; i++) {
-                    if (counts[i].count < dff.minCount) {
-                        break;
-                    }
-                    fieldCounts.add(counts[i].name, num(counts[i].count));
-                }
-            } else {
-                int off = dff.offset;
-                int lim = dff.limit >= 0 ? dff.limit : Integer.MAX_VALUE;
-
-                // index order...
-                for (final ShardFacetCount count1 : counts) {
-                    long count = count1.count;
-                    if (count < dff.minCount)
-                        continue;
-                    if (off > 0) {
-                        off--;
-                        continue;
-                    }
-                    if (lim <= 0) {
-                        break;
-                    }
-                    lim--;
-                    fieldCounts.add(count1.name, num(count));
-                }
-            }
-
-            if (dff.missing) {
-                fieldCounts.add(null, num(dff.missingCount));
-            }
-        }
-
-        facet_counts.add("facet_dates", fi.dateFacets);
-        facet_counts.add("facet_ranges", fi.rangeFacets);
-        facet_counts.add("facet_intervals", fi.intervalFacets);
-
-        if (fi.pivotFacets != null && fi.pivotFacets.size() > 0) {
-            facet_counts.add(PIVOT_KEY, createPivotFacetOutput(rb));
-        }
-
-        rb.rsp.add("facet_counts", facet_counts);
-
-        rb._facetInfo = null; // could be big, so release asap
-    }
-
-    // Helper functions that must be redefined since they are private in Facet
-    // Component
-
-    private SimpleOrderedMap<List<NamedList<Object>>> createPivotFacetOutput(ResponseBuilder rb) {
-
-        SimpleOrderedMap<List<NamedList<Object>>> combinedPivotFacets = new SimpleOrderedMap<>();
-        for (Entry<String, PivotFacet> entry : rb._facetInfo.pivotFacets) {
-            String key = entry.getKey();
-            PivotFacet pivot = entry.getValue();
-            List<NamedList<Object>> trimmedPivots = pivot.getTrimmedPivotsAsListOfNamedLists(rb);
-            if (null == trimmedPivots) {
-                trimmedPivots = Collections.emptyList();
-            }
-
-            combinedPivotFacets.add(key, trimmedPivots);
-        }
-        return combinedPivotFacets;
-    }
-
-    private Number num(long val) {
-        if (val < Integer.MAX_VALUE)
-            return (int) val;
-        else
-            return val;
-    }
-
-    private Number num(Long val) {
-        if (val < Integer.MAX_VALUE)
-            return val.intValue();
-        else
-            return val;
-    }
-
-    /////////////////////////////////////////////
-    /// SolrInfoMBean
-    ////////////////////////////////////////////
-
     @Override
     public String getDescription() {
         return "Handle Prefix Sort Faceting";
-    }
-
-    @Override
-    public String getSource() {
-        return null;
-    }
-
-    @Override
-    public URL[] getDocs() {
-        return null;
     }
 }

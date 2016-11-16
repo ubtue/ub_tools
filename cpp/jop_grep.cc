@@ -4,7 +4,7 @@
  *
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -30,7 +30,10 @@
 #include <getopt.h>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcTag.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -44,44 +47,38 @@ void Usage() {
 
 
 void JOP_Grep(const std::string &input_filename, const unsigned max_result_count) {
-    File input(input_filename, "r");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(input_filename, MarcReader::BINARY));
 
     unsigned count(0), result_count(0);
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(&input)) {
+    while (const MarcRecord record = marc_reader->read()) {
         ++count;
 
-	const Leader &leader(record.getLeader());
+        const Leader &leader(record.getLeader());
         const bool is_article(leader.isArticle());
         const bool is_serial(leader.isSerial());
         if (not is_article and not is_serial)
             continue;
 
-        std::string control_number, isbn, issn;
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-	const std::vector<std::string> &fields(record.getFields());
-        for (unsigned i(0); i < dir_entries.size(); ++i) {
-            const std::string tag(dir_entries[i].getTag());
-            if (tag == "001")
-                control_number = fields[i];
-            else if (tag == "020" or tag == "022") {
-                const Subfields subfields(fields[i]);
+        std::string isbn, issn;
+        for (size_t i(0); i < record.getNumberOfFields(); ++i) {
+            const MarcTag &tag(record.getTag(i));
+            if (tag == "020" or tag == "022") {
+                const Subfields subfields(record.getSubfields(i));
                 auto begin_end = subfields.getIterators('a');
                 if (begin_end.first != begin_end.second) {
                     if (tag == "020")
-                        isbn = begin_end.first->second;
+                        isbn = begin_end.first->value_;
                     else // Assume tag == "022".
-                        issn = begin_end.first->second;
+                        issn = begin_end.first->value_;
                 }
             } else if (is_article and tag == "773") {
-                const Subfields subfields(fields[i]);
+                const Subfields subfields(record.getSubfields(i));
                 auto begin_end = subfields.getIterators('x'); // ISSN
                 if (begin_end.first != begin_end.second)
-                    issn = begin_end.first->second;
+                    issn = begin_end.first->value_;
                 begin_end = subfields.getIterators('z'); // ISBN
                 if (begin_end.first != begin_end.second)
-                    isbn = begin_end.first->second;
+                    isbn = begin_end.first->value_;
             }
             
             if (not issn.empty() or not isbn.empty()) {
@@ -116,8 +113,8 @@ int main(int argc, char **argv) {
     }
 
     try {
-	JOP_Grep(argv[1], max_result_count);
+        JOP_Grep(argv[1], max_result_count);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }
