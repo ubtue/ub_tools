@@ -45,7 +45,8 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix) {
     char * const path_template(strdupa((path_prefix + "XXXXXX").c_str()));
     const int fd(::mkstemp(path_template));
     if (fd == -1)
-        throw std::runtime_error("in AutoTempFile::AutoTempFile: mkstemp(3) failed!");
+        throw std::runtime_error("in AutoTempFile::AutoTempFile: mkstemp(3) fore path prefix \"" + path_prefix
+                                 + "\" failed! (" + std::string(::strerror(errno)) + ")");
     ::close(fd);
     path_ = path_template;
 }
