@@ -2,7 +2,7 @@ INC            = lib/include
 LIB_SRCS       = lib/src
 CCCFLAGS       = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include \
                  -ftrapv -Ilib/libstemmer/include \
-                 -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
+                 -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O0 \
                  -I/usr/include/libxml2
 CCCFLAGS_AMD64 = $(subst -march=native,,$(CCCFLAGS))
 CCC            = clang++

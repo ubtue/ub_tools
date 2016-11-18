@@ -88,15 +88,15 @@ add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date
 EndPhase
 
 
-#StartPhase "Create Full-Text Database"
-#create_full_text_db --process-count-low-and-high-watermarks \
-#                    $(get_config_file_entry.py krimdok_marc_pipeline.conf \
-#                      create_full_text_db process_count_low_and_high_watermarks) \
-#                    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-#                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-#                    full_text.db >> "${log}" 2>&1
-#cp full_text.db /var/lib/tuelib/
-#EndPhase
+StartPhase "Create Full-Text Database"
+create_full_text_db --process-count-low-and-high-watermarks \
+                    $(get_config_file_entry.py krimdok_marc_pipeline.conf \
+                    create_full_text_db process_count_low_and_high_watermarks) \
+                    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                    full_text.db >> "${log}" 2>&1
+cp full_text.db /var/lib/tuelib/
+EndPhase
 
 
 StartPhase "Fill in the \"in_tuebingen_available\" Field"
