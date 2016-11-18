@@ -6,13 +6,13 @@ TEMP       = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
 OBJS       = $(TEMP:.cc=.o)
 AMD64_OBJS = $(TEMP:.cc=_amd64.o)
 CCC        ?= clang++
-CCOPTS     = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include \
+CCCFLAGS   = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include \
              -O3 -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) -ftrapv \
              -DETC_DIR='"/var/lib/tuelib"'
-ifeq ($CCC, clang++)
-  CCCFLAGS += " -Wno-vla-extension"
+ifeq ($(CCC),clang++)
+  CCCFLAGS += -Wno-vla-extension
 endif
-AMD64_CCOPTS = $(subst -march=native,,$(CCOPTS))
+AMD64_CCCFLAGS = $(subst -march=native,,$(CCCFLAGS))
 MAKE_DEPS=iViaCore-mkdep
 
 .PHONY: clean
@@ -21,11 +21,11 @@ MAKE_DEPS=iViaCore-mkdep
 # Rules for building:
 $(OBJ)/%.o: $(SRC)/%.cc
 	@echo "Compiling $<..."
-	@$(CCC) $(CCOPTS) $< -c -o $@
+	@$(CCC) $(CCCFLAGS) $< -c -o $@
 
 $(OBJ)/%_amd64.o: $(SRC)/%.cc
 	@echo "Compiling (AMD64)$<..."
-	$(CCC) $(AMD64_CCOPTS) $< -c -o $@
+	@$(CCC) $(AMD64_CCCFLAGS) $< -c -o $@
 
 all: /usr/local/bin/iViaCore-mkdep .deps libstemmer/libstemmer.a libubtue.a
 amd64: .deps libstemmer/libstemmer_amd64.a libubtue_amd64.a
