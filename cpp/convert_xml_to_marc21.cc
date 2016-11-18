@@ -421,9 +421,9 @@ void ProcessRecords(const bool verbose, File * const input, MarcWriter * const m
     SimpleXmlParser xml_parser(input);
     MarcRecord record;
     unsigned record_count(0), written_record_count(0);
-    bool collect_character_data;
+    bool collect_character_data(false);
     std::string character_data;
-    unsigned met_required_conditions_count;
+    unsigned met_required_conditions_count(0);
     std::vector<const Matcher *> matchers;
 xml_parse_loop:
     while (xml_parser.getNext(&type, &attrib_map, &data)) {
