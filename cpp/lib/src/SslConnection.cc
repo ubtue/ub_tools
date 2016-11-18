@@ -41,7 +41,7 @@ SslConnection::SslConnection(const int fd, const Method method, const ClientServ
                              const ThreadingSupportMode threading_support_mode)
         : threading_support_mode_(threading_support_mode), ssl_connection_(nullptr), last_ret_val_(0)
 {
-    std::auto_ptr<std::lock_guard<std::mutex>> mutex_locker;
+    std::unique_ptr<std::lock_guard<std::mutex>> mutex_locker;
     if (threading_support_mode == SUPPORT_MULTITHREADING)
         mutex_locker.reset(new std::lock_guard<std::mutex>(SslConnection::mutex_));
 
