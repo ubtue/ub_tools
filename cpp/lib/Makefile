@@ -5,7 +5,7 @@ SRCS       = $(SRC)/*.cc
 TEMP       = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
 OBJS       = $(TEMP:.cc=.o)
 AMD64_OBJS = $(TEMP:.cc=_amd64.o)
-CCC        = clang++
+CCC        ?= clang++
 CCOPTS     = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include \
              -O3 -pedantic -Wno-vla-extension -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
              -ftrapv -DETC_DIR='"/var/lib/tuelib"'
