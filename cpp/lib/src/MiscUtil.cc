@@ -271,6 +271,8 @@ std::string TemplateScanner::TokenTypeToString(const TemplateScanner::TokenType 
     case ERROR:
         return "ERROR";
     }
+
+    Error("in TemplateScanner::TokenTypeToString: we should *never* get here!");
 }
 
 
@@ -422,6 +424,8 @@ std::string Scope::TypeToString(const Type type) {
     case LOOP:
         return "LOOP";
     }
+
+    Error("in Scope::TypeToString: we should *never* get here!");
 }
 
 
