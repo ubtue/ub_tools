@@ -4,8 +4,8 @@ CCC            ?= clang++
 CCCFLAGS       = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include \
                  -ftrapv -Ilib/libstemmer/include -I/opt/shibboleth/include -pedantic -Wno-parentheses \
                  -march=native -O3 -I/usr/include/libxml2
-ifeq ($CCC, clang++)
-  CCCFLAGS += " -Wno-vla-extension"
+ifeq ($(CCC),clang++)
+  CCCFLAGS += -Wno-vla-extension
 endif
 CCCFLAGS_AMD64 = $(subst -march=native,,$(CCCFLAGS))
 OBJ            = .
