@@ -179,7 +179,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                     if (indicator2 > 9)
                         Error ("Currently cannot handle synonyms with total length greater than " + std::to_string(9 * (MarcRecord::MAX_FIELD_LENGTH - 4)) + '\n');
                     
-                    if (current_length + synonym_it->length() < MarcRecord::MAX_FIELD_LENGTH - 4) {
+                    if (current_length + synonym_it->length() < MarcRecord::MAX_FIELD_LENGTH - 7) {
                          bool synonyms_empty(synonyms.empty());
                          synonyms += (synonyms_empty ? *synonym_it : " , " + *synonym_it);
                          current_length += synonym_it->length() + (synonyms_empty ? 0 : 3);
