@@ -40,6 +40,7 @@ void Echo(const std::string &log_message) {
 
 enum VuFindSystemType { KRIMDOK, IXTHEO };
 enum OSSystemType { UBUNTU, CENTOS };
+static std::string master_password;
 
 
 OSSystemType DetermineOSSystemType() {
@@ -47,61 +48,10 @@ OSSystemType DetermineOSSystemType() {
     if (FileUtil::ReadString("/etc/issue", &file_contents)
         and StringUtil::FindCaseInsensitive(file_contents, "ubuntu") != std::string::npos)
         return UBUNTU;
-    if (FileUtil::ReadString("/etc/redhat_release", &file_contents)
+    if (FileUtil::ReadString("/etc/redhat-release", &file_contents)
         and StringUtil::FindCaseInsensitive(file_contents, "centos") != std::string::npos)
         return CENTOS;
-    Error("you're probably not on an Ubunto nor on a CentOS system!");
-}
-
-
-// Returns true if a line starting with "line_prefix" was found in "filename", o/w returns false.
-bool FileContainsLineStartingWith(const std::string &filename, const std::string &line_prefix) {
-    std::string file_contents;
-    if (unlikely(not FileUtil::ReadString(filename, &file_contents)))
-        Error("in FileContainsLineStartingWith: could not read the contents of \"" + filename + "\"!");
-
-    std::vector<std::string> lines;
-    StringUtil::Split(file_contents, '\n', &lines);
-    for (const auto &line : lines) {
-        if (StringUtil::StartsWith(line, line_prefix))
-            return true;
-    }
-
-    return false;
-}
-
-
-void AppendLineToFileOrDie(const std::string &filename, std::string line) {
-    line += '\n';
-    std::unique_ptr<File> file(FileUtil::OpenForAppeningOrDie(filename));
-    if (file->size() == 0) {
-        if (unlikely(file->write(line.data(), line.size()) != line.size()))
-            Error("in AppendLineToFileOrDie: failed to append a line to \"" + filename + "\"!");
-        return;
-    }
-    if (unlikely(not file->seek(-1, SEEK_END)))
-        Error("in AppendLineToFileOrDie: failed to seek to the last byte in \"" + filename + "\"!");
-
-    // Do we need to append a newline before appending our new line?
-    const int last_char(file->get());
-    if (last_char != '\n')
-        line = '\n' + line; // Apprently we do.
-
-    if (unlikely(file->write(line.data(), line.size()) != line.size()))
-        Error("in AppendLineToFileOrDie: failed to write a line at the end of \"" + filename + "\"!");
-}
-
-
-void InsertFsTabLineOrDie(const std::string &line) {
-    const std::string::size_type first_space_pos(line.find(' '));
-    if (unlikely(first_space_pos == std::string::npos))
-        Error("InsertFsTabLineOrDie: could not find a space in \"" + line + "\"!");
-    if (unlikely(first_space_pos == 0))
-        Error("InsertFsTabLineOrDie: first field of \"" + line + "\" must not be empty!");
-    const std::string first_field_plus_space(line.substr(0, first_space_pos + 1));
-    if (FileContainsLineStartingWith("/etc/fstab", first_field_plus_space))
-        return; // Nothing to do.
-    AppendLineToFileOrDie("/etc/fstab", line);
+    Error("you're probably not on an Ubuntu nor on a CentOS system!");
 }
 
 
@@ -112,11 +62,17 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &argum
 }
 
 
-void MountDepartmentDriveOrDie() {
-    InsertFsTabLineOrDie("//sn00.zdv.uni-tuebingen.de/ZE020150 /mnt/ZE020150 cifs "
-                         "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,gid=root,auto 0 0");
-    ExecOrDie("/bin/mount", { "--all" });
-    Echo("mounted department drive");
+void MountLUKSContainerOrDie() {
+    FileUtil::AutoTempFile key_file_temp_file;
+    if (not FileUtil::WriteString(key_file_temp_file.getFilePath(), master_password))
+        Error("failed to write the master password into the temporary LUKS key file!");
+        
+    const std::string LUKS_IMAGE_FILE("/usr/local/ub_tools/configs.ext4.luks");
+    const std::string LUKS_MOUNT_POINT("/usr/local/ub_tools/configs");
+    ExecOrDie(ExecUtil::Which("cryptsetup"),
+              { "luksOpen", "--batch-mode", "--key-file", key_file_temp_file.getFilePath(), LUKS_IMAGE_FILE,
+                "configs" });
+    ExecOrDie("/bin/mount", { "/dev/mapper/configs", LUKS_MOUNT_POINT });
 }
 
 
@@ -135,13 +91,13 @@ inline std::pair<std::string, std::vector<std::string>> CmdAndArgs(const std::st
 }
 
                  
-void InstallUbuntuSoftwarePackages() {
+void InstallUbuntuSoftwarePackages(const VuFindSystemType vufind_system_type) {
     const std::vector<std::pair<std::string, std::vector<std::string>>> &commands_and_arguments {
-        CmdAndArgs("/usr/bin/add-apt-repository", { "ppa:ubuntu-lxc/lxd-stable" }),
+        CmdAndArgs("/usr/bin/add-apt-repository", { "--yes", "ppa:ubuntu-lxc/lxd-stable" }),
         CmdAndArgs("/usr/bin/apt", { "update" }),
         CmdAndArgs(
             "/usr/bin/apt",
-            { "install", "-y", "clang", "golang", "wget", "curl", "git", "apache2", "libapache2-mod-gnutls",
+            { "install", "--yes", "clang", "golang", "wget", "curl", "git", "apache2", "libapache2-mod-gnutls",
                     "mysql-server", "php7.0", "php7.0-dev", "php-pear", "php7.0-json", "php7.0-ldap", "php7.0-mcrypt",
               "php7.0-mysql", "php7.0-xsl", "php7.0-intl", "php7.0-gd", "libapache2-mod-php7.0", "composer",
               "openjdk-8-jdk", "libmagic-dev", "libpcre3-dev", "libssl-dev", "libkyotocabinet-dev", "mutt",
@@ -153,17 +109,14 @@ void InstallUbuntuSoftwarePackages() {
 //        CmdAndArgs("mysql_secure_installation", {  }),
     };
     ExecuteCommandSequence(commands_and_arguments);
-    Echo("installed software packages");
+
+    // If installing a KrimDok system we need tesseract:
+    if (vufind_system_type == KRIMDOK)
+        ExecOrDie("/usr/bin/apt", { "install", "--yes", "tesseract-ocr-all" });
 }
 
 
-void InstallCentOSSoftwarePackages() {
-    std::vector<std::string> rpm_package_install_args;
-    FileUtil::GetFileNameList("*.\\\\.rpm", &rpm_package_install_args,
-                              "/mnt/ZE020150/IT-Abteilung/02_Projekte/11_KrimDok_neu/05_Pakete/");
-    rpm_package_install_args.insert(rpm_package_install_args.begin(), "-y");
-    rpm_package_install_args.insert(rpm_package_install_args.begin(), "install");
-
+void InstallCentOSSoftwarePackages(const VuFindSystemType vufind_system_type) {
     const std::vector<std::pair<std::string, std::vector<std::string>>> &commands_and_arguments {
         CmdAndArgs("/bin/yum", { "update" }),
         CmdAndArgs("/bin/yum", { "-y", "install", "epel-release" }),
@@ -184,20 +137,37 @@ void InstallCentOSSoftwarePackages() {
               "pcre-devel", "openssl-devel", "kyotocabinet-devel", "tokyocabinet-devel", "poppler-utils", "libwebp",
               "mariadb-devel.x86_64", "libxml2-devel.x86_64", "libcurl-openssl-devel.x86_64", "ant", "lz4", "unzip",
               "libarchive-devel", "boost-devel" }),
-        CmdAndArgs("/bin/yum", rpm_package_install_args),
         CmdAndArgs(
             "/bin/ln",
             { "-s", "/usr/share/tessdata/deu.traineddata", "/usr/share/tesseract/tessdata/deu.traineddata" }),
     };
     ExecuteCommandSequence(commands_and_arguments);
+
+    if (vufind_system_type == KRIMDOK) {
+        std::vector<std::string> rpm_package_install_args;
+        FileUtil::GetFileNameList("*.\\\\.rpm", &rpm_package_install_args,
+                                  "/mnt/ZE020150/IT-Abteilung/02_Projekte/11_KrimDok_neu/05_Pakete/");
+        rpm_package_install_args.insert(rpm_package_install_args.begin(), "-y");
+        rpm_package_install_args.insert(rpm_package_install_args.begin(), "install");
+        ExecOrDie("/bin/yum", rpm_package_install_args);
+    }
 }
 
 
-void InstallSoftwarePackages(const OSSystemType os_system_type) {
+void InstallSoftwarePackages(const OSSystemType os_system_type,  const VuFindSystemType vufind_system_type) {
     if (os_system_type == UBUNTU)
-        InstallUbuntuSoftwarePackages();
+        InstallUbuntuSoftwarePackages(vufind_system_type);
     else
-        InstallCentOSSoftwarePackages();
+        InstallCentOSSoftwarePackages(vufind_system_type);
+    Echo("installed software packages");
+}
+
+
+void GetMasterPassword() {
+    errno = 0;
+    master_password = ::getpass("Master password >");
+    if (errno != 0)
+        Error("failed to read the password from the terminal!");
 }
 
 
@@ -206,24 +176,25 @@ int main(int argc, char **argv) {
 
     if (argc != 2)
         Usage();
+    
+    if (::geteuid() != 0)
+        Error("you must execute this program as root!");
 
+    GetMasterPassword();
+    
     VuFindSystemType vufind_system_type;
     if (::strcasecmp(argv[1], "krimdok") == 0)
         vufind_system_type = KRIMDOK;
     else if (::strcasecmp(argv[1], "ixtheo") == 0)
         vufind_system_type = IXTHEO;
     else
-        Error("system type msut be either \"krimdok\" or \"ixtheo\"!");
-    (void)vufind_system_type;
+        Error("system type must be either \"krimdok\" or \"ixtheo\"!");
 
     const OSSystemType os_system_type(DetermineOSSystemType());
-    
-    if (::geteuid() != 0)
-        Error("you must execute this program as root!");
 
     try {
-        MountDepartmentDriveOrDie();
-        InstallSoftwarePackages(os_system_type);
+        MountLUKSContainerOrDie();
+        InstallSoftwarePackages(os_system_type, vufind_system_type);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
