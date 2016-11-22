@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
                 Error("\"insert\" requires three or four arguments: token or ppn, gnd_code (if ppn), "
                       "language_code, and text!");
 
-            const std::string language_code(argv[(argc == 6) ? 3 : 4]);
+            const std::string language_code(argv[(argc == 5) ? 3 : 4]);
             if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
                 Error("\"" + language_code + "\" is not a valid German 3-letter language code!");
 
