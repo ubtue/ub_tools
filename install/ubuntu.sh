@@ -20,7 +20,22 @@ apt -y install clang golang wget curl git apache2 libapache2-mod-gnutls mysql-se
     php-pear php7.0-json php7.0-ldap php7.0-mcrypt php7.0-mysql php7.0-xsl php7.0-intl php7.0-gd \
     libapache2-mod-php7.0 composer openjdk-8-jdk libmagic-dev libpcre3-dev libssl-dev libkyotocabinet-dev mutt \
     libxml2-dev libmysqlclient-dev libcurl4-openssl-dev ant libtokyocabinet-dev liblz4-tool libarchive-dev \
-    libboost-all-dev clang-3.8 clang++-3.8 clang golang
+    libboost-all-dev clang-3.8 clang++-3.8 clang golang cryptsetup-bin
 a2enmod rewrite
 phpenmod mcrypt
 /etc/init.d/apache2 restart
+
+
+git clone --recurse-submodules https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
+
+
+if [[ $1 == "ixtheo" ]]; then
+    git clone https://github.com/ubtue/ixtheo.git /usr/local/vufind
+else # krimdok
+    git clone https://github.com/ubtue/krimdok.git /usr/local/vufind
+fi
+
+
+cd /usr/local/ub_tools
+make install
+./cpp/installer $1
