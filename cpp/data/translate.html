@@ -15,7 +15,14 @@
 
         <h2>Existing translation(s):</h2>
         <table>
-          {IF category == "keyword_translations"}
+          {IF category == "vufind_translations"}
+            {LOOP language_code,example_text}
+            <tr>
+              <td><b>{language_code}:</b></td>
+              <td>{example_text}</td>
+            </tr>
+            {ENDLOOP}
+          {ELSE}
             {LOOP language_code,example_text}
             <tr>
               <td><b>{language_code}:</b></td>
