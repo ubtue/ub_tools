@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
         if (cgi_args.size() == 1) {
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             GetMissing(cgi_args);
-        } else if (cgi_args.size() == 5) {
+        } else if (cgi_args.size() == 4 or  cgi_args.size() == 5) {
             Insert(cgi_args);
 
             const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
