@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
         std::multimap<std::string, std::string> cgi_args;
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 
-        if (cgi_args.size() == 1) {
+        if (cgi_args.size() == 2) {
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             GetMissing(cgi_args);
         } else if (cgi_args.size() == 5) {
