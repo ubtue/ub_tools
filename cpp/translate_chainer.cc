@@ -208,14 +208,15 @@ int main(int argc, char *argv[]) {
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             GetMissing(cgi_args);
         } else if (cgi_args.size() == 5) {
+            Insert(cgi_args);
+
             const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
             const std::string ixtheo_base_url(GetCGIParameterOrDie(cgi_args, "ixtheo_base_url"));
             std::cout << "Status: 302 Found\r\n";
             std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code
                       << "&ixtheo_base_url=" << ixtheo_base_url << "\r\n\r\n";
-            Insert(cgi_args);
         } else
-            Error("we should be called w/ either 1 or 5 CGI arguments!");
+            Error("we should be called w/ either 2 or 5 CGI arguments!");
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
