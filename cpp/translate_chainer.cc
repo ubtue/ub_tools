@@ -123,9 +123,7 @@ std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::s
 }
 
 
-void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &output, const std::string &language_code,
-                                                        const std::string &ixtheo_base_url)
-{
+void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &output, const std::string &language_code) {
     std::vector<Translation> translations;
     ParseTranslationsDbToolOutput(output, &translations);
     if (translations.empty()) {
@@ -139,8 +137,6 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
                                                    std::vector<std::string>{ translations.front().remaining_count_ }));
         names_to_values_map.emplace(std::make_pair(std::string("target_language_code"),
                                                    std::vector<std::string>{ language_code }));
-        names_to_values_map.emplace(std::make_pair(std::string("ixtheo_base_url"),
-                                                   std::vector<std::string>{ UrlUtil::UrlDecode(ixtheo_base_url) }));
         names_to_values_map.emplace(std::make_pair(std::string("category"),
                                                    std::vector<std::string>{ translations.front().category_ }));
         if (translations.front().gnd_code_ != NO_GND_CODE)
@@ -166,14 +162,12 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
 
 void GetMissing(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
-    const std::string ixtheo_base_url(GetCGIParameterOrDie(cgi_args, "ixtheo_base_url"));
-
     const std::string GET_MISSING_COMMAND("/usr/local/bin/translation_db_tool get_missing " + language_code);
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_MISSING_COMMAND, &output))
         Error("failed to execute \"" + GET_MISSING_COMMAND + "\" or it returned a non-zero exit code!");
 
-    ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, ixtheo_base_url);
+    ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code);
 }
 
 
@@ -204,16 +198,15 @@ int main(int argc, char *argv[]) {
         std::multimap<std::string, std::string> cgi_args;
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 
-        if (cgi_args.size() == 2) {
+        if (cgi_args.size() == 1) {
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             GetMissing(cgi_args);
         } else if (cgi_args.size() == 5) {
-            const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
-            const std::string ixtheo_base_url(GetCGIParameterOrDie(cgi_args, "ixtheo_base_url"));
-            std::cout << "Status: 302 Found\r\n";
-            std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code
-                      << "&ixtheo_base_url=" << ixtheo_base_url << "\r\n\r\n";
             Insert(cgi_args);
+
+            const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
+            std::cout << "Status: 302 Found\r\n";
+            std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code << "\r\n\r\n";
         } else
             Error("we should be called w/ either 1 or 5 CGI arguments!");
     } catch (const std::exception &x) {
