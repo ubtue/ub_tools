@@ -1477,22 +1477,18 @@ public class TuelibMixin extends SolrIndexerMixin {
         // (Format YYYY/YY for older and Format YYYY/YYYY) for
         // newer entries
         if (format.contains("Article") || format.contains("Review")) {
-            final DataField _936Field = (DataField) record.getVariableField("936");
-            if (_936Field != null) {
+            final List<VariableField> _936Fields = record.getVariableFields("936");
+            for (VariableField _936VField : _936Fields) {
+                DataField _936Field = (DataField) _936VField;
                 final Subfield jSubfield = _936Field.getSubfield('j');
                 if (jSubfield != null) {
                     String yearOrYearRange = jSubfield.getData();
                     // Make sure we do away with brackets
                     yearOrYearRange = yearOrYearRange.replaceAll("[\\[|\\]]", "");
                     return yearOrYearRange.length() > 4 ? yearOrYearRange.substring(0, 4) : yearOrYearRange;
-
-                } else {
-                    System.err.println("getPublicationSortDate [No matching subfield 'j' in field 936]: " + record.getControlNumber());
                 }
-            } else {
-
-                System.err.println("getPublicationSortDate [No matching 936 field:] " + record.getControlNumber());
             }
+            System.err.println("getPublicationSortDate [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
             return "";
         }
 
