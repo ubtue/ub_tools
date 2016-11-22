@@ -50,6 +50,7 @@ void Usage() {
     std::exit(EXIT_FAILURE);
 }
 
+
 static unsigned keyword_count, translation_count, additional_hits, synonym_count;
 static DbConnection *shared_connection;
 
@@ -70,9 +71,11 @@ void ExtractGermanSynonyms(const MarcRecord &record,
 
 
 void ExtractNonGermanTranslations(const MarcRecord &record,
-                                  std::vector<std::pair<std::string, std::string>> * const text_and_language_codes) {
+                                  std::vector<std::pair<std::string, std::string>> * const text_and_language_codes)
+{
     for (size_t index(record.getFieldIndex("750"));
-         index < record.getNumberOfFields() and record.getTag(index) == "750"; ++index) {
+         index < record.getNumberOfFields() and record.getTag(index) == "750"; ++index)
+    {
         const Subfields _750_subfields(record.getSubfields(index));
         auto start_end(_750_subfields.getIterators('9'));
         if (start_end.first == start_end.second)
