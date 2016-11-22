@@ -67,6 +67,7 @@ get_file_media_type_test
 getfilename_test
 getusername_test
 insert_translation_gaps
+installer
 iViaCore-mkdep
 json_parser_test
 jop_grep
@@ -134,4 +135,3 @@ solrmarc_mixin/bin/
 go/bin/*
 
 cronjobs/README
-Certificates
