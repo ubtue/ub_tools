@@ -154,7 +154,7 @@ void InstallCentOSSoftwarePackages(const VuFindSystemType vufind_system_type) {
 }
 
 
-void InstallSoftwarePackages(const OSSystemType os_system_type,  const VuFindSystemType vufind_system_type) {
+void InstallSoftwarePackages(const OSSystemType os_system_type, const VuFindSystemType vufind_system_type) {
     if (os_system_type == UBUNTU)
         InstallUbuntuSoftwarePackages(vufind_system_type);
     else
