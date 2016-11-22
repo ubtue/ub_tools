@@ -13,7 +13,7 @@ CREATE TABLE keyword_translations (
   gnd_code CHAR(10) NOT NULL,
   language_code CHAR(3) NOT NULL,
   translation VARCHAR(1024) NOT NULL,
-  status ENUM('reliable', 'unreliable', 'new') NOT NULL,
+  status ENUM('reliable', 'unreliable', 'replaced', 'new') NOT NULL,
   KEY keyword_translations_idx_ppn (ppn),
   KEY keyword_translations_idx_language_code (language_code)
 ) DEFAULT CHARSET=utf8;
