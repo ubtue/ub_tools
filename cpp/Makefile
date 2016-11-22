@@ -1,11 +1,13 @@
 INC            = lib/include
 LIB_SRCS       = lib/src
+CCC            ?= clang++
 CCCFLAGS       = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include \
-                 -ftrapv -Ilib/libstemmer/include \
-                 -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
-                 -I/usr/include/libxml2
+                 -ftrapv -Ilib/libstemmer/include -I/opt/shibboleth/include -pedantic -Wno-parentheses \
+                 -march=native -O3 -I/usr/include/libxml2
+ifeq ($(CCC),clang++)
+  CCCFLAGS += -Wno-vla-extension
+endif
 CCCFLAGS_AMD64 = $(subst -march=native,,$(CCCFLAGS))
-CCC            = clang++
 OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
 LIBS           = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \

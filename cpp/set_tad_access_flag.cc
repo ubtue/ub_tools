@@ -212,6 +212,8 @@ std::string PermissionParser::ToString(const TokenType token) {
     case END_OF_INPUT:
         return "END_OF_INPUT";
     }
+
+    Error("in PermissionParser::ToString: we should *never* get here!");
 }
 
 
