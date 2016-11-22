@@ -66,7 +66,7 @@ off_t GetFileSize(const std::string &path);
 class AutoTempFile {
     std::string path_;
 public:
-    explicit AutoTempFile(const std::string &path_prefix = "/tmp/AutoTempFile");
+    explicit AutoTempFile(const std::string &path_prefix = "/tmp/AT");
     ~AutoTempFile() { if (not path_.empty()) ::unlink(path_.c_str()); }
 
     const std::string &getFilePath() const { return path_; }
