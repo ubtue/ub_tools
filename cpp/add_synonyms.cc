@@ -44,7 +44,7 @@
 
 static unsigned modified_count(0);
 static unsigned record_count(0);
-const unsigned FIELD_METADATA_SIZE(4);
+const unsigned FIELD_MIN_NON_DATA_SIZE(4); // Indicator 1 + 2, unit separator and subfield code
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " master_marc_input norm_data_marc_input marc_output\n";
@@ -177,9 +177,9 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
 
                 for (auto synonym_it(synonym_values.cbegin()); synonym_it != synonym_values.cend(); /*Intentionally empty*/) {
                     if (indicator2 > 9)
-                        Error ("Currently cannot handle synonyms with total length greater than " + std::to_string(9 * (MarcRecord::MAX_FIELD_LENGTH - FIELD_METADATA_SIZE)) + '\n');
+                        Error ("Currently cannot handle synonyms with total length greater than " + std::to_string(9 * (MarcRecord::MAX_FIELD_LENGTH - FIELD_MIN_NON_DATA_SIZE)) + '\n');
                     
-                    if (current_length + synonym_it->length() < MarcRecord::MAX_FIELD_LENGTH - (FIELD_METADATA_SIZE + 3 /* consider " , " */) {
+                    if (current_length + synonym_it->length() < MarcRecord::MAX_FIELD_LENGTH - (FIELD_MIN_NON_DATA_SIZE + 3 /* consider " , " */)) {
                          bool synonyms_empty(synonyms.empty());
                          synonyms += (synonyms_empty ? *synonym_it : " , " + *synonym_it);
                          current_length += synonym_it->length() + (synonyms_empty ? 0 : 3);
