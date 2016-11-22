@@ -46,6 +46,7 @@ db_lookup
 delete_ids
 delete_unused_local_data
 deserialise_php_test
+display_translate_stats
 download_test
 dsv_reader
 enrich_ddcs
