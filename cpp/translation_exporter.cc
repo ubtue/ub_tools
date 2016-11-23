@@ -60,7 +60,7 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * co
             Subfields subfields(' ', ' ');
             subfields.addSubfield('a', row["translation"]);
             subfields.addSubfield('9', "L:" + row["language_code"]);
-            subfields.addSubfield('2', "ixtheo");
+            subfields.addSubfield('2', "IxTheo");
             new_record.insertField("750", subfields);
         }
 
