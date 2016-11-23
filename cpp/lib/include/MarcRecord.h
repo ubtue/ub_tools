@@ -99,6 +99,10 @@ public:
 
     size_t insertField(const MarcTag &new_field_tag, const std::string &new_field_value);
 
+    inline size_t insertField(const MarcTag &new_field_tag, const Subfields &subfields) {
+        return insertField(new_field_tag, subfields.toString());
+    }
+
     /** \brief Deletes the field at index "field_index" and adjusts various field and records lengths. */
     void deleteField(const size_t field_index);
 
