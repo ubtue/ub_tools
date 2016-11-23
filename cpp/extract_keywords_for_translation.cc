@@ -52,7 +52,7 @@ void Usage() {
 }
 
 
-static unsigned keyword_count, translation_count, additional_hits, synonym_count;
+static unsigned keyword_count, translation_count, additional_hits, synonym_count, german_term_count;
 static DbConnection *shared_connection;
 
 
@@ -72,6 +72,22 @@ std::string StatusToString(const Status status) {
 
 
 using TextLanguageCodeStatusAndOriginTag = std::tuple<std::string, std::string, Status, std::string>;
+
+
+void ExtractGermanTerms(
+    const MarcRecord &record,
+    std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags) {
+    for (size_t _150_index(record.getFieldIndex("150"));
+             _150_index < record.getNumberOfFields() and record.getTag(_150_index) == "150"; ++_150_index)
+        {
+            const Subfields _150_subfields(record.getSubfields(_150_index));
+            if (_150_subfields.hasSubfield('a')) {
+                text_language_codes_statuses_and_origin_tags->emplace_back(
+                    _150_subfields.getFirstSubfieldValue('a'), "deu", RELIABLE, "150");
+                ++german_term_count;
+            }
+        }
+}
 
 
 void ExtractGermanSynonyms(
@@ -168,6 +184,7 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, MarcWriter *
 {
     // Extract all synonyms and translations:
     std::vector<TextLanguageCodeStatusAndOriginTag> text_language_codes_statuses_and_origin_tags;
+    ExtractGermanTerms(*record, &text_language_codes_statuses_and_origin_tags);
     ExtractGermanSynonyms(*record, &text_language_codes_statuses_and_origin_tags);
     ExtractNonGermanTranslations(*record, &text_language_codes_statuses_and_origin_tags);
     if (text_language_codes_statuses_and_origin_tags.empty())
@@ -223,6 +240,7 @@ void ExtractTranslationsForAllRecords(MarcReader * const authority_reader) {
         Error("error while extracting translations from \"" + authority_reader->getPath() + "\": " + err_msg);
 
     std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
+    std::cerr << "Found " << german_term_count << " german terms.\n";
     std::cerr << "Found " << translation_count << " translations in the norm data. (" << additional_hits
               << " due to 'ram' and 'lcsh' entries.)\n";
     std::cerr << "Found " << synonym_count << " synonym entries.\n";
