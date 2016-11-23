@@ -133,7 +133,7 @@ void ExtractNonGermanTranslations(
                 ++additional_hits;
         }
         if (not language_code.empty()) {
-            const Status status(_750_subfields.getFirstSubfieldValue('2') == "ixtheo" ? RELIABLE : UNRELIABLE);
+            const Status status(::strcasecmp(_750_subfields.getFirstSubfieldValue('2').c_str(), "ixtheo") == 0 ? RELIABLE : UNRELIABLE);
             ++translation_count;
             text_language_codes_statuses_and_origin_tags->emplace_back(
                 _750_subfields.getFirstSubfieldValue('a'), language_code, status, "750");
