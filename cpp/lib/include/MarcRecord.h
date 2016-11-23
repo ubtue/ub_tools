@@ -60,6 +60,7 @@ public:
     operator bool () const { return not directory_entries_.empty(); }
     const Leader &getLeader() const { return leader_; }
     Leader &getLeader() { return leader_; }
+    inline void setLeader(const Leader &new_leader) { leader_ = new_leader; }
 
     Leader::RecordType getRecordType() const { return leader_.getRecordType(); }
     std::string getControlNumber() const { return getFieldData("001"); }
