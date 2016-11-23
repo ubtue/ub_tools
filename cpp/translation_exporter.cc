@@ -53,9 +53,7 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * co
         DbResultSet result_set(db_connection->getLastResultSet());
 
         MarcRecord new_record;
-        Leader new_leader;
-        new_leader.setRecordType(Leader::AUTHORITY);
-        new_record.setLeader(new_leader);
+        new_record.getLeader().setRecordType(Leader::AUTHORITY);
         new_record.insertField("001", ppn);
 
         while (const DbRow row = result_set.getNextRow()) {
@@ -63,7 +61,7 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * co
             subfields.addSubfield('a', row["translation"]);
             subfields.addSubfield('9', "L:" + row["language_code"]);
             subfields.addSubfield('2', "IxTheo");
-            new_record.insertField("750", subfields.toString());
+            new_record.insertField("750", subfields);
         }
 
         marc_writer->write(new_record);
@@ -82,13 +80,7 @@ int main(int argc, char *argv[]) {
             Usage();
 
         const std::string authority_marc_file(argv[1]);
-        std::unique_ptr<MarcWriter> marc_writer;
-        if (StringUtil::EndsWith(authority_marc_file, ".mrc"))
-            marc_writer = MarcWriter::Factory(authority_marc_file, MarcWriter::BINARY);
-        else if (StringUtil::EndsWith(authority_marc_file, ".xml"))
-            marc_writer = MarcWriter::Factory(authority_marc_file, MarcWriter::XML);
-        else
-            Error("output MARC filename must end with \".mrc\" or \".xml\"!");
+        const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(authority_marc_file));
 
         const IniFile ini_file(CONF_FILE_PATH);
         const std::string sql_database(ini_file.getString("", "sql_database"));
