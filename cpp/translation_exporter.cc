@@ -36,9 +36,9 @@ void Usage() {
 }
 
 
-void ExecSqlOrDie(const std::string &select_statement, DbConnection * const connection) {
-    if (unlikely(not connection->query(select_statement)))
-        Error("SQL Statement failed: " + select_statement + " (" + connection->getLastErrorMessage() + ")");
+void ExecSqlOrDie(const std::string &sql_statement, DbConnection * const connection) {
+    if (unlikely(not connection->query(sql_statement)))
+        Error("SQL Statement failed: " + sql_statement + " (" + connection->getLastErrorMessage() + ")");
 }
 
 
@@ -78,9 +78,7 @@ int main(int argc, char *argv[]) {
     try {
         if (argc != 2)
             Usage();
-
-        const std::string authority_marc_file(argv[1]);
-        const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(authority_marc_file));
+        const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[1]));
 
         const IniFile ini_file(CONF_FILE_PATH);
         const std::string sql_database(ini_file.getString("", "sql_database"));
