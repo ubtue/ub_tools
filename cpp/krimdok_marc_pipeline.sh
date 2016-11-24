@@ -49,6 +49,14 @@ echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
 
 
 ((++P)); START=$(date +%s.%N)
+echo "*** Phase $P: Add PDA Fields to Some Records ***" | tee --append "${log}"
+krimdok_flag_pda_records GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml \
+                         GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
+PHASE_DURATION=$(echo "scale=2;($(date +%s.%N) - $START)/60" | bc -l)
+echo "Done after ${PHASE_DURATION} minutes." | tee --append "${log}"
+
+
+((++P)); START=$(date +%s.%N)
 echo "*** Phase $P: Add Author Synonyms from Norm Data ***" | tee --append "${log}"
 add_author_synonyms GesamtTiteldaten-post-phase"$((P-1))"-"${date}".xml Normdaten-"${date}".xml \
                     GesamtTiteldaten-post-phase"$P"-"${date}".xml >> "${log}" 2>&1
