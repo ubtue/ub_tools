@@ -27,7 +27,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " no_of_yearsmarc_input_file marc_output_file\n";
+    std::cerr << "Usage: " << ::progname << " no_of_years marc_input_file marc_output_file\n";
     std::exit(EXIT_FAILURE);
 }
 
