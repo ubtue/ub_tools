@@ -228,6 +228,9 @@ uint64_t GetCurrentTimeInMicroseconds();
 void Millisleep(const unsigned sleep_interval);
 
 
+std::string GetCurrentYear(const TimeZone time_zone = LOCAL);
+
+
 } // namespace TimeUtil
 
 
