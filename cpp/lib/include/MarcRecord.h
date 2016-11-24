@@ -94,6 +94,10 @@ public:
     /** \brief Updates the field at index "field_index" and adjusts various field and records lengths. */
     void updateField(const size_t field_index, const std::string &new_field_contents);
 
+    inline void updateField(const size_t field_index, const Subfields &subfields) {
+        updateField(field_index, subfields.toString());
+    }
+
     bool insertSubfield(const MarcTag &new_field_tag, const char subfield_code,
                    const std::string &new_subfield_value, const char indicator1 = ' ', const char indicator2 = ' ');
 

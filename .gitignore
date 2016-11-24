@@ -107,6 +107,7 @@ test_find_substring
 test_auto_temp_file
 translate_chainer
 translation_db_tool
+translation_exporter
 update_full_text_db
 update_ixtheo_notations
 urlencode
