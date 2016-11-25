@@ -56,7 +56,7 @@ static unsigned keyword_count, translation_count, additional_hits, synonym_count
 static DbConnection *shared_connection;
 
 
-enum Status { RELIABLE, UNRELIABLE, SYNONYM };
+enum Status { RELIABLE, UNRELIABLE, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
 
 
 std::string StatusToString(const Status status) {
@@ -65,9 +65,13 @@ std::string StatusToString(const Status status) {
         return "reliable";
     case UNRELIABLE:
         return "unreliable";
-    case SYNONYM:
-        return "synonym";
+    case RELIABLE_SYNONYM:
+        return "reliable_synonym";
+    case UNRELIABLE_SYNONYM:
+        return "unreliable_synonym";
     }
+
+    Error("in StatusToString: we should *never* get here!");
 }
 
 
@@ -100,10 +104,21 @@ void ExtractGermanSynonyms(
         const Subfields _450_subfields(record.getSubfields(_450_index));
         if (_450_subfields.hasSubfield('a')) {
             text_language_codes_statuses_and_origin_tags->emplace_back(
-                _450_subfields.getFirstSubfieldValue('a'), "deu", SYNONYM, "450");
+                _450_subfields.getFirstSubfieldValue('a'), "deu", RELIABLE_SYNONYM, "450");
             ++synonym_count;
         }
     }
+}
+
+
+bool IsSynonym(const Subfields &_750_subfields) {
+    const auto begin_end(_750_subfields.getIterators('9'));
+    for (auto _9_subfield(begin_end.first); _9_subfield != begin_end.second; ++_9_subfield) {
+        if (_9_subfield->value_ == "Z:VW")
+            return true;
+    }
+
+    return false;
 }
 
 
@@ -133,7 +148,12 @@ void ExtractNonGermanTranslations(
                 ++additional_hits;
         }
         if (not language_code.empty()) {
-            const Status status(::strcasecmp(_750_subfields.getFirstSubfieldValue('2').c_str(), "ixtheo") == 0 ? RELIABLE : UNRELIABLE);
+            const bool is_synonym(IsSynonym(_750_subfields));
+            Status status;
+            if (_750_subfields.getFirstSubfieldValue('2') == "IxTheo")
+                status = is_synonym ? RELIABLE_SYNONYM : RELIABLE;
+            else
+                status = is_synonym ? UNRELIABLE_SYNONYM : UNRELIABLE;
             ++translation_count;
             text_language_codes_statuses_and_origin_tags->emplace_back(
                 _750_subfields.getFirstSubfieldValue('a'), language_code, status, "750");
