@@ -42,12 +42,19 @@ void ExecSqlOrDie(const std::string &sql_statement, DbConnection * const connect
 }
 
 
+inline bool IsSynonym(const std::string &status) {
+    return status == "replaced_synonym" or status == "new_synonym";
+}
+
+
 void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * const marc_writer) {
-    ExecSqlOrDie("SELECT DISTINCT ppn FROM keyword_translations WHERE status='new' OR status='replaced'",
+    ExecSqlOrDie("SELECT DISTINCT ppn FROM keyword_translations WHERE status='new' OR status='replaced'"
+                 " OR status='replaced_synonym' OR status='new_synonym'",
                  db_connection);
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
         const std::string ppn(ppn_row["ppn"]);
+        const std::string status(ppn_row["status"]);
         ExecSqlOrDie("SELECT language_code,translation FROM keyword_translations WHERE ppn='" + ppn
                      + "' AND (status='new' OR status='replaced')", db_connection);
         DbResultSet result_set(db_connection->getLastResultSet());
@@ -60,6 +67,7 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * co
             Subfields subfields(' ', ' ');
             subfields.addSubfield('a', row["translation"]);
             subfields.addSubfield('9', "L:" + row["language_code"]);
+            subfields.addSubfield('9', "Z:" + IsSynonym(status) ? "VW" : "AF");
             subfields.addSubfield('2', "IxTheo");
             new_record.insertField("750", subfields);
         }
