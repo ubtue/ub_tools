@@ -58,7 +58,7 @@ public:
  *  \note   Exits with an error message if "path" does not exist or we don't have the rights to stat it.
  */
 off_t GetFileSize(const std::string &path);
-    
+
 
 /** \class AutoTempFile
  *  \brief Creates a temp file and removes it when going out of scope.
@@ -71,7 +71,7 @@ public:
 
     const std::string &getFilePath() const { return path_; }
 };
-    
+
 
 bool WriteString(const std::string &path, const std::string &data);
 bool ReadString(const std::string &path, std::string * const data);
@@ -306,14 +306,17 @@ bool GetLine(std::istream &stream, std::string * const line, const char terminat
  */
 std::string UniqueFileName(const std::string &directory = "/tmp", const std::string &filename_prefix = "",
                            const std::string &filename_suffix = "");
-    
+
 
 /** \brief Compares the contents of two files.
  *  \note  Throws a std::runtime_error exception if "path1" or "path2" can't be read.
  */
 bool FilesDiffer(const std::string &path1, const std::string &path2);
 
-    
+
+void AppendStringToFile(const std::string &path, const std::string &text);
+
+
 } // namespace FileUtil
 
 
