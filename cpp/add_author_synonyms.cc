@@ -150,7 +150,7 @@ void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::s
     Subfields subfields(/* indicator1 = */' ', /* indicator2 = */' ');
     subfields.addSubfield('a', synonyms);
 
-    if (not record->insertField(SYNOMYM_FIELD, subfields)) {
+    if (not record->insertField(SYNOMYM_FIELD, subfields.toString())) {
         Warning("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: "
                 + record->getControlNumber() + ")");
         return;
