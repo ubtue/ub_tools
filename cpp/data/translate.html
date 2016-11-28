@@ -1,6 +1,11 @@
+<!DOCTYPE HTML>
 <html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>Translator</title>
+    </head>
     <body>
-        <h1>Translating for IxTheo ({category}, {remaining_count} remaining)</h1>
+        <h1><a href="/cgi-bin/translator">Translating for IxTheo</a> ({category}, {remaining_count} remaining)</h1>
         <form action="/cgi-bin/translate_chainer">
             <em>Translation target language:</em>
             <select name="language_code" onchange="this.form.submit()">
@@ -23,7 +28,7 @@
             </tr>
             {ENDLOOP}
           {ELSE}
-            {LOOP language_code,example_text}
+            {LOOP language_code,example_text,url_escaped_example_text}
             <tr>
               <td><b>{language_code}:</b></td>
               <td><a href="/Search/Results?j&lookfor={url_escaped_example_text}&type=Subject&limit=20">{example_text}</a></td>
@@ -36,6 +41,7 @@
 
         <form action="/cgi-bin/translate_chainer">
             Translation: <input type="text" name="translation" size="60" maxlength="200" autofocus/>
+            <input type="hidden" name="action" value="{action}" />
             <input type="hidden" name="language_code" value="{target_language_code}" />
             <input type="hidden" name="index" value="{index}" />
             <input type="hidden" name="category" value="{category}" />

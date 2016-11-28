@@ -1,0 +1,61 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Translator</title>
+</head>
+    <body>
+        <h1><a href="/cgi-bin/translator">Translating for IxTheo</a></h1>
+        <div style="text-align: center;">
+            <form action="/cgi-bin/translator" method="POST">
+                <input type="text" name="lookfor" value="{lookfor}" /><button>Search</button>
+            </form>
+        </div>
+        <div style="clear: both;">
+            <div style="width: 50%; float: left; text-align: right">
+                <form action="/cgi-bin/translator" method="POST">
+                    <button>Previous</button>
+                    <input type="hidden" name="lookfor" value="{lookfor}">
+                    <input type="hidden" name="offset" value="{prev_offset}">
+                </form>
+            </div>
+            <div style="width: 50%; float: right;">
+                <form action="/cgi-bin/translator" method="POST">
+                    <button>Next</button>
+                    <input type="hidden" name="lookfor" value="{lookfor}">
+                    <input type="hidden" name="offset" value="{next_offset}">
+                </form>
+            </div>
+            <div style="width: 50%; float: left;">
+                <table>
+                    <tr>{keyword_table_headline}</tr>
+                    {LOOP keyword_row}
+                    <tr>
+                        {keyword_row}
+                    </tr>
+                    {ENDLOOP}
+                </table>
+            </div>
+            <div style="width: 50%; float: right;">
+                <table>
+                    <tr>{vufind_token_table_headline}</tr>
+                    {LOOP vufind_token_row}
+                    <tr>
+                        {vufind_token_row}
+                    </tr>
+                    {ENDLOOP}
+                </table>
+            </div>
+            <div style="clear: both; padding-top:50px">
+                <form action="/cgi-bin/translate_chainer">
+                    Translate next to <select name="language_code" onchange="if(this.value != '--') this.form.submit()">
+                    <option>--</option>
+                    <option value="eng">English</option>
+                    <option value="deu">German</option>
+                    <option value="fra">French</option>
+                </select>
+                </form>
+            </div>
+        </div>
+    </body>
+</html>

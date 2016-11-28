@@ -58,3 +58,7 @@ DbRow DbResultSet::getNextRow() {
 
     return DbRow(row, field_sizes, field_count, field_name_to_index_map_);
 }
+
+bool DbResultSet::hasColumn(const std::string &column_name) const {
+    return field_name_to_index_map_.find(column_name) != field_name_to_index_map_.cend();
+}
