@@ -36,34 +36,40 @@ void Usage() {
 }
 
 
-void ExecSqlOrDie(const std::string &select_statement, DbConnection * const connection) {
-    if (unlikely(not connection->query(select_statement)))
-        Error("SQL Statement failed: " + select_statement + " (" + connection->getLastErrorMessage() + ")");
+void ExecSqlOrDie(const std::string &sql_statement, DbConnection * const connection) {
+    if (unlikely(not connection->query(sql_statement)))
+        Error("SQL Statement failed: " + sql_statement + " (" + connection->getLastErrorMessage() + ")");
+}
+
+
+inline bool IsSynonym(const std::string &status) {
+    return status == "replaced_synonym" or status == "new_synonym";
 }
 
 
 void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * const marc_writer) {
-    ExecSqlOrDie("SELECT DISTINCT ppn FROM keyword_translations WHERE status='new' OR status='replaced'",
+    ExecSqlOrDie("SELECT DISTINCT ppn FROM keyword_translations WHERE status='new' OR status='replaced'"
+                 " OR status='replaced_synonym' OR status='new_synonym'",
                  db_connection);
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
         const std::string ppn(ppn_row["ppn"]);
+        const std::string status(ppn_row["status"]);
         ExecSqlOrDie("SELECT language_code,translation FROM keyword_translations WHERE ppn='" + ppn
                      + "' AND (status='new' OR status='replaced')", db_connection);
         DbResultSet result_set(db_connection->getLastResultSet());
 
         MarcRecord new_record;
-        Leader new_leader;
-        new_leader.setRecordType(Leader::AUTHORITY);
-        new_record.setLeader(new_leader);
+        new_record.getLeader().setRecordType(Leader::AUTHORITY);
         new_record.insertField("001", ppn);
 
         while (const DbRow row = result_set.getNextRow()) {
             Subfields subfields(' ', ' ');
             subfields.addSubfield('a', row["translation"]);
             subfields.addSubfield('9', "L:" + row["language_code"]);
+            subfields.addSubfield('9', "Z:" + IsSynonym(status) ? "VW" : "AF");
             subfields.addSubfield('2', "IxTheo");
-            new_record.insertField("750", subfields.toString());
+            new_record.insertField("750", subfields);
         }
 
         marc_writer->write(new_record);
@@ -80,15 +86,7 @@ int main(int argc, char *argv[]) {
     try {
         if (argc != 2)
             Usage();
-
-        const std::string authority_marc_file(argv[1]);
-        std::unique_ptr<MarcWriter> marc_writer;
-        if (StringUtil::EndsWith(authority_marc_file, ".mrc"))
-            marc_writer = MarcWriter::Factory(authority_marc_file, MarcWriter::BINARY);
-        else if (StringUtil::EndsWith(authority_marc_file, ".xml"))
-            marc_writer = MarcWriter::Factory(authority_marc_file, MarcWriter::XML);
-        else
-            Error("output MARC filename must end with \".mrc\" or \".xml\"!");
+        const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[1]));
 
         const IniFile ini_file(CONF_FILE_PATH);
         const std::string sql_database(ini_file.getString("", "sql_database"));
