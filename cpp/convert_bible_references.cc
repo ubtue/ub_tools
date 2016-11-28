@@ -53,12 +53,12 @@ void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
         return; // Nothing to do!
 
     _040_subfields.setSubfield('e', "rda");
-    record->updateField(_040_index, _040_subfields.toString());
+    record->updateField(_040_index, _040_subfields);
 
     if (not _130_subfields.hasSubfield('p') and _130_subfields.getFirstSubfieldValue('a') != "Bibel") {
         _130_subfields.moveSubfield('a', 'p');
         _130_subfields.setSubfield('a', "Bibel");
-        record->updateField(static_cast<size_t>(_130_index), _130_subfields.toString());
+        record->updateField(static_cast<size_t>(_130_index), _130_subfields);
     }
 
     marc_writer->write(*record);
