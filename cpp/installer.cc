@@ -73,6 +73,7 @@ void MountLUKSContainerOrDie() {
               { "luksOpen", "--batch-mode", "--key-file", key_file_temp_file.getFilePath(), LUKS_IMAGE_FILE,
                 "configs" });
     ExecOrDie("/bin/mount", { "/dev/mapper/configs", LUKS_MOUNT_POINT });
+    Echo("Successfully mounted the LUKS container.");
 }
 
 
@@ -208,9 +209,9 @@ int main(int argc, char **argv) {
     const OSSystemType os_system_type(DetermineOSSystemType());
 
     try {
-        MountLUKSContainerOrDie();
         InstallSoftwarePackages(os_system_type, vufind_system_type);
         InstallUBTools();
+        MountLUKSContainerOrDie();
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
