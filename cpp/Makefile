@@ -17,7 +17,7 @@ LIBS_AMD64     = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64
 
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
 AMD64_PROGS    = $(patsubst %.cc,%_amd64,$(wildcard *.cc))
-CGI_PROGS      = full_text_lookup translate_chainer translator
+CGI_PROGS      = full_text_lookup translate_chainer translator display_translate_stats
 INSTALL_PROGS  = $(filter-out %_test,$(PROGS)) *.sh
 
 .PHONY: all amd64 install clean

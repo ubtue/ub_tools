@@ -177,18 +177,6 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
 }
 
 
-std::unique_ptr<File> OpenInputFile(const std::string &filename) {
-    std::string mode("r");
-    if (MediaTypeUtil::GetFileMediaType(filename) == "application/lz4") 
-        mode += "u";  
-    std::unique_ptr<File> file(new File(filename, mode));
-    if (file->fail())
-        Error("can't open \"" + filename + "\" for reading!");
-
-    return file;
-}
-
-
 int main(int argc, char **argv) {
     ::progname = argv[0];
 

@@ -46,6 +46,7 @@ db_lookup
 delete_ids
 delete_unused_local_data
 deserialise_php_test
+display_translate_stats
 download_test
 dsv_reader
 enrich_ddcs
@@ -106,6 +107,7 @@ test_find_substring
 test_auto_temp_file
 translate_chainer
 translation_db_tool
+translation_exporter
 update_full_text_db
 update_ixtheo_notations
 urlencode

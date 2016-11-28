@@ -256,8 +256,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
             key = DbLockedWriteDocumentWithMediaType(media_type, document, db_filename);
 
         subfields.addSubfield('e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
-        const std::string new_856_field(subfields.toString());
-        record.updateField(_856_index, new_856_field);
+        record.updateField(_856_index, subfields);
 
         succeeded = true;
     }
