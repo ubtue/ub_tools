@@ -204,7 +204,7 @@ void XmlMarcWriter::write(const MarcRecord &record) {
 std::unique_ptr<MarcWriter> MarcWriter::Factory(const std::string &output_filename, WriterType writer_type) {
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(output_filename));
     if (writer_type == AUTO) {
-        if (StringUtil::EndsWith(output_filename, ".mrc"))
+        if (StringUtil::EndsWith(output_filename, ".mrc") or StringUtil::EndsWith(output_filename, ".marc"))
             writer_type = BINARY;
         else if (StringUtil::EndsWith(output_filename, ".xml"))
             writer_type = XML;
