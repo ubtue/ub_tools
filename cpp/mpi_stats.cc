@@ -92,8 +92,31 @@ std::string GetPublicationYear(const MarcRecord &record) {
 }
 
 
+void FindNonMPIInstitutions(const MarcRecord &record,
+                            const std::vector<std::pair<size_t, size_t>> &local_block_boundaries,
+                            std::vector<std::string> * const non_mpi_institutions)
+{
+    non_mpi_institutions->clear();
+
+    for (const auto &local_block_boundary : local_block_boundaries) {
+        const size_t block_start_index(local_block_boundary.first);
+        const size_t block_end_index(local_block_boundary.second);
+        for (size_t index(block_start_index); index < block_end_index; ++index) {
+            const Subfields subfields(record.getFieldData(index));
+            if (StringUtil::StartsWith(subfields.getFirstSubfieldValue('0'), "852")) {
+                const auto begin_end(subfields.getIterators('a'));
+                for (auto subfield_a(begin_end.first); subfield_a != begin_end.second; ++subfield_a) {
+                    if (subfield_a->value_ != "DE-Frei85")
+                        non_mpi_institutions->emplace_back(subfield_a->value_);
+                }
+            }
+        }
+    }
+}
+
+
 void GenerateStats(MarcReader * const marc_reader) {
-    unsigned recent_mpi_only_count(0);
+    unsigned recent_mpi_only_count(0), has_additional_non_mpi_institutions(0);
     while (const MarcRecord record = marc_reader->read()) {
         if (not record.getLeader().isMonograph())
             continue;
@@ -102,12 +125,21 @@ void GenerateStats(MarcReader * const marc_reader) {
         record.findAllLocalDataBlocks(&local_block_boundaries);
         if (IsMPIRecord(record, local_block_boundaries) and not IsUBOrIFKRecord(record, local_block_boundaries)) {
             const std::string publication_year(GetPublicationYear(record));
-            if (publication_year >= "2015")
+            if (publication_year >= "2014") {
                 ++recent_mpi_only_count;
+                std::vector<std::string> non_mpi_institutions;
+                FindNonMPIInstitutions(record, local_block_boundaries, &non_mpi_institutions);
+                if (not non_mpi_institutions.empty()) {
+                    ++has_additional_non_mpi_institutions;
+                    std::cout << StringUtil::Join(non_mpi_institutions, ", ") << '\n';
+                }
+            }
         }
     }
 
     std::cout << "Counted " << recent_mpi_only_count << " records originating at the MPI and not found locally.\n";
+    std::cout << "Counted " << has_additional_non_mpi_institutions
+              << " records that have MPI and institutions other than UB or IFK.\n";
 }
 
 

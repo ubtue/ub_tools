@@ -73,6 +73,7 @@ void MountLUKSContainerOrDie() {
               { "luksOpen", "--batch-mode", "--key-file", key_file_temp_file.getFilePath(), LUKS_IMAGE_FILE,
                 "configs" });
     ExecOrDie("/bin/mount", { "/dev/mapper/configs", LUKS_MOUNT_POINT });
+    Echo("Successfully mounted the LUKS container.");
 }
 
 
@@ -163,6 +164,21 @@ void InstallSoftwarePackages(const OSSystemType os_system_type, const VuFindSyst
 }
 
 
+void ChangeDirectoryOrDie(const std::string &new_working_directory) {
+    if (::chdir(new_working_directory.c_str()) != 0)
+        Error("failed to set the new working directory to \"" + new_working_directory + "\"! ("
+              + std::string(::strerror(errno)) + ")");
+}
+
+
+void InstallUBTools() {
+    const std::string UB_TOOLS_DIRECTORY("/usr/local/ub_tools");
+    ExecOrDie(ExecUtil::Which("git"), { "clone", "https://github.com/ubtue/ub_tools.git", UB_TOOLS_DIRECTORY });
+    ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
+    ExecOrDie(ExecUtil::Which("make"), { "install" });
+}
+
+
 void GetMasterPassword() {
     errno = 0;
     master_password = ::getpass("Master password >");
@@ -193,8 +209,9 @@ int main(int argc, char **argv) {
     const OSSystemType os_system_type(DetermineOSSystemType());
 
     try {
-        MountLUKSContainerOrDie();
         InstallSoftwarePackages(os_system_type, vufind_system_type);
+        InstallUBTools();
+        MountLUKSContainerOrDie();
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
