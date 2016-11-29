@@ -202,6 +202,11 @@ static unsigned no_gnd_code_count;
 bool ExtractTranslationsForASingleRecord(MarcRecord * const record, MarcWriter * const /*marc_writer*/,
                                          std::string * const /* err_msg */)
 {
+    // Skip records that are not GND records:
+    const Subfields _035_subfields(record->getSubfields("035"));
+    if (not StringUtil::StartsWith(_035_subfields.getFirstSubfieldValue('a'), "(DE-588)"))
+        return true;
+
     // Extract all synonyms and translations:
     std::vector<TextLanguageCodeStatusAndOriginTag> text_language_codes_statuses_and_origin_tags;
     ExtractGermanTerms(*record, &text_language_codes_statuses_and_origin_tags);
@@ -224,7 +229,7 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, MarcWriter *
         ++no_gnd_code_count;
         gnd_code = "0";
     }
-    
+
     const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (ppn,gnd_code,language_code,"
                                              "translation,status,origin) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
@@ -283,7 +288,7 @@ int main(int argc, char **argv) {
     if (not marc_input)
         Error("can't open \"" + marc_input_filename + "\" for reading!");
     */
-    
+
     std::unique_ptr<MarcReader> authority_marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
 
     try {
