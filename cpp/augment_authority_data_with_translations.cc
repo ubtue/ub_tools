@@ -47,8 +47,10 @@
 // Save language code, translation, origin, status
 typedef std::tuple<std::string, std::string, std::string, std::string> OneTranslation;
 
+
 static unsigned record_count(0);
 static unsigned modified_count(0);
+
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " authority_data_input authority_data_output\n";
@@ -83,7 +85,7 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
 }
 
 
-std::string MapLanguageCode(std::string lang_code) {
+std::string MapLanguageCode(const std::string lang_code) {
     if (lang_code == "deu")
         return "de";
     if (lang_code == "eng")
