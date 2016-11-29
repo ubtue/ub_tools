@@ -447,11 +447,6 @@ bool GetScalarValue(const std::string &variable_name,
     // Now deal w/ multivalued variables:
     for (auto scope(active_scopes.crbegin()); scope != active_scopes.crend(); ++scope) {
         if (scope->isLoopVariable(variable_name)) {
-            if (unlikely(name_and_values->second.size() <= scope->getCurrentIterationCount())) {
-                *value = "<EMPTY!>";
-                return true;
-            }
-
             *value = name_and_values->second[scope->getCurrentIterationCount()];
             return true;
         }
@@ -635,13 +630,13 @@ void ProcessEndOfSyntax(const std::string &name_of_syntactic_construct, Template
 
 void SkipToToken(TemplateScanner * const scanner, TemplateScanner::TokenType target_token) {
     TemplateScanner::TokenType token;
-    while ((token = scanner->getToken(false)) != target_token && token != TemplateScanner::END_OF_INPUT)
+    while ((token = scanner->getToken(false)) != target_token and token != TemplateScanner::END_OF_INPUT)
     { /* do nothing */ }
     if (token == TemplateScanner::END_OF_INPUT)
         throw std::runtime_error("in MiscUtil::SkipToToken: error on line "
                                  + std::to_string(scanner->getLineNo())
                                  + " expected '" + TemplateScanner::TokenTypeToString(token)
-                                 + "' but non was found.");
+                                 + "' but none was found.");
 }
 
 

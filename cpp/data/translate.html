@@ -1,4 +1,4 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -42,6 +42,12 @@
         </table>
         <br />
         <br />
+        {IF DEFINED(error_message)}
+        <div style="border: 1px solid;margin: 10px 0px;padding:15px 10px 15px 50px;background-repeat: no-repeat;background-position: 10px center;color: #D8000C;background-color: #FFBABA;">
+            {error_message}
+        </div>
+"
+        {ENDIF}
 
         <form action="/cgi-bin/translate_chainer">
             Translation: <input type="text" name="translation" size="60" maxlength="200" autofocus/>

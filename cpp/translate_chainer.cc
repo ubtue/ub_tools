@@ -184,6 +184,16 @@ void GetExisting(const std::multimap<std::string, std::string> &cgi_args) {
 }
 
 
+void ValidateTranslation(const std::string ppn, const std::string& new_translation) {
+    std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword '" + ppn + " " + new_translation);
+    std::string output;
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(validate_command, &output))
+        Error("failed to execute \"" + validate_command + "\" or it returned a non-zero exit code!");
+
+
+}
+
+
 void Insert(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
@@ -203,6 +213,7 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
         Error("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
 }
 
+
 void Update(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
@@ -221,6 +232,7 @@ void Update(const std::multimap<std::string, std::string> &cgi_args) {
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
         Error("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
 }
+
 
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
