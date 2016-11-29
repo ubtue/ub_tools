@@ -66,12 +66,14 @@ std::string EscapeCommasAndBackslashes(const std::string &text) {
 
 unsigned GetMissing(DbConnection * const connection, const std::string &table_name,
                     const std::string &table_key_name, const std::string &category,
-                    const std::string &language_code)
+                    const std::string &language_code, const std::string &additional_condition = "")
 {
     // Find a token/ppn where "language_code" is missing:
     ExecSqlOrDie("SELECT distinct " + table_key_name + " FROM " + table_name + " WHERE " + table_key_name +
                  " NOT IN (SELECT distinct " + table_key_name + " FROM " + table_name +
-                 " WHERE language_code = \"" + language_code + "\") ORDER BY RAND();", connection);
+                 " WHERE language_code = \"" + language_code + "\") "
+                 + (additional_condition.empty() ? "" : " AND (" + additional_condition + ")")
+                 + " ORDER BY RAND();", connection);
     DbResultSet keys_result_set(connection->getLastResultSet());
     const size_t count(keys_result_set.size());
     if (count == 0)
@@ -89,7 +91,7 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
     const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
 
     while (row = result_set.getNextRow())
-        std::cout << row[table_key_name] << ',' << count << ',' << row["language_code"] << ','
+        std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << count << ',' << row["language_code"] << ','
                   << EscapeCommasAndBackslashes(row["translation"]) << ',' << category
                   << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
 
@@ -103,7 +105,7 @@ unsigned GetMissingVuFindTranslations(DbConnection * const connection, const std
 
 
 unsigned GetMissingKeywordTranslations(DbConnection * const connection, const std::string &language_code) {
-    return GetMissing(connection, "keyword_translations", "ppn", "keyword_translations", language_code);
+    return GetMissing(connection, "keyword_translations", "ppn", "keyword_translations", language_code, "status != \"reliable_synonym\" AND status != \"unreliable_synonym\"");
 }
 
 
@@ -127,7 +129,7 @@ unsigned GetExisting(DbConnection * const connection, const std::string &table_n
     const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
 
     while (DbRow row = result_set.getNextRow())
-        std::cout << row[table_key_name] << ',' << count << ',' << row["language_code"] << ','
+        std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << count << ',' << row["language_code"] << ','
                   << EscapeCommasAndBackslashes(row["translation"]) << ',' << category
                   << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
 
@@ -160,7 +162,7 @@ void InsertIntoKeywordTranslations(DbConnection * const connection, const std::s
 {
     ExecSqlOrDie("INSERT INTO keyword_translations SET ppn=\"" + ppn + "\",gnd_code=\"" + gnd_code
                  + "\",language_code=\"" + language_code + "\",translation=\""
-                 + connection->escapeString(text) + "\";", connection);
+                 + connection->escapeString(text) + "\",origin=\"150\",status=\"new\";", connection);
 }
 
 
@@ -209,7 +211,7 @@ int main(int argc, char *argv[]) {
                 GetMissingKeywordTranslations(&db_connection, language_code);
         } else if (std::strcmp(argv[1], "get_existing") == 0) {
             if (argc != 5)
-                Error("\"get_existing\" requires exactly three arguments: language_code category index_value!");
+                Error("\"get_existing\" requires exactly three arguments: language_code category index!");
             const std::string language_code(argv[2]);
             if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
                 Error("\"" + language_code + "\" is not a valid 3-letter language code!");

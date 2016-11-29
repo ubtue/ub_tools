@@ -27,6 +27,7 @@
 #include <cstring>
 #include "Compiler.h"
 #include "ExecUtil.h"
+#include "HtmlUtil.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -71,7 +72,8 @@ struct Translation {
 };
 
 
-const std::string NO_GND_CODE("-1");
+const std::string NO_GND_CODE("0");
+const std::string NO_ORIGIN("");
 
 
 void ParseGetMissingLine(const std::string &line, Translation * const translation) {
@@ -85,7 +87,7 @@ void ParseGetMissingLine(const std::string &line, Translation * const translatio
     translation->language_code_   = parts[2];
     translation->text_            = parts[3];
     translation->category_        = parts[4];
-    translation->gnd_code_        = (parts.size() == 5) ? NO_GND_CODE : parts[5];
+    translation->gnd_code_        = (parts.size() != 6) ? NO_GND_CODE : parts[5];
 }
 
 
@@ -138,13 +140,13 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
         names_to_values_map.emplace("target_language_code", std::vector<std::string>{ language_code });
         names_to_values_map.emplace("action", std::vector<std::string>{ action });
         names_to_values_map.emplace("category", std::vector<std::string>{ translations.front().category_ });
-        if (translations.front().gnd_code_ != NO_GND_CODE)
+        if (translations.front().category_ != "vufind_translations")
             names_to_values_map.emplace("gnd_code", std::vector<std::string>{ translations.front().gnd_code_ });
 
         std::vector<std::string> language_codes, example_texts, url_escaped_example_texts;
         for (const auto &translation : translations) {
             language_codes.emplace_back(translation.language_code_);
-            example_texts.emplace_back(translation.text_);
+            example_texts.emplace_back(HtmlUtil::HtmlEscape(translation.text_));
             url_escaped_example_texts.emplace_back(UrlUtil::UrlEncode(translation.text_));
         }
         names_to_values_map.emplace(std::make_pair(std::string("language_code"), language_codes));
@@ -160,7 +162,7 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
 
 void GetMissing(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
-    const std::string GET_MISSING_COMMAND("/usr/local/bin/translation_db_tool get_missing " + language_code);
+    const std::string GET_MISSING_COMMAND("/usr/local/bin/translation_db_tool get_missing \"" + language_code + "\"");
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_MISSING_COMMAND, &output))
         Error("failed to execute \"" + GET_MISSING_COMMAND + "\" or it returned a non-zero exit code!");
@@ -173,7 +175,7 @@ void GetExisting(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
     const std::string category(GetCGIParameterOrDie(cgi_args, "category"));
-    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing " + language_code + " " + category + " " + index);
+    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code + "\" \"" + category + "\" \"" + index + "\"");
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_EXISTING_COMMAND, &output))
         Error("failed to execute \"" + GET_EXISTING_COMMAND + "\" or it returned a non-zero exit code!");
