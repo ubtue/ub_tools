@@ -63,6 +63,7 @@ class XmlMarcWriter: public MarcWriter {
 public:
     explicit XmlMarcWriter(File * const output_file, const unsigned indent_amount = 0,
                            const XmlWriter::TextConversionType text_conversion_type = XmlWriter::NoConversion);
+    virtual ~XmlMarcWriter() final { delete xml_writer_; }
 
     virtual void write(const MarcRecord &record) final;
 
