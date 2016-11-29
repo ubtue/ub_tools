@@ -120,7 +120,7 @@ add_additional_relbib_entries
 add_superior_flag
 convert_oai_pmh_dc_to_marc21
 marc_char_filter
-
+translator
 
 bsz_daten
 bsz_daten_cumulated
