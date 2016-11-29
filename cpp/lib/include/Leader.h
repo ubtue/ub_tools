@@ -80,7 +80,7 @@ public:
     void setBaseAddressOfData(const unsigned new_base_address_of_data);
     bool isMonograph() const { return raw_leader_[7] == 'm'; }
     bool isSerial() const { return raw_leader_[7] == 's'; }
-    bool isArticle() const { return raw_leader_[7] == 'a'; }
+    bool isArticle() const { return raw_leader_[7] == 'a' or raw_leader_[7] == 'b'; }
     RecordType getRecordType() const;
     void setRecordType(const char new_record_type) { raw_leader_[6] = new_record_type; }
 
