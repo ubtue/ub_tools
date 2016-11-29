@@ -184,7 +184,7 @@ void GetExisting(const std::multimap<std::string, std::string> &cgi_args) {
 }
 
 
-void ValidateTranslation(const std::string ppn, const std::string& new_translation) {
+void ValidateTranslation(const std::string &ppn, const std::string &new_translation) {
     std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword '" + ppn + " " + new_translation);
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(validate_command, &output))
@@ -247,7 +247,7 @@ int main(int argc, char *argv[]) {
         } else if (cgi_args.size() == 3) {
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             GetExisting(cgi_args);
-        } else if (cgi_args.size() == 5 or cgi_args.size() == 6){
+        } else if (cgi_args.size() == 5 or cgi_args.size() == 6) {
             const std::string action(GetCGIParameterOrDie(cgi_args, "action"));
             if (action == "insert")
                 Insert(cgi_args);

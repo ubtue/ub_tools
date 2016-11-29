@@ -19,7 +19,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #include <algorithm>
 #include <iostream>
 #include <string>
@@ -47,7 +46,7 @@ DbResultSet ExecSqlOrDie(const std::string &select_statement, DbConnection &db_c
 }
 
 
-std::vector <std::string> getLanguageCodesFromTable(DbConnection &db_connection, const std::string &table_name) {
+std::vector<std::string> GetLanguageCodesFromTable(DbConnection &db_connection, const std::string &table_name) {
     const std::string query("SELECT DISTINCT language_code from " + table_name + " ORDER BY language_code;");
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
     std::vector <std::string> language_codes;
@@ -58,9 +57,9 @@ std::vector <std::string> getLanguageCodesFromTable(DbConnection &db_connection,
 }
 
 
-std::vector <std::string> getLanguageCodes(DbConnection &db_connection) {
-    std::vector <std::string> language_codes(getLanguageCodesFromTable(db_connection, "vufind_translations"));
-    for (const std::string language_code : getLanguageCodesFromTable(db_connection, "keyword_translations")) {
+std::vector<std::string> GetLanguageCodes(DbConnection &db_connection) {
+    std::vector <std::string> language_codes(GetLanguageCodesFromTable(db_connection, "vufind_translations"));
+    for (auto &language_code : GetLanguageCodesFromTable(db_connection, "keyword_translations")) {
         if (std::find(language_codes.begin(), language_codes.end(), language_code) == language_codes.end())
             language_codes.emplace_back(language_code);
     }
@@ -68,9 +67,9 @@ std::vector <std::string> getLanguageCodes(DbConnection &db_connection) {
 }
 
 
-std::string GetCGIParameterOrDefault(const std::multimap <std::string, std::string> &cgi_args,
+std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::string> &cgi_args,
                                      const std::string &parameter_name,
-                                     const std::string default_value) {
+                                     const std::string &default_value) {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
         return default_value;
@@ -90,7 +89,7 @@ std::string CreateRowEntry(const std::string &token, const std::string &label, c
 
 
 void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
-                                                 const std::string &offset, std::vector <std::string> *const rows,
+                                                 const std::string &offset, std::vector<std::string> *const rows,
                                                  std::string *const headline) {
     rows->clear();
 
@@ -102,17 +101,16 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
     const std::string query("SELECT token, translation, language_code FROM vufind_translations "
                             "WHERE token IN (SELECT * FROM (" + token_query + ") as t) ORDER BY token, language_code");
 
-    std::cerr << query << "\n";
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
 
-    std::vector <std::string> language_codes(getLanguageCodes(db_connection));
+    std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
     *headline = "<th>Token</th><th>" + StringUtil::Join(language_codes, "</th><th>") + "</th>";
     if (result_set.empty())
         return;
 
     DbRow db_row(result_set.getNextRow());
     std::string current_token(db_row["token"]);
-    std::vector <std::string> row_values(language_codes.size(), "<td></td>");
+    std::vector<std::string> row_values(language_codes.size(), "<td></td>");
     do {
         std::string token(db_row["token"]);
         if (token != current_token) {
@@ -131,7 +129,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 
 
 void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
-                                                  const std::string &offset, std::vector <std::string> *const rows,
+                                                  const std::string &offset, std::vector<std::string> *const rows,
                                                   std::string *const headline) {
     rows->clear();
 
@@ -139,17 +137,16 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     const std::string ppn_query("SELECT ppn FROM keyword_translations " + ppn_where_clause + " ORDER BY translation LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) );
     const std::string query("SELECT ppn, translation, language_code, status FROM keyword_translations "
                             "WHERE  ppn IN (SELECT ppn FROM (" + ppn_query + ") as t) AND status != \"reliable_synonym\" AND status != \"unreliable_synonym\" ORDER BY ppn, translation;");
-    std::cerr << query << "\n";
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
 
-    std::vector <std::string> language_codes(getLanguageCodes(db_connection));
+    std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
     *headline = "<th>" + StringUtil::Join(language_codes, "</th><th>") + "</th>";
     if (result_set.empty())
         return;
 
     DbRow db_row(result_set.getNextRow());
     std::string current_ppn(db_row["ppn"]);
-    std::vector <std::string> row_values(language_codes.size(), "<td> </td>");
+    std::vector<std::string> row_values(language_codes.size(), "<td> </td>");
     do {
         std::string ppn(db_row["ppn"]);
         if (ppn != current_ppn) {
@@ -168,25 +165,25 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
 
 void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, const std::string &offset) {
-    std::map <std::string, std::vector<std::string>> names_to_values_map;
-    std::vector <std::string> rows;
+    std::map<std::string, std::vector<std::string>> names_to_values_map;
+    std::vector<std::string> rows;
     std::string headline;
     GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline);
     names_to_values_map.emplace("keyword_row", rows);
-    names_to_values_map.emplace("keyword_table_headline", std::vector < std::string > {headline});
+    names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
 
 
     GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline);
     names_to_values_map.emplace("vufind_token_row", rows);
-    names_to_values_map.emplace("vufind_token_table_headline", std::vector < std::string > {headline});
+    names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
 
-    names_to_values_map.emplace("lookfor", std::vector < std::string > {lookfor});
-    names_to_values_map.emplace("prev_offset", std::vector < std::string >
+    names_to_values_map.emplace("lookfor", std::vector<std::string> {lookfor});
+    names_to_values_map.emplace("prev_offset", std::vector<std::string>
                                                {std::to_string(std::max(0, std::stoi(offset) - ENTRIES_PER_PAGE))});
     names_to_values_map.emplace("next_offset",
-                                std::vector < std::string > {std::to_string(std::stoi(offset) + ENTRIES_PER_PAGE)});
+                                std::vector<std::string> {std::to_string(std::stoi(offset) + ENTRIES_PER_PAGE)});
 
-    names_to_values_map.emplace("target_language_code", std::vector < std::string > {""});
+    names_to_values_map.emplace("target_language_code", std::vector<std::string> {""});
 
     std::ifstream translate_html("/var/lib/tuelib/translate_chainer/translation_front_page.html", std::ios::binary);
     MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
@@ -200,7 +197,7 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     try {
-        std::multimap <std::string, std::string> cgi_args;
+        std::multimap<std::string, std::string> cgi_args;
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 
         const IniFile ini_file(CONF_FILE_PATH);
