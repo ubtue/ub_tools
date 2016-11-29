@@ -44,6 +44,7 @@
 #include "TranslationUtil.h"
 #include "util.h"
 
+
 // Save language code, translation, origin, status
 typedef std::tuple<std::string, std::string, std::string, std::string> OneTranslation;
 
@@ -106,7 +107,7 @@ std::string MapLanguageCode(const std::string lang_code) {
 }
 
 
-void InsertTranslation(MarcRecord * const record, char indicator1, char indicator2, std::string term, std::string language_code, std::string status) {
+void InsertTranslation(MarcRecord * const record, const char indicator1, const char indicator2, const std::string &term, const std::string &language_code, const std::string &status) {
     Subfields subfields(indicator1, indicator2);
     subfields.addSubfield('a', term);
     subfields.addSubfield('9', "L:" + MapLanguageCode(language_code));
@@ -117,7 +118,7 @@ void InsertTranslation(MarcRecord * const record, char indicator1, char indicato
 
 
 char DetermineNextFreeIndicator1(MarcRecord * const record, std::vector<size_t> field_indices) {
-    char new_indicator1 = ' ';
+    char new_indicator1(' ');
 
     for (const auto field_index : field_indices) {
         Subfields subfields(record->getSubfields(field_index));
