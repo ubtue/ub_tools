@@ -815,6 +815,13 @@ bool FilesDiffer(const std::string &path1, const std::string &path2) {
             return false;
     }
 }
+
+
+void AppendStringToFile(const std::string &path, const std::string &text) {
+    std::unique_ptr<File> file(OpenForAppeningOrDie(path));
+    if (unlikely(file->write(text.data(), text.size()) != text.size()))
+        Error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
+}
     
 
 } // namespace FileUtil
