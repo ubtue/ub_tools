@@ -2,6 +2,7 @@
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <meta charset="UTF-8"/>
         <title>Translator</title>
     </head>
     <body>
@@ -13,6 +14,8 @@
                 <option value="deu" {IF target_language_code == "deu"} selected{ENDIF}>German</option>
                 <option value="fra" {IF target_language_code == "fra"} selected{ENDIF}>French</option>
             </select>
+            <input type="hidden" name="index" value="{index}" />
+            <input type="hidden" name="category" value="{category}" />
         </form>
 
         <br />
@@ -21,6 +24,7 @@
         <h2>Existing translation(s):</h2>
         <table>
           {IF category == "vufind_translations"}
+            <tr><td><b>Token: </b></td><td>{index}</td></tr>
             {LOOP language_code,example_text}
             <tr>
               <td><b>{language_code}:</b></td>
@@ -45,7 +49,7 @@
             <input type="hidden" name="language_code" value="{target_language_code}" />
             <input type="hidden" name="index" value="{index}" />
             <input type="hidden" name="category" value="{category}" />
-            {IF DEFINED(gnd_code)}<input type="hidden" name="gnd_code" value="{gnd_code}" />{ENDIF}
+            {IF category != "vufind_translations"}<input type="hidden" name="gnd_code" value="{gnd_code}" />{ENDIF}
             <input type="submit" value="Submit">
         </form>
     </body>

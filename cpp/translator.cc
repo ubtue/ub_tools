@@ -27,6 +27,7 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
+#include "HtmlUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
@@ -78,10 +79,13 @@ std::string GetCGIParameterOrDefault(const std::multimap <std::string, std::stri
 }
 
 
-std::string CreateRowEntry(const std::string &token, const std::string &label,
-                           const std::string language_code, const std::string &category) {
-    return "<td><a href='/cgi-bin/translate_chainer?category=" + category + "&index=" + token + "&language_code=" +
-           language_code + "'>" + label + "</a></td>";
+std::string CreateRowEntry(const std::string &token, const std::string &label, const std::string language_code,
+                           const std::string &category, const std::string &status = "UNKNOWN") {
+    if (status == "reliable")
+        return "<td>" + HtmlUtil::HtmlEscape(label) + "</td>";
+    return "<td><a href='/cgi-bin/translate_chainer?category=" + UrlUtil::UrlEncode(category) + "&index="
+           + UrlUtil::UrlEncode(token) + "&language_code=" + UrlUtil::UrlEncode(language_code) + "'>"
+           + HtmlUtil::HtmlEscape(label) + "</a></td>";
 }
 
 
@@ -90,16 +94,13 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
                                                  std::string *const headline) {
     rows->clear();
 
-    std::string where_clause;
     const std::string token_where_clause(
             lookfor.empty() ? "" : "WHERE token LIKE '%" + lookfor + "%' OR translation LIKE '%" + lookfor + "%'");
     const std::string token_query(
             "SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token LIMIT " + offset + ", " +
             std::to_string(ENTRIES_PER_PAGE));
     const std::string query("SELECT token, translation, language_code FROM vufind_translations "
-                                    // Workaround for not supporting LIMIT in subquerys by MySQL:
-                                    "WHERE token in (SELECT * FROM (" + token_query + ") as t)"
-                                    " ORDER BY token, language_code");
+                            "WHERE token IN (SELECT * FROM (" + token_query + ") as t) ORDER BY token, language_code");
 
     std::cerr << query << "\n";
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
@@ -111,21 +112,21 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 
     DbRow db_row(result_set.getNextRow());
     std::string current_token(db_row["token"]);
-    std::vector <std::string> row_values(language_codes.size());
+    std::vector <std::string> row_values(language_codes.size(), "<td></td>");
     do {
         std::string token(db_row["token"]);
         if (token != current_token) {
-            rows->emplace_back("<td>" + current_token + "</td>" + StringUtil::Join(row_values, ""));
+            rows->emplace_back("<td>" + HtmlUtil::HtmlEscape(current_token) + "</td>" + StringUtil::Join(row_values, ""));
             current_token = token;
             row_values.clear();
-            row_values.resize(language_codes.size());
+            row_values.resize(language_codes.size(), "<td> </td>");
         }
         auto index = std::find(language_codes.begin(), language_codes.end(), db_row["language_code"]) -
                      language_codes.begin();
         row_values[index] = CreateRowEntry(current_token, db_row["translation"], db_row["language_code"],
                                            "vufind_translations");
     } while (db_row = result_set.getNextRow());
-    rows->emplace_back("<td>" + current_token + "</td>" + StringUtil::Join(row_values, ""));
+    rows->emplace_back("<td>" + HtmlUtil::HtmlEscape(current_token) + "</td>" + StringUtil::Join(row_values, ""));
 }
 
 
@@ -134,9 +135,11 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                                   std::string *const headline) {
     rows->clear();
 
-    const std::string where_clause(lookfor.empty() ? "" : "WHERE translation LIKE '%" + lookfor + "%'");
-    const std::string query("SELECT ppn, translation, language_code FROM keyword_translations "
-                            + where_clause + " LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) + ";");
+    const std::string ppn_where_clause(lookfor.empty() ? "" : "WHERE translation LIKE '%" + lookfor + "%'");
+    const std::string ppn_query("SELECT ppn FROM keyword_translations " + ppn_where_clause + " ORDER BY translation LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) );
+    const std::string query("SELECT ppn, translation, language_code, status FROM keyword_translations "
+                            "WHERE  ppn IN (SELECT ppn FROM (" + ppn_query + ") as t) AND status != \"reliable_synonym\" AND status != \"unreliable_synonym\" ORDER BY ppn, translation;");
+    std::cerr << query << "\n";
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
 
     std::vector <std::string> language_codes(getLanguageCodes(db_connection));
@@ -146,19 +149,19 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
     DbRow db_row(result_set.getNextRow());
     std::string current_ppn(db_row["ppn"]);
-    std::vector <std::string> row_values(language_codes.size());
+    std::vector <std::string> row_values(language_codes.size(), "<td> </td>");
     do {
         std::string ppn(db_row["ppn"]);
         if (ppn != current_ppn) {
             rows->emplace_back(StringUtil::Join(row_values, ""));
             current_ppn = ppn;
             row_values.clear();
-            row_values.resize(language_codes.size());
+            row_values.resize(language_codes.size(), "<td> </td>");
         }
         auto index = std::find(language_codes.begin(), language_codes.end(), db_row["language_code"]) -
                      language_codes.begin();
         row_values[index] = CreateRowEntry(current_ppn, db_row["translation"], db_row["language_code"],
-                                           "keyword_translations");
+                                           "keyword_translations", db_row["status"]);
     } while (db_row = result_set.getNextRow());
     rows->emplace_back(StringUtil::Join(row_values, ""));
 }

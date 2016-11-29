@@ -2,10 +2,27 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta charset="UTF-8"/>
     <title>Translator</title>
+    <style>
+        table {{ table-layout: fixed; width: 100%; }
+        table, td, th {{ border: 1px solid black; border-collapse:collapse;border-spacing:0; }
+        td, th {{ padding: 3px; margin: 0px; }
+    </style>
 </head>
     <body>
         <h1><a href="/cgi-bin/translator">Translating for IxTheo</a></h1>
+        <div>
+            <h2>Start translating:</h2>
+            <form action="/cgi-bin/translate_chainer">
+                Translate next to <select name="language_code" onchange="if(this.value != '--') this.form.submit()">
+                <option>--</option>
+                <option value="eng">English</option>
+                <option value="deu">German</option>
+                <option value="fra">French</option>
+            </select>
+            </form>
+        </div>
         <div style="text-align: center;">
             <form action="/cgi-bin/translator" method="POST">
                 <input type="text" name="lookfor" value="{lookfor}" /><button>Search</button>
@@ -26,7 +43,8 @@
                     <input type="hidden" name="offset" value="{next_offset}">
                 </form>
             </div>
-            <div style="width: 50%; float: left;">
+            <div style="width: 49%; float: left;">
+                <h2>VuFind Tanslations</h2>
                 <table>
                     <tr>{keyword_table_headline}</tr>
                     {LOOP keyword_row}
@@ -36,7 +54,8 @@
                     {ENDLOOP}
                 </table>
             </div>
-            <div style="width: 50%; float: right;">
+            <div style="width: 49%; float: right;">
+                <h2>Keyword Tanslations</h2>
                 <table>
                     <tr>{vufind_token_table_headline}</tr>
                     {LOOP vufind_token_row}
@@ -45,16 +64,6 @@
                     </tr>
                     {ENDLOOP}
                 </table>
-            </div>
-            <div style="clear: both; padding-top:50px">
-                <form action="/cgi-bin/translate_chainer">
-                    Translate next to <select name="language_code" onchange="if(this.value != '--') this.form.submit()">
-                    <option>--</option>
-                    <option value="eng">English</option>
-                    <option value="deu">German</option>
-                    <option value="fra">French</option>
-                </select>
-                </form>
             </div>
         </div>
     </body>
