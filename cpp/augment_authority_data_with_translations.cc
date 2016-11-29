@@ -22,10 +22,10 @@
 
 #include <iostream>
 #include <string>
-#include <unordered_set>
-#include <utility>
 #include <vector>
 #include <tuple>
+#include <unordered_set>
+#include <utility>
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
@@ -45,7 +45,7 @@
 #include "util.h"
 
 // Save language code, translation, origin, status
-typedef std::tuple<std::string, std::string, std::string, std::string> one_translation_t;
+typedef std::tuple<std::string, std::string, std::string, std::string> OneTranslation;
 
 static unsigned record_count(0);
 static unsigned modified_count(0);
@@ -55,56 +55,56 @@ void Usage() {
     std::exit(EXIT_FAILURE);
 }
 
+
 inline bool IsSynonym(const std::string &status) { return status == "replaced_synonym" or status == "new_synonym"; }
 
-void ExecSqlOrDie(const std::string &select_statement, DbConnection *const connection) {
+
+void ExecSqlOrDie(const std::string &select_statement, DbConnection * const connection) {
     if (unlikely(not connection->query(select_statement)))
         Error("SQL Statement failed: " + select_statement + " (" + connection->getLastErrorMessage() + ")");
 }
 
-void ExtractTranslations(DbConnection *const db_connection, std::map<std::string, std::vector<one_translation_t> > *const all_translations) {
+
+void ExtractTranslations(DbConnection * const db_connection, std::map<std::string, std::vector<OneTranslation> > * const all_translations) {
     ExecSqlOrDie("SELECT DISTINCT ppn FROM keyword_translations", db_connection);
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
         std::string ppn = ppn_row["ppn"];
         ExecSqlOrDie("SELECT ppn, language_code, translation, origin, status FROM keyword_translations WHERE ppn='" + ppn + "'", db_connection);
         DbResultSet result_set(db_connection->getLastResultSet());
-        std::vector<one_translation_t> translations;
+        std::vector<OneTranslation> translations;
         while (const DbRow row = result_set.getNextRow()) {
             // We are not interested in synonym fields
-            if (IsSynonym(row["status"]))
-                continue;
-            one_translation_t translation(row["translation"], row["language_code"], row["origin"], row["status"]);
-            translations.emplace_back(translation);
+            if (not IsSynonym(row["status"]))
+                translations.emplace_back(row["translation"], row["language_code"], row["origin"], row["status"]);
         }
         all_translations->insert(std::make_pair(ppn, translations));
-        translations.clear();
     }
-    return;
 }
+
 
 std::string MapLanguageCode(std::string lang_code) {
     if (lang_code == "deu")
         return "de";
-    else if (lang_code == "eng")
+    if (lang_code == "eng")
         return "en";
-    else if (lang_code == "fra")
+    if (lang_code == "fra")
         return "fr";
-    else if (lang_code == "dut")
+    if (lang_code == "dut")
         return "nl";
-    else if (lang_code == "ita")
+    if (lang_code == "ita")
         return "it";
-    else if (lang_code == "spa")
+    if (lang_code == "spa")
         return "es";
-    else if (lang_code == "hant")
+    if (lang_code == "hant")
         return "zh-Hant";
-    else if (lang_code == "hans")
+    if (lang_code == "hans")
         return "zh-Hans";
-    else
-        Error("Unknown language code " + lang_code);
+    Error("Unknown language code " + lang_code);
 }
 
-void InsertTranslation(MarcRecord *const record, char indicator1, char indicator2, std::string term, std::string language_code, std::string status) {
+
+void InsertTranslation(MarcRecord * const record, char indicator1, char indicator2, std::string term, std::string language_code, std::string status) {
     Subfields subfields(indicator1, indicator2);
     subfields.addSubfield('a', term);
     subfields.addSubfield('9', "L:" + MapLanguageCode(language_code));
@@ -113,39 +113,40 @@ void InsertTranslation(MarcRecord *const record, char indicator1, char indicator
     record->insertField("750", subfields);
 }
 
-char DetermineNextFreeIndicator1(MarcRecord *const record, std::vector<size_t> field_indices) {
+
+char DetermineNextFreeIndicator1(MarcRecord * const record, std::vector<size_t> field_indices) {
     char new_indicator1 = ' ';
 
-    for (auto field_index : field_indices) {
+    for (const auto field_index : field_indices) {
         Subfields subfields(record->getSubfields(field_index));
-        char indicator1 = subfields.getIndicator1();
+        char indicator1(subfields.getIndicator1());
         if (indicator1 == '9')
             Error("Indicator1 cannot be further incremented");
         if (indicator1 == ' ')
             new_indicator1 = '1';
-        else {
+        else 
             new_indicator1 = indicator1 >= new_indicator1 ? (indicator1 + 1) : new_indicator1;
-        }
     }
 
     return new_indicator1;
 }
 
+
 size_t GetFieldIndexForExistingTranslation(const MarcRecord *record, const std::vector<size_t> &field_indices, const std::string &language_code) {
     for (auto field_index : field_indices) {
-        Subfields subfields_present = record->getSubfields(field_index);
+        Subfields subfields_present(record->getSubfields(field_index));
         if (subfields_present.hasSubfieldWithValue('2', "IxTheo") and subfields_present.hasSubfieldWithValue('9', "L:" + MapLanguageCode(language_code)))
             return field_index;
     }
     return MarcRecord::FIELD_NOT_FOUND;
 }
 
-void ProcessRecord(MarcRecord *const record, const std::map<std::string, std::vector<one_translation_t> > &all_translations) {
-    std::string ppn = record->getControlNumber();
+
+void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::vector<OneTranslation> > &all_translations) {
+    const std::string ppn(record->getControlNumber());
     auto one_translation(all_translations.find(ppn));
 
     if (one_translation != all_translations.cend()) {
-
         // We only insert/replace IxTheo-Translations
         // For MACS Translations we insert an additional field
         for (auto &one_lang_translation : one_translation->second) {
@@ -161,18 +162,19 @@ void ProcessRecord(MarcRecord *const record, const std::map<std::string, std::ve
             // Don't touch MACS translations, but find and potentially replace IxTheo translations
             std::vector<size_t> field_indices;
             if (record->getFieldIndices("750", &field_indices) > 0) {
-                size_t field_index(GetFieldIndexForExistingTranslation(record, field_indices, language_code));
+                const size_t field_index(GetFieldIndexForExistingTranslation(record, field_indices, language_code));
                 if (field_index != MarcRecord::FIELD_NOT_FOUND)
                     record->deleteField(field_index);
             }
-            char indicator1(DetermineNextFreeIndicator1(record, field_indices));
+            const char indicator1(DetermineNextFreeIndicator1(record, field_indices));
             InsertTranslation(record, indicator1, ' ', term, language_code, status);
         }
         ++modified_count;
     }
 }
 
-void AugmentNormdata(MarcReader *const marc_reader, MarcWriter *marc_writer, const std::map<std::string, std::vector<one_translation_t> > &all_translations) {
+
+void AugmentNormdata(MarcReader * const marc_reader, MarcWriter *marc_writer, const std::map<std::string, std::vector<OneTranslation> > &all_translations) {
 
     // Read in all PPNs from authority data
     while (MarcRecord record = marc_reader->read()) {
@@ -208,12 +210,11 @@ int main(int argc, char **argv) {
         const std::string sql_password(ini_file.getString("", "sql_password"));
         DbConnection db_connection(sql_database, sql_username, sql_password);
 
-        std::map<std::string, std::vector<one_translation_t> > all_translations;
+        std::map<std::string, std::vector<OneTranslation> > all_translations;
         ExtractTranslations(&db_connection, &all_translations);
 
         AugmentNormdata(marc_reader.get(), marc_writer.get(), all_translations);
-    }
-    catch (const std::exception &x) {
+    } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
 }
