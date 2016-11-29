@@ -86,8 +86,12 @@ void ExtractGermanTerms(
         {
             const Subfields _150_subfields(record.getSubfields(_150_index));
             if (_150_subfields.hasSubfield('a')) {
+                std::string complete_keyword_phrase(_150_subfields.getFirstSubfieldValue('a'));
+                const std::string _9_subfield(_150_subfields.getFirstSubfieldValue('9'));
+                if (StringUtil::StartsWith(_9_subfield, "g:"))
+                    complete_keyword_phrase += " <" + _9_subfield.substr(2) + ">";
                 text_language_codes_statuses_and_origin_tags->emplace_back(
-                    _150_subfields.getFirstSubfieldValue('a'), "deu", RELIABLE, "150");
+                    complete_keyword_phrase, "deu", RELIABLE, "150");
                 ++german_term_count;
             }
         }
