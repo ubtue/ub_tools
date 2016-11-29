@@ -44,14 +44,16 @@ void Usage() {
               << "       [--output-format=(marc-xml|marc-21)] op1 [op2 .. opN]\n"
               << "       where each operation must start with the operation type. Operation-type flags\n"
               << "       are --drop, --keep, --drop-biblio-level, --keep-biblio-level --remove-fields,\n"
-              << "       --remove-subfields or --filter-chars.  Arguments for --keep, --drop, --remove-field are\n"
-              << "       field_or_subfieldspec1:regex1 [field_or_subfieldspec2:regex2 ..\n"
+              << "       --remove-subfields, --filter-chars or --max-count.  Arguments for --keep, --drop,\n"
+              << "       --remove-field are field_or_subfieldspec1:regex1 [field_or_subfieldspec2:regex2 ..\n"
               << "       field_or_subfieldspecN:regexN] where \"field_or_subfieldspec\" must either be a MARC tag\n"
               << "       or a MARC tag followed by a single-character subfield code and \"regex\" is a Perl-\n"
               << "       compatible regular expression.  Arguments for --remove-subfields are constructed\n"
               << "       accordingly but only subfield specs are permissible --drop-biblio-level and\n"
               << "       --keep-biblio-level arguments must be a single character.  --filter-chars' arguments are\n"
               << "       subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
+              << "       --max-count has a single count numeric argument which specifies the maximum\n"
+              << "       number of records to emit.\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
 
     std::exit(EXIT_FAILURE);
@@ -214,7 +216,7 @@ namespace {
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
 enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS,
-                        REMOVE_SUBFIELDS, FILTER_CHARS };
+                        REMOVE_SUBFIELDS, FILTER_CHARS, MAX_COUNT };
 
 
 } // unnamed namespace
@@ -227,9 +229,12 @@ private:
     std::vector<std::string> subfield_specs_;
     std::string chars_to_delete_;
     char biblio_level_;
+    mutable unsigned count_;
+    unsigned max_count_;
 public:
     inline FilterType getFilterType() const { return filter_type_; }
     inline char getBiblioLevel() const { return biblio_level_; }
+    bool skipRecordDueToExceededRecordCount() const { ++count_; return count_ > max_count_; }
 
     /** \note Only call this if the filter type is not FILTER_CHARS! */
     inline const std::vector<CompiledPattern *> getCompiledPatterns() const { return compiled_patterns_; }
@@ -243,26 +248,36 @@ public:
     inline static FilterDescriptor MakeDropFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::DROP, compiled_patterns);
     }
+
     inline static FilterDescriptor MakeKeepFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::KEEP, compiled_patterns);
     }
+
     inline static FilterDescriptor MakeDropBiblioLevelFilter(const char biblio_level) {
         return FilterDescriptor(FilterType::DROP_BIBLIOGRAPHIC_LEVEL, biblio_level);
     }
+
     inline static FilterDescriptor MakeKeepBiblioLevelFilter(const char biblio_level) {
         return FilterDescriptor(FilterType::KEEP_BIBLIOGRAPHIC_LEVEL, biblio_level);
     }
+
     inline static FilterDescriptor MakeRemoveFieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::REMOVE_FIELDS, compiled_patterns);
     }
+
     inline static FilterDescriptor MakeRemoveSubfieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns)
     {
         return FilterDescriptor(FilterType::REMOVE_SUBFIELDS, compiled_patterns);
     }
 
     inline static FilterDescriptor MakeFilterCharsFilter(const std::vector<std::string> &subfield_specs,
-                                                         const std::string &chars_to_delete) {
+                                                         const std::string &chars_to_delete)
+    {
         return FilterDescriptor(subfield_specs, chars_to_delete);
+    }
+
+    inline static FilterDescriptor MakeMaxCountFilter(const unsigned max_count) {
+        return FilterDescriptor(max_count);
     }
 private:
     FilterDescriptor(const FilterType filter_type, const std::vector<CompiledPattern *> &compiled_patterns)
@@ -272,6 +287,7 @@ private:
           chars_to_delete_(chars_to_delete) { }
     FilterDescriptor(const FilterType filter_type, const char biblio_level)
         : filter_type_(filter_type), biblio_level_(biblio_level) { }
+    FilterDescriptor(const unsigned max_count): count_(0), max_count_(max_count) { }
 };
 
 
@@ -329,7 +345,12 @@ void Filter(const std::vector<FilterDescriptor> &filters, MarcReader * const mar
         ++total_count;
         bool deleted_record(false), modified_record(false);
         for (const auto &filter : filters) {
-            if (filter.getFilterType() == FilterType::FILTER_CHARS) {
+            if (filter.getFilterType() == FilterType::MAX_COUNT) {
+                if (filter.skipRecordDueToExceededRecordCount()) {
+                    deleted_record = true;
+                    break;
+                }
+            } else if (filter.getFilterType() == FilterType::FILTER_CHARS) {
                 if (FilterCharacters(filter.getSubfieldSpecs(), filter.getCharsToDelete(), &record))
                     modified_record = true;
             } else if (filter.getFilterType() == FilterType::DROP_BIBLIOGRAPHIC_LEVEL) {
@@ -435,10 +456,26 @@ char GetBiblioLevelArgument(char ***argvp) {
 }
 
 
+unsigned TestAndConvertCount(char ***argvp) {
+    ++*argvp;
+    if (*argvp == nullptr)
+        Error("missing count value after --max-count flag!");
+
+    unsigned max_count;
+    if (not StringUtil::ToUnsigned(**argvp, &max_count))
+        Error("\"" + std::string(**argvp) + "\" is not a valid count argument for the --max-count flag!");
+    ++*argvp;
+
+    return max_count;
+}
+
+
 void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filters) {
     while (*argv != nullptr) {
         std::vector<CompiledPattern *> compiled_patterns;
-        if (std::strcmp(*argv, "--drop") == 0)
+        if (std::strcmp(*argv, "--max-count") == 0)
+            filters->emplace_back(FilterDescriptor::MakeMaxCountFilter(TestAndConvertCount(&argv)));
+        else if (std::strcmp(*argv, "--drop") == 0)
             filters->emplace_back(FilterDescriptor::MakeDropFilter(CollectAndCompilePatterns(&argv)));
         else if (std::strcmp(*argv, "--keep") == 0)
             filters->emplace_back(FilterDescriptor::MakeKeepFilter(CollectAndCompilePatterns(&argv)));
