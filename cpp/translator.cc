@@ -117,10 +117,10 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
             rows->emplace_back("<td>" + HtmlUtil::HtmlEscape(current_token) + "</td>" + StringUtil::Join(row_values, ""));
             current_token = token;
             row_values.clear();
-            row_values.resize(language_codes.size(), "<td> </td>");
+            row_values.resize(language_codes.size(), "<td></td>");
         }
-        auto index = std::find(language_codes.begin(), language_codes.end(), db_row["language_code"]) -
-                     language_codes.begin();
+        const auto index(std::find(language_codes.begin(), language_codes.end(), db_row["language_code"]) -
+                     language_codes.begin());
         row_values[index] = CreateRowEntry(current_token, db_row["translation"], db_row["language_code"],
                                            "vufind_translations");
     } while (db_row = result_set.getNextRow());
@@ -146,14 +146,14 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
     DbRow db_row(result_set.getNextRow());
     std::string current_ppn(db_row["ppn"]);
-    std::vector<std::string> row_values(language_codes.size(), "<td> </td>");
+    std::vector<std::string> row_values(language_codes.size(), "<td></td>");
     do {
         std::string ppn(db_row["ppn"]);
         if (ppn != current_ppn) {
             rows->emplace_back(StringUtil::Join(row_values, ""));
             current_ppn = ppn;
             row_values.clear();
-            row_values.resize(language_codes.size(), "<td> </td>");
+            row_values.resize(language_codes.size(), "<td></td>");
         }
         auto index = std::find(language_codes.begin(), language_codes.end(), db_row["language_code"]) -
                      language_codes.begin();
