@@ -628,6 +628,7 @@ void ProcessEndOfSyntax(const std::string &name_of_syntactic_construct, Template
                                  + TemplateScanner::TokenTypeToString(token) + "!");
 }
 
+
 void SkipToToken(TemplateScanner * const scanner, TemplateScanner::TokenType target_token) {
     TemplateScanner::TokenType token;
     while ((token = scanner->getToken(false)) != target_token and token != TemplateScanner::END_OF_INPUT)

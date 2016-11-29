@@ -75,8 +75,7 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
                  + (additional_condition.empty() ? "" : " AND (" + additional_condition + ")")
                  + " ORDER BY RAND();", connection);
     DbResultSet keys_result_set(connection->getLastResultSet());
-    const size_t count(keys_result_set.size());
-    if (count == 0)
+    if (keys_result_set.empty())
         return 0;
 
     // Print the contents of all rows with the token from the last query on stdout:
@@ -91,7 +90,7 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
     const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
 
     while (row = result_set.getNextRow())
-        std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << count << ',' << row["language_code"] << ','
+        std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << keys_result_set.size() << ',' << row["language_code"] << ','
                   << EscapeCommasAndBackslashes(row["translation"]) << ',' << category
                   << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
 
@@ -128,7 +127,7 @@ unsigned GetExisting(DbConnection * const connection, const std::string &table_n
     const std::set<std::string> column_names(SqlUtil::GetColumnNames(connection, table_name));
     const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
 
-    while (DbRow row = result_set.getNextRow())
+    while (const DbRow row = result_set.getNextRow())
         std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << count << ',' << row["language_code"] << ','
                   << EscapeCommasAndBackslashes(row["translation"]) << ',' << category
                   << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
@@ -237,7 +236,7 @@ int main(int argc, char *argv[]) {
         } else if (std::strcmp(argv[1], "update") == 0) {
             if (argc != 5 and argc != 6)
                 Error("\"update\" requires three or four arguments: token or ppn, gnd_code (if ppn), "
-                              "language_code, and text!");
+                      "language_code, and text!");
 
             const std::string language_code(argv[(argc == 5) ? 3 : 4]);
             if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
