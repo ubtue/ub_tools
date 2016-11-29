@@ -139,7 +139,6 @@ char DetermineNextFreeIndicator1(MarcRecord * const record, std::vector<size_t> 
 
 
 void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::vector<one_translation_t>> &all_translations) {
-     
      std::string ppn = record->getControlNumber(); 
      auto one_translation(all_translations.find(ppn));
      
@@ -155,6 +154,10 @@ void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::v
              std::string origin(std::get<2>(one_lang_translation));
              std::string status(std::get<3>(one_lang_translation));
 
+             // Skip synonyms, german terms and unreliable translations
+             if (status == "synonym" or status == "unreliable" or language_code == "deu")
+                 continue;     
+
              // See whether we already have a translation field
              std::vector<size_t> field_indices;
              if (record->getFieldIndices("750", &field_indices) > 0) {
@@ -162,14 +165,14 @@ void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::v
                  // See whether a MACS translation already exists
                  for (auto field_index : field_indices) {
                      Subfields subfields_present = record->getSubfields(field_index);
-                     if (subfields_present.hasSubfieldWithValue(2, "ram") or subfields_present.hasSubfieldWithValue(2, "lcsh")) {
+                     if (subfields_present.hasSubfieldWithValue('2', "ram") or subfields_present.hasSubfieldWithValue('2', "lcsh")) {
                          // Insert field with fresh indicators
                          char indicator1(DetermineNextFreeIndicator1(record, field_indices));
                          InsertTranslation(record, indicator1, ' ', term, language_code, status);
                      }
                      else {
                          // For IxTheo-Terms, insert a potentially better translation
-                         // FIXME: DELETE FIRST ??
+                         record->deleteField(field_index);
                          char indicator1(subfields_present.getIndicator1());
                          char indicator2(subfields_present.getIndicator2());
                          InsertTranslation(record, indicator1, indicator2, term, language_code, status);
@@ -189,31 +192,11 @@ void AugmentNormdata(MarcReader * const marc_reader, MarcWriter * marc_writer, c
 
    // Read in all PPNs from authority data
 
-   // For a PPN in the bucket and see whether we can add a new translation 
-   // First case: Add a new translation
-   // Second case: Replace an existing translation
    while (MarcRecord record = marc_reader->read()) {
        ProcessRecord(&record, all_translations);
        marc_writer->write(record);
        ++record_count;
    }  
-
-
-//   MarcReader* tmp0 = marc_reader;
-//   MarcWriter* tmp1 = marc_writer;
-//   ++tmp0;
-//   ++tmp1;
-
-/*   for (auto one_translation : all_translations) {
-    //   std::cout << "NEXT ENTRY" << '\n';
-       std::string ppn(one_translation.first);
-       for (auto translation : one_translation.second) {
-           
-           std::cout  << ppn << ":" <<  std::get<0>(translation) << " " << std::get<1>(translation) << " " <<
-                        std::get<2>(translation) <<  '\n';
-       }
-       std::cout << "------------------------------------------------------------" << '\n';
-   }*/
 }
 
 const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
