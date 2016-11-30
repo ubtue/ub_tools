@@ -288,7 +288,8 @@ private:
           chars_to_delete_(chars_to_delete) { }
     FilterDescriptor(const FilterType filter_type, const std::string &biblio_levels)
         : filter_type_(filter_type), biblio_levels_(biblio_levels) { }
-    FilterDescriptor(const unsigned max_count): count_(0), max_count_(max_count) { }
+    FilterDescriptor(const unsigned max_count)
+        : filter_type_(FilterType::MAX_COUNT), count_(0), max_count_(max_count) { }
 };
 
 
