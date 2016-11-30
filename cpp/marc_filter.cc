@@ -50,7 +50,7 @@ void Usage() {
               << "       or a MARC tag followed by a single-character subfield code and \"regex\" is a Perl-\n"
               << "       compatible regular expression.  Arguments for --remove-subfields are constructed\n"
               << "       accordingly but only subfield specs are permissible --drop-biblio-level and\n"
-              << "       --keep-biblio-level arguments must be a single character.  --filter-chars' arguments are\n"
+              << "       --keep-biblio-level arguments must one or more characters.  --filter-chars' arguments are\n"
               << "       subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
               << "       --max-count has a single count numeric argument which specifies the maximum\n"
               << "       number of records to emit.\n"
@@ -228,12 +228,12 @@ private:
     std::vector<CompiledPattern *> compiled_patterns_;
     std::vector<std::string> subfield_specs_;
     std::string chars_to_delete_;
-    char biblio_level_;
+    std::string biblio_levels_;
     mutable unsigned count_;
     unsigned max_count_;
 public:
     inline FilterType getFilterType() const { return filter_type_; }
-    inline char getBiblioLevel() const { return biblio_level_; }
+    inline const std::string &getBiblioLevels() const { return biblio_levels_; }
     bool skipRecordDueToExceededRecordCount() const { ++count_; return count_ > max_count_; }
 
     /** \note Only call this if the filter type is not FILTER_CHARS! */
@@ -253,12 +253,12 @@ public:
         return FilterDescriptor(FilterType::KEEP, compiled_patterns);
     }
 
-    inline static FilterDescriptor MakeDropBiblioLevelFilter(const char biblio_level) {
-        return FilterDescriptor(FilterType::DROP_BIBLIOGRAPHIC_LEVEL, biblio_level);
+    inline static FilterDescriptor MakeDropBiblioLevelFilter(const std::string &biblio_levels) {
+        return FilterDescriptor(FilterType::DROP_BIBLIOGRAPHIC_LEVEL, biblio_levels);
     }
 
-    inline static FilterDescriptor MakeKeepBiblioLevelFilter(const char biblio_level) {
-        return FilterDescriptor(FilterType::KEEP_BIBLIOGRAPHIC_LEVEL, biblio_level);
+    inline static FilterDescriptor MakeKeepBiblioLevelFilter(const std::string &biblio_levels) {
+        return FilterDescriptor(FilterType::KEEP_BIBLIOGRAPHIC_LEVEL, biblio_levels);
     }
 
     inline static FilterDescriptor MakeRemoveFieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
@@ -285,8 +285,8 @@ private:
     FilterDescriptor(const std::vector<std::string> &subfield_specs, const std::string &chars_to_delete)
         : filter_type_(FilterType::FILTER_CHARS), subfield_specs_(subfield_specs),
           chars_to_delete_(chars_to_delete) { }
-    FilterDescriptor(const FilterType filter_type, const char biblio_level)
-        : filter_type_(filter_type), biblio_level_(biblio_level) { }
+    FilterDescriptor(const FilterType filter_type, const std::string &biblio_levels)
+        : filter_type_(filter_type), biblio_levels_(biblio_levels) { }
     FilterDescriptor(const unsigned max_count): count_(0), max_count_(max_count) { }
 };
 
@@ -352,12 +352,16 @@ void Filter(const std::vector<FilterDescriptor> &filters, MarcReader * const mar
                 if (FilterCharacters(filter.getSubfieldSpecs(), filter.getCharsToDelete(), &record))
                     modified_record = true;
             } else if (filter.getFilterType() == FilterType::DROP_BIBLIOGRAPHIC_LEVEL) {
-                if (record.getLeader().getBibliographicLevel() == filter.getBiblioLevel()) {
+                if (std::strchr(filter.getBiblioLevels().c_str(), record.getLeader().getBibliographicLevel())
+                    != nullptr)
+                {
                     deleted_record = true;
                     break;
                 }
             } else if (filter.getFilterType() == FilterType::KEEP_BIBLIOGRAPHIC_LEVEL) {
-                if (record.getLeader().getBibliographicLevel() != filter.getBiblioLevel()) {
+                if (std::strchr(filter.getBiblioLevels().c_str(), record.getLeader().getBibliographicLevel())
+                                != nullptr)
+                {
                     deleted_record = true;
                     break;
                 }
@@ -442,16 +446,16 @@ bool ArePlausibleSubfieldSpecs(const std::vector<std::string> &subfield_specs) {
 }
 
 
-char GetBiblioLevelArgument(char ***argvp) {
+std::string GetBiblioLevelArgument(char ***argvp) {
     ++*argvp;
     if (*argvp == nullptr)
         Error("missing bibliographic level after --drop-biblio-level or --keep-biblio-level flag!");
     const std::string bibliographic_level_candidate(**argvp);
     ++*argvp;
 
-    if (bibliographic_level_candidate.length() != 1)
-        Error("bad bibliographic level \"" + bibliographic_level_candidate + "\"!");
-    return bibliographic_level_candidate[0];
+    if (bibliographic_level_candidate.empty())
+        Error("bad empty bibliographic level!");
+    return bibliographic_level_candidate;
 }
 
 
