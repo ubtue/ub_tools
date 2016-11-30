@@ -54,6 +54,7 @@ void Usage() {
               << "       subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
               << "       --max-count has a single count numeric argument which specifies the maximum\n"
               << "       number of records to emit.\n"
+              << "       The bibliographic-level operations are bsically a comparsion against leader position 07.\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
 
     std::exit(EXIT_FAILURE);
