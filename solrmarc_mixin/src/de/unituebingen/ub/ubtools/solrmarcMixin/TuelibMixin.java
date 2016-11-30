@@ -1483,6 +1483,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final Subfield jSubfield = _936Field.getSubfield('j');
                 if (jSubfield != null) {
                     String yearOrYearRange = jSubfield.getData();
+                    // Partly, we have additional text like "Post annum domini" in the front, so do away with that
+                    yearOrYearRange = yearOrYearRange.replaceAll("^[\\D\\[\\]]+", "");
                     // Make sure we do away with brackets
                     yearOrYearRange = yearOrYearRange.replaceAll("[\\[|\\]]", "");
                     return yearOrYearRange.length() > 4 ? yearOrYearRange.substring(0, 4) : yearOrYearRange;

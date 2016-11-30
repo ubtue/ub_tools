@@ -4,13 +4,14 @@ AD,Religionssoziologie
 AE,Religionspsychologie
 AF,Religionsgeographie
 AG,Religiöses Leben
+AH,Religionspädagogik
 AX,Interreligiöse Beziehung
 AZ,Neue Religion
 BA,Nichtchristliche Religion
-BB,Naturreligion
+BB,Indigene Religionen (Religionen ethnischer Gruppen)
 BC,Alter Orient ; Religion
 BD,Alteuropäische Religion
-BE,Griechisch-Römische Religion
+BE,Griechisch-Römische Religionen
 BF,Gnosis
 BG,Weltreligion
 BH,Judentum
@@ -20,6 +21,8 @@ BL,Buddhismus
 BM,Chinesischer Universismus
 BN,Schintoismus
 BR,Altamerikanische Religion
+BS,Afrikanische Religionen (außer Christentum, Islam)
+BT,Religionen des Südpazifischen Raums
 CA,Christentum
 CB,Christliche Existenz
 CC,Christentum ; Nichtchristliche Religion ; Interreligiöse Beziehung
@@ -27,6 +30,7 @@ CD,Christentum ; Kultur
 CE,Christliche Kunst
 CF,Christentum ; Wissenschaft
 CG,Christentum ; Politik
+CH,Christentum und Gesellschaft 
 FA,Theologie
 FB,Theologiestudium
 FD,Kontextuelle Theologie
@@ -72,6 +76,7 @@ KDD,Evangelische Kirche
 KDE,Anglikanische Kirche
 KDF,Orthodoxe Kirche
 KDG,Freikirche
+KDH,Christliche Sondergemeinschaften
 KDJ,Ökumene
 NAA,Systematische Theologie
 NAB,Fundamentaltheologie
@@ -96,7 +101,9 @@ NCC,Sozialethik
 NCD,Politische Ethik
 NCE,Wirtschaftsethik
 NCF,Sexualethik
-NCG,Schöpfungsethik
+NCG,Ökologische Ethik ; Schöpfungsethik
+NCH,Medizinische Ethik
+NCJ,Wissenschaftsethik
 RA,Praktische Theologie
 RB,Kirchliches Amt
 RC,Liturgik
@@ -127,5 +134,6 @@ VB,Hermeneutik ; Philosophie
 XA,Recht
 ZA,Sozialwissenschaften
 ZB,Soziologie
+ZC,Politik allgemein
 ZD,Psychologie
 ZF,Pädagogik
