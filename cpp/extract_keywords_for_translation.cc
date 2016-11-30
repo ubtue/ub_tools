@@ -95,7 +95,8 @@ void ExtractGermanTerms(
                 complete_keyword_phrase += " <" + StringUtil::RemoveChars("<>", &_9_subfield) + ">";
             }
             text_language_codes_statuses_and_origin_tags->emplace_back(
-                complete_keyword_phrase, "deu", RELIABLE, "150");
+                complete_keyword_phrase,
+                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE, "150");
             ++german_term_count;
         }
     }
@@ -112,7 +113,9 @@ void ExtractGermanSynonyms(
         const Subfields _450_subfields(record.getSubfields(_450_index));
         if (_450_subfields.hasSubfield('a')) {
             text_language_codes_statuses_and_origin_tags->emplace_back(
-                _450_subfields.getFirstSubfieldValue('a'), "deu", RELIABLE_SYNONYM, "450");
+                _450_subfields.getFirstSubfieldValue('a'),
+                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE_SYNONYM,
+                "450");
             ++synonym_count;
         }
     }
@@ -155,7 +158,9 @@ void ExtractNonGermanTranslations(
             if (not language_code.empty())
                 ++additional_hits;
         }
-        if (not language_code.empty()) {
+
+        language_code = TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code);
+        if (language_code != "???") {
             const bool is_synonym(IsSynonym(_750_subfields));
             Status status;
             if (_750_subfields.getFirstSubfieldValue('2') == "IxTheo")
