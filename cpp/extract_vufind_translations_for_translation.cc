@@ -47,9 +47,10 @@ void InsertTranslations(
     for (const auto &keys_to_line_no_and_translation : keys_to_line_no_and_translation_map) {
         const std::string key = connection->escapeString(keys_to_line_no_and_translation.first);
         const std::string translation = connection->escapeString(keys_to_line_no_and_translation.second.second);
-        const std::string INSERT_OTHER("REPLACE INTO vufind_translations SET language_code=\"" + language_code + "\", "
-                                        "token=\"" + key + "\", "
-                                        "translation=\"" + translation + "\"");
+        const std::string INSERT_OTHER(
+           "REPLACE INTO vufind_translations SET language_code=\""
+	   + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
+	   + "\", token=\"" + key + "\", translation=\"" + translation + "\"");
         if (not connection->query(INSERT_OTHER))
             Error("Insert failed: " + INSERT_OTHER + " (" + connection->getLastErrorMessage() + ")");
     }
