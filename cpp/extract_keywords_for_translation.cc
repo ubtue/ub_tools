@@ -80,21 +80,25 @@ using TextLanguageCodeStatusAndOriginTag = std::tuple<std::string, std::string, 
 
 void ExtractGermanTerms(
     const MarcRecord &record,
-    std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags) {
+    std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags)
+{
     for (size_t _150_index(record.getFieldIndex("150"));
              _150_index < record.getNumberOfFields() and record.getTag(_150_index) == "150"; ++_150_index)
-        {
-            const Subfields _150_subfields(record.getSubfields(_150_index));
-            if (_150_subfields.hasSubfield('a')) {
-                std::string complete_keyword_phrase(_150_subfields.getFirstSubfieldValue('a'));
-                const std::string _9_subfield(_150_subfields.getFirstSubfieldValue('9'));
-                if (StringUtil::StartsWith(_9_subfield, "g:"))
-                    complete_keyword_phrase += " <" + _9_subfield.substr(2) + ">";
-                text_language_codes_statuses_and_origin_tags->emplace_back(
-                    complete_keyword_phrase, "deu", RELIABLE, "150");
-                ++german_term_count;
+    {
+        const Subfields _150_subfields(record.getSubfields(_150_index));
+        std::string subfield_a_contents(_150_subfields.getFirstSubfieldValue('a'));
+        if (likely(not subfield_a_contents.empty())) {
+            std::string complete_keyword_phrase(StringUtil::RemoveChars("<>", &subfield_a_contents));
+            std::string _9_subfield(_150_subfields.getFirstSubfieldValue('9'));
+            if (StringUtil::StartsWith(_9_subfield, "g:")) {
+                _9_subfield = _9_subfield.substr(2);
+                complete_keyword_phrase += " <" + StringUtil::RemoveChars("<>", &_9_subfield) + ">";
             }
+            text_language_codes_statuses_and_origin_tags->emplace_back(
+                complete_keyword_phrase, "deu", RELIABLE, "150");
+            ++german_term_count;
         }
+    }
 }
 
 
