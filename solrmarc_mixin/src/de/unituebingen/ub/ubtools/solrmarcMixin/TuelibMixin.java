@@ -103,6 +103,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
+    private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?(-\\d+)?");
     private final static String UNASSIGNED = "[Unassigned]";
 
     // Map used by getPhysicalType().
@@ -1566,5 +1567,22 @@ public class TuelibMixin extends SolrIndexerMixin {
             return null;
 
         return subfieldA.getData().substring(11);
+    }
+
+    public String getStartPage(final Record record) {
+        final DataField _936Field = (DataField)record.getVariableField("936");
+        if (_936Field == null)
+           return null;
+        final Subfield subfieldH = _936Field.getSubfield('h');
+        if (subfieldH == null)
+            return null;
+
+        final String pages = subfieldH.getData();
+        final Matcher matcher = START_PAGE_MATCH_PATTERN.matcher(pages);
+        if (matcher.matches()) {
+            final String start_page = matcher.group(1);
+            return start_page;
+        }
+        return null;
     }
 }
