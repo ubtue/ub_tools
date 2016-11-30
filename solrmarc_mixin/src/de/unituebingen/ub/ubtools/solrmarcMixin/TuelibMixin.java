@@ -1524,7 +1524,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         } else if (!copyDates.isEmpty()) {
             dates.addAll(copyDates);
         }
-
         if (!dates.isEmpty())
             return calculateFirstPublicationDate(dates);
 
@@ -1536,7 +1535,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             for (final Subfield sf : currentDates)
                 dates.add(getCleanAndNormalizedDate(sf.getData()));
         }
-
         if (!dates.isEmpty())
             return calculateFirstPublicationDate(dates);
 
@@ -1549,12 +1547,17 @@ public class TuelibMixin extends SolrIndexerMixin {
                 dates.add(getCleanAndNormalizedDate(sf.getData()));
             }
         }
-        if (!dates.isEmpty()) {
+        if (!dates.isEmpty()) 
             return calculateFirstPublicationDate(dates);
-        }
 
-        // Else we do not know what to do
-        return "";
+        // Case 5: Fall back to field 008
+        final ControlField _008_field = (ControlField) record.getVariableField("008");
+        if (_008_field == null) {
+            System.err.println("getPublicationSortDate [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
+            return "";
+        }
+        final String _008FieldContents = _008_field.getData();
+        return _008FieldContents.substring(7, 10);
     }
 
     public String getZDBNumber(final Record record) {
