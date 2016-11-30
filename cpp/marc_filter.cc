@@ -346,10 +346,8 @@ void Filter(const std::vector<FilterDescriptor> &filters, MarcReader * const mar
         bool deleted_record(false), modified_record(false);
         for (const auto &filter : filters) {
             if (filter.getFilterType() == FilterType::MAX_COUNT) {
-                if (filter.skipRecordDueToExceededRecordCount()) {
-                    deleted_record = true;
-                    break;
-                }
+                if (filter.skipRecordDueToExceededRecordCount())
+                    goto print_counts;
             } else if (filter.getFilterType() == FilterType::FILTER_CHARS) {
                 if (FilterCharacters(filter.getSubfieldSpecs(), filter.getCharsToDelete(), &record))
                     modified_record = true;
@@ -400,6 +398,7 @@ void Filter(const std::vector<FilterDescriptor> &filters, MarcReader * const mar
         }
     }
 
+print_counts:
     std::cerr << "Processed a total of " << total_count << " record(s).\n";
     std::cerr << "Kept " << (total_count - deleted_count) << " record(s).\n";
     std::cerr << "Modified " << modified_count << " record(s).\n";
