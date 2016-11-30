@@ -27,6 +27,7 @@
 #include "IniFile.h"
 #include "MarcRecord.h"
 #include "StringUtil.h"
+#include "TranslationUtil.h"
 #include "util.h"
 
 
@@ -89,7 +90,10 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * co
             subfields.addSubfield('a', main_translation);
             if (not additional_translation.empty())
                 subfields.addSubfield('9', "g:" + additional_translation);
-            subfields.addSubfield('9', "L:" + row["language_code"]);
+            subfields.addSubfield(
+                '9',
+                "L:"
+                + TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row["language_code"]));
             subfields.addSubfield('9', "Z:" + std::string(IsSynonym(status) ? "VW" : "AF"));
             subfields.addSubfield('2', "IxTheo");
             new_record.insertField("750", subfields);
