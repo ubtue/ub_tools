@@ -108,6 +108,7 @@ test_auto_temp_file
 translate_chainer
 translation_db_tool
 translation_exporter
+translator
 update_full_text_db
 update_ixtheo_notations
 urlencode

@@ -56,6 +56,16 @@ void ReadIniFile(
     std::unordered_map<std::string, std::pair<unsigned, std::string>> * const token_to_line_no_and_other_map);
 
 
+/** Maps the codes some German librarians use to "fake" English 3-letter codes. If we don't know the mapping
+    we return "???". */
+std::string MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(const std::string &german_code);
+
+
+/** Maps our fake 3-letter English codes to codes that some German librarians use. If we don't know the mapping
+    we return "???". */
+std::string MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(const std::string &english_3letter_code);
+
+
 } // namespace TranslationUtil
 
    
