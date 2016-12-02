@@ -1,4 +1,4 @@
-.PHONY: install
+.PHONY: all install clean
 
 all: 
 	$(MAKE) -C cpp/lib/mkdep;
@@ -16,15 +16,6 @@ install:
 	$(MAKE) -C solrmarc_mixin install;
 	$(MAKE) -C cronjobs install
 
-root_install:
-	$(MAKE) -C cpp/lib/mkdep root_install;
-	$(MAKE) -C cpp root_install;
-	$(MAKE) -C cpp cgi_install;
-	$(MAKE) -C go root_install;
-	$(MAKE) -C solr_plugins install;
-	$(MAKE) -C solrmarc_mixin install;
-	$(MAKE) -C cronjobs root_install
-
 clean: 
 	$(MAKE) -C cpp/lib/mkdep clean;
 	$(MAKE) -C cpp clean;
@@ -32,4 +23,7 @@ clean:
 	$(MAKE) -C cronjobs clean;
 	$(MAKE) -C solr_plugins clean;
 	$(MAKE) -C solrmarc_mixin clean;
+
+test:
+	$(MAKE) -C cpp/tests test;
 # DO NOT DELETE

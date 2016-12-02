@@ -33,28 +33,28 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc < 3)
-	Usage();
+        Usage();
 
     try {
-	std::string err_msg;
-	RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(argv[1], &err_msg));
-	if (matcher == nullptr)
-	    Error("regex compile failed: " + err_msg);
+        std::string err_msg;
+        RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(argv[1], &err_msg));
+        if (matcher == nullptr)
+            Error("regex compile failed: " + err_msg);
 
-	for (int arg_no(2); arg_no < argc; ++arg_no) {
-	    const std::string subject(argv[arg_no]);
-	    if (not matcher->matched(subject, &err_msg)) {
-		if (err_msg.empty()) {
-		    std::cout << '"' << subject << "\" was not matched!\n";
-		    continue;
-		}
-		Error("match for subject \"" + subject +"\" failed! (" + err_msg + ")");
-	    }
-	    std::cout << subject << ":\n";
-	    for (unsigned group(0); group < matcher->getLastMatchCount(); ++group)
-		std::cout << '\t' << (*matcher)[group] << '\n';
-	}
+        for (int arg_no(2); arg_no < argc; ++arg_no) {
+            const std::string subject(argv[arg_no]);
+            if (not matcher->matched(subject, &err_msg)) {
+                if (err_msg.empty()) {
+                    std::cout << '"' << subject << "\" was not matched!\n";
+                    continue;
+                }
+                Error("match for subject \"" + subject +"\" failed! (" + err_msg + ")");
+            }
+            std::cout << subject << ":\n";
+            for (unsigned group(0); group < matcher->getLastMatchCount(); ++group)
+                std::cout << '\t' << (*matcher)[group] << '\n';
+        }
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

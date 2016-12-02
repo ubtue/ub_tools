@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 2)
-	Usage();
+        Usage();
 
     std::cout << UrlUtil::UrlEncode(argv[1]) << '\n';
 }

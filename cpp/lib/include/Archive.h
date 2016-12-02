@@ -29,14 +29,14 @@ class ArchiveReader {
     archive *archive_handle_;
 public:
     class EntryInfo {
-	friend class ArchiveReader;
-	archive_entry *archive_entry_;
+        friend class ArchiveReader;
+        archive_entry *archive_entry_;
     public:
-	EntryInfo(): archive_entry_(nullptr) { }
+        EntryInfo(): archive_entry_(nullptr) { }
 
-	const std::string getFilename() const;
-	bool isRegularFile() const;
-	bool isDirectory() const;
+        const std::string getFilename() const;
+        bool isRegularFile() const;
+        bool isDirectory() const;
     };
 public:
     explicit ArchiveReader(const std::string &archive_file_name);

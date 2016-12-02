@@ -74,14 +74,14 @@ public:
      *  \param  open_mode          Whether to clear the log file upon opening it or not.
      */
     explicit Logger(const std::string &log_filename, const Logger::VerbosityLevel default_verbosity = Logger::VL_NORMAL,
-		    const Logger::OpenMode open_mode = Logger::DO_NOT_CLEAR)
-	: ::Logger(log_filename, default_verbosity, open_mode) { }
+                    const Logger::OpenMode open_mode = Logger::DO_NOT_CLEAR)
+        : ::Logger(log_filename, default_verbosity, open_mode) { }
 
     /** \brief  Creates a new Logger object that writes to a stream.
      *  \param  log_stream  The stream to write to.
      */
     explicit Logger(File * const log_stream)
-	: ::Logger(log_stream) { }
+        : ::Logger(log_stream) { }
 
     /** Get the log file name currently in use. */
     std::string getFileName() const { return log_filename_; }
@@ -196,7 +196,7 @@ template <typename NumericType> NumericType ThreadSafeCounter<NumericType>::oper
 template <typename NumericType> NumericType ThreadSafeCounter<NumericType>::operator--() {
     std::lock_guard<std::mutex> mutex_locker(mutex_);
     if (unlikely(counter_ == 0))
-	throw std::runtime_error("in ThreadSafeCounter::operator--: trying to decrement a zero counter!");
+        throw std::runtime_error("in ThreadSafeCounter::operator--: trying to decrement a zero counter!");
     --counter_;
 
     return counter_;
@@ -206,7 +206,7 @@ template <typename NumericType> NumericType ThreadSafeCounter<NumericType>::oper
 template <typename NumericType> NumericType ThreadSafeCounter<NumericType>::operator--(int) {
     std::lock_guard<std::mutex> mutex_locker(mutex_);
     if (unlikely(counter_ == 0))
-	throw std::runtime_error("in ThreadSafeCounter::operator--(int): trying to decrement a zero counter!");
+        throw std::runtime_error("in ThreadSafeCounter::operator--(int): trying to decrement a zero counter!");
     const NumericType previous_value(counter_);
     --counter_;
 
@@ -222,7 +222,7 @@ template <typename NumericType> class AutoIncDecCounter {
     ThreadSafeCounter<NumericType> &thread_safe_counter_;
 public:
     explicit AutoIncDecCounter(ThreadSafeCounter<NumericType> * const thread_safe_counter)
-	: thread_safe_counter_(*thread_safe_counter) { ++thread_safe_counter_; }
+        : thread_safe_counter_(*thread_safe_counter) { ++thread_safe_counter_; }
     ~AutoIncDecCounter() { --thread_safe_counter_; }
 };
 

@@ -57,20 +57,20 @@ enum LabelOption { ALLOW_UNDERSCORES_AND_LEADING_DIGITS, DISALLOW_UNDERSCORES_AN
 
 bool IsValidLabel(const std::string &label, const LabelOption label_option) {
     if (unlikely(label.empty()))
-	return false;
+        return false;
 
     // Examine first character:
     std::string::const_iterator ch(label.begin());
     if (not (StringUtil::IsAsciiLetter(*ch)
-	     or (label_option == ALLOW_UNDERSCORES_AND_LEADING_DIGITS and StringUtil::IsDigit(*ch))))
-	return false;
+             or (label_option == ALLOW_UNDERSCORES_AND_LEADING_DIGITS and StringUtil::IsDigit(*ch))))
+        return false;
 
     // Look at the characters in the middle:
     while (ch != label.end() - 1) {
-	++ch;
-	if (not (StringUtil::IsAlphanumeric(*ch) or *ch == '-'
-		 or (label_option == ALLOW_UNDERSCORES_AND_LEADING_DIGITS and *ch == '_')))
-	    return false;
+        ++ch;
+        if (not (StringUtil::IsAlphanumeric(*ch) or *ch == '-'
+                 or (label_option == ALLOW_UNDERSCORES_AND_LEADING_DIGITS and *ch == '_')))
+            return false;
     }
 
     // Examine last character:
@@ -85,23 +85,23 @@ bool IsValidLabel(const std::string &label, const LabelOption label_option) {
 //
 bool IsValidHostName(const std::string &host_name) {
     if (host_name.length() > 255)
-	return false;
+        return false;
 
     if (unlikely(host_name.empty()))
-	return false;
+        return false;
 
     // Disallow leading periods:
     if (unlikely(host_name[0] == '.'))
-	return false;
+        return false;
 
     std::vector<std::string> labels;
     const unsigned label_count(StringUtil::Split(host_name, '.', &labels, /* suppress_empty_components = */ false));
     if (unlikely(label_count == 0))
-	return false;
+        return false;
 
     for (std::vector<std::string>::const_iterator label(labels.begin()); label != labels.end(); ++label) {
-	if (unlikely(not IsValidLabel(*label, ALLOW_UNDERSCORES_AND_LEADING_DIGITS)))
-	    return false;
+        if (unlikely(not IsValidLabel(*label, ALLOW_UNDERSCORES_AND_LEADING_DIGITS)))
+            return false;
     }
 
     return true;
@@ -112,12 +112,12 @@ bool IsDottedQuad(const std::string &possible_dotted_quad) {
     std::list<std::string> octets;
     StringUtil::Split(possible_dotted_quad, ".", &octets);
     if (octets.size() != 4)
-	return false;
+        return false;
     for (std::list<std::string>::const_iterator octet(octets.begin()); octet != octets.end(); ++octet) {
-	if (not StringUtil::IsUnsignedNumber(*octet))
-	    return false;
-	if (StringUtil::ToUnsigned(*octet) > 255)
-	    return false;
+        if (not StringUtil::IsUnsignedNumber(*octet))
+            return false;
+        if (StringUtil::ToUnsigned(*octet) > 255)
+            return false;
 
     }
 
@@ -130,12 +130,12 @@ bool IpAddrToHostname(const std::string &dotted_quad, std::string * const hostna
 
     struct in_addr in_addr;
     if (::inet_aton(dotted_quad.c_str(), &in_addr) < 1)
-	return false;
+        return false;
 
     h_errno = 0;
     struct hostent *entry = ::gethostbyaddr(reinterpret_cast<const char *>(&in_addr), sizeof(in_addr), AF_INET);
     if (h_errno != 0)
-	return false;
+        return false;
     *hostname = entry->h_name;
 
     return true;
@@ -147,45 +147,45 @@ bool IpAddrToHostnames(const std::string &dotted_quad, std::list<std::string> * 
 
     struct in_addr in_addr;
     if (::inet_aton(dotted_quad.c_str(), &in_addr) < 1)
-	return false;
+        return false;
 
     h_errno = 0;
     struct hostent *entry = ::gethostbyaddr(reinterpret_cast<const char *>(&in_addr),
-					    sizeof(in_addr), AF_INET);
+                                            sizeof(in_addr), AF_INET);
     if (h_errno != 0)
-	return false;
+        return false;
 
     hostnames->push_back(entry->h_name);
 
     for (const char * const *alias = entry->h_aliases; *alias != 0 /* rather than nullptr */; ++alias)
-	hostnames->push_back(*alias);
+        hostnames->push_back(*alias);
     return true;
 }
 
 
 bool TimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit, in_addr_t * const ip_address,
-			std::string * const error_message)
+                        std::string * const error_message)
 {
     // Make sure we *never* take more than 20 seconds:
     if (unlikely(time_limit.getRemainingTime() > 20000))
-	throw std::runtime_error("in DnsUtil::TimedGetHostByName: the time limit must *not* exceed 20s!");
+        throw std::runtime_error("in DnsUtil::TimedGetHostByName: the time limit must *not* exceed 20s!");
 
     try {
-	static SimpleResolver resolver;
+        static SimpleResolver resolver;
 
-	std::set<in_addr_t> ip_addresses;
-	if (resolver.resolve(hostname, time_limit, &ip_addresses)) {
-	    *ip_address = *(ip_addresses.begin());
-	    return true;
-	}
+        std::set<in_addr_t> ip_addresses;
+        if (resolver.resolve(hostname, time_limit, &ip_addresses)) {
+            *ip_address = *(ip_addresses.begin());
+            return true;
+        }
 
-	if (time_limit.limitExceeded())
-	    *error_message = "timed out";
-	else
-	    *error_message = "unknown resolver error";
+        if (time_limit.limitExceeded())
+            *error_message = "timed out";
+        else
+            *error_message = "unknown resolver error";
     }
     catch (const std::exception &x) {
-	*error_message = x.what();
+        *error_message = x.what();
     }
 
     return false;
@@ -213,13 +213,13 @@ in_addr_t GetIPAddress(const std::string &url, unsigned dns_timeout) {
     std::string dns_error;
     std::string domain(Url(url).getAuthority());
     if (cache.lookup(domain, &ip))
-	return ip;
+        return ip;
     if (DnsUtil::TimedGetHostByName(domain, dns_timeout, &ip, &dns_error)) {
-	cache.insert(domain, ip, ARBITRARY_TTL);
-	return ip;
+        cache.insert(domain, ip, ARBITRARY_TTL);
+        return ip;
     } else {
-	cache.insertUnresolvableEntry(domain);
-	return DnsCache::BAD_ENTRY;
+        cache.insertUnresolvableEntry(domain);
+        return DnsCache::BAD_ENTRY;
     }
 }
 

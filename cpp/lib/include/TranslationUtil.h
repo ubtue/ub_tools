@@ -22,6 +22,8 @@
 
 
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include "DbConnection.h"
 
 
@@ -43,6 +45,15 @@ std::string MapGerman3LetterCodeToInternational2LetterCode(const std::string &ge
 
 
 bool IsValidGerman3LetterCode(const std::string &german_3letter_code_candidate);
+
+
+/** \brief parses a VuFind translation file.
+ *  \note After a successful call, "token_to_line_no_and_other_map" will contain a mapping from a token or English
+ *        original to a pair where "first" contains the line number in the INI file and second the translated text.
+ */
+void ReadIniFile(
+    const std::string &ini_filename,
+    std::unordered_map<std::string, std::pair<unsigned, std::string>> * const token_to_line_no_and_other_map);
 
 
 } // namespace TranslationUtil

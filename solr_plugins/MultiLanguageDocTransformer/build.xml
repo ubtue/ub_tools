@@ -1,0 +1,48 @@
+<project name="MultiLanguageDocTransformerFactory" basedir="." default="main">
+    <property name="src.dir" value="src"/>
+    <property name="classes.dir" value="bin"/>
+    <property name="jar.dir" value="."/>
+    <property name="vufind.dir" value="/usr/local/vufind2"/>
+    <property name="solr.lib.dir" value="${vufind.dir}/solr/lib"/>
+    <property name="local.jar" value="${jar.dir}/${ant.project.name}-0.0.1.jar"/>
+    <property name="dest.jar" value="${vufind.dir}/solr/vufind/jars/${ant.project.name}.jar"/>
+
+    <path id="classpath">
+        <fileset dir="${solr.lib.dir}" includes="**/*.jar"/>
+        <fileset dir="${vufind.dir}/solr/vendor/server/lib" includes="**/*.jar"/>
+        <fileset dir="${vufind.dir}/solr/vendor/server/lib/ext" includes="**/*.jar"/>
+        <fileset dir="${vufind.dir}/solr/vendor/server/solr-webapp/webapp/WEB-INF/lib" includes="**/*.jar"/>
+    </path>
+
+    <target name="clean">
+        <delete dir="${classes.dir}"/>
+        <delete file="${local.jar}"/>
+    </target>
+
+    <target name="compile">
+        <mkdir dir="${classes.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${classes.dir}" classpathref="classpath" debug="true"
+               debuglevel="lines,vars,source" includeantruntime="true"/>
+    </target>
+
+    <target name="jar" depends="compile">
+        <mkdir dir="${jar.dir}"/>
+        <jar destfile="${local.jar}">
+            <fileset dir="${classes.dir}"/>
+            <fileset dir="${src.dir}" includes="**/*.java"/>
+            <manifest>
+                <attribute name="Main-Class" value="${main-class}"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="install" depends="clean,jar">
+        <copy file="${local.jar}" tofile="${dest.jar}"/>
+    </target>
+
+    <target name="clean-build" depends="clean,jar"/>
+
+    <target name="main" depends="clean,jar"/>
+
+
+</project>

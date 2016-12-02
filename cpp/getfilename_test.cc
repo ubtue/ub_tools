@@ -35,12 +35,12 @@ __attribute__((noreturn)) void Usage() {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
     if (argc != 2)
-	Usage();
+        Usage();
 
     try {
-	FILE *file(std::fopen(argv[1], "r"));
-	std::cout << "File pointer points to \"" << FileUtil::GetFileName(file) << "\".\n";
+        FILE *file(std::fopen(argv[1], "r"));
+        std::cout << "File pointer points to \"" << FileUtil::GetFileName(file) << "\".\n";
     } catch(const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }  
 }

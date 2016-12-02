@@ -26,7 +26,7 @@ bool RegexMatcher::utf8_configured_;
 
 
 bool CompileRegex(const std::string &pattern, const bool enable_utf8, ::pcre **pcre_arg,
-		  ::pcre_extra **pcre_extra_arg, std::string * const err_msg)
+                  ::pcre_extra **pcre_extra_arg, std::string * const err_msg)
 {
     if (err_msg != nullptr)
         err_msg->clear();
@@ -97,8 +97,8 @@ RegexMatcher::RegexMatcher(const RegexMatcher &that): pattern_(that.pattern_) {
         std::string err_msg;
         if (not CompileRegex(pattern_, that.utf8_enabled_, &pcre_, &pcre_extra_, &err_msg))
             Error("In RegexMatcher copy constructor: unexpected error: " + err_msg);
-	substr_vector_    = that.substr_vector_;
-	last_match_count_ = that.last_match_count_;
+        substr_vector_    = that.substr_vector_;
+        last_match_count_ = that.last_match_count_;
     }
 }
 
@@ -117,21 +117,21 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
                            size_t * const start_pos, size_t * const end_pos) const
 {
     if (err_msg != nullptr)
-	err_msg->clear();
+        err_msg->clear();
 
     const int retcode = ::pcre_exec(pcre_, pcre_extra_, subject.data(), subject.length(), 0, 0,
                                     &substr_vector_[0], substr_vector_.size());
 
     if (retcode == 0) {
-	if (err_msg != nullptr)
-	    *err_msg = "Too many captured substrings! (We only support "
+        if (err_msg != nullptr)
+            *err_msg = "Too many captured substrings! (We only support "
                        + std::to_string(substr_vector_.size() / 3 - 1) + " substrings.)";
-	return false;
+        return false;
     }
 
     if (retcode > 0) {
-	last_match_count_ = retcode;
-	last_subject_     = subject;
+        last_match_count_ = retcode;
+        last_subject_     = subject;
         if (start_pos != nullptr)
             *start_pos = substr_vector_[0];
         if (end_pos != nullptr)
@@ -141,9 +141,9 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
 
     if (retcode != PCRE_ERROR_NOMATCH) {
         if (retcode == PCRE_ERROR_BADUTF8) {
-	    if (err_msg != nullptr)
-		*err_msg = "A \"subject\" with invalid UTF-8 was passed into RegexMatcher::matched()!";
-	} else if (err_msg != nullptr)
+            if (err_msg != nullptr)
+                *err_msg = "A \"subject\" with invalid UTF-8 was passed into RegexMatcher::matched()!";
+        } else if (err_msg != nullptr)
             *err_msg = "Unknown error!";
     }
 
@@ -153,8 +153,8 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
 
 std::string RegexMatcher::operator[](const unsigned group) const throw(std::out_of_range) {
     if (unlikely(group >= last_match_count_))
-	throw std::out_of_range("in RegexMatcher::operator[]: group(" + std::to_string(group) + ") >= "
-				+ std::to_string(last_match_count_) + "!");
+        throw std::out_of_range("in RegexMatcher::operator[]: group(" + std::to_string(group) + ") >= "
+                                + std::to_string(last_match_count_) + "!");
 
     const unsigned first_index(group * 2);
     const unsigned substring_length(substr_vector_[first_index + 1] - substr_vector_[first_index]);

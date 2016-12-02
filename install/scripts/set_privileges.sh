@@ -40,12 +40,13 @@ OWNER="$USER_NAME:$USER_GROUP"
 
 chmod +xr "$VUFIND_HOME"
 chmod +xr "$VUFIND_LOCAL_DIR"
+[ ! -d "$VUFIND_LOCAL_DIR/logs" ] && mkdir "$VUFIND_LOCAL_DIR/logs"
 touch "$VUFIND_LOCAL_DIR/logs/record.xml"
 touch "$VUFIND_LOCAL_DIR/logs/search.xml"
 
-mkdir --parents "$VUFIND_LOCAL_DIR/import"
+[ ! -d "$VUFIND_LOCAL_DIR/import" ] && mkdir --parents "$VUFIND_LOCAL_DIR/import"
 touch "$VUFIND_LOCAL_DIR/import/solrmarc.log"
-mkdir --parents "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
+[ ! -d "$VUFIND_LOCAL_DIR/config/vufind/local_overrides" ] && mkdir --parents "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 chmod +xr "$VUFIND_LOCAL_DIR/config/vufind/local_overrides"
 
 chown -R "$OWNER" "$VUFIND_HOME"
@@ -54,16 +55,16 @@ chown -R "$OWNER" "$CLONE_DIRECTORY"
 touch "/var/log/vufind.log"
 chown "$OWNER" "/var/log/vufind.log"
 
-mkdir --parents "/tmp/vufind_sessions/"
+[ ! -d "/tmp/vufind_sessions/" ] && mkdir --parents "/tmp/vufind_sessions/"
 chown -R "$OWNER" "/tmp/vufind_sessions/"
 
-mkdir --parents "/var/lib/tuelib/bibleRef"
+[ ! -d "/var/lib/tuelib/bibleRef" ] && mkdir --parents "/var/lib/tuelib/bibleRef"
 chown -R "$OWNER" "/var/lib/tuelib"
 
-mkdir --parents "/var/log/$SYSTEM_TYPE"
+[ ! -d "/var/log/$SYSTEM_TYPE" ] && mkdir --parents "/var/log/$SYSTEM_TYPE"
 chown -R "$OWNER" "/var/log/$SYSTEM_TYPE"
 
-mkdir --parents "/var/www/cgi-bin"
+[ ! -d "/var/www/cgi-bin" ] && mkdir --parents "/var/www/cgi-bin"
 # chown isn't necessary here
 
 function set_se_permissions() {
@@ -78,18 +79,22 @@ function set_se_permissions() {
 if [[ $(which getenforce) && $(getenforce) == "Enforcing" ]] ; then
 
    if [[ $(which setsebool) ]]; then
-    setsebool -P httpd_can_network_connect=1 httpd_can_network_connect_db=1 httpd_enable_cgi=1
+    setsebool -P httpd_can_network_connect=1 httpd_can_network_connect_db=1 httpd_enable_cgi=1 httpd_can_sendmail=1
   fi
 
   if [[ $(which semanage) ]]; then
     set_se_permissions public_content_t "/var/lib/tuelib"
-    set_se_permissions public_content_t "/var/lib/tuelib/full_text.db"
     set_se_permissions httpd_sys_rw_content_t "/usr/local/vufind2(/.*)?" "/usr/local/vufind2"
     set_se_permissions httpd_config_t "$VUFIND_HOME/local/httpd-vufind*.conf"
     set_se_permissions httpd_log_t "/var/log/vufind.log"
     set_se_permissions var_log_t "/var/log/$SYSTEM_TYPE"
     set_se_permissions bin_t "/usr/local/bin"
     set_se_permissions bin_t "/var/www/cgi-bin"
+    set_se_permissions httpd_sys_content_t "/usr/local/ub_tools/configs/ixtheo/translations.conf"
+    
+    if [ -f "/var/lib/tuelib/full_text.db" ]; then
+      set_se_permissions public_content_t "/var/lib/tuelib/full_text.db"
+    fi
   fi
 
 else

@@ -104,8 +104,8 @@ protected:
 class DiglitSmartDownloader: public SmartDownloader {
 public:
     explicit DiglitSmartDownloader(const bool trace = false)
-	: SmartDownloader("^http://idb.ub.uni-tuebingen.de/diglit/.+$|^http://nbn-resolving.de/urn:nbn:de:bsz:21-dt-\\d+$",
-			  trace) { }
+        : SmartDownloader("^http://idb.ub.uni-tuebingen.de/diglit/.+$|^http://nbn-resolving.de/urn:nbn:de:bsz:21-dt-\\d+$",
+                          trace) { }
     virtual std::string getName() const { return "DiglitSmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
@@ -133,7 +133,7 @@ protected:
 class Bsz21SmartDownloader: public SmartDownloader {
 public:
     explicit Bsz21SmartDownloader(const bool trace = false)
-	: SmartDownloader("http://nbn-resolving.de/urn:nbn:de:bsz:21.+", trace) { }
+        : SmartDownloader("http://nbn-resolving.de/urn:nbn:de:bsz:21.+", trace) { }
     virtual std::string getName() const { return "Bsz21SmartDownloader"; }
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit time_limit, std::string * const document);
@@ -151,7 +151,7 @@ protected:
 
 /** \brief Tries to download "document" from "url".  Returns if the download succeeded or not. */
 bool SmartDownload(const std::string &url, const unsigned max_download_time, std::string * const document,
-		   const bool trace = false);
+                   const bool trace = false);
 
 
 #endif // ifndef SMART_DOWNLOADER_H

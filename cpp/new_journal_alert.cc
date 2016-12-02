@@ -20,249 +20,262 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <fstream>
 #include <iostream>
-#include <memory>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
+#include <sstream>
+#include <vector>
 #include <cstdlib>
 #include <cstring>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include "Compiler.h"
 #include "DbConnection.h"
-#include "DirectoryEntry.h"
-#include "Leader.h"
-#include "MarcUtil.h"
-#include "MediaTypeUtil.h"
-#include "RegexMatcher.h"
+#include "EmailSender.h"
+#include "ExecUtil.h"
+#include "FileUtil.h"
+#include "HtmlUtil.h"
+#include "MiscUtil.h"
+#include "Solr.h"
 #include "StringUtil.h"
-#include "Subfields.h"
+#include "UrlUtil.h"
 #include "util.h"
 #include "VuFind.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [-v|--verbose] marc_input notification_log_filename\n";
-    std::cerr << "  Sends out notification emails for journal subscribers.\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port] user_type hostname\n"
+              << "  Sends out notification emails for journal subscribers.\n"
+              << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
+              << "  \"user_type\" must be \"ixtheo\" or \"relbib\"."
+              << "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
+              << "  URL's that a user might see.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-inline bool AllDigits(const std::string &s) {
-    for (char ch : s) {
-        if (not StringUtil::IsDigit(ch))
-            return false;
-    }
-
-    return true;
-}
-
-
-bool IsValidDate(const std::string &date_string) {
-    if (unlikely(date_string.length() != 6))
-        return false;
-
-    if (unlikely(not AllDigits(date_string)))
-        return false;
-
-    const unsigned day_candidate(date_string[0] - '0' + (date_string[1] - '0') * 10);
-    if (unlikely(day_candidate < 1 or day_candidate > 31))
-        return false;
-
-    const unsigned month_candidate(date_string[3] - '0' + (date_string[2] - '0') * 10);
-    if (unlikely(month_candidate < 1 or month_candidate > 12))
-        return false;
-
-    return true;
-}
+struct SerialControlNumberAndLastIssueDate {
+    std::string serial_control_number_;
+    std::string last_issue_date_;
+    bool changed_;
+public:
+    SerialControlNumberAndLastIssueDate(const std::string &serial_control_number, const std::string &last_issue_date)
+        : serial_control_number_(serial_control_number), last_issue_date_(last_issue_date), changed_(false) { }
+    inline void setLastIssueDate(const std::string &new_last_issue_date)
+        { last_issue_date_ = new_last_issue_date; changed_ = true; }
+    inline bool changed() const { return changed_; }
+};
 
 
-void CreateNotificationLog(const bool verbose, File * const marc_input, File * const /*notification_log_output*/) {
-    if (verbose)
-        std::cout << "Starting parsing of MARC input.\n";
-
-    unsigned count(0), serial_record_count(0), matched_serial_count(0);
-    std::string err_msg;
-    while (const MarcUtil::Record record = MarcUtil::Record::XmlFactory(marc_input)) {
-        ++count;
-
-	const Leader &leader(record.getLeader());
-        if (not leader.isSerial())
-            continue;
-
-	const std::vector<std::string> &fields(record.getFields());
-
-        const ssize_t _008_index(record.getFieldIndex("008"));
-        if (_008_index == -1) {
-            std::cerr << "008 field is missing for the record with the control number " << fields[0] << ".\n";
-            continue;
-        }
-
-        // Extract the date:
-        const std::string date_string(fields[_008_index].substr(0, 5));
-        if (unlikely(not IsValidDate(date_string))) {
-            std::cerr << "Record with the control number " << fields[0] << " has a bad date \""
-                      << date_string << "\".\n";
-            continue;
-        }
-    }
-
-    if (not err_msg.empty())
-        Error(err_msg);
-
-    if (verbose) {
-        std::cerr << "Read " << count << " records.\n";
-        std::cerr << "Found " << serial_record_count << " serial recordss.\n";
-        std::cerr << "Logged " << matched_serial_count << " serial records.\n";
-    }
-}
-
-
-std::unique_ptr<File> OpenInputFile(const std::string &filename) {
-    std::string mode("r");
-    mode += MediaTypeUtil::GetFileMediaType(filename) == "application/lz4" ? "u" : "";
-    std::unique_ptr<File> file(new File(filename, mode));
-    if (file == nullptr)
-        Error("can't open \"" + filename + "\" for reading!");
-
-    return file;
-}
-
-
-struct JournalTitleAndLastIssueDate {
+struct NewIssueInfo {
+    std::string control_number_;
     std::string journal_title_;
-    std::string last_issue_date_; // YYYYMMDD
+    std::string issue_title_;
+    std::string last_issue_date_;
 public:
-    JournalTitleAndLastIssueDate(const std::string &journal_title, const std::string &last_issue_date)
-        : journal_title_(journal_title), last_issue_date_(last_issue_date) { }
-
-    inline bool operator==(const JournalTitleAndLastIssueDate &rhs) const {
-        return journal_title_ == rhs.journal_title_;
-    }
+    NewIssueInfo(const std::string &control_number, const std::string &journal_title, const std::string &issue_title)
+        : control_number_(control_number), journal_title_(journal_title), issue_title_(issue_title) { }
 };
 
 
-template <> struct std::hash<JournalTitleAndLastIssueDate> {
-    std::size_t operator()(const JournalTitleAndLastIssueDate &journal_title_and_last_issue_date) const {
-        return std::hash<std::string>()(journal_title_and_last_issue_date.journal_title_);
+/** \return True if new issues were found, false o/w. */
+bool ExtractNewIssueInfos(const std::string &json_document, std::vector<NewIssueInfo> * const new_issue_infos,
+                          std::string * const max_last_issue_date)
+{
+    std::stringstream input(json_document, std::ios_base::in);
+    boost::property_tree::ptree property_tree;
+    boost::property_tree::json_parser::read_json(input, property_tree);
+
+    bool found_at_least_one_new_issue(false);
+    for (const auto &document : property_tree.get_child("response.docs.")) {
+        const auto &id(document.second.get<std::string>("id"));
+        const auto &issue_title(document.second.get<std::string>("title"));
+        const std::string journal_title(document.second.get<std::string>("journal_issue/0", "*No Journal Title*"));
+        new_issue_infos->emplace_back(id, journal_title, issue_title);
+
+        const auto &recording_date(document.second.get<std::string>("recording_date"));
+        if (recording_date > *max_last_issue_date) {
+            *max_last_issue_date = recording_date;
+            found_at_least_one_new_issue = true;
+        }
     }
-};
 
-
-struct JournalSubscriberInfo {
-    std::string email_address_;
-    std::string first_name_;
-    std::string last_name_;
-    std::unordered_set<JournalTitleAndLastIssueDate> journal_titles_and_last_issue_dates_;
-public:
-    JournalSubscriberInfo(const std::string &email_address, const std::string &first_name,
-                          const std::string &last_name)
-        : email_address_(email_address), first_name_(first_name), last_name_(last_name) { }
-    void addJournalTitleAndLastIssueDate(const JournalTitleAndLastIssueDate &new_journal_title_and_last_issue_date) {
-        journal_titles_and_last_issue_dates_.insert(new_journal_title_and_last_issue_date);
-    }
-};
-
-
-// Populates the user-specific parts of a JournalSubscriberInfo struct with data found in the vufind.user table.
-JournalSubscriberInfo GetJournalSubscriberInfo(DbConnection * const db_connection, const std::string &user_id) {
-    const std::string SELECT_STMT("SELECT email,firstname,lastname FROM user WHERE id=" + user_id);
-    if (unlikely(not db_connection->query(SELECT_STMT)))
-        Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
-    DbResultSet result_set(db_connection->getLastResultSet());
-    if (unlikely(result_set.empty())) // This should be impossible!
-        throw std::runtime_error("result set was empty for query: " + SELECT_STMT);
-    const DbRow row(result_set.getNextRow());
-    return JournalSubscriberInfo(row["email"], row["firstname"], row["lastname"]);
+    return found_at_least_one_new_issue;
 }
 
 
-void GetUsersAndJournals(
-    DbConnection * const db_connection,
-    std::vector<std::pair<JournalSubscriberInfo, std::unordered_set<JournalTitleAndLastIssueDate>>>
-        * const users_and_journals)
+bool GetNewIssues(const std::string &solr_host_and_port, const std::string &serial_control_number,
+                  std::string last_issue_date, std::vector<NewIssueInfo> * const new_issue_infos,
+                  std::string * const max_last_issue_date)
 {
-    users_and_journals->clear();
+    if (not StringUtil::EndsWith(last_issue_date, "Z"))
+        last_issue_date += "T00:00:00Z"; // Solr does not support the short form of the ISO 8601 date formats.
+    const std::string QUERY("superior_ppn:" + serial_control_number + " AND recording_date:{" + last_issue_date
+                            + " TO *}");
+    std::string json_result;
+    if (unlikely(not Solr::Query(QUERY, "id,title,recording_date,journal_issue", &json_result,
+                                 solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
+        Error("Solr query failed or timed-out: \"" + QUERY + "\".");
 
-    const std::string SELECT_IDS_STMT("SELECT DISTINCT id FROM ixtheo_journal_subscriptions");
+    return ExtractNewIssueInfos(json_result, new_issue_infos, max_last_issue_date);
+}
+
+
+void SendNotificationEmail(const std::string &firstname, const std::string &lastname, const std::string &email,
+                           const std::string &vufind_host, const std::vector<NewIssueInfo> &new_issue_infos)
+{
+    const std::string EMAIL_TEMPLATE_PATH("/var/lib/tuelib/subscriptions_email.template");
+    std::string email_template;
+    if (unlikely(not FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &email_template)))
+        Error("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
+
+    // Process the email template:
+    std::map<std::string, std::vector<std::string>> names_to_values_map;
+    names_to_values_map["firstname"] = std::vector<std::string>{ firstname };
+    names_to_values_map["lastname"] = std::vector<std::string>{ lastname };
+    std::vector<std::string> urls, journal_titles, issue_titles;
+    for (const auto &new_issue_info : new_issue_infos) {
+        urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
+        journal_titles.emplace_back(new_issue_info.journal_title_);
+        issue_titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.issue_title_));
+    }
+    names_to_values_map["url"]           = urls;
+    names_to_values_map["journal_title"] = journal_titles;
+    names_to_values_map["issue_title"]   = issue_titles;
+    std::istringstream input(email_template);
+    std::ostringstream email_contents;
+    MiscUtil::ExpandTemplate(input, email_contents, names_to_values_map);
+
+    if (unlikely(not EmailSender::SendEmail("notifications@ixtheo.de", email, "Ixtheo Subscriptions",
+                                            email_contents.str(), EmailSender::DO_NOT_SET_PRIORITY,
+                                            EmailSender::HTML)))
+        Error("failed to send a notification email to \"" + email + "\"!");
+}
+
+
+void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, const std::string &user_id,
+                       const std::string &solr_host_and_port, const std::string &hostname,
+                       std::vector<SerialControlNumberAndLastIssueDate> &control_numbers_and_last_issue_dates)
+{
+    const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user WHERE id='" + user_id + "'");
+    if (unlikely(not db_connection->query(SELECT_USER_ATTRIBUTES)))
+        Error("Select failed: " + SELECT_USER_ATTRIBUTES + " (" + db_connection->getLastErrorMessage() + ")");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.empty())
+        Error("found no user attributes in table \"user\" for ID \"" + user_id + "\"!");
+    if (result_set.size() > 1)
+        Error("found multiple user attribute sets in table \"user\" for ID \"" + user_id + "\"!");
+
+    const DbRow row(result_set.getNextRow());
+    const std::string username(row["username"]);
+    if (verbose)
+        std::cerr << "Found " << control_numbers_and_last_issue_dates.size() << " subscriptions for \"" << username
+                  << ".\n";
+
+    const std::string firstname(row["firstname"]);
+    const std::string lastname(row["lastname"]);
+    const std::string email(row["email"]);
+
+    // Collect the dates for new issues.
+    std::vector<NewIssueInfo> new_issue_infos;
+    for (auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
+        std::string max_last_issue_date(control_number_and_last_issue_date.last_issue_date_);
+        if (GetNewIssues(solr_host_and_port, control_number_and_last_issue_date.serial_control_number_,
+                         control_number_and_last_issue_date.last_issue_date_, &new_issue_infos, &max_last_issue_date))
+            control_number_and_last_issue_date.setLastIssueDate(max_last_issue_date);
+    }
+    if (verbose)
+        std::cerr << "Found " << new_issue_infos.size() << " new issues for " << " \"" << username << "\".\n";
+
+    if (not new_issue_infos.empty())
+        SendNotificationEmail(firstname, lastname, email, hostname, new_issue_infos);
+
+    // Update the database with the new last issue dates.
+    for (const auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
+        if (not control_number_and_last_issue_date.changed())
+            continue;
+
+        const std::string REPLACE_STMT("REPLACE INTO ixtheo_journal_subscriptions SET id=" + user_id
+                                       + ",last_issue_date='" + control_number_and_last_issue_date.last_issue_date_
+                                       + "',journal_control_number='"
+                                       + control_number_and_last_issue_date.serial_control_number_ + "'");
+        if (unlikely(not db_connection->query(REPLACE_STMT)))
+            Error("Replace failed: " + REPLACE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    }
+}
+
+
+void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection,
+                          const std::string &solr_host_and_port, const std::string &user_type,
+                          const std::string &hostname)
+{
+    const std::string SELECT_IDS_STMT("SELECT DISTINCT id FROM ixtheo_journal_subscriptions "
+                                      "WHERE id IN (SELECT id FROM ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
     if (unlikely(not db_connection->query(SELECT_IDS_STMT)))
-	Error("Select failed: " + SELECT_IDS_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+        Error("Select failed: " + SELECT_IDS_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
+    unsigned subscription_count(0);
     DbResultSet id_result_set(db_connection->getLastResultSet());
+    const unsigned user_count(id_result_set.size());
     while (const DbRow id_row = id_result_set.getNextRow()) {
         const std::string user_id(id_row["id"]);
-        const JournalSubscriberInfo new_journal_subscriber_info(GetJournalSubscriberInfo(db_connection, user_id));
 
-        const std::string SELECT_TITLES_AND_DATES_STMT("SELECT journal_title,last_issue_date FROM "
-                                                       "ixtheo_journal_subscriptions WHERE id=" + user_id);
-        if (unlikely(not db_connection->query(SELECT_TITLES_AND_DATES_STMT)))
-            Error("Select failed: " + SELECT_TITLES_AND_DATES_STMT + " (" + db_connection->getLastErrorMessage()
-                  + ")");
+        const std::string SELECT_SUBSCRIPTION_INFO("SELECT journal_control_number,last_issue_date FROM "
+                                                   "ixtheo_journal_subscriptions WHERE id=" + user_id);
+        if (unlikely(not db_connection->query(SELECT_SUBSCRIPTION_INFO)))
+            Error("Select failed: " + SELECT_SUBSCRIPTION_INFO + " (" + db_connection->getLastErrorMessage() + ")");
+
         DbResultSet result_set(db_connection->getLastResultSet());
-        std::unordered_set<JournalTitleAndLastIssueDate> titles_and_dates;
-        while (const DbRow row = result_set.getNextRow())
-            titles_and_dates.emplace(row["journal_title"], row["last_issue_date"]);
-        users_and_journals->emplace_back(std::make_pair(new_journal_subscriber_info, titles_and_dates));
-    }
-}
-
-
-void PopulateJournalTitleToUserInfoMap(
-    const std::vector<std::pair<JournalSubscriberInfo, std::unordered_set<JournalTitleAndLastIssueDate>>>
-        &users_and_journals,
-    std::unordered_map<std::string, std::vector<JournalSubscriberInfo const *>> * const
-        journal_title_to_user_info_map)
-{
-    journal_title_to_user_info_map->clear();
-
-    for (const auto &user_and_journals : users_and_journals) {
-        for (const auto &title_and_date : user_and_journals.second) {
-            auto journal_title_and_user_infos(journal_title_to_user_info_map->find(title_and_date.journal_title_));
-            if (journal_title_and_user_infos == journal_title_to_user_info_map->end()) {
-                journal_title_to_user_info_map->emplace(title_and_date.journal_title_,
-                                                        std::vector<JournalSubscriberInfo const *>());
-                journal_title_and_user_infos = journal_title_to_user_info_map->find(title_and_date.journal_title_);
-            }
-            journal_title_and_user_infos->second.emplace_back(&user_and_journals.first);
+        std::vector<SerialControlNumberAndLastIssueDate> control_numbers_and_last_issue_dates;
+        while (const DbRow row = result_set.getNextRow()) {
+            control_numbers_and_last_issue_dates.emplace_back(SerialControlNumberAndLastIssueDate(
+                row["journal_control_number"], row["last_issue_date"]));
+            ++subscription_count;
         }
+        ProcessSingleUser(verbose, db_connection, user_id, solr_host_and_port, hostname,
+                          control_numbers_and_last_issue_dates);
     }
+
+    if (verbose)
+        std::cout << "Processed " << user_count << " users and " << subscription_count << " subscriptions.\n";
 }
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
-    if ((argc != 3 and argc != 4)
-        or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
+    if (argc < 3)
         Usage();
-    const bool verbose(argc == 3);
 
-    const std::string marc_input_filename(argv[argc == 4 ? 2 : 1]);
-    std::unique_ptr<File> marc_input(OpenInputFile(marc_input_filename));
+    bool verbose;
+    if (std::strcmp("--verbose", argv[1]) == 0) {
+        if (argc < 4)
+            Usage();
+        verbose = true;
+        --argc, ++argv;
+    } else
+        verbose = false;
+    
+    std::string solr_host_and_port;
+    if (argc == 3)
+        solr_host_and_port = "localhost:8080";
+    else if (argc == 4) {
+        solr_host_and_port = argv[1];
+        --argc, ++argv;
+    } else
+        Usage();
+    
+    const std::string user_type(argv[1]);
+    if (user_type != "ixtheo" and user_type != "relbib")
+        Error("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
+    
+    const std::string hostname(argv[2]);
 
     try {
-	std::string mysql_url;
-	VuFind::GetMysqlURL(&mysql_url);
-	DbConnection db_connection(mysql_url);
-        std::vector<std::pair<JournalSubscriberInfo, std::unordered_set<JournalTitleAndLastIssueDate>>>
-            users_and_journals;
-        GetUsersAndJournals(&db_connection, &users_and_journals);
-        if (verbose)
-            std::cout << "Found entries for " << users_and_journals.size()
-                      << " users that are interested in notifications.\n";
+        std::string mysql_url;
+        VuFind::GetMysqlURL(&mysql_url);
+        DbConnection db_connection(mysql_url);
 
-        std::unordered_map<std::string, std::vector<JournalSubscriberInfo const *>> journal_title_to_user_info_map;
-        PopulateJournalTitleToUserInfoMap(users_and_journals, &journal_title_to_user_info_map);
-        if (verbose)
-            std::cout << "Found " << journal_title_to_user_info_map.size()
-                      << " serials for which there is at least one subscriber each.\n";
-
-        const std::string notification_log_filename(argv[verbose ? 3 : 2]);
-        File notification_log_output(notification_log_filename, "w");
-        if (not notification_log_output)
-            Error("can't open \"" + notification_log_filename + "\" for writing!");
-
-        CreateNotificationLog(verbose, marc_input.get(), &notification_log_output);
+        ProcessSubscriptions(verbose, &db_connection, solr_host_and_port, user_type, hostname);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

@@ -40,7 +40,7 @@ public:
      *  \param  text_conversion_type  What kind, if any, of text conversion to apply on output.
      */
     explicit MarcXmlWriter(std::string * const output_string, const unsigned indent_amount = 0,
-		           const TextConversionType text_conversion_type = NoConversion);
+                           const TextConversionType text_conversion_type = NoConversion);
 
     /** Destroyes an MarcXmlWriter object, closing any still open tags. */
     virtual ~MarcXmlWriter() override;

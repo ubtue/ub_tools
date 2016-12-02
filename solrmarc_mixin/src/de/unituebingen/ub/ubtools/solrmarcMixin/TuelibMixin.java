@@ -1,33 +1,26 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
-
+import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
+import org.solrmarc.index.SolrIndexerShim;
 import org.solrmarc.tools.Utils;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 public class TuelibMixin extends SolrIndexerMixin {
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
-    /**
-     * Returns either a Set<String> of parent (URL + colon + material type).  URLs are taken from 856$u and material
-     * types from 856$3, 856$z or 856$x.  For missing type subfields the text "Unbekanntes Material" will be used.
-     * Furthermore 024$2 will be checked for "doi".  If we find this we generate a URL with a DOI resolver from the
-     * DOI in 024$a and set the "material type" to "DOI Link".
-     *
-     * @param record the record
-     * @return A, possibly empty, Set<String> containing the URL/material-type pairs.
-     */
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
-    private final static Pattern EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
+    private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
         {
@@ -38,7 +31,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             this.put("DE-21-4", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Augenklinik");
             this.put("DE-21-10", "Universit\u00E4tsbibliothek T\u00FCbingen, Bereichsbibliothek Geowissenschaften");
             this.put("DE-21-11", "Universit\u00E4tsbibliothek T\u00FCbingen, Bereichsbibliothek Schloss Nord");
-            this.put("DE-21-14", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ur- und Fr\u00FChgeschichte und Arch\u00E4ologie des Mittelalters, Abteilung j\u00FCngere Urgeschichte und Fr\u00FChgeschichte + Abteilung f\u00FCr Arch\u00E4ologie des Mittelalters");
+            this.put("DE-21-14",
+                    "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ur- und Fr\u00FChgeschichte und Arch\u00E4ologie des Mittelalters, Abteilung j\u00FCngere Urgeschichte und Fr\u00FChgeschichte + Abteilung f\u00FCr Arch\u00E4ologie des Mittelalters");
             this.put("DE-21-17", "Universit\u00E4t T\u00FCbingen, Geographisches Institut");
             this.put("DE-21-18", "Universit\u00E4t T\u00FCbingen, Universit\u00E4ts-Hautklinik");
             this.put("DE-21-19", "Universit\u00E4t T\u00FCbingen, Wirtschaftswissenschaftliches Seminar");
@@ -83,7 +77,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             this.put("DE-21-93", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ethik und Geschichte der Medizin");
             this.put("DE-21-95", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Hirnforschung");
             this.put("DE-21-98", "Universit\u00E4t T\u00FCbingen, Fachbibliothek Mathematik und Physik / Bereich Physik");
-            this.put("DE-21-99", "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ur- und Fr\u00FChgeschichte und Arch\u00E4ologie des Mittelalters, Abteilung f\u00FCr \u00E4ltere Urgeschichteund Quart\u00E4r\u00F6kologie");
+            this.put("DE-21-99",
+                    "Universit\u00E4t T\u00FCbingen, Institut f\u00FCr Ur- und Fr\u00FChgeschichte und Arch\u00E4ologie des Mittelalters, Abteilung f\u00FCr \u00E4ltere Urgeschichteund Quart\u00E4r\u00F6kologie");
             this.put("DE-21-106", "Universit\u00E4t T\u00FCbingen, Seminar f\u00FCr Zeitgeschichte");
             this.put("DE-21-108", "Universit\u00E4t T\u00FCbingen, Fakult\u00E4tsbibliothek Neuphilologie");
             this.put("DE-21-109", "Universit\u00E4t T\u00FCbingen, Asien-Orient-Institut, Abteilung f\u00FCr Sinologie und Koreanistik");
@@ -103,11 +98,14 @@ public class TuelibMixin extends SolrIndexerMixin {
             this.put("DE-Frei85", "Freiburg MPI Ausl\u00E4nd.Recht, Max-Planck-Institut f\u00FCr ausl\u00E4ndisches und internationales Strafrecht");
         }
     };
+
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
+    private final static String UNASSIGNED = "[Unassigned]";
+
     // Map used by getPhysicalType().
     private static final Map<String, String> phys_code_to_full_name_map;
 
@@ -147,52 +145,72 @@ public class TuelibMixin extends SolrIndexerMixin {
     private Set<String> reviewedRecords_cache = null;
 
     @Override
-    public void perRecordInit(final Record record) {
+    public void perRecordInit() {
         reviews_cache = reviewedRecords_cache = isils_cache = null;
+    }
+
+    private String getTitleFromField(final DataField titleField) {
+        if (titleField == null)
+            return null;
+
+        final String titleA = (titleField.getSubfield('a') == null) ? null : titleField.getSubfield('a').getData();
+        final String titleB = (titleField.getSubfield('b') == null) ? null : titleField.getSubfield('b').getData();
+        if (titleA == null && titleB == null)
+            return null;
+
+        final StringBuilder completeTitle = new StringBuilder();
+        if (titleA == null)
+            completeTitle.append(Utils.cleanData(titleB));
+        else if (titleB == null)
+            completeTitle.append(Utils.cleanData(titleA));
+        else { // Neither titleA nor titleB are null.
+            completeTitle.append(Utils.cleanData(titleA));
+            if (!titleB.startsWith(" = "))
+                completeTitle.append(" : ");
+            completeTitle.append(Utils.cleanData(titleB));
+        }
+
+        final String titleN = (titleField.getSubfield('n') == null) ? null : titleField.getSubfield('n').getData();
+        if (titleN != null) {
+            completeTitle.append(' ');
+            completeTitle.append(Utils.cleanData(titleN));
+        }
+
+        return completeTitle.toString();
     }
 
     /**
      * Determine Record Title
      *
-     * @param record the record
-     * @return String     nicely formatted title
+     * @param record
+     *            the record
+     * @return String nicely formatted title
      */
-    public String getTitle(final Record record) {
-        final DataField title = (DataField) record.getVariableField("245");
-        if (title == null)
-            return null;
+    public String getMainTitle(final Record record) {
+        final DataField mainTitleField = (DataField) record.getVariableField("245");
+        return getTitleFromField(mainTitleField);
+    }
 
-        final String title_a = (title.getSubfield('a') == null) ? null : title.getSubfield('a').getData();
-        final String title_b = (title.getSubfield('b') == null) ? null : title.getSubfield('b').getData();
-        if (title_a == null && title_b == null)
-            return null;
+    public Set<String> getOtherTitles(final Record record) {
+        final List<VariableField> otherTitleFields = record.getVariableFields("246");
 
-        final StringBuilder complete_title = new StringBuilder();
-        if (title_a == null)
-            complete_title.append(Utils.cleanData(title_b));
-        else if (title_b == null)
-            complete_title.append(Utils.cleanData(title_a));
-        else { // Neither title_a nor title_b are null.
-            complete_title.append(Utils.cleanData(title_a));
-            complete_title.append(" : ");
-            complete_title.append(Utils.cleanData(title_b));
+        final Set<String> otherTitles = new TreeSet<>();
+        for (final VariableField otherTitleField : otherTitleFields) {
+            final String otherTitle = getTitleFromField((DataField) otherTitleField);
+            if (otherTitle != null)
+                otherTitles.add(otherTitle);
         }
 
-        final String title_n = (title.getSubfield('n') == null) ? null : title.getSubfield('n').getData();
-        if (title_n != null) {
-            complete_title.append(' ');
-            complete_title.append(Utils.cleanData(title_n));
-        }
-
-        return complete_title.toString();
+        return otherTitles;
     }
 
     /**
      * Determine Record Title Subfield
      *
-     * @param record        the record
+     * @param record
+     *            the record
      * @param subfield_code
-     * @return String     nicely formatted title subfield
+     * @return String nicely formatted title subfield
      */
     public String getTitleSubfield(final Record record, final String subfield_code) {
         final DataField title = (DataField) record.getVariableField("245");
@@ -211,17 +229,18 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * get the local subjects from LOK-tagged fields and get subjects from 936k and 689a subfields
+     * get the local subjects from LOK-tagged fields and get subjects from 936k
+     * and 689a subfields
      * <p/>
-     * LOK = Field
-     * |0 689 = Subfield
-     * |a Imperialismus = Subfield with local subject
+     * LOK = Field |0 689 = Subfield |a Imperialismus = Subfield with local
+     * subject
      *
-     * @param record the record
+     * @param record
+     *            the record
      * @return Set of local subjects
      */
     public Set<String> getAllTopics(final Record record) {
-        final Set<String> topics = SolrIndexer.getAllSubfields(record, "600:610:611:630:650:653:656:689a:936a", " ");
+        final Set<String> topics = SolrIndexerShim.instance().getAllSubfields(record, "600:610:611:630:650:653:656:689a:936a", " ");
         for (final VariableField variableField : record.getVariableFields("LOK")) {
             final DataField lokfield = (DataField) variableField;
             final Subfield subfield0 = lokfield.getSubfield('0');
@@ -240,11 +259,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Hole das Sachschlagwort aus 689|a (wenn 689|d != z oder f)
      *
-     * @param record the record
-     * @return Set    "topic_facet"
+     * @param record
+     *            the record
+     * @return Set "topic_facet"
      */
     public Set<String> getFacetTopics(final Record record) {
-        final Set<String> result = SolrIndexer.getAllSubfields(record, "600x:610x:611x:630x:648x:650a:650x:651x:655x", " ");
+        final Set<String> result = SolrIndexerShim.instance().getAllSubfields(record, "600x:610x:611x:630x:648x:650a:650x:651x:655x", " ");
         String topic_string;
         // Check 689 subfield a and d
         final List<VariableField> fields = record.getVariableFields("689");
@@ -272,8 +292,10 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Finds the first subfield which is nonempty.
      *
-     * @param dataField   the data field
-     * @param subfieldIDs the subfield identifiers to search for
+     * @param dataField
+     *            the data field
+     * @param subfieldIDs
+     *            the subfield identifiers to search for
      * @return a nonempty subfield or null
      */
     private Subfield getFirstNonEmptySubfield(final DataField dataField, final char... subfieldIDs) {
@@ -287,6 +309,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
+    /**
+     * Returns either a Set<String> of parent (URL + colon + material type).
+     * URLs are taken from 856$u and material types from 856$3, 856$z or 856$x.
+     * For missing type subfields the text "Unbekanntes Material" will be used.
+     * Furthermore 024$2 will be checked for "doi". If we find this we generate
+     * a URL with a DOI resolver from the DOI in 024$a and set the
+     * "material type" to "DOI Link".
+     *
+     * @param record
+     *            the record
+     * @return A, possibly empty, Set<String> containing the URL/material-type
+     *         pairs.
+     */
     public Set<String> getUrlsAndMaterialTypes(final Record record) {
         final Set<String> nonUnknownMaterialTypeURLs = new HashSet<String>();
         final Map<String, Set<String>> materialTypeToURLsMap = new TreeMap<String, Set<String>>();
@@ -309,9 +344,13 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (rawLink.startsWith("urn:"))
                     link = "https://nbn-resolving.org/" + rawLink;
                 else if (rawLink.startsWith("http://nbn-resolving.de"))
-                    link = "https://nbn-resolving.org/" + rawLink.substring(23); // Replace HTTP w/ HTTPS.
+                    // Replace HTTP w/ HTTPS.
+                    link = "https://nbn-resolving.org/" + rawLink.substring(23);
+
+
                 else if (rawLink.startsWith("http://nbn-resolving.org"))
-                    link = "https://nbn-resolving.org/" + rawLink.substring(24); // Replace HTTP w/ HTTPS.
+                    // Replace HTTP w/ HTTPS.
+                    link = "https://nbn-resolving.org/" + rawLink.substring(24);
                 else
                     link = rawLink;
                 URLs.add(link);
@@ -366,16 +405,18 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * Returns either a Set<String> of parent (ID + colon + parent title).  Only IDs w/o titles will not be returned,
-     * instead a warning will be emitted on stderr.
+     * Returns either a Set<String> of parent (ID + colon + parent title). Only
+     * IDs w/o titles will not be returned, instead a warning will be emitted on
+     * stderr.
      *
-     * @param record the record
+     * @param record
+     *            the record
      * @return A, possibly empty, Set<String> containing the ID/title pairs.
      */
     public Set<String> getContainerIdsWithTitles(final Record record) {
         final Set<String> containerIdsAndTitles = new TreeSet<>();
 
-        for (final String tag : new String[]{"800", "810", "830", "773"}) {
+        for (final String tag : new String[] { "800", "810", "830", "773" }) {
             for (final VariableField variableField : record.getVariableFields(tag)) {
                 final DataField field = (DataField) variableField;
                 final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't', 'a');
@@ -385,13 +426,13 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (titleSubfield == null || idSubfield == null)
                     continue;
 
-                final Matcher matcher = EXTRACTION_PATTERN.matcher(idSubfield.getData());
+                final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(idSubfield.getData());
                 if (!matcher.matches())
                     continue;
                 final String parentId = matcher.group(1);
 
-                containerIdsAndTitles.add(parentId + (char) 0x1F + titleSubfield.getData() + (char) 0x1F
-                        + (volumeSubfield == null ? "" : volumeSubfield.getData()));
+                containerIdsAndTitles
+                        .add(parentId + (char) 0x1F + titleSubfield.getData() + (char) 0x1F + (volumeSubfield == null ? "" : volumeSubfield.getData()));
             }
         }
         return containerIdsAndTitles;
@@ -407,22 +448,30 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final VariableField variableField : record.getVariableFields("787")) {
             final DataField field = (DataField) variableField;
             final Subfield reviewTypeSubfield = getFirstNonEmptySubfield(field, 'i');
-            final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
             final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't');
+            if (titleSubfield == null || reviewTypeSubfield == null)
+                continue;
+
+            String title = titleSubfield.getData();
+            final Subfield locationAndPublisher = getFirstNonEmptySubfield(field, 'd');
+            if (locationAndPublisher != null)
+                title = title + " (" + locationAndPublisher.getData() + ")";
+
+            String parentId = "000000000";
             final Subfield idSubfield = field.getSubfield('w');
+            if (idSubfield != null) {
+                final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(idSubfield.getData());
+                if (matcher.matches())
+                    parentId = matcher.group(1);
+            }
 
-            if (reviewerSubfield == null || titleSubfield == null || idSubfield == null || reviewTypeSubfield == null)
-                continue;
-
-            final Matcher matcher = EXTRACTION_PATTERN.matcher(idSubfield.getData());
-            if (!matcher.matches())
-                continue;
-            final String parentId = matcher.group(1);
+            final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
+            final String reviewer = (reviewerSubfield == null) ? "" : reviewerSubfield.getData();
 
             if (reviewTypeSubfield.getData().equals("Rezension")) {
-                reviews_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + titleSubfield.getData());
+                reviews_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + title);
             } else if (reviewTypeSubfield.getData().equals("Rezension von")) {
-                reviewedRecords_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + titleSubfield.getData());
+                reviewedRecords_cache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
             }
         }
     }
@@ -438,7 +487,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * @param record    the record
+     * @param record
+     *            the record
      * @param fieldnums
      * @return
      */
@@ -502,24 +552,17 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * get the ISILs from LOK-tagged fields
      * <p/>
-     * Typical LOK-Section below a Marc21 - Title-Set of a record:
-     * LOK             |0 000 xxxxxnu a22 zn 4500
-     * LOK             |0 001 000001376
-     * LOK             |0 003 DE-576
-     * LOK             |0 004 000000140
-     * LOK             |0 005 20020725000000
-     * LOK             |0 008 020725||||||||||||||||ger|||||||
-     * LOK             |0 014   |a 000001368  |b DE-576
-     * LOK             |0 541   |e 76.6176
-     * LOK             |0 852   |a DE-Sp3
-     * LOK             |0 852 1  |c B IV 529  |9 00
+     * Typical LOK-Section below a Marc21 - Title-Set of a record: LOK |0 000
+     * xxxxxnu a22 zn 4500 LOK |0 001 000001376 LOK |0 003 DE-576 LOK |0 004
+     * 000000140 LOK |0 005 20020725000000 LOK |0 008
+     * 020725||||||||||||||||ger||||||| LOK |0 014 |a 000001368 |b DE-576 LOK |0
+     * 541 |e 76.6176 LOK |0 852 |a DE-Sp3 LOK |0 852 1 |c B IV 529 |9 00
      * <p/>
-     * LOK = Field
-     * |0 852 = Subfield
-     * |a DE-Sp3 = Subfield with ISIL
+     * LOK = Field |0 852 = Subfield |a DE-Sp3 = Subfield with ISIL
      *
-     * @param record the record
-     * @return Set of   isils
+     * @param record
+     *            the record
+     * @return Set of isils
      */
     public Set<String> getIsils(final Record record) {
         if (isils_cache != null) {
@@ -550,7 +593,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * @param record the record
+     * @param record
+     *            the record
      * @return
      */
     public String isAvailableInTuebingen(final Record record) {
@@ -560,24 +604,17 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * get the collections from LOK-tagged fields
      * <p/>
-     * Typical LOK-Section below a Marc21 - Title-Set of a record:
-     * LOK             |0 000 xxxxxnu a22 zn 4500
-     * LOK             |0 001 000001376
-     * LOK             |0 003 DE-576
-     * LOK             |0 004 000000140
-     * LOK             |0 005 20020725000000
-     * LOK             |0 008 020725||||||||||||||||ger|||||||
-     * LOK             |0 014   |a 000001368  |b DE-576
-     * LOK             |0 541   |e 76.6176
-     * LOK             |0 852   |a DE-Sp3
-     * LOK             |0 852 1  |c B IV 529  |9 00
+     * Typical LOK-Section below a Marc21 - Title-Set of a record: LOK |0 000
+     * xxxxxnu a22 zn 4500 LOK |0 001 000001376 LOK |0 003 DE-576 LOK |0 004
+     * 000000140 LOK |0 005 20020725000000 LOK |0 008
+     * 020725||||||||||||||||ger||||||| LOK |0 014 |a 000001368 |b DE-576 LOK |0
+     * 541 |e 76.6176 LOK |0 852 |a DE-Sp3 LOK |0 852 1 |c B IV 529 |9 00
      * <p/>
-     * LOK = Field
-     * |0 852 = Subfield
-     * |a DE-Sp3 = Subfield with ISIL
+     * LOK = Field |0 852 = Subfield |a DE-Sp3 = Subfield with ISIL
      *
-     * @param record the record
-     * @return Set of  collections
+     * @param record
+     *            the record
+     * @return Set of collections
      */
     public Set<String> getCollections(final Record record) {
         final Set<String> isils = getIsils(record);
@@ -598,7 +635,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * @param record the record
+     * @param record
+     *            the record
      */
     public String getInstitution(final Record record) {
         final Set<String> collections = getCollections(record);
@@ -606,7 +644,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * @param record the record
+     * @param record
+     *            the record
      */
     public String getBSZIndexedDate(final Record record) {
         for (final VariableField variableField : record.getVariableFields("LOK")) {
@@ -652,10 +691,11 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * @param record the record
+     * @param record
+     *            the record
      */
     public String getPageRange(final Record record) {
-        final String field_value = SolrIndexer.getFirstFieldVal(record, "936h");
+        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936h");
         if (field_value == null)
             return null;
 
@@ -675,10 +715,11 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * @param record the record
+     * @param record
+     *            the record
      */
     public String getContainerYear(final Record record) {
-        final String field_value = SolrIndexer.getFirstFieldVal(record, "936j");
+        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936j");
         if (field_value == null)
             return null;
 
@@ -687,10 +728,11 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * @param record the record
+     * @param record
+     *            the record
      */
     public String getContainerVolume(final Record record) {
-        final String field_value = SolrIndexer.getFirstFieldVal(record, "936d");
+        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936d");
         if (field_value == null)
             return null;
 
@@ -699,7 +741,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * @param record the record
+     * @param record
+     *            the record
      */
     public Set<String> getPhysicalType(final Record record) {
         final Set<String> results = new TreeSet<>();
@@ -720,23 +763,67 @@ public class TuelibMixin extends SolrIndexerMixin {
         return results;
     }
 
+    private static Map<String, String> GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP = new TreeMap<String, String>();
+
+    static {
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verfasser", "aut");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verfasserin", "aut");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verleger", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verlegerin", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("herausgeber", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("herausgeberin", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("hrsg", "hg");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("übersetzer", "trl");
+        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("übersetzerin", "trl");
+    }
+
+    private String translateAuthorRole(final String germanRole) {
+        final String translation = GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.get(germanRole);
+        if (translation == null) {
+            System.err.println("No English mapping for \"" + germanRole + "\" found!");
+            return germanRole;
+        }
+        return translation;
+    }
+
+    // Removes any non-letters from "original_role", lowercases letters and
+    // returns the clean-up version.
+    private static String cleanRole(final String original_role) {
+        final StringBuilder canonised_role = new StringBuilder();
+        for (final char ch : original_role.toCharArray()) {
+            if (Character.isLetter(ch))
+                canonised_role.append(ch);
+        }
+
+        return canonised_role.toString().toLowerCase();
+    }
+
+    private static final char[] author2SubfieldCodes = new char[] { 'a', 'b', 'c', 'd' };
+
     /**
-     * param record the record
+     * @param record
+     *            the record
      */
     public Set<String> getAuthor2AndRole(final Record record) {
         final Set<String> results = new TreeSet<>();
         for (final DataField data_field : record.getDataFields()) {
             if (!data_field.getTag().equals("700"))
                 continue;
-// Fixme: Query other author2 fields
 
-            final String author2 = (data_field.getSubfield('a') != null) ?
-                    data_field.getSubfield('a').getData() : "";
-            final String author2role = (data_field.getSubfield('e') != null) ?
-                    data_field.getSubfield('e').getData() : "";
+            String author2 = null;
+            for (char subfieldCode : author2SubfieldCodes) {
+                final Subfield subfieldField = data_field.getSubfield(subfieldCode);
+                if (subfieldField != null) {
+                    author2 = subfieldField.getData();
+                    break;
+                }
+            }
 
-            final StringBuilder author2AndRole = new StringBuilder();
-            if (author2 != "" && author2role != "") {
+            final Subfield eSubfield = data_field.getSubfield('e');
+            final String author2role = (eSubfield != null) ? translateAuthorRole(cleanRole(eSubfield.getData())) : null;
+
+            if (author2 != null && author2role != null) {
+                final StringBuilder author2AndRole = new StringBuilder();
                 author2AndRole.append(author2);
                 author2AndRole.append("$");
                 author2AndRole.append(author2role);
@@ -748,31 +835,37 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public Set<String> getValuesOrUnassigned(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexer.getFieldList(record, fieldSpecs);
+        final Set<String> values = SolrIndexerShim.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
-            values.add("[Unassigned]");
+            values.add(UNASSIGNED);
         }
         return values;
     }
 
     public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexer.getFieldList(record, fieldSpecs);
+        final Set<String> values = SolrIndexerShim.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
-            values.add("[Unassigned]");
+            values.add(UNASSIGNED);
         }
         return values.iterator().next();
+    }
+
+    private static boolean isSerialComponentPart(final Record record) {
+        final String leader = record.getLeader().toString();
+        return leader.charAt(7) == 'b';
     }
 
     /**
      * Get all available dates from the record.
      *
-     * @param record MARC record
+     * @param record
+     *            MARC record
      * @return set of dates
      */
     public Set<String> getDates(final Record record) {
         final Set<String> dates = new LinkedHashSet<>();
 
-        // Check old-style 260c date:
+        // Check old-style 534c date:
         final List<VariableField> list534 = record.getVariableFields("534");
         for (final VariableField vf : list534) {
             final DataField df = (DataField) vf;
@@ -810,12 +903,12 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final String currentDateStr = Utils.cleanDate(sf.getData());
                 final char ind2 = df.getIndicator2();
                 switch (ind2) {
-                    case '1':
-                        pubDates.add(currentDateStr);
-                        break;
-                    case '4':
-                        copyDates.add(currentDateStr);
-                        break;
+                case '1':
+                    pubDates.add(currentDateStr);
+                    break;
+                case '4':
+                    copyDates.add(currentDateStr);
+                    break;
                 }
             }
         }
@@ -828,26 +921,653 @@ public class TuelibMixin extends SolrIndexerMixin {
         return dates;
     }
 
+    public String isSuperiorWork(final Record record) {
+        final DataField sprField = (DataField) record.getVariableField("SPR");
+        if (sprField == null)
+            return Boolean.FALSE.toString();
+        return Boolean.toString(sprField.getSubfield('a') != null);
+    }
+
+    public String isSubscribable(final Record record) {
+        final DataField sprField = (DataField) record.getVariableField("SPR");
+        if (sprField == null)
+            return Boolean.FALSE.toString();
+        return Boolean.toString(sprField.getSubfield('b') != null);
+    }
+
+    private static String currentYear = null;
+
+    /** @return the last two digits of the current year. */
+    private static String getCurrentYear() {
+        if (currentYear == null) {
+            final DateFormat df = new SimpleDateFormat("yy");
+            currentYear = df.format(Calendar.getInstance().getTime());
+        }
+        return currentYear;
+    }
+
     /**
-     * Get the earliest publication date from the record.
-     *
-     * Fix for NullPointerException!
-     *
-     * @param record MARC record
-     * @return earliest date
+     * @brief Extracts the date (YYMMDD) that the record was created from a part
+     *        of the 008 field.
      */
-    public String getFirstDate(final Record record) {
-        String result = null;
-        final Set<String> dates = getDates(record);
-        for (final String current : dates) {
-            if (result == null || current != null && Integer.parseInt(current) < Integer.parseInt(result)) {
-                result = current;
+    public String getRecordingDate(final Record record) {
+        final ControlField _008_field = (ControlField) record.getVariableField("008");
+        final String fieldContents = _008_field.getData();
+
+        final StringBuilder iso8601_date = new StringBuilder(10);
+        iso8601_date.append(fieldContents.substring(0, 2).compareTo(getCurrentYear()) > 0 ? "19" : "20");
+        iso8601_date.append(fieldContents.substring(0, 2));
+        iso8601_date.append('-');
+        iso8601_date.append(fieldContents.substring(2, 4));
+        iso8601_date.append('-');
+        iso8601_date.append(fieldContents.substring(4, 6));
+        iso8601_date.append("T00:00:00Z");
+
+        return iso8601_date.toString();
+    }
+
+    public Set<String> getGenre(final Record record, final String fieldSpecs) {
+        final Set<String> genres = getValuesOrUnassigned(record, fieldSpecs);
+
+        // Also try to find the code for "Festschrift" in 935$c:
+        final DataField _935Field = (DataField) record.getVariableField("935");
+        if (_935Field != null) {
+            final List<Subfield> cSubfields = _935Field.getSubfields('c');
+            for (final Subfield cSubfield : cSubfields) {
+                if (cSubfield.toString().equals("fe")) {
+                    genres.remove(UNASSIGNED);
+                    genres.add("Festschrift");
+                }
             }
         }
+
+        return genres;
+    }
+
+    /**
+     * Determine Record Formats
+     *
+     * Overwrite the original VuFindIndexer getFormats to do away with the
+     * single bucket approach, i.e. collect all formats you find, i.e. this is
+     * the original code without premature returns which are left in commented
+     * out
+     *
+     * @param record
+     *            MARC record
+     * @return set of record format
+     */
+    public Set<String> getMultipleFormats(final Record record) {
+        Set<String> result = new LinkedHashSet<String>();
+        String leader = record.getLeader().toString();
+        ControlField fixedField = (ControlField) record.getVariableField("008");
+        DataField title = (DataField) record.getVariableField("245");
+        String formatString;
+        char formatCode = ' ';
+        char formatCode2 = ' ';
+        char formatCode4 = ' ';
+
+        // check if there's an h in the 245
+        if (title != null) {
+            if (title.getSubfield('h') != null) {
+                if (title.getSubfield('h').getData().toLowerCase().contains("[electronic resource]")) {
+                    result.add("Electronic");
+                }
+            }
+        }
+
+        // check the 007 - this is a repeating field
+        List<VariableField> fields = record.getVariableFields("007");
+        if (fields != null) {
+            ControlField formatField;
+            for (VariableField varField : fields) {
+                formatField = (ControlField) varField;
+                formatString = formatField.getData().toUpperCase();
+                formatCode = formatString.length() > 0 ? formatString.charAt(0) : ' ';
+                formatCode2 = formatString.length() > 1 ? formatString.charAt(1) : ' ';
+                formatCode4 = formatString.length() > 4 ? formatString.charAt(4) : ' ';
+                switch (formatCode) {
+                case 'A':
+                    switch (formatCode2) {
+                    case 'D':
+                        result.add("Atlas");
+                        break;
+                    default:
+                        result.add("Map");
+                        break;
+                    }
+                    break;
+                case 'C':
+                    switch (formatCode2) {
+                    case 'A':
+                        result.add("TapeCartridge");
+                        break;
+                    case 'B':
+                        result.add("ChipCartridge");
+                        break;
+                    case 'C':
+                        result.add("DiscCartridge");
+                        break;
+                    case 'F':
+                        result.add("TapeCassette");
+                        break;
+                    case 'H':
+                        result.add("TapeReel");
+                        break;
+                    case 'J':
+                        result.add("FloppyDisk");
+                        break;
+                    case 'M':
+                    case 'O':
+                        result.add("CDROM");
+                        break;
+                    case 'R':
+                        // Do not return - this will cause anything with an
+                        // 856 field to be labeled as "Electronic"
+                        break;
+                    default:
+                        result.add("Software");
+                        break;
+                    }
+                    break;
+                case 'D':
+                    result.add("Globe");
+                    break;
+                case 'F':
+                    result.add("Braille");
+                    break;
+                case 'G':
+                    switch (formatCode2) {
+                    case 'C':
+                    case 'D':
+                        result.add("Filmstrip");
+                        break;
+                    case 'T':
+                        result.add("Transparency");
+                        break;
+                    default:
+                        result.add("Slide");
+                        break;
+                    }
+                    break;
+                case 'H':
+                    result.add("Microfilm");
+                    break;
+                case 'K':
+                    switch (formatCode2) {
+                    case 'C':
+                        result.add("Collage");
+                        break;
+                    case 'D':
+                        result.add("Drawing");
+                        break;
+                    case 'E':
+                        result.add("Painting");
+                        break;
+                    case 'F':
+                        result.add("Print");
+                        break;
+                    case 'G':
+                        result.add("Photonegative");
+                        break;
+                    case 'J':
+                        result.add("Print");
+                        break;
+                    case 'L':
+                        result.add("Drawing");
+                        break;
+                    case 'O':
+                        result.add("FlashCard");
+                        break;
+                    case 'N':
+                        result.add("Chart");
+                        break;
+                    default:
+                        result.add("Photo");
+                        break;
+                    }
+                    break;
+                case 'M':
+                    switch (formatCode2) {
+                    case 'F':
+                        result.add("VideoCassette");
+                        break;
+                    case 'R':
+                        result.add("Filmstrip");
+                        break;
+                    default:
+                        result.add("MotionPicture");
+                        break;
+                    }
+                    break;
+                case 'O':
+                    result.add("Kit");
+                    break;
+                case 'Q':
+                    result.add("MusicalScore");
+                    break;
+                case 'R':
+                    result.add("SensorImage");
+                    break;
+                case 'S':
+                    switch (formatCode2) {
+                    case 'D':
+                        result.add("SoundDisc");
+                        break;
+                    case 'S':
+                        result.add("SoundCassette");
+                        break;
+                    default:
+                        result.add("SoundRecording");
+                        break;
+                    }
+                    break;
+                case 'V':
+                    switch (formatCode2) {
+                    case 'C':
+                        result.add("VideoCartridge");
+                        break;
+                    case 'D':
+                        switch (formatCode4) {
+                        case 'S':
+                            result.add("BRDisc");
+                            break;
+                        case 'V':
+                        default:
+                            result.add("VideoDisc");
+                            break;
+                        }
+                        break;
+                    case 'F':
+                        result.add("VideoCassette");
+                        break;
+                    case 'R':
+                        result.add("VideoReel");
+                        break;
+                    default:
+                        result.add("Video");
+                        break;
+                    }
+                    break;
+                }
+            }
+        }
+        // check the Leader at position 6
+        char leaderBit = leader.charAt(6);
+        switch (Character.toUpperCase(leaderBit)) {
+        case 'C':
+        case 'D':
+            result.add("MusicalScore");
+            break;
+        case 'E':
+        case 'F':
+            result.add("Map");
+            break;
+        case 'G':
+            result.add("Slide");
+            break;
+        case 'I':
+            result.add("SoundRecording");
+            break;
+        case 'J':
+            result.add("MusicRecording");
+            break;
+        case 'K':
+            result.add("Photo");
+            break;
+        case 'M':
+            result.add("Electronic");
+            break;
+        case 'O':
+        case 'P':
+            result.add("Kit");
+            break;
+        case 'R':
+            result.add("PhysicalObject");
+            break;
+        case 'T':
+            result.add("Manuscript");
+            break;
+        }
+
+        // check the Leader at position 7
+        leaderBit = leader.charAt(7);
+        switch (Character.toUpperCase(leaderBit)) {
+        // Monograph
+        case 'M':
+            if (formatCode == 'C') {
+                result.add("eBook");
+            } else {
+                result.add("Book");
+            }
+            break;
+        // Component parts
+        case 'A':
+            result.add("BookComponentPart");
+            break;
+        case 'B':
+            result.add("SerialComponentPart");
+            break;
+        // Serial
+        case 'S':
+            // Look in 008 to determine what type of Continuing Resource
+            formatCode = fixedField.getData().toUpperCase().charAt(21);
+            switch (formatCode) {
+            case 'N':
+                result.add("Newspaper");
+                break;
+            case 'P':
+                result.add("Journal");
+                break;
+            default:
+                result.add("Serial");
+                break;
+            }
+        }
+
+        // Nothing worked!
+        if (result.isEmpty()) {
+            result.add("Unknown");
+        }
+
         return result;
     }
 
-    public String isSuperiorWork(final Record record) {
-        return Boolean.toString(record.getVariableField("SPR") != null);
+    /**
+     * Determine Record Format(s)
+     *
+     * @param record
+     *            the record
+     * @return format of record
+     */
+    public Set<String> getFormatsWithGermanHandling(final Record record) {
+        // We've been facing the problem that the original SolrMarc cannot deal
+        // with
+        // german descriptions in the 245h and thus assigns a wrong format
+        // for e.g. electronic resource
+        // Thus we must handle this manually
+
+        Set<String> rawFormats = new LinkedHashSet<String>();
+        DataField title = (DataField) record.getVariableField("245");
+
+        if (title != null) {
+            if (title.getSubfield('h') != null) {
+                if (title.getSubfield('h').getData().toLowerCase().contains("[elektronische ressource]")) {
+                    rawFormats.add("Electronic");
+                    rawFormats.addAll(getMultipleFormats(record));
+                    return rawFormats;
+                } else {
+                    return getMultipleFormats(record);
+                }
+            }
+        }
+
+        // Catch case of empty title
+        return getMultipleFormats(record);
+    }
+
+    /**
+     * Determine Record Format(s) including the electronic tag The electronic
+     * category is filtered out in the actula getFormat function but needed to
+     * determine the media type
+     *
+     * @param record
+     *            the record
+     * @return format of record
+     */
+    public Set<String> getFormatIncludingElectronic(final Record record) {
+        final Set<String> formats = new HashSet<>();
+        Set<String> rawFormats = getFormatsWithGermanHandling(record);
+
+        for (final String rawFormat : rawFormats) {
+            if (rawFormat.equals("BookComponentPart") || rawFormat.equals("SerialComponentPart")) {
+                formats.add("Article");
+            } else {
+                formats.add(rawFormat);
+            }
+        }
+
+        // Determine whether an article is in fact a review
+        final List<VariableField> _655Fields = record.getVariableFields("655");
+        for (final VariableField _655Field : _655Fields) {
+            final DataField dataField = (DataField) _655Field;
+            if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7' && dataField.getSubfield('a').getData().startsWith("Rezension")) {
+                formats.remove("Article");
+                formats.add("Review");
+                break;
+            }
+        }
+
+        // A review can also be indicated if 935$c set to "uwre"
+        final List<VariableField> _935Fields = record.getVariableFields("935");
+        for (final VariableField _935Field : _935Fields) {
+            final DataField dataField = (DataField) _935Field;
+            final Subfield cSubfield = dataField.getSubfield('c');
+            if (cSubfield != null && cSubfield.getData().contains("uwre")) {
+                formats.remove("Article");
+                formats.add("Review");
+                break;
+            }
+        }
+
+        // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
+        for (final VariableField _935Field : _935Fields) {
+            final DataField dataField = (DataField) _935Field;
+            final Subfield cSubfield = dataField.getSubfield('c');
+            if (cSubfield != null && cSubfield.getData().contains("fe")) {
+                formats.add("Festschrift");
+                break;
+            }
+        }
+
+        // Determine whether record is a Website, i.e. has "website" in 935$c
+        for (final VariableField _935Field : _935Fields) {
+            final DataField dataField = (DataField) _935Field;
+            List<Subfield> subfields = dataField.getSubfields();
+            boolean foundMatch = false;
+            for (Subfield subfield : subfields) {
+                if (subfield.getCode() == 'c' && subfield.getData().contains("website")) {
+                    formats.add("Website");
+                    foundMatch = true;
+                    break;
+                }
+            }
+            if (foundMatch == true)
+                break;
+        }
+
+        // Rewrite all E-Books as electronic Books
+        if (formats.contains("eBook")) {
+            formats.remove("eBook");
+            formats.add("Electronic");
+            formats.add("Book");
+        }
+
+        return formats;
+    }
+
+    /**
+     * Determine Format(s) but do away with the electronic tag
+     *
+     * @param record
+     *            the record
+     * @return mediatype of the record
+     */
+
+    public Set<String> getFormat(final Record record) {
+        Set<String> formats = getFormatIncludingElectronic(record);
+
+        // Since we now have an additional facet mediatype we remove the
+        // electronic label
+        formats.remove("Electronic");
+
+        return formats;
+    }
+
+    /**
+     * Determine Mediatype For facets we need to differentiate between
+     * electronic and non-electronic resources
+     *
+     * @param record
+     *            the record
+     * @return mediatype of the record
+     */
+
+    public Set<String> getMediatype(final Record record) {
+        final Set<String> mediatype = new HashSet<>();
+        final Set<String> formats = getFormatIncludingElectronic(record);
+        final String electronicRessource = "Electronic";
+        final String nonElectronicRessource = "Non-Electronic";
+
+        if (formats.contains(electronicRessource)) {
+            mediatype.add(electronicRessource);
+        } else {
+            mediatype.add(nonElectronicRessource);
+        }
+
+        return mediatype;
+    }
+
+    /**
+     * Helper to calculate the first publication date
+     *
+     * @param dates
+     *            String of possible publication dates
+     * @return the first publication date
+     */
+
+    public String calculateFirstPublicationDate(Set<String> dates) {
+        String firstPublicationDate = null;
+        for (final String current : dates) {
+            if (firstPublicationDate == null || current != null && Integer.parseInt(current) < Integer.parseInt(firstPublicationDate))
+                firstPublicationDate = current;
+        }
+        return firstPublicationDate;
+    }
+
+    /**
+     * Helper to cope with differing dates and possible special characters
+     *
+     * @param dates
+     *            String of possible publication dates
+     * @return the first publication date
+     */
+    public String getCleanAndNormalizedDate(final String dateString) {
+        // We have to normalize dates that follow a different calculation of
+        // time, e.g. works with hindu time
+        final String DIFFERENT_CALCULATION_OF_TIME_REGEX = ".*?\\[(.*?)\\=\\s*(\\d+)\\s*\\].*";
+        Matcher differentCalcOfTimeMatcher = Pattern.compile(DIFFERENT_CALCULATION_OF_TIME_REGEX).matcher(dateString);
+        return differentCalcOfTimeMatcher.find() ? differentCalcOfTimeMatcher.group(2) : Utils.cleanDate(dateString);
+
+    }
+
+    /**
+     * Determine the publication date for "date ascending/descending" sorting in
+     * accordance with the rules stated in issue 227
+     *
+     * @param record
+     *            MARC record
+     * @return the publication date to be used for
+     */
+
+    public String getPublicationSortDate(final Record record) {
+
+        final Set<String> format = getFormatIncludingElectronic(record);
+
+        // Case 1 [Article or Review]
+        // Match also the case of publication date transgressing one year
+        // (Format YYYY/YY for older and Format YYYY/YYYY) for
+        // newer entries
+        if (format.contains("Article") || format.contains("Review")) {
+            final DataField _936Field = (DataField) record.getVariableField("936");
+            if (_936Field != null) {
+                final Subfield jSubfield = _936Field.getSubfield('j');
+                if (jSubfield != null) {
+                    String yearOrYearRange = jSubfield.getData();
+                    // Make sure we do away with brackets
+                    yearOrYearRange = yearOrYearRange.replaceAll("[\\[|\\]]", "");
+                    return yearOrYearRange.length() > 4 ? yearOrYearRange.substring(0, 4) : yearOrYearRange;
+
+                } else {
+                    System.err.println("getPublicationSortDate [No matching subfield 'j' in field 936]: " + record.getControlNumber());
+                }
+            } else {
+
+                System.err.println("getPublicationSortDate [No matching 936 field:] " + record.getControlNumber());
+            }
+            return "";
+        }
+
+        // Case 2: Get RDA 264 dates:
+        // Now track down relevant RDA-style 264c dates; we only care about
+        // copyright and publication dates (and ignore copyright dates if
+        // publication dates are present).
+        final Set<String> dates = new LinkedHashSet<>();
+        final Set<String> pubDates = new LinkedHashSet<>();
+        final Set<String> copyDates = new LinkedHashSet<>();
+        final List<VariableField> list264 = record.getVariableFields("264");
+        for (final VariableField vf : list264) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates) {
+                final String currentDateStr = getCleanAndNormalizedDate(sf.getData());
+                final char ind2 = df.getIndicator2();
+                switch (ind2) {
+                case '1':
+                    pubDates.add(currentDateStr);
+                    break;
+                case '4':
+                    copyDates.add(currentDateStr);
+                    break;
+                }
+            }
+        }
+        if (!pubDates.isEmpty()) {
+            dates.addAll(pubDates);
+        } else if (!copyDates.isEmpty()) {
+            dates.addAll(copyDates);
+        }
+
+        if (!dates.isEmpty())
+            return calculateFirstPublicationDate(dates);
+
+        // Case 3: Get old-style 260c
+        final List<VariableField> list260 = record.getVariableFields("260");
+        for (final VariableField vf : list260) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates)
+                dates.add(getCleanAndNormalizedDate(sf.getData()));
+        }
+
+        if (!dates.isEmpty())
+            return calculateFirstPublicationDate(dates);
+
+        // Case 4: Get old-style 534
+        final List<VariableField> list534 = record.getVariableFields("534");
+        for (final VariableField vf : list534) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates) {
+                dates.add(getCleanAndNormalizedDate(sf.getData()));
+            }
+        }
+        if (!dates.isEmpty()) {
+            return calculateFirstPublicationDate(dates);
+        }
+
+        // Else we do not know what to do
+        return "";
+    }
+
+    public String getZDBNumber(final Record record) {
+        final DataField _035Field = (DataField)record.getVariableField("035");
+        if (_035Field == null)
+            return null;
+
+        final Subfield subfieldA = _035Field.getSubfield('a');
+        if (subfieldA == null || !subfieldA.getData().startsWith("(DE-599)ZDB"))
+            return null;
+
+        return subfieldA.getData().substring(11);
     }
 }

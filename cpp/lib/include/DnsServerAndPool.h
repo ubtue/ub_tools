@@ -48,27 +48,27 @@ class DnsServer {
     static uint16_t next_query_id_;
 public:
     struct OutstandingRequest {
-	uint16_t query_id_;
-	std::string hostname_;
-	uint64_t expiration_time_;
+        uint16_t query_id_;
+        std::string hostname_;
+        uint64_t expiration_time_;
     public:
-	OutstandingRequest(const uint16_t query_id, const std::string &hostname, const uint64_t expiration_time)
-	    : query_id_(query_id), hostname_(hostname), expiration_time_(expiration_time) { }
+        OutstandingRequest(const uint16_t query_id, const std::string &hostname, const uint64_t expiration_time)
+            : query_id_(query_id), hostname_(hostname), expiration_time_(expiration_time) { }
     };
 private:
     class OutstandingRequests: private std::list<OutstandingRequest> {
-	const unsigned max_count_; // Store no more than this many requests!
-	unsigned count_;
+        const unsigned max_count_; // Store no more than this many requests!
+        unsigned count_;
     public:
-	OutstandingRequests(const unsigned max_count): max_count_(max_count), count_(0) { }
-	using std::list<OutstandingRequest>::empty;
-	unsigned size() const { return count_; }
-	void addRequest(const uint16_t query_id, const std::string &hostname, const uint64_t expiration_time);
-	bool removeRequest(const uint16_t query_id, std::string * const hostname);
-	void expireOldRequests();
+        OutstandingRequests(const unsigned max_count): max_count_(max_count), count_(0) { }
+        using std::list<OutstandingRequest>::empty;
+        unsigned size() const { return count_; }
+        void addRequest(const uint16_t query_id, const std::string &hostname, const uint64_t expiration_time);
+        bool removeRequest(const uint16_t query_id, std::string * const hostname);
+        void expireOldRequests();
     private:
-	OutstandingRequests(const OutstandingRequests &rhs) = delete;
-	const OutstandingRequests &operator=(const OutstandingRequests &rhs) = delete;
+        OutstandingRequests(const OutstandingRequests &rhs) = delete;
+        const OutstandingRequests &operator=(const OutstandingRequests &rhs) = delete;
     };
     mutable OutstandingRequests outstanding_requests_;
 public:
@@ -116,7 +116,7 @@ public:
      *          entry.
      */
     bool processServerReply(std::vector<in_addr_t> * const resolved_ip_addresses, std::vector<std::string> * const resolved_domainnames,
-			    uint32_t * const ttl, uint16_t * const query_id);
+                            uint32_t * const ttl, uint16_t * const query_id);
 private:
     DnsServer(const DnsServer &rhs) = delete;
     const DnsServer &operator=(const DnsServer &rhs) = delete;
@@ -129,11 +129,11 @@ private:
 class DnsCache {
     const unsigned cache_flush_size_; // Flush the cache when we reach this size.
     struct DnsCacheEntry {
-	time_t expire_time_;
-	in_addr_t ip_address_;
+        time_t expire_time_;
+        in_addr_t ip_address_;
     public:
-	DnsCacheEntry(const uint64_t expire_time, const in_addr_t &ip_address)
-	    : expire_time_(expire_time), ip_address_(ip_address) { }
+        DnsCacheEntry(const uint64_t expire_time, const in_addr_t &ip_address)
+            : expire_time_(expire_time), ip_address_(ip_address) { }
     };
     std::unordered_map<std::string, DnsCacheEntry> resolved_hostnames_cache_;
     unsigned bad_dns_expire_time_;
@@ -145,7 +145,7 @@ public:
      *  \param  bad_dns_expire_time  The amount of time (in seconds) that we cache unresolvable entries for.
      */
     explicit DnsCache(const unsigned cache_flush_size, const unsigned bad_dns_expire_time = 7200)
-	: cache_flush_size_(cache_flush_size), bad_dns_expire_time_(bad_dns_expire_time) { }
+        : cache_flush_size_(cache_flush_size), bad_dns_expire_time_(bad_dns_expire_time) { }
 
     /** \brief  Check for a cached DNS entry.
      *  \param  hostname  Name we'd like to resolve.
@@ -187,8 +187,8 @@ public:
      *  \param  max_cache_size                  Up to how many translations we're willing to cache.
      */
     explicit DnsServerPool(const std::vector<in_addr_t> &dns_server_ip_addresses, std::vector<int> * const server_socket_file_descriptors,
-			   const unsigned request_lifetime = 5000, const unsigned max_queue_length_per_server = 10,
-			   const unsigned max_cache_size = 10000);
+                           const unsigned request_lifetime = 5000, const unsigned max_queue_length_per_server = 10,
+                           const unsigned max_cache_size = 10000);
 
     ~DnsServerPool();
 

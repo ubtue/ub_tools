@@ -42,7 +42,7 @@ void Usage() {
 unsigned GetTableSize(DbConnection * const connection, const std::string &table_name) {
     const std::string SIZE_QUERY("SELECT COUNT(*) FROM " + table_name);
     if (not connection->query(SIZE_QUERY))
-	throw std::runtime_error("Query \"" + SIZE_QUERY + "\" failed because: " + connection->getLastErrorMessage());
+        throw std::runtime_error("Query \"" + SIZE_QUERY + "\" failed because: " + connection->getLastErrorMessage());
     DbResultSet result_set(connection->getLastResultSet());
     const DbRow first_row(result_set.getNextRow());
 
@@ -54,29 +54,29 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 2)
-	Usage();
+        Usage();
     
     unsigned age_in_days;
     if (not StringUtil::ToUnsigned(argv[1], &age_in_days))
-	Error("max_last_used_age is not a valid unsigned number!");
+        Error("max_last_used_age is not a valid unsigned number!");
     const time_t now(std::time(nullptr));
     const time_t cutoff_time(TimeUtil::AddDays(now, -static_cast<int>(age_in_days)));
     const std::string cutoff_datetime(SqlUtil::TimeTToDatetime(cutoff_time));
 
     try {
-	std::string mysql_url;
-	VuFind::GetMysqlURL(&mysql_url);
+        std::string mysql_url;
+        VuFind::GetMysqlURL(&mysql_url);
 
-	DbConnection db_connection(mysql_url);
-	const unsigned size_before_deletion(GetTableSize(&db_connection, "full_text_cache"));
+        DbConnection db_connection(mysql_url);
+        const unsigned size_before_deletion(GetTableSize(&db_connection, "full_text_cache"));
 
-	const std::string DELETION_QUERY("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
-	if (not db_connection.query(DELETION_QUERY))
-	    Error("Query \"" + DELETION_QUERY + "\" failed because: " + db_connection.getLastErrorMessage());
+        const std::string DELETION_QUERY("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
+        if (not db_connection.query(DELETION_QUERY))
+            Error("Query \"" + DELETION_QUERY + "\" failed because: " + db_connection.getLastErrorMessage());
 
-	const unsigned size_after_deletion(GetTableSize(&db_connection, "full_text_cache"));
-	std::cout << "Expired " << (size_before_deletion - size_after_deletion) << " records from the full_text_cache table.\n";
+        const unsigned size_after_deletion(GetTableSize(&db_connection, "full_text_cache"));
+        std::cout << "Expired " << (size_before_deletion - size_after_deletion) << " records from the full_text_cache table.\n";
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));	
+        Error("caught exception: " + std::string(x.what()));    
     }
 }

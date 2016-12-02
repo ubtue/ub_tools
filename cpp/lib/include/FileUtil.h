@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  Copyright 2015-2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -30,11 +30,14 @@
 #define FILE_UTIL_H
 
 
+#include <memory>
 #include <string>
 #include <vector>
 #include <cstdio>
 #include <sys/types.h>
 #include <unistd.h>
+#include "File.h"
+#include "TimeLimit.h"
 
 
 namespace FileUtil {
@@ -178,7 +181,7 @@ bool RemoveDirectory(const std::string &dir_name);
  *  \return The number of matched files if all files matching "filename_regex" have been successfully deleted, else -1.
  */
 ssize_t RemoveMatchingFiles(const std::string &filename_regex, const bool include_directories = true,
-			    const std::string &directory_to_scan = ".");
+                            const std::string &directory_to_scan = ".");
 
 
 /** Repositions the offset of the open file associated with the file descriptor "fd" to the start of the file.
@@ -191,23 +194,23 @@ bool Rewind(const int fd);
  *  \brief  Possible types for a file.
  */
 enum FileType {
-	FILE_TYPE_UNKNOWN,
-	FILE_TYPE_TEXT,      // .txt
-	FILE_TYPE_HTML,      // .htm .html .php
-	FILE_TYPE_PDF,       // .pdf
-	FILE_TYPE_PS,        // .ps, .eps
-	FILE_TYPE_DOC,       // .sxw .doc
-	FILE_TYPE_SLIDES,    // .sxi .ppt
-	FILE_TYPE_TEX,       // .tex ???
-	FILE_TYPE_DVI,       // .dvi
-	FILE_TYPE_TAR,       // .tar
-	FILE_TYPE_RTF,       // .rtf
-	FILE_TYPE_GZIP,      // .tgz, .gz
-	FILE_TYPE_Z,         // .Z    COMPRESS
-	FILE_TYPE_CODE,      // .c, .cc, .h, .pm, ...
-	FILE_TYPE_GRAPHIC,   // .gif, .jpg, ...
-	FILE_TYPE_AUDIO,     // .ogg, .mp3
-	FILE_TYPE_MOVIE      // .mpg, .mpeg, .divx
+        FILE_TYPE_UNKNOWN,
+        FILE_TYPE_TEXT,      // .txt
+        FILE_TYPE_HTML,      // .htm .html .php
+        FILE_TYPE_PDF,       // .pdf
+        FILE_TYPE_PS,        // .ps, .eps
+        FILE_TYPE_DOC,       // .sxw .doc
+        FILE_TYPE_SLIDES,    // .sxi .ppt
+        FILE_TYPE_TEX,       // .tex ???
+        FILE_TYPE_DVI,       // .dvi
+        FILE_TYPE_TAR,       // .tar
+        FILE_TYPE_RTF,       // .rtf
+        FILE_TYPE_GZIP,      // .tgz, .gz
+        FILE_TYPE_Z,         // .Z    COMPRESS
+        FILE_TYPE_CODE,      // .c, .cc, .h, .pm, ...
+        FILE_TYPE_GRAPHIC,   // .gif, .jpg, ...
+        FILE_TYPE_AUDIO,     // .ogg, .mp3
+        FILE_TYPE_MOVIE      // .mpg, .mpeg, .divx
 };
 
 
@@ -229,7 +232,7 @@ std::string FileTypeToString(FileType const file_type);
  *  \return The number of matched file names.
  */
 size_t GetFileNameList(const std::string &filename_regex, std::vector<std::string> * const matched_filenames,
-		       const std::string &directory_to_scan = ".");
+                       const std::string &directory_to_scan = ".");
 
 /** \brief Rename a file or directory.
  *  \param old_name       The original name.
@@ -242,6 +245,75 @@ size_t GetFileNameList(const std::string &filename_regex, std::vector<std::strin
 bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target = false);
 
 
+/** \brief Opens a file for reading or aborts. */
+std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename);
+
+
+/** \brief Opens a file for reading and writing or aborts. */
+std::unique_ptr<File> OpenInputOutputFileOrDie(const std::string &filename);
+
+
+/** \brief Opens a file for writing or aborts. */
+std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename);
+
+
+/** \brief Opens a file for appending or aborts. */
+std::unique_ptr<File> OpenForAppeningOrDie(const std::string &filename);
+
+
+/** \brief Copies "no_of_bytes" from the current file offset of "from" to the current file offset of "to".
+ *  \return True if the copying was successful, else false
+ *  \note If false was returned, errno has been set.
+ */
+bool Copy(File * const from, File * const to, const size_t no_of_bytes);
+
+
+/** \brief  Tests a file descriptor for readiness for reading.
+ *  \param  fd          The file descriptor that we we want to test for read readiness.
+ *  \param  time_limit  Up to how long to wait, in milliseconds, for the descriptor to become ready for reading.
+ *  \return True if the specified file descriptor is ready for reading, otherwise false.
+ *  \note   Please beware that on POSIX based systems it is possible that a file descriptor is ready for reading yet may
+ *          still return 0 bytes!  It just means that read(2) will not hang.
+ */
+bool DescriptorIsReadyForReading(const int fd, const TimeLimit &time_limit = 0);
+
+
+/** \brief  Tests a file descriptor for readiness for writing.
+ *  \param  fd          The file descriptor that we we want to test for write readiness.
+ *  \param  time_limit  Up to how long to wait, in milliseconds, for the descriptor to become ready for writing.
+ *  \return True if the specified file descriptor is ready for writing, otherwise false.
+ *  \note   Please beware that on POSIX based systems it is possible that a file descriptor is ready for writing yet may
+ *          still return 0 bytes!  It just means that write(2) will not hang.
+ */
+bool DescriptorIsReadyForWriting(const int fd, const TimeLimit &time_limit = 0);
+
+
+/** \brief  Reads an arbitrarily long line.
+ *  \param  stream      The input stream to read from.
+ *  \param  line        Where to store the read line.
+ *  \param  terminator  The character terminating the line (won't be stored in "line").
+ *  \return False on EOF, otherwise true.
+ */
+bool GetLine(std::istream &stream, std::string * const line, const char terminator = '\n');
+
+
+/** \brief   Generate a unique filename
+ *  \param   directory        The directory in which to create the temporary file (default: /tmp).
+ *                            If directory is passed to be empty, the default is used again.
+ *  \param   filename_prefix  Optional prefix for the filename.
+ *  \param   filename_suffix  Optional suffix for the filename.
+ *  \return  A new, unique file name.
+ */
+std::string UniqueFileName(const std::string &directory = "/tmp", const std::string &filename_prefix = "",
+                           const std::string &filename_suffix = "");
+    
+
+/** \brief Compares the contents of two files.
+ *  \note  Throws a std::runtime_error exception if "path1" or "path2" can't be read.
+ */
+bool FilesDiffer(const std::string &path1, const std::string &path2);
+
+    
 } // namespace FileUtil
 
 

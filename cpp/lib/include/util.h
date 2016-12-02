@@ -42,14 +42,14 @@
 #define TestAndThrowOrReturn(cond, err_text)                                                                       \
     do {                                                                                                           \
         if (unlikely(cond)) {                                                                                      \
-	    if (unlikely(std::uncaught_exception()))                                                               \
+            if (unlikely(std::uncaught_exception()))                                                               \
                 return;                                                                                            \
-	    else                                                                                                   \
-	        throw std::runtime_error(std::string("in ") + __PRETTY_FUNCTION__ + "(" __FILE__ ":"               \
+            else                                                                                                   \
+                throw std::runtime_error(std::string("in ") + __PRETTY_FUNCTION__ + "(" __FILE__ ":"               \
                                          Stringize(__LINE__) "): " + std::string(err_text)                         \
-					 + std::string(errno != 0 ? " (" + std::string(std::strerror(errno)) + ")" \
-							                 : std::string("")));                      \
-	    }                                                                                                      \
+                                         + std::string(errno != 0 ? " (" + std::string(std::strerror(errno)) + ")" \
+                                                                         : std::string("")));                      \
+            }                                                                                                      \
     } while (false)
 
 

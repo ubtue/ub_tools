@@ -36,8 +36,8 @@ class DbRow {
     const std::map<std::string, unsigned>  *field_name_to_index_map_;
 private:
     explicit DbRow(MYSQL_ROW row, unsigned long * const field_sizes, const unsigned field_count,
-		   const std::map<std::string, unsigned> &field_name_to_index_map)
-	: row_(row), field_sizes_(field_sizes), field_count_(field_count), field_name_to_index_map_(&field_name_to_index_map) { }
+                   const std::map<std::string, unsigned> &field_name_to_index_map)
+        : row_(row), field_sizes_(field_sizes), field_count_(field_count), field_name_to_index_map_(&field_name_to_index_map) { }
 public:
     DbRow(): row_(nullptr), field_sizes_(nullptr), field_count_(0) { }
     DbRow(DbRow &&other);

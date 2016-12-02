@@ -57,6 +57,10 @@ bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 
 /** \brief Convert wide characters to UTF8. */
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string);
+
+
+/** \brief Convert a wide character to UTF8. */
+bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string);
     
 
 /** \brief Converts a UTF8 string to lowercase.
@@ -90,7 +94,7 @@ bool ChopIntoWords(const std::string &text, std::vector<std::string> * const wor
 /** \return The position at which "needle" starts in "haystack" or "haystack.cend()" if "needle"
     is not in "haystack". */
 std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack,
-						       const std::vector<std::string> &needle);
+                                                       const std::vector<std::string> &needle);
 
 
 /** \brief  Base64 encodes a string.
@@ -102,6 +106,13 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 std::string Base64Encode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/');
 
 
+/** \brief Replaces non-printable characters with octal C-style escapes.
+ *  \param also_escape_whitespace  if true, whitespace characters tab, vertical tab, newline, space and
+ *         hard space will also be escaped.
+ */
+std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace = false);
+
+    
 } // namespace TextUtil
 
 

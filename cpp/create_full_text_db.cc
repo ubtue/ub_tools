@@ -35,8 +35,9 @@
 #include "ExecUtil.h"
 #include "FileLocker.h"
 #include "FileUtil.h"
-#include "MarcUtil.h"
-#include "MarcXmlWriter.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -59,26 +60,25 @@ static void Usage() {
 }
 
 
-void FileLockedComposeAndWriteRecord(XmlWriter * const xml_writer, const MarcUtil::Record &record) {
-    File *output(xml_writer->getAssociatedOutputFile());
-    FileLocker file_locker(output, FileLocker::WRITE_ONLY);
-    if (not output->seek(0, SEEK_END))
-        Error("failed to seek to the end of \"" + output->getPath() + "\"!");
-    record.write(xml_writer);
-    output->flush();
+void FileLockedComposeAndWriteRecord(MarcWriter * const marc_writer, MarcRecord * const record) {
+    FileLocker file_locker(&(marc_writer->getFile()), FileLocker::WRITE_ONLY);
+    if (not (marc_writer->getFile().seek(0, SEEK_END)))
+        Error("failed to seek to the end of \"" + marc_writer->getFile().getPath() + "\"!");
+    marc_writer->write(*record);
+    marc_writer->getFile().flush();
 }
 
 
 // Checks subfields "3" and "z" to see if they start w/ "Rezension".
 bool IsProbablyAReview(const Subfields &subfields) {
-    const auto _3_begin_end(subfields.getIterators('3'));
+    const auto &_3_begin_end(subfields.getIterators('3'));
     if (_3_begin_end.first != _3_begin_end.second) {
-        if (StringUtil::StartsWith(_3_begin_end.first->second, "Rezension"))
+        if (StringUtil::StartsWith(_3_begin_end.first->value_, "Rezension"))
             return true;
     } else {
-        const auto z_begin_end(subfields.getIterators('z'));
+        const auto &z_begin_end(subfields.getIterators('z'));
         if (z_begin_end.first != z_begin_end.second
-            and StringUtil::StartsWith(z_begin_end.first->second, "Rezension"))
+            and StringUtil::StartsWith(z_begin_end.first->value_, "Rezension"))
             return true;
     }
 
@@ -86,17 +86,9 @@ bool IsProbablyAReview(const Subfields &subfields) {
 }
 
 
-bool FoundAtLeastOneNonReviewLink(const MarcUtil::Record &record) {
-    const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-    ssize_t _856_index(record.getFieldIndex("856"));
-    if (_856_index == -1)
-        return false;
-
-    const ssize_t dir_entry_count(static_cast<ssize_t>(dir_entries.size()));
-    for (/* Empty! */; _856_index < dir_entry_count and dir_entries[_856_index].getTag() == "856"; ++_856_index) { 
-	const std::vector<std::string> &fields(record.getFields());
-
-        const Subfields subfields(fields[_856_index]);
+bool FoundAtLeastOneNonReviewLink(const MarcRecord &record) {
+    for (size_t _856_index(record.getFieldIndex("856")); record.getTag(_856_index) == "856"; ++_856_index) {
+        const Subfields subfields(record.getSubfields(_856_index));
         if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;
 
@@ -122,36 +114,37 @@ unsigned CleanUpZombies(const unsigned zombies_to_collect) {
 }
 
 
-void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, File * const input,
-                    File * const output, const std::string &db_filename, const unsigned process_count_low_watermark,
-                    const unsigned process_count_high_watermark)
+void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, MarcReader * const marc_reader,
+                    MarcWriter * const marc_writer, const std::string &db_filename,
+                    const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
 {
-    MarcXmlWriter xml_writer(output);
-
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
 
-    const std::string UPDATE_FULL_TEXT_DB_PATH(ExecUtil::Which("update_full_text_db"));
+    const std::string &UPDATE_FULL_TEXT_DB_PATH(ExecUtil::Which("update_full_text_db"));
     if (UPDATE_FULL_TEXT_DB_PATH.empty())
         Error("can't find \"update_full_text_db\" in our $PATH!");
 
     std::cout << "Skip " << skip_count << " records\n";
-
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input)) {
-	record.setRecordWillBeWrittenAsXml(true);
+    off_t record_start = marc_reader->tell();
+    while (MarcRecord record = marc_reader->read()) {
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;
-        if (total_record_count <= skip_count)
+        if (total_record_count <= skip_count) {
+            record_start = marc_reader->tell();
             continue;
+        }
 
         if (not FoundAtLeastOneNonReviewLink(record)) {
-            FileLockedComposeAndWriteRecord(&xml_writer, record);
+            FileLockedComposeAndWriteRecord(marc_writer, &record);
+            record_start = marc_reader->tell();
             continue;
         }
 
         ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
-                        { std::to_string(record.getXmlFileStartOffset()), input->getPath(), output->getPath(), db_filename });
+                        { std::to_string(record_start), marc_reader->getPath(), marc_writer->getFile().getPath(),
+                          db_filename });
         ++active_child_count;
         ++spawn_count;
 
@@ -159,6 +152,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             child_reported_failure_count += CleanUpZombies(active_child_count - process_count_low_watermark);
             active_child_count = process_count_low_watermark;
         }
+        record_start = marc_reader->tell();
     }
 
     // Wait for stragglers:
@@ -221,14 +215,12 @@ int main(int argc, char **argv) {
     }
 
     const std::string marc_input_filename(*argv++);
-    File marc_input(marc_input_filename, "rb");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
     const std::string marc_output_filename(*argv++);
-    File marc_output(marc_output_filename, "wb");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+    if (marc_input_filename == marc_output_filename)
+        Error("input filename must not equal output filename!");
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     const std::string db_filename(*argv);
     kyotocabinet::HashDB db;
@@ -239,8 +231,8 @@ int main(int argc, char **argv) {
     db.close();
 
     try {
-        ProcessRecords(max_record_count, skip_count, &marc_input, &marc_output, db_filename, process_count_low_watermark,
-                       process_count_high_watermark);
+        ProcessRecords(max_record_count, skip_count, marc_reader.get(), marc_writer.get(), db_filename,
+                       process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }

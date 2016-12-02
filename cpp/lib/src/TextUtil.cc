@@ -29,6 +29,7 @@
 #include "TextUtil.h"
 #include <algorithm>
 #include <exception>
+#include <cstdio>
 #include <cwctype>
 #include "Compiler.h"
 #include "Locale.h"
@@ -53,7 +54,7 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
     if (chunk.type_ == HtmlParser::TEXT)
         extracted_text_ += chunk.text_;
 }
-   
+
 
 } // unnamned namespace
 
@@ -91,7 +92,7 @@ bool IsRomanNumeral(const std::string &s) {
 
     return retcode;
 }
-    
+
 
 bool IsUnsignedInteger(const std::string &s) {
     std::string err_msg;
@@ -149,6 +150,19 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
 }
 
 
+bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string) {
+    utf8_string->clear();
+
+    char buf[6];
+    std::mbstate_t state = std::mbstate_t();
+    const size_t retcode(std::wcrtomb(buf, wchar, &state));
+    if (retcode == static_cast<size_t>(-1))
+        return false;
+    utf8_string->append(buf, retcode);
+    return true;
+}
+
+
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string) {
     std::wstring wchar_string;
     if (not UTF8toWCharString(utf8_string, &wchar_string))
@@ -167,15 +181,15 @@ namespace {
 
 
 /** \return True if "number_candidate" is non-empty and consists only of characters belonging
- *	    to the wide-character class "digit"
+ *          to the wide-character class "digit"
  */
 bool IsNumber(const std::wstring &number_candidate) {
     if (number_candidate.empty())
-	return false;
+        return false;
 
     for (const wchar_t ch : number_candidate) {
-	if (not std::iswdigit(ch))
-	    return false;
+        if (not std::iswdigit(ch))
+            return false;
     }
 
     return true;
@@ -183,7 +197,7 @@ bool IsNumber(const std::wstring &number_candidate) {
 
 
 template<typename ContainerType> bool ChopIntoWords(const std::string &text, ContainerType * const words,
-						    const unsigned min_word_length)
+                                                    const unsigned min_word_length)
 {
     words->clear();
 
@@ -200,12 +214,12 @@ template<typename ContainerType> bool ChopIntoWords(const std::string &text, Con
         else if (iswalnum(ch) or ch == L'-' or ch == L'\'') {
             word += ch;
             leading = false;
-	} else if (ch == L'.' and IsNumber(word)) {
-	    word += ch;
-	    if (word.length() >= min_word_length) {
+        } else if (ch == L'.' and IsNumber(word)) {
+            word += ch;
+            if (word.length() >= min_word_length) {
                 if (unlikely(not WCharToUTF8String(word, &utf8_word)))
                     return false;
-                words->insert(words->end(), utf8_word);	
+                words->insert(words->end(), utf8_word);
             }
             word.clear();
             leading = true;
@@ -251,35 +265,35 @@ bool ChopIntoWords(const std::string &text, std::vector<std::string> * const wor
 {
     return ChopIntoWords<std::vector<std::string>> (text, words, min_word_length);
 }
-    
+
 
 std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack,
-						       const std::vector<std::string> &needle)
+                                                       const std::vector<std::string> &needle)
 {
     if (needle.empty())
-	return haystack.cbegin();
+        return haystack.cbegin();
 
     std::vector<std::string>::const_iterator search_start(haystack.cbegin());
     while (search_start != haystack.cend()) {
-	const std::vector<std::string>::const_iterator haystack_start(
+        const std::vector<std::string>::const_iterator haystack_start(
             std::find(search_start, haystack.cend(), needle[0]));
-	if ((haystack.cend() - haystack_start) < static_cast<ssize_t>(needle.size()))
-	    return haystack.cend();
+        if ((haystack.cend() - haystack_start) < static_cast<ssize_t>(needle.size()))
+            return haystack.cend();
 
-	std::vector<std::string>::const_iterator needle_word(needle.cbegin());
-	std::vector<std::string>::const_iterator haystack_word(haystack_start);
-	for (;;) {
-	    ++needle_word;
-	    if (needle_word == needle.cend())
-		return haystack_start;
-	    ++haystack_word;
-	    if (haystack_word == haystack.cend())
-		return haystack.cend();
-	    else if (*haystack_word != *needle_word) {
-		search_start = haystack_start + 1;
-		break;
-	    }
-	}
+        std::vector<std::string>::const_iterator needle_word(needle.cbegin());
+        std::vector<std::string>::const_iterator haystack_word(haystack_start);
+        for (;;) {
+            ++needle_word;
+            if (needle_word == needle.cend())
+                return haystack_start;
+            ++haystack_word;
+            if (haystack_word == haystack.cend())
+                return haystack.cend();
+            else if (*haystack_word != *needle_word) {
+                search_start = haystack_start + 1;
+                break;
+            }
+        }
     }
 
     return haystack.cend();
@@ -294,37 +308,64 @@ std::string Base64Encode(const std::string &s, const char symbol63, const char s
     std::string encoded_chars;
     std::string::const_iterator ch(s.begin());
     while (ch != s.end()) {
-	// Collect groups of 3 characters:
-	unsigned buf(static_cast<unsigned char>(*ch));
-	buf <<= 8u;
-	++ch;
-	unsigned ignore_count(0);
-	if (ch != s.end()) {
-	    buf |= static_cast<unsigned char>(*ch);
-	    ++ch;
-	} else
-	    ++ignore_count;
-	buf <<= 8u;
-	if (ch != s.end()) {
-	    buf |= static_cast<unsigned char>(*ch);
-	    ++ch;
-	}
-	else
-	    ++ignore_count;
+        // Collect groups of 3 characters:
+        unsigned buf(static_cast<unsigned char>(*ch));
+        buf <<= 8u;
+        ++ch;
+        unsigned ignore_count(0);
+        if (ch != s.end()) {
+            buf |= static_cast<unsigned char>(*ch);
+            ++ch;
+        } else
+            ++ignore_count;
+        buf <<= 8u;
+        if (ch != s.end()) {
+            buf |= static_cast<unsigned char>(*ch);
+            ++ch;
+        }
+        else
+            ++ignore_count;
 
-	// Now grab 6 bits at a time and encode them starting with the 4th character:
-	char next4[4];
-	for (unsigned char_no(0); char_no < 4; ++char_no) {
-	    next4[4 - 1 - char_no] = symbols[buf & 0x3Fu];
-	    buf >>= 6u;
-	}
+        // Now grab 6 bits at a time and encode them starting with the 4th character:
+        char next4[4];
+        for (unsigned char_no(0); char_no < 4; ++char_no) {
+            next4[4 - 1 - char_no] = symbols[buf & 0x3Fu];
+            buf >>= 6u;
+        }
 
-	for (unsigned char_no(0); char_no < 4 - ignore_count; ++char_no)
-	    encoded_chars += next4[char_no];
+        for (unsigned char_no(0); char_no < 4 - ignore_count; ++char_no)
+            encoded_chars += next4[char_no];
     }
 
     return encoded_chars;
 }
-    
+
+
+inline bool IsWhiteSpace(const char ch) {
+    return ch == ' ' or ch == '\t' or ch == '\n' or ch == '\v' or ch == '\xA0';
+}
+
+
+inline std::string OctalEscape(const char ch) {
+    char buf[1 + 3 + 1];
+    std::sprintf(buf, "\\%03o", ch);
+    return buf;
+}
+
+
+std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace) {
+    std::string escaped_string;
+    escaped_string.reserve(original_string.size() * 2);
+
+    for (char ch : original_string) {
+        if (std::iscntrl(ch) or (not also_escape_whitespace or IsWhiteSpace(ch)))
+            escaped_string += OctalEscape(ch);
+        else
+            escaped_string += ch;
+    }
+
+    return escaped_string;
+}
+
 
 } // namespace TextUtil

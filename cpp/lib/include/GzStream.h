@@ -52,8 +52,8 @@ private:
     Type type_;
 public:
     explicit GzStream(const Type type, const unsigned compression_level = 9,
-		      void *(*_zalloc)(void *, unsigned int, unsigned int) = nullptr,
-		      void (*_zfree)(void *, void *) = nullptr) throw(std::exception);
+                      void *(*_zalloc)(void *, unsigned int, unsigned int) = nullptr,
+                      void (*_zfree)(void *, void *) = nullptr) throw(std::exception);
     ~GzStream();
 
 
@@ -69,8 +69,8 @@ public:
      *          nullptr and retrieve "output_data" until "compress" returns false.
      */
     bool compress(const char * const input_data, unsigned input_data_size, char * const output_data,
-		  unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced)
-	throw(std::exception);
+                  unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced)
+        throw(std::exception);
 
 
     /** \brief  Decompresses bytes taken from "input_data" and deposits the decompressed output into "output_data."
@@ -79,14 +79,14 @@ public:
      *  \param  output_data      Where to put the decompressed data.
      *  \param  output_data_size The available space in "output_data."
      *  \param  bytes_consumed   The actual number for bytes from "input_data" that have been decompressed.
-     *  \param  bytes_produced   The length of the compressed output "output_data" actually used.
+     *  \param  bytes_produced   The length of the decompressed output "output_data" actually used.
      *  \return Returns true if more decompressed data can be retrieved and false otherwise.
      *  \note   After passing in all data to be decompressed you can call "decompress" with "input_data" set to
      *          nullptr and/or "input_data_size" set to 0 and retrieve "output_data" until "decompress" returns false.
      */
     bool decompress(const char * const input_data, unsigned input_data_size, char * const output_data,
-		    unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced)
-	throw(std::exception);
+                    unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced)
+        throw(std::exception);
 
 
     /** \brief   Decompress a string
@@ -96,7 +96,7 @@ public:
      *  \param   type                  Must be either DECOMPRESS or GUNZIP.
      */
     static void Decompress(const char * const compressed_data, const size_t compressed_data_size,
-			   std::string * const s, const Type type = DECOMPRESS);
+                           std::string * const s, const Type type = DECOMPRESS);
     static void Decompress(const std::string &compressed_data, std::string * const s, const Type type = DECOMPRESS)
         { Decompress(compressed_data.c_str(), compressed_data.length(), s, type); }
 

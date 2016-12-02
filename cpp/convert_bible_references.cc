@@ -21,8 +21,9 @@
 */
 #include <fstream>
 #include <iostream>
-#include "MarcUtil.h"
-#include "MarcXmlWriter.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -34,77 +35,69 @@ static unsigned conversion_count(0);
 // Spits out those records that have a 040$e field which starts with "rak" and has a 130 field.
 // In that case it sets 040$e to "rda", move the contents of 130$a to 130$p and sets 130$a
 // to "Bibel".
-void ProcessRecord(XmlWriter * const xml_writer, MarcUtil::Record * const record) {
-    const ssize_t _040_index(record->getFieldIndex("040"));
-    if (_040_index == -1)
-	return; // Nothing to do!
+void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
+    const size_t _040_index(record->getFieldIndex("040"));
+    if (_040_index == MarcRecord::FIELD_NOT_FOUND)
+        return; // Nothing to do!
 
-    const ssize_t _130_index(record->getFieldIndex("130"));
-    if (_130_index == -1)
-	return; // Nothing to do!
+    const size_t _130_index(record->getFieldIndex("130"));
+    if (_130_index == MarcRecord::FIELD_NOT_FOUND)
+        return; // Nothing to do!
 
-    const std::vector<std::string> &field_data(record->getFields());
-    Subfields _040_subfields(field_data[_040_index]);
+    Subfields _040_subfields(record->getSubfields(_040_index));
     if (not StringUtil::StartsWith(_040_subfields.getFirstSubfieldValue('e'), "rak"))
-	return; // Nothing to do!
+        return; // Nothing to do!
 
-    Subfields _130_subfields(field_data[_130_index]);
+    Subfields _130_subfields(record->getSubfields(_130_index));
     if (not _130_subfields.hasSubfield('a'))
-	return; // Nothing to do!
-
-    record->setRecordWillBeWrittenAsXml(true);
+        return; // Nothing to do!
 
     _040_subfields.setSubfield('e', "rda");
-    record->updateField(static_cast<size_t>(_040_index), _040_subfields.toString());
+    record->updateField(_040_index, _040_subfields.toString());
 
-    if (not (_130_subfields.hasSubfield('p') and _130_subfields.getFirstSubfieldValue('a') == "Bibel")) {
-	if (not _130_subfields.moveSubfield('a', 'p'))
-	    return;
-	_130_subfields.setSubfield('a', "Bibel");
-	record->updateField(static_cast<size_t>(_130_index), _130_subfields.toString());
+    if (not _130_subfields.hasSubfield('p') and _130_subfields.getFirstSubfieldValue('a') != "Bibel") {
+        _130_subfields.moveSubfield('a', 'p');
+        _130_subfields.setSubfield('a', "Bibel");
+        record->updateField(static_cast<size_t>(_130_index), _130_subfields.toString());
     }
 
-    record->write(xml_writer);
+    marc_writer->write(*record);
 
     ++conversion_count;
 }
 
 
-void ConvertBibleRefs(File * const input, File * const output) {
-    MarcXmlWriter xml_writer(output);
-
-    while (MarcUtil::Record record = MarcUtil::Record::XmlFactory(input))
-	ProcessRecord(&xml_writer, &record);
+void ConvertBibleRefs(MarcReader * const marc_reader, MarcWriter * const marc_writer) {
+    while (MarcRecord record = marc_reader->read())
+        ProcessRecord(&record, marc_writer);
 
     std::cerr << "Converted " << conversion_count << " record(s).\n";
 }
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " norm_data_input norm_data_output\n";
+    std::cerr << "Usage: " << ::progname << " norm_data_input norm_data_output\n";
     std::exit(EXIT_FAILURE);
 }
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 3)
         Usage();
 
     const std::string marc_input_filename(argv[1]);
-    File marc_input(marc_input_filename, "rm");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-
     const std::string marc_output_filename(argv[2]);
-    File marc_output(marc_output_filename, "w");
-    if (not marc_output)
-        Error("can't open \"" + marc_output_filename + "\" for writing!");
+    if (marc_input_filename == marc_output_filename)
+        Error("input filename can't equal the output filename!");
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     try {
-	ConvertBibleRefs(&marc_input, &marc_output);
+        ConvertBibleRefs(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

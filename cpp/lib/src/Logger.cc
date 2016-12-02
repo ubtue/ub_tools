@@ -49,37 +49,37 @@ Logger::Logger(const std::string &log_filename, const VerbosityLevel default_ver
     std::string dirname, basename;
     FileUtil::DirnameAndBasename(log_filename, &dirname, &basename);
     if (not dirname.empty() and unlikely(not FileUtil::MakeDirectory(dirname, /* recursive = */ true)))
-	throw std::runtime_error("in Logger::Logger: can't create directory \"" + dirname + "\"!");
+        throw std::runtime_error("in Logger::Logger: can't create directory \"" + dirname + "\"!");
 
     log_file_ = new File(log_filename_, (open_mode == CLEAR ? "w" : "a"));
     if (log_file_->fail())
-	Error("in Logger::Logger: can't open \"" + log_filename_ + "\" for logging!");
+        Error("in Logger::Logger: can't open \"" + log_filename_ + "\" for logging!");
 }
 
 
 Logger::Logger(const char * const log_filename, const VerbosityLevel default_verbosity, const OpenMode open_mode)
-	: destroy_file_(true), already_dead_(false), log_file_(nullptr), log_filename_(log_filename), verbosity_(default_verbosity)
+        : destroy_file_(true), already_dead_(false), log_file_(nullptr), log_filename_(log_filename), verbosity_(default_verbosity)
 {
     // Make sure the logging directory exists:
     std::string dirname, basename;
     FileUtil::DirnameAndBasename(log_filename, &dirname, &basename);
     if (not dirname.empty() and unlikely(not FileUtil::MakeDirectory(dirname, /* recursive = */ true)))
-	throw std::runtime_error("in Logger::Logger: can't create directory \"" + dirname + "\"!");
+        throw std::runtime_error("in Logger::Logger: can't create directory \"" + dirname + "\"!");
 
     log_file_ = new File(log_filename_, (open_mode == CLEAR ? "w" : "a"));
     if (log_file_->fail())
-	Error("in Logger::Logger: can't open \"" + log_filename_ + "\" for logging!");
+        Error("in Logger::Logger: can't open \"" + log_filename_ + "\" for logging!");
 }
 
 
 Logger::Logger(File * const log_file, const VerbosityLevel default_verbosity, const OpenMode open_mode)
-	: destroy_file_(false), already_dead_(false), log_file_(log_file), log_filename_(""), verbosity_(default_verbosity)
+        : destroy_file_(false), already_dead_(false), log_file_(log_file), log_filename_(""), verbosity_(default_verbosity)
 {
     if (log_file_->fail())
-	Error("in Logger::Logger: logger file not working!");
+        Error("in Logger::Logger: logger file not working!");
 
     if (open_mode == CLEAR)
-	clear();
+        clear();
 }
 
 
@@ -93,29 +93,29 @@ Logger::~Logger() { if (destroy_file_) delete log_file_; }
 
 void Logger::reopen(const std::string &log_filename) {
     if (destroy_file_)
-	delete log_file_;
+        delete log_file_;
 
     if (log_filename.empty() and log_filename_.empty())
-	Error("in Loger::reopen: no log filename available!");
+        Error("in Loger::reopen: no log filename available!");
 
     if (not log_filename.empty())
-	log_filename_ = log_filename;
+        log_filename_ = log_filename;
 
     // Make sure the logging directory exists:
     std::string dirname, basename;
     FileUtil::DirnameAndBasename(log_filename, &dirname, &basename);
     if (not dirname.empty() and unlikely(not FileUtil::MakeDirectory(dirname, /* recursive = */ true)))
-	throw std::runtime_error("in Logger::reopen: can't create directory \"" + dirname + "\"!");
+        throw std::runtime_error("in Logger::reopen: can't create directory \"" + dirname + "\"!");
 
     log_file_ = new File(log_filename_.c_str(), "a");
     if (log_file_->fail())
-	throw std::runtime_error("can't open \"" + log_filename_ + "\" for logging!");
+        throw std::runtime_error("can't open \"" + log_filename_ + "\" for logging!");
 }
 
 
 void Logger::log(const VerbosityLevel min_verbosity_level, const char *fmt, ...) {
     if (verbosity_ < min_verbosity_level)
-	return;
+        return;
 
     char msg_buffer[MAX_BUF_SIZE];
 
@@ -143,7 +143,7 @@ void Logger::log(const char *fmt, ...) {
 void Logger::log(const std::string &message) {
     writeLog(message, NON_EXITING);
     if (log_file_->fail())
-	throw std::runtime_error("in Logger::log: failed to write to the log file \"" + log_filename_ + "\"!");
+        throw std::runtime_error("in Logger::log: failed to write to the log file \"" + log_filename_ + "\"!");
 }
 
 
@@ -162,13 +162,13 @@ void Logger::sysLog(const char *fmt, ...) {
 void Logger::sysLog(const std::string &message) {
     writeLog(message, NON_EXITING | HANDLE_ERRNO);
     if (log_file_->fail())
-	throw std::runtime_error("in Logger::syslog: failed to write to the log file \"" + log_filename_ + "\"!");
+        throw std::runtime_error("in Logger::syslog: failed to write to the log file \"" + log_filename_ + "\"!");
 }
 
 
 void Logger::logAndDie(const char *fmt, ...) {
     if (already_dead_)
-	std::exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
 
     char msg_buffer[MAX_BUF_SIZE];
 
@@ -183,12 +183,12 @@ void Logger::logAndDie(const char *fmt, ...) {
 
 void Logger::logAndThrow(const std::string &message) {
     if (already_dead_)
-	std::exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
 
     writeLog(message, EXITING);
     if (log_file_->fail()) {
-	already_dead_ = true;
-	throw std::runtime_error("in Logger::logAndThrow: failed to write to the log file \"" + log_filename_ + "\"!");
+        already_dead_ = true;
+        throw std::runtime_error("in Logger::logAndThrow: failed to write to the log file \"" + log_filename_ + "\"!");
     }
 
     throw std::runtime_error(message);
@@ -197,28 +197,28 @@ void Logger::logAndThrow(const std::string &message) {
 
 void Logger::logAndThrow(const char *fmt, ...)
 {
-	if (already_dead_)
-		std::exit(EXIT_FAILURE);
+        if (already_dead_)
+                std::exit(EXIT_FAILURE);
 
-	char msg_buffer[MAX_BUF_SIZE];
+        char msg_buffer[MAX_BUF_SIZE];
 
-	va_list args;
-	va_start(args, fmt);
-	::vsnprintf(msg_buffer, sizeof(msg_buffer), fmt, args);
-	va_end(args);
+        va_list args;
+        va_start(args, fmt);
+        ::vsnprintf(msg_buffer, sizeof(msg_buffer), fmt, args);
+        va_end(args);
 
-	logAndThrow(std::string(msg_buffer));
+        logAndThrow(std::string(msg_buffer));
 }
 
 
 void Logger::logAndDie(const std::string &message) {
     if (already_dead_)
-	std::exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
 
     writeLog(message, EXITING);
     if (log_file_->fail()) {
-	already_dead_ = true;
-	throw std::runtime_error("in Logger::logAndDie: failed to write to the log file \"" + log_filename_ + "\"!");
+        already_dead_ = true;
+        throw std::runtime_error("in Logger::logAndDie: failed to write to the log file \"" + log_filename_ + "\"!");
     }
 
     std::exit(EXIT_FAILURE);
@@ -227,7 +227,7 @@ void Logger::logAndDie(const std::string &message) {
 
 void Logger::sysLogAndDie(const char *fmt, ...) {
     if (already_dead_)
-	std::exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
 
     char msg_buffer[MAX_BUF_SIZE];
 
@@ -242,12 +242,12 @@ void Logger::sysLogAndDie(const char *fmt, ...) {
 
 void Logger::sysLogAndDie(const std::string &message) {
     if (already_dead_)
-	std::exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
 
     writeLog(message, EXITING | HANDLE_ERRNO);
     if (log_file_->fail()) {
-	already_dead_ = true;
-	throw std::runtime_error("in Logger::sysLogAndDie: failed to write to the log file \"" + log_filename_ + "\"!");
+        already_dead_ = true;
+        throw std::runtime_error("in Logger::sysLogAndDie: failed to write to the log file \"" + log_filename_ + "\"!");
     }
 
     std::exit(EXIT_FAILURE);
@@ -258,9 +258,9 @@ void Logger::writeLog(const std::string &message, const unsigned log_mask) {
     *log_file_ << TimeUtil::GetCurrentDateAndTime() << " [" << ::progname << ", PID:" << ::getpid();
     *log_file_ << "]: ";
     if (log_mask & EXITING)
-	*log_file_ << "Exiting: ";
+        *log_file_ << "Exiting: ";
     *log_file_ << message_prefix_ << message;
     if (log_mask & HANDLE_ERRNO)
-	*log_file_ << " (" << std::to_string(errno) << ')';
+        *log_file_ << " (" << std::to_string(errno) << ')';
     *log_file_ << File::endl;
 }

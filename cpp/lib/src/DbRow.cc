@@ -33,9 +33,9 @@ DbRow::DbRow(DbRow &&other) {
 
 std::string DbRow::operator[](const size_t i) const {
     if (i >= field_count_)
-	throw std::out_of_range("index out of range in DbRow::operator[]: max. index is "
-				+ std::to_string(field_count_ - 1) + ", actual index was "
-				+ std::to_string(i) + "!");
+        throw std::out_of_range("index out of range in DbRow::operator[]: max. index is "
+                                + std::to_string(field_count_ - 1) + ", actual index was "
+                                + std::to_string(i) + "!");
 
     return std::string(row_[i], field_sizes_[i]);
 }
@@ -44,7 +44,7 @@ std::string DbRow::operator[](const size_t i) const {
 std::string DbRow::operator[](const std::string &column_name) const {
     const auto name_and_index_iter(field_name_to_index_map_->find(column_name));
     if (unlikely(name_and_index_iter == field_name_to_index_map_->cend()))
-	throw std::runtime_error("in DbRow::operator[](const std::string&): invalid column name \"" + column_name + "\"!");
+        throw std::runtime_error("in DbRow::operator[](const std::string&): invalid column name \"" + column_name + "\"!");
 
     return std::string(row_[name_and_index_iter->second], field_sizes_[name_and_index_iter->second]);
 }

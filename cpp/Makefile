@@ -1,63 +1,69 @@
-INC             = lib/include
-LIB_SRCS        = lib/src
-CCCFLAGS        = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include \
-                  -ftrapv -Ilib/libstemmer/include \
-                  -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O3 \
-                  -I/usr/include/libxml2
-CCC             = clang++
-MAKE_DEPS=/usr/local/bin/iViaCore-mkdep
+INC            = lib/include
+LIB_SRCS       = lib/src
+CCCFLAGS       = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include \
+                 -ftrapv -Ilib/libstemmer/include \
+                 -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O0 \
+                 -I/usr/include/libxml2
+CCCFLAGS_AMD64 = $(subst -march=native,,$(CCCFLAGS))
+CCC            = clang++
+OBJ            = .
+MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
+LIBS           = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
+                 -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
+                 -lssl -lcrypto -lpthread
+LIBS_AMD64     = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
 
-ifneq ("$(wildcard /etc/centos-release)","")
-  LIBMARIADB=-L/usr/lib64/mysql/ -lmysqlclient
-  LIBCURL=-L/opt/shibboleth/lib64/ -lcurl
-else # Ubuntu version
-  LIBMARIADB=-lmariadbclient
-  LIBCURL=-lcurl
-endif
-LIBS = -Llib -lmarc -Llib/libstemmer -lstemmer -lxml2 -lpthread -lpcre -lcrypto -lkyotocabinet -lmagic -lz -lrt -lssl \
-       -larchive $(LIBCURL) $(LIBMARIADB)
+PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
+AMD64_PROGS    = $(patsubst %.cc,%_amd64,$(wildcard *.cc))
+CGI_PROGS      = full_text_lookup translate_chainer
+INSTALL_PROGS  = $(filter-out %_test,$(PROGS)) *.sh
 
-PROGS := $(patsubst %.cc,%,$(wildcard *.cc))
-CGI_PROGS=full_text_lookup
-INSTALL_PROGS=$(filter-out %_test,$(PROGS)) *.sh
-
-.PHONY: all install root_install clean
+.PHONY: all amd64 install clean
 
 all: .deps $(PROGS)
+amd64: .deps $(AMD64_PROGS)
 
 %.o: %.cc
 	@echo "Compiling $<..."
 	@$(CCC) $(CCCFLAGS) $< -c
 
-$(PROGS): % : %.o lib/libmarc.a
+%_amd64.o: %.cc
+	@echo "Compiling (AMD64) $<..."
+	@$(CCC) --static $(CCCFLAGS_AMD64) $< -c -o $@
+
+$(PROGS): % : %.o lib/libubtue.a
 	@echo "Linking $@..."
 	@$(CCC) $< -o $@ $(LIBS)
+
+$(AMD64_PROGS): % : %.o lib/libubtue.a
+	@echo "Linking $@..."
+	@$(CCC) -static-libgcc -static-libstdc++ $< -o $@ $(LIBS)
 
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile
 	$(MAKE_DEPS) -I $(INC) *.cc
 
-lib/libmarc.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
+lib/libubtue.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
 	$(MAKE) -C lib
 
 tests: $(patsubst %.cc,%,$(wildcard *test.cc))
 
-install: $(INSTALL_PROGS)
-	@echo "Installing programs..."
-	cp $(INSTALL_PROGS) ~/bin/
+install: regular_install cgi_install
 
-root_install: $(INSTALL_PROGS)
+regular_install: $(INSTALL_PROGS)
 	@echo "Installing programs and data..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
 	mkdir --parents /var/lib/tuelib/bibleRef/
 	cp data/books_of_the_bible_to_canonical_form.map \
             /var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map
-	cp data/books_of_the_bible_to_code.map \
-            /var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map
+	mkdir --parents /var/lib/tuelib/translate_chainer
+	cp data/done_translating.html  data/translate.html /var/lib/tuelib/translate_chainer/
+	cp ../configs/ixtheo/subscriptions_email.template /var/lib/tuelib/subscriptions_email.template
 
 cgi_install: $(CGI_PROGS)
+	@echo "Installing CGI programs..."
 	mkdir --parents /var/www/cgi-bin
-	cp full_text_lookup /var/www/cgi-bin/
+	cp $(CGI_PROGS) /var/www/cgi-bin/
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps

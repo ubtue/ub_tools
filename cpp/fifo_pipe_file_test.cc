@@ -41,7 +41,7 @@ void Compress(const std::string &input_filename, const std::string &output_filen
     File output(output_filename, "wc");
     int ch;
     while ((ch = input.get()) != EOF)
-	output.put(static_cast<char>(ch));
+        output.put(static_cast<char>(ch));
 }
 
 
@@ -50,7 +50,7 @@ void Decompress(const std::string &input_filename, const std::string &output_fil
     File output(output_filename, "w");
     int ch;
     while ((ch = input.get()) != EOF)
-	output.put(static_cast<char>(ch));
+        output.put(static_cast<char>(ch));
 }
 
 
@@ -58,17 +58,17 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 4)
-	Usage();
+        Usage();
     const std::string mode(argv[1]);
 
     try {
-	if (mode == "compress")
-	    Compress(argv[2], argv[3]);
-	else if (mode == "decompress")
-	    Decompress(argv[2], argv[3]);
-	else
-	    Usage();
+        if (mode == "compress")
+            Compress(argv[2], argv[3]);
+        else if (mode == "decompress")
+            Decompress(argv[2], argv[3]);
+        else
+            Usage();
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

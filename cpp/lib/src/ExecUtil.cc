@@ -44,13 +44,13 @@ enum class ExecMode {
 
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
          const std::string &new_stdout, const std::string &new_stderr, const ExecMode exec_mode,
-	 unsigned timeout_in_seconds, const int tardy_child_signal)
+         unsigned timeout_in_seconds, const int tardy_child_signal)
 {
     if (::access(command.c_str(), X_OK) != 0)
         throw std::runtime_error("in ExecUtil::Exec: can't execute \"" + command + "\"!");
 
     if (exec_mode == ExecMode::DETACH and timeout_in_seconds > 0)
-	throw std::runtime_error("in ExecUtil::Exec: non-zero timeout is imcompatible w/ ExecMode::DETACH!");
+        throw std::runtime_error("in ExecUtil::Exec: non-zero timeout is imcompatible w/ ExecMode::DETACH!");
 
     const int EXECVE_FAILURE(248);
 
@@ -107,8 +107,8 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
     // The parent of the fork:
     else {
-	if (exec_mode == ExecMode::DETACH)
-	    return pid;
+        if (exec_mode == ExecMode::DETACH)
+            return pid;
 
         void (*old_alarm_handler)(int) = nullptr;
 
@@ -176,52 +176,71 @@ SignalBlocker::SignalBlocker(const int signal_to_block) {
     ::sigemptyset(&new_set);
     ::sigaddset(&new_set, signal_to_block);
     if (::sigprocmask(SIG_BLOCK, &new_set, &saved_set_) != 0)
-	Error("in ExecUtil::SignalBlocker::SignalBlocker: call to sigprocmask(2) failed!");
+        Error("in ExecUtil::SignalBlocker::SignalBlocker: call to sigprocmask(2) failed!");
 }
 
 
 SignalBlocker::~SignalBlocker() {
     if (::sigprocmask(SIG_SETMASK, &saved_set_, nullptr) != 0)
-	Error("in ExecUtil::SignalBlocker::~SignalBlocker: call to sigprocmask(2) failed!");
+        Error("in ExecUtil::SignalBlocker::~SignalBlocker: call to sigprocmask(2) failed!");
 }
 
 
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
          const std::string &new_stdout, const std::string &new_stderr, const unsigned timeout_in_seconds,
-	 const int tardy_child_signal)
+         const int tardy_child_signal)
 {
     return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::WAIT, timeout_in_seconds,
-		  tardy_child_signal);
+                  tardy_child_signal);
 }
 
 
 int Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
-	  const std::string &new_stdout , const std::string &new_stderr)
+          const std::string &new_stdout , const std::string &new_stderr)
 {
     return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::DETACH, 0,
-		  SIGKILL /* Not used because the timeout is 0. */);
+                  SIGKILL /* Not used because the timeout is 0. */);
 }
 
 
 std::string Which(const std::string &executable_candidate) {
     const size_t last_slash_pos(executable_candidate.find_last_of('/'));
     if (last_slash_pos != std::string::npos)
-	return IsExecutableFile(executable_candidate) ? executable_candidate : "";
+        return IsExecutableFile(executable_candidate) ? executable_candidate : "";
 
     const char * const PATH(::secure_getenv("PATH"));
     if (PATH == nullptr)
-	return "";
+        return "";
 
     const std::string path_str(PATH);
     std::vector<std::string> path_compoments;
     StringUtil::Split(path_str, ':', &path_compoments);
     for (const auto &path_compoment : path_compoments) {
-	const std::string full_path(path_compoment + "/" + executable_candidate);
-	if (IsExecutableFile(full_path))
-	    return full_path;
+        const std::string full_path(path_compoment + "/" + executable_candidate);
+        if (IsExecutableFile(full_path))
+            return full_path;
     }
 
     return "";
+}
+
+
+bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output) {
+    stdout_output->clear();
+    
+    FILE * const subcommand_stdout(::popen(command.c_str(), "r"));
+    if (subcommand_stdout == nullptr)
+        return false;
+
+    int ch;
+    while ((ch = std::getc(subcommand_stdout)) != EOF)
+        *stdout_output += static_cast<char>(ch);
+
+    const int ret_code(::pclose(subcommand_stdout));
+    if (ret_code == -1)
+        Error("pclose(3) failed: " + std::string(::strerror(errno)));
+
+    return WEXITSTATUS(ret_code) == 0;
 }
 
 

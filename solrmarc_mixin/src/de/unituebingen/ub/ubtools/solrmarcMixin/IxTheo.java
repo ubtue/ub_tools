@@ -3,6 +3,10 @@ package de.unituebingen.ub.ubtools.solrmarcMixin;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.Reader.*;
+import java.io.*;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.VariableField;
@@ -15,8 +19,8 @@ public class IxTheo extends SolrIndexerMixin {
     private static Set<String> unassigned = Collections.singleton("[Unassigned]");
 
     @Override
-    public void perRecordInit(final Record record) {
-        super.perRecordInit(record);
+    public void perRecordInit() {
+        super.perRecordInit();
         ixTheoNotations = null;
     }
 
@@ -32,9 +36,9 @@ public class IxTheo extends SolrIndexerMixin {
                 return ixTheoNotations;
             }
             // We should only have one 652 field
-            final DataField data_field = (DataField) fields.iterator().next(); 
+            final DataField data_field = (DataField) fields.iterator().next();
             // There should always be exactly one $a subfield
-            final String contents = data_field.getSubfield('a').getData(); 
+            final String contents = data_field.getSubfield('a').getData();
             final String[] parts = contents.split(":");
             Collections.addAll(ixTheoNotations, parts);
         }
@@ -49,439 +53,156 @@ public class IxTheo extends SolrIndexerMixin {
         return ixTheoNotations;
     }
 
-    /**
-     * Determine Record Formats
-     *
-     * Overwrite the original VuFindIndexer getFormats to do away with the
-     * single bucket approach, i.e. collect all formats you find, i.e. this is
-     * the original code without premature returns which are left in commented
-     * out
-     *
-     * @param record
-     *            MARC record
-     * @return set of record format
-     */
-    public Set<String> getMultipleFormats(final Record record) {
-        Set<String> result = new LinkedHashSet<String>();
-        String leader = record.getLeader().toString();
-        ControlField fixedField = (ControlField) record.getVariableField("008");
-        DataField title = (DataField) record.getVariableField("245");
-        String formatString;
-        char formatCode = ' ';
-        char formatCode2 = ' ';
-        char formatCode4 = ' ';
 
-        // check if there's an h in the 245
-        if (title != null) {
-            if (title.getSubfield('h') != null) {
-                if (title.getSubfield('h').getData().toLowerCase().contains("[electronic resource]")) {
-                    result.add("Electronic");
-                }
-            }
-        }
+    public Set<String> getJournalIssue(final Record record) {
+        final DataField _773Field = (DataField)record.getVariableField("773");
+        if (_773Field == null)
+            return null;
 
-        // check the 007 - this is a repeating field
-        List<VariableField> fields = record.getVariableFields("007");
-        if (fields != null) {
-            ControlField formatField;
-            for (VariableField varField : fields) {
-                formatField = (ControlField) varField;
-                formatString = formatField.getData().toUpperCase();
-                formatCode = formatString.length() > 0 ? formatString.charAt(0) : ' ';
-                formatCode2 = formatString.length() > 1 ? formatString.charAt(1) : ' ';
-                formatCode4 = formatString.length() > 4 ? formatString.charAt(4) : ' ';
-                switch (formatCode) {
-                case 'A':
-                    switch (formatCode2) {
-                    case 'D':
-                        result.add("Atlas");
-                        break;
-                    default:
-                        result.add("Map");
-                        break;
-                    }
-                    break;
-                case 'C':
-                    switch (formatCode2) {
-                    case 'A':
-                        result.add("TapeCartridge");
-                        break;
-                    case 'B':
-                        result.add("ChipCartridge");
-                        break;
-                    case 'C':
-                        result.add("DiscCartridge");
-                        break;
-                    case 'F':
-                        result.add("TapeCassette");
-                        break;
-                    case 'H':
-                        result.add("TapeReel");
-                        break;
-                    case 'J':
-                        result.add("FloppyDisk");
-                        break;
-                    case 'M':
-                    case 'O':
-                        result.add("CDROM");
-                        break;
-                    case 'R':
-                        // Do not return - this will cause anything with an
-                        // 856 field to be labeled as "Electronic"
-                        break;
-                    default:
-                        result.add("Software");
-                        break;
-                    }
-                    break;
-                case 'D':
-                    result.add("Globe");
-                    break;
-                case 'F':
-                    result.add("Braille");
-                    break;
-                case 'G':
-                    switch (formatCode2) {
-                    case 'C':
-                    case 'D':
-                        result.add("Filmstrip");
-                        break;
-                    case 'T':
-                        result.add("Transparency");
-                        break;
-                    default:
-                        result.add("Slide");
-                        break;
-                    }
-                    break;
-                case 'H':
-                    result.add("Microfilm");
-                    break;
-                case 'K':
-                    switch (formatCode2) {
-                    case 'C':
-                        result.add("Collage");
-                        break;
-                    case 'D':
-                        result.add("Drawing");
-                        break;
-                    case 'E':
-                        result.add("Painting");
-                        break;
-                    case 'F':
-                        result.add("Print");
-                        break;
-                    case 'G':
-                        result.add("Photonegative");
-                        break;
-                    case 'J':
-                        result.add("Print");
-                        break;
-                    case 'L':
-                        result.add("Drawing");
-                        break;
-                    case 'O':
-                        result.add("FlashCard");
-                        break;
-                    case 'N':
-                        result.add("Chart");
-                        break;
-                    default:
-                        result.add("Photo");
-                        break;
-                    }
-                    break;
-                case 'M':
-                    switch (formatCode2) {
-                    case 'F':
-                        result.add("VideoCassette");
-                        break;
-                    case 'R':
-                        result.add("Filmstrip");
-                        break;
-                    default:
-                        result.add("MotionPicture");
-                        break;
-                    }
-                    break;
-                case 'O':
-                    result.add("Kit");
-                    break;
-                case 'Q':
-                    result.add("MusicalScore");
-                    break;
-                case 'R':
-                    result.add("SensorImage");
-                    break;
-                case 'S':
-                    switch (formatCode2) {
-                    case 'D':
-                        result.add("SoundDisc");
-                        break;
-                    case 'S':
-                        result.add("SoundCassette");
-                        break;
-                    default:
-                        result.add("SoundRecording");
-                        break;
-                    }
-                    break;
-                case 'V':
-                    switch (formatCode2) {
-                    case 'C':
-                        result.add("VideoCartridge");
-                        break;
-                    case 'D':
-                        switch (formatCode4) {
-                        case 'S':
-                            result.add("BRDisc");
-                            break;
-                        case 'V':
-                        default:
-                            result.add("VideoDisc");
-                            break;
-                        }
-                        break;
-                    case 'F':
-                        result.add("VideoCassette");
-                        break;
-                    case 'R':
-                        result.add("VideoReel");
-                        break;
-                    default:
-                        result.add("Video");
-                        break;
-                    }
-                    break;
-                }
-            }
-        }
-        // check the Leader at position 6
-        char leaderBit = leader.charAt(6);
-        switch (Character.toUpperCase(leaderBit)) {
-        case 'C':
-        case 'D':
-            result.add("MusicalScore");
-            break;
-        case 'E':
-        case 'F':
-            result.add("Map");
-            break;
-        case 'G':
-            result.add("Slide");
-            break;
-        case 'I':
-            result.add("SoundRecording");
-            break;
-        case 'J':
-            result.add("MusicRecording");
-            break;
-        case 'K':
-            result.add("Photo");
-            break;
-        case 'M':
-            result.add("Electronic");
-            break;
-        case 'O':
-        case 'P':
-            result.add("Kit");
-            break;
-        case 'R':
-            result.add("PhysicalObject");
-            break;
-        case 'T':
-            result.add("Manuscript");
-            break;
-        }
-        // if (!result.isEmpty()) {
-        // return result;
-        // }
-
-        // check the Leader at position 7
-        leaderBit = leader.charAt(7);
-        switch (Character.toUpperCase(leaderBit)) {
-        // Monograph
-        case 'M':
-            if (formatCode == 'C') {
-                result.add("eBook");
-            } else {
-                result.add("Book");
-            }
-            break;
-        // Component parts
-        case 'A':
-            result.add("BookComponentPart");
-            break;
-        case 'B':
-            result.add("SerialComponentPart");
-            break;
-        // Serial
-        case 'S':
-            // Look in 008 to determine what type of Continuing Resource
-            formatCode = fixedField.getData().toUpperCase().charAt(21);
-            switch (formatCode) {
-            case 'N':
-                result.add("Newspaper");
-                break;
-            case 'P':
-                result.add("Journal");
-                break;
-            default:
-                result.add("Serial");
-                break;
-            }
-        }
-
-        // Nothing worked!
-        if (result.isEmpty()) {
-            result.add("Unknown");
-        }
-
-        return result;
-    }
-
-    /**
-     * Determine Record Format(s)
-     *
-     * @param record
-     *            the record
-     * @return format of record
-     */
-    public Set<String> getFormatsWithGermanHandling(final Record record) {
-        // We've been facing the problem that the original SolrMarc cannot deal
-        // with
-        // german descriptions in the 245h and thus assigns a wrong format
-        // for e.g. electronic resource
-        // Thus we must handle this manually
-
-        Set<String> rawFormats = new LinkedHashSet<String>();
-        DataField title = (DataField) record.getVariableField("245");
-
-        if (title != null) {
-            if (title.getSubfield('h') != null) {
-                if (title.getSubfield('h').getData().toLowerCase().contains("[elektronische ressource]")) {
-                    rawFormats.add("Electronic");
-                    rawFormats.addAll(getMultipleFormats(record));
-                    return rawFormats;
-                } else {
-                    return getMultipleFormats(record);
-                }
-            }
-        }
-
-        // Catch case of empty title
-        return getMultipleFormats(record);
-    }
-
-    /**
-     * Determine Record Format(s) including the electronic tag
-     * The electronic category is filtered out in the actula getFormat function
-     * but needed to determine the media type
-     *
-     * @param record
-     *            the record
-     * @return format of record
-     */
-    public Set getFormatIncludingElectronic(final Record record) {
-        final Set<String> formats = new HashSet<>();
-        Set<String> rawFormats = getFormatsWithGermanHandling(record);
-
-        for (final String rawFormat : rawFormats) {
-            if (rawFormat.equals("BookComponentPart") || rawFormat.equals("SerialComponentPart")) {
-                formats.add("Article");
-            } else {
-                formats.add(rawFormat);
-            }
-        }
-
-        // Determine whether an article is in fact a review
-        final List<VariableField> _655Fields = record.getVariableFields("655");
-        for (final VariableField _655Field : _655Fields) {
-            final DataField dataField = (DataField) _655Field;
-            if (dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
-                    && dataField.getSubfield('a').getData().startsWith("Rezension")) {
-                formats.remove("Article");
-                formats.add("Review");
-                break;
-            }
-        }
-
-        // A review can also be indicated if 935$c set to "uwre"
-        final List<VariableField> _935Fields = record.getVariableFields("935");
-        for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            final Subfield cSubfield = dataField.getSubfield('c');
-            if (cSubfield != null && cSubfield.getData().contains("uwre")) {
-                formats.remove("Article");
-                formats.add("Review");
-                break;
-            }
-        }
-
-        // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
-        for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            final Subfield cSubfield = dataField.getSubfield('c');
-            if (cSubfield != null && cSubfield.getData().contains("fe")) {
-               formats.add("Festschrift");
-               break;
-            }
-        }
-
-        // Rewrite all E-Books as electronic Books
-        if (formats.contains("eBook")) {
-            formats.remove("eBook");
-            formats.add("Electronic");
-            formats.add("Book");
-        }
+        final Subfield aSubfield = _773Field.getSubfield('a');
+        if (aSubfield == null)
+            return null;
         
-        return formats;
-    }
+        final Set<String> subfields = new LinkedHashSet<String>();
+        subfields.add(aSubfield.getData());
 
-    /**
-     * Determine Format(s) but do away with the electronic tag
-     *
-     * @param record
-     *            the record
-     * @return mediatype of the record
-     */
+        final Subfield gSubfield = _773Field.getSubfield('g');
+        if (gSubfield != null)
+            subfields.add(gSubfield.getData());
 
+        final List<Subfield> wSubfields = _773Field.getSubfields('w');
+        for (final Subfield wSubfield : wSubfields) {
+            final String subfieldContents = wSubfield.getData();
+            if (subfieldContents.startsWith("(DE-576)"))
+                subfields.add(subfieldContents);
+        }
 
-    public Set getFormat(final Record record) {
-        Set<String> formats = getFormatIncludingElectronic(record);
-
-        // Since we now have an additional facet mediatype we remove the electronic label 
-        formats.remove("Electronic");
-
-        return formats;
+        return subfields;
     }
 
 
-
-    /**
-     * Determine Mediatype
-     * For facets we need to differentiate between electronic and non-electronic resources
-     *
-     * @param record
-     *            the record
-     * @return mediatype of the record
+    /*
+     * Get the appropriate translation map
      */
 
-    public Set getMediatype(final Record record) {
-        final Set<String> mediatype = new HashSet<>();
-        final Set<String> formats = getFormatIncludingElectronic(record);
-        
-        final String electronicRessource = "Electronic";
-        final String nonElectronicRessource = "Non-Electronic";
+    Map<String, String> translation_map_en = new HashMap<String, String>();
+    Map<String, String> translation_map_fr = new HashMap<String, String>();
 
-	if (formats.contains(electronicRessource)){
-          mediatype.add(electronicRessource);
-        }
-        else {
-          mediatype.add(nonElectronicRessource);
+    public Map<String, String> getTranslationMap(String langShortcut) throws IllegalArgumentException {
+        Map<String, String> translation_map;
+
+        switch (langShortcut) {
+        case "en":
+            translation_map = translation_map_en;
+            break;
+        case "fr":
+            translation_map = translation_map_fr;
+            break;
+        default:
+            throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
         }
 
-        return mediatype;
+        // Only read the data from file if necessary
+        if (translation_map.isEmpty()) {
+            final String dir = "/usr/local/ub_tools/bsz_daten/";
+            final String ext = "txt";
+            final String basename = "normdata_translations";
+
+            try {
+                String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
+                BufferedReader in = new BufferedReader(new FileReader(translationsFilename));
+                String line;
+
+                while ((line = in.readLine()) != null) {
+                    String[] translations = line.split("\\|");
+                    if (!translations[0].equals(""))
+                        translation_map.put(translations[0], translations[1]);
+                }
+            } catch (IOException e) {
+                System.err.println("Could not open file" + e.toString());
+                System.exit(1);
+            }
+        }
+
+        return translation_map;
+    }
+
+    /**
+     * Translate set of terms to given language if a translation is found
+     */
+
+    public Set<String> translateTopics(Set<String> topics, String langShortcut) {
+        if (langShortcut.equals("de"))
+            return topics;
+        Set<String> translated_topics = new HashSet<String>();
+        Map<String, String> translation_map = getTranslationMap(langShortcut);
+
+        for (String topic : topics) {
+            // Some ordinary topics contain words with an escaped slash as a
+            // separator
+            // See whether we can translate the single parts
+            if (topic.contains("\\/")) {
+                String[] subtopics = topic.split("\\/");
+                int i = 0;
+                for (String subtopic : subtopics) {
+                    subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
+                    ++i;
+                }
+                translated_topics.add(Utils.join(new HashSet<String>(Arrays.asList(subtopics)), "\\/"));
+
+            } else {
+                topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+                translated_topics.add(topic);
+            }
+        }
+
+        return translated_topics;
+    }
+
+    /**
+     * Translate a single term to given language if a translation is found
+     */
+
+    public String translateTopic(String topic, String langShortcut) {
+        if (langShortcut.equals("de"))
+            return topic;
+
+        Map<String, String> translation_map = getTranslationMap(langShortcut);
+        String NUMBER_END_PATTERN = "([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)";
+        Matcher numberEndMatcher = Pattern.compile(NUMBER_END_PATTERN).matcher(topic);
+
+        // Some terms contain slash separated subterms, see whether we can
+        // translate them
+        if (topic.contains("\\/")) {
+            String[] subtopics = topic.split("\\\\/");
+            int i = 0;
+            for (String subtopic : subtopics) {
+                subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
+                ++i;
+            }
+            topic = Utils.join(new HashSet<String>(Arrays.asList(subtopics)), "/");
+        }
+        // If we have a topic and a following number, try to separate the word and join it afterwards
+        // This is especially important for time informations where we provide special treatment
+        else if (numberEndMatcher.find()) {
+            String topicText = numberEndMatcher.group(1);
+            String numberExtension = numberEndMatcher.group(2);
+            if (topicText.equals("Geschichte")) {
+                switch (langShortcut) {
+                case "en":
+                    topic = "History" + numberExtension;
+                    break;
+                case "fr":
+                    topic = "Histoire" + numberExtension;
+                    break;
+                }
+            } else {
+                topic = translation_map.get(topicText) != null ? translation_map.get(topicText) + numberExtension : topic;
+            }
+        } else {
+            topic = (translation_map.get(topic) != null) ? translation_map.get(topic) : topic;
+        }
+        return topic;
     }
 
     /**
@@ -492,17 +213,14 @@ public class IxTheo extends SolrIndexerMixin {
      * @return format of record
      */
 
-    // public Set<String> getTopics(final Record record, String fieldSpec,
-    // String[] separators) {
-    public Set<String> getTopics(final Record record, String fieldSpec, String separator) {
+    public Set<String> getTopics(final Record record, String fieldSpec, String separator, String langShortcut) throws FileNotFoundException {
 
-        final Set<String> topics = new LinkedHashSet<String>();
+        final Set<String> topics = new HashSet<String>();
         // It seems to be a general rule that in the fields that the $p fields
         // are converted to a '.'
         // $n is converted to a space if there is additional information
         Map<String, String> separators = parseTopicSeparators(separator);
-        getTopicsCollector(record, fieldSpec, separators, topics);
-
+        getTopicsCollector(record, fieldSpec, separators, topics, langShortcut);
         return topics;
     }
 
@@ -512,7 +230,7 @@ public class IxTheo extends SolrIndexerMixin {
 
     public Map<String, String> parseTopicSeparators(String separatorSpec) {
 
-        final Map<String, String> separators = new LinkedHashMap<String, String>();
+        final Map<String, String> separators = new HashMap<String, String>();
 
         // Split the string at unescaped ":"
         // See
@@ -523,13 +241,11 @@ public class IxTheo extends SolrIndexerMixin {
         final String subfieldDelim = "$";
         final String esc = "\\";
         final String regexColon = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(fieldDelim);
-
         String[] subfieldSeparatorList = separatorSpec.split(regexColon);
         for (String s : subfieldSeparatorList) {
             // System.out.println("separator Spec: " + s);
             // Create map of subfields and separators
-            final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim)
-                    + "([a-zA-Z])(.*)";
+            final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim) + "([a-zA-Z])(.*)";
             Matcher subfieldMatcher = Pattern.compile(regexSubfield).matcher(s);
 
             // Extract the subfield
@@ -558,8 +274,7 @@ public class IxTheo extends SolrIndexerMixin {
     public String getSubfieldBasedSeparator(Map<String, String> separators, char subfieldCodeChar) {
 
         String subfieldCodeString = Character.toString(subfieldCodeChar);
-        String separator = separators.get(subfieldCodeString) != null ? separators.get(subfieldCodeString)
-                : separators.get("default");
+        String separator = separators.get(subfieldCodeString) != null ? separators.get(subfieldCodeString) : separators.get("default");
 
         return separator;
 
@@ -586,8 +301,7 @@ public class IxTheo extends SolrIndexerMixin {
      * characters without ":" and "$" | empty_string
      */
 
-    public void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
-            Collection<String> collector) {
+    public void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators, Collection<String> collector, String langShortcut) {
 
         String[] fldTags = fieldSpec.split(":");
         String fldTag;
@@ -631,23 +345,41 @@ public class IxTheo extends SolrIndexerMixin {
                         // Iterate over all given subfield codes
                         Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
                         List<Subfield> subfields = marcField.getSubfields();
-                        for (Subfield subfield : subfields) {
-                            // Skip numeric fields
-                            if (Character.isDigit(subfield.getCode()))
-                                continue;
-                            Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                            if (matcher.matches()) {
-                                if (buffer.length() > 0) {
-                                    String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                                    if (separator != null) {
-                                        buffer.append(separator);
-                                    }
-                                }
-                                buffer.append(subfield.getData().trim());
+                        // Case 1: The separator specification is empty thus we
+                        // add the subfields individually
+                        if (separators.get("default").equals("")) {
+                            for (Subfield subfield : subfields) {
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                String term = subfield.getData().trim();
+                                if (term.length() > 0)
+                                    // Escape slashes in single topics since
+                                    // they interfere with KWCs
+                                    collector.add(translateTopic(Utils.cleanData(term.replace("/", "\\/")), langShortcut));
                             }
                         }
-                        if (buffer.length() > 0)
-                            collector.add(Utils.cleanData(buffer.toString()));
+                        // Case 2: Generate a complex string using the
+                        // separators
+                        else {
+                            for (Subfield subfield : subfields) {
+                                // Skip numeric fields
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                                if (matcher.matches()) {
+                                    if (buffer.length() > 0) {
+                                        String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
+                                        if (separator != null) {
+                                            buffer.append(separator);
+                                        }
+                                    }
+                                    String term = subfield.getData().trim();
+                                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
+                                }
+                            }
+                            if (buffer.length() > 0)
+                                collector.add(Utils.cleanData(buffer.toString()));
+                        }
                     }
                 }
             }
@@ -661,23 +393,39 @@ public class IxTheo extends SolrIndexerMixin {
                         DataField marcField = (DataField) vf;
                         StringBuffer buffer = new StringBuffer("");
                         List<Subfield> subfields = marcField.getSubfields();
-                        for (Subfield subfield : subfields) {
-                            // Skip numeric fields
-                            if (Character.isDigit(subfield.getCode()))
-                                continue;
-                            Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                            if (matcher.matches()) {
-                                if (buffer.length() > 0) {
-                                    String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                                    if (separator != null) {
-                                        buffer.append(separator);
-                                    }
-                                }
-                                buffer.append(subfield.getData().trim());
+                        // Case 1: The separator specification is empty thus we
+                        // add the subfields individually
+                        if (separators.get("default").equals("")) {
+                            for (Subfield subfield : subfields) {
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                String term = subfield.getData().trim();
+                                if (term.length() > 0)
+                                    collector.add(translateTopic(Utils.cleanData(term.replace("/", "\\/")), langShortcut));
                             }
                         }
-                        if (buffer.length() > 0)
-                            collector.add(Utils.cleanData(buffer.toString()));
+                        // Case 2: Generate a complex string using the
+                        // separators
+                        else {
+                            for (Subfield subfield : subfields) {
+                                // Skip numeric fields
+                                if (Character.isDigit(subfield.getCode()))
+                                    continue;
+                                Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                                if (matcher.matches()) {
+                                    if (buffer.length() > 0) {
+                                        String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
+                                        if (separator != null) {
+                                            buffer.append(separator);
+                                        }
+                                    }
+                                    String term = subfield.getData().trim();
+                                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
+                                }
+                            }
+                            if (buffer.length() > 0)
+                                collector.add(Utils.cleanData(buffer.toString()));
+                        }
                     }
                 }
             }

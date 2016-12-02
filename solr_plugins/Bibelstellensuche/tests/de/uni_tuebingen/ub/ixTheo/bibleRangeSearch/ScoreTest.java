@@ -36,15 +36,15 @@ public class ScoreTest {
 
     @Test
     public void testMarkus5_21_to_43() {
-        final BibleRange[] queryRanges = BibleRange.getRanges(new String[]{"2500521_2500543"});
+        final BibleRange[] queryRanges = BibleRange.getRanges(new String[]{"25005021_25005043"});
 
-        BibleRange[] r0 = BibleRange.getRanges(new String[]{"2500521_2500543"});
-        BibleRange[] r1 = BibleRange.getRanges(new String[]{"2500400_2500899"});
-        BibleRange[] r2 = BibleRange.getRanges(new String[]{"2500100_2500826"});
-        BibleRange[] r3 = BibleRange.getRanges(new String[]{"2500100_2500899"});
-        BibleRange[] r4 = BibleRange.getRanges(new String[]{"2500100_2501399"});
-        BibleRange[] r5 = BibleRange.getRanges(new String[]{"0100920_0100922", "0500843_0500848", "2500525_2500534"});
-        BibleRange[] r6 = BibleRange.getRanges(new String[]{"2500521_2500524", "2500535_2500543"});
+        BibleRange[] r0 = BibleRange.getRanges(new String[]{"25005021_25005043"});
+        BibleRange[] r1 = BibleRange.getRanges(new String[]{"25004000_25008099"});
+        BibleRange[] r2 = BibleRange.getRanges(new String[]{"25001000_25008026"});
+        BibleRange[] r3 = BibleRange.getRanges(new String[]{"25001000_25008099"});
+        BibleRange[] r4 = BibleRange.getRanges(new String[]{"25001000_25013099"});
+        BibleRange[] r5 = BibleRange.getRanges(new String[]{"01009020_01009022", "05008043_05008048", "25005025_25005034"});
+        BibleRange[] r6 = BibleRange.getRanges(new String[]{"25005021_25005024", "25005035_25005043"});
 
         HashMap<BibleRange[], Integer> expectedRanking = new HashMap<>();
         expectedRanking.put(r0, 0);
@@ -63,12 +63,12 @@ public class ScoreTest {
 
     @Test
     public void testPsalm_22_2() {
-        final BibleRange[] queryRanges = BibleRange.getRanges(new String[]{"6802202_6802202"});
+        final BibleRange[] queryRanges = BibleRange.getRanges(new String[]{"68022002_68022002"});
 
-        BibleRange[] r0 = BibleRange.getRanges(new String[]{"6800100_6805099"});
-        BibleRange[] r1 = BibleRange.getRanges(new String[]{"6802200_6802299"});
-        BibleRange[] r2 = BibleRange.getRanges(new String[]{"6800100_6804199"});
-        BibleRange[] r3 = BibleRange.getRanges(new String[]{"6800100_6807299"});
+        BibleRange[] r0 = BibleRange.getRanges(new String[]{"68001000_68050099"});
+        BibleRange[] r1 = BibleRange.getRanges(new String[]{"68022000_68022099"});
+        BibleRange[] r2 = BibleRange.getRanges(new String[]{"68001000_68041099"});
+        BibleRange[] r3 = BibleRange.getRanges(new String[]{"68001000_68072099"});
 
         HashMap<BibleRange[], Integer> expectedRanking = new HashMap<>();
         expectedRanking.put(r0, 2);

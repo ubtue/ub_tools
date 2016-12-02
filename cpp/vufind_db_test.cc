@@ -35,15 +35,15 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 1)
-	Usage();
+        Usage();
 
     try {
-	std::string mysql_url;
-	VuFind::GetMysqlURL(&mysql_url);
+        std::string mysql_url;
+        VuFind::GetMysqlURL(&mysql_url);
 
-	// The following definition would throw an exception if the "mysql_url" was invalid:
-	DbConnection db_connection(mysql_url);
+        // The following definition would throw an exception if the "mysql_url" was invalid:
+        DbConnection db_connection(mysql_url);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));	
+        Error("caught exception: " + std::string(x.what()));    
     }
 }
