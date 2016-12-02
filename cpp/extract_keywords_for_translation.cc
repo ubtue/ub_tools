@@ -80,17 +80,26 @@ using TextLanguageCodeStatusAndOriginTag = std::tuple<std::string, std::string, 
 
 void ExtractGermanTerms(
     const MarcRecord &record,
-    std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags) {
+    std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags)
+{
     for (size_t _150_index(record.getFieldIndex("150"));
              _150_index < record.getNumberOfFields() and record.getTag(_150_index) == "150"; ++_150_index)
-        {
-            const Subfields _150_subfields(record.getSubfields(_150_index));
-            if (_150_subfields.hasSubfield('a')) {
-                text_language_codes_statuses_and_origin_tags->emplace_back(
-                    _150_subfields.getFirstSubfieldValue('a'), "deu", RELIABLE, "150");
-                ++german_term_count;
+    {
+        const Subfields _150_subfields(record.getSubfields(_150_index));
+        std::string subfield_a_contents(_150_subfields.getFirstSubfieldValue('a'));
+        if (likely(not subfield_a_contents.empty())) {
+            std::string complete_keyword_phrase(StringUtil::RemoveChars("<>", &subfield_a_contents));
+            std::string _9_subfield(_150_subfields.getFirstSubfieldValue('9'));
+            if (StringUtil::StartsWith(_9_subfield, "g:")) {
+                _9_subfield = _9_subfield.substr(2);
+                complete_keyword_phrase += " <" + StringUtil::RemoveChars("<>", &_9_subfield) + ">";
             }
+            text_language_codes_statuses_and_origin_tags->emplace_back(
+                complete_keyword_phrase,
+                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE, "150");
+            ++german_term_count;
         }
+    }
 }
 
 
@@ -104,7 +113,9 @@ void ExtractGermanSynonyms(
         const Subfields _450_subfields(record.getSubfields(_450_index));
         if (_450_subfields.hasSubfield('a')) {
             text_language_codes_statuses_and_origin_tags->emplace_back(
-                _450_subfields.getFirstSubfieldValue('a'), "deu", RELIABLE_SYNONYM, "450");
+                _450_subfields.getFirstSubfieldValue('a'),
+                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE_SYNONYM,
+                "450");
             ++synonym_count;
         }
     }
@@ -147,7 +158,9 @@ void ExtractNonGermanTranslations(
             if (not language_code.empty())
                 ++additional_hits;
         }
-        if (not language_code.empty()) {
+
+        language_code = TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code);
+        if (language_code != "???") {
             const bool is_synonym(IsSynonym(_750_subfields));
             Status status;
             if (_750_subfields.getFirstSubfieldValue('2') == "IxTheo")

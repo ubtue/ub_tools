@@ -27,6 +27,7 @@
 #include "IniFile.h"
 #include "MarcRecord.h"
 #include "StringUtil.h"
+#include "TranslationUtil.h"
 #include "util.h"
 
 
@@ -47,10 +48,29 @@ inline bool IsSynonym(const std::string &status) {
 }
 
 
+void GetMainAndAdditionalTranslations(const std::string &translation, std::string * main_translation,
+                                      std::string * additional_translation)
+{
+    main_translation->clear(), additional_translation->clear();
+    
+    const size_t first_lt_pos(translation.find('<'));
+    if (first_lt_pos == std::string::npos)
+        *main_translation = translation;
+    else {
+        const size_t first_gt_pos(translation.find('>'));
+        if (unlikely(first_gt_pos == std::string::npos or first_gt_pos <= first_lt_pos + 1))
+            Warning("malformed translation: \"" + translation + "\"!");
+        else {
+            *main_translation = StringUtil::RightTrim(translation.substr(0, first_lt_pos));
+            *additional_translation = translation.substr(first_lt_pos + 1, first_gt_pos - first_lt_pos - 1);
+        }
+    }
+}
+
+
 void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * const marc_writer) {
     ExecSqlOrDie("SELECT DISTINCT ppn FROM keyword_translations WHERE status='new' OR status='replaced'"
-                 " OR status='replaced_synonym' OR status='new_synonym'",
-                 db_connection);
+                 " OR status='replaced_synonym' OR status='new_synonym'", db_connection);
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
         const std::string ppn(ppn_row["ppn"]);
@@ -65,8 +85,15 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * co
 
         while (const DbRow row = result_set.getNextRow()) {
             Subfields subfields(' ', ' ');
-            subfields.addSubfield('a', row["translation"]);
-            subfields.addSubfield('9', "L:" + row["language_code"]);
+            std::string main_translation, additional_translation;
+            GetMainAndAdditionalTranslations(row["translation"], &main_translation, &additional_translation);
+            subfields.addSubfield('a', main_translation);
+            if (not additional_translation.empty())
+                subfields.addSubfield('9', "g:" + additional_translation);
+            subfields.addSubfield(
+                '9',
+                "L:"
+                + TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row["language_code"]));
             subfields.addSubfield('9', "Z:" + std::string(IsSynonym(status) ? "VW" : "AF"));
             subfields.addSubfield('2', "IxTheo");
             new_record.insertField("750", subfields);
