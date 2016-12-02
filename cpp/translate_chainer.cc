@@ -126,7 +126,8 @@ std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::s
 
 
 void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &output, const std::string &language_code,
-                                                        const std::string &action)
+                                                        const std::string &action, const std::string &error_message = "",
+                                                        const std::string &user_translation = "")
 {
     std::vector<Translation> translations;
     ParseTranslationsDbToolOutput(output, &translations);
@@ -154,6 +155,11 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
         names_to_values_map.emplace(std::make_pair(std::string("url_escaped_example_text"),
                                                    url_escaped_example_texts));
 
+        if (not error_message.empty()) {
+            names_to_values_map.emplace("error_message", std::vector<std::string>{ error_message });
+            names_to_values_map.emplace("user_translation", std::vector<std::string>{ user_translation });
+        }
+
         std::ifstream translate_html("/var/lib/tuelib/translate_chainer/translate.html", std::ios::binary);
         MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
     }
@@ -171,26 +177,28 @@ void GetMissing(const std::multimap<std::string, std::string> &cgi_args) {
 }
 
 
+void GetExisting(const std::string &language_code, const std::string &category, const std::string &index, std::string *const output) {
+    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code + "\" \"" + category + "\" \"" + index + "\"");
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_EXISTING_COMMAND, output))
+        Error("failed to execute \"" + GET_EXISTING_COMMAND + "\" or it returned a non-zero exit code!");
+}
+
 void GetExisting(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
     const std::string category(GetCGIParameterOrDie(cgi_args, "category"));
     const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code + "\" \"" + category + "\" \"" + index + "\"");
     std::string output;
-    if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_EXISTING_COMMAND, &output))
-        Error("failed to execute \"" + GET_EXISTING_COMMAND + "\" or it returned a non-zero exit code!");
-
+    GetExisting(language_code, category, index, &output);
     ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, "update");
 }
 
 
-void ValidateTranslation(const std::string &ppn, const std::string &new_translation) {
+bool IsValidTranslation(const std::string &ppn, const std::string &new_translation, std::string *const error_message) {
     std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword '" + ppn + " " + new_translation);
-    std::string output;
-    if (not ExecUtil::ExecSubcommandAndCaptureStdout(validate_command, &output))
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(validate_command, error_message))
         Error("failed to execute \"" + validate_command + "\" or it returned a non-zero exit code!");
-
-
+    return error_message->empty();
 }
 
 
@@ -202,6 +210,14 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
 
     if (translation.empty())
         return;
+
+    std::string error_message;
+    if (not gnd_code.empty() and not IsValidTranslation(index, translation, &error_message)) {
+        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+        std::string output;
+        GetExisting(language_code, "keyword_translation", index, &output);
+        ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, "insert", error_message, translation);
+    }
 
     std::string insert_command("/usr/local/bin/translation_db_tool insert '" + index);
     if (not gnd_code.empty())
@@ -222,6 +238,14 @@ void Update(const std::multimap<std::string, std::string> &cgi_args) {
 
     if (translation.empty())
         return;
+
+    std::string error_message;
+    if (not gnd_code.empty() and not IsValidTranslation(index, translation, &error_message)) {
+        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+        std::string output;
+        GetExisting(language_code, "keyword_translation", index, &output);
+        ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, "update", error_message, translation);
+    }
 
     std::string update_command("/usr/local/bin/translation_db_tool update '" + index);
     if (not gnd_code.empty())
