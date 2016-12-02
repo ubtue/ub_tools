@@ -184,6 +184,21 @@ void UpdateIntoKeywordTranslations(DbConnection * const connection, const std::s
 }
 
 
+void ValidateKeywordTranslation(DbConnection * const connection, const std::string &ppn, const std::string &translation) {
+    const std::string query("SELECT translation FROM keyword_translations WHERE ppn = \"" + ppn + "\";");
+    ExecSqlOrDie(query, connection);
+    DbResultSet result_set(connection->getLastResultSet());
+
+    while (const DbRow row = result_set.getNextRow()) {
+        if (row["translation"].find("<") < row["translation"].find(">")
+            and not(translation.find("<") < translation.find(">"))) {
+            std::cout << "Your translation has to have a tag enclosed by '<' and '>'!";
+            return;
+        }
+    }
+}
+
+
 const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
@@ -246,6 +261,12 @@ int main(int argc, char *argv[]) {
                 UpdateIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4]);
             else
                 UpdateIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5]);
+        } if (std::strcmp(argv[1], "validate_keyword") == 0) {
+            if (argc != 4)
+                Error("\"get_missing\" requires exactly two argument: ppn translation!");
+            const std::string ppn(argv[2]);
+            const std::string translation(argv[3]);
+            ValidateKeywordTranslation(&db_connection, ppn, translation);
         } else
             Error("unknown command \"" + std::string(argv[1]) + "\"!");
     } catch (const std::exception &x) {
