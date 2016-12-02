@@ -104,6 +104,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
+    private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?(-\\d+)?");
     private final static String UNASSIGNED = "[Unassigned]";
 
     // Map used by getPhysicalType().
@@ -1478,22 +1479,20 @@ public class TuelibMixin extends SolrIndexerMixin {
         // (Format YYYY/YY for older and Format YYYY/YYYY) for
         // newer entries
         if (format.contains("Article") || format.contains("Review")) {
-            final DataField _936Field = (DataField) record.getVariableField("936");
-            if (_936Field != null) {
+            final List<VariableField> _936Fields = record.getVariableFields("936");
+            for (VariableField _936VField : _936Fields) {
+                DataField _936Field = (DataField) _936VField;
                 final Subfield jSubfield = _936Field.getSubfield('j');
                 if (jSubfield != null) {
                     String yearOrYearRange = jSubfield.getData();
+                    // Partly, we have additional text like "Post annum domini" in the front, so do away with that
+                    yearOrYearRange = yearOrYearRange.replaceAll("^[\\D\\[\\]]+", "");
                     // Make sure we do away with brackets
                     yearOrYearRange = yearOrYearRange.replaceAll("[\\[|\\]]", "");
                     return yearOrYearRange.length() > 4 ? yearOrYearRange.substring(0, 4) : yearOrYearRange;
-
-                } else {
-                    System.err.println("getPublicationSortDate [No matching subfield 'j' in field 936]: " + record.getControlNumber());
                 }
-            } else {
-
-                System.err.println("getPublicationSortDate [No matching 936 field:] " + record.getControlNumber());
             }
+            System.err.println("getPublicationSortDate [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
             return "";
         }
 
@@ -1526,7 +1525,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         } else if (!copyDates.isEmpty()) {
             dates.addAll(copyDates);
         }
-
         if (!dates.isEmpty())
             return calculateFirstPublicationDate(dates);
 
@@ -1538,7 +1536,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             for (final Subfield sf : currentDates)
                 dates.add(getCleanAndNormalizedDate(sf.getData()));
         }
-
         if (!dates.isEmpty())
             return calculateFirstPublicationDate(dates);
 
@@ -1551,12 +1548,17 @@ public class TuelibMixin extends SolrIndexerMixin {
                 dates.add(getCleanAndNormalizedDate(sf.getData()));
             }
         }
-        if (!dates.isEmpty()) {
+        if (!dates.isEmpty()) 
             return calculateFirstPublicationDate(dates);
-        }
 
-        // Else we do not know what to do
-        return "";
+        // Case 5: Fall back to field 008
+        final ControlField _008_field = (ControlField) record.getVariableField("008");
+        if (_008_field == null) {
+            System.err.println("getPublicationSortDate [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
+            return "";
+        }
+        final String _008FieldContents = _008_field.getData();
+        return _008FieldContents.substring(7, 10);
     }
 
     public String getZDBNumber(final Record record) {
@@ -1569,5 +1571,22 @@ public class TuelibMixin extends SolrIndexerMixin {
             return null;
 
         return subfieldA.getData().substring(11);
+    }
+
+    public String getStartPage(final Record record) {
+        final DataField _936Field = (DataField)record.getVariableField("936");
+        if (_936Field == null)
+           return null;
+        final Subfield subfieldH = _936Field.getSubfield('h');
+        if (subfieldH == null)
+            return null;
+
+        final String pages = subfieldH.getData();
+        final Matcher matcher = START_PAGE_MATCH_PATTERN.matcher(pages);
+        if (matcher.matches()) {
+            final String start_page = matcher.group(1);
+            return start_page;
+        }
+        return null;
     }
 }

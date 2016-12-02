@@ -104,7 +104,7 @@ StartPhase "Extract Translation Keywords and Generate Interface Translation File
 extract_vufind_translations_for_translation \
     $(ls "$VUFIND_HOME"/local/languages/??.ini | grep 'de.ini$') \
     $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
-generate_vufind_translation_files "$VUFIND_HOME"/local/languages/ && \
+generate_vufind_translation_files "$VUFIND_HOME"/local/languages/ >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait 
 

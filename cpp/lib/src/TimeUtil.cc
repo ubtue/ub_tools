@@ -166,17 +166,25 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
                                 unsigned * const second, bool * const is_definitely_zulu_time)
 {
     // First check for a simple time and date (can be local or UTC):
-    if (possible_date.length() == 19 and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u %2u:%2u:%2u", year, month, day, hour, minute, second) == 6) {
+    if (possible_date.length() == 19
+        and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u %2u:%2u:%2u",
+                        year, month, day, hour, minute, second) == 6)
+    {
         *is_definitely_zulu_time = false;
         return 6;
     }
     // Check for Zulu time format (must be UTC)
-    else if (possible_date.length() == 20 and std::sscanf(possible_date.c_str(), "%4u-%2u-%2uT%2u:%2u:%2uZ", year, month, day, hour, minute, second) == 6) {
+    else if (possible_date.length() == 20
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2uT%2u:%2u:%2uZ",
+                             year, month, day, hour, minute, second) == 6)
+    {
         *is_definitely_zulu_time = true;
         return 6;
     }
     // Next check a simple date
-    else if (possible_date.length() == 10 and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u", year, month, day) == 3) {
+    else if (possible_date.length() == 10
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u", year, month, day) == 3)
+    {
         *hour = *minute = *second = 0;
         *is_definitely_zulu_time = false;
         return 3;
@@ -210,7 +218,8 @@ time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zon
         tm_struct.tm_sec   = second;
         the_time = ::timegm(&tm_struct);
         if (the_time == static_cast<time_t>(-1))
-            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
+            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time
+                                     + "' to a time_t!");
     }
 
     // Check for a simple time and date (can be local or UTC):
@@ -229,7 +238,8 @@ time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zon
         else
             the_time = TimeGm(tm_struct);
         if (the_time == static_cast<time_t>(-1))
-            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
+            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time
+                                     + "' to a time_t!");
     }
 
     // Next check a simple date
@@ -245,9 +255,10 @@ time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zon
         else
             the_time = ::timegm(&tm_struct);
         if (the_time == static_cast<time_t>(-1))
-            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
+            throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time
+                                     + "' to a time_t!");
     } else
-        throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time +"' to a time_t!");
+        throw std::runtime_error("in TimeUtil::Iso8601StringToTimeT: cannot convert '" + iso_time + "' to a time_t!");
 
     return the_time;
 }
@@ -317,20 +328,25 @@ time_t ConvertHumanDateTimeToTimeT(const std::string &human_date) {
     static RegExpMap expressions;
     if (expressions.empty()) {
         expressions.insert(
-            RegExpMap::value_type("%Y %m %d %H %M %S",
-                                  PerlCompatRegExp("[12][0-9]{3}[01][0-9][012][0-9][0-6][0-9][0-6][0-9][0-6][0-9]")));
+            RegExpMap::value_type(
+                "%Y %m %d %H %M %S",
+                PerlCompatRegExp("[12][0-9]{3}[01][0-9][012][0-9][0-6][0-9][0-6][0-9][0-6][0-9]")));
         expressions.insert(
-            RegExpMap::value_type("%Y-%m-%d %T",
-                                  PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9]")));
+            RegExpMap::value_type(
+                "%Y-%m-%d %T",
+                PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9]")));
         expressions.insert(
-            RegExpMap::value_type("%Y-%m-%dT%TZ",
-                                  PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9]T[012][0-9]:[0-6][0-9]:[0-6][0-9]Z")));
+            RegExpMap::value_type(
+                "%Y-%m-%dT%TZ",
+                PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9]T[012][0-9]:[0-6][0-9]:[0-6][0-9]Z")));
         expressions.insert(
-            RegExpMap::value_type("%A %b %d, %Y %I:%M%p",
-                                  PerlCompatRegExp("[[:alpha:]]+ [ 0123][0-9], [12][0-9]{3} [ 012][0-9]:[0-6][0-9][AP]M")));
+            RegExpMap::value_type(
+                "%A %b %d, %Y %I:%M%p",
+                PerlCompatRegExp("[[:alpha:]]+ [ 0123][0-9], [12][0-9]{3} [ 012][0-9]:[0-6][0-9][AP]M")));
         expressions.insert(
-            RegExpMap::value_type("%a %b %e %T %Y",
-                                  PerlCompatRegExp("[[:alpha:]]+ [ 123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9] [12][0-9]{3}")));
+            RegExpMap::value_type(
+                "%a %b %e %T %Y",
+                PerlCompatRegExp("[[:alpha:]]+ [ 123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9] [12][0-9]{3}")));
     }
 
     struct tm time_elements;
@@ -374,4 +390,11 @@ void Millisleep(const unsigned sleep_interval) {
 }
 
 
+std::string GetCurrentYear(const TimeZone time_zone) {
+    time_t now;
+    std::time(&now);
+    return TimeTToString(now, "%Y", time_zone);
+}
+
+    
 } // namespace TimeUtil

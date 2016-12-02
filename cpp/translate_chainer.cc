@@ -27,6 +27,7 @@
 #include <cstring>
 #include "Compiler.h"
 #include "ExecUtil.h"
+#include "HtmlUtil.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -71,7 +72,8 @@ struct Translation {
 };
 
 
-const std::string NO_GND_CODE("-1");
+const std::string NO_GND_CODE("0");
+const std::string NO_ORIGIN("");
 
 
 void ParseGetMissingLine(const std::string &line, Translation * const translation) {
@@ -85,7 +87,7 @@ void ParseGetMissingLine(const std::string &line, Translation * const translatio
     translation->language_code_   = parts[2];
     translation->text_            = parts[3];
     translation->category_        = parts[4];
-    translation->gnd_code_        = (parts.size() == 5) ? NO_GND_CODE : parts[5];
+    translation->gnd_code_        = (parts.size() != 6) ? NO_GND_CODE : parts[5];
 }
 
 
@@ -124,7 +126,8 @@ std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::s
 
 
 void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &output, const std::string &language_code,
-                                                        const std::string &ixtheo_base_url)
+                                                        const std::string &action, const std::string &error_message = "",
+                                                        const std::string &user_translation = "")
 {
     std::vector<Translation> translations;
     ParseTranslationsDbToolOutput(output, &translations);
@@ -133,30 +136,29 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
         std::cout << done_html.rdbuf();
     } else {
         std::map<std::string, std::vector<std::string>> names_to_values_map;
-        names_to_values_map.emplace(std::make_pair(std::string("index"),
-                                                   std::vector<std::string>{ translations.front().index_ }));
-        names_to_values_map.emplace(std::make_pair(std::string("remaining_count"),
-                                                   std::vector<std::string>{ translations.front().remaining_count_ }));
-        names_to_values_map.emplace(std::make_pair(std::string("target_language_code"),
-                                                   std::vector<std::string>{ language_code }));
-        names_to_values_map.emplace(std::make_pair(std::string("ixtheo_base_url"),
-                                                   std::vector<std::string>{ UrlUtil::UrlDecode(ixtheo_base_url) }));
-        names_to_values_map.emplace(std::make_pair(std::string("category"),
-                                                   std::vector<std::string>{ translations.front().category_ }));
-        if (translations.front().gnd_code_ != NO_GND_CODE)
-            names_to_values_map.emplace(std::make_pair(std::string("gnd_code"),
-                                                       std::vector<std::string>{ translations.front().gnd_code_ }));
+        names_to_values_map.emplace("index", std::vector<std::string>{ translations.front().index_ });
+        names_to_values_map.emplace("remaining_count", std::vector<std::string>{ translations.front().remaining_count_ });
+        names_to_values_map.emplace("target_language_code", std::vector<std::string>{ language_code });
+        names_to_values_map.emplace("action", std::vector<std::string>{ action });
+        names_to_values_map.emplace("category", std::vector<std::string>{ translations.front().category_ });
+        if (translations.front().category_ != "vufind_translations")
+            names_to_values_map.emplace("gnd_code", std::vector<std::string>{ translations.front().gnd_code_ });
 
         std::vector<std::string> language_codes, example_texts, url_escaped_example_texts;
         for (const auto &translation : translations) {
             language_codes.emplace_back(translation.language_code_);
-            example_texts.emplace_back(translation.text_);
+            example_texts.emplace_back(HtmlUtil::HtmlEscape(translation.text_));
             url_escaped_example_texts.emplace_back(UrlUtil::UrlEncode(translation.text_));
         }
         names_to_values_map.emplace(std::make_pair(std::string("language_code"), language_codes));
         names_to_values_map.emplace(std::make_pair(std::string("example_text"), example_texts));
         names_to_values_map.emplace(std::make_pair(std::string("url_escaped_example_text"),
                                                    url_escaped_example_texts));
+
+        if (not error_message.empty()) {
+            names_to_values_map.emplace("error_message", std::vector<std::string>{ error_message });
+            names_to_values_map.emplace("user_translation", std::vector<std::string>{ user_translation });
+        }
 
         std::ifstream translate_html("/var/lib/tuelib/translate_chainer/translate.html", std::ios::binary);
         MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
@@ -166,14 +168,37 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
 
 void GetMissing(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
-    const std::string ixtheo_base_url(GetCGIParameterOrDie(cgi_args, "ixtheo_base_url"));
-
-    const std::string GET_MISSING_COMMAND("/usr/local/bin/translation_db_tool get_missing " + language_code);
+    const std::string GET_MISSING_COMMAND("/usr/local/bin/translation_db_tool get_missing \"" + language_code + "\"");
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_MISSING_COMMAND, &output))
         Error("failed to execute \"" + GET_MISSING_COMMAND + "\" or it returned a non-zero exit code!");
 
-    ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, ixtheo_base_url);
+    ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, "insert");
+}
+
+
+void GetExisting(const std::string &language_code, const std::string &category, const std::string &index, std::string *const output) {
+    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code + "\" \"" + category + "\" \"" + index + "\"");
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_EXISTING_COMMAND, output))
+        Error("failed to execute \"" + GET_EXISTING_COMMAND + "\" or it returned a non-zero exit code!");
+}
+
+void GetExisting(const std::multimap<std::string, std::string> &cgi_args) {
+    const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
+    const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
+    const std::string category(GetCGIParameterOrDie(cgi_args, "category"));
+    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code + "\" \"" + category + "\" \"" + index + "\"");
+    std::string output;
+    GetExisting(language_code, category, index, &output);
+    ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, "update");
+}
+
+
+bool IsValidTranslation(const std::string &ppn, const std::string &new_translation, std::string *const error_message) {
+    std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword '" + ppn + " " + new_translation);
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(validate_command, error_message))
+        Error("failed to execute \"" + validate_command + "\" or it returned a non-zero exit code!");
+    return error_message->empty();
 }
 
 
@@ -186,6 +211,14 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
     if (translation.empty())
         return;
 
+    std::string error_message;
+    if (not gnd_code.empty() and not IsValidTranslation(index, translation, &error_message)) {
+        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+        std::string output;
+        GetExisting(language_code, "keyword_translation", index, &output);
+        ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, "insert", error_message, translation);
+    }
+
     std::string insert_command("/usr/local/bin/translation_db_tool insert '" + index);
     if (not gnd_code.empty())
         insert_command += "' '" + gnd_code;
@@ -194,6 +227,34 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
         Error("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
+}
+
+
+void Update(const std::multimap<std::string, std::string> &cgi_args) {
+    const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
+    const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
+    const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
+    const std::string gnd_code(GetCGIParameterOrEmptyString(cgi_args, "gnd_code"));
+
+    if (translation.empty())
+        return;
+
+    std::string error_message;
+    if (not gnd_code.empty() and not IsValidTranslation(index, translation, &error_message)) {
+        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+        std::string output;
+        GetExisting(language_code, "keyword_translation", index, &output);
+        ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, "update", error_message, translation);
+    }
+
+    std::string update_command("/usr/local/bin/translation_db_tool update '" + index);
+    if (not gnd_code.empty())
+        update_command += "' '" + gnd_code;
+    update_command += "' " + language_code + " '" + translation + "'";
+
+    std::string output;
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
+        Error("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
 }
 
 
@@ -207,13 +268,21 @@ int main(int argc, char *argv[]) {
         if (cgi_args.size() == 1) {
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             GetMissing(cgi_args);
-        } else if (cgi_args.size() == 5) {
+        } else if (cgi_args.size() == 3) {
+            std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+            GetExisting(cgi_args);
+        } else if (cgi_args.size() == 5 or cgi_args.size() == 6) {
+            const std::string action(GetCGIParameterOrDie(cgi_args, "action"));
+            if (action == "insert")
+                Insert(cgi_args);
+            else if (action == "update")
+                Update(cgi_args);
+            else
+                Error("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
+
             const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
-            const std::string ixtheo_base_url(GetCGIParameterOrDie(cgi_args, "ixtheo_base_url"));
             std::cout << "Status: 302 Found\r\n";
-            std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code
-                      << "&ixtheo_base_url=" << ixtheo_base_url << "\r\n\r\n";
-            Insert(cgi_args);
+            std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code << "\r\n\r\n";
         } else
             Error("we should be called w/ either 1 or 5 CGI arguments!");
     } catch (const std::exception &x) {

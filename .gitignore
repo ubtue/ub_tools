@@ -45,6 +45,7 @@ db_lookup
 delete_ids
 delete_unused_local_data
 deserialise_php_test
+display_translate_stats
 download_test
 dsv_reader
 enrich_ddcs
@@ -66,6 +67,7 @@ get_file_media_type_test
 getfilename_test
 getusername_test
 insert_translation_gaps
+installer
 iViaCore-mkdep
 json_parser_test
 jop_grep
@@ -104,6 +106,8 @@ test_find_substring
 test_auto_temp_file
 translate_chainer
 translation_db_tool
+translation_exporter
+translator
 update_full_text_db
 update_ixtheo_notations
 urlencode
@@ -124,6 +128,7 @@ new_journal_alert
 convert_oai_pmh_dc_to_marc21
 marc_char_filter
 normalise_urls
+translator
 
 bsz_daten
 bsz_daten_cumulated
