@@ -32,18 +32,18 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 2)
-	Usage();
+        Usage();
 
     try {
-	DSVReader reader(argv[1]);
-	std::vector<std::string> values;
-	while (reader.readLine(&values)) {
-	    unsigned counter(0);
-	    for (const auto &value : values)
-		std::cout << ++counter << ": " << value << ' ';
-	    std::cout << '\n';
-	}
+        DSVReader reader(argv[1]);
+        std::vector<std::string> values;
+        while (reader.readLine(&values)) {
+            unsigned counter(0);
+            for (const auto &value : values)
+                std::cout << ++counter << ": " << value << ' ';
+            std::cout << '\n';
+        }
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

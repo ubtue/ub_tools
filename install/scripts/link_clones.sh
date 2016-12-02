@@ -32,11 +32,12 @@ fi
 LOCAL_COPY_DIRECTORY="$1"
 UB_TOOLS_CLONE_PATH="$2"
 
-rm --force "$VUFIND_HOME"
 
-# This is a hack to get the link to ub_tools.
+# This is a hack to get the link to ub_tools
+rm --recursive --force "$VUFIND_HOME"
+rm --recursive --force "$VUFIND_HOME/../ub_tools"
 mkdir --parents "$VUFIND_HOME"
 ln --force --symbolic --no-target-directory "$UB_TOOLS_CLONE_PATH" "$VUFIND_HOME/../ub_tools"
-rm -R "$VUFIND_HOME"
 
+rm --recursive --force "$VUFIND_HOME"
 ln --force --symbolic --no-target-directory  "$LOCAL_COPY_DIRECTORY" "$VUFIND_HOME"

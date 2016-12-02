@@ -20,6 +20,7 @@
 #include "TranslationUtil.h"
 #include <map>
 #include "Compiler.h"
+#include "File.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -28,28 +29,29 @@ namespace TranslationUtil {
 
 
 std::string GetId(DbConnection * const connection, const std::string &german_text) {
-    const std::string SELECT_EXISTING("SELECT id FROM translations WHERE text=\"" + connection->escapeString(german_text)
-				      + "\" AND language_code=\"deu\"");
+    const std::string SELECT_EXISTING("SELECT id FROM translations WHERE text=\""
+                                      + connection->escapeString(german_text) + "\" AND language_code=\"deu\"");
     if (not connection->query(SELECT_EXISTING))
-        Error("in TranslationUtil::GetId: SELECT failed: " + SELECT_EXISTING + " (" + connection->getLastErrorMessage() + ")");
+        Error("in TranslationUtil::GetId: SELECT failed: " + SELECT_EXISTING
+              + " (" + connection->getLastErrorMessage() + ")");
     DbResultSet id_result_set(connection->getLastResultSet());
     std::string id;
     if (not id_result_set.empty())
-	return id_result_set.getNextRow()["id"];
+        return id_result_set.getNextRow()["id"];
     else { // We don't have any entries for this German term yet.
-	const std::string SELECT_MAX_ID("SELECT MAX(id) FROM translations");
-	if (not connection->query(SELECT_MAX_ID))
-	    Error("in TranslationUtil::GetId: SELECT failed: " + SELECT_MAX_ID + " (" + connection->getLastErrorMessage() + ")");
-	DbResultSet max_id_result_set(connection->getLastResultSet());
-	if (max_id_result_set.empty())
-	    return "1";
+        const std::string SELECT_MAX_ID("SELECT MAX(id) FROM translations");
+        if (not connection->query(SELECT_MAX_ID))
+            Error("in TranslationUtil::GetId: SELECT failed: " + SELECT_MAX_ID + " ("
+                  + connection->getLastErrorMessage() + ")");
+        DbResultSet max_id_result_set(connection->getLastResultSet());
+        if (max_id_result_set.empty())
+            return "1";
 
-	const std::string max_id(max_id_result_set.getNextRow()["MAX(id)"]); // Apparently SQL NULL can be  returned
-	                                                                     // which leads to an empty string here.
-	return std::to_string(max_id.empty() ? 1 : StringUtil::ToUnsigned(max_id) + 1);
+        const std::string max_id(max_id_result_set.getNextRow()["MAX(id)"]); // Apparently SQL NULL can be  returned
+                                                                             // which leads to an empty string here.
+        return std::to_string(max_id.empty() ? 1 : StringUtil::ToUnsigned(max_id) + 1);
     }
 }
-
 
 static std::map<std::string, std::string> international_2letter_code_to_german_3letter_code{
     { "de", "deu" },
@@ -59,34 +61,69 @@ static std::map<std::string, std::string> international_2letter_code_to_german_3
 
 
 std::string MapInternational2LetterCodeToGerman3LetterCode(const std::string &international_2letter_code) {
-    const auto _2letter_and_3letter_codes(international_2letter_code_to_german_3letter_code.find(international_2letter_code));
+    const auto _2letter_and_3letter_codes(
+        international_2letter_code_to_german_3letter_code.find(international_2letter_code));
     if (unlikely(_2letter_and_3letter_codes == international_2letter_code_to_german_3letter_code.cend()))
-	Error("in TranslationUtil::MapInternational2LetterCodeToGerman3LetterCode: unknown international 2-letter code \""
-	      + international_2letter_code + "\"!");
+        Error("in TranslationUtil::MapInternational2LetterCodeToGerman3LetterCode: unknown international 2-letter "
+              "code \"" + international_2letter_code + "\"!");
     return _2letter_and_3letter_codes->second;
 }
 
 
 std::string MapGerman3LetterCodeToInternational2LetterCode(const std::string &german_3letter_code) {
     for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3letter_code) {
-	if (_2letter_and_3letter_codes.second == german_3letter_code)
-	    return _2letter_and_3letter_codes.first;
+        if (_2letter_and_3letter_codes.second == german_3letter_code)
+            return _2letter_and_3letter_codes.first;
     }
     Error("in TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode: unknown German 3-letter code \""
-	  + german_3letter_code + "\"!");
+          + german_3letter_code + "\"!");
 }
 
 
 bool IsValidGerman3LetterCode(const std::string &german_3letter_code_candidate) {
     if (german_3letter_code_candidate.length() != 3)
-	return false;
+        return false;
 
     for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3letter_code) {
-	if (_2letter_and_3letter_codes.second == german_3letter_code_candidate)
-	    return true;
+        if (_2letter_and_3letter_codes.second == german_3letter_code_candidate)
+            return true;
     }
     
     return false;
+}
+
+
+void ReadIniFile(
+    const std::string &ini_filename,
+    std::unordered_map<std::string, std::pair<unsigned, std::string>> * const token_to_line_no_and_other_map)
+{
+    File input(ini_filename, "r");
+    if (not input)
+        throw std::runtime_error("can't open \"" + ini_filename + "\" for reading!");
+
+    unsigned line_no(0);
+    while (not input.eof()) {
+        ++line_no;
+        std::string line;
+        if (input.getline(&line) == 0 or line.empty())
+            continue;
+
+        const std::string::size_type first_equal_pos(line.find('='));
+        if (unlikely(first_equal_pos == std::string::npos))
+            throw std::runtime_error("missing equal-sign in \"" + ini_filename + "\" on line "
+                                     + std::to_string(line_no) + "!");
+
+        const std::string key(StringUtil::Trim(line.substr(0, first_equal_pos)));
+        if (unlikely(key.empty()))
+            throw std::runtime_error("missing token or English key in \"" + ini_filename + "\" on line "
+                                     + std::to_string(line_no) + "!");
+
+        const std::string rest(StringUtil::Trim(StringUtil::Trim(line.substr(first_equal_pos + 1)), '"'));
+        if (unlikely(rest.empty()))
+            throw std::runtime_error("missing translation in \"" + ini_filename + "\" on line "
+                                     + std::to_string(line_no) + "!");
+        (*token_to_line_no_and_other_map)[key] = std::make_pair(line_no, rest);
+    }
 }
    
 

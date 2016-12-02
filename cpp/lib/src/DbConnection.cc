@@ -30,7 +30,7 @@ DbConnection::DbConnection(const std::string &mysql_url) {
         RegexMatcher::RegexMatcherFactory("mysql://([^:]+):([^@]+)@([^:/]+)(\\d+:)?/(.+)"));
     std::string err_msg;
     if (not mysql_url_matcher->matched(mysql_url, &err_msg))
-	throw std::runtime_error("\"" + mysql_url + "\" does not look like an expected MySQL URL! (" + err_msg + ")");
+        throw std::runtime_error("\"" + mysql_url + "\" does not look like an expected MySQL URL! (" + err_msg + ")");
 
     const std::string user(UrlUtil::UrlDecode((*mysql_url_matcher)[1]));
     const std::string passwd((*mysql_url_matcher)[2]);
@@ -40,9 +40,9 @@ DbConnection::DbConnection(const std::string &mysql_url) {
     const std::string port_plus_colon((*mysql_url_matcher)[4]);
     unsigned port;
     if (port_plus_colon.empty())
-	port = MYSQL_PORT;
+        port = MYSQL_PORT;
     else
-	port = StringUtil::ToUnsigned(port_plus_colon.substr(0, port_plus_colon.length() - 1));
+        port = StringUtil::ToUnsigned(port_plus_colon.substr(0, port_plus_colon.length() - 1));
 
     init(db_name, user, passwd, host, port);
 }
@@ -50,7 +50,7 @@ DbConnection::DbConnection(const std::string &mysql_url) {
 
 DbConnection::~DbConnection() {
     if (initialised_)
-	::mysql_close(&mysql_);
+        ::mysql_close(&mysql_);
 }
 
 
@@ -58,7 +58,7 @@ DbResultSet DbConnection::getLastResultSet() {
     MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
     if (result_set == nullptr)
         throw std::runtime_error("in DbConnection::getLastResultSet: mysql_store_result() failed! ("
-				 + getLastErrorMessage() + ")");
+                                 + getLastErrorMessage() + ")");
 
     return DbResultSet(result_set);
 }
@@ -67,7 +67,7 @@ DbResultSet DbConnection::getLastResultSet() {
 std::string DbConnection::escapeString(const std::string &unescaped_string) {
     char * const buffer(reinterpret_cast<char * const>(std::malloc(unescaped_string.size() * 2 + 1)));
     const size_t escaped_length(::mysql_real_escape_string(&mysql_, buffer, unescaped_string.data(),
-							   unescaped_string.size()));
+                                                           unescaped_string.size()));
     const std::string escaped_string(buffer, escaped_length);
     std::free(buffer);
     return escaped_string;
@@ -75,15 +75,15 @@ std::string DbConnection::escapeString(const std::string &unescaped_string) {
 
 
 void DbConnection::init(const std::string &database_name, const std::string &user, const std::string &passwd,
-			const std::string &host, const unsigned port)
+                        const std::string &host, const unsigned port)
 {
     initialised_ = false;
 
     if (::mysql_init(&mysql_) == nullptr)
-	throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
+        throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
 
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), database_name.c_str(), port,
-			     /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
+                             /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage() + ")");
 
     initialised_ = true;

@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DirectoryEntry class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "DirectoryEntry.h"
+#include "Compiler.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -33,10 +34,21 @@ DirectoryEntry::DirectoryEntry(const std::string &raw_entry) {
 
     if (std::sscanf(raw_entry.data() + TAG_LENGTH, "%4u", &field_length_) != 1)
         Error("can't scan field length (" + raw_entry.substr(TAG_LENGTH, 4)
-              + ") in directory entry! (Tag was " + tag_ + ")");
+              + ") in directory entry! (Tag was " + tag_.to_string() + ")");
 
     if (std::sscanf(raw_entry.data() + 7, "%5u", &field_offset_) != 1)
         Error("can't scan field oddset in directory entry!");
+}
+
+
+DirectoryEntry &DirectoryEntry::operator=(const DirectoryEntry &rhs) {
+    if (likely(&rhs != this)) {
+        tag_          = rhs.tag_;
+        field_length_ = rhs.field_length_;
+        field_offset_ = rhs.field_offset_;
+    }
+
+    return *this;
 }
 
 
@@ -44,7 +56,7 @@ std::string DirectoryEntry::toString() const {
     std::string field_as_string;
     field_as_string.reserve(DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
 
-    field_as_string += tag_;
+    field_as_string += tag_.to_string();
     field_as_string += StringUtil::PadLeading(std::to_string(field_length_), 4, '0');
     field_as_string += StringUtil::PadLeading(std::to_string(field_offset_), 5, '0');
 
@@ -79,39 +91,3 @@ bool DirectoryEntry::ParseDirEntries(const std::string &entries_string, std::vec
 
     return true;
 }
-
-
-class MatchTag {
-    const std::string tag_to_match_;
-public:
-    explicit MatchTag(const std::string &tag_to_match): tag_to_match_(tag_to_match) { }
-    inline bool operator()(const DirectoryEntry &entry_to_compare_against) const {
-        return entry_to_compare_against.getTag() == tag_to_match_;
-    }
-};
-
-
-std::vector<DirectoryEntry>::const_iterator DirectoryEntry::FindField(
-    const std::string &tag, const std::vector<DirectoryEntry> &field_entries) 
-{
-    return std::find_if(field_entries.begin(), field_entries.end(), MatchTag(tag));
-}
-
-
-std::pair<std::vector<DirectoryEntry>::const_iterator, std::vector<DirectoryEntry>::const_iterator>
-    DirectoryEntry::FindFields(const std::string &tag, const std::vector<DirectoryEntry> &field_entries)
-{
-    std::pair<std::vector<DirectoryEntry>::const_iterator, std::vector<DirectoryEntry>::const_iterator> retval;
-    retval.first = FindField(tag, field_entries);
-    if (retval.first == field_entries.end())
-        retval.second = field_entries.end();
-    else {
-        retval.second = retval.first;
-        retval.second++;
-        while (retval.second != field_entries.end() and retval.second->getTag() == tag)
-            ++retval.second;
-    }
-
-    return retval;
-}
-

@@ -1,0 +1,9 @@
+Blah blah...
+{IF DEFINED(var)}
+We should see this...
+{IF DEFINED(undefined)}
+...but not this
+{ENDIF}
+{ENDIF}
+The END!
+

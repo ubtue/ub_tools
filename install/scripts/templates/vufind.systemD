@@ -4,10 +4,10 @@ After=network.target httpd.service mariadb.service
 
 [Service]
 Type=forking
-ExecStart=/bin/sh --login -c '/usr/local/vufind2/vufind.sh start'
+ExecStart=/bin/sh --login -c '/usr/local/vufind2/solr.sh start'
 PIDFile=/var/run/vufind.pid
 User=root
-ExecStop=/bin/sh --login -c "/usr/local/vufind2/vufind.sh stop"
+ExecStop=/bin/sh --login -c "/usr/local/vufind2/solr.sh stop"
 
 # Java responds to a SIGTERM by returning with exit code 143 which leads to "failed" exit in the systemd-Logs
 SuccessExitStatus=143

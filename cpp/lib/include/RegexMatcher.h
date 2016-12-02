@@ -64,6 +64,11 @@ public:
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return utf8_enabled_; }
 
+    /** \return The number of matched parenthesised groups in the pattern.
+     *  \note   Obviously you may only call this after a call to matched().
+     */
+    unsigned getNoOfGroups() const { return last_match_count_ - 1; }
+    
     /** \brief Returns either the full last match or matched substrings.
      *  \param group  When "group" is 0, the full last match will be returned, o/w the n-th substring match
      *                will be returned.
@@ -86,7 +91,7 @@ private:
     RegexMatcher(const std::string &pattern, const bool utf8_enabled, pcre * const pcre_arg,
                  pcre_extra * const pcre_extra_arg)
         : pattern_(pattern), utf8_enabled_(utf8_enabled), pcre_(pcre_arg), pcre_extra_(pcre_extra_arg),
-	  substr_vector_((1 + MAX_SUBSTRING_MATCHES) * 3), last_match_count_(0) {}
+          substr_vector_((1 + MAX_SUBSTRING_MATCHES) * 3), last_match_count_(0) {}
 };
 
 

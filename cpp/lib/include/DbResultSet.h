@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbResultSet class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,6 +39,9 @@ public:
 
     /** \return The number of rows in the result set. */
     size_t size() const { return ::mysql_num_rows(result_set_); }
+
+    /** \return The number of columns in a row. */
+    unsigned getColumnCount() const { return ::mysql_num_fields(result_set_); }
 
     bool empty() const  { return ::mysql_num_rows(result_set_) == 0; }
 

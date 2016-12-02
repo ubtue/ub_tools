@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015, 2016, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -26,23 +26,30 @@
 #include <queue>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
+#include <climits>
 #include <cstring>
 #include <unistd.h>
 #include "Compiler.h"
 #include "DirectoryEntry.h"
+#include "FileUtil.h"
 #include "Leader.h"
 #include "MarcQueryParser.h"
-#include "MarcUtil.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "Subfields.h"
 #include "util.h"
+#include "MarcXmlWriter.h"
 
 
 char help_text[] =
   "  \"--limit\"  Only process the first \"count\" records.\n"
   "  \"--sample-rate\"  Only process every \"rate\"-th record.\n"
+  "  \"--control-number-list\"  Only process records whose control numbers are listed in the specified file.\n"
   "\n"
   "  Query syntax:\n"
   "    query                                    = [ leader_condition ] simple_query\n"
@@ -69,7 +76,7 @@ char help_text[] =
   "\n"
   "  String constants start and end with double quotes. Backslashes and double quotes within need to be escaped\n"
   "  with a backslash. The difference between the \"==\" and \"!=\" vs. \"===\" and \"!===\" comparision\n"
-  "  operators is that the latter compare subfields within a given field while the former compare against any two\n"
+  "  operators is that the latter compares subfields within a given field while the former compares against any two\n"
   "  matching fields or subfields.  This becomes relevant when there are multiple occurrences of a field in a\n"
   "  record. \"*\" matches all fields.  Field and subfield references are strings and thus need to be quoted.\n"
   "\n"
@@ -78,13 +85,29 @@ char help_text[] =
   "                   | no_label | marc_binary | marc_xml | control_number_and_traditional\n"
   "\n"
   "  The default output label is the control number followed by a colon followed by the matched field or \n"
-  "  subfield followed by a colon.  When the formats are \"marc_binary\" or \"marc_xml\" entire records will always be copied.\n";
+  "  subfield followed by a colon.  When the formats are \"marc_binary\" or \"marc_xml\" entire records will always\n"
+  "  be copied.\n";
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--limit count] [--sample-rate rate] marc_filename query [output_label_format]\n\n";
+    std::cerr << "Usage: " << progname << " [--limit count] [--sample-rate rate] "
+              << "[--control-number-list list_filename] marc_filename query [output_label_format]\n\n";
     std::cerr << help_text << '\n';
     std::exit(EXIT_FAILURE);
+}
+
+
+void LoadControlNumbers(const std::string &control_numbers_filename,
+                        std::unordered_set<std::string> * const control_numbers)
+{
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(control_numbers_filename));
+    while (not input->eof()) {
+        std::string line;
+        input->getline(&line);
+        StringUtil::TrimWhite(&line);
+        if (not line.empty())
+            control_numbers->insert(line);
+    }
 }
 
 
@@ -108,7 +131,7 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
     if (label_format_candidate == "marc_xml")
         return MARC_XML;
     if (label_format_candidate == "control_number_and_traditional")
-	return CONTROL_NUMBER_AND_TRADITIONAL;
+        return CONTROL_NUMBER_AND_TRADITIONAL;
 
     Error("\"" + label_format_candidate + "\" is no valid output label format!");
 }
@@ -136,10 +159,10 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
         return;
     case MARC_BINARY:
     case MARC_XML:
-	Error("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
+        Error("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
     case CONTROL_NUMBER_AND_TRADITIONAL:
         std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':'
-		  << StringUtil::Map(contents, '\x1F', '$') << '\n';
+                  << StringUtil::Map(contents, '\x1F', '$') << '\n';
         return;
     }
 }
@@ -150,44 +173,44 @@ class TagAndContents {
     std::string contents_;
 public:
     TagAndContents(const std::string &tag_or_tag_plus_subfield_code, const std::string &contents)
-	: tag_or_tag_plus_subfield_code_(tag_or_tag_plus_subfield_code), contents_(contents) { }
+        : tag_or_tag_plus_subfield_code_(tag_or_tag_plus_subfield_code), contents_(contents) { }
 
     TagAndContents(TagAndContents &&other) {
-	std::swap(tag_or_tag_plus_subfield_code_, other.tag_or_tag_plus_subfield_code_);
-	std::swap(contents_, other.contents_);
+        std::swap(tag_or_tag_plus_subfield_code_, other.tag_or_tag_plus_subfield_code_);
+        std::swap(contents_, other.contents_);
     }
 
     TagAndContents &operator=(const TagAndContents &rhs) {
-	if (&rhs != this) {
-	    tag_or_tag_plus_subfield_code_ = rhs.tag_or_tag_plus_subfield_code_;
-	    contents_                      = rhs.contents_;
-	}
+        if (&rhs != this) {
+            tag_or_tag_plus_subfield_code_ = rhs.tag_or_tag_plus_subfield_code_;
+            contents_                      = rhs.contents_;
+        }
 
-	return *this;
+        return *this;
     }
 
     const std::string &getTagOrTagPlusSubfieldCode() const { return tag_or_tag_plus_subfield_code_; }
     const std::string &getContents() const { return contents_; }
 
-    bool operator<(const TagAndContents &rhs) const 
+    bool operator<(const TagAndContents &rhs) const
         { return tag_or_tag_plus_subfield_code_ > rhs.tag_or_tag_plus_subfield_code_; }
 };
 
 
 void Emit(const std::string &control_number, const OutputLabel output_format,
-	  std::priority_queue<TagAndContents> * const tags_and_contents)
+          std::priority_queue<TagAndContents> * const tags_and_contents)
 {
     while (not tags_and_contents->empty()) {
-	const TagAndContents &tag_and_contents(tags_and_contents->top());
-	Emit(control_number, tag_and_contents.getTagOrTagPlusSubfieldCode(), tag_and_contents.getContents(),
-	     output_format);
-	tags_and_contents->pop();
+        const TagAndContents &tag_and_contents(tags_and_contents->top());
+        Emit(control_number, tag_and_contents.getTagOrTagPlusSubfieldCode(), tag_and_contents.getContents(),
+             output_format);
+        tags_and_contents->pop();
     }
 }
 
 
 bool EnqueueSubfields(const std::string &tag, const char subfield_code, const std::string &contents,
-		      std::priority_queue<TagAndContents> * const tags_and_contents)
+                      std::priority_queue<TagAndContents> * const tags_and_contents)
 {
     std::string tag_plus_subfield_code(tag);
     tag_plus_subfield_code += subfield_code;
@@ -195,7 +218,7 @@ bool EnqueueSubfields(const std::string &tag, const char subfield_code, const st
     const auto begin_end(subfields.getIterators(subfield_code));
     bool emitted_at_least_one(false);
     for (auto code_and_subfield(begin_end.first); code_and_subfield != begin_end.second; ++code_and_subfield) {
-        tags_and_contents->push(TagAndContents(tag_plus_subfield_code, code_and_subfield->second));
+        tags_and_contents->push(TagAndContents(tag_plus_subfield_code, code_and_subfield->value_));
         emitted_at_least_one = true;
     }
 
@@ -204,7 +227,7 @@ bool EnqueueSubfields(const std::string &tag, const char subfield_code, const st
 
 
 bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
-                         const std::unordered_multimap<std::string, const std::string *> &field_to_content_map)
+                         const std::unordered_multimap<std::string, const std::string> &field_to_content_map)
 {
     const FieldOrSubfieldDescriptor comp_field_or_subfield(cond_desc.getFieldOrSubfieldReference());
     const auto begin_end(field_to_content_map.equal_range(comp_field_or_subfield.getTag()));
@@ -213,7 +236,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
     std::string err_msg;
     bool matched_at_least_one(false);
     for (auto field(begin_end.first); field != begin_end.second; ++field) {
-        const std::string &contents(*(field->second));
+        const std::string &contents(field->second);
         if (subfield_codes.empty()) { // Compare against the entire field. (Does this even make sense?)
             if (cond_desc.getDataMatcher().matched(contents, &err_msg)) {
                 matched_at_least_one = true;
@@ -229,7 +252,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
         for (auto subfield_contents(sub_begin_end.first); subfield_contents != sub_begin_end.second;
              ++subfield_contents)
             {
-                if (cond_desc.getDataMatcher().matched(subfield_contents->second, &err_msg)) {
+                if (cond_desc.getDataMatcher().matched(subfield_contents->value_, &err_msg)) {
                     matched_at_least_one = true;
                     break;
                 } else if (unlikely(not err_msg.empty()))
@@ -243,7 +266,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
 
 
 bool ProcessExistenceTest(const ConditionDescriptor &cond_desc,
-                          const std::unordered_multimap<std::string, const std::string *> &field_to_content_map)
+                          const std::unordered_multimap<std::string, const std::string> &field_to_content_map)
 {
     const FieldOrSubfieldDescriptor test_field_or_subfield(cond_desc.getFieldOrSubfieldReference());
     const ConditionDescriptor::CompType comp_type(cond_desc.getCompType());
@@ -256,7 +279,7 @@ bool ProcessExistenceTest(const ConditionDescriptor &cond_desc,
 
     bool found_at_least_one(false);
     for (auto field(begin_end.first); field != begin_end.second; ++field) {
-        const std::string &contents(*(field->second));
+        const std::string &contents(field->second);
         const Subfields subfields(contents);
         if (subfields.hasSubfield(subfield_codes[0])) {
             found_at_least_one = true;
@@ -269,7 +292,7 @@ bool ProcessExistenceTest(const ConditionDescriptor &cond_desc,
 
 
 bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfieldDescriptor &field_or_subfield_desc,
-                       const std::unordered_multimap<std::string, const std::string *> &field_to_content_map,
+                       const std::unordered_multimap<std::string, const std::string> &field_to_content_map,
                        std::priority_queue<TagAndContents> * const tags_and_contents)
 {
     const std::string extraction_tag(field_or_subfield_desc.getTag());
@@ -287,7 +310,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
     {
         if (field_or_subfield_desc.isStar()) {
             for (const auto &tag_and_content : field_to_content_map)
-		tags_and_contents->push(TagAndContents(tag_and_content.first, *(tag_and_content.second)));
+                tags_and_contents->push(TagAndContents(tag_and_content.first, tag_and_content.second));
             return true;
         }
 
@@ -297,12 +320,12 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
              ++tag_and_field_contents)
         {
             if (subfield_codes.empty()) {
-                tags_and_contents->push(TagAndContents(extraction_tag, *(tag_and_field_contents->second)));
+                tags_and_contents->push(TagAndContents(extraction_tag, tag_and_field_contents->second));
                 emitted_at_least_one = true;
             } else { // Looking for one or more subfields:
                 for (const auto &subfield_code : subfield_codes) {
-                    if (EnqueueSubfields(extraction_tag, subfield_code, *tag_and_field_contents->second,
-					 tags_and_contents))
+                    if (EnqueueSubfields(extraction_tag, subfield_code, tag_and_field_contents->second,
+                                         tags_and_contents))
                         emitted_at_least_one = true;
                 }
             }
@@ -314,7 +337,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
     {
         if (field_or_subfield_desc.isStar()) {
             for (const auto &tag_and_content : field_to_content_map)
-                tags_and_contents->push(TagAndContents(tag_and_content.first, *(tag_and_content.second)));
+                tags_and_contents->push(TagAndContents(tag_and_content.first, tag_and_content.second));
             return true;
         }
 
@@ -324,14 +347,14 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
         for (auto tag_and_field_contents(begin_end.first); tag_and_field_contents != begin_end.second;
              ++tag_and_field_contents)
         {
-            const Subfields subfields(*tag_and_field_contents->second);
+            const Subfields subfields(tag_and_field_contents->second);
             if (not subfields.hasSubfield(extract_subfield_code))
                 continue;
 
             if (not subfields.hasSubfield(test_subfield_code)) {
                 if (comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL) {
-                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, *tag_and_field_contents->second,
-					 tags_and_contents))
+                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, tag_and_field_contents->second,
+                                         tags_and_contents))
                         emitted_at_least_one = true;
                 } else
                     return false;
@@ -342,7 +365,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
                 for (auto code_and_value(sub_begin_end.first); code_and_value != sub_begin_end.second;
                      ++code_and_value)
                 {
-                    if (cond_desc.getDataMatcher().matched(code_and_value->second, &err_msg)) {
+                    if (cond_desc.getDataMatcher().matched(code_and_value->value_, &err_msg)) {
                         matched_at_least_one = true;
                         break;
                     } else if (unlikely(not err_msg.empty()))
@@ -352,8 +375,8 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
                 if ((matched_at_least_one and comp_type == ConditionDescriptor::SINGLE_FIELD_EQUAL)
                     or (not matched_at_least_one and comp_type == ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL))
                 {
-                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, *tag_and_field_contents->second,
-					 tags_and_contents))
+                    if (EnqueueSubfields(extraction_tag, extract_subfield_code, tag_and_field_contents->second,
+                                         tags_and_contents))
                         emitted_at_least_one = true;
                 }
             }
@@ -365,63 +388,46 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
 }
 
 
-void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const std::string &input_filename,
-	       const QueryDescriptor &query_desc, const OutputLabel output_format)
+void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
+               const std::unordered_set<std::string> &control_numbers, const std::string &input_filename,
+               const QueryDescriptor &query_desc, const OutputLabel output_format)
 {
-    const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
-    if (unlikely(media_type.empty()))
-	Error("can't determine media type of \"" + input_filename + "\"!");
-    if (media_type != "application/xml" and media_type != "application/marc")
-	Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
-    const bool input_is_xml(media_type == "application/xml");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(input_filename));
+    std::unique_ptr<MarcWriter> marc_writer(nullptr);
+    if (output_format == MARC_BINARY or output_format == MARC_XML)
+        marc_writer = MarcWriter::Factory("/proc/self/fd/1",
+                                          (output_format == MARC_XML) ? MarcWriter::XML : MarcWriter::BINARY);
 
-    File input(input_filename, input_is_xml ? "rm" : "rbm");
-    if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
-
-    File output(STDOUT_FILENO);
     std::string err_msg;
     unsigned count(0), matched_count(0), rate_counter(0);
-
-    std::unique_ptr<XmlWriter> xml_writer;
-    if (output_format == MARC_XML) {
-	xml_writer.reset(new XmlWriter(&output));
-        xml_writer->openTag("marc:collection",
-                           { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
-                             std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                             std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
-    }
-
-    while (MarcUtil::Record record = input_is_xml ? MarcUtil::Record::XmlFactory(&input) : MarcUtil::Record::BinaryFactory(&input))
-    {
-	if (output_format == MARC_XML)
-	    record.setRecordWillBeWrittenAsXml(true);
+    while (MarcRecord record = marc_reader->read()) {
+        // If we use a control number filter, only process a record if it is in our list:
+        if (not control_numbers.empty() and control_numbers.find(record.getControlNumber()) == control_numbers.cend())
+            continue;
 
         ++count, ++rate_counter;
-	if (count > max_records)
-	    break;
-	if (rate_counter == sampling_rate)
-	    rate_counter = 0;
-	else
-	    continue;
+        if (count > max_records)
+            break;
+        if (rate_counter == sampling_rate)
+            rate_counter = 0;
+        else
+            continue;
 
         if (query_desc.hasLeaderCondition()) {
             const LeaderCondition &leader_cond(query_desc.getLeaderCondition());
-	    const Leader &leader(record.getLeader());
+            const Leader &leader(record.getLeader());
             if (leader.toString().substr(leader_cond.getStartOffset(),
-					 leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
+                                         leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
                 != leader_cond.getMatch())
                 continue;
         }
 
-	const std::vector<DirectoryEntry> &dir_entries(record.getDirEntries());
-	const std::vector<std::string> &fields(record.getFields());
-        std::unordered_multimap<std::string, const std::string *> field_to_content_map;
-        for (unsigned i(0); i < dir_entries.size(); ++i)
-            field_to_content_map.insert(std::make_pair(dir_entries[i].getTag(), &fields[i]));
+        std::unordered_multimap<std::string, const std::string> field_to_content_map;
+        for (unsigned i(0); i < record.getNumberOfFields(); ++i)
+            field_to_content_map.insert(std::make_pair(record.getTag(i).to_string(), record.getFieldData(i)));
 
         bool matched(false);
-	std::priority_queue<TagAndContents> tags_and_contents;
+        std::priority_queue<TagAndContents> tags_and_contents;
 
         // Extract fields and subfields:
         for (const auto &cond_and_field_or_subfield : query_desc.getCondsAndFieldOrSubfieldDescs()) {
@@ -433,24 +439,19 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
         if (matched) {
             ++matched_count;
 
-	    if (output_format == MARC_BINARY)
-		record.write(&output);
-	    else if (output_format == MARC_XML)
-		record.write(xml_writer.get());
-	    else {
-		// Determine the control number:
-		const auto &control_number_iter(field_to_content_map.find("001"));
-		if (unlikely(control_number_iter == field_to_content_map.end()))
-		    Error("In FieldGrep: record has no control number!");
-		const std::string control_number(*(control_number_iter->second));
+            if (output_format == MARC_BINARY or output_format == MARC_XML)
+                marc_writer->write(record);
+            else {
+                // Determine the control number:
+                const auto &control_number_iter(field_to_content_map.find("001"));
+                if (unlikely(control_number_iter == field_to_content_map.end()))
+                    Error("In FieldGrep: record has no control number!");
+                const std::string control_number(control_number_iter->second);
 
-		Emit(control_number, output_format, &tags_and_contents);
-	    }
-	}
+                Emit(control_number, output_format, &tags_and_contents);
+            }
+        }
     }
-
-    if (xml_writer != nullptr)
-	xml_writer->closeTag();
 
     if (not err_msg.empty())
         Error(err_msg);
@@ -465,39 +466,53 @@ int main(int argc, char *argv[]) {
     // Limit the number of records that we will process:
     unsigned max_records(UINT_MAX);
     if (argc > 1 and std::strcmp(argv[1], "--limit") == 0) {
-	if (argc <= 3)
-	    Usage();
+        if (argc <= 3)
+            Usage();
 
-	if (not StringUtil::ToUnsigned(argv[2], &max_records))
-	    Error("bad record count limit: \"" + std::string(argv[2]) + "\"!");
-	argc -= 2;
-	argv += 2;
+        if (not StringUtil::ToUnsigned(argv[2], &max_records))
+            Error("bad record count limit: \"" + std::string(argv[2]) + "\"!");
+        argc -= 2;
+        argv += 2;
     }
 
     unsigned sampling_rate(1);
     if (argc > 1 and std::strcmp(argv[1], "--sample-rate") == 0) {
-	if (argc <= 3)
-	    Usage();
+        if (argc <= 3)
+            Usage();
 
-	if (not StringUtil::ToUnsigned(argv[2], &sampling_rate))
-	    Error("bad sampling rate: \"" + std::string(argv[2]) + "\"!");
-	argc -= 2;
-	argv += 2;
+        if (not StringUtil::ToUnsigned(argv[2], &sampling_rate))
+            Error("bad sampling rate: \"" + std::string(argv[2]) + "\"!");
+        argc -= 2;
+        argv += 2;
+    }
+
+    if (argc < 3)
+        Usage();
+
+    std::string control_numbers_filename;
+    if (std::strcmp("--control-number-list", argv[1]) == 0) {
+        control_numbers_filename = argv[2];
+        argc -= 2;
+        argv += 2;
     }
 
     if (argc < 3 or argc > 4)
         Usage();
 
     try {
-	QueryDescriptor query_desc;
-	std::string err_msg;
-	if (not ParseQuery(argv[2], &query_desc, &err_msg))
-	    Error("Query parsing failed: " + err_msg);
+        std::unordered_set<std::string> control_numbers;
+        if (not control_numbers_filename.empty())
+            LoadControlNumbers(control_numbers_filename, &control_numbers);
 
-	const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
-	    : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
-	FieldGrep(max_records, sampling_rate, argv[1], query_desc, output_label);
+        QueryDescriptor query_desc;
+        std::string err_msg;
+        if (not ParseQuery(argv[2], &query_desc, &err_msg))
+            Error("Query parsing failed: " + err_msg);
+
+        const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
+            : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
+        FieldGrep(max_records, sampling_rate, control_numbers, argv[1], query_desc, output_label);
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

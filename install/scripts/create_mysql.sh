@@ -46,7 +46,7 @@ if [[ -z "$RESULT" ]] ; then
 	CREATE_VUFIND_STATEMENT=$(cat "$VUFIND_HOME/module/VuFind/sql/mysql.sql")
 	mysql --user=root --password="$ROOT_PASSWORD" --execute="CREATE DATABASE IF NOT EXISTS vufind; USE vufind; $CREATE_VUFIND_STATEMENT"
 
-	CREATE_IXTHEO_STATEMENT=$(cat "$SCRIPT_DIR/../../cpp/data/create_translation_table.sql")
+	CREATE_IXTHEO_STATEMENT=$(cat "$SCRIPT_DIR/../../cpp/data/create_translations_tables.sql")
 	mysql --user=root --password="$ROOT_PASSWORD" --execute="CREATE DATABASE IF NOT EXISTS ixtheo; USE ixtheo; $CREATE_IXTHEO_STATEMENT"
 fi
 

@@ -1,7 +1,7 @@
 /** \brief Utility for displaying various bits of info about a collection of MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <unordered_set>
@@ -26,7 +27,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Leader.h"
-#include "MarcUtil.h"
+#include "MarcReader.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "util.h"
 
@@ -35,71 +38,85 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << progname << " marc_data\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] marc_data\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void ProcessRecords(const bool input_is_xml, File * const input) {
+void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
     std::string raw_record;
-    unsigned record_count(0), max_record_length(0), max_local_block_count(0);
+    unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0);
     std::unordered_set<std::string> control_numbers;
+    std::map<Leader::RecordType, unsigned> record_types_and_counts;
 
-    while (const MarcUtil::Record record =
-	   input_is_xml ? MarcUtil::Record::XmlFactory(input) : MarcUtil::Record::BinaryFactory(input))
-    {
+    while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
 
-	std::string err_msg;
-	if (not input_is_xml and not record.recordSeemsCorrect(&err_msg))
-	    Error("record #" + std::to_string(record_count) + " is malformed: " + err_msg);
+        if (unlikely(record.getNumberOfFields() == 0))
+            Error("record #" + std::to_string(record_count) + " has zero fields!");
+        const std::string &control_number(record.getControlNumber());
 
-	const std::vector<std::string> &fields(record.getFields());
-	if (unlikely(fields.empty()))
-	  Error("record #" + std::to_string(record_count) + " has zero fields!");
-	const std::string &control_number(fields[0]);
-	if (control_numbers.find(control_number) != control_numbers.end())
-	    Error("found at least one duplicate control number: " + control_number);
-	control_numbers.insert(control_number);
+        if (control_numbers.find(control_number) != control_numbers.end())
+            Error("found at least one duplicate control number: " + control_number);
+        control_numbers.insert(control_number);
 
-	const Leader &leader(record.getLeader());
-	const unsigned record_length(leader.getRecordLength());
-	if (record_length > max_record_length)
-	    max_record_length = record_length;
+        const Leader::RecordType record_type(record.getRecordType());
+        ++record_types_and_counts[record_type];
+        if (verbose and record_type == Leader::RecordType::UNKNOWN)
+            std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number << ".\n";
 
-	std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-	const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
-	if (local_block_count > max_local_block_count)
-	    max_local_block_count = local_block_count;
+        const Leader &leader(record.getLeader());
+        const unsigned record_length(leader.getRecordLength());
+        if (record_length > max_record_length)
+            max_record_length = record_length;
+        if (record_length >= 100000)
+            ++oversized_record_count;
+
+        std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+        const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
+        if (local_block_count > max_local_block_count)
+            max_local_block_count = local_block_count;
+        for (const auto local_block_boundary : local_block_boundaries) {
+            std::vector<size_t> field_indices;
+            record.findFieldsInLocalBlock("001", "??", local_block_boundary, &field_indices);
+            if (field_indices.size() != 1)
+                Error("Every local data block has to have exactly one 001 field. (Record: "
+                      + record.getControlNumber() + ", Local data block: "
+                      + std::to_string(local_block_boundary.first) + " - "
+                      + std::to_string(local_block_boundary.second));
+        }
     }
 
     std::cout << "Data set contains " << record_count << " MARC record(s).\n";
     std::cout << "Largest record contains " << max_record_length << " bytes.\n";
     std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count
-	      << " local blocks.\n";
+              << " local blocks.\n";
+    std::cout << "Counted " << record_types_and_counts[Leader::RecordType::BIBLIOGRAPHIC]
+              << " bibliographic record(s), " << record_types_and_counts[Leader::RecordType::AUTHORITY]
+              << " classification record(s), " << record_types_and_counts[Leader::RecordType::CLASSIFICATION]
+              << " authority record(s), and " << record_types_and_counts[Leader::RecordType::UNKNOWN]
+              << " record(s) of unknown record type.\n";
+    std::cout << "Found " << oversized_record_count << " oversized records.\n";
 }
 
 
 int main(int argc, char *argv[]) {
-    progname = argv[0];
+    ::progname = argv[0];
+
+    if (argc < 2)
+        Usage();
+
+    const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
+    if (verbose)
+        --argc, ++argv;
 
     if (argc != 2)
         Usage();
 
-    const std::string marc_input_filename(argv[1]);
-    const std::string media_type(MediaTypeUtil::GetFileMediaType(marc_input_filename));
-    if (unlikely(media_type.empty()))
-	Error("can't determine media type of \"" + marc_input_filename + "\"!");
-    if (media_type != "application/xml" and media_type != "application/marc")
-	Error("\"input_filename\" is neither XML nor MARC-21 data!");
-    const bool input_is_xml(media_type == "application/xml");
-
-    File marc_input(marc_input_filename, input_is_xml ? "r" : "rb");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
 
     try {
-        ProcessRecords(input_is_xml, &marc_input);
+        ProcessRecords(verbose, marc_reader.get());
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }

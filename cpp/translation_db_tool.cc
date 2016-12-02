@@ -22,21 +22,25 @@
 #include <set>
 #include <cstdlib>
 #include <cstring>
+#include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "IniFile.h"
+#include "MiscUtil.h"
 #include "SimpleXmlParser.h"
+#include "SqlUtil.h"
 #include "StringUtil.h"
 #include "TranslationUtil.h"
 #include "util.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " command [args]\n\n";
+    std::cerr << "Usage: " << ::progname << " command [args]\n\n";
     std::cerr << "       Possible commands are:\n";
     std::cerr << "       get_missing language_code\n";
-    std::cerr << "       insert index language_code category text\n";
+    std::cerr << "       insert token language_code text\n";
+    std::cerr << "       insert ppn gnd_code language_code text\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -47,55 +51,77 @@ void ExecSqlOrDie(const std::string &select_statement, DbConnection * const conn
 }
 
 
-void GetMissing(DbConnection * const connection, const std::string &language_code) {
-    // Find an ID where "language_code" is missing:
-    ExecSqlOrDie("SELECT id FROM translations WHERE id NOT IN (SELECT id FROM translations "
-		 "WHERE language_code = \"" + language_code + "\") LIMIT 1", connection);
-    DbResultSet id_result_set(connection->getLastResultSet());
-    if (id_result_set.empty()) // The language code whose absence we're looking for exists for all ID's.!
-	return;
-
-    // Print the contents of all rows with the ID from the last query on stdout:
-    const std::string matching_id(id_result_set.getNextRow()["id"]);
-    ExecSqlOrDie("SELECT * FROM translations WHERE id=" + matching_id, connection);
-    DbResultSet result_set(connection->getLastResultSet());
-    if (not result_set.empty()) {
-	const DbRow row = result_set.getNextRow();
-	std::cout << row["id"] << ',' << row["language_code"] << ',' << row["text"] << ',' << row["category"] << '\n';
+// Replaces a comma with "\," and a slash with "\\".
+std::string EscapeCommasAndBackslashes(const std::string &text) {
+    std::string escaped_text;
+    for (const auto ch : text) {
+        if (unlikely(ch == ',' or ch == '\\'))
+            escaped_text += '\\';
+        escaped_text += ch;
     }
+
+    return escaped_text;
 }
 
 
-void Insert(DbConnection * const connection, const unsigned index, const std::string &language_code,
-	    const std::string &category, const std::string &text)
+unsigned GetMissing(DbConnection * const connection, const std::string &table_name, 
+                    const std::string &table_key_name, const std::string &category,
+                    const std::string &language_code) 
 {
-    const std::string ID(std::to_string(index));
-    if (category == "vufind_translations") {
-	// First get the token that we need for the INSERT:
-	const std::string SELECT_STMT("SELECT token FROM translations WHERE category='vufind_translations' AND id='" + ID + "'");
-	ExecSqlOrDie(SELECT_STMT, connection);
-	DbResultSet result_set(connection->getLastResultSet());
-	if (result_set.empty())
-	    Error("Select unexpectedly returned an empty result set: " + SELECT_STMT);
-	const DbRow row = result_set.getNextRow();
-	const std::string token(row[0]);
+     // Find a token/ppn where "language_code" is missing:
+    ExecSqlOrDie("SELECT distinct " + table_key_name + " FROM " + table_name + " WHERE " + table_key_name + 
+                 " NOT IN (SELECT distinct " + table_key_name + " FROM " + table_name + 
+                 " WHERE language_code = \"" + language_code + "\") ORDER BY RAND();", connection);
+    DbResultSet keys_result_set(connection->getLastResultSet());
+    const size_t count(keys_result_set.size());
+    if (count == 0)
+        return 0;
 
-	ExecSqlOrDie("INSERT INTO translations SET id=" + ID + ",language_code=\"" + language_code + "\",text=\""
-		     + connection->escapeString(text) + "\", category='vufind_translations', token='" + token
-		     + "', preexists=FALSE", connection);
-    } else
-	ExecSqlOrDie("INSERT INTO translations SET id=" + ID + ",language_code=\"" + language_code + "\",text=\""
-		     + connection->escapeString(text) + "\", category='" + category + "', preexists=FALSE", connection);
+    // Print the contents of all rows with the token from the last query on stdout:
+    DbRow row(keys_result_set.getNextRow());
+    const std::string matching_key(row[table_key_name]);
+    ExecSqlOrDie("SELECT * FROM " + table_name + " WHERE " + table_key_name + "='" + matching_key + "';", connection);
+    DbResultSet result_set(connection->getLastResultSet());
+    if (result_set.empty())
+        return 0;
+
+    const std::set<std::string> column_names(SqlUtil::GetColumnNames(connection, table_name));
+    const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
+    
+    while (row = result_set.getNextRow())
+        std::cout << row[table_key_name] << ',' << count << ',' << row["language_code"] << ','
+                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category
+                  << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
+
+    return result_set.size();
 }
 
 
-void GetPossibleCategories(DbConnection * const connection, std::set<std::string> * const categories) {
-    categories->clear();
+unsigned GetMissingVuFindTranslations(DbConnection * const connection, const std::string &language_code) {
+    return GetMissing(connection, "vufind_translations", "token", "vufind_translations", language_code);
+}
 
-    ExecSqlOrDie("SELECT DISTINCT category FROM translations", connection);
-    DbResultSet categories_result_set(connection->getLastResultSet());
-    while (const DbRow row = categories_result_set.getNextRow())
-	categories->insert(row[0]);
+
+unsigned GetMissingKeywordTranslations(DbConnection * const connection, const std::string &language_code) {
+    return GetMissing(connection, "keyword_translations", "ppn", "keywords", language_code);
+}
+
+
+void InsertIntoVuFindTranslations(DbConnection * const connection, const std::string &token,
+                                  const std::string &language_code, const std::string &text)
+{
+    ExecSqlOrDie("INSERT INTO vufind_translations SET token=\"" + token + "\",language_code=\"" + language_code
+                 + "\",translation=\"" + connection->escapeString(text) + "\";", connection);
+}
+
+
+void InsertIntoKeywordTranslations(DbConnection * const connection, const std::string &ppn,
+                                   const std::string &gnd_code, const std::string &language_code,
+                                   const std::string &text)
+{
+    ExecSqlOrDie("INSERT INTO keyword_translations SET ppn=\"" + ppn + ",gnd_code=\"" + gnd_code
+                 + "\",language_code=\"" + language_code + "\", gnd_code=\"" + gnd_code + "\",translation=\""
+                 + connection->escapeString(text) + "\";", connection);
 }
 
 
@@ -103,48 +129,42 @@ const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
 int main(int argc, char *argv[]) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     try {
-	if (argc < 2)
-	    Usage();
+        if (argc < 2)
+            Usage();
 
-	const IniFile ini_file(CONF_FILE_PATH);
-	const std::string sql_database(ini_file.getString("", "sql_database"));
-	const std::string sql_username(ini_file.getString("", "sql_username"));
-	const std::string sql_password(ini_file.getString("", "sql_password"));
-	DbConnection db_connection("vufind", sql_username, sql_password);
+        const IniFile ini_file(CONF_FILE_PATH);
+        const std::string sql_database(ini_file.getString("", "sql_database"));
+        const std::string sql_username(ini_file.getString("", "sql_username"));
+        const std::string sql_password(ini_file.getString("", "sql_password"));
+        DbConnection db_connection(sql_database, sql_username, sql_password);
 
-	if (std::strcmp(argv[1], "get_missing") == 0) {
-	    if (argc != 3)
-		Error("\"get_missing\" requires exactly one argument: language_code!");
-	    const std::string language_code(argv[2]);
-	    if (language_code.length() != 3)
-		Error("\"" + language_code + "\" is not a valid 3-letter language code!");
-	    GetMissing(&db_connection, language_code);
-	} else if (std::strcmp(argv[1], "insert") == 0) {
-	    if (argc != 6)
-		Error("\"insert\" requires exactly four arguments: index, language_code, category, and text!");
+        if (std::strcmp(argv[1], "get_missing") == 0) {
+            if (argc != 3)
+                Error("\"get_missing\" requires exactly one argument: language_code!");
+            const std::string language_code(argv[2]);
+            if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
+                Error("\"" + language_code + "\" is not a valid 3-letter language code!");
+            if (not GetMissingVuFindTranslations(&db_connection, language_code))
+                GetMissingKeywordTranslations(&db_connection, language_code);
+        } else if (std::strcmp(argv[1], "insert") == 0) {
+            if (argc != 5 and argc != 6)
+                Error("\"insert\" requires three or four arguments: token or ppn, gnd_code (if ppn), "
+                      "language_code, and text!");
 
-	    unsigned index;
-	    if (not StringUtil::ToUnsigned(argv[2], &index))
-		Error("\"" + std::string(argv[2])  + "\" is not a valid index!");
+            const std::string language_code(argv[(argc == 6) ? 3 : 4]);
+            if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
+                Error("\"" + language_code + "\" is not a valid German 3-letter language code!");
 
-	    const std::string language_code(argv[3]);
-	    if (TranslationUtil::IsValidGerman3LetterCode(language_code))
-		Error("\"" + language_code + "\" is not a valid German 3-letter language code!");
-
-	    std::set<std::string> valid_categories;
-	    GetPossibleCategories(&db_connection, &valid_categories);
-	    const std::string category(argv[4]);
-	    if (valid_categories.find(category) == valid_categories.cend())
-		Error("\"" + category + "\" is not a valid category, valid categories are: "
-		      + StringUtil::Join(valid_categories, ", ") + ".");
-
-	    Insert(&db_connection, index, language_code, category, argv[5]);
-	} else
-	    Error("unknown command \"" + std::string(argv[1]) + "\"!");
+            if (argc == 5)
+                InsertIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4]);
+            else
+                InsertIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5]);
+        } else
+            Error("unknown command \"" + std::string(argv[1]) + "\"!");
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()) + " (login is " + MiscUtil::GetUserName() + ")");
     }
 }

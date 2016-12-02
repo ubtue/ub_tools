@@ -329,7 +329,7 @@ fi
 # start server
 ##############################################################################
 
-if [ -x "/bin/systemctl" ] ; then
+if [[ -e "/etc/systemd/system/httpd.conf" ]]; then
   if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""
@@ -347,7 +347,7 @@ fi
 
 ##############################################################################
 
-if [ -x "/bin/systemctl" ] ; then
+if [[ -e "/etc/systemd/system/httpd.conf" ]]; then
   if [[ "$VERBOSE" ]] ; then
     echo ""
     echo ""

@@ -34,18 +34,18 @@
 
 FileDescriptor::FileDescriptor(const FileDescriptor &rhs) {
     if (rhs.fd_ == -1)
-	fd_ = -1;
+        fd_ = -1;
     else {
-	fd_ = ::dup(rhs.fd_);
-	if (unlikely(fd_ == -1))
-	    throw std::runtime_error("in FileDescriptor::FileDescriptor: dup(2) failed (" + std::to_string(errno) + ")!");
+        fd_ = ::dup(rhs.fd_);
+        if (unlikely(fd_ == -1))
+            throw std::runtime_error("in FileDescriptor::FileDescriptor: dup(2) failed (" + std::to_string(errno) + ")!");
     }
 }
 
 
 void FileDescriptor::close() {
     if (unlikely(fd_ != -1))
-	::close(fd_);
+        ::close(fd_);
 
     fd_ = -1;
 }
@@ -54,12 +54,12 @@ void FileDescriptor::close() {
 const FileDescriptor &FileDescriptor::operator=(const FileDescriptor &rhs) {
     // Prevent self-assignment!
     if (likely(&rhs != this)) {
-	if (unlikely(fd_ != -1))
-	    ::close(fd_);
+        if (unlikely(fd_ != -1))
+            ::close(fd_);
 
-	fd_ = ::dup(rhs.fd_);
-	if (unlikely(fd_ == -1))
-	    throw std::runtime_error("in FileDescriptor::operator=: dup(2) failed (" + std::to_string(errno) + ")!");
+        fd_ = ::dup(rhs.fd_);
+        if (unlikely(fd_ == -1))
+            throw std::runtime_error("in FileDescriptor::operator=: dup(2) failed (" + std::to_string(errno) + ")!");
     }
 
     return *this;
@@ -68,7 +68,7 @@ const FileDescriptor &FileDescriptor::operator=(const FileDescriptor &rhs) {
 
 const FileDescriptor &FileDescriptor::operator=(const int new_fd) {
     if (unlikely(fd_ != -1))
-	::close(fd_);
+        ::close(fd_);
 
     fd_ = new_fd;
 

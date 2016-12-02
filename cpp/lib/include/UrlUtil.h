@@ -129,31 +129,31 @@ bool IsValidPrivoxyPattern(const std::string &test_pattern);
  */
 class Blacklister {
     class ReferenceCountedPerlCompatRegExp {
-	std::string *pattern_;
-	PerlCompatRegExp *reg_exp_;
-	unsigned *count_;
-	bool block_;
+        std::string *pattern_;
+        PerlCompatRegExp *reg_exp_;
+        unsigned *count_;
+        bool block_;
     public:
-	ReferenceCountedPerlCompatRegExp(const std::string &pattern, const bool initial_block);
-	ReferenceCountedPerlCompatRegExp(const ReferenceCountedPerlCompatRegExp &rhs)
-	    : pattern_(rhs.pattern_), reg_exp_(rhs.reg_exp_), count_(rhs.count_), block_(rhs.block_)
-	{ ++*count_; }
-	const ReferenceCountedPerlCompatRegExp &operator=(const ReferenceCountedPerlCompatRegExp &rhs);
-	~ReferenceCountedPerlCompatRegExp();
-	const std::string &getPattern() const { return *pattern_; }
-	bool match(const std::string &s) const { return reg_exp_->match(s); }
-	bool block() const { return block_; }
+        ReferenceCountedPerlCompatRegExp(const std::string &pattern, const bool initial_block);
+        ReferenceCountedPerlCompatRegExp(const ReferenceCountedPerlCompatRegExp &rhs)
+            : pattern_(rhs.pattern_), reg_exp_(rhs.reg_exp_), count_(rhs.count_), block_(rhs.block_)
+        { ++*count_; }
+        const ReferenceCountedPerlCompatRegExp &operator=(const ReferenceCountedPerlCompatRegExp &rhs);
+        ~ReferenceCountedPerlCompatRegExp();
+        const std::string &getPattern() const { return *pattern_; }
+        bool match(const std::string &s) const { return reg_exp_->match(s); }
+        bool block() const { return block_; }
     private:
-	ReferenceCountedPerlCompatRegExp(); // Intentionally unimplemented!
+        ReferenceCountedPerlCompatRegExp(); // Intentionally unimplemented!
     };
 
 
     class UrlRegExpList {
-	std::list<ReferenceCountedPerlCompatRegExp> ref_counted_reg_exps_;
+        std::list<ReferenceCountedPerlCompatRegExp> ref_counted_reg_exps_;
     public:
-	bool block(const std::string &url, std::string * const reason) const;
-	void push_back(const ReferenceCountedPerlCompatRegExp &new_ref_counted_reg_exp)
-	{ ref_counted_reg_exps_.push_back(new_ref_counted_reg_exp); }
+        bool block(const std::string &url, std::string * const reason) const;
+        void push_back(const ReferenceCountedPerlCompatRegExp &new_ref_counted_reg_exp)
+        { ref_counted_reg_exps_.push_back(new_ref_counted_reg_exp); }
     } reg_exps_;
 public:
     /** \brief  Creates a Blacklister object.
@@ -193,8 +193,8 @@ std::string UrlEncode(std::string * const s);
 /** Replace all characters that have a special meaning in a URL with %XX where "XX" is a two character hex encoding. */
 inline std::string UrlEncode(const std::string &s)
 {
-	std::string mutable_s(s);
-	return UrlEncode(&mutable_s);
+        std::string mutable_s(s);
+        return UrlEncode(&mutable_s);
 }
 
 
@@ -246,9 +246,9 @@ inline int UrlCompare(const std::string &lhs, const std::string &rhs) { return U
  *           returned in "authority".'
  */
 bool ParseUrl(const std::string &url, std::string * const scheme, std::string * const username_password,
-	      std::string * const authority, std::string * const port, std::string * const path,
-	      std::string * const params, std::string * const query, std::string * const fragment,
-	      std::string * const relative_url);
+              std::string * const authority, std::string * const port, std::string * const path,
+              std::string * const params, std::string * const query, std::string * const fragment,
+              std::string * const relative_url);
 
 
 /** \brief  Converts a URL to a string that can be reasonably expected to act as a key that is likely to avoid some URL

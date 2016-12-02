@@ -94,7 +94,7 @@ inline std::string GetCurrentTime(const TimeZone time_zone = LOCAL) { return Get
  *  \return The converted time.
  */
 std::string TimeTToString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT,
-			  const TimeZone time_zone = LOCAL);
+                          const TimeZone time_zone = LOCAL);
 
 
 /** \brief  Inverse of gmtime(3).
@@ -144,8 +144,8 @@ inline std::string TimeTToZuluString(const time_t &the_time)
  *          one of our three supported formats.  When we return three, hour, minute, and second will be set to zero.
  */
 unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
-				unsigned * const day, unsigned * const hour, unsigned * const minute,
-				unsigned * const second, bool * const is_definitely_zulu_time);
+                                unsigned * const day, unsigned * const hour, unsigned * const minute,
+                                unsigned * const second, bool * const is_definitely_zulu_time);
 
 
 /** \brief   Convert a time from (a subset of) ISO 8601 format to a time_t.
@@ -197,7 +197,7 @@ double GetJulianDayNumber(const unsigned year, const unsigned month, const unsig
  *  \param  day                Output: The day of a month [1-31].
  */
 void JulianDayNumberToYearMonthAndDay(const double julian_day_number, unsigned * const year, unsigned * const month,
-				      unsigned * const day);
+                                      unsigned * const day);
 
 
 /** \brief  Add an integral number of days to a "time_t".

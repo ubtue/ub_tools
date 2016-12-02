@@ -60,20 +60,20 @@ namespace {
 __attribute__((constructor)) bool InitializeLocale() {
     // Try to force the use of the iVia standard locale:
     if (std::setlocale(LC_CTYPE, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr) {
-	const std::string error_message("in InitializeLocale: setlocale(3) failed: "
-					+ StringUtil::IVIA_STANDARD_LOCALE + "\n");
-	const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
-	(void)dummy;
-	::_exit(EXIT_FAILURE);
+        const std::string error_message("in InitializeLocale: setlocale(3) failed: "
+                                        + StringUtil::IVIA_STANDARD_LOCALE + "\n");
+        const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
+        (void)dummy;
+        ::_exit(EXIT_FAILURE);
     }
 
     // Try to force the use of the iVia standard locale:
     if (std::setlocale(LC_MONETARY, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr) {
-	const std::string error_message("In InitializeLocale: setlocale(3) failed for LC_MONETARY.  Cannot "
-					"honour the '" + StringUtil::IVIA_STANDARD_LOCALE + "' locale!\n");
-	const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
-	(void)dummy;
-	::_exit(EXIT_FAILURE);
+        const std::string error_message("In InitializeLocale: setlocale(3) failed for LC_MONETARY.  Cannot "
+                                        "honour the '" + StringUtil::IVIA_STANDARD_LOCALE + "' locale!\n");
+        const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
+        (void)dummy;
+        ::_exit(EXIT_FAILURE);
     }
 
     return true;
@@ -83,39 +83,39 @@ __attribute__((constructor)) bool InitializeLocale() {
 char ToHexChar(const unsigned u) {
     switch (u) {
     case 0:
-	return '0';
+        return '0';
     case 1:
-	return '1';
+        return '1';
     case 2:
-	return '2';
+        return '2';
     case 3:
-	return '3';
+        return '3';
     case 4:
-	return '4';
+        return '4';
     case 5:
-	return '5';
+        return '5';
     case 6:
-	return '6';
+        return '6';
     case 7:
-	return '7';
+        return '7';
     case 8:
-	return '8';
+        return '8';
     case 9:
-	return '9';
+        return '9';
     case 0xA:
-	return 'A';
+        return 'A';
     case 0xB:
-	return 'B';
+        return 'B';
     case 0xC:
-	return 'C';
+        return 'C';
     case 0xD:
-	return 'D';
+        return 'D';
     case 0xE:
-	return 'E';
+        return 'E';
     case 0xF:
-	return 'F';
+        return 'F';
     default:
-	throw std::runtime_error("in ToHexChar: value out of range (" + StringUtil::ToString(u) + ")!");
+        throw std::runtime_error("in ToHexChar: value out of range (" + StringUtil::ToString(u) + ")!");
     }
 }
 
@@ -128,7 +128,7 @@ namespace StringUtil {
 
 std::string ToLower(std::string * const s) {
     for (std::string::iterator ch(s->begin()); ch != s->end(); ++ch)
-	*ch = tolower(*ch);
+        *ch = tolower(*ch);
 
     return *s;
 }
@@ -137,7 +137,7 @@ std::string ToLower(std::string * const s) {
 std::string ToLower(const std::string &s) {
     std::string result(s);
     for (std::string::iterator ch(result.begin()); ch != result.end(); ++ch)
-	*ch = tolower(*ch);
+        *ch = tolower(*ch);
 
     return result;
 }
@@ -145,7 +145,7 @@ std::string ToLower(const std::string &s) {
 
 std::string ToUpper(std::string * const s) {
     for (std::string::iterator ch(s->begin()); ch != s->end(); ++ch)
-	*ch = toupper(*ch);
+        *ch = toupper(*ch);
 
     return *s;
 }
@@ -154,7 +154,7 @@ std::string ToUpper(std::string * const s) {
 std::string ToUpper(const std::string &s) {
     std::string result(s);
     for (std::string::iterator ch(result.begin()); ch != result.end(); ++ch)
-	*ch = toupper(*ch);
+        *ch = toupper(*ch);
 
     return result;
 }
@@ -162,11 +162,11 @@ std::string ToUpper(const std::string &s) {
 
 bool IsAllUppercase(const std::string &s) {
     if (s.empty())
-	return false;
+        return false;
 
     for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
-	if (not isupper(*ch))
-	    return false;
+        if (not isupper(*ch))
+            return false;
     }
 
     return true;
@@ -175,11 +175,11 @@ bool IsAllUppercase(const std::string &s) {
 
 bool IsAllLowercase(const std::string &s) {
     if (s.empty())
-	return false;
+        return false;
 
     for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
-	if (not islower(*ch))
-	    return false;
+        if (not islower(*ch))
+            return false;
     }
 
     return true;
@@ -206,8 +206,8 @@ bool IsInitialCapsString(const std::string &s)
 
 bool IsWhitespace(const std::string &s) {
     for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
-	if (not IsWhitespace(*ch))
-	    return false;
+        if (not IsWhitespace(*ch))
+            return false;
     }
 
     return true;
@@ -217,39 +217,39 @@ bool IsWhitespace(const std::string &s) {
 char ToHex(const unsigned nibble) {
     switch (nibble) {
     case 0:
-	return '0';
+        return '0';
     case 1:
-	return '1';
+        return '1';
     case 2:
-	return '2';
+        return '2';
     case 3:
-	return '3';
+        return '3';
     case 4:
-	return '4';
+        return '4';
     case 5:
-	return '5';
+        return '5';
     case 6:
-	return '6';
+        return '6';
     case 7:
-	return '7';
+        return '7';
     case 8:
-	return '8';
+        return '8';
     case 9:
-	return '9';
+        return '9';
     case 0xA:
-	return 'A';
+        return 'A';
     case 0xB:
-	return 'B';
+        return 'B';
     case 0xC:
-	return 'C';
+        return 'C';
     case 0xD:
-	return 'D';
+        return 'D';
     case 0xE:
-	return 'E';
+        return 'E';
     case 0xF:
-	return 'F';
+        return 'F';
     default:
-	throw std::runtime_error("in ToHex: number " + std::to_string(nibble) + " not in [0,15] range!");
+        throw std::runtime_error("in ToHex: number " + std::to_string(nibble) + " not in [0,15] range!");
     }
 }
 
@@ -257,14 +257,14 @@ char ToHex(const unsigned nibble) {
 std::string RightTrim(std::string * const s, char trim_char) {
     size_t original_length = s->length();
     if (original_length == 0)
-	return *s;
+        return *s;
 
     size_t trimmed_length = original_length;
     while (trimmed_length > 0 and (*s)[trimmed_length-1] == trim_char)
-	--trimmed_length;
+        --trimmed_length;
 
     if (trimmed_length < original_length)
-	s->resize(trimmed_length);
+        s->resize(trimmed_length);
 
     return *s;
 }
@@ -2962,8 +2962,8 @@ std::string Filter(const std::string &source, const std::string &remove_set) {
     filtered_string.reserve(source.size());
 
     for (const char ch : source) {
-	if (remove_set.find(ch) == std::string::npos)
-	    filtered_string += ch;
+        if (remove_set.find(ch) == std::string::npos)
+            filtered_string += ch;
     }
 
     return filtered_string;

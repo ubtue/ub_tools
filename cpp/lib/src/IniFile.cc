@@ -53,51 +53,51 @@ std::string BackQuoteUnescape(const std::string &s) {
     result.reserve(s.length());
 
     for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
-	if (unlikely(*ch == '\\')) {
-	    ++ch;
-	    if (ch == s.end())
-		break;
+        if (unlikely(*ch == '\\')) {
+            ++ch;
+            if (ch == s.end())
+                break;
 
-	    switch (*ch) {
-	    case 'a':
-		result += '\a';
-		break;
-	    case 'b':
-		result += '\b';
-		break;
-	    case 'f':
-		result += '\f';
-		break;
-	    case 'n':
-		result += '\n';
-		break;
-	    case 'r':
-		result += '\r';
-		break;
-	    case 't':
-		result += '\t';
-		break;
-	    case 'v':
-		result += '\v';
-		break;
-	    case '\\':
-		result += '\\';
-		break;
-	    case '\'':
-		result += '\'';
-		break;
-	    case '"':
-		result += '"';
-		break;
-	    case '?':
-		result += '?';
-		break;
-	    default:
-		result += *ch;
-	    }
-	}
-	else
-	    result += *ch;
+            switch (*ch) {
+            case 'a':
+                result += '\a';
+                break;
+            case 'b':
+                result += '\b';
+                break;
+            case 'f':
+                result += '\f';
+                break;
+            case 'n':
+                result += '\n';
+                break;
+            case 'r':
+                result += '\r';
+                break;
+            case 't':
+                result += '\t';
+                break;
+            case 'v':
+                result += '\v';
+                break;
+            case '\\':
+                result += '\\';
+                break;
+            case '\'':
+                result += '\'';
+                break;
+            case '"':
+                result += '"';
+                break;
+            case '?':
+                result += '?';
+                break;
+            default:
+                result += *ch;
+            }
+        }
+        else
+            result += *ch;
     }
 
     return result;
@@ -107,12 +107,12 @@ std::string BackQuoteUnescape(const std::string &s) {
 std::string StripComment(std::string * const s) {
     size_t hash_mark_pos(0);
     while ((hash_mark_pos = s->find('#', hash_mark_pos)) != std::string::npos) {
-	if (hash_mark_pos == 0)
-	    return (*s = "");
-	else if ((*s)[hash_mark_pos - 1] == '\\')
-	    hash_mark_pos = s->find('#', hash_mark_pos + 1);
-	else
-	    return (*s = s->substr(0, hash_mark_pos));
+        if (hash_mark_pos == 0)
+            return (*s = "");
+        else if ((*s)[hash_mark_pos - 1] == '\\')
+            hash_mark_pos = s->find('#', hash_mark_pos + 1);
+        else
+            return (*s = s->substr(0, hash_mark_pos));
     }
 
     return *s;
@@ -282,7 +282,8 @@ void IniFile::processFile(const std::string &filename) {
     }
     std::ifstream ini_file(filename.c_str());
     if (ini_file.fail())
-        throw std::runtime_error("in IniFile::processFile: can't open \"" + filename + "\"!");
+        throw std::runtime_error("in IniFile::processFile: can't open \"" + filename + "\"! ("
+                                 + std::string(::strerror(errno)) + ")");
 
     include_file_infos_.push(IncludeFileInfo(filename));
 

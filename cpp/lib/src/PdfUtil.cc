@@ -26,9 +26,9 @@
 bool PdfFileContainsNoText(const std::string &path) {
     static std::string pdffonts_path;
     if (pdffonts_path.empty()) {
-	pdffonts_path = ExecUtil::Which("pdffonts");
-	if (pdffonts_path.empty())
-	    Error("can't find \"pdffonts\" in our PATH environment!");
+        pdffonts_path = ExecUtil::Which("pdffonts");
+        if (pdffonts_path.empty())
+            Error("can't find \"pdffonts\" in our PATH environment!");
     }
     const FileUtil::AutoTempFile auto_temp_file;
     const std::string &output_filename(auto_temp_file.getFilePath());

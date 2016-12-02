@@ -15,22 +15,22 @@ public class BibleRangeTests {
         r1 = new Range(0, 2);
         r2 = new Range(2, 4);
         assertTrue(r1.intersects(r2));
-        assertEquals(0f, r1.getMatchingScore(r2), 0.001);
+        assertEquals(0.2f, r1.getMatchingScore(r2), 0.001);
 
         r1 = new Range(0, 2);
         r2 = new Range(1, 2);
         assertTrue(r1.intersects(r2));
-        assertEquals(0.5f, r1.getMatchingScore(r2), 0.001);
+        assertEquals(0.666f, r1.getMatchingScore(r2), 0.001);
 
         r1 = new Range(0, 3);
         r2 = new Range(1, 2);
         assertTrue(r1.intersects(r2));
-        assertEquals(0.33333f, r1.getMatchingScore(r2), 0.001);
+        assertEquals(0.5f, r1.getMatchingScore(r2), 0.001);
 
         r1 = new Range(0, 2);
         r2 = new Range(5, 7);
         assertFalse(r1.intersects(r2));
-        assertEquals(-0.4286f, r1.getMatchingScore(r2), 0.001);
+        assertEquals(-0.25f, r1.getMatchingScore(r2), 0.001);
     }
 
     @Test
@@ -65,7 +65,7 @@ public class BibleRangeTests {
                 new Range(2700424, 2700424)
         };
         assertFalse(BibleRange.hasIntersections(rs1, rs2));
-        assertEquals(-1.94737, Range.getMatchingScore(rs1, rs2), 0.001);
+        assertEquals(0.0, Range.getMatchingScore(rs1, rs2), 0.001);
     }
 
     @Test
@@ -75,7 +75,7 @@ public class BibleRangeTests {
         float distance = r1.getBestMatchingScore(new Range[]{
                 new Range(10, 11), new Range(-100, 100), new Range(0, 1), new Range(-2, 4)
         });
-        assertEquals(0.5f, distance, 0.001);
+        assertEquals(0.666f, distance, 0.001);
     }
 
     @Test
@@ -107,21 +107,21 @@ public class BibleRangeTests {
 
     @Test
     public void testConstructor() {
-        r1 = new BibleRange("0000001:0000002");
+        r1 = new BibleRange("00000001:00000002");
         assertEquals(1, r1.getLower());
         assertEquals(2, r1.getUpper());
 
-        r1 = new BibleRange("0000010:0000020");
+        r1 = new BibleRange("00000010:00000020");
         assertEquals(10, r1.getLower());
         assertEquals(20, r1.getUpper());
 
-        r1 = new BibleRange("2700320:2700321");
-        assertEquals(2700320, r1.getLower());
-        assertEquals(2700321, r1.getUpper());
+        r1 = new BibleRange("27003020:27003021");
+        assertEquals(27003020, r1.getLower());
+        assertEquals(27003021, r1.getUpper());
 
         r1 = new BibleRange("*:*");
         assertEquals(0, r1.getLower());
-        assertEquals(9999999, r1.getUpper());
+        assertEquals(999999999, r1.getUpper());
     }
 
     @Test
@@ -165,7 +165,7 @@ public class BibleRangeTests {
 
     @Test
     public void testGetRangesFromField() {
-        String field = "0000001_0000002 0000010_0000020";
+        String field = "00000001_00000002 00000010_00000020";
         Range[] ranges = BibleRange.getRanges(field, " ");
 
         r1 = ranges[0];
@@ -179,7 +179,7 @@ public class BibleRangeTests {
 
     @Test
     public void testGetRangeFromStrings() {
-        String[] field = {"0000001_0000002", "0000010_0000020"};
+        String[] field = {"00000001_00000002", "00000010_00000020"};
         Range[] ranges = BibleRange.getRanges(field);
 
         r1 = ranges[0];
@@ -192,28 +192,20 @@ public class BibleRangeTests {
     }
 
     @Test
-    public void testIsVerse() {
-        assertTrue(new BibleRange("2700320_2700321").isVerse());
-        assertTrue(new BibleRange("2700000_2700321").isVerse());
-        assertFalse(new BibleRange("6810700_6815099").isVerse());
-        assertFalse(new BibleRange("6810000_6899999").isVerse());
-    }
-
-    @Test
     public void testIsChepter() {
-        assertFalse(new BibleRange("2700320_2700321").isChepter());
-        assertFalse(new BibleRange("2700000_2700321").isChepter());
-        assertTrue(new BibleRange("6800300_6800399").isChepter());
-        assertTrue(new BibleRange("6810700_6815099").isChepter());
-        assertFalse(new BibleRange("6800000_6899999").isChepter());
+        assertFalse(new BibleRange("27003020_27003021").isEntireChapter());
+        assertFalse(new BibleRange("27000000_27003021").isEntireChapter());
+        assertTrue(new BibleRange("68003000_68003999").isEntireChapter());
+        assertTrue(new BibleRange("68107000_68150999").isEntireChapter());
+        assertFalse(new BibleRange("6800000_68999999").isEntireChapter());
     }
 
     @Test
     public void testIsBook() {
-        assertFalse(new BibleRange("2700320_2700321").isBook());
-        assertFalse(new BibleRange("2700000_2700321").isBook());
-        assertFalse(new BibleRange("6800300_6800399").isBook());
-        assertFalse(new BibleRange("6810700_6815099").isBook());
-        assertTrue(new BibleRange("6800000_6899999").isBook());
+        assertFalse(new BibleRange("27003020_27003021").isEntireBook());
+        assertFalse(new BibleRange("27000000_27003021").isEntireBook());
+        assertFalse(new BibleRange("68003000_68003999").isEntireBook());
+        assertFalse(new BibleRange("68107000_68150999").isEntireBook());
+        assertTrue(new BibleRange("68000000_68999999").isEntireBook());
     }
 }

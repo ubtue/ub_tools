@@ -51,32 +51,32 @@ class RobotsDotTxt {
     enum RuleType { ALLOW, DISALLOW };
 
     class Rule {
-	RuleType rule_type_;
-	std::string path_prefix_;
+        RuleType rule_type_;
+        std::string path_prefix_;
     public:
-	Rule(const RuleType rule_type, const std::string &path_prefix);
-	bool match(const std::string &path) const;
-	RuleType getRuleType() const { return rule_type_; }
-	std::string toString() const { return (rule_type_ == ALLOW ? "Allow: " : "Disallow: ") + path_prefix_; }
+        Rule(const RuleType rule_type, const std::string &path_prefix);
+        bool match(const std::string &path) const;
+        RuleType getRuleType() const { return rule_type_; }
+        std::string toString() const { return (rule_type_ == ALLOW ? "Allow: " : "Disallow: ") + path_prefix_; }
     };
 
     class UserAgentDescriptor {
-	SList<std::string> user_agent_patterns_;
-	SList<Rule> rules_;
-	unsigned crawl_delay_;
+        SList<std::string> user_agent_patterns_;
+        SList<Rule> rules_;
+        unsigned crawl_delay_;
     public:
-	UserAgentDescriptor(): crawl_delay_(0) { }
-	void addUserAgent(const std::string &user_agent_pattern)
-	{ user_agent_patterns_.push_back(user_agent_pattern); }
-	void addRule(const RuleType rule_type, const std::string &value);
-	void setCrawlDelay(const unsigned new_crawl_delay) { crawl_delay_ = new_crawl_delay; }
-	bool match(const std::string &user_agent_string) const;
-	const SList<Rule> &getRules() const { return rules_; }
-	unsigned getCrawlDelay() const { return crawl_delay_; }
-	void copyRules(const UserAgentDescriptor &from);
-	size_t getNoOfUserAgentPatterns() const { return user_agent_patterns_.size(); }
-	void clear() { user_agent_patterns_.clear();  rules_.clear();  crawl_delay_ = 0; }
-	std::string toString() const;
+        UserAgentDescriptor(): crawl_delay_(0) { }
+        void addUserAgent(const std::string &user_agent_pattern)
+        { user_agent_patterns_.push_back(user_agent_pattern); }
+        void addRule(const RuleType rule_type, const std::string &value);
+        void setCrawlDelay(const unsigned new_crawl_delay) { crawl_delay_ = new_crawl_delay; }
+        bool match(const std::string &user_agent_string) const;
+        const SList<Rule> &getRules() const { return rules_; }
+        unsigned getCrawlDelay() const { return crawl_delay_; }
+        void copyRules(const UserAgentDescriptor &from);
+        size_t getNoOfUserAgentPatterns() const { return user_agent_patterns_.size(); }
+        void clear() { user_agent_patterns_.clear();  rules_.clear();  crawl_delay_ = 0; }
+        std::string toString() const;
     };
     SList<UserAgentDescriptor> user_agent_descriptors_;
 public:
@@ -112,9 +112,9 @@ public:
      *  \note    The pattern matching for the user agent is case insensitive!
      */
     bool accessAllowed(const std::string &user_agent, const Url &url) const {
-	if (not url.isAbsolute())
-	    throw std::runtime_error("in RobotsDotTxt::accessAllowed: cannot check acces for a relative URL!");
-	return accessAllowed(user_agent, url.getPath());
+        if (not url.isAbsolute())
+            throw std::runtime_error("in RobotsDotTxt::accessAllowed: cannot check acces for a relative URL!");
+        return accessAllowed(user_agent, url.getPath());
     }
 
     /** \brief  Returns the crawl delay specified in a robots.txt file or 0 for no specified crawl delay. */
@@ -165,7 +165,7 @@ public:
     void insert(const std::string &new_hostname, const std::string &new_robots_dot_txt);
 
     /** Adds a robots.txt reference for the robots.txt associated with "original_hostname".  Throws an
-	exception if no robots.txt entry can be found for "original_hostname." */
+        exception if no robots.txt entry can be found for "original_hostname." */
     void addAlias(const std::string &original_hostname, const std::string &new_hostname);
 
     bool hasHostname(const std::string &hostname) const;

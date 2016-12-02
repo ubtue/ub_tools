@@ -28,10 +28,12 @@ namespace EmailSender {
 
 
 enum Priority { DO_NOT_SET_PRIORITY = 0, VERY_LOW = 5, LOW = 4, MEDIUM = 3, HIGH = 2, VERY_HIGH = 1 };
+enum Format { PLAIN_TEXT, HTML };
 
 
 bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
-	       const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY);
+               const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
+               const Format format = PLAIN_TEXT);
 
 
 } // namespace EmailSender

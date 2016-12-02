@@ -14,12 +14,12 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 3)
-	Usage();
+        Usage();
 
     try {
-	const Stemmer *stemmer(Stemmer::StemmerFactory(argv[2]));
-	std::cout << stemmer->stem(argv[1]) << '\n';
+        const Stemmer *stemmer(Stemmer::StemmerFactory(argv[2]));
+        std::cout << stemmer->stem(argv[1]) << '\n';
     } catch (const std::exception &x) {
-	Error("caught exception: " + std::string(x.what()));
+        Error("caught exception: " + std::string(x.what()));
     }
 }

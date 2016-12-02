@@ -12,7 +12,8 @@ JAVA_VERSION=1.7
 
 # Compiler
 JAVAC=javac
-JAVAFLAGS=-g -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC) -source $(JAVA_VERSION) -target $(JAVA_VERSION)
+JAVAFLAGS=-g -Xlint:unchecked -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC) \
+          -source $(JAVA_VERSION) -target $(JAVA_VERSION)
 COMPILE = $(JAVAC) $(JAVAFLAGS)
 
 JAR=jar cvf 

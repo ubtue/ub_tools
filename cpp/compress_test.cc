@@ -40,13 +40,13 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 2)
-	Usage();
+        Usage();
     const std::string mode(argv[1]);
 
     if (mode == "compress")
-	Compress();
+        Compress();
     else if (mode == "decompress")
-	Decompress();
+        Decompress();
     else
-	Usage();
+        Usage();
 }

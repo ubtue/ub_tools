@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     if (argc != 2)
-	Usage();
+        Usage();
     const std::string db_filename(argv[1]);
 
     kyotocabinet::HashDB db;
@@ -37,5 +37,5 @@ int main(int argc, char *argv[]) {
               + std::string(db.error().message()) + ")!");
 
     for (const auto &key_and_value : status_info)
-	std::cout << key_and_value.first << ": " << key_and_value.second << '\n';
+        std::cout << key_and_value.first << ": " << key_and_value.second << '\n';
 }
