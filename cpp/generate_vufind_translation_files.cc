@@ -102,6 +102,8 @@ void GetLanguageCodes(DbConnection * const db_connection, std::map<std::string, 
 
     while (const DbRow row = language_codes_result_set.getNextRow()) {
         const std::string german_language_code(TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row[0]));
+        if (german_language_code == "???")
+            continue;
         const std::string international_language_code(TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode(german_language_code));
         language_codes->emplace(international_language_code, german_language_code);
     }
