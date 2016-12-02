@@ -96,7 +96,7 @@ void ProcessRecord(MarcRecord * const record, const std::string &output_tag_and_
         Error("We currently only support a single subfield and thus specifying " + subfield_spec + " as output subfield is not valid\n");
     Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
     subfields.addSubfield(subfield_spec[0], synonyms);
-    if (not(record->insertField(tag, subfields.toString())))
+    if (not(record->insertField(tag, subfields)))
         Warning("Could not insert field " + tag + " for PPN " + record->getControlNumber());
     ++modified_count;
 }

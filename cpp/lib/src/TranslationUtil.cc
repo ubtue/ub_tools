@@ -88,7 +88,7 @@ bool IsValidGerman3LetterCode(const std::string &german_3letter_code_candidate) 
         if (_2letter_and_3letter_codes.second == german_3letter_code_candidate)
             return true;
     }
-    
+
     return false;
 }
 
@@ -125,6 +125,34 @@ void ReadIniFile(
         (*token_to_line_no_and_other_map)[key] = std::make_pair(line_no, rest);
     }
 }
-   
+
+
+static std::map<std::string, std::string> german_to_3letter_english_codes{
+    { "deu", "ger" },
+    { "eng", "eng" },
+    { "fra", "fre" },
+    { "ita", "ita" },
+    { "hant", "cht" },
+    { "hans", "chs" },
+};
+
+
+std::string MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(const std::string &german_code) {
+    const auto ger_and_eng_code(german_to_3letter_english_codes.find(german_code));
+    if (ger_and_eng_code == german_to_3letter_english_codes.cend())
+        return "???";
+    return ger_and_eng_code->second;
+}
+
+
+std::string MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(const std::string &english_3letter_code) {
+    for (const auto &ger_and_eng_code : german_to_3letter_english_codes) {
+        if (ger_and_eng_code.second == english_3letter_code)
+            return ger_and_eng_code.first;
+    }
+
+    return "???";
+}
+
 
 } // namespace TranslationUtil

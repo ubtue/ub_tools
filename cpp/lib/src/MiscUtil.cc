@@ -27,6 +27,7 @@
  */
 
 #include "MiscUtil.h"
+#include <iostream>
 #include <map>
 #include <set>
 #include <stack>
@@ -271,6 +272,8 @@ std::string TemplateScanner::TokenTypeToString(const TemplateScanner::TokenType 
     case ERROR:
         return "ERROR";
     }
+
+    Error("in TemplateScanner::TokenTypeToString: we should *never* get here!");
 }
 
 
@@ -422,6 +425,8 @@ std::string Scope::TypeToString(const Type type) {
     case LOOP:
         return "LOOP";
     }
+
+    Error("in Scope::TypeToString: we should *never* get here!");
 }
 
 
@@ -624,6 +629,18 @@ void ProcessEndOfSyntax(const std::string &name_of_syntactic_construct, Template
 }
 
 
+void SkipToToken(TemplateScanner * const scanner, TemplateScanner::TokenType target_token) {
+    TemplateScanner::TokenType token;
+    while ((token = scanner->getToken(false)) != target_token and token != TemplateScanner::END_OF_INPUT)
+    { /* do nothing */ }
+    if (token == TemplateScanner::END_OF_INPUT)
+        throw std::runtime_error("in MiscUtil::SkipToToken: error on line "
+                                 + std::to_string(scanner->getLineNo())
+                                 + " expected '" + TemplateScanner::TokenTypeToString(token)
+                                 + "' but none was found.");
+}
+
+
 } // unnamed namespace
 
 
@@ -668,7 +685,11 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
                 throw std::runtime_error("in MiscUtil::ExpandTemplate: " + std::string(x.what()));
             }
             const unsigned start_line_no(scanner.getLineNo());
-            scopes.push_back(Scope::MakeLoopScope(start_line_no, scanner.getInputStreamPos(), loop_vars, loop_count));
+            if (likely(loop_count > 0))
+                scopes.push_back(Scope::MakeLoopScope(start_line_no, scanner.getInputStreamPos(), loop_vars, loop_count));
+            else
+                SkipToToken(&scanner, TemplateScanner::ENDLOOP);
+
         } else if (token == TemplateScanner::ENDLOOP) {
             Scope &current_scope(scopes.back());
             if (unlikely(current_scope.getType() != Scope::LOOP))
@@ -678,7 +699,7 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
             ProcessEndOfSyntax("ENDLOOP", &scanner);
 
             current_scope.incIterationCount();
-            if (current_scope.getCurrentIterationCount() == current_scope.getLoopCount())
+            if (current_scope.getCurrentIterationCount() >= current_scope.getLoopCount())
                 scopes.pop_back();
             else
                 scanner.seek(current_scope.getStartStreamPos(), current_scope.getStartLineNumber());

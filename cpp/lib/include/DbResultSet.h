@@ -53,6 +53,8 @@ public:
      *
      */
     DbRow getNextRow();
+
+    bool hasColumn(const std::string &column_name) const;
 };
 
 

@@ -82,6 +82,12 @@ add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Norm
 EndPhase
 
 
+StartPhase "Add PDA Fields to Some Records"
+krimdok_flag_pda_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".xml \
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".xml >> "${log}" 2>&1
+EndPhase
+
+
 StartPhase "Add ISBN's or ISSN's to Articles"
 add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1

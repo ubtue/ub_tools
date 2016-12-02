@@ -32,8 +32,8 @@ class MarcRecord;
 
 class MarcWriter {
 public:
-    enum WriterType { XML, BINARY };
     enum WriterMode { OVERWRITE, APPEND };
+    enum WriterType { XML, BINARY, AUTO };
 public:
     virtual ~MarcWriter() { }
 
@@ -42,7 +42,8 @@ public:
     /** \return a reference to the underlying, assocaiated file. */
     virtual File &getFile() = 0;
 
-    static std::unique_ptr<MarcWriter> Factory(const std::string &output_filename, const WriterType writer_type,
+    /** \note If you pass in AUTO for "writer_type", "output_filename" must end in ".mrc" or ".xml"! */
+    static std::unique_ptr<MarcWriter> Factory(const std::string &output_filename, const WriterType writer_type = AUTO,
                                                const WriterMode writer_mode = WriterMode::OVERWRITE);
 };
 
@@ -64,6 +65,7 @@ class XmlMarcWriter: public MarcWriter {
 public:
     explicit XmlMarcWriter(File * const output_file, const unsigned indent_amount = 0,
                            const XmlWriter::TextConversionType text_conversion_type = XmlWriter::NoConversion);
+    virtual ~XmlMarcWriter() final { delete xml_writer_; }
 
     virtual void write(const MarcRecord &record) final;
 

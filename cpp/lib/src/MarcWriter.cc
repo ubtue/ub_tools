@@ -22,6 +22,7 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "MarcWriter.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -201,10 +202,19 @@ void XmlMarcWriter::write(const MarcRecord &record) {
 
 
 std::unique_ptr<MarcWriter> MarcWriter::Factory(const std::string &output_filename, const WriterType writer_type,
-                                                const WriterMode writer_mode)
+                                                )
 {
     std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE ? FileUtil::OpenOutputFileOrDie(output_filename)
                                                                       : FileUtil::OpenForAppeningOrDie(output_filename));
+    if (writer_type == AUTO) {
+        if (StringUtil::EndsWith(output_filename, ".mrc") or StringUtil::EndsWith(output_filename, ".marc"))
+            writer_type = BINARY;
+        else if (StringUtil::EndsWith(output_filename, ".xml"))
+            writer_type = XML;
+        else
+            throw std::runtime_error("in MarcWriter::Factory: WriterType is AUTO but filename \""
+                                     + output_filename + "\" does not end in \".mrc\" or \".xml\"!");
+    }
     return (writer_type == XML) ? std::unique_ptr<MarcWriter>(new XmlMarcWriter(output.release()))
                                 : std::unique_ptr<MarcWriter>(new BinaryMarcWriter(output.release()));
 }

@@ -1,11 +1,13 @@
 INC            = lib/include
 LIB_SRCS       = lib/src
+CCC            ?= clang++
 CCCFLAGS       = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include \
-                 -ftrapv -Ilib/libstemmer/include \
-                 -I/opt/shibboleth/include -pedantic -Wno-vla-extension -Wno-parentheses -march=native -O0 \
-                 -I/usr/include/libxml2
+                 -ftrapv -Ilib/libstemmer/include -I/opt/shibboleth/include -pedantic -Wno-parentheses \
+                 -march=native -O3 -I/usr/include/libxml2
+ifeq ($(CCC),clang++)
+  CCCFLAGS += -Wno-vla-extension
+endif
 CCCFLAGS_AMD64 = $(subst -march=native,,$(CCCFLAGS))
-CCC            = clang++
 OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
 LIBS           = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
@@ -15,7 +17,7 @@ LIBS_AMD64     = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64
 
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
 AMD64_PROGS    = $(patsubst %.cc,%_amd64,$(wildcard *.cc))
-CGI_PROGS      = full_text_lookup translate_chainer
+CGI_PROGS      = full_text_lookup translate_chainer translator display_translate_stats
 INSTALL_PROGS  = $(filter-out %_test,$(PROGS)) *.sh
 
 .PHONY: all amd64 install clean
@@ -57,7 +59,7 @@ regular_install: $(INSTALL_PROGS)
 	cp data/books_of_the_bible_to_canonical_form.map \
             /var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map
 	mkdir --parents /var/lib/tuelib/translate_chainer
-	cp data/done_translating.html  data/translate.html /var/lib/tuelib/translate_chainer/
+	cp data/done_translating.html  data/translate.html data/translation_front_page.html /var/lib/tuelib/translate_chainer/
 	cp ../configs/ixtheo/subscriptions_email.template /var/lib/tuelib/subscriptions_email.template
 
 cgi_install: $(CGI_PROGS)
