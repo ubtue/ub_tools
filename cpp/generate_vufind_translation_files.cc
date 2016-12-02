@@ -100,8 +100,11 @@ void GetLanguageCodes(DbConnection * const db_connection, std::map<std::string, 
     if (unlikely(language_codes_result_set.empty()))
         Error("no language codes found, expected multiple!");
 
-    while (const DbRow row = language_codes_result_set.getNextRow())
-        language_codes->emplace(row[0], TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row[0]));
+    while (const DbRow row = language_codes_result_set.getNextRow()) {
+        const std::string german_language_code(TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row[0]));
+        const std::string international_language_code(TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode(german_language_code));
+        language_codes->emplace(international_language_code, german_language_code);
+    }
 }
 
                              
