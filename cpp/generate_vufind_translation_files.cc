@@ -102,12 +102,14 @@ void GetLanguageCodes(DbConnection * const db_connection, std::map<std::string, 
 
     while (const DbRow row = language_codes_result_set.getNextRow()) {
         const std::string german_language_code(TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row[0]));
+        if (german_language_code == "???")
+            continue;
         const std::string international_language_code(TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode(german_language_code));
-        language_codes->emplace(international_language_code, german_language_code);
+        language_codes->emplace(international_language_code, row[0]);
     }
 }
 
-                             
+
 const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
@@ -130,9 +132,9 @@ int main(int argc, char **argv) {
 
         std::map<std::string, std::string> _2letter_and_3letter_codes;
         GetLanguageCodes(&db_connection, &_2letter_and_3letter_codes);
-        for (const auto &_2letter_intl_code_and_german_3letter_code : _2letter_and_3letter_codes)
-            ProcessLanguage(output_directory + "/" + _2letter_intl_code_and_german_3letter_code.first + ".ini",
-                            _2letter_intl_code_and_german_3letter_code.second, &db_connection);
+        for (const auto &_2letter_intl_code_and_fake_3letter_english_code : _2letter_and_3letter_codes)
+            ProcessLanguage(output_directory + "/" + _2letter_intl_code_and_fake_3letter_english_code.first + ".ini",
+                            _2letter_intl_code_and_fake_3letter_english_code.second, &db_connection);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
