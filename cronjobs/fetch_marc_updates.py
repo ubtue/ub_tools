@@ -306,7 +306,7 @@ def Main():
     if complete_data_filename is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filename)
     DownloadOtherData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
-    if (config.has_section("Hinweisabzug"))
+    if config.has_section("Hinweisabzug"):
         DownloadOtherData(config, "Hinweisabzug", ftp, 000000, msg)
     DownloadOtherData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     DownloadOtherData(config, "Errors", ftp, download_cutoff_date, msg)
