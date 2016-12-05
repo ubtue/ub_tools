@@ -862,34 +862,35 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            MARC record
      * @return set of dates
      */
+
     public Set<String> getDates(final Record record) {
+
         final Set<String> dates = new LinkedHashSet<>();
+        final Set<String> format = getFormatIncludingElectronic(record);
 
-        // Check old-style 534c date:
-        final List<VariableField> list534 = record.getVariableFields("534");
-        for (final VariableField vf : list534) {
-            final DataField df = (DataField) vf;
-            final List<Subfield> currentDates = df.getSubfields('c');
-            for (final Subfield sf : currentDates) {
-                final String currentDateStr = Utils.cleanDate(sf.getData());
-                dates.add(currentDateStr);
+        // Case 1 [Article or Review]
+        // Match also the case of publication date transgressing one year
+        // (Format YYYY/YY for older and Format YYYY/YYYY) for
+        // newer entries
+        if (format.contains("Article") || format.contains("Review")) {
+            final List<VariableField> _936Fields = record.getVariableFields("936");
+            for (VariableField _936VField : _936Fields) {
+                DataField _936Field = (DataField) _936VField;
+                final Subfield jSubfield = _936Field.getSubfield('j');
+                if (jSubfield != null) {
+                    String yearOrYearRange = jSubfield.getData();
+                    // Partly, we have additional text like "Post annum domini" in the front, so do away with that
+                    yearOrYearRange = yearOrYearRange.replaceAll("^[\\D\\[\\]]+", "");
+                    // Make sure we do away with brackets
+                    yearOrYearRange = yearOrYearRange.replaceAll("[\\[|\\]]", "");
+                    dates.add(yearOrYearRange.length() > 4 ? yearOrYearRange.substring(0, 4) : yearOrYearRange);
+                }
             }
-        }
-        if (!dates.isEmpty()) {
-            return dates;
-        }
-
-        // Check old-style 260c date:
-        final List<VariableField> list260 = record.getVariableFields("260");
-        for (final VariableField vf : list260) {
-            final DataField df = (DataField) vf;
-            final List<Subfield> currentDates = df.getSubfields('c');
-            for (final Subfield sf : currentDates) {
-                final String currentDateStr = Utils.cleanDate(sf.getData());
-                dates.add(currentDateStr);
-            }
+            System.err.println("getPublicationSortDate [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
+            return null;
         }
 
+        // Case 2: Get RDA 264 dates:
         // Now track down relevant RDA-style 264c dates; we only care about
         // copyright and publication dates (and ignore copyright dates if
         // publication dates are present).
@@ -900,7 +901,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             final DataField df = (DataField) vf;
             final List<Subfield> currentDates = df.getSubfields('c');
             for (final Subfield sf : currentDates) {
-                final String currentDateStr = Utils.cleanDate(sf.getData());
+                final String currentDateStr = getCleanAndNormalizedDate(sf.getData());
                 final char ind2 = df.getIndicator2();
                 switch (ind2) {
                 case '1':
@@ -912,14 +913,49 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
         }
+
         if (!pubDates.isEmpty()) {
             dates.addAll(pubDates);
         } else if (!copyDates.isEmpty()) {
             dates.addAll(copyDates);
         }
+        if (!dates.isEmpty())
+            return dates;
 
+        // Case 3: Get old-style 260c
+        final List<VariableField> list260 = record.getVariableFields("260");
+        for (final VariableField vf : list260) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates)
+                dates.add(getCleanAndNormalizedDate(sf.getData()));
+        }
+        if (!dates.isEmpty())
+            return dates;
+
+        // Case 4: Get old-style 534
+        final List<VariableField> list534 = record.getVariableFields("534");
+        for (final VariableField vf : list534) {
+            final DataField df = (DataField) vf;
+            final List<Subfield> currentDates = df.getSubfields('c');
+            for (final Subfield sf : currentDates) {
+                dates.add(getCleanAndNormalizedDate(sf.getData()));
+            }
+        }
+        if (!dates.isEmpty())
+            return dates;
+
+        // Case 5: Fall back to field 008
+        final ControlField _008_field = (ControlField) record.getVariableField("008");
+        if (_008_field == null) {
+            System.err.println("getPublicationSortDate [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
+            return null;
+        }
+        final String _008FieldContents = _008_field.getData();
+        dates.add(_008FieldContents.substring(7, 10));
         return dates;
-    }
+}
+
 
     public String isSuperiorWork(final Record record) {
         final DataField sprField = (DataField) record.getVariableField("SPR");
@@ -1445,6 +1481,23 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
+     * Helper to calculate the most recent publication date
+     *
+     * @param dates
+     *            String of possible publication dates
+     * @return the first publication date
+     */
+
+    public String calculateLastPublicationDate(Set<String> dates) {
+        String lastPublicationDate = null;
+        for (final String current : dates) {
+            if (lastPublicationDate == null || current != null && Integer.parseInt(current) > Integer.parseInt(lastPublicationDate))
+                lastPublicationDate = current;
+        }
+        return lastPublicationDate;
+    }
+
+    /**
      * Helper to cope with differing dates and possible special characters
      *
      * @param dates
@@ -1470,94 +1523,11 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
 
     public String getPublicationSortDate(final Record record) {
-
-        final Set<String> format = getFormatIncludingElectronic(record);
-
-        // Case 1 [Article or Review]
-        // Match also the case of publication date transgressing one year
-        // (Format YYYY/YY for older and Format YYYY/YYYY) for
-        // newer entries
-        if (format.contains("Article") || format.contains("Review")) {
-            final List<VariableField> _936Fields = record.getVariableFields("936");
-            for (VariableField _936VField : _936Fields) {
-                DataField _936Field = (DataField) _936VField;
-                final Subfield jSubfield = _936Field.getSubfield('j');
-                if (jSubfield != null) {
-                    String yearOrYearRange = jSubfield.getData();
-                    // Partly, we have additional text like "Post annum domini" in the front, so do away with that
-                    yearOrYearRange = yearOrYearRange.replaceAll("^[\\D\\[\\]]+", "");
-                    // Make sure we do away with brackets
-                    yearOrYearRange = yearOrYearRange.replaceAll("[\\[|\\]]", "");
-                    return yearOrYearRange.length() > 4 ? yearOrYearRange.substring(0, 4) : yearOrYearRange;
-                }
-            }
-            System.err.println("getPublicationSortDate [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
+        final Set<String> dates = getDates(record);
+        if (dates == null)
             return "";
-        }
-
-        // Case 2: Get RDA 264 dates:
-        // Now track down relevant RDA-style 264c dates; we only care about
-        // copyright and publication dates (and ignore copyright dates if
-        // publication dates are present).
-        final Set<String> dates = new LinkedHashSet<>();
-        final Set<String> pubDates = new LinkedHashSet<>();
-        final Set<String> copyDates = new LinkedHashSet<>();
-        final List<VariableField> list264 = record.getVariableFields("264");
-        for (final VariableField vf : list264) {
-            final DataField df = (DataField) vf;
-            final List<Subfield> currentDates = df.getSubfields('c');
-            for (final Subfield sf : currentDates) {
-                final String currentDateStr = getCleanAndNormalizedDate(sf.getData());
-                final char ind2 = df.getIndicator2();
-                switch (ind2) {
-                case '1':
-                    pubDates.add(currentDateStr);
-                    break;
-                case '4':
-                    copyDates.add(currentDateStr);
-                    break;
-                }
-            }
-        }
-        if (!pubDates.isEmpty()) {
-            dates.addAll(pubDates);
-        } else if (!copyDates.isEmpty()) {
-            dates.addAll(copyDates);
-        }
-        if (!dates.isEmpty())
-            return calculateFirstPublicationDate(dates);
-
-        // Case 3: Get old-style 260c
-        final List<VariableField> list260 = record.getVariableFields("260");
-        for (final VariableField vf : list260) {
-            final DataField df = (DataField) vf;
-            final List<Subfield> currentDates = df.getSubfields('c');
-            for (final Subfield sf : currentDates)
-                dates.add(getCleanAndNormalizedDate(sf.getData()));
-        }
-        if (!dates.isEmpty())
-            return calculateFirstPublicationDate(dates);
-
-        // Case 4: Get old-style 534
-        final List<VariableField> list534 = record.getVariableFields("534");
-        for (final VariableField vf : list534) {
-            final DataField df = (DataField) vf;
-            final List<Subfield> currentDates = df.getSubfields('c');
-            for (final Subfield sf : currentDates) {
-                dates.add(getCleanAndNormalizedDate(sf.getData()));
-            }
-        }
-        if (!dates.isEmpty()) 
-            return calculateFirstPublicationDate(dates);
-
-        // Case 5: Fall back to field 008
-        final ControlField _008_field = (ControlField) record.getVariableField("008");
-        if (_008_field == null) {
-            System.err.println("getPublicationSortDate [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
-            return "";
-        }
-        final String _008FieldContents = _008_field.getData();
-        return _008FieldContents.substring(7, 10);
+    
+        return calculateLastPublicationDate(dates);
     }
 
     public String getZDBNumber(final Record record) {
