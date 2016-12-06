@@ -796,7 +796,9 @@ int main(int argc, char *argv[]) {
         const std::string complete_dump_pattern(ini_file.getString("Files", "complete_dump"));
         const std::string incremental_dump_pattern(ini_file.getString("Files", "incremental_dump"));
         const std::string complete_dump_linkname(ini_file.getString("Files", "complete_dump_linkname"));
-        const std::string errors_list_pattern(ini_file.getString("Files", "errors_list"));
+        // An error list is not unconditionally present
+        std::string errors_list_pattern;
+        ini_file.lookup("Files", "error_list", &errors_list_pattern);
 
         const std::string complete_dump_filename(PickCompleteDumpFilename(complete_dump_pattern));
         const std::string complete_dump_filename_date(ExtractDateFromFilenameOrDie(complete_dump_filename));
@@ -808,10 +810,12 @@ int main(int argc, char *argv[]) {
                 + " deletion list filenames for application.");
 
         std::vector<std::string> errors_list_filenames;
-        GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, errors_list_pattern, &errors_list_filenames);
-        if (not errors_list_filenames.empty())
-            Log("identified " + std::to_string(errors_list_filenames.size())
-                + " errors list filenames for application.");
+        if (not errors_list_pattern.empty()) {
+            GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, errors_list_pattern, &errors_list_filenames);
+            if (not errors_list_filenames.empty())
+                Log("identified " + std::to_string(errors_list_filenames.size())
+                    + " errors list filenames for application.");
+        }
 
         std::vector<std::string> incremental_dump_filenames;
         GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_dump_pattern,
@@ -838,7 +842,8 @@ int main(int argc, char *argv[]) {
             RemoveDirectoryOrDie(GetWorkingDirectoryName());
             DeleteFilesOrDie(incremental_dump_pattern);
             DeleteFilesOrDie(deletion_list_pattern);
-            DeleteFilesOrDie(errors_list_pattern);
+            if (not errors_list_pattern.empty())  
+                DeleteFilesOrDie(errors_list_pattern);
         }
 
         CreateSymlink(new_complete_dump_filename, complete_dump_linkname);
