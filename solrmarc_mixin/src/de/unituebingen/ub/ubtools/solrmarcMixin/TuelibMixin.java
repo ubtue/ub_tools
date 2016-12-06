@@ -886,8 +886,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                     dates.add(yearOrYearRange.length() > 4 ? yearOrYearRange.substring(0, 4) : yearOrYearRange);
                 }
             }
-            System.err.println("getPublicationSortDate [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
-            return null;
+            if (dates.isEmpty())
+                System.err.println("getPublicationSortDate [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
+            return dates;
         }
 
         // Case 2: Get RDA 264 dates:
@@ -949,7 +950,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final ControlField _008_field = (ControlField) record.getVariableField("008");
         if (_008_field == null) {
             System.err.println("getPublicationSortDate [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
-            return null;
+            return dates;
         }
         final String _008FieldContents = _008_field.getData();
         dates.add(_008FieldContents.substring(7, 10));
@@ -1524,7 +1525,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public String getPublicationSortDate(final Record record) {
         final Set<String> dates = getDates(record);
-        if (dates == null)
+        if (dates.isEmpty())
             return "";
     
         return calculateLastPublicationDate(dates);
