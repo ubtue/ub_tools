@@ -201,8 +201,11 @@ void XmlMarcWriter::write(const MarcRecord &record) {
 }
 
 
-std::unique_ptr<MarcWriter> MarcWriter::Factory(const std::string &output_filename, WriterType writer_type) {
-    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(output_filename));
+std::unique_ptr<MarcWriter> MarcWriter::Factory(const std::string &output_filename, WriterType writer_type,
+                                                const WriterMode writer_mode)
+{
+    std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE ? FileUtil::OpenOutputFileOrDie(output_filename)
+                                                                      : FileUtil::OpenForAppeningOrDie(output_filename));
     if (writer_type == AUTO) {
         if (StringUtil::EndsWith(output_filename, ".mrc") or StringUtil::EndsWith(output_filename, ".marc"))
             writer_type = BINARY;

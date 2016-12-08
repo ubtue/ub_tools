@@ -7,6 +7,7 @@ import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
+import org.solrmarc.index.SolrIndexerShim;
 import org.solrmarc.tools.Utils;
 
 import java.text.DateFormat;
@@ -145,7 +146,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private Set<String> reviewedRecords_cache = null;
 
     @Override
-    public void perRecordInit(final Record record) {
+    public void perRecordInit() {
         reviews_cache = reviewedRecords_cache = isils_cache = null;
     }
 
@@ -240,7 +241,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return Set of local subjects
      */
     public Set<String> getAllTopics(final Record record) {
-        final Set<String> topics = SolrIndexer.getAllSubfields(record, "600:610:611:630:650:653:656:689a:936a", " ");
+        final Set<String> topics = SolrIndexerShim.instance().getAllSubfields(record, "600:610:611:630:650:653:656:689a:936a", " ");
         for (final VariableField variableField : record.getVariableFields("LOK")) {
             final DataField lokfield = (DataField) variableField;
             final Subfield subfield0 = lokfield.getSubfield('0');
@@ -264,7 +265,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return Set "topic_facet"
      */
     public Set<String> getFacetTopics(final Record record) {
-        final Set<String> result = SolrIndexer.getAllSubfields(record, "600x:610x:611x:630x:648x:650a:650x:651x:655x", " ");
+        final Set<String> result = SolrIndexerShim.instance().getAllSubfields(record, "600x:610x:611x:630x:648x:650a:650x:651x:655x", " ");
         String topic_string;
         // Check 689 subfield a and d
         final List<VariableField> fields = record.getVariableFields("689");
@@ -695,7 +696,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            the record
      */
     public String getPageRange(final Record record) {
-        final String field_value = SolrIndexer.getFirstFieldVal(record, "936h");
+        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936h");
         if (field_value == null)
             return null;
 
@@ -719,7 +720,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            the record
      */
     public String getContainerYear(final Record record) {
-        final String field_value = SolrIndexer.getFirstFieldVal(record, "936j");
+        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936j");
         if (field_value == null)
             return null;
 
@@ -732,7 +733,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            the record
      */
     public String getContainerVolume(final Record record) {
-        final String field_value = SolrIndexer.getFirstFieldVal(record, "936d");
+        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936d");
         if (field_value == null)
             return null;
 
@@ -835,7 +836,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public Set<String> getValuesOrUnassigned(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexer.getFieldList(record, fieldSpecs);
+        final Set<String> values = SolrIndexerShim.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
             values.add(UNASSIGNED);
         }
@@ -843,7 +844,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexer.getFieldList(record, fieldSpecs);
+        final Set<String> values = SolrIndexerShim.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
             values.add(UNASSIGNED);
         }

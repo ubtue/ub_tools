@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 *.mrc
 *.db
 *~
@@ -119,9 +118,21 @@ add_referenceterms
 extract_referenceterms
 add_additional_relbib_entries
 add_superior_flag
+generate_vufind_translation_files
+delete_unused_local_data
+convert_bible_references
+insert_translation_gaps
+krimdok_filter
+krimdok_marc_pipeline.sh_no_fulltext
+new_journal_alert
 convert_oai_pmh_dc_to_marc21
 marc_char_filter
+normalise_urls
 translator
+augment_authority_data_with_translations
+krimdok_flag_pda_records
+mpi_stats
+translation_keyword_stats
 
 bsz_daten
 bsz_daten_cumulated
