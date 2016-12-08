@@ -263,7 +263,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
 
     // Safely append the modified MARC data to the MARC output file:
     FileLocker file_locker(marc_output_filename, FileLocker::WRITE_ONLY);
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY, WriterMode::APPEND));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY, MarcWriter::APPEND));
     marc_writer->getFile().seek(0, SEEK_END);
     marc_writer->write(record);
 
