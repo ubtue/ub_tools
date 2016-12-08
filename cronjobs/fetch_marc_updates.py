@@ -286,9 +286,9 @@ def DownloadOtherData(config, section, ftp, download_cutoff_date, msg):
 
 def Main():
     if len(sys.argv) != 2:
-         util.SendEmail(os.path.basename(sys.argv[0]),
-                        "This script needs to be called with an email address as the only argument!\n", priority=1)
-         sys.exit(-1)
+        util.SendEmail(os.path.basename(sys.argv[0]),
+                       "This script needs to be called with an email address as the only argument!\n", priority=1)
+        sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
     try:
         config = util.LoadConfigFile()
@@ -306,10 +306,11 @@ def Main():
     if complete_data_filename is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filename)
     DownloadOtherData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
+    DownloadOtherData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     if config.has_section("Hinweisabzug"):
         DownloadOtherData(config, "Hinweisabzug", ftp, 000000, msg)
-    DownloadOtherData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
-    DownloadOtherData(config, "Errors", ftp, download_cutoff_date, msg)
+    if config.has_section("Errors"):
+        DownloadOtherData(config, "Errors", ftp, download_cutoff_date, msg)
     CleanUpCumulativeCollection(config)
     util.SendEmail("BSZ File Update", string.join(msg, ""), priority=5)
 
