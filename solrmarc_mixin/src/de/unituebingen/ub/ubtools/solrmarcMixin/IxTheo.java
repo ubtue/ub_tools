@@ -19,8 +19,8 @@ public class IxTheo extends SolrIndexerMixin {
     private static Set<String> unassigned = Collections.singleton("[Unassigned]");
 
     @Override
-    public void perRecordInit(final Record record) {
-        super.perRecordInit(record);
+    public void perRecordInit() {
+        super.perRecordInit();
         ixTheoNotations = null;
     }
 

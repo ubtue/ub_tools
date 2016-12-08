@@ -111,8 +111,8 @@ public class IxTheoPublisher extends SolrIndexerMixin {
     private Set<String> publishers = null;
 
     @Override
-    public void perRecordInit(final Record record) {
-        super.perRecordInit(record);
+    public void perRecordInit() {
+        super.perRecordInit();
         publishers = null;
     }
 
