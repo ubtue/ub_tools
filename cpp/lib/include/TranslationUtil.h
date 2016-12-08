@@ -27,6 +27,9 @@
 #include "DbConnection.h"
 
 
+typedef std::string LanguageCode;
+
+
 namespace TranslationUtil {
 
 
