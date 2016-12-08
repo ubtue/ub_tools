@@ -209,9 +209,7 @@ bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std:
 
 
 // Returns true if text has been successfully extracted, else false.
-bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_output_filename,
-                   const std::string &pdf_images_script, const std::string &db_filename)
-{
+bool ProcessRecord(MarcReader * const marc_reader, const std::string &pdf_images_script, const std::string &db_filename) {
     MarcRecord record(marc_reader->read());
 
     size_t _856_index(record.getFieldIndex("856"));
@@ -262,9 +260,9 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
     }
 
     // Safely append the modified MARC data to the MARC output file:
-    FileLocker file_locker(marc_output_filename, FileLocker::WRITE_ONLY);
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY, MarcWriter::APPEND));
-    marc_writer->getFile().seek(0, SEEK_END);
+    const std::string marc_output_filename("./fulltext/" + record.getControlNumber() + ".mrc");
+    std::cerr << "Write to " << marc_output_filename << "\n";
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
     marc_writer->write(record);
 
     return succeeded;
@@ -301,10 +299,8 @@ int main(int argc, char *argv[]) {
         Error("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset)
               + "! (" + std::to_string(errno) + ")");
 
-    const std::string marc_output_filename(argv[3]);
-
     try {
-        return ProcessRecord(marc_reader.get(), marc_output_filename, GetPathToPdfImagesScript(argv[0]), argv[4])
+        return ProcessRecord(marc_reader.get(), GetPathToPdfImagesScript(argv[0]), argv[4])
                ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         Error("While reading \"" + marc_reader->getPath() + "\" starting at offset \"" + std::string(argv[1])
