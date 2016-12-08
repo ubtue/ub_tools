@@ -216,12 +216,12 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
 
     size_t _856_index(record.getFieldIndex("856"));
     if (_856_index == MarcRecord::FIELD_NOT_FOUND)
-        Error("no 856 tag found!");
+        Error("no 856 tag found (" + record.getControlNumber() + ")!");
 
     constexpr unsigned PER_DOC_TIMEOUT(40);
     bool succeeded(false);
 
-    for (/* Empty! */; _856_index < record.getNumberOfFields() and record.getTag(_856_index) == "856"; ++_856_index) {
+    for (/* Empty! */; record.getTag(_856_index) == "856"; ++_856_index) {
         Subfields subfields(record.getSubfields(_856_index));
         if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;

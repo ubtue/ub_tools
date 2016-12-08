@@ -87,9 +87,7 @@ bool IsProbablyAReview(const Subfields &subfields) {
 
 
 bool FoundAtLeastOneNonReviewLink(const MarcRecord &record) {
-    for (size_t _856_index(record.getFieldIndex("856"));
-         _856_index < record.getNumberOfFields() and record.getTag(_856_index) == "856"; ++_856_index)
-    {
+    for (size_t _856_index(record.getFieldIndex("856")); record.getTag(_856_index) == "856"; ++_856_index) {
         const Subfields subfields(record.getSubfields(_856_index));
         if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;
@@ -128,17 +126,19 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
         Error("can't find \"update_full_text_db\" in our $PATH!");
 
     std::cout << "Skip " << skip_count << " records\n";
-
     off_t record_start = marc_reader->tell();
     while (MarcRecord record = marc_reader->read()) {
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;
-        if (total_record_count <= skip_count)
+        if (total_record_count <= skip_count) {
+            record_start = marc_reader->tell();
             continue;
+        }
 
         if (not FoundAtLeastOneNonReviewLink(record)) {
             FileLockedComposeAndWriteRecord(marc_writer, &record);
+            record_start = marc_reader->tell();
             continue;
         }
 
