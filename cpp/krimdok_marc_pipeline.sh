@@ -83,7 +83,8 @@ EndPhase
 
 
 StartPhase "Add PDA Fields to Some Records"
-krimdok_flag_pda_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+krimdok_flag_pda_records 3 \
+                         GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 EndPhase
 
