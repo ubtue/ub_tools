@@ -96,6 +96,7 @@ EndPhase
 
 
 StartPhase "Create Full-Text Database"
+mkdir --parent fulltext/
 create_full_text_db --process-count-low-and-high-watermarks \
                     $(get_config_file_entry.py krimdok_marc_pipeline.conf \
                     create_full_text_db process_count_low_and_high_watermarks) \
@@ -104,6 +105,7 @@ create_full_text_db --process-count-low-and-high-watermarks \
                     full_text.db >> "${log}" 2>&1
 
 cat fulltext/* >> GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+rm -R fulltext/
 cp full_text.db /var/lib/tuelib/
 EndPhase
 
