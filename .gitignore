@@ -20,6 +20,7 @@ add_author_synonyms
 add_child_refs
 add_isbns_or_issns_to_articles
 add_journal_subscription
+add_publication_year_to_serials
 add_superior_and_alertable_flags
 add_synonyms
 add_title_keywords
