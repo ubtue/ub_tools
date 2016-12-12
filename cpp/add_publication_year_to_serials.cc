@@ -49,7 +49,7 @@ typedef std::map<std::string, std::string> SortList;
 
   
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " title_data_marc_input sort_year_list title_date_marc_output\n";
+    std::cerr << "Usage: " << ::progname << " sort_year_list title_data_marc_input title_date_marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -123,8 +123,8 @@ int main(int argc, char **argv) {
     if (argc != 4)
         Usage();
 
-    const std::string marc_input_filename(argv[1]);
-    const std::string sort_year_list_filename(argv[2]);
+    const std::string sort_year_list_filename(argv[1]);
+    const std::string marc_input_filename(argv[2]);
     const std::string marc_output_filename(argv[3]);
 
     if (unlikely(marc_input_filename == marc_output_filename))
@@ -134,9 +134,9 @@ int main(int argc, char **argv) {
         Error("Either marc input filename or marc output filename equals the sort list filename");
 
     try {
-        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename));
+        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
         std::unique_ptr<File> sort_year_list(FileUtil::OpenInputFileOrDie(sort_year_list_filename));
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
+        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
         SortList sort_year_map;
         SetupPublicationYearMap(sort_year_list.get(), &sort_year_map);
         AddPublicationYearField(marc_reader.get(), marc_writer.get(), sort_year_map);
