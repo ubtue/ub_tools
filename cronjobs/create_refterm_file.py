@@ -79,14 +79,14 @@ def CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name):
 
 
 def CreateSerialSortDate(title_data_file, date_string, log_file_name):
-    serial_ppn_sort_list = "Schriftenreihen-Sortierung-" + data_string + ".txt"
+    serial_ppn_sort_list = "Schriftenreihen-Sortierung-" + date_string + ".txt"
     ExecOrDie("/usr/local/bin/query_serial_sort_data.sh", [title_data_file, serial_ppn_sort_list], log_file_name)
 
 
 def CreateLogFile():
     return util.MakeLogFileName(os.path.basename(__file__), util.GetLogDirectory())
 
-def CleanUp(log_file_name):
+def CleanUp(title_data_file, log_file_name):
     # Terminate the temporary solr instance
     ExecOrDie("/usr/local/bin/shutdown_refterm_solr.sh", [] , log_file_name)
     # Clean up temporary title data
@@ -117,8 +117,8 @@ def Main():
         title_data_file = RenameTitleDataFile(title_data_file_orig, date_string)
         SetupTemporarySolrInstance(title_data_file, conf, log_file_name)
         CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name)
-        CreateSerialSortDate(title_data_file) 
-        CleanUp(log_file_name)
+        CreateSerialSortDate(title_data_file, date_string, log_file_name) 
+        CleanUp(title_data_file, log_file_name)
         util.SendEmail("Create Refterm File", "Refterm file successfully created.", priority=5)
     else:
         util.SendEmail("Create Refterm File", "No new data was found.", priority=5)
