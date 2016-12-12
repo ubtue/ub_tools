@@ -45,16 +45,27 @@ def ExtractTitleDataMarcFile(link_name):
     return title_data_file_name[0]
 
 
-def CreateRefTermFile(ref_data_archive, title_data_link_name, conf):
-    log_file_name = util.MakeLogFileName(os.path.basename(__file__), util.GetLogDirectory())
-    title_data_file_orig = ExtractTitleDataMarcFile(title_data_link_name)
-    try: 
-        date_string = re.search('\d{6}', title_data_file_orig).group()
+def GetDateFromFilename(filename):
+    try:
+        date_string = re.search('\d{6}', filename).group()
     except AttributeError:
         date_string = ''
+    return date_string
+
+
+def RenameTitleDataFile(title_data_file_orig, date_string):
     # Make sure we will not interfere with filenames used by the ordinary pipeline
-    title_data_file = "GesamtTiteldaten-" + date_string + "-refterm.mrc"
-    os.rename(title_data_file_orig, title_data_file); 
+    title_data_file = "GesamtTiteldaten-" + date_string + "-temporary.mrc"
+    os.rename(title_data_file_orig, title_data_file);
+    return title_data_file
+
+
+def SetupTemporarySolrInstance(title_data_file, conf, log_file_name):
+    # Setup a temporary solr instance in a ramdisk and import title data
+    ExecOrDie("/usr/local/bin/setup_refterm_solr.sh", [title_data_file], log_file_name)
+
+
+def CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name):
     # Assemble Filenames 
     ref_data_base_filename = "Hinweissätze-" + date_string
     ref_data_marc_file = ref_data_base_filename + ".mrc"
@@ -63,15 +74,24 @@ def CreateRefTermFile(ref_data_archive, title_data_link_name, conf):
     ref_data_synonym_file = ref_data_base_filename + ".txt"
     # Make a refterm -> circumscription table file
     ExecOrDie("/usr/local/bin/extract_referenceterms", [ref_data_marc_file, ref_data_synonym_file] , log_file_name)
-    # Setup a temporary solr instance in a ramdisk and import title data
-    ExecOrDie("/usr/local/bin/setup_refterm_solr.sh", [title_data_file], log_file_name)
     # Create a file with a list of refterms and containing ids
     ExecOrDie("/usr/local/bin/create_reference_import_file.sh", [ref_data_synonym_file, os.getcwd()], log_file_name)
+
+
+def CreateSerialSortDate(title_data_file, date_string, log_file_name):
+    serial_ppn_sort_list = "Schriftenreihen-Sortierung-" + data_string + ".txt"
+    ExecOrDie("/usr/local/bin/query_serial_sort_data.sh", [title_data_file, serial_ppn_sort_list], log_file_name)
+
+
+def CreateLogFile():
+    return util.MakeLogFileName(os.path.basename(__file__), util.GetLogDirectory())
+
+def CleanUp(log_file_name):
     # Terminate the temporary solr instance
     ExecOrDie("/usr/local/bin/shutdown_refterm_solr.sh", [] , log_file_name)
     # Clean up temporary title data
     util.Remove(title_data_file)
-  
+
 
 def Main():
     util.default_email_sender = "create_refterm_file@ub.uni-tuebingen.de"
@@ -83,15 +103,22 @@ def Main():
          sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
     conf = util.LoadConfigFile()
-    link_name = conf.get("Misc", "link_name")
+    title_data_link_name = conf.get("Misc", "link_name")
     ref_data_pattern = conf.get("Hinweisabzug", "filename_pattern")
     ref_data_archive = util.getMostRecentFileMatchingGlob(ref_data_pattern)
     if ref_data_archive is None:
          util.SendEmail("Create Refterm File (No Reference Data File Found)",
                         "No File matching pattern \"" + ref_data_pattern + "\" found\n", priority=1)
    
-    if FoundNewBSZDataFile(link_name):
-        CreateRefTermFile(ref_data_archive, link_name, conf)
+    if FoundNewBSZDataFile(title_data_link_name):
+        log_file_name = CreateLogFile()
+        title_data_file_orig = ExtractTitleDataMarcFile(title_data_link_name)
+        date_string = GetDateFromFilename(title_data_file_orig)
+        title_data_file = RenameTitleDataFile(title_data_file_orig, date_string)
+        SetupTemporarySolrInstance(title_data_file, conf, log_file_name)
+        CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name)
+        CreateSerialSortDate(title_data_file) 
+        CleanUp(log_file_name)
         util.SendEmail("Create Refterm File", "Refterm file successfully created.", priority=5)
     else:
         util.SendEmail("Create Refterm File", "No new data was found.", priority=5)
