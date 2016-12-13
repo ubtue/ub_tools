@@ -3,7 +3,7 @@
     <property name="classes.dir" value="bin"/>
     <property name="jar.dir" value="."/>
     <property name="vufind.dir" value="/usr/local/vufind2"/>
-    <property name="solr.lib.dir" value="${vufind.dir}/solr/lib"/>
+    <property name="solr.lib.dir" value="${vufind.dir}/solr/vufind/jars"/>
     <property name="local.jar" value="${jar.dir}/${ant.project.name}-0.0.1.jar"/>
     <property name="dest.jar" value="${vufind.dir}/solr/vufind/jars/${ant.project.name}.jar"/>
 
