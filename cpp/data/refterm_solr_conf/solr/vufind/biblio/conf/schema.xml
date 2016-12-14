@@ -97,6 +97,7 @@
    <field name="_version_" type="long" indexed="true" stored="true"/>
    <!-- Core Fields  -->
    <field name="id" type="string" indexed="true" stored="true"/>
+   <field name="marc_error" type="string" indexed="false" stored="true" multiValued="true"/>
    <field name="topic_de" type="text" indexed="true" stored="true" multiValued="true"/>
    <field name ="key_word_chain_bag_de" type="text" indexed="true" stored="true" multiValued="true" />
    <field name="superior_ppn" type="string" indexed="true" stored="true" multiValued="true"/>
