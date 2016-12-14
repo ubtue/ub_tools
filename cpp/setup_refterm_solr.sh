@@ -61,9 +61,11 @@ rsync --archive --recursive "$CONFIG_FILE_DIR/" "$RAMDISK_DIR"
 rsync --archive --include='*.jar'  --exclude='*' "$STANDARD_VUFIND_SOLRMARC_HOME" "$RAMDISK_DIR/import"
 rsync --archive "$STANDARD_VUFIND_SOLRMARC_HOME"/lib  "$RAMDISK_DIR"/import
 rsync --archive "$STANDARD_VUFIND_SOLRMARC_HOME"/bin  "$RAMDISK_DIR"/import
+rsync --archive "$STANDARD_VUFIND_SOLRMARC_HOME"/lib_local "$RAMDISK_DIR"/import
+rsync --archive "$STANDARD_VUFIND_SOLRMARC_HOME"/index_java "$RAMDISK_DIR"/import
 
 #Setup and start Solr
 "$RAMDISK_DIR"/"$SOLR_START_SCRIPT" start
 
 #Import the files
-"$RAMDISK_DIR"/import-marc.sh -p "$RAMDISK_DIR"/import/import-properties "$1" 2>&1 
+"$RAMDISK_DIR"/import-marc.sh -p "$RAMDISK_DIR"/import/import.properties "$1" 2>&1 
