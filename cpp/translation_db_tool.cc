@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
                 UpdateIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4]);
             else
                 UpdateIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5]);
-        } if (std::strcmp(argv[1], "validate_keyword") == 0) {
+        } else if (std::strcmp(argv[1], "validate_keyword") == 0) {
             if (argc != 4)
                 Error("\"get_missing\" requires exactly two argument: ppn translation!");
             const std::string ppn(argv[2]);
