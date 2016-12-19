@@ -123,19 +123,17 @@ public class IxTheoPublisher extends SolrIndexerMixin {
      * @return publishers
      */
     public Set<String> getPublishers(final Record record) {
-        if (publishers == null) {
-            publishers = new LinkedHashSet<>();
-            final Set<String> rawPublishers = getRawPublishers(record);
+        publishers = new LinkedHashSet<>();
+        final Set<String> rawPublishers = getRawPublishers(record);
 
-            for (String publisher : rawPublishers) {
-                publisher = publisher.trim();
-                for (final Map.Entry<String, String> replacement : replacements.entrySet()) {
-                    publisher = publisher.replaceAll(replacement.getKey(), replacement.getValue()).trim();
-                }
+        for (String publisher : rawPublishers) {
+            publisher = publisher.trim();
+            for (final Map.Entry<String, String> replacement : replacements.entrySet()) {
+                publisher = publisher.replaceAll(replacement.getKey(), replacement.getValue()).trim();
+            }
 
-                if (!publisher.isEmpty()) {
-                    publishers.add(publisher);
-                }
+            if (!publisher.isEmpty()) {
+                publishers.add(publisher);
             }
         }
         return publishers;
