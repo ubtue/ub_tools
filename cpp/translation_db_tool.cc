@@ -219,16 +219,16 @@ int main(int argc, char *argv[]) {
             if (argc != 3)
                 Error("\"get_missing\" requires exactly one argument: language_code!");
             const std::string language_code(argv[2]);
-            if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
-                Error("\"" + language_code + "\" is not a valid 3-letter language code!");
+            if (not TranslationUtil::IsValidFake3LetterEnglishLanguagesCode(language_code))
+                Error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
             if (not GetMissingVuFindTranslations(&db_connection, language_code))
                 GetMissingKeywordTranslations(&db_connection, language_code);
         } else if (std::strcmp(argv[1], "get_existing") == 0) {
             if (argc != 5)
                 Error("\"get_existing\" requires exactly three arguments: language_code category index!");
             const std::string language_code(argv[2]);
-            if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
-                Error("\"" + language_code + "\" is not a valid 3-letter language code!");
+            if (not TranslationUtil::IsValidFake3LetterEnglishLanguagesCode(language_code))
+                Error("\"" + language_code + "\" is not a valid fake 3-letter english anguage code!");
             const std::string category(argv[3]);
             const std::string index_value(argv[4]);
             if (category == "vufind_translations")
@@ -241,8 +241,8 @@ int main(int argc, char *argv[]) {
                               "language_code, and text!");
 
             const std::string language_code(argv[(argc == 5) ? 3 : 4]);
-            if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
-                Error("\"" + language_code + "\" is not a valid German 3-letter language code!");
+            if (not TranslationUtil::IsValidFake3LetterEnglishLanguagesCode(language_code))
+                Error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
 
             if (argc == 5)
                 InsertIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4]);
@@ -254,8 +254,8 @@ int main(int argc, char *argv[]) {
                       "language_code, and text!");
 
             const std::string language_code(argv[(argc == 5) ? 3 : 4]);
-            if (not TranslationUtil::IsValidGerman3LetterCode(language_code))
-                Error("\"" + language_code + "\" is not a valid German 3-letter language code!");
+            if (not TranslationUtil::IsValidFake3LetterEnglishLanguagesCode(language_code))
+                Error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
 
             if (argc == 5)
                 UpdateIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4]);
