@@ -108,14 +108,6 @@ public class IxTheoPublisher extends SolrIndexerMixin {
         replacements.put("Calif.", "California");
     }
 
-    private Set<String> publishers = null;
-
-    @Override
-    public void perRecordInit() {
-        super.perRecordInit();
-        publishers = null;
-    }
-
     /**
      * Get all available publishers from the record.
      *
@@ -123,19 +115,17 @@ public class IxTheoPublisher extends SolrIndexerMixin {
      * @return publishers
      */
     public Set<String> getPublishers(final Record record) {
-        if (publishers == null) {
-            publishers = new LinkedHashSet<>();
-            final Set<String> rawPublishers = getRawPublishers(record);
+        Set<String> publishers = new LinkedHashSet<>();
+        final Set<String> rawPublishers = getRawPublishers(record);
 
-            for (String publisher : rawPublishers) {
-                publisher = publisher.trim();
-                for (final Map.Entry<String, String> replacement : replacements.entrySet()) {
-                    publisher = publisher.replaceAll(replacement.getKey(), replacement.getValue()).trim();
-                }
+        for (String publisher : rawPublishers) {
+            publisher = publisher.trim();
+            for (final Map.Entry<String, String> replacement : replacements.entrySet()) {
+                publisher = publisher.replaceAll(replacement.getKey(), replacement.getValue()).trim();
+            }
 
-                if (!publisher.isEmpty()) {
-                    publishers.add(publisher);
-                }
+            if (!publisher.isEmpty()) {
+                publishers.add(publisher);
             }
         }
         return publishers;

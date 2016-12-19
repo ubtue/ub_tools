@@ -873,7 +873,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Match also the case of publication date transgressing one year
         // (Format YYYY/YY for older and Format YYYY/YYYY) for
         // newer entries
-        if (format.contains("Article") || format.contains("Review")) {
+        if (format.contains("Article") || (format.contains("Review") && !format.contains("Book")) || format.contains("Serial")) {
             final List<VariableField> _936Fields = record.getVariableFields("936");
             for (VariableField _936VField : _936Fields) {
                 DataField _936Field = (DataField) _936VField;
@@ -888,7 +888,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
             if (dates.isEmpty())
-                System.err.println("getPublicationSortDate [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
+                System.err.println("getDates [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
             return dates;
         }
 
