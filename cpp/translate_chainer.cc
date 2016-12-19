@@ -135,11 +135,17 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
         std::ifstream done_html("/var/lib/tuelib/translate_chainer/done_translating.html", std::ios::binary);
         std::cout << done_html.rdbuf();
     } else {
+        std::string existing_translation("");
+        for (const Translation translation : translations) {
+            if (translation.language_code_ == language_code)
+                existing_translation = translation.text_;
+        }
         std::map<std::string, std::vector<std::string>> names_to_values_map;
         names_to_values_map.emplace("index", std::vector<std::string>{ translations.front().index_ });
         names_to_values_map.emplace("remaining_count", std::vector<std::string>{ translations.front().remaining_count_ });
         names_to_values_map.emplace("target_language_code", std::vector<std::string>{ language_code });
         names_to_values_map.emplace("action", std::vector<std::string>{ action });
+        names_to_values_map.emplace("translation_value", std::vector<std::string>{ existing_translation });
         names_to_values_map.emplace("category", std::vector<std::string>{ translations.front().category_ });
         if (translations.front().category_ != "vufind_translations")
             names_to_values_map.emplace("gnd_code", std::vector<std::string>{ translations.front().gnd_code_ });
