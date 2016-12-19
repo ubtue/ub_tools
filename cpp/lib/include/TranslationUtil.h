@@ -69,6 +69,8 @@ std::string MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(const std::
 std::string MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(const std::string &english_3letter_code);
 
 
+bool IsValidFake3LetterEnglishLanguagesCode(const std::string &english_3letter_code_candidate);
+
 } // namespace TranslationUtil
 
    

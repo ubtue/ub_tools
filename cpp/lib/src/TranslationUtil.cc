@@ -155,4 +155,18 @@ std::string MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(const std::
 }
 
 
+bool IsValidFake3LetterEnglishLanguagesCode(const std::string &english_3letter_code_candidate) {
+    if (english_3letter_code_candidate.length() != 3)
+        return false;
+
+    for (const auto &german_and_english_codes: german_to_3letter_english_codes) {
+        if (german_and_english_codes.second == english_3letter_code_candidate)
+            return true;
+    }
+
+    return false;
+}
+
+
+
 } // namespace TranslationUtil
