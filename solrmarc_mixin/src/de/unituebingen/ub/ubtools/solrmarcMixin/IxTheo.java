@@ -18,30 +18,23 @@ public class IxTheo extends SolrIndexerMixin {
     private Set<String> ixTheoNotations = null;
     private static Set<String> unassigned = Collections.singleton("[Unassigned]");
 
-    @Override
-    public void perRecordInit() {
-        super.perRecordInit();
-        ixTheoNotations = null;
-    }
 
     /**
      * Split the colon-separated ixTheo notation codes into individual codes and
      * return them.
      */
     public Set<String> getIxTheoNotations(final Record record) {
-        if (ixTheoNotations == null) {
-            ixTheoNotations = new HashSet<>();
-            final List fields = record.getVariableFields("652");
-            if (fields.isEmpty()) {
-                return ixTheoNotations;
-            }
-            // We should only have one 652 field
-            final DataField data_field = (DataField) fields.iterator().next();
-            // There should always be exactly one $a subfield
-            final String contents = data_field.getSubfield('a').getData();
-            final String[] parts = contents.split(":");
-            Collections.addAll(ixTheoNotations, parts);
+        ixTheoNotations = new HashSet<>();
+        final List fields = record.getVariableFields("652");
+        if (fields.isEmpty()) {
+            return ixTheoNotations;
         }
+        // We should only have one 652 field
+        final DataField data_field = (DataField) fields.iterator().next();
+        // There should always be exactly one $a subfield
+        final String contents = data_field.getSubfield('a').getData();
+        final String[] parts = contents.split(":");
+        Collections.addAll(ixTheoNotations, parts);
         return ixTheoNotations;
     }
 
