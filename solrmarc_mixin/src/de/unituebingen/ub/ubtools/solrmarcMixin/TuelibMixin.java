@@ -907,16 +907,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Case 2:
         // Test whether we have a 190j field
         // This was generated in the pipeline for superior works that do not contain a reasonable 008(7,10) entry
-        if (final List<VariableField> _190Fields = record.getVariableFields("190");
-        for (VariableField _190Field : _190Fields) {
-            final Subfield jSubfield = _190Field.getSubfield('j');
-            if (jSubfield != null) {
-                dates.add(jSubfield.getData();
+        final List<VariableField> _190Fields = record.getVariableFields("190");
+        if (!_190Fields.isEmpty()){
+            for (VariableField _190VField : _190Fields) {
+                final DataField _190Field = (DataField) _190VField;
+                final Subfield jSubfield = _190Field.getSubfield('j');
+                if (jSubfield != null) {
+                    dates.add(jSubfield.getData());
+                }
+                else {
+                    System.err.println("getDates [No 190j subfield for PPN " + record.getControlNumber() + "]");
+                }
+                return dates;
             }
-            else {
-                System.err.println("getDates [No 190j subfield for PPN " + record.getControlNumber() + "]");
-            }
-            return dates;
         }
 
 
