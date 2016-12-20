@@ -24,12 +24,8 @@ create_serial_ppns.sh "$marc_title_input" "$serial_ppns"
 
 #echo "Find the oldest inferior work for each PPN" 
 > "$tmpdir"/"$serial_sort_list"
-cat "$serial_ppns" | xargs  -I '{}' --max-procs=8 get_sort_date_for_serial_ppn.sh  '{}' "$tmpdir"/"$serial_sort_list"
+cat "$serial_ppns" | xargs  -I '{}' --max-procs=8 get_sort_date_for_serial_ppn.sh  '{}' "$tmpdir"/'{}'".year"
+
+find "$tmpdir" -iname '*.year' -print0 | xargs -0 -I '{}' cat '{}' >> "$tmpdir"/"$serial_sort_list"
 
 cp "$tmpdir"/"$serial_sort_list" .
-
-
-
-
-
-
