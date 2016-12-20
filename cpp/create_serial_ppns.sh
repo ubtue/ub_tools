@@ -15,7 +15,7 @@ serial_ppns="$2"
 
 # We look at field 008, positions 7-10 and use a non capturing group (?:) 
 # and a negative lookahead (?!) to extract all records that do not
-# contain a reasonable (i.e. for digit entry) at these positions
+# contain a reasonable value (i.e. four digit entry) at these positions
 marc_grep "$marc_title_input" 'if "008"=="^.{7}(?:(?!\\d{4})).*" extract "001"' \
     | cut --delimiter=":" --fields=3 \
     > "$serial_ppns"
