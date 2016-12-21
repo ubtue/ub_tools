@@ -945,7 +945,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             return dates;
         }
         final String _008FieldContents = _008_field.getData();
-        final String yearExtracted = _008FieldContents.substring(7, 10);
+        final String yearExtracted = _008FieldContents.substring(7, 11);
         // Test whether we have a reasonable value 
         final String year = checkValidYear(yearExtracted);
         if (year.isEmpty())
