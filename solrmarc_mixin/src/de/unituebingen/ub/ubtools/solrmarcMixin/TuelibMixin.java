@@ -20,6 +20,9 @@ import java.util.regex.Pattern;
 public class TuelibMixin extends SolrIndexerMixin {
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
+    private final static String VALID_FOUR_DIGIT_YEAR = "\\d{4}";
+
+    private final static Pattern VALID_FOUR_DIGIT_PATTERN = Pattern.compile(VALID_FOUR_DIGIT_YEAR);
     private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
@@ -175,7 +178,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             completeTitle.append(' ');
             completeTitle.append(Utils.cleanData(titleN));
         }
-
         return completeTitle.toString();
     }
 
@@ -857,9 +859,8 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     private String checkValidYear(String fourDigitYear) {
-        final String VALID_FOUR_DIGIT_YEAR = "\\d{4}";
-        Matcher validForDigitYearMatcher = Pattern.compile(VALID_FOUR_DIGIT_YEAR).matcher(fourDigitYear);
-        return validForDigitYearMatcher.matches() ? fourDigitYear : "";
+        Matcher validFourDigitYearMatcher = VALID_FOUR_DIGIT_PATTERN.matcher(fourDigitYear);
+        return validFourDigitYearMatcher.matches() ? fourDigitYear : "";
     }
 
     /**
@@ -884,7 +885,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
             final String _008FieldContents = _008_field.getData();
             int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-            int yearTwoDigit = yearTwoDigit = currentYear - 2000;  // If extraction fails later we fall back to current year
+            int yearTwoDigit = currentYear - 2000;  // If extraction fails later we fall back to current year
             try {
                 yearTwoDigit = Integer.parseInt(_008FieldContents.substring(0, 1));
             }
