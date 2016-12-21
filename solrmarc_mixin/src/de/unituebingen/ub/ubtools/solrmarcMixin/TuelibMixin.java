@@ -145,8 +145,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private Set<String> reviews_cache = null;
     private Set<String> reviewedRecords_cache = null;
 
-    @Override
-    public void perRecordInit() {
+    public void perRecordInit(Record record) {
         reviews_cache = reviewedRecords_cache = isils_cache = null;
     }
 
