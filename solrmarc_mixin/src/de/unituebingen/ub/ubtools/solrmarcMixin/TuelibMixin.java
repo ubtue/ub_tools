@@ -856,6 +856,13 @@ public class TuelibMixin extends SolrIndexerMixin {
         return leader.charAt(7) == 'b';
     }
 
+
+    private String checkValidYear(String fourDigitYear) {
+        final String VALID_FOUR_DIGIT_YEAR = "\\d{4}";
+        Matcher validForDigitYearMatcher = Pattern.compile(VALID_FOUR_DIGIT_YEAR).matcher(fourDigitYear);
+        return validForDigitYearMatcher.matches() ? fourDigitYear : "";
+    }
+
     /**
      * Get all available dates from the record.
      *
@@ -877,7 +884,16 @@ public class TuelibMixin extends SolrIndexerMixin {
                 return dates;
             }
             final String _008FieldContents = _008_field.getData();
-            dates.add(_008FieldContents.substring(0, 1));
+            int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+            int yearTwoDigit = yearTwoDigit = currentYear - 2000;  // If extraction fails later we fall back to current year
+            try {
+                yearTwoDigit = Integer.parseInt(_008FieldContents.substring(0, 1));
+            }
+            catch (NumberFormatException e) {
+                System.err.println("get Dates [Invalid year for Website " + record.getControlNumber());
+            }
+            final int year = yearTwoDigit < (currentYear - 2000) ? (2000 + yearTwoDigit) : (1900 + yearTwoDigit);
+            dates.add(Integer.toString(year));
             return dates;
         }
 
@@ -929,7 +945,12 @@ public class TuelibMixin extends SolrIndexerMixin {
             return dates;
         }
         final String _008FieldContents = _008_field.getData();
-        dates.add(_008FieldContents.substring(7, 10));
+        final String yearExtracted = _008FieldContents.substring(7, 10);
+        // Test whether we have a reasonable value 
+        final String year = checkValidYear(yearExtracted);
+        if (year.isEmpty())
+            System.err.println("getDates [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
+        dates.add(year);
         return dates;
 }
 
