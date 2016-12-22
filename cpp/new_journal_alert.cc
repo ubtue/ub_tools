@@ -88,7 +88,8 @@ bool ExtractNewIssueInfos(const std::string &json_document, std::vector<NewIssue
     for (const auto &document : property_tree.get_child("response.docs.")) {
         const auto &id(document.second.get<std::string>("id"));
         const auto &issue_title(document.second.get<std::string>("title"));
-        const std::string journal_title_received(document.second.get_child("journal_issue").equal_range("").first->second.get_value<std::string>());
+        const auto &journal_issue_node(document.second.get_child_optional("journal_issue"));
+        const std::string journal_title_received(not journal_issue_node ? "" : document.second.get_child("journal_issue").equal_range("").first->second.get_value<std::string>());
         const std::string journal_title(not journal_title_received.empty() ? journal_title_received : "*No Journal Title*");
         new_issue_infos->emplace_back(id, journal_title, issue_title);
 

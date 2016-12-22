@@ -76,29 +76,29 @@ void ProcessRecord(MarcRecord * const record, const SortList &sort_year_map) {
 
     std::string sort_year(iter->second);
 
-    // We insert in 936j
-    const std::string _936Tag("936");
+    // We insert in 190j
+    const std::string _190Tag("190");
     const char subfield_code('j');
-    std::vector<size_t> _936Indices;
-    record->getFieldIndices(_936Tag, &_936Indices);
+    std::vector<size_t> _190Indices;
+    record->getFieldIndices(_190Tag, &_190Indices);
 
-    // Case 1: If there is no 936 tag yet, insert subfield j and we are done
-    if (_936Indices.empty()) {
-        record->insertSubfield(_936Tag, 'j', sort_year);
+    // Case 1: If there is no 190 tag yet, insert subfield j and we are done
+    if (_190Indices.empty()) {
+        record->insertSubfield(_190Tag, 'j', sort_year);
         ++modified_count;
         return;
     }
 
-    // Case 2: There is a 936 tag
-    for(auto &_936Index : _936Indices) {
-        Subfields _936Subfields = record->getSubfields(_936Tag);
-        if (_936Subfields.hasSubfield(subfield_code))
-            Error("We already have a 936j subfield for PPN " + record->getControlNumber());
+    // Case 2: There is a 190 tag
+    for(auto &_190Index : _190Indices) {
+        Subfields _190Subfields = record->getSubfields(_190Tag);
+        if (_190Subfields.hasSubfield(subfield_code))
+            Error("We already have a 190j subfield for PPN " + record->getControlNumber());
 
-        // If there is no 936j subfield yet, we insert at the last field occurence
-        if (_936Index == _936Indices.back()) {
-            _936Subfields.addSubfield('j', sort_year);
-            record->updateField(_936Index, _936Subfields);
+        // If there is no 190j subfield yet, we insert at the last field occurence
+        if (_190Index == _190Indices.back()) {
+            _190Subfields.addSubfield('j', sort_year);
+            record->updateField(_190Index, _190Subfields);
             ++modified_count;
         }
     }
