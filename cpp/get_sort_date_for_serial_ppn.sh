@@ -10,8 +10,8 @@ fi
 serial_ppn="$1"
 ppn_output_file="$2"
 
-curl_base_string='http://localhost:8081/solr/biblio/select?fl=publishDateSort&wt=csv&rows=1&sort=publishDateSort+asc'
+curl_base_string='http://localhost:8081/solr/biblio/select?fl=publishDateSort&wt=csv&rows=5&sort=publishDateSort+asc'
 
-sort_year=$(curl --silent --get --data-urlencode "q=superior_ppn:${serial_ppn}"  ${curl_base_string} | tail  -n +2 | sed -e 's/,$//')
+sort_year=$(curl --silent --get --data-urlencode "q=superior_ppn:${serial_ppn}"  ${curl_base_string} | tail  -n +2 | sed -e 's/,$//' | grep -v \"\" | head -n 1)
 
 echo "${serial_ppn} : ${sort_year}" > ${ppn_output_file}
