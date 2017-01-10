@@ -101,6 +101,7 @@
    <field name="topic_de" type="text" indexed="true" stored="true" multiValued="true"/>
    <field name ="key_word_chain_bag_de" type="text" indexed="true" stored="true" multiValued="true" />
    <field name="superior_ppn" type="string" indexed="true" stored="true" multiValued="true"/>
+   <field name="format" type="string" indexed="true" stored="true" multiValued="true"/>
    <field name="publishDateSort" type="string" indexed="true" stored="true"/>
  </fields>
  <uniqueKey>id</uniqueKey>
