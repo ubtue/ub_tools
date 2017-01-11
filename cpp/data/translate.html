@@ -50,7 +50,7 @@
         {ENDIF}
 
         <form action="/cgi-bin/translate_chainer">
-            Translation: <input type="text" name="translation" size="60" maxlength="200" autofocus/>
+            Translation: <input type="text" name="translation" size="60" maxlength="200" value="{translation_value}" autofocus/>
             <input type="hidden" name="action" value="{action}" />
             <input type="hidden" name="language_code" value="{target_language_code}" />
             <input type="hidden" name="index" value="{index}" />

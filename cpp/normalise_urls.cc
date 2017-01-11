@@ -48,7 +48,7 @@ void NormaliseURLs(const bool verbose, MarcReader * const reader, MarcWriter * c
             Subfields _856_subfields(record.getSubfields(field_no));
             bool duplicate_link(false);
             if (_856_subfields.getIndicator1() != '7' and _856_subfields.hasSubfield('u')) {
-                const std::string u_subfield(_856_subfields.getFirstSubfieldValue('u'));
+                const std::string u_subfield(StringUtil::Trim(_856_subfields.getFirstSubfieldValue('u')));
 
                 if (IsHttpOrHttpsURL(u_subfield)) {
                     if (already_seen_links.find(u_subfield) == already_seen_links.cend())
