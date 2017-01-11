@@ -788,8 +788,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return translation;
     }
 
-    // Removes any non-letters from "original_role", lowercases letters and
-    // returns the clean-up version.
+    // Removes any non-letters from "original_role".
     private static String cleanRole(final String original_role) {
         final StringBuilder canonised_role = new StringBuilder();
         for (final char ch : original_role.toCharArray()) {
@@ -797,7 +796,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 canonised_role.append(ch);
         }
 
-        return canonised_role.toString().toLowerCase();
+        return canonised_role.toString();
     }
 
     private static final char[] author2SubfieldCodes = new char[] { 'a', 'b', 'c', 'd' };
