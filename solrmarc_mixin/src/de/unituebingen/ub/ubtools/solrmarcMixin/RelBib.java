@@ -85,13 +85,15 @@ public class RelBib extends IxTheo {
         final List<VariableField> _084Fields = record.getVariableFields("084");
         for (final VariableField _084Field : _084Fields) {
             final DataField dataField = (DataField) _084Field;
-            final Subfield subfield2 = dataField.getSubfield('2');
-            if (subfield2 == null || !subfield2.getData().equals("ssgn"))
-                continue;
-
-            final Subfield subfieldA = dataField.getSubfield('a');
-            if (subfieldA != null && subfieldA.getData().equals("0"))
-                return TRUE;
+            for (final Subfield subfield2 : dataField.getSubfields('2')) {
+                if (subfield2 == null || !subfield2.getData().equals("ssgn"))
+                    continue;
+                
+                for (final Subfield subfieldA : dataField.getSubfields('a')) {
+                    if (subfieldA != null && subfieldA.getData().equals("0"))
+                        return TRUE;
+                }
+            }
         }
         return FALSE;
     }
@@ -113,8 +115,31 @@ public class RelBib extends IxTheo {
         return FALSE;
     }
 
+    Set<String> temporaryReligiousStudiesSuperior = new HashSet<String>();
+
+    public Set<String> getTemporaryReligiousStudiesSuperiorList() {
+        if (temporaryReligiousStudiesSuperior.isEmpty()) {
+            try {
+                final String temporaryReligiousStudiesSuperiorFile = "/usr/local/ub_tools/cpp/data/relbib_superior_temporary.txt";
+                BufferedReader in = new BufferedReader(new FileReader(temporaryReligiousStudiesSuperiorFile));
+                String line;
+                while ((line = in.readLine()) != null) {
+                    temporaryReligiousStudiesSuperior.add(line);
+                }
+            } catch (IOException e) {
+                System.err.println("Could not open file" + e.toString());
+                System.exit(1);
+            }
+        }
+        return temporaryReligiousStudiesSuperior;
+    }   
+
+    public String getTemporaryIsReligiousStudiesSuperior(final Record record) {
+        return getTemporaryReligiousStudiesSuperiorList().contains(record.getControlNumber()) ? TRUE : FALSE;
+    }
+
     public String getIsReligiousStudies(final Record record) {
-        return getIsDefinitelyReligiousStudies(record).equals(TRUE) || getIsProbablyReligiousStudies(record).equals(TRUE) ? TRUE : FALSE;
+        return getIsDefinitelyReligiousStudies(record).equals(TRUE) || getIsProbablyReligiousStudies(record).equals(TRUE) || getTemporaryIsReligiousStudiesSuperior(record).equals(TRUE) ? TRUE : FALSE;
     }
 
 }
