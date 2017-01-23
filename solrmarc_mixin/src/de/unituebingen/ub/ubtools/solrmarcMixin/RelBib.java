@@ -85,13 +85,15 @@ public class RelBib extends IxTheo {
         final List<VariableField> _084Fields = record.getVariableFields("084");
         for (final VariableField _084Field : _084Fields) {
             final DataField dataField = (DataField) _084Field;
-            final Subfield subfield2 = dataField.getSubfield('2');
-            if (subfield2 == null || !subfield2.getData().equals("ssgn"))
-                continue;
-
-            final Subfield subfieldA = dataField.getSubfield('a');
-            if (subfieldA != null && subfieldA.getData().equals("0"))
-                return TRUE;
+            for (final Subfield subfield2 : dataField.getSubfields('2')) {
+                if (subfield2 == null || !subfield2.getData().equals("ssgn"))
+                    continue;
+                
+                for (final Subfield subfieldA : dataField.getSubfields('a')) {
+                    if (subfieldA != null && subfieldA.getData().equals("0"))
+                        return TRUE;
+                }
+            }
         }
         return FALSE;
     }
