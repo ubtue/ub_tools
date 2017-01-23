@@ -115,8 +115,31 @@ public class RelBib extends IxTheo {
         return FALSE;
     }
 
+    Set<String> temporaryReligiousStudiesSuperior = new HashSet<String>();
+
+    public Set<String> getTemporaryReligiousStudiesSuperiorList() {
+        if (temporaryReligiousStudiesSuperior.isEmpty()) {
+            try {
+                final String temporaryReligiousStudiesSuperiorFile = "/usr/local/ub_tools/cpp/data/relbib_superior_temporary.txt";
+                BufferedReader in = new BufferedReader(new FileReader(temporaryReligiousStudiesSuperiorFile));
+                String line;
+                while ((line = in.readLine()) != null) {
+                    temporaryReligiousStudiesSuperior.add(line);
+                }
+            } catch (IOException e) {
+                System.err.println("Could not open file" + e.toString());
+                System.exit(1);
+            }
+        }
+        return temporaryReligiousStudiesSuperior;
+    }   
+
+    public String getTemporaryIsReligiousStudiesSuperior(final Record record) {
+        return getTemporaryReligiousStudiesSuperiorList().contains(record.getControlNumber()) ? TRUE : FALSE;
+    }
+
     public String getIsReligiousStudies(final Record record) {
-        return getIsDefinitelyReligiousStudies(record).equals(TRUE) || getIsProbablyReligiousStudies(record).equals(TRUE) ? TRUE : FALSE;
+        return getIsDefinitelyReligiousStudies(record).equals(TRUE) || getIsProbablyReligiousStudies(record).equals(TRUE) || getTemporaryIsReligiousStudiesSuperior(record).equals(TRUE) ? TRUE : FALSE;
     }
 
 }
