@@ -100,7 +100,7 @@ public class RelBib extends IxTheo {
 
     public String getIsDefinitelyReligiousStudies(final Record record) {
 
-        return (getIsReligiousStudiesSSGN(record).equals(TRUE) || getIsReligiousStudiesIxTheo(record).equals(TRUE)) && getIsNotReligiousStudiesDDC(record).equals(FALSE) ? TRUE : FALSE;
+        return (getIsReligiousStudiesSSGN(record).equals(TRUE) || (getIsReligiousStudiesIxTheo(record).equals(TRUE) && getIsNotReligiousStudiesDDC(record).equals(FALSE))) ? TRUE : FALSE;
     }
 
     public String getIsProbablyReligiousStudies(final Record record) {
