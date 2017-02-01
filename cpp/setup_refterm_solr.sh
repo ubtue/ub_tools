@@ -46,6 +46,7 @@ fi
 
 #Setup RAMDISK
 modprobe zram
+sleep 1
 echo 4G > /sys/block/zram0/disksize
 mke2fs -q -m 0 -b 4096 -O sparse_super -L zram /dev/zram0
 
