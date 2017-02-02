@@ -67,7 +67,7 @@ void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File>& ill_list, s
 }
 
 
-void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::string> * ill_set) {
+void ProcessRecord(const bool verbose, MarcRecord * const record, const std::unordered_set<std::string> * ill_set) {
 
      // We tag a record as potentially PDA if it is 
      // a) a monograph b) published after a given cutoff date c) not in the list of known SWB-ILLs
@@ -86,7 +86,8 @@ void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::stri
          if (publication_year < PDA_CUTOFF_YEAR)
              return;
      } catch (boost::bad_lexical_cast const&) {
-         std::cerr << "Could not determine publication year for record " << record->getControlNumber()
+         if (verbose) 
+             std::cerr << "Could not determine publication year for record " << record->getControlNumber()
                    << " [ " <<  _008_contents.substr(7,4) << " given ]\n";
          return;
      }
@@ -100,11 +101,11 @@ void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::stri
 }
 
 
-void TagRelevantRecords(MarcReader * const marc_reader, MarcWriter * const marc_writer,
+void TagRelevantRecords(const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer,
                         const std::unordered_set<std::string> * ill_set)
 {
     while (MarcRecord record = marc_reader->read()) {
-        ProcessRecord(&record, ill_set);
+        ProcessRecord(verbose, &record, ill_set);
         marc_writer->write(record);
         ++record_count;
     }
@@ -146,7 +147,7 @@ int main(int argc, char **argv) {
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
 
         ExtractILLPPNs(verbose, ill_reader, &ill_set);
-        TagRelevantRecords(marc_reader.get(), marc_writer.get(), &ill_set);
+        TagRelevantRecords(verbose, marc_reader.get(), marc_writer.get(), &ill_set);
 
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
