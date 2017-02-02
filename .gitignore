@@ -28,6 +28,7 @@ append_marc_xml
 archive_reader_test
 archive_writer_test
 augment_773a
+augment_pda
 augment_bible_references
 auto_temp_file_test
 backtrace_test
