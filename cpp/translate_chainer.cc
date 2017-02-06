@@ -125,6 +125,20 @@ std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::s
 }
 
 
+
+std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::string> &env_args,
+                                         const std::string &parameter_name)
+{
+    const auto key_and_value(env_args.find(parameter_name));
+    if (key_and_value == env_args.cend())
+        return "";
+
+    return key_and_value->second;
+}
+
+
+
+
 void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &output, const std::string &language_code,
                                                         const std::string &action, const std::string &error_message = "",
                                                         const std::string &user_translation = "")
@@ -195,18 +209,19 @@ void GetExisting(const std::multimap<std::string, std::string> &cgi_args) {
 
 
 bool IsValidTranslation(const std::string &ppn, const std::string &new_translation, std::string *const error_message) {
-    std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword '" + ppn + " " + new_translation);
+    std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword " + ppn + " " + new_translation);
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(validate_command, error_message))
         Error("failed to execute \"" + validate_command + "\" or it returned a non-zero exit code!");
     return error_message->empty();
 }
 
 
-void Insert(const std::multimap<std::string, std::string> &cgi_args) {
+void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
     const std::string gnd_code(GetCGIParameterOrEmptyString(cgi_args, "gnd_code"));
+    const std::string translator(GetEnvParameterOrEmptyString(env_args, "REMOTE_USER"));
 
     if (translation.empty())
         return;
@@ -222,7 +237,7 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
     std::string insert_command("/usr/local/bin/translation_db_tool insert '" + index);
     if (not gnd_code.empty())
         insert_command += "' '" + gnd_code;
-    insert_command += "' " + language_code + " '" + translation + "'";
+    insert_command += "' " + language_code + " '" + translation + "' '" + translator + "'";
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
@@ -230,11 +245,12 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args) {
 }
 
 
-void Update(const std::multimap<std::string, std::string> &cgi_args) {
+void Update(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
     const std::string gnd_code(GetCGIParameterOrEmptyString(cgi_args, "gnd_code"));
+    const std::string translator(GetEnvParameterOrEmptyString(env_args, "REMOTE_USER"));
 
     if (translation.empty())
         return;
@@ -250,7 +266,7 @@ void Update(const std::multimap<std::string, std::string> &cgi_args) {
     std::string update_command("/usr/local/bin/translation_db_tool update '" + index);
     if (not gnd_code.empty())
         update_command += "' '" + gnd_code;
-    update_command += "' " + language_code + " '" + translation + "'";
+    update_command += "' " + language_code + " '" + translation + "' '" + translator + "'";
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
@@ -265,6 +281,10 @@ int main(int argc, char *argv[]) {
         std::multimap<std::string, std::string> cgi_args;
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 
+        std::multimap<std::string, std::string> env_args;
+        std::string user(std::getenv("REMOTE_USER") != nullptr ? std::getenv("REMOTE_USER") : "");
+        env_args.insert(std::make_pair("REMOTE_USER", user));
+
         if (cgi_args.size() == 1) {
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             GetMissing(cgi_args);
@@ -274,9 +294,9 @@ int main(int argc, char *argv[]) {
         } else if (cgi_args.size() == 5 or cgi_args.size() == 6) {
             const std::string action(GetCGIParameterOrDie(cgi_args, "action"));
             if (action == "insert")
-                Insert(cgi_args);
+                Insert(cgi_args, env_args);
             else if (action == "update")
-                Update(cgi_args);
+                Update(cgi_args, env_args);
             else
                 Error("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
 
