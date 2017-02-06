@@ -169,6 +169,8 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     std::vector<std::string> rows;
     std::string headline;
     GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline);
+    const std::string translator(std::getenv("REMOTE_USER") != nullptr ? std::getenv("REMOTE_USER") : "Unknown Translator");
+    names_to_values_map.emplace("translator", std::vector<std::string> {translator});
     names_to_values_map.emplace("keyword_row", rows);
     names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
 

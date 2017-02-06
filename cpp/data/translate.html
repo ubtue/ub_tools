@@ -3,10 +3,21 @@
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
         <meta charset="UTF-8"/>
+        <style>
+            body {{ font-family: sans-serif;
+                    text-align: center;
+                 }
+            table {{
+                    margin: 0 auto;
+                 }
+               
+       </style>
         <title>Translator</title>
     </head>
-    <body>
-        <h1><a href="/cgi-bin/translator">Translating for IxTheo</a> ({category}, {remaining_count} remaining)</h1>
+    <body align="center">
+        <h1 align="center"><a href="/cgi-bin/translator">IxTheo Translation Tool</a></h1>
+        <h4>Category: {category}, {remaining_count} remaining</h4>
+        <h4>Authenticated as {translator}</h4>
         <form action="/cgi-bin/translate_chainer">
             <em>Translation target language:</em>
             <select name="language_code" onchange="this.form.submit()">
