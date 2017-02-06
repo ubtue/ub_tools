@@ -8,14 +8,15 @@
         table {{ table-layout: fixed; width: 100%; }
         table, td, th {{ border: 1px solid black; border-collapse:collapse;border-spacing:0; }
         td, th {{ padding: 3px; margin: 0px; }
+        body {{ font-family: sans-serif }
     </style>
 </head>
     <body>
-        <h1><a href="/cgi-bin/translator">Translating for IxTheo</a></h1>
-        <div>
-            <h2>Start translating:</h2>
+        <h1 align="center"><a href="/cgi-bin/translator">IxTheo Translation Tool</a></h1>
+        <div style="text-align: center;">
+            <h4>Logged in as {translator}</h4>
             <form action="/cgi-bin/translate_chainer">
-                Start translating into <select name="language_code" onchange="if(this.value != '--') this.form.submit()">
+                Please select target language <select name="language_code" onchange="if(this.value != '--') this.form.submit()">
                 <option>--</option>
                 <option value="eng">English</option>
                 <option value="ger">German</option>
@@ -23,6 +24,7 @@
             </select>
             </form>
         </div>
+        <p>
         <div style="text-align: center;">
             <form action="/cgi-bin/translator" method="POST">
                 <input type="text" name="lookfor" value="{lookfor}" /><button>Search</button>
@@ -44,7 +46,7 @@
                 </form>
             </div>
             <div style="width: 49%; float: left;">
-                <h2>VuFind Tanslations</h2>
+                <h2>VuFind Translations</h2>
                 <table>
                     <tr>{keyword_table_headline}</tr>
                     {LOOP keyword_row}
@@ -55,7 +57,7 @@
                 </table>
             </div>
             <div style="width: 49%; float: right;">
-                <h2>Keyword Tanslations</h2>
+                <h2>Keyword Translations</h2>
                 <table>
                     <tr>{vufind_token_table_headline}</tr>
                     {LOOP vufind_token_row}
