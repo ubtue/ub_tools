@@ -40,6 +40,10 @@ void DumpCgiArgs(const std::multimap<std::string, std::string> &cgi_args) {
         std::cout << key_and_values.first << " = " << key_and_values.second << '\n';
 }
 
+const std::string getTranslatorOrEmptryString() {
+    return (std::getenv("REMOTE_USER") != nullptr) ? std::getenv("REMOTE_USER") : "";
+}
+
 
 void ParseEscapedCommaSeparatedList(const std::string &escaped_text, std::vector<std::string> * const list) {
     list->clear();
@@ -174,6 +178,8 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
             names_to_values_map.emplace("user_translation", std::vector<std::string>{ user_translation });
         }
 
+        names_to_values_map.emplace("translator", std::vector<std::string>{ getTranslatorOrEmptryString()});
+
         std::ifstream translate_html("/var/lib/tuelib/translate_chainer/translate.html", std::ios::binary);
         MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
     }
@@ -282,8 +288,7 @@ int main(int argc, char *argv[]) {
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 
         std::multimap<std::string, std::string> env_args;
-        std::string user(std::getenv("REMOTE_USER") != nullptr ? std::getenv("REMOTE_USER") : "");
-        env_args.insert(std::make_pair("REMOTE_USER", user));
+        env_args.insert(std::make_pair("REMOTE_USER", getTranslatorOrEmptryString()));
 
         if (cgi_args.size() == 1) {
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
