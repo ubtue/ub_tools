@@ -17,6 +17,7 @@ CREATE TABLE keyword_translations (
   status ENUM('reliable_synonym', 'reliable', 'unreliable', 'unreliable_synonym', 'replaced', 'replaced_synonym',
               'new', 'new_synonym') NOT NULL,
   origin CHAR(3) NOT NULL,
+  gnd_system VARCHAR(30),
   translator VARCHAR(50),
   KEY keyword_translations_idx_ppn (ppn),
   KEY keyword_translations_idx_language_code (language_code)
