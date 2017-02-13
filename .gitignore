@@ -135,6 +135,7 @@ augment_authority_data_with_translations
 krimdok_flag_pda_records
 mpi_stats
 translation_keyword_stats
+translator_ajax
 
 bsz_daten
 bsz_daten_cumulated
