@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta charset="UTF-8"/>
@@ -8,8 +8,54 @@
         table {{ table-layout: fixed; width: 100%; }
         table, td, th {{ border: 1px solid black; border-collapse:collapse;border-spacing:0; }
         td, th {{ padding: 3px; margin: 0px; }
-        body {{ font-family: sans-serif }
+        body {{ font-family: sans-serif;
+                -moz-hyphens: auto;
+                -o-hyphens: auto;
+                -webkit-hyphens: auto;
+                -ms-hyphens: auto;
+                hyphens: auto;
+             }
     </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(document).ready(function () {{
+        $(".editable_translation").keydown(function(event) {{
+             if (event.which == 13) {{
+                 event.cancelBubble = true;
+                 event.preventDefault();
+                 event.stopPropagation();
+                 insertTranslationIntoDB(this);
+             }
+        });
+        $(".editable_translation").blur(function() {{
+            insertTranslationIntoDB(this);
+        });
+        
+    });
+
+    function insertTranslationIntoDB(object) {{
+       var index = $(object).attr("index");
+       var gnd_code = $(object).attr("gnd_code");
+       var language_code = $(object).attr("language_code");
+       var translation = $(object).text();
+       var action = "insert";
+       $.ajax({{
+          type: "PUT",
+          url: "translator_ajax",
+          data: "index=" + index + "&gnd_code=" + gnd_code + "&language_code=" + language_code 
+                         + "&translation=" + translation + "&action=" + action,
+          success: function(json) {{
+             $(object).css("background-color", "yellow");
+          }, // end success
+
+          error: function (xhr, ajaxOptions, thrownError) {{
+                   $(object).css("background-color", "red");
+                   alert("Writing to database failed");
+          }
+       }); // end ajax
+    }
+    </script>
+
 </head>
     <body>
         <h1 align="center"><a href="/cgi-bin/translator">IxTheo Translation Tool</a></h1>
