@@ -36,9 +36,14 @@
     function insertTranslationIntoDB(object) {{
        var index = $(object).attr("index");
        var gnd_code = $(object).attr("gnd_code");
-       var language_code = $(object).attr("language_code");
+       var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine anguage from the heading
+       var old_translation = $(object).attr("translation");
        var translation = $(object).text();
-       var action = "insert";
+       if (translation == old_translation) 
+           return;
+
+       $(object).attr("translation", translation);
+       var action = (old_translation == '') ? "insert" : "update"
        $.ajax({{
           type: "PUT",
           url: "translator_ajax",
