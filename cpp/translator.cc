@@ -36,7 +36,7 @@
 #include "WebUtil.h"
 
 
-const int ENTRIES_PER_PAGE(20);
+const int ENTRIES_PER_PAGE(30);
 const std::string NO_GND_CODE("-1");
 
 
@@ -190,21 +190,21 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 }
 
 
-void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, const std::string &offset) {
+void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, const std::string &offset, const std::string &target) {
     std::map<std::string, std::vector<std::string>> names_to_values_map;
     std::vector<std::string> rows;
     std::string headline;
     GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline);
     const std::string translator(std::getenv("REMOTE_USER") != nullptr ? std::getenv("REMOTE_USER") : "Unknown Translator");
     names_to_values_map.emplace("translator", std::vector<std::string> {translator});
-    names_to_values_map.emplace("keyword_row", rows);
-    names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
-
-
-    GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline);
     names_to_values_map.emplace("vufind_token_row", rows);
     names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
 
+    GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline);
+    names_to_values_map.emplace("keyword_row", rows);
+    names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
+
+ 
     names_to_values_map.emplace("lookfor", std::vector<std::string> {lookfor});
     names_to_values_map.emplace("prev_offset", std::vector<std::string>
                                                {std::to_string(std::max(0, std::stoi(offset) - ENTRIES_PER_PAGE))});
@@ -212,6 +212,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
                                 std::vector<std::string> {std::to_string(std::stoi(offset) + ENTRIES_PER_PAGE)});
 
     names_to_values_map.emplace("target_language_code", std::vector<std::string> {""});
+    names_to_values_map.emplace("target_translation_scope", std::vector<std::string> {target});
 
     std::ifstream translate_html("/var/lib/tuelib/translate_chainer/translation_front_page.html", std::ios::binary);
     MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
@@ -238,7 +239,8 @@ int main(int argc, char *argv[]) {
 
         const std::string lookfor(GetCGIParameterOrDefault(cgi_args, "lookfor", ""));
         const std::string offset(GetCGIParameterOrDefault(cgi_args, "offset", "0"));
-        ShowFrontPage(db_connection, lookfor, offset);
+        const std::string translation_target(GetCGIParameterOrDefault(cgi_args, "target", "keywords"));
+        ShowFrontPage(db_connection, lookfor, offset, translation_target);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
