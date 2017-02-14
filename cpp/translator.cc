@@ -1,9 +1,10 @@
 /** \file    translator.cc
  *  \brief   A CGI-tool for translating vufind tokens and keywords.
  *  \author  Oliver Obenland (oliver.obenland@uni-tuebingen.de)
+ *  \author  Johannes Riedl
  */
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016,2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -83,14 +84,22 @@ const std::string GetTranslatorOrEmptyString() {
 }
 
 
+const std::string AssembleTermIdentifiers(const std::string &category, const std::string &index, 
+                                          const std::string &language_code, const std::string &gnd_code = "", const std::string &translation = "") {
+
+       return std::string(" category=\"" +  UrlUtil::UrlEncode(category) + "\" index=\"" + UrlUtil::UrlEncode(index) + "\" language_code=\"" +
+                          UrlUtil::UrlEncode(language_code) + "\" gnd_code=\"" + gnd_code + "\" translation=\"" + translation + "\" ");
+}
+
+
 std::string CreateRowEntry(const std::string &token, const std::string &label, const std::string language_code,
-                           const std::string &category, const std::string db_translator, const std::string &status = "UNKNOWN") {
+                           const std::string &category, const std::string db_translator, 
+                           const std::string &status = "UNKNOWN", const std::string &gnd_code = "") {
     if (status == "reliable")
         return "<td contenteditable=\"true\" class=\"editable_translation\">" + HtmlUtil::HtmlEscape(label) + "</td>";
 
-       std::string term_identifiers = " category=\"" +  UrlUtil::UrlEncode(category) + "\" index=\"" +  UrlUtil::UrlEncode(token) + "\" language_code=\"" + 
-                            UrlUtil::UrlEncode(language_code) + "\" ";
-       std::string background_color = (GetTranslatorOrEmptyString() == db_translator) ? "blue" : "lightgreen";
+       std::string term_identifiers(AssembleTermIdentifiers(category, token, language_code, gnd_code, label));
+       std::string background_color((GetTranslatorOrEmptyString() == db_translator) ? "blue" : "lightgreen");
        return  "<td contenteditable=\"true\" class=\"editable_translation\"" + term_identifiers + "style=\"background-color:" + background_color + "\">" 
                 + HtmlUtil::HtmlEscape(label) +"</td>";
 }
@@ -141,9 +150,9 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                                   std::string *const headline) {
     rows->clear();
 
-    const std::string ppn_where_clause(lookfor.empty() ? "" : "WHERE translation LIKE '%" + lookfor + "%'");
+    const std::string ppn_where_clause(lookfor.empty() ? "" : "WHERE translation RLIKE '" + lookfor + "'");
     const std::string ppn_query("SELECT ppn FROM keyword_translations " + ppn_where_clause + " ORDER BY translation LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) );
-    const std::string query("SELECT ppn, translation, language_code, status, translator FROM keyword_translations "
+    const std::string query("SELECT ppn, translation, language_code, gnd_code, status, translator FROM keyword_translations "
                             "WHERE  ppn IN (SELECT ppn FROM (" + ppn_query + ") as t) AND status != \"reliable_synonym\" AND status != \"unreliable_synonym\" ORDER BY ppn, translation;");
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
 
@@ -152,23 +161,32 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     if (result_set.empty())
         return;
 
-    DbRow db_row(result_set.getNextRow());
-    std::string current_ppn(db_row["ppn"]);
-    std::vector<std::string> row_values(language_codes.size(), "<td contenteditable=\"true\"></td>");
-    do {
-        std::string ppn(db_row["ppn"]);
-        if (ppn != current_ppn) {
-            rows->emplace_back(StringUtil::Join(row_values, ""));
-            current_ppn = ppn;
-            row_values.clear();
-            row_values.resize(language_codes.size(), "<td contenteditable=\"true\"></td>");
-        }
-        auto index = std::find(language_codes.begin(), language_codes.end(), db_row["language_code"]) -
+    std::vector<std::string> row_values(language_codes.size());
+    std::string current_ppn;
+    while (auto db_row = result_set.getNextRow()) {
+
+       // Add new entries as long as there is a single PPN
+       std::string ppn(db_row["ppn"]);
+       std::string translation(db_row["translation"]);
+       std::string language_code(db_row["language_code"]);
+       std::string status(db_row["status"]);
+       std::string translator(db_row["translator"]);
+       std::string gnd_code(db_row["gnd_code"]);
+       if (current_ppn != ppn){
+           if (not current_ppn.empty())
+              rows->emplace_back(StringUtil::Join(row_values, ""));
+
+           current_ppn = ppn;
+           row_values.clear();
+           row_values.resize(language_codes.size(), "<td contenteditable=\"true\" class=\"editable_translation\"" + AssembleTermIdentifiers("keyword_translations", ppn, "", gnd_code) + " style=\"background-color:lightblue\"></td>");
+       }
+
+       auto index = std::find(language_codes.begin(), language_codes.end(), language_code) -
                      language_codes.begin();
-        row_values[index] = CreateRowEntry(current_ppn, db_row["translation"], db_row["language_code"],
-                                           "keyword_translations", db_row["status"], db_row["translator"]);
-    } while (db_row = result_set.getNextRow());
-    rows->emplace_back(StringUtil::Join(row_values, ""));
+       row_values[index] = CreateRowEntry(current_ppn, translation, language_code, "keyword_translations", status, translator, gnd_code);
+   }
+   // Handle last line
+   rows->emplace_back(StringUtil::Join(row_values, ""));
 }
 
 
