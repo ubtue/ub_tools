@@ -64,17 +64,15 @@
 </head>
     <body>
         <h1 align="center"><a href="/cgi-bin/translator">IxTheo Translation Tool</a></h1>
+        <p>
         <div style="text-align: center;">
-            <h4>Logged in as {translator}</h4>
-            <form action="/cgi-bin/translate_chainer">
-                Please select target language <select name="language_code" onchange="if(this.value != '--') this.form.submit()">
-                <option>--</option>
-                <option value="eng">English</option>
-                <option value="ger">German</option>
-                <option value="fre">French</option>
+            <form action="/cgi-bin/translator">
+                    Please select target scope <select name="target" onchange="if(this.value != '{target_translation_scope}') this.form.submit()">
+                    <option value="vufind" {IF target_translation_scope == "vufind"} selected {ENDIF}>VuFind Translations</option>
+                    <option value="keywords" {IF target_translation_scope == "keywords"} selected {ENDIF}>Keyword Translations</option>
             </select>
             </form>
-        </div>
+        </div> 
         <p>
         <div style="text-align: center;">
             <form action="/cgi-bin/translator" method="POST">
@@ -87,6 +85,7 @@
                     <button>Previous</button>
                     <input type="hidden" name="lookfor" value="{lookfor}">
                     <input type="hidden" name="offset" value="{prev_offset}">
+                    <input type="hidden" name="target" value="{target_translation_scope}">
                 </form>
             </div>
             <div style="width: 50%; float: right;">
@@ -94,22 +93,13 @@
                     <button>Next</button>
                     <input type="hidden" name="lookfor" value="{lookfor}">
                     <input type="hidden" name="offset" value="{next_offset}">
+                    <input type="hidden" name="target" value="{target_translation_scope}">
                 </form>
             </div>
-            <div style="width: 49%; float: left;">
+            {IF target_translation_scope == "vufind"}
+            <div style="width: 90%;">
                 <h2>VuFind Translations</h2>
-                <table>
-                    <tr>{keyword_table_headline}</tr>
-                    {LOOP keyword_row}
-                    <tr>
-                        {keyword_row}
-                    </tr>
-                    {ENDLOOP}
-                </table>
-            </div>
-            <div style="width: 49%; float: right;">
-                <h2>Keyword Translations</h2>
-                <table>
+                              <table>
                     <tr>{vufind_token_table_headline}</tr>
                     {LOOP vufind_token_row}
                     <tr>
@@ -118,6 +108,19 @@
                     {ENDLOOP}
                 </table>
             </div>
+            {ELSE}
+            <div style="width: 90%;">
+                <h2>Keyword Translations</h2>
+                    <table>
+                    <tr>{keyword_table_headline}</tr>
+                    {LOOP keyword_row}
+                    <tr>
+                        {keyword_row}
+                    </tr>
+                    {ENDLOOP}
+                </table>
+            </div>
+            {ENDIF}
         </div>
     </body>
 </html>
