@@ -132,6 +132,7 @@ static std::map<std::string, std::string> german_to_3letter_english_codes{
     { "eng", "eng" },
     { "fra", "fre" },
     { "ita", "ita" },
+    { "spa", "spa" },
     { "hant", "cht" },
     { "hans", "chs" },
 };
