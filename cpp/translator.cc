@@ -113,16 +113,12 @@ const std::string AssembleTermIdentifiers(const std::string &category, const std
 std::string CreateEditableRowEntry(const std::string &token, const std::string &label, const std::string language_code,
                            const std::string &category, const std::string db_translator, 
                            const std::string &status = "UNKNOWN", const std::string &gnd_code = "") {
-    if (status == "reliable")
-        return "<td>" + HtmlUtil::HtmlEscape(label) + "</td>";
-
-       std::string term_identifiers(AssembleTermIdentifiers(category, token, language_code, gnd_code, label));
-       std::string background_color((GetTranslatorOrEmptyString() == db_translator) ? "blue" : "lightgreen");
-       return  "<td contenteditable=\"true\" class=\"editable_translation\"" + term_identifiers + "style=\"background-color:" + background_color + "\">" 
+    (void)status;
+    std::string term_identifiers(AssembleTermIdentifiers(category, token, language_code, gnd_code, label));
+    std::string background_color((GetTranslatorOrEmptyString() == db_translator) ? "RoyalBlue" : "LightBlue");
+    return  "<td contenteditable=\"true\" class=\"editable_translation\"" + term_identifiers + "style=\"background-color:" + background_color + "\">" 
                 + HtmlUtil::HtmlEscape(label) +"</td>";
 }
-
-
 
 
 void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
@@ -158,7 +154,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
         }
         const auto index(std::find(language_codes.begin(), language_codes.end(), db_row["language_code"]) -
                      language_codes.begin());
-        row_values[index] = CreateEditableRowEntry(current_token, db_row["translation"], db_row["language_code"],
+        row_values[index] = CreateEditableRowEntry(current_token, db_row["translation"], db_row["language_code"], 
                                            db_row["translator"], "vufind_translations");
     } while (db_row = result_set.getNextRow());
     rows->emplace_back("<td contenteditable=\"true\">" + HtmlUtil::HtmlEscape(current_token) + "</td>" + StringUtil::Join(row_values, ""));
@@ -250,11 +246,13 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
            current_ppn = ppn;
            row_values.clear();
+//           row_values.resize(display_languages.size(), "<td style=\"background-color:lightgrey\"></td>");
            row_values.resize(display_languages.size(), "<td style=\"background-color:lightgrey\"></td>");
            for (auto translator_language : translator_languages) {
                int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
                if (index != NO_INDEX) {
-                   row_values[index] = CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations", status, translator, gnd_code);
+                   row_values[index] = CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations", "", status, gnd_code);
+               //      row_values[index] = "<td style=\"background-color:pink\"></td>";
                }
            }
        }
@@ -264,7 +262,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
            continue;
       
        if (IsTranslatorLanguage(translator_languages, language_code)) 
-          row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations", status, translator, gnd_code);
+          row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations", translator, status, gnd_code);
        else
           row_values[index] = CreateNonEditableRowEntry(translation);
    }
