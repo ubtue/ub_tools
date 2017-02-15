@@ -66,6 +66,7 @@
         <h1 align="center"><a href="/cgi-bin/translator">IxTheo Translation Tool</a></h1>
         <p>
         <div style="text-align: center;">
+            <h4>Logged in as {translator}</h4>
             <form action="/cgi-bin/translator">
                     Please select target scope <select name="target" onchange="if(this.value != '{target_translation_scope}') this.form.submit()">
                     <option value="vufind" {IF target_translation_scope == "vufind"} selected {ENDIF}>VuFind Translations</option>
