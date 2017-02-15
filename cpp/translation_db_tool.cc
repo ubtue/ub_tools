@@ -212,9 +212,9 @@ int main(int argc, char *argv[]) {
             Usage();
 
         const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("", "sql_database"));
-        const std::string sql_username(ini_file.getString("", "sql_username"));
-        const std::string sql_password(ini_file.getString("", "sql_password"));
+        const std::string sql_database(ini_file.getString("Database", "sql_database"));
+        const std::string sql_username(ini_file.getString("Database", "sql_username"));
+        const std::string sql_password(ini_file.getString("Database", "sql_password"));
         DbConnection db_connection(sql_database, sql_username, sql_password);
 
         if (std::strcmp(argv[1], "get_missing") == 0) {
