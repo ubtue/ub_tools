@@ -41,7 +41,10 @@
 const int ENTRIES_PER_PAGE(30);
 const std::string NO_GND_CODE("-1");
 const std::string LANGUAGES_SECTION("Languages");
-const std::string USER_LANGUAGE_VIEW_SECTION("UserLanguageView");
+const std::string TRANSLATION_LANGUAGES_SECTION("TranslationLanguages");
+const std::string ADDITIONAL_VIEW_LANGUAGES("AdditionalViewLanguages");
+const std::string USER_SECTION("Users");
+const std::string ALL_SUPPORTED_LANGUAGES("all");
 const int NO_INDEX(-1);
 
 
@@ -123,7 +126,8 @@ std::string CreateEditableRowEntry(const std::string &token, const std::string &
 
 void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
                                                  const std::string &offset, std::vector<std::string> *const rows,
-                                                 std::string *const headline) {
+                                                 std::string *const headline, const std::vector<std::string> translator_languages) {
+    (void)translator_languages;
     rows->clear();
 
     const std::string token_where_clause(
@@ -178,6 +182,18 @@ void GetTranslationLanguages(const std::vector<std::string> &db_language_codes, 
 
 }
 
+void GetDisplayLanguages(std::vector<std::string> *const display_languages, const std::vector<std::string> &translation_languages,
+                         const std::vector<std::string> &additional_view_languages) {
+
+    display_languages->clear();
+    // Insert German as Display language in any case
+    if (std::find(translation_languages.begin(), translation_languages.end(), "ger") == translation_languages.end())
+        display_languages->emplace_back("ger");
+    display_languages->insert(display_languages->end(), translation_languages.begin(), translation_languages.end());
+    display_languages->insert(display_languages->end(), additional_view_languages.begin(), additional_view_languages.end());
+//    display_languages->emplace_back("eng");
+}
+
 
 int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headings, const std::vector<std::string> &row_values, std::string &heading) {
     auto heading_pos(std::find(column_headings.cbegin(), column_headings.cend(), heading));
@@ -206,7 +222,8 @@ std::string CreateNonEditableRowEntry(const std::string &value) {
 void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
                                                   const std::string &offset, std::vector<std::string> *const rows,
                                                   std::string *const headline, 
-                                                  const std::vector<std::string> &translator_languages) {
+                                                  const std::vector<std::string> &translator_languages, 
+                                                  const std::vector<std::string> &additional_view_languages) {
     rows->clear();
 
     const std::string ppn_where_clause(lookfor.empty() ? "" : "WHERE translation RLIKE '" + lookfor + "'");
@@ -217,14 +234,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
 
-    // remove all languages not relevant for the user
-    std::vector<std::string> translation_languages;
-    GetTranslationLanguages(language_codes, translator_languages, &translation_languages);
     std::vector<std::string> display_languages;
-    display_languages.emplace_back("ger");
-    display_languages.insert(display_languages.end(), translation_languages.begin(), translation_languages.end());
-    display_languages.emplace_back("eng");
-
+    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages);
     *headline = "<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>";
     if (result_set.empty())
         return;
@@ -246,13 +257,11 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
            current_ppn = ppn;
            row_values.clear();
-//           row_values.resize(display_languages.size(), "<td style=\"background-color:lightgrey\"></td>");
            row_values.resize(display_languages.size(), "<td style=\"background-color:lightgrey\"></td>");
            for (auto translator_language : translator_languages) {
                int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
                if (index != NO_INDEX) {
                    row_values[index] = CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations", "", status, gnd_code);
-               //      row_values[index] = "<td style=\"background-color:pink\"></td>";
                }
            }
        }
@@ -266,23 +275,24 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        else
           row_values[index] = CreateNonEditableRowEntry(translation);
    }
-   // Handle last line
    rows->emplace_back(StringUtil::Join(row_values, ""));
 }
 
 
 void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, const std::string &offset, 
                    const std::string &target, const std::string translator,
-                   const std::vector<std::string> &translator_languages) {
+                   const std::vector<std::string> &translator_languages,
+                   const std::vector<std::string> &additional_view_languages) {
+
     std::map<std::string, std::vector<std::string>> names_to_values_map;
     std::vector<std::string> rows;
     std::string headline;
-    GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline);
+    GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline, translator_languages);
     names_to_values_map.emplace("translator", std::vector<std::string> {translator});
     names_to_values_map.emplace("vufind_token_row", rows);
     names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
 
-    GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline, translator_languages);
+    GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline, translator_languages, additional_view_languages);
     names_to_values_map.emplace("keyword_row", rows);
     names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
 
@@ -304,9 +314,28 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
 
 
 void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translator, std::vector<std::string> *const translator_languages) {
-    const std::string ini_translator_languages(ini_file.getString(USER_LANGUAGE_VIEW_SECTION, translator));
+    // If user is an administrator all languages are open for editing, otherwise only the specified ones
+    const std::string ini_administrators(ini_file.getString(USER_SECTION, "administrators"));
+    std::vector<std::string> administrators;
+    StringUtil::Split(ini_administrators, ",", &administrators);
+    std::for_each(administrators.begin(), administrators.end(), boost::bind(&boost::trim<std::string>, _1, std::locale()));
+
+    std::string ini_translator_languages;
+    if (std::find(administrators.begin(), administrators.end(), translator) != administrators.end())
+        ini_translator_languages = ini_file.getString(LANGUAGES_SECTION, ALL_SUPPORTED_LANGUAGES);
+    else
+        ini_translator_languages = ini_file.getString(TRANSLATION_LANGUAGES_SECTION, translator);
+
     StringUtil::Split(ini_translator_languages, ",", translator_languages);
     std::for_each(translator_languages->begin(), translator_languages->end(),  
+                   boost::bind(&boost::trim<std::string>, _1, std::locale()));
+}
+
+
+void GetAdditionalViewLanguages(const IniFile &ini_file, std::vector<std::string> *const additional_view_languages, const std::string &translator) {
+    const std::string ini_additional_view_languages(ini_file.getString(ADDITIONAL_VIEW_LANGUAGES, translator));
+    StringUtil::Split(ini_additional_view_languages, ",", additional_view_languages);
+    std::for_each(additional_view_languages->begin(), additional_view_languages->end(),
                    boost::bind(&boost::trim<std::string>, _1, std::locale()));
 }
 
@@ -337,13 +366,15 @@ int main(int argc, char *argv[]) {
         GetTranslatorLanguages(ini_file, translator, &translator_languages);
         if (translator_languages.size() == 0)
             ShowErrorPage("Error - No languages", "No languages specified for user " + translator , "Contact your administrator");
+        std::vector<std::string> additional_view_languages;
+        GetAdditionalViewLanguages(ini_file, &additional_view_languages, translator);
 
         std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
 
         const std::string lookfor(GetCGIParameterOrDefault(cgi_args, "lookfor", ""));
         const std::string offset(GetCGIParameterOrDefault(cgi_args, "offset", "0"));
         const std::string translation_target(GetCGIParameterOrDefault(cgi_args, "target", "keywords"));
-        ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages);
+        ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages, additional_view_languages);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
