@@ -165,23 +165,6 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 }
 
 
-void GetTranslationLanguages(const std::vector<std::string> &db_language_codes, const std::vector<std::string> &translator_languages, 
-                              std::vector<std::string> *const translation_languages) {
-
-    std::vector<std::string> sortable_language_codes(db_language_codes);
-    std::vector<std::string> sortable_translator_languages(translator_languages);
-
-    std::sort(sortable_language_codes.begin(), sortable_language_codes.end());
-    std::sort(sortable_translator_languages.begin(), sortable_translator_languages.end()); 
-    std::set_intersection(sortable_language_codes.begin(), sortable_language_codes.end(), 
-                          sortable_translator_languages.begin(), sortable_translator_languages.end(),
-                          std::back_inserter(*translation_languages));
-    std::set_difference(sortable_translator_languages.begin(), sortable_translator_languages.end(),
-                        sortable_language_codes.begin(), sortable_language_codes.end(),
-                        std::back_inserter(*translation_languages));
-
-}
-
 void GetDisplayLanguages(std::vector<std::string> *const display_languages, const std::vector<std::string> &translation_languages,
                          const std::vector<std::string> &additional_view_languages) {
 
@@ -191,7 +174,6 @@ void GetDisplayLanguages(std::vector<std::string> *const display_languages, cons
         display_languages->emplace_back("ger");
     display_languages->insert(display_languages->end(), translation_languages.begin(), translation_languages.end());
     display_languages->insert(display_languages->end(), additional_view_languages.begin(), additional_view_languages.end());
-//    display_languages->emplace_back("eng");
 }
 
 
