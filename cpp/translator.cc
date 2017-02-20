@@ -315,6 +315,12 @@ std::cerr << query << '\n';
 }
 
 
+void GenerateDirectJumpTable(std::vector<std::string> *const jump_table) {
+    for (char ch('A'); ch <= 'Z'; ++ch)
+        jump_table->emplace_back("<td><a href=\"\">" + std::string(1,ch) + "</a></td>");
+}
+
+
 void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, const std::string &offset, 
                    const std::string &target, const std::string translator,
                    const std::vector<std::string> &translator_languages,
@@ -323,6 +329,10 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     std::map<std::string, std::vector<std::string>> names_to_values_map;
     std::vector<std::string> rows;
     std::string headline;
+    std::vector<std::string> jump_entries;
+    GenerateDirectJumpTable(&jump_entries);
+    names_to_values_map.emplace("direct_jump", jump_entries);
+
     GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline, translator_languages);
     names_to_values_map.emplace("translator", std::vector<std::string> {translator});
     names_to_values_map.emplace("vufind_token_row", rows);
