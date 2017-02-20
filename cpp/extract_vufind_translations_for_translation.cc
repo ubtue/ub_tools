@@ -68,9 +68,9 @@ int main(int argc, char **argv) {
 
     try {
         const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("", "sql_database"));
-        const std::string sql_username(ini_file.getString("", "sql_username"));
-        const std::string sql_password(ini_file.getString("", "sql_password"));
+        const std::string sql_database(ini_file.getString("Database", "sql_database"));
+        const std::string sql_username(ini_file.getString("Database", "sql_username"));
+        const std::string sql_password(ini_file.getString("Database", "sql_password"));
         DbConnection db_connection(sql_database, sql_username, sql_password);
 
         for (int arg_no(1); arg_no < argc; ++arg_no) {
