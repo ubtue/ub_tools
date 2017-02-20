@@ -208,10 +208,21 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                                   const std::vector<std::string> &additional_view_languages) {
     rows->clear();
 
-    const std::string ppn_where_clause(lookfor.empty() ? "" : "WHERE translation RLIKE '" + lookfor + "'");
-    const std::string ppn_query("SELECT ppn FROM keyword_translations " + ppn_where_clause + " ORDER BY translation LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) );
-    const std::string query("SELECT ppn, translation, language_code, gnd_code, status, translator FROM keyword_translations "
-                            "WHERE  ppn IN (SELECT ppn FROM (" + ppn_query + ") as t) AND status != \"reliable_synonym\" AND status != \"unreliable_synonym\" ORDER BY ppn, translation;");
+    const std::string ppn_where_clause(lookfor.empty() ? "" : " WHERE translation LIKE '%" + lookfor + "%'");
+    const std::string subsearch_query("(SELECT * FROM keyword_translations WHERE ppn IN (SELECT ppn FROM keyword_translations " + ppn_where_clause + "))");
+    const std::string translation_sort_limiter(lookfor.empty()  ? "LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) : "");
+    const std::string translation_sort_join("INNER JOIN (SELECT DISTINCT ppn,translation FROM keyword_translations "
+                                            "WHERE language_code='ger' AND status='reliable' "
+                                            "ORDER BY translation " +
+                                            translation_sort_limiter +
+                                            ") AS t ON k.ppn = t.ppn ORDER BY t.translation, k.ppn");
+    const std::string inner_query("SELECT k.ppn, k.translation, k.language_code, k.gnd_code, k.status, k.translator FROM " + subsearch_query + " AS k " + 
+                              translation_sort_join);
+
+    const std::string lookfor_limiter(lookfor.empty() ? "" : "LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE));
+
+    const std::string query("SELECT * FROM (" + inner_query + ") AS v WHERE status != \"reliable_synonym\" AND status != \"unreliable_synonym\"");
+
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
 
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
