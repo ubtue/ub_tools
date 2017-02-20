@@ -208,7 +208,9 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                                   const std::vector<std::string> &additional_view_languages) {
     rows->clear();
 
-    const std::string ppn_where_clause(lookfor.empty() ? "" : " WHERE translation LIKE '%" + lookfor + "%'");
+    // For short strings make a prefix search, otherwise search substring
+    const std::string searchpattern(lookfor.size() <= 3 ? "\'" + lookfor + "\'" : "\'%" + lookfor+ "%\'");
+    const std::string ppn_where_clause(lookfor.empty() ? "" : " WHERE translation LIKE " + searchpattern);
     const std::string subsearch_query("(SELECT * FROM keyword_translations WHERE ppn IN (SELECT ppn FROM keyword_translations " + ppn_where_clause + "))");
     const std::string translation_sort_limiter(lookfor.empty()  ? "LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) : "");
     const std::string translation_sort_join("INNER JOIN (SELECT DISTINCT ppn,translation FROM keyword_translations "
@@ -221,7 +223,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
     const std::string lookfor_limiter(lookfor.empty() ? "" : "LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE));
 
-    const std::string query("SELECT * FROM (" + inner_query + ") AS v WHERE status != \"reliable_synonym\" AND status != \"unreliable_synonym\"");
+    const std::string query("SELECT * FROM (" + inner_query + ") AS v WHERE status != \"reliable_synonym\" AND status != \"unreliable_synonym\" " 
+                            + lookfor_limiter);
 
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
 
