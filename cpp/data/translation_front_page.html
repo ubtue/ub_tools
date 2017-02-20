@@ -101,7 +101,7 @@
                     <input type="hidden" name="target" value="{target_translation_scope}">
                 </form>
             </div>
-            {IF target_translation_scope == "vufind"}
+                        {IF target_translation_scope == "vufind"}
             <div style="width: 90%;">
                 <h2>VuFind Translations</h2>
                               <table>
@@ -116,7 +116,14 @@
             {ELSE}
             <div style="width: 90%;">
                 <h2>Keyword Translations</h2>
-                    <table>
+                <div>
+                    {LOOP direct_jump}
+                    <tr>
+                    {direct_jump}
+                    </tr>
+                    {ENDLOOP}
+                </div>
+                <table>
                     <tr>{keyword_table_headline}</tr>
                     {LOOP keyword_row}
                     <tr>
