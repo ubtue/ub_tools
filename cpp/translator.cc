@@ -45,6 +45,7 @@ const std::string TRANSLATION_LANGUAGES_SECTION("TranslationLanguages");
 const std::string ADDITIONAL_VIEW_LANGUAGES("AdditionalViewLanguages");
 const std::string USER_SECTION("Users");
 const std::string ALL_SUPPORTED_LANGUAGES("all");
+const std::string SYNONYM_COLUMN_DESCRIPTOR("syn");
 const int NO_INDEX(-1);
 
 
@@ -172,12 +173,14 @@ void GetDisplayLanguages(std::vector<std::string> *const display_languages, cons
     // Insert German as Display language in any case
     if (std::find(translation_languages.begin(), translation_languages.end(), "ger") == translation_languages.end())
         display_languages->emplace_back("ger");
+    // Insert German Synonyms in any case
+    display_languages->emplace_back(SYNONYM_COLUMN_DESCRIPTOR);
     display_languages->insert(display_languages->end(), translation_languages.begin(), translation_languages.end());
     display_languages->insert(display_languages->end(), additional_view_languages.begin(), additional_view_languages.end());
 }
 
 
-int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headings, const std::vector<std::string> &row_values, std::string &heading) {
+int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headings, const std::vector<std::string> &row_values, const std::string &heading) {
     auto heading_pos(std::find(column_headings.cbegin(), column_headings.cend(), heading));
     if (heading_pos == column_headings.end())
         return NO_INDEX;
@@ -202,12 +205,32 @@ std::string CreateNonEditableRowEntry(const std::string &value) {
 }
 
 
+std::string CreateNonEditableSynonymEntry(const std::vector<std::string> &values, const std::string &separator) {
+   std::vector<std::string> html_escaped_values(values.size());
+   std::for_each(values.cbegin(), values.cend(), boost::bind(&HtmlUtil::HtmlEscape, _1));
+   return "<td style=\"background-color:lightgrey; font-size:small\">" +  StringUtil::Join(values, separator) + "</td>";
+}
+
+
 std::string CreateNonEditableHintEntry(const std::string &value, const std::string gnd_code) {
   return "<td style=\"background-color:lightgrey\"><a href = \"/Keywordchainsearch/Results?lookfor=" + HtmlUtil::HtmlEscape(value) +
                                                    "\" target=\"_blank\">" + HtmlUtil::HtmlEscape(value) + "</a>"
                                                    "<a href=\"http://d-nb.info/gnd/" + HtmlUtil::HtmlEscape(gnd_code) + "\""
                                                    " style=\"float:right\" target=\"_blank\">GND</a></td>";
 }
+
+
+void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_code, std::vector<std::string> *const synonyms) {
+    synonyms->clear();
+    const std::string synonym_query("SELECT translation FROM keyword_translations WHERE gnd_code=\'" + gnd_code + "\' AND status=\'reliable_synonym\'");
+    DbResultSet result_set(ExecSqlOrDie(synonym_query, db_connection));
+    if (result_set.empty())
+        return;
+
+    while (auto db_row = result_set.getNextRow())
+        synonyms->emplace_back(db_row["translation"]);
+}
+
 
 void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
                                                   const std::string &offset, std::vector<std::string> *const rows,
@@ -274,12 +297,19 @@ std::cerr << query << '\n';
        int index(GetColumnIndexForColumnHeading(display_languages, row_values, language_code));
        if (index == NO_INDEX)
            continue;
-      
        if (IsTranslatorLanguage(translator_languages, language_code)) 
           row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations", translator, status, gnd_code);
        else
           row_values[index] = (language_code == "ger") ? CreateNonEditableHintEntry(translation, gnd_code) :
                                      CreateNonEditableRowEntry(translation);
+
+       // Insert Synonyms
+       std::vector<std::string> synonyms;
+       GetSynonymsForGNDCode(db_connection, gnd_code, &synonyms);
+       int synonym_index(GetColumnIndexForColumnHeading(display_languages, row_values, SYNONYM_COLUMN_DESCRIPTOR));
+       if (synonym_index == NO_INDEX)
+           continue;
+       row_values[synonym_index] = CreateNonEditableSynonymEntry(synonyms, "<br/>");
    }
    rows->emplace_back(StringUtil::Join(row_values, ""));
 }
