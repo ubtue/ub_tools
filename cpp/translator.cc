@@ -196,10 +196,18 @@ bool IsTranslatorLanguage(const std::vector<std::string> &translator_languages, 
     return std::find(translator_languages.cbegin(), translator_languages.cend(), lang) != translator_languages.cend();
 }
 
+
 std::string CreateNonEditableRowEntry(const std::string &value) {
    return  "<td style=\"background-color:lightgrey\">" +  HtmlUtil::HtmlEscape(value) + "</td>";
 }
 
+
+std::string CreateNonEditableHintEntry(const std::string &value, const std::string gnd_code) {
+  return "<td style=\"background-color:lightgrey\"><a href = \"/Keywordchainsearch/Results?lookfor=" + HtmlUtil::HtmlEscape(value) +
+                                                   "\" target=\"_blank\">" + HtmlUtil::HtmlEscape(value) + "</a>"
+                                                   "<a href=\"http://d-nb.info/gnd/" + HtmlUtil::HtmlEscape(gnd_code) + "\""
+                                                   " style=\"float:right\" target=\"_blank\">GND</a></td>";
+}
 
 void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
                                                   const std::string &offset, std::vector<std::string> *const rows,
@@ -226,6 +234,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     const std::string query("SELECT * FROM (" + inner_query + ") AS v WHERE status != \"reliable_synonym\" AND status != \"unreliable_synonym\" " 
                             + lookfor_limiter);
 
+std::cerr << query << '\n';
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
 
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
@@ -269,7 +278,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        if (IsTranslatorLanguage(translator_languages, language_code)) 
           row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations", translator, status, gnd_code);
        else
-          row_values[index] = CreateNonEditableRowEntry(translation);
+          row_values[index] = (language_code == "ger") ? CreateNonEditableHintEntry(translation, gnd_code) :
+                                     CreateNonEditableRowEntry(translation);
    }
    rows->emplace_back(StringUtil::Join(row_values, ""));
 }
