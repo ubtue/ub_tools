@@ -50,7 +50,7 @@ const std::string TOKEN_COLUMN_DESCRIPTOR("token");
 const int NO_INDEX(-1);
 const unsigned int LOOKFOR_PREFIX_LIMIT(3);
 
-enum DisplayType {VUFIND, KEYWORDS};
+enum Category {VUFIND, KEYWORDS};
 
 DbResultSet ExecSqlOrDie(const std::string &select_statement, DbConnection &db_connection) {
     if (unlikely(not db_connection.query(select_statement)))
@@ -128,18 +128,18 @@ std::string CreateEditableRowEntry(const std::string &token, const std::string &
 
 
 void GetDisplayLanguages(std::vector<std::string> *const display_languages, const std::vector<std::string> &translation_languages,
-                         const std::vector<std::string> &additional_view_languages, enum DisplayType display_type = KEYWORDS) {
+                         const std::vector<std::string> &additional_view_languages, enum Category category = KEYWORDS) {
 
     display_languages->clear();
 
-    if (display_type == KEYWORDS) {
+    if (category == KEYWORDS) {
         // Insert German as Display language in any case
         if (std::find(translation_languages.begin(), translation_languages.end(), "ger") == translation_languages.end())
             display_languages->emplace_back("ger");
         // Insert German Synonyms in any case
         display_languages->emplace_back(SYNONYM_COLUMN_DESCRIPTOR);
     }
-    else if (display_type == VUFIND)
+    else if (category == VUFIND)
         display_languages->emplace_back(TOKEN_COLUMN_DESCRIPTOR);
     display_languages->insert(display_languages->end(), translation_languages.begin(), translation_languages.end());
     display_languages->insert(display_languages->end(), additional_view_languages.begin(), additional_view_languages.end());
@@ -337,13 +337,14 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 }
 
 
-void GenerateDirectJumpTable(std::vector<std::string> *const jump_table) {
+void GenerateDirectJumpTable(std::vector<std::string> *const jump_table, enum Category category = KEYWORDS) {
     for (char ch('A'); ch <= 'Z'; ++ch) {
          // We use buttons an style them as link conform to post semantics
          std::string post_link(
          R"END(<form action="/cgi-bin/translator" method="POST">
             <button type="submit" class="link-button">)END" + std::string(1,ch) + "</button>"
          R"END(<input type="hidden" name="lookfor" value=")END" + std::string(1,ch) + "\">"
+         R"END(<input type="hidden" name="target" value=")END" + (category == VUFIND ? "vufind" : "keyword_translations") + "\">"
          "</form>");
         jump_table->emplace_back("<td style=\"border:none;\">" + post_link + "</td>");
     }
@@ -359,9 +360,13 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     std::map<std::string, std::vector<std::string>> names_to_values_map;
     std::vector<std::string> rows;
     std::string headline;
-    std::vector<std::string> jump_entries;
-    GenerateDirectJumpTable(&jump_entries);
-    names_to_values_map.emplace("direct_jump", jump_entries);
+    std::vector<std::string> jump_entries_keywords;
+    GenerateDirectJumpTable(&jump_entries_keywords, KEYWORDS);
+    names_to_values_map.emplace("direct_jump_keywords", jump_entries_keywords);
+
+    std::vector<std::string> jump_entries_vufind;
+    GenerateDirectJumpTable(&jump_entries_vufind, VUFIND);
+    names_to_values_map.emplace("direct_jump_vufind", jump_entries_vufind);
 
     GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline, translator_languages, additional_view_languages);
     names_to_values_map.emplace("translator", std::vector<std::string> {translator});

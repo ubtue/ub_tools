@@ -116,7 +116,14 @@
             {IF target_translation_scope == "vufind"}
             <div style="width: 90%;">
                 <h2>VuFind Translations</h2>
-                <table>
+                <table style="width: 50%; border: none;">
+                   <tr style="border: none;">
+                   {LOOP direct_jump_vufind}
+                       {direct_jump_vufind}
+                   {ENDLOOP}
+                   </tr>
+               </table>
+               <table>
                     <tr>{vufind_token_table_headline}</tr>
                     {LOOP vufind_token_row}
                     <tr>
@@ -131,8 +138,8 @@
                   <div>
                     <table style="width: 50%; border: none;">
                         <tr style="border: none;">
-                        {LOOP direct_jump}
-                            {direct_jump}
+                        {LOOP direct_jump_keywords}
+                            {direct_jump_keywords}
                         {ENDLOOP}
                         </tr>
                     </table>
