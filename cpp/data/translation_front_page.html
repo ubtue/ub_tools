@@ -15,10 +15,21 @@
                 -ms-hyphens: auto;
                 hyphens: auto;
              }
-       a, a:visited {{ 
+        a, a:visited {{ 
             text-decoration: none;
-            color: Blue;
-         }
+            color: Blue; }
+        <!--see http://stackoverflow.com/questions/3915917/make-a-link-use-post-instead-of-get (20170221) -->
+        .inline {{ display: inline; }
+
+        .link-button {{
+            background: none;
+            border: none;
+            color: blue;
+            cursor: pointer;
+            font-size: 1em;
+          }
+          .link-button:focus {{ outline: none; }
+          .link-button:active {{ color:red; }
     </style>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
     <script type="text/javascript">
@@ -82,6 +93,7 @@
         <div style="text-align: center;">
             <form action="/cgi-bin/translator" method="POST">
                 <input type="text" name="lookfor" value="{lookfor}" /><button>Search</button>
+                <input type="hidden" name="target" value="{target_translation_scope}">
             </form>
         </div>
         <div style="clear: both;">
@@ -101,10 +113,17 @@
                     <input type="hidden" name="target" value="{target_translation_scope}">
                 </form>
             </div>
-                        {IF target_translation_scope == "vufind"}
+            {IF target_translation_scope == "vufind"}
             <div style="width: 90%;">
                 <h2>VuFind Translations</h2>
-                              <table>
+                <table style="width: 50%; border: none;">
+                   <tr style="border: none;">
+                   {LOOP direct_jump_vufind}
+                       {direct_jump_vufind}
+                   {ENDLOOP}
+                   </tr>
+               </table>
+               <table>
                     <tr>{vufind_token_table_headline}</tr>
                     {LOOP vufind_token_row}
                     <tr>
@@ -116,21 +135,25 @@
             {ELSE}
             <div style="width: 90%;">
                 <h2>Keyword Translations</h2>
-                <div>
-                    {LOOP direct_jump}
-                    <tr>
-                    {direct_jump}
-                    </tr>
-                    {ENDLOOP}
-                </div>
-                <table>
-                    <tr>{keyword_table_headline}</tr>
-                    {LOOP keyword_row}
-                    <tr>
-                        {keyword_row}
-                    </tr>
-                    {ENDLOOP}
-                </table>
+                  <div>
+                    <table style="width: 50%; border: none;">
+                        <tr style="border: none;">
+                        {LOOP direct_jump_keywords}
+                            {direct_jump_keywords}
+                        {ENDLOOP}
+                        </tr>
+                    </table>
+                  </div>
+                  <div>
+                    <table>
+                        <tr>{keyword_table_headline}</tr>
+                        {LOOP keyword_row}
+                        <tr>
+                            {keyword_row}
+                        </tr>
+                        {ENDLOOP}
+                    </table>
+                  </div>
             </div>
             {ENDIF}
         </div>

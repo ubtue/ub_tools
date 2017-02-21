@@ -38,7 +38,7 @@
 #include "WebUtil.h"
 
 
-const int ENTRIES_PER_PAGE(30);
+const int ENTRIES_PER_PAGE(50);
 const std::string NO_GND_CODE("-1");
 const std::string LANGUAGES_SECTION("Languages");
 const std::string TRANSLATION_LANGUAGES_SECTION("TranslationLanguages");
@@ -46,9 +46,12 @@ const std::string ADDITIONAL_VIEW_LANGUAGES("AdditionalViewLanguages");
 const std::string USER_SECTION("Users");
 const std::string ALL_SUPPORTED_LANGUAGES("all");
 const std::string SYNONYM_COLUMN_DESCRIPTOR("syn");
+const std::string TOKEN_COLUMN_DESCRIPTOR("token");
+const std::string MACS_COLUMN_DESCRIPTOR("macs");
 const int NO_INDEX(-1);
+const unsigned int LOOKFOR_PREFIX_LIMIT(3);
 
-
+enum Category {VUFIND, KEYWORDS};
 
 DbResultSet ExecSqlOrDie(const std::string &select_statement, DbConnection &db_connection) {
     if (unlikely(not db_connection.query(select_statement)))
@@ -125,73 +128,26 @@ std::string CreateEditableRowEntry(const std::string &token, const std::string &
 }
 
 
-void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
-                                                 const std::string &offset, std::vector<std::string> *const rows,
-                                                 std::string *const headline, const std::vector<std::string> translator_languages) {
-    (void)translator_languages;
-    rows->clear();
-
-    const std::string token_where_clause(
-            lookfor.empty() ? "" : "WHERE token LIKE '%" + lookfor + "%' OR translation LIKE '%" + lookfor + "%'");
-    const std::string token_query(
-            "SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token LIMIT " + offset + ", " +
-            std::to_string(ENTRIES_PER_PAGE));
-    const std::string query("SELECT token, translation, language_code, translator FROM vufind_translations "
-                            "WHERE token IN (SELECT * FROM (" + token_query + ") as t) ORDER BY token, language_code");
-
-    DbResultSet result_set(ExecSqlOrDie(query, db_connection));
-
-    std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
-    *headline = "<th>Token</th><th>" + StringUtil::Join(language_codes, "</th><th>") + "</th>";
-    if (result_set.empty())
-        return;
-
-    DbRow db_row(result_set.getNextRow());
-    std::string current_token(db_row["token"]);
-    std::vector<std::string> row_values(language_codes.size(), "<td contenteditable=\"true\" class=\"editable_translation\"></td>");
-    do {
-        std::string token(db_row["token"]);
-        if (token != current_token) {
-            rows->emplace_back("<td contenteditable=\"true\">" + HtmlUtil::HtmlEscape(current_token) + "</td>" + StringUtil::Join(row_values, ""));
-            current_token = token;
-            row_values.clear();
-            row_values.resize(language_codes.size(), "<td contenteditable=\"true\"></td>");
-        }
-        const auto index(std::find(language_codes.begin(), language_codes.end(), db_row["language_code"]) -
-                     language_codes.begin());
-        row_values[index] = CreateEditableRowEntry(current_token, db_row["translation"], db_row["language_code"], 
-                                           db_row["translator"], "vufind_translations");
-    } while (db_row = result_set.getNextRow());
-    rows->emplace_back("<td contenteditable=\"true\">" + HtmlUtil::HtmlEscape(current_token) + "</td>" + StringUtil::Join(row_values, ""));
-}
-
-
 void GetDisplayLanguages(std::vector<std::string> *const display_languages, const std::vector<std::string> &translation_languages,
-                         const std::vector<std::string> &additional_view_languages) {
+                         const std::vector<std::string> &additional_view_languages, enum Category category = KEYWORDS) {
 
     display_languages->clear();
-    // Insert German as Display language in any case
-    if (std::find(translation_languages.begin(), translation_languages.end(), "ger") == translation_languages.end())
-        display_languages->emplace_back("ger");
-    // Insert German Synonyms in any case
-    display_languages->emplace_back(SYNONYM_COLUMN_DESCRIPTOR);
+
+    if (category == KEYWORDS) {
+        // Insert German as Display language in any case
+        if (std::find(translation_languages.begin(), translation_languages.end(), "ger") == translation_languages.end())
+            display_languages->emplace_back("ger");
+        // Insert German Synonyms in any case
+        display_languages->emplace_back(SYNONYM_COLUMN_DESCRIPTOR);
+    }
+    else if (category == VUFIND)
+        display_languages->emplace_back(TOKEN_COLUMN_DESCRIPTOR);
     display_languages->insert(display_languages->end(), translation_languages.begin(), translation_languages.end());
     display_languages->insert(display_languages->end(), additional_view_languages.begin(), additional_view_languages.end());
-}
 
-
-int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headings, const std::vector<std::string> &row_values, const std::string &heading) {
-    auto heading_pos(std::find(column_headings.cbegin(), column_headings.cend(), heading));
-    if (heading_pos == column_headings.end())
-        return NO_INDEX;
-
-    auto index(heading_pos - column_headings.cbegin());
-    try {
-        row_values.at(index);
-    } catch (std::out_of_range& x) {
-        return NO_INDEX;
-    }
-    return index;
+    // For Keywords show also MACS
+    if (category == KEYWORDS)
+        display_languages->emplace_back(MACS_COLUMN_DESCRIPTOR);
 }
 
 
@@ -232,6 +188,95 @@ void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_c
 }
 
 
+void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::string &gnd_code, std::vector<std::string> *const translations) {
+    translations->clear();
+    const std::string macs_query("SELECT translation FROM keyword_translations WHERE gnd_code=\'" + gnd_code + "\' AND status=\'macs\'");
+    DbResultSet result_set(ExecSqlOrDie(macs_query, db_connection));
+    if (result_set.empty())
+        return;
+
+    while (auto db_row = result_set.getNextRow())
+        translations->emplace_back(db_row["translation"]);
+}
+
+int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headings, const std::vector<std::string> &row_values, const std::string &heading) {
+    auto heading_pos(std::find(column_headings.cbegin(), column_headings.cend(), heading));
+    if (heading_pos == column_headings.end())
+        return NO_INDEX;
+
+    auto index(heading_pos - column_headings.cbegin());
+    try {
+        row_values.at(index);
+    } catch (std::out_of_range& x) {
+        return NO_INDEX;
+    }
+    return index;
+}
+
+void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
+                                                 const std::string &offset, std::vector<std::string> *const rows,
+                                                 std::string *const headline, const std::vector<std::string> translator_languages,
+                                                 const std::vector<std::string> &additional_view_languages) {
+
+    rows->clear();
+
+    const std::string searchpattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ? "LIKE \'" + lookfor + "%\'" : "LIKE \'%" + lookfor+ "%\'");
+    const std::string token_where_clause(
+            lookfor.empty() ? "" : "WHERE token " + searchpattern);
+    const std::string token_query(
+            "SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token LIMIT " + offset + ", " +
+            std::to_string(ENTRIES_PER_PAGE));
+    const std::string query("SELECT token, translation, language_code, translator FROM vufind_translations "
+                            "WHERE token IN (SELECT * FROM (" + token_query + ") as t) ORDER BY token, language_code");
+
+    DbResultSet result_set(ExecSqlOrDie(query, db_connection));
+
+    std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
+    std::vector<std::string> display_languages;
+    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, VUFIND);
+    *headline = "<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>";
+    if (result_set.empty())
+        return;
+
+    std::vector<std::string> row_values(display_languages.size());
+    std::string current_token;
+    while (auto db_row = result_set.getNextRow()) {
+
+       std::string token(db_row["token"]);
+       std::string translation(db_row["translation"]);
+       std::string language_code(db_row["language_code"]);
+       std::string translator(db_row["translator"]);
+       if (current_token != token){
+           if (not current_token.empty())
+              rows->emplace_back(StringUtil::Join(row_values, ""));
+
+           current_token = token;
+           row_values.clear();
+           row_values.resize(display_languages.size(), "<td style=\"background-color:lightgrey\"></td>");
+           int token_index(GetColumnIndexForColumnHeading(display_languages, row_values, TOKEN_COLUMN_DESCRIPTOR));
+           if (token_index == NO_INDEX)
+               continue;
+           row_values[token_index] = CreateNonEditableRowEntry(token);
+           for (auto translator_language : translator_languages) {
+               int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
+               if (index != NO_INDEX) {
+                   row_values[index] = CreateEditableRowEntry(current_token, "", language_code, "vufind_translations", translator);
+               }
+           }
+       }
+
+       int index(GetColumnIndexForColumnHeading(display_languages, row_values, language_code));
+       if (index == NO_INDEX)
+           continue;
+       if (IsTranslatorLanguage(translator_languages, language_code))
+          row_values[index] = CreateEditableRowEntry(current_token, translation, language_code, "vufind_translations", translator, "", "");
+       else
+          row_values[index] = CreateNonEditableRowEntry(translation);
+   }
+   rows->emplace_back(StringUtil::Join(row_values, ""));
+}
+
+
 void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
                                                   const std::string &offset, std::vector<std::string> *const rows,
                                                   std::string *const headline, 
@@ -240,24 +285,17 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     rows->clear();
 
     // For short strings make a prefix search, otherwise search substring
-    const std::string searchpattern(lookfor.size() <= 3 ? "\'" + lookfor + "\'" : "\'%" + lookfor+ "%\'");
-    const std::string ppn_where_clause(lookfor.empty() ? "" : " WHERE translation LIKE " + searchpattern);
-    const std::string subsearch_query("(SELECT * FROM keyword_translations WHERE ppn IN (SELECT ppn FROM keyword_translations " + ppn_where_clause + "))");
-    const std::string translation_sort_limiter(lookfor.empty()  ? "LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) : "");
-    const std::string translation_sort_join("INNER JOIN (SELECT DISTINCT ppn,translation FROM keyword_translations "
-                                            "WHERE language_code='ger' AND status='reliable' "
-                                            "ORDER BY translation " +
-                                            translation_sort_limiter +
-                                            ") AS t ON k.ppn = t.ppn ORDER BY t.translation, k.ppn");
-    const std::string inner_query("SELECT k.ppn, k.translation, k.language_code, k.gnd_code, k.status, k.translator FROM " + subsearch_query + " AS k " + 
-                              translation_sort_join);
+    const std::string searchpattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ? "LIKE \'" + lookfor + "%\'" : "LIKE \'%" + lookfor+ "%\'");
 
-    const std::string lookfor_limiter(lookfor.empty() ? "" : "LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE));
+    const std::string ppn_where_clause(lookfor.empty() ? "" : "AND k.translation " + searchpattern);
 
-    const std::string query("SELECT * FROM (" + inner_query + ") AS v WHERE status != \"reliable_synonym\" AND status != \"unreliable_synonym\" " 
-                            + lookfor_limiter);
+    const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator FROM keyword_translations AS k"
+                            " INNER JOIN keyword_translations AS l ON k.language_code=\'ger\' AND k.status=\'reliable\'"
+                            " AND k.ppn=l.ppn AND l.status!=\'reliable_synonym\' AND l.status != \'unreliable_synonym\'" +
+                            ppn_where_clause +
+                            " ORDER BY k.translation" +
+                            " LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE));
 
-std::cerr << query << '\n';
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
 
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
@@ -310,15 +348,32 @@ std::cerr << query << '\n';
        if (synonym_index == NO_INDEX)
            continue;
        row_values[synonym_index] = CreateNonEditableSynonymEntry(synonyms, "<br/>");
+
+       // Insert MACS Translations display table
+       std::vector<std::string> macs_translations;
+       GetMACSTranslationsForGNDCode(db_connection, gnd_code, &macs_translations);
+       int macs_index(GetColumnIndexForColumnHeading(display_languages, row_values, MACS_COLUMN_DESCRIPTOR));
+       if (macs_index == NO_INDEX)
+           continue;
+       row_values[macs_index] = CreateNonEditableSynonymEntry(macs_translations, "<br/>");
    }
    rows->emplace_back(StringUtil::Join(row_values, ""));
 }
 
 
-void GenerateDirectJumpTable(std::vector<std::string> *const jump_table) {
-    for (char ch('A'); ch <= 'Z'; ++ch)
-        jump_table->emplace_back("<td><a href=\"\">" + std::string(1,ch) + "</a></td>");
+void GenerateDirectJumpTable(std::vector<std::string> *const jump_table, enum Category category = KEYWORDS) {
+    for (char ch('A'); ch <= 'Z'; ++ch) {
+         // We use buttons an style them as link conform to post semantics
+         std::string post_link(
+         R"END(<form action="/cgi-bin/translator" method="POST">
+            <button type="submit" class="link-button">)END" + std::string(1,ch) + "</button>"
+         R"END(<input type="hidden" name="lookfor" value=")END" + std::string(1,ch) + "\">"
+         R"END(<input type="hidden" name="target" value=")END" + (category == VUFIND ? "vufind" : "keyword_translations") + "\">"
+         "</form>");
+        jump_table->emplace_back("<td style=\"border:none;\">" + post_link + "</td>");
+    }
 }
+
 
 
 void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, const std::string &offset, 
@@ -329,11 +384,15 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     std::map<std::string, std::vector<std::string>> names_to_values_map;
     std::vector<std::string> rows;
     std::string headline;
-    std::vector<std::string> jump_entries;
-    GenerateDirectJumpTable(&jump_entries);
-    names_to_values_map.emplace("direct_jump", jump_entries);
+    std::vector<std::string> jump_entries_keywords;
+    GenerateDirectJumpTable(&jump_entries_keywords, KEYWORDS);
+    names_to_values_map.emplace("direct_jump_keywords", jump_entries_keywords);
 
-    GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline, translator_languages);
+    std::vector<std::string> jump_entries_vufind;
+    GenerateDirectJumpTable(&jump_entries_vufind, VUFIND);
+    names_to_values_map.emplace("direct_jump_vufind", jump_entries_vufind);
+
+    GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline, translator_languages, additional_view_languages);
     names_to_values_map.emplace("translator", std::vector<std::string> {translator});
     names_to_values_map.emplace("vufind_token_row", rows);
     names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
