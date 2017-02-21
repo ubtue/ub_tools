@@ -47,6 +47,7 @@ const std::string USER_SECTION("Users");
 const std::string ALL_SUPPORTED_LANGUAGES("all");
 const std::string SYNONYM_COLUMN_DESCRIPTOR("syn");
 const std::string TOKEN_COLUMN_DESCRIPTOR("token");
+const std::string MACS_COLUMN_DESCRIPTOR("macs");
 const int NO_INDEX(-1);
 const unsigned int LOOKFOR_PREFIX_LIMIT(3);
 
@@ -143,6 +144,10 @@ void GetDisplayLanguages(std::vector<std::string> *const display_languages, cons
         display_languages->emplace_back(TOKEN_COLUMN_DESCRIPTOR);
     display_languages->insert(display_languages->end(), translation_languages.begin(), translation_languages.end());
     display_languages->insert(display_languages->end(), additional_view_languages.begin(), additional_view_languages.end());
+
+    // For Keywords show also MACS
+    if (category == KEYWORDS)
+        display_languages->emplace_back(MACS_COLUMN_DESCRIPTOR);
 }
 
 
@@ -182,6 +187,17 @@ void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_c
         synonyms->emplace_back(db_row["translation"]);
 }
 
+
+void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::string &gnd_code, std::vector<std::string> *const translations) {
+    translations->clear();
+    const std::string macs_query("SELECT translation FROM keyword_translations WHERE gnd_code=\'" + gnd_code + "\' AND status=\'macs\'");
+    DbResultSet result_set(ExecSqlOrDie(macs_query, db_connection));
+    if (result_set.empty())
+        return;
+
+    while (auto db_row = result_set.getNextRow())
+        translations->emplace_back(db_row["translation"]);
+}
 
 int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headings, const std::vector<std::string> &row_values, const std::string &heading) {
     auto heading_pos(std::find(column_headings.cbegin(), column_headings.cend(), heading));
@@ -332,6 +348,14 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        if (synonym_index == NO_INDEX)
            continue;
        row_values[synonym_index] = CreateNonEditableSynonymEntry(synonyms, "<br/>");
+
+       // Insert MACS Translations display table
+       std::vector<std::string> macs_translations;
+       GetMACSTranslationsForGNDCode(db_connection, gnd_code, &macs_translations);
+       int macs_index(GetColumnIndexForColumnHeading(display_languages, row_values, MACS_COLUMN_DESCRIPTOR));
+       if (macs_index == NO_INDEX)
+           continue;
+       row_values[macs_index] = CreateNonEditableSynonymEntry(macs_translations, "<br/>");
    }
    rows->emplace_back(StringUtil::Join(row_values, ""));
 }
