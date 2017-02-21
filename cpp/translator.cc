@@ -38,7 +38,7 @@
 #include "WebUtil.h"
 
 
-const int ENTRIES_PER_PAGE(30);
+const int ENTRIES_PER_PAGE(50);
 const std::string NO_GND_CODE("-1");
 const std::string LANGUAGES_SECTION("Languages");
 const std::string TRANSLATION_LANGUAGES_SECTION("TranslationLanguages");
@@ -47,7 +47,7 @@ const std::string USER_SECTION("Users");
 const std::string ALL_SUPPORTED_LANGUAGES("all");
 const std::string SYNONYM_COLUMN_DESCRIPTOR("syn");
 const int NO_INDEX(-1);
-
+const unsigned int LOOKFOR_PREFIX_LIMIT(3);
 
 
 DbResultSet ExecSqlOrDie(const std::string &select_statement, DbConnection &db_connection) {
@@ -240,22 +240,16 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     rows->clear();
 
     // For short strings make a prefix search, otherwise search substring
-    const std::string searchpattern(lookfor.size() <= 3 ? "\'" + lookfor + "\'" : "\'%" + lookfor+ "%\'");
-    const std::string ppn_where_clause(lookfor.empty() ? "" : " WHERE translation LIKE " + searchpattern);
-    const std::string subsearch_query("(SELECT * FROM keyword_translations WHERE ppn IN (SELECT ppn FROM keyword_translations " + ppn_where_clause + "))");
-    const std::string translation_sort_limiter(lookfor.empty()  ? "LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) : "");
-    const std::string translation_sort_join("INNER JOIN (SELECT DISTINCT ppn,translation FROM keyword_translations "
-                                            "WHERE language_code='ger' AND status='reliable' "
-                                            "ORDER BY translation " +
-                                            translation_sort_limiter +
-                                            ") AS t ON k.ppn = t.ppn ORDER BY t.translation, k.ppn");
-    const std::string inner_query("SELECT k.ppn, k.translation, k.language_code, k.gnd_code, k.status, k.translator FROM " + subsearch_query + " AS k " + 
-                              translation_sort_join);
+    const std::string searchpattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ? "LIKE \'" + lookfor + "%\'" : "LIKE \'%" + lookfor+ "%\'");
 
-    const std::string lookfor_limiter(lookfor.empty() ? "" : "LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE));
+    const std::string ppn_where_clause(lookfor.empty() ? "" : "AND k.translation " + searchpattern);
 
-    const std::string query("SELECT * FROM (" + inner_query + ") AS v WHERE status != \"reliable_synonym\" AND status != \"unreliable_synonym\" " 
-                            + lookfor_limiter);
+    const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator FROM keyword_translations AS k"
+                            " INNER JOIN keyword_translations AS l ON k.language_code=\'ger\' AND k.status=\'reliable\'"
+                            " AND k.ppn=l.ppn AND l.status!=\'reliable_synonym\' AND l.status != \'unreliable_synonym\'" +
+                            ppn_where_clause +
+                            " ORDER BY k.translation" +
+                            " LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE));
 
 std::cerr << query << '\n';
     DbResultSet result_set(ExecSqlOrDie(query, db_connection));
@@ -316,9 +310,17 @@ std::cerr << query << '\n';
 
 
 void GenerateDirectJumpTable(std::vector<std::string> *const jump_table) {
-    for (char ch('A'); ch <= 'Z'; ++ch)
-        jump_table->emplace_back("<td><a href=\"\">" + std::string(1,ch) + "</a></td>");
+    for (char ch('A'); ch <= 'Z'; ++ch) {
+         // We use buttons an style them as link conform to post semantics
+         std::string post_link(
+         R"END(<form action="/cgi-bin/translator" method="POST">
+            <button type="submit" class="link-button">)END" + std::string(1,ch) + "</button>"
+         R"END(<input type="hidden" name="lookfor" value=")END" + std::string(1,ch) + "\">"
+         "</form>");
+        jump_table->emplace_back("<td style=\"border:none;\">" + post_link + "</td>");
+    }
 }
+
 
 
 void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, const std::string &offset, 
