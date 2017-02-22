@@ -56,7 +56,7 @@ static unsigned keyword_count, translation_count, additional_hits, synonym_count
 static DbConnection *shared_connection;
 
 
-enum Status { RELIABLE, UNRELIABLE, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM, MACS };
+enum Status { RELIABLE, UNRELIABLE, RELIABLE_SYNONYM, UNRELIABLE_SYNONYM };
 
 
 std::string StatusToString(const Status status) {
@@ -69,8 +69,6 @@ std::string StatusToString(const Status status) {
         return "reliable_synonym";
     case UNRELIABLE_SYNONYM:
         return "unreliable_synonym";
-    case MACS:
-        return "macs";
     }
 
     Error("in StatusToString: we should *never* get here!");
@@ -142,7 +140,6 @@ void ExtractNonGermanTranslations(
     for (size_t index(record.getFieldIndex("750"));
          index < record.getNumberOfFields() and record.getTag(index) == "750"; ++index)
     {
-        bool isMACS(false);
         const Subfields _750_subfields(record.getSubfields(index));
         auto start_end(_750_subfields.getIterators('9'));
         if (start_end.first == start_end.second)
@@ -158,10 +155,8 @@ void ExtractNonGermanTranslations(
                 language_code = "eng";
             else if (_750_2 == "ram")
                 language_code = "fra";
-            if (not language_code.empty()) {
+            if (not language_code.empty())
                 ++additional_hits;
-                isMACS = true;
-            }
         }
 
         language_code = TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code);
@@ -172,8 +167,6 @@ void ExtractNonGermanTranslations(
                 status = is_synonym ? RELIABLE_SYNONYM : RELIABLE;
             else
                 status = is_synonym ? UNRELIABLE_SYNONYM : UNRELIABLE;
-            if (isMACS)
-                status = MACS;
             ++translation_count;
             text_language_codes_statuses_and_origin_tags->emplace_back(
                 _750_subfields.getFirstSubfieldValue('a'), language_code, status, "750");
