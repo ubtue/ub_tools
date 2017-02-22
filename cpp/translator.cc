@@ -190,7 +190,8 @@ void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_c
 
 void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::string &gnd_code, std::vector<std::string> *const translations) {
     translations->clear();
-    const std::string macs_query("SELECT translation FROM keyword_translations WHERE gnd_code=\'" + gnd_code + "\' AND status=\'macs\'");
+    const std::string macs_query("SELECT translation FROM keyword_translations WHERE gnd_code=\'" + gnd_code + "\' "
+                                 "AND origin=750 AND status=\'unreliable\'");
     DbResultSet result_set(ExecSqlOrDie(macs_query, db_connection));
     if (result_set.empty())
         return;
@@ -285,14 +286,15 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     rows->clear();
 
     // For short strings make a prefix search, otherwise search substring
-    const std::string searchpattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ? "LIKE \'" + lookfor + "%\'" : "LIKE \'%" + lookfor+ "%\'");
+    const std::string searchpattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ? 
+                                    "AND k.translation LIKE \'" + lookfor + "%\'" : 
+                                    "AND l.ppn IN (SELECT ppn from keyword_translations WHERE translation LIKE \'%" + lookfor+ "%\')");
 
-    const std::string ppn_where_clause(lookfor.empty() ? "" : "AND k.translation " + searchpattern);
-
+    const std::string search_clause(lookfor.empty() ? "" : searchpattern);
     const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator FROM keyword_translations AS k"
                             " INNER JOIN keyword_translations AS l ON k.language_code=\'ger\' AND k.status=\'reliable\'"
                             " AND k.ppn=l.ppn AND l.status!=\'reliable_synonym\' AND l.status != \'unreliable_synonym\'" +
-                            ppn_where_clause +
+                            search_clause +
                             " ORDER BY k.translation" +
                             " LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE));
 
