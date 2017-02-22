@@ -370,7 +370,7 @@ void GenerateDirectJumpTable(std::vector<std::string> *const jump_table, enum Ca
          R"END(<form action="/cgi-bin/translator" method="POST">
             <button type="submit" class="link-button">)END" + std::string(1,ch) + "</button>"
          R"END(<input type="hidden" name="lookfor" value=")END" + std::string(1,ch) + "\">"
-         R"END(<input type="hidden" name="target" value=")END" + (category == VUFIND ? "vufind" : "keyword_translations") + "\">"
+         R"END(<input type="hidden" name="target" value=")END" + (category == VUFIND ? "vufind" : "keywords") + "\">"
          "</form>");
         jump_table->emplace_back("<td style=\"border:none;\">" + post_link + "</td>");
     }
