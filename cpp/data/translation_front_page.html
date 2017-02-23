@@ -30,6 +30,7 @@
           }
           .link-button:focus {{ outline: none; }
           .link-button:active {{ color:red; }
+          .no-border {{ border: none; }
     </style>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
     <script type="text/javascript">
@@ -116,35 +117,93 @@
             {IF target_translation_scope == "vufind"}
             <div style="width: 90%;">
                 <h2>VuFind Translations</h2>
-                <table style="width: 50%; border: none;">
-                   <tr style="border: none;">
-                   {LOOP direct_jump_vufind}
-                       {direct_jump_vufind}
-                   {ENDLOOP}
-                   </tr>
-               </table>
-               <table>
-                    <tr>{vufind_token_table_headline}</tr>
-                    {LOOP vufind_token_row}
-                    <tr>
-                        {vufind_token_row}
-                    </tr>
-                    {ENDLOOP}
-                </table>
+                <div>
+                   <div style="width: 70%; float:left;">
+                        <table style="width: 50%; border: none;">
+                            <tr style="border: none;">
+                                {LOOP direct_jump_vufind}
+                                    {direct_jump_vufind}
+                                {ENDLOOP}
+                             </tr>
+                        </table>
+                   </div>
+                   <div style="width: 15%; float: left; text-align: left;">
+                        <div style="float: left; text-align: left;">
+                            <form action="/cgi-bin/translator" method="POST">
+                                <button type="submit" class="link-button">Save</button>
+                                <input type="hidden" name="save_action" value="save">
+                                <input type="hidden" name="lookfor" value="{lookfor}">
+                                <input type="hidden" name="offset" value="{current_offset}">
+                                <input type="hidden" name="target" value="{target_translation_scope}">
+                            </form>
+                        </div>
+                        <div style="float: left; text-align: left;">
+                            <form action="/cgi-bin/translator" method="POST">
+                                <button type="submit" class="link-button">Restore</button>
+                                <input type="hidden" name="save_action" value="restore">
+                                <input type="hidden" name="target" value="{target_translation_scope}">
+                            </form>
+                        </div>
+                   </div>
+                   <div style="width: 15%; float: right; text-align: right;">
+                        <form action="/cgi-bin/translator" method="POST">
+                            <button type="submit" class="link-button">Mail my Translations</button>
+                            <input type="hidden" name="target" value="{target_translation_scope}">
+                            <input type="hidden" name="mail" value="mytranslations">
+                        </form>
+                   </div>
+                </div>
+                <div>
+                    <table>
+                        <tr>{vufind_token_table_headline}</tr>
+                        {LOOP vufind_token_row}
+                        <tr>
+                            {vufind_token_row}
+                        </tr>
+                        {ENDLOOP}
+                    </table>
+                </div>
             </div>
             {ELSE}
             <div style="width: 90%;">
                 <h2>Keyword Translations</h2>
-                  <div>
-                    <table style="width: 50%; border: none;">
-                        <tr style="border: none;">
-                        {LOOP direct_jump_keywords}
-                            {direct_jump_keywords}
-                        {ENDLOOP}
-                        </tr>
-                    </table>
-                  </div>
-                  <div>
+                <div>
+                    <div style="width: 70%; float:left;">
+                        <table style="width: 50%; border: none;">
+                            <tr style="border: none;">
+                            {LOOP direct_jump_keywords}
+                                {direct_jump_keywords}
+                            {ENDLOOP}
+                            </tr>
+                        </table>
+                     </div>
+                     <div style="width: 15%; float: right; text-align: right;">
+                         <form action="/cgi-bin/translator" method="POST">
+                             <button type="submit" class="link-button">Mail my Translations</button>
+                             <input type="hidden" name="target" value="{target_translation_scope}">
+                             <input type="hidden" name="mail" value="mytranslations">
+                         </form>
+                     </div>
+                     <div style="width: 15%; float: left; text-align: left;">
+                          <div style="float: left; text-align: left;">
+                              <form action="/cgi-bin/translator" method="POST">
+                                  <button type="submit" class="link-button">Save</button>
+                                  <input type="hidden" name="save_action" value="save">
+                                  <input type="hidden" name="lookfor" value="{lookfor}">
+                                  <input type="hidden" name="offset" value="{current_offset}">
+                                  <input type="hidden" name="target" value="{target_translation_scope}">
+                              </form>
+                          </div>
+                          <div style="float: left; text-align: left;">
+                              <form action="/cgi-bin/translator" method="POST">
+                                  <button type="submit" class="link-button">Restore</button>
+                                  <input type="hidden" name="save_action" value="restore">
+                                  <input type="hidden" name="target" value="{target_translation_scope}">
+                              </form>
+                          </div>
+                     </div>
+                </div>
+                <div>
                     <table>
                         <tr>{keyword_table_headline}</tr>
                         {LOOP keyword_row}
@@ -153,7 +212,7 @@
                         </tr>
                         {ENDLOOP}
                     </table>
-                  </div>
+                </div>
             </div>
             {ENDIF}
         </div>
