@@ -59,7 +59,7 @@ regular_install: $(INSTALL_PROGS)
 	cp data/books_of_the_bible_to_canonical_form.map \
             /var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map
 	mkdir --parents /var/lib/tuelib/translate_chainer
-	cp data/done_translating.html  data/translate.html data/translation_front_page.html /var/lib/tuelib/translate_chainer/
+	cp data/done_translating.html  data/translate.html data/translation_front_page.html data/mytranslations_template.msg /var/lib/tuelib/translate_chainer/
 	cp ../configs/ixtheo/subscriptions_email.template /var/lib/tuelib/subscriptions_email.template
 
 cgi_install: $(CGI_PROGS)
