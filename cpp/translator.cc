@@ -24,8 +24,9 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/bind.hpp>
 #include <iostream>
-#include <string>
 #include <set>
+#include <sstream>
+#include <string>
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
@@ -47,6 +48,7 @@ const std::string LANGUAGES_SECTION("Languages");
 const std::string TRANSLATION_LANGUAGES_SECTION("TranslationLanguages");
 const std::string ADDITIONAL_VIEW_LANGUAGES("AdditionalViewLanguages");
 const std::string USER_SECTION("Users");
+const std::string EMAIL_SECTION("Email");
 const std::string ALL_SUPPORTED_LANGUAGES("all");
 const std::string SYNONYM_COLUMN_DESCRIPTOR("syn");
 const std::string TOKEN_COLUMN_DESCRIPTOR("token");
@@ -113,7 +115,8 @@ const std::string GetTranslatorOrEmptyString() {
 
 
 const std::string AssembleTermIdentifiers(const std::string &category, const std::string &index, 
-                                          const std::string &language_code, const std::string &gnd_code = "", const std::string &translation = "") {
+                                          const std::string &language_code, const std::string &gnd_code = "", 
+                                          const std::string &translation = "") {
 
        return std::string(" category=\"" +  UrlUtil::UrlEncode(category) + "\" index=\"" + UrlUtil::UrlEncode(index) + "\" language_code=\"" +
                           UrlUtil::UrlEncode(language_code) + "\" gnd_code=\"" + gnd_code + "\" translation=\"" + translation + "\" ");
@@ -453,30 +456,107 @@ void GetAdditionalViewLanguages(const IniFile &ini_file, std::vector<std::string
 }
 
 
-void MailMyTranslations(const DbConnection &db_connection, const IniFile &translations_ini_file) {
-    std::string mail_address("johannes.riedl@uni-tuebingen.de");
-    (void)db_connection;
-    (void)translations_ini_file;
+void GetAsciiTableForQuery(DbConnection &db_connection,
+                           std::vector<std::string> *const rows, const std::string &query, 
+                           std::vector<std::string> &display_languages, enum Category category) {
+    rows->clear();
+    // Create Heading
+    rows->emplace_back("<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>");
 
-//    ExecUtil::Exec("/usr/sbin/sendmail", {"johannes.riedl@uni-tuebingen,de"
-//    ExecUtil::Exec("/usr/bin/mutt", {"-e set copy=no", "johannes.riedl@uni-tuebingen.de", "-s Test 12:24"});
+    DbResultSet result_set(ExecSqlOrDie(query, db_connection));
+    if (result_set.empty())
+        return;
 
+    std::vector<std::string> row_values(display_languages.size(), "<td></td>");
+    DbRow db_row(result_set.getNextRow());
+    std::string current_id(category == KEYWORDS ? db_row["ppn"] : db_row["token"]);
+    do {
+       const std::string id(category == KEYWORDS ? db_row["ppn"] : db_row["token"]);
+       const std::string language_code(db_row["language_code"]);
+       const std::string db_translator(db_row["translator"]);
+       if (id != current_id) {
+           rows->emplace_back(StringUtil::Join(row_values, ""));
+           row_values.clear();
+           row_values.resize(display_languages.size(), "<td></td>");
+           current_id = id;
+       }
+       if (language_code != "ger" and db_translator != GetTranslatorOrEmptyString())
+           continue;
+       int index(GetColumnIndexForColumnHeading(display_languages, row_values, language_code));
+       if (index == NO_INDEX)
+           continue;
+       row_values[index] = "<td>" + db_row["translation"] + "</td>";
 
-    std::string testmessage(
-R"END(
---boundaryXXXXX
-Content-Type: text/plain
-this is the body text
---boundaryXXXXX
-Content-Type: text/plain;
-Content-Disposition: attachment;
-filename="test.txt"
-this is the attachment text
---boundaryXXXXX)END");
-
-    if (not  EmailSender::SendEmail("qubhw01", mail_address, "Testmail 12:38", testmessage, EmailSender::DO_NOT_SET_PRIORITY, EmailSender::MIME))
-        Error("Failed to send email to "  + mail_address);
+    } while (db_row = result_set.getNextRow());
+    rows->emplace_back(StringUtil::Join(row_values, ""));
 }
+
+
+
+bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_file, 
+                                std::map<std::string, std::vector<std::string>> *const names_to_values_map, 
+                                const std::string &translator) {
+
+    // Insert Translator
+    names_to_values_map->emplace("translator", std::vector<std::string> {translator});
+    // Get Mail address
+    const std::string email(ini_file.getString(EMAIL_SECTION, translator, ""));
+    if (email.empty())
+        return false;
+    names_to_values_map->emplace("email", std::vector<std::string> {email});
+
+    // Get Translator Languages
+    std::vector<std::string> translator_languages;
+    GetTranslatorLanguages(ini_file, translator, &translator_languages);
+
+    std::vector<std::string> display_languages(translator_languages);
+    if (std::find(display_languages.begin(), display_languages.end(), "ger") == display_languages.end())
+       display_languages.emplace(display_languages.begin(), "ger");
+
+    // Get Vufind Translations
+    const std::string vufind_query("SELECT token, translation, language_code, translator FROM vufind_translations "
+                            "WHERE token IN (SELECT * FROM (SELECT token FROM vufind_translations WHERE translator=\'" +
+                            translator + "\') as t) ORDER BY token, language_code;");
+
+    std::vector<std::string> vufind_rows;
+    GetAsciiTableForQuery(db_connection, &vufind_rows, vufind_query, display_languages, VUFIND);
+    names_to_values_map->emplace("vufind_translations", vufind_rows);
+
+    // Get Keyword Translations
+    const std::string keyword_query("SELECT l.ppn, l.translation, l.language_code, l.translator FROM keyword_translations AS k"
+                            " INNER JOIN keyword_translations AS l ON k.language_code=\'ger\' AND k.status=\'reliable\'"
+                            " AND k.ppn=l.ppn AND l.status!=\'reliable_synonym\' AND l.status != \'unreliable_synonym\'"
+                            " AND l.ppn IN (SELECT ppn from keyword_translations WHERE translator=\'" + translator + "\')"
+                            " ORDER BY k.translation;");
+
+    std::vector<std::string> keyword_rows;
+    GetAsciiTableForQuery(db_connection, &keyword_rows, keyword_query, display_languages, KEYWORDS);
+    names_to_values_map->emplace("keyword_translations", keyword_rows);
+    return true;
+}
+
+
+void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, const std::string translator) {
+    std::map<std::string, std::vector<std::string>> names_to_values_map;
+    if (unlikely(not AssembleMyTranslationsData(db_connection, ini_file, &names_to_values_map, translator)))
+        Error("Could not send mail");
+
+    //Expand Template
+    std::stringstream mail_content;
+    std::ifstream mytranslations_template("/var/lib/tuelib/translate_chainer/mytranslations_template.msg", std::ios::binary);
+    MiscUtil::ExpandTemplate(mytranslations_template, mail_content, names_to_values_map);
+
+
+    FileUtil::AutoTempFile auto_temp_file;
+    const std::string &stdin_replacement_for_mutt(auto_temp_file.getFilePath());
+
+    if (not FileUtil::WriteString(stdin_replacement_for_mutt, mail_content.str()))
+        Error("in MailMyTranslations: can't write the message body into a temporary file!");
+
+    if (unlikely(ExecUtil::Exec("/usr/sbin/sendmail", {"-t"}, stdin_replacement_for_mutt)))
+        Error("Could not send mail");
+}
+
 
 void SaveUserState(DbConnection &db_connection, const std::string &translator, const std::string &translation_target, 
                    const std::string &lookfor, const std::string &offset) {
@@ -491,11 +571,11 @@ void SaveUserState(DbConnection &db_connection, const std::string &translator, c
 
 void RestoreUserState(DbConnection &db_connection, const std::string &translator, const std::string &translation_target,
                       std::string *const lookfor, std::string *const offset){
-std::cerr << "Entering RestoreUserState";
    const std::string restore_statement("SELECT lookfor, offset FROM translators WHERE translator=\'" + translator + "\' AND "
                                        "translation_target=\'" + translation_target + "\';");
 
    DbResultSet result_set(ExecSqlOrDie(restore_statement, db_connection));
+
    if (result_set.empty())
        return;
 
@@ -537,12 +617,12 @@ int main(int argc, char *argv[]) {
 
         std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
          
-/*        const std::string mail(GetCGIParameterOrDefault(cgi_args, "mail", ""));
+        const std::string mail(GetCGIParameterOrDefault(cgi_args, "mail", ""));
         if (mail == "mytranslations") {
-           MailMyTranslations(db_connection, ini_file);
-           ShowErrorPage("WE SENT A MAIL", "We sent a mail", "Auch was");
-           std::exit(0);
-        }*/
+           MailMyTranslations(db_connection, ini_file, translator);
+//           ShowErrorPage("WE SENT A MAIL", "We sent a mail", "Auch was");
+//           std::exit(0);
+        }
 
         std::string lookfor(GetCGIParameterOrDefault(cgi_args, "lookfor", ""));
         std::string offset(GetCGIParameterOrDefault(cgi_args, "offset", "0"));
