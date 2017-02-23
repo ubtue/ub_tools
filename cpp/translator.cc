@@ -499,11 +499,6 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
 
     // Insert Translator
     names_to_values_map->emplace("translator", std::vector<std::string> {translator});
-    // Get Mail address
-    const std::string email(ini_file.getString(EMAIL_SECTION, translator, ""));
-    if (email.empty())
-        return false;
-    names_to_values_map->emplace("email", std::vector<std::string> {email});
 
     // Get Translator Languages
     std::vector<std::string> translator_languages;
@@ -546,14 +541,13 @@ void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, co
     std::ifstream mytranslations_template("/var/lib/tuelib/translate_chainer/mytranslations_template.msg", std::ios::binary);
     MiscUtil::ExpandTemplate(mytranslations_template, mail_content, names_to_values_map);
 
+    // Get Mail address
+    const std::string email(ini_file.getString(EMAIL_SECTION, translator, ""));
+    if (email.empty())
+        return;
 
-    FileUtil::AutoTempFile auto_temp_file;
-    const std::string &stdin_replacement_for_mutt(auto_temp_file.getFilePath());
-
-    if (not FileUtil::WriteString(stdin_replacement_for_mutt, mail_content.str()))
-        Error("in MailMyTranslations: can't write the message body into a temporary file!");
-
-    if (unlikely(ExecUtil::Exec("/usr/sbin/sendmail", {"-t"}, stdin_replacement_for_mutt)))
+    if (unlikely(not SendEmail("no-reply-ixtheo@uni-tuebingen.de", email,
+                 "Your IxTheo Translations", mail_content.str(), EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
         Error("Could not send mail");
 }
 
@@ -618,11 +612,8 @@ int main(int argc, char *argv[]) {
         std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
          
         const std::string mail(GetCGIParameterOrDefault(cgi_args, "mail", ""));
-        if (mail == "mytranslations") {
+        if (mail == "mytranslations")
            MailMyTranslations(db_connection, ini_file, translator);
-//           ShowErrorPage("WE SENT A MAIL", "We sent a mail", "Auch was");
-//           std::exit(0);
-        }
 
         std::string lookfor(GetCGIParameterOrDefault(cgi_args, "lookfor", ""));
         std::string offset(GetCGIParameterOrDefault(cgi_args, "offset", "0"));
