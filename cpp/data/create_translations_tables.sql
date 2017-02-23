@@ -22,3 +22,11 @@ CREATE TABLE keyword_translations (
   KEY keyword_translations_idx_ppn (ppn),
   KEY keyword_translations_idx_language_code (language_code)
 ) DEFAULT CHARSET=utf8;
+
+CREATE TABLE translators (
+  translator VARCHAR(30) NOT NULL,
+  translation_target VARCHAR(20) NOT NULL,
+  lookfor VARCHAR(100),
+  offset VARCHAR(10),
+  PRIMARY KEY (translator, translation_target)
+) DEFAULT CHARSET=utf8;
