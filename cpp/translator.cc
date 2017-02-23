@@ -29,6 +29,9 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
+#include "ExecUtil.h"
+#include "EmailSender.h"
+#include "FileUtil.h"
 #include "HtmlUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
@@ -410,6 +413,9 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     names_to_values_map.emplace("next_offset",
                                 std::vector<std::string> {std::to_string(std::stoi(offset) + ENTRIES_PER_PAGE)});
 
+    names_to_values_map.emplace("current_offset", std::vector<std::string> {offset});
+
+
     names_to_values_map.emplace("target_language_code", std::vector<std::string> {""});
     names_to_values_map.emplace("target_translation_scope", std::vector<std::string> {target});
 
@@ -446,6 +452,59 @@ void GetAdditionalViewLanguages(const IniFile &ini_file, std::vector<std::string
                    boost::bind(&boost::trim<std::string>, _1, std::locale()));
 }
 
+
+void MailMyTranslations(const DbConnection &db_connection, const IniFile &translations_ini_file) {
+    std::string mail_address("johannes.riedl@uni-tuebingen.de");
+    (void)db_connection;
+    (void)translations_ini_file;
+
+//    ExecUtil::Exec("/usr/sbin/sendmail", {"johannes.riedl@uni-tuebingen,de"
+//    ExecUtil::Exec("/usr/bin/mutt", {"-e set copy=no", "johannes.riedl@uni-tuebingen.de", "-s Test 12:24"});
+
+
+    std::string testmessage(
+R"END(
+--boundaryXXXXX
+Content-Type: text/plain
+this is the body text
+--boundaryXXXXX
+Content-Type: text/plain;
+Content-Disposition: attachment;
+filename="test.txt"
+this is the attachment text
+--boundaryXXXXX)END");
+
+    if (not  EmailSender::SendEmail("qubhw01", mail_address, "Testmail 12:38", testmessage, EmailSender::DO_NOT_SET_PRIORITY, EmailSender::MIME))
+        Error("Failed to send email to "  + mail_address);
+}
+
+void SaveUserState(DbConnection &db_connection, const std::string &translator, const std::string &translation_target, 
+                   const std::string &lookfor, const std::string &offset) {
+   const std::string save_statement("REPLACE INTO translators SET translator=\'" + translator +
+                                    "\', translation_target=\'" + translation_target + 
+                                    "\', offset=\'" + offset + "\', lookfor=\'" + lookfor + "\';");
+
+   if (unlikely(not db_connection.query(save_statement)))
+       Error("Error in SaveUserState: Statement failed" + save_statement + " (" + db_connection.getLastErrorMessage() + ")");
+}
+
+
+void RestoreUserState(DbConnection &db_connection, const std::string &translator, const std::string &translation_target,
+                      std::string *const lookfor, std::string *const offset){
+std::cerr << "Entering RestoreUserState";
+   const std::string restore_statement("SELECT lookfor, offset FROM translators WHERE translator=\'" + translator + "\' AND "
+                                       "translation_target=\'" + translation_target + "\';");
+
+   DbResultSet result_set(ExecSqlOrDie(restore_statement, db_connection));
+   if (result_set.empty())
+       return;
+
+   DbRow row(result_set.getNextRow());
+   *lookfor = row["lookfor"];
+   *offset  = row["offset"];
+}
+
+
 const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 int main(int argc, char *argv[]) {
@@ -477,10 +536,24 @@ int main(int argc, char *argv[]) {
         GetAdditionalViewLanguages(ini_file, &additional_view_languages, translator);
 
         std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+         
+/*        const std::string mail(GetCGIParameterOrDefault(cgi_args, "mail", ""));
+        if (mail == "mytranslations") {
+           MailMyTranslations(db_connection, ini_file);
+           ShowErrorPage("WE SENT A MAIL", "We sent a mail", "Auch was");
+           std::exit(0);
+        }*/
 
-        const std::string lookfor(GetCGIParameterOrDefault(cgi_args, "lookfor", ""));
-        const std::string offset(GetCGIParameterOrDefault(cgi_args, "offset", "0"));
+        std::string lookfor(GetCGIParameterOrDefault(cgi_args, "lookfor", ""));
+        std::string offset(GetCGIParameterOrDefault(cgi_args, "offset", "0"));
         const std::string translation_target(GetCGIParameterOrDefault(cgi_args, "target", "keywords"));
+
+        const std::string save_action(GetCGIParameterOrDefault(cgi_args, "save_action", ""));
+        if (save_action == "save")
+ 	    SaveUserState(db_connection, translator, translation_target, lookfor, offset);
+        else if (save_action == "restore")
+            RestoreUserState(db_connection, translator, translation_target, &lookfor, &offset);
+
         ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages, additional_view_languages);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
