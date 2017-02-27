@@ -42,7 +42,7 @@
 #include "WebUtil.h"
 
 
-const int ENTRIES_PER_PAGE(50);
+const int ENTRIES_PER_PAGE(30);
 const std::string NO_GND_CODE("-1");
 const std::string LANGUAGES_SECTION("Languages");
 const std::string TRANSLATION_LANGUAGES_SECTION("TranslationLanguages");
@@ -58,16 +58,22 @@ const unsigned int LOOKFOR_PREFIX_LIMIT(3);
 
 enum Category {VUFIND, KEYWORDS};
 
-DbResultSet ExecSqlOrDie(const std::string &select_statement, DbConnection &db_connection) {
+
+bool ExecSqlOrDie(const std::string &select_statement, DbConnection &db_connection) {
     if (unlikely(not db_connection.query(select_statement)))
         Error("SQL Statement failed: " + select_statement + " (" + db_connection.getLastErrorMessage() + ")");
+    return true;
+}
+
+DbResultSet ExecSqlAndReturnResultsOrDie(const std::string &select_statement, DbConnection &db_connection) {
+    ExecSqlOrDie(select_statement, db_connection);
     return db_connection.getLastResultSet();
 }
 
 
 std::vector<std::string> GetLanguageCodesFromTable(DbConnection &db_connection, const std::string &table_name) {
     const std::string query("SELECT DISTINCT language_code from " + table_name + " ORDER BY language_code;");
-    DbResultSet result_set(ExecSqlOrDie(query, db_connection));
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, db_connection));
     std::vector <std::string> language_codes;
     while (const DbRow db_row = result_set.getNextRow()) {
         language_codes.emplace_back(db_row["language_code"]);
@@ -139,21 +145,21 @@ void GetDisplayLanguages(std::vector<std::string> *const display_languages, cons
 
     display_languages->clear();
 
-    if (category == KEYWORDS) {
-        // Insert German as Display language in any case
-        if (std::find(translation_languages.begin(), translation_languages.end(), "ger") == translation_languages.end())
-            display_languages->emplace_back("ger");
-        // Insert German Synonyms in any case
-        display_languages->emplace_back(SYNONYM_COLUMN_DESCRIPTOR);
-    }
+    // Insert German as Display language in any case for keywords
+    if (category == KEYWORDS and std::find(translation_languages.cbegin(), translation_languages.cend(), "ger") == translation_languages.end())
+        display_languages->emplace_back("ger");
+
     else if (category == VUFIND)
         display_languages->emplace_back(TOKEN_COLUMN_DESCRIPTOR);
+
     display_languages->insert(display_languages->end(), translation_languages.begin(), translation_languages.end());
     display_languages->insert(display_languages->end(), additional_view_languages.begin(), additional_view_languages.end());
 
-    // For Keywords show also MACS
-    if (category == KEYWORDS)
+    // For Keywords show also MACS and the synonyms
+    if (category == KEYWORDS){
         display_languages->emplace_back(MACS_COLUMN_DESCRIPTOR);
+        display_languages->emplace(std::find(display_languages->begin(), display_languages->end(), "ger") + 1, SYNONYM_COLUMN_DESCRIPTOR);
+    }
 }
 
 
@@ -185,7 +191,7 @@ std::string CreateNonEditableHintEntry(const std::string &value, const std::stri
 void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_code, std::vector<std::string> *const synonyms) {
     synonyms->clear();
     const std::string synonym_query("SELECT translation FROM keyword_translations WHERE gnd_code=\'" + gnd_code + "\' AND status=\'reliable_synonym\'");
-    DbResultSet result_set(ExecSqlOrDie(synonym_query, db_connection));
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(synonym_query, db_connection));
     if (result_set.empty())
         return;
 
@@ -198,7 +204,7 @@ void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::strin
     translations->clear();
     const std::string macs_query("SELECT translation FROM keyword_translations WHERE gnd_code=\'" + gnd_code + "\' "
                                  "AND origin=750 AND status=\'unreliable\'");
-    DbResultSet result_set(ExecSqlOrDie(macs_query, db_connection));
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(macs_query, db_connection));
     if (result_set.empty())
         return;
 
@@ -230,13 +236,21 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
     const std::string searchpattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ? "LIKE \'" + lookfor + "%\'" : "LIKE \'%" + lookfor+ "%\'");
     const std::string token_where_clause(
             lookfor.empty() ? "" : "WHERE token " + searchpattern);
-    const std::string token_query(
-            "SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token LIMIT " + offset + ", " +
-            std::to_string(ENTRIES_PER_PAGE));
+    const std::string token_query("SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token");
     const std::string query("SELECT token, translation, language_code, translator FROM vufind_translations "
                             "WHERE token IN (SELECT * FROM (" + token_query + ") as t) ORDER BY token, language_code");
 
-    DbResultSet result_set(ExecSqlOrDie(query, db_connection));
+    const std::string create_vufind_ger_sorted("CREATE TEMPORARY TABLE vufind_ger_sorted AS (" + query + ")");
+    ExecSqlOrDie(create_vufind_ger_sorted, db_connection);
+
+    const std::string create_sort_limit("CREATE TEMPORARY TABLE vufind_sort_limit AS (SELECT token FROM vufind_ger_sorted WHERE language_code='ger'"
+                                 " ORDER BY token LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) +  ")");
+    ExecSqlOrDie(create_sort_limit, db_connection);
+
+
+    const std::string create_result_with_limit("SELECT  token, translation, language_code, translator FROM vufind_ger_sorted AS v"
+                                       " INNER JOIN vufind_sort_limit AS u USING (token)");
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, db_connection));
 
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
     std::vector<std::string> display_languages;
@@ -281,6 +295,11 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
           row_values[index] = CreateNonEditableRowEntry(translation);
    }
    rows->emplace_back(StringUtil::Join(row_values, ""));
+   // We may not use a ';' here within a query to prevent mysql from getting out of sync
+   const std::string drop_ger_sorted("DROP TEMPORARY TABLE vufind_ger_sorted");
+   const std::string drop_sort_limit("DROP TEMPORARY TABLE vufind_sort_limit");
+   ExecSqlOrDie(drop_ger_sorted, db_connection);
+   ExecSqlOrDie(drop_sort_limit, db_connection);
 }
 
 
@@ -300,11 +319,22 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator FROM keyword_translations AS k"
                             " INNER JOIN keyword_translations AS l ON k.language_code=\'ger\' AND k.status=\'reliable\'"
                             " AND k.ppn=l.ppn AND l.status!=\'reliable_synonym\' AND l.status != \'unreliable_synonym\'" +
-                            search_clause +
-                            " ORDER BY k.translation" +
-                            " LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE));
+                            search_clause + " ORDER BY k.translation");
 
-    DbResultSet result_set(ExecSqlOrDie(query, db_connection));
+    // The LIMIT parameter can only work with constants, but we want entries per page to be lines, i.e. german translations in our table
+    // so we have to generate a dynamic limit using temporary tables
+
+    const std::string create_keywords_ger_sorted("CREATE TEMPORARY TABLE keywords_ger_sorted AS (" + query + ")");
+    ExecSqlOrDie(create_keywords_ger_sorted, db_connection);
+
+    const std::string create_sort_limit("CREATE TEMPORARY TABLE sort_limit AS (SELECT ppn FROM keywords_ger_sorted WHERE language_code='ger'"
+                                 " ORDER BY translation  LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) +  ")");
+    ExecSqlOrDie(create_sort_limit, db_connection);
+
+    const std::string create_result_with_limit("SELECT  ppn, translation, language_code, gnd_code, status, translator FROM keywords_ger_sorted AS v" 
+                                       " INNER JOIN sort_limit AS u USING (ppn)");
+
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, db_connection));
 
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
 
@@ -334,9 +364,9 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
            row_values.resize(display_languages.size(), "<td style=\"background-color:lightgrey\"></td>");
            for (auto translator_language : translator_languages) {
                int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
-               if (index != NO_INDEX) {
-                   row_values[index] = CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations", "", status, gnd_code);
-               }
+               if (index != NO_INDEX)
+                   row_values[index] = (translator_language == "ger") ? CreateNonEditableRowEntry("") :
+                                       CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations", "", status, gnd_code);
            }
        }
 
@@ -344,7 +374,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        if (index == NO_INDEX)
            continue;
        if (IsTranslatorLanguage(translator_languages, language_code)) 
-          row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations", translator, status, gnd_code);
+          row_values[index] = (language_code == "ger") ? CreateNonEditableRowEntry(translation) :
+                              CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations", translator, status, gnd_code);
        else
           row_values[index] = (language_code == "ger") ? CreateNonEditableHintEntry(translation, gnd_code) :
                                      CreateNonEditableRowEntry(translation);
@@ -366,6 +397,10 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        row_values[macs_index] = CreateNonEditableSynonymEntry(macs_translations, "<br/>");
    }
    rows->emplace_back(StringUtil::Join(row_values, ""));
+   const std::string drop_get_sorted("DROP TEMPORARY TABLE keywords_ger_sorted");
+   const std::string drop_sort_limit("DROP TEMPORARY TABLE sort_limit");
+   ExecSqlOrDie(drop_get_sorted, db_connection);
+   ExecSqlOrDie(drop_sort_limit, db_connection);
 }
 
 
@@ -463,7 +498,7 @@ void GetAsciiTableForQuery(DbConnection &db_connection,
     // Create Heading
     rows->emplace_back("<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>");
 
-    DbResultSet result_set(ExecSqlOrDie(query, db_connection));
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, db_connection));
     if (result_set.empty())
         return;
 
@@ -568,7 +603,7 @@ void RestoreUserState(DbConnection &db_connection, const std::string &translator
    const std::string restore_statement("SELECT lookfor, offset FROM translators WHERE translator=\'" + translator + "\' AND "
                                        "translation_target=\'" + translation_target + "\';");
 
-   DbResultSet result_set(ExecSqlOrDie(restore_statement, db_connection));
+   DbResultSet result_set(ExecSqlAndReturnResultsOrDie(restore_statement, db_connection));
 
    if (result_set.empty())
        return;
