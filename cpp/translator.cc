@@ -145,21 +145,21 @@ void GetDisplayLanguages(std::vector<std::string> *const display_languages, cons
 
     display_languages->clear();
 
-    if (category == KEYWORDS) {
-        // Insert German as Display language in any case
-        if (std::find(translation_languages.begin(), translation_languages.end(), "ger") == translation_languages.end())
-            display_languages->emplace_back("ger");
-        // Insert German Synonyms in any case
-        display_languages->emplace_back(SYNONYM_COLUMN_DESCRIPTOR);
-    }
+    // Insert German as Display language in any case for keywords
+    if (category == KEYWORDS and std::find(translation_languages.cbegin(), translation_languages.cend(), "ger") == translation_languages.end())
+        display_languages->emplace_back("ger");
+
     else if (category == VUFIND)
         display_languages->emplace_back(TOKEN_COLUMN_DESCRIPTOR);
+
     display_languages->insert(display_languages->end(), translation_languages.begin(), translation_languages.end());
     display_languages->insert(display_languages->end(), additional_view_languages.begin(), additional_view_languages.end());
 
-    // For Keywords show also MACS
-    if (category == KEYWORDS)
+    // For Keywords show also MACS and the synonyms
+    if (category == KEYWORDS){
         display_languages->emplace_back(MACS_COLUMN_DESCRIPTOR);
+        display_languages->emplace(std::find(display_languages->begin(), display_languages->end(), "ger") + 1, SYNONYM_COLUMN_DESCRIPTOR);
+    }
 }
 
 
@@ -321,7 +321,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                             " AND k.ppn=l.ppn AND l.status!=\'reliable_synonym\' AND l.status != \'unreliable_synonym\'" +
                             search_clause + " ORDER BY k.translation");
 
-    // The LIMIT parameter can only work with constants, but we entries per Page to be lines, i.e. german translations in our table
+    // The LIMIT parameter can only work with constants, but we want entries per page to be lines, i.e. german translations in our table
     // so we have to generate a dynamic limit using temporary tables
 
     const std::string create_keywords_ger_sorted("CREATE TEMPORARY TABLE keywords_ger_sorted AS (" + query + ")");
@@ -364,9 +364,9 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
            row_values.resize(display_languages.size(), "<td style=\"background-color:lightgrey\"></td>");
            for (auto translator_language : translator_languages) {
                int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
-               if (index != NO_INDEX) {
-                   row_values[index] = CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations", "", status, gnd_code);
-               }
+               if (index != NO_INDEX)
+                   row_values[index] = (translator_language == "ger") ? CreateNonEditableRowEntry("") :
+                                       CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations", "", status, gnd_code);
            }
        }
 
@@ -374,7 +374,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        if (index == NO_INDEX)
            continue;
        if (IsTranslatorLanguage(translator_languages, language_code)) 
-          row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations", translator, status, gnd_code);
+          row_values[index] = (language_code == "ger") ? CreateNonEditableRowEntry(translation) :
+                              CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations", translator, status, gnd_code);
        else
           row_values[index] = (language_code == "ger") ? CreateNonEditableHintEntry(translation, gnd_code) :
                                      CreateNonEditableRowEntry(translation);
