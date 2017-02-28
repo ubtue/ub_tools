@@ -1408,6 +1408,23 @@ public class TuelibMixin extends SolrIndexerMixin {
                 break;
         }
 
+        // Determine whether a record is a database, i.e. has "daten" in 935$c
+        for (final VariableField _935Field : _935Fields) {
+            final DataField dataField = (DataField) _935Field;
+            List<Subfield> subfields = dataField.getSubfields();
+            boolean foundMatch = false;
+            for (Subfield subfield : subfields) {
+                if (subfield.getCode() == 'c' && subfield.getData().contains("daten")) {
+                    formats.add("Database");
+                    foundMatch = true;
+                    break;
+                }
+            }
+            if (foundMatch == true)
+                break;
+        }
+
+
         // Rewrite all E-Books as electronic Books
         if (formats.contains("eBook")) {
             formats.remove("eBook");
