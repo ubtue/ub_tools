@@ -30,3 +30,5 @@ CREATE TABLE translators (
   offset VARCHAR(10),
   PRIMARY KEY (translator, translation_target)
 ) DEFAULT CHARSET=utf8;
+
+GRANT CREATE TEMPORARY TABLES ON ixtheo.* TO 'ixtheo'@'localhost';
