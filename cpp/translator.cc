@@ -484,7 +484,7 @@ void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translat
 
 
 void GetAdditionalViewLanguages(const IniFile &ini_file, std::vector<std::string> *const additional_view_languages, const std::string &translator) {
-    const std::string ini_additional_view_languages(ini_file.getString(ADDITIONAL_VIEW_LANGUAGES, translator));
+    const std::string ini_additional_view_languages(ini_file.getString(ADDITIONAL_VIEW_LANGUAGES, translator, ""));
     StringUtil::Split(ini_additional_view_languages, ",", additional_view_languages);
     std::for_each(additional_view_languages->begin(), additional_view_languages->end(),
                    boost::bind(&boost::trim<std::string>, _1, std::locale()));
