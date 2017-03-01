@@ -86,9 +86,6 @@ void Update(const std::multimap<std::string, std::string> &cgi_args, const std::
     const std::string gnd_code(GetCGIParameterOrEmptyString(cgi_args, "gnd_code"));
     const std::string translator(GetEnvParameterOrEmptyString(env_args, "REMOTE_USER"));
 
-    if (translation.empty())
-        return;
-
     std::string update_command("/usr/local/bin/translation_db_tool update '" + index);
     if (not gnd_code.empty())
         update_command += "' '" + gnd_code;
