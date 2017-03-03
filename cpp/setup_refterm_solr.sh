@@ -49,7 +49,6 @@ SetupRamdisk() {
 
     # Set the RAM disk size:
     test -e /sys/block/zram0/disksize || ErrorExit 'Missing file: "/sys/block/zram0/disksize"!'
-    fi
     echo "$ZRAM_DISK_SIZE" > /sys/block/zram0/disksize
     if [[ $(cat /sys/block/zram0/disksize) != "$ZRAM_DISK_SIZE" ]]; then
         ErrorExit "Failed to set ZRAM disk size to $ZRAM_DISK_SIZE"'!'
