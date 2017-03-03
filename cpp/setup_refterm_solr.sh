@@ -7,10 +7,10 @@ VUFIND_SOLRMARC_HOME=$VUFIND_HOME/import/
 UB_TOOLS_HOME=/usr/local/ub_tools/
 CONFIG_FILE_DIR=$UB_TOOLS_HOME/cpp/data/refterm_solr_conf
 LOGDIR=/mnt/zram/log/ 
-ZRAM_DISK_SIZE=2G
+ZRAM_DISK_SIZE=2147483648 # Has to be in bytes in oder to compare the set value.
 
 
-export SOLR_BIN="VUFIND_HOME"/solr/vendor/bin/
+export SOLR_BIN="$VUFIND_HOME"/solr/vendor/bin/
 export SOLRMARC_HOME=/mnt/zram/import
 export SOLR_HOME=/mnt/zram/solr/vufind/
 export SOLR_PORT=8081
@@ -39,19 +39,19 @@ ErrorExit() {
 
 
 SetupRamdisk() {
+    # Nothing to do?
+    test -e /mnt/zram && mountpoint --quiet /mnt/zram && return
+
     if ! modprobe zram num_devices=1; then
         ErrorExit 'Failed to load ZRAM module!'
     fi
 
-    if [ -b /mnt/zram ]; then
-        umount /mnt/zram || ErrorExit 'Failed to load unmount /mnt/zram!'
-    fi
-
     # Set the RAM disk size:
-    test -e /sys/block/zram0/disksize || ErrorExit 'Missing file: "/sys/block/zram0/disksize"!'
-    echo "$ZRAM_DISK_SIZE" > /sys/block/zram0/disksize
     if [[ $(cat /sys/block/zram0/disksize) != "$ZRAM_DISK_SIZE" ]]; then
-        ErrorExit "Failed to set ZRAM disk size to $ZRAM_DISK_SIZE"'!'
+        echo "$ZRAM_DISK_SIZE" > /sys/block/zram0/disksize
+        if [[ $(cat /sys/block/zram0/disksize) != "$ZRAM_DISK_SIZE" ]]; then
+            ErrorExit "Failed to set ZRAM disk size to $ZRAM_DISK_SIZE"'!'
+        fi
     fi
 
     # Create a file system in RAM...
