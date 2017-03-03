@@ -66,7 +66,7 @@ SetupRamdisk() {
 
 
 # Abort if we are not root or the parameters do not match
-test "$EUID" -ne 0 || ErrorExit 'We can only run as root!'
+test "$EUID" -eq 0 || ErrorExit 'We can only run as root!'
 if [[ $# != 1 ]]; then
     >&2 echo "$0: Invalid number of parameters"'!'
     Usage
