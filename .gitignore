@@ -43,6 +43,7 @@ convert_bible_references
 convert_xml_to_marc21
 create_author_synonym_map
 create_full_text_db
+crossref_downloader
 db_lookup
 delete_ids
 delete_unused_local_data
