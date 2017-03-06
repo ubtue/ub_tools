@@ -88,14 +88,14 @@ rsync --archive "$VUFIND_SOLRMARC_HOME"/index_java /mnt/zram/import
 
 # Set up and start Solr
 /mnt/zram/solr.sh start
-if ! $?; then
+if [ $? -ne 0 ]; then
     >&2 echo "$0"': Failed to start Solr!'
     exit 1
 fi
 
 # Import the MARC files
 /mnt/zram/import-marc.sh -p /mnt/zram/import/import.properties "$FILE_TO_IMPORT" 2>&1 
-if ! $?; then
+if [ $? -ne 0 ]; then
     >&2 echo "$0"': Failed to import MARC files!'
     exit 1
 fi
