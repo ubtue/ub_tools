@@ -27,6 +27,8 @@
 #include "Compiler.h"
 #include "Downloader.h"
 #include "FileUtil.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "UrlUtil.h"
@@ -77,7 +79,15 @@ bool FuzzyTextMatch(const std::string &s1, const std::string &s2) {
 }
 
 
-bool ProcessJournal(const unsigned timeout, const std::string &journal_name) {
+void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const boost::property_tree::ptree &message_tree) {
+    MarcRecord record;
+    record.getLeader().setBibliographicLevel('a'); // We have an article.
+
+    marc_writer->write(record);
+}
+
+
+bool ProcessJournal(const unsigned timeout, const std::string &journal_name, MarcWriter * const marc_writer) {
         std::string json_document;
         if (Download("https://search.crossref.org/dois?q=" + UrlUtil::UrlEncode(journal_name), timeout,
                      &json_document) != 0)
@@ -97,6 +107,10 @@ bool ProcessJournal(const unsigned timeout, const std::string &journal_name) {
             std::stringstream record_input(json_document, std::ios_base::in);
             boost::property_tree::ptree record_property_tree;
             boost::property_tree::json_parser::read_json(record_input, record_property_tree);
+
+            if (record_property_tree.get<std::string>("type") != "journal-article")
+                continue;
+
             const boost::property_tree::ptree::const_assoc_iterator container_titles(
                 record_property_tree.get_child("message").find("container-title"));
             if (container_titles == record_property_tree.not_found())
@@ -112,6 +126,7 @@ bool ProcessJournal(const unsigned timeout, const std::string &journal_name) {
             if (not matched_at_least_one)
                 continue;
 
+            CreateAndWriteMarcRecord(marc_writer, record_property_tree.get_child("message"));
             ++document_count;
         }
 
@@ -142,13 +157,14 @@ int main(int argc, char *argv[]) {
 
     try {
         const std::unique_ptr<File> journal_list_file(FileUtil::OpenInputFileOrDie(journal_list_filename));
+        const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
 
         unsigned success_count(0);
         while (not journal_list_file->eof()) {
             std::string line;
             journal_list_file->getline(&line);
             StringUtil::Trim(&line);
-            if (not line.empty() and ProcessJournal(timeout, line))
+            if (not line.empty() and ProcessJournal(timeout, line, marc_writer.get()))
                 ++success_count;
         }
 
