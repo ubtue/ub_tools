@@ -2,7 +2,7 @@
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -83,10 +83,12 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
     const size_t ppn_field_length = ppn.size() + 1;
 
 
-    auto directory_iter = record.directory_entries_.cbegin();
+    auto directory_iter(record.directory_entries_.cbegin());
+    if (unlikely(directory_iter == record.directory_entries_.cend()))
+        Error("BinaryMarcWriter::write: can't write a record w/ an empty directory!");
     if (unlikely(directory_iter->getTag() != "001"))
-        Error("First directory entry has to be 001! Found: " + directory_iter->getTag().to_string()
-              + " (PPN: " + record.getControlNumber() + ")");
+        Error("BinaryMarcWriter::write: first directory entry has to be 001! Found: "
+              + directory_iter->getTag().to_string() + " (PPN: " + record.getControlNumber() + ")");
     ++directory_iter;
 
     while (directory_iter < record.directory_entries_.cend()) {
