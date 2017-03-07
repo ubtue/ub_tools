@@ -21,6 +21,17 @@ CREATE TABLE ixtheo_journal_subscriptions (
        PRIMARY KEY (id,journal_control_number)
 );
 
+CREATE TABLE ixtheo_pda_subscriptions (
+       id INT(11) NOT NULL,
+       book_title VARCHAR(256) NOT NULL,
+       book_author VARCHAR(256) NOT NULL,
+       book_year VARCHAR(32) NOT NULL,
+       book_ppn VARCHAR(10) NOT NULL,
+       book_isbn VARCHAR(13) NOT NULL,
+       FOREIGN KEY (id) REFERENCES user(id),
+       PRIMARY KEY (id, book_ppn)
+);
+
 CREATE TABLE ixtheo_user (
        id INT(11) NOT NULL,
        user_type ENUM('ixtheo', 'relbib') DEFAULT 'ixtheo',
