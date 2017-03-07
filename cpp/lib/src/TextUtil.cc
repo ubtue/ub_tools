@@ -120,7 +120,7 @@ bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_stri
     const char *cp(utf8_string.c_str());
     size_t remainder(utf8_string.size());
     std::mbstate_t state = std::mbstate_t();
-    for (;;) {
+    while (*cp != '\0') {
         wchar_t wch;
         const size_t retcode(std::mbrtowc(&wch, cp, remainder, &state));
         if (retcode == static_cast<size_t>(-1) or retcode == static_cast<size_t>(-2))
@@ -131,6 +131,8 @@ bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_stri
         cp += retcode;
         remainder -= retcode;
     }
+
+    return true;
 }
 
 
@@ -170,8 +172,12 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 
     // Lowercase the wide character string:
     std::wstring lowercase_wide_string;
-    for (const auto wide_ch : wchar_string)
-        lowercase_wide_string += std::towlower(static_cast<wint_t>(wide_ch));
+    for (const auto wide_ch : wchar_string) {
+        if (std::iswupper(static_cast<wint_t>(wide_ch)))
+            lowercase_wide_string += std::towlower(static_cast<wint_t>(wide_ch));
+        else
+            lowercase_wide_string += wide_ch;
+    }
 
     return WCharToUTF8String(lowercase_wide_string, lowercase_utf8_string);
 }
