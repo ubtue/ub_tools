@@ -194,7 +194,7 @@ std::vector<std::string> ExtractAuthorVector(const boost::property_tree::ptree &
                                              const std::string &json_field_name)
 {
     std::vector<std::string> extracted_values;
-    
+
     boost::property_tree::ptree::const_assoc_iterator array_iter(message_tree.find(json_field_name));
     if (array_iter != message_tree.not_found()) {
         for (const auto &array_entry : array_iter->second)
@@ -209,7 +209,7 @@ std::vector<std::string> ExtractStringVector(const boost::property_tree::ptree &
                                              const std::string &json_field_name)
 {
     std::vector<std::string> extracted_values;
-    
+
     boost::property_tree::ptree::const_assoc_iterator array_iter(message_tree.find(json_field_name));
     if (array_iter != message_tree.not_found()) {
         for (const auto &array_entry : array_iter->second)
@@ -254,6 +254,84 @@ void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const boost::prope
 }
 
 
+// Converts the nnnn part of \unnnn to UTF-8. */
+std::string UTF16EscapeToUTF8(std::string::const_iterator &cp, const std::string::const_iterator &end) {
+    std::string hex_codes;
+    for (unsigned i(0); i < 4; ++i) {
+        if (unlikely(cp == end))
+            Error("in UTF16EscapeToUTF8: unexpected end of input!");
+        hex_codes += *cp++;
+    }
+
+    uint16_t u1;
+    if (unlikely(not StringUtil::ToUnsignedShort(hex_codes, &u1, 16)))
+            Error("in UTF16EscapeToUTF8: invalid hex sequence \\u" + hex_codes + "! (1)");
+
+    if (TextUtil::IsValidSingleUTF16Char(u1))
+        return TextUtil::UTF32ToUTF8(TextUtil::UTF16ToUTF32(u1));
+
+    if (unlikely(not TextUtil::IsFirstHalfOfSurrogatePair(u1)))
+        Error("in UTF16EscapeToUTF8: \\u" + hex_codes + " is neither a standalone UTF-8 character nor a valid "
+              "first half of a UTF-16 surrogate pair!");
+
+    if (unlikely(cp == end or *cp++ != '\\'))
+        Error("in UTF16EscapeToUTF8: could not find expected '\\' as part of the 2nd half of a surrogate pair!");
+    if (unlikely(cp == end or *cp++ != 'u'))
+        Error("in UTF16EscapeToUTF8: could not find expected 'u' as part of the 2nd half of a surrogate pair!");
+    
+    hex_codes.clear();
+    for (unsigned i(0); i < 4; ++i) {
+        if (unlikely(cp == end))
+            Error("in UTF16EscapeToUTF8: unexpected end of input while attempting to read a 2nd half of a surrogate "
+                  "pair!");
+        hex_codes += *cp++;
+    }
+
+    uint16_t u2;
+    if (unlikely(not StringUtil::ToUnsignedShort(hex_codes, &u2, 16)))
+            Error("in UTF16EscapeToUTF8: invalid hex sequence \\u" + hex_codes + "! (2)");
+    if (unlikely(not TextUtil::IsSecondHalfOfSurrogatePair(u2)))
+            Error("in UTF16EscapeToUTF8: invalid 2nd half of a surrogate pair: \\u" + hex_codes + "!");
+
+    return TextUtil::UTF32ToUTF8(TextUtil::UTF16ToUTF32(u1, u2));
+}
+
+
+std::string UnescapeCrossRefJSON(const std::string &json_text) {
+    std::string unescaped_string;
+    bool in_text(false);
+    auto cp(json_text.cbegin());
+    while (cp != json_text.cend()) {
+        if (in_text) {
+            if (*cp == '\\') {
+                if (unlikely(cp + 1 == json_text.cend()))
+                    Error("in UnescapeCrossRefJSON: malformed JSON!");
+                ++cp;
+                if (*cp == '/')
+                    unescaped_string += *cp++;
+                else if (*cp == 'u')
+                    unescaped_string += UTF16EscapeToUTF8(++cp, json_text.cend());
+                else {
+                    unescaped_string += '\\';
+                    Warning("in UnescapeCrossRefJSON: unexpected escape \\" + std::string(1, *cp)
+                            + "in JSON string constant!");
+                    unescaped_string += *cp++;
+                }
+            } else {
+                if (*cp == '"')
+                    in_text = false;
+                unescaped_string += *cp++;
+            }
+        } else {
+            in_text = *cp == '"';
+            unescaped_string += *cp++;
+        }
+    }
+
+    return unescaped_string;
+}
+
+
 bool ProcessJournal(const unsigned timeout, const std::string &journal_name, MarcWriter * const marc_writer,
                     const std::vector<MapDescriptor> &map_descriptors)
 {
@@ -269,10 +347,12 @@ bool ProcessJournal(const unsigned timeout, const std::string &journal_name, Mar
         unsigned document_count(0);
         for (const auto &array_entry : query_property_tree) {
             const std::string doi_url(array_entry.second.get_child("doi").data());
+            
             if (Download("https://api.crossref.org/v1/works/" + UrlUtil::UrlEncode(doi_url), timeout,
                          &json_document) != 0)
                 continue;
-
+            json_document = UnescapeCrossRefJSON(json_document);
+            
             std::stringstream record_input(json_document, std::ios_base::in);
             boost::property_tree::ptree record_property_tree;
             boost::property_tree::json_parser::read_json(record_input, record_property_tree);
