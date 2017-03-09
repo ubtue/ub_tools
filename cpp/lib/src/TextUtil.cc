@@ -183,6 +183,64 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 }
 
 
+/** The following conversions are implemented here:
+
+    Unicode range 0x00000000 - 0x0000007F:
+       Returned byte: 0xxxxxxx
+
+    Unicode range 0x00000080 - 0x000007FF:
+       Returned bytes: 110xxxxx 10xxxxxx
+
+    Unicode range 0x00000800 - 0x0000FFFF:
+       Returned bytes: 1110xxxx 10xxxxxx 10xxxxxx
+
+    Unicode range 0x00010000 - 0x001FFFFF:
+       Returned bytes: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+
+    Unicode range 0x00200000 - 0x03FFFFFF:
+       Returned bytes: 111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+
+    Unicode range 0x04000000 - 0x7FFFFFFF:
+       Returned bytes: 1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+*/
+std::string UTF32ToUTF8(const uint32_t code_point) {
+    std::string utf8;
+
+    if (code_point <= 0x80u)
+        utf8 += static_cast<char>(code_point);
+    else if (code_point <= 0x800u) {
+        utf8 += static_cast<char>(0xC0u | (code_point >> 6u));
+        utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
+    } else if (code_point <= 0x10000) {
+        utf8 += static_cast<char>(0xE0u | (code_point >> 12u));
+        utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
+        utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
+    } else if (code_point <= 0x200000) {
+        utf8 += static_cast<char>(0xF0u | (code_point >> 18u));
+        utf8 += static_cast<char>(0x80u | ((code_point >> 12u) & 0x3Fu));
+        utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
+        utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
+    } else if (code_point <= 0x4000000) {
+        utf8 += static_cast<char>(0xF8u | (code_point >> 24u));
+        utf8 += static_cast<char>(0x80u | ((code_point >> 18u) & 0x3Fu));
+        utf8 += static_cast<char>(0x80u | ((code_point >> 12u) & 0x3Fu));
+        utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
+        utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
+    } else if (code_point <= 0x80000000) {
+        utf8 += static_cast<char>(0xFCu | (code_point >> 30u));
+        utf8 += static_cast<char>(0x80u | ((code_point >> 24u) & 0x3Fu));
+        utf8 += static_cast<char>(0x80u | ((code_point >> 18u) & 0x3Fu));
+        utf8 += static_cast<char>(0x80u | ((code_point >> 12u) & 0x3Fu));
+        utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
+        utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
+    } else
+        throw std::runtime_error("in TextUtil::UnicodeToUTF8: invalid Unicode code point 0x"
+                                 + StringUtil::ToString(code_point, 16) + "!");
+
+    return utf8;
+}
+    
+    
 namespace {
 
 
