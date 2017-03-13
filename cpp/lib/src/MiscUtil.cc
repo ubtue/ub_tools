@@ -803,6 +803,11 @@ bool IsPossibleISSN(std::string issn_candidate) {
         issn_candidate = issn_candidate.substr(0, 4) + issn_candidate.substr(4, 4); // Remove hyphen.
     }
 
+    //
+    // For an explanation of how to determine the chcksum digit, have a look at
+    // https://en.wikipedia.org/wiki/International_Standard_Serial_Number#Code_format&oldid=767018094
+    //
+
     unsigned sum(0), position(8);
     for (unsigned i(0); i < 7; ++i) {
         const char ch(issn_candidate[i]);
@@ -812,7 +817,7 @@ bool IsPossibleISSN(std::string issn_candidate) {
         --position;
     }
     const unsigned modulus(sum % 11);
-    
+
     char check_digit;
     if (modulus == 0)
         check_digit = '0';
