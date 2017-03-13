@@ -6,7 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2016 Universitätsbibliothek Tübingen.
+ *  Copyright 2016-2017 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -113,6 +113,8 @@ void SetEnv(const std::string &name, const std::string &value, const bool overwr
 
 // \return The POSIX login name. */
 std::string GetUserName();
+
+bool IsPossibleISSN(std::string issn_candidate);
 
 
 } // namespace MiscUtil
