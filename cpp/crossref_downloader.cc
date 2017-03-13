@@ -29,6 +29,7 @@
 #include "FileUtil.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "UrlUtil.h"
@@ -332,61 +333,58 @@ std::string UnescapeCrossRefJSON(const std::string &json_text) {
 }
 
 
-bool ProcessJournal(const unsigned timeout, const std::string &journal_name, MarcWriter * const marc_writer,
+// Expects "line" to look like "XXXX-XXXX JJJ" where "XXXX-XXXX" is an ISSN and "JJJ" a journal title.
+bool GetISSNAndJournalName(const std::string &line, std::string * const issn, std::string * const journal_name) {
+    const size_t first_space_pos(line.find(' '));
+    if (unlikely(first_space_pos == std::string::npos))
+        return false;
+
+    *issn = line.substr(0, first_space_pos);
+    if (unlikely(not MiscUtil::IsPossibleISSN(*issn)))
+        return false;
+
+    *journal_name = StringUtil::TrimWhite(line.substr(first_space_pos + 1));
+    return not journal_name->empty();
+}
+
+
+bool ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter * const marc_writer,
                     const std::vector<MapDescriptor> &map_descriptors)
 {
-        std::string json_document;
-        if (Download("https://search.crossref.org/dois?q=" + UrlUtil::UrlEncode(journal_name), timeout,
-                     &json_document) != 0)
-            return false;
+    std::string issn, journal_name;
+    if (unlikely(not GetISSNAndJournalName(line, &issn, &journal_name)))
+        Error("bad input line \"" + line + "\"!");
+    std::cout << "Processing " << journal_name << '\n';
+    
+    std::string json_document;
+    if (Download("https://api.crossref.org/v1/journals/" + issn + "/works", timeout, &json_document) != 0)
+        return false;
+    json_document = UnescapeCrossRefJSON(json_document);
 
-        std::stringstream query_input(json_document, std::ios_base::in);
-        boost::property_tree::ptree query_property_tree;
-        boost::property_tree::json_parser::read_json(query_input, query_property_tree);
+    std::stringstream query_input(json_document, std::ios_base::in);
+    boost::property_tree::ptree full_tree;
+    boost::property_tree::json_parser::read_json(query_input, full_tree);
 
-        unsigned document_count(0);
-        for (const auto &array_entry : query_property_tree) {
-            const std::string doi_url(array_entry.second.get_child("doi").data());
-            
-            if (Download("https://api.crossref.org/v1/works/" + UrlUtil::UrlEncode(doi_url), timeout,
-                         &json_document) != 0)
-                continue;
-            json_document = UnescapeCrossRefJSON(json_document);
-            
-            std::stringstream record_input(json_document, std::ios_base::in);
-            boost::property_tree::ptree record_property_tree;
-            boost::property_tree::json_parser::read_json(record_input, record_property_tree);
+    const boost::property_tree::ptree::const_assoc_iterator message_iter(full_tree.find("message"));
+    if (unlikely(message_iter == full_tree.not_found()))
+        return false;
 
-            boost::property_tree::ptree::const_assoc_iterator message_iter(record_property_tree.find("message"));
-            if (unlikely(message_iter == record_property_tree.not_found())) {
-                Warning("JSON document is missing a top-level \"message\" field!");
-                continue;
-            }
+    const boost::property_tree::ptree::const_assoc_iterator items_iter(message_iter->second.find("items"));
+    if (unlikely(items_iter == items_iter->second.not_found()))
+        return false;
+    
+    unsigned document_count(0);
+    for (const auto &item : items_iter->second) {
+        const boost::property_tree::ptree::const_assoc_iterator container_titles(
+            item.second.find("container-title"));
+        if (container_titles == item.second.not_found())
+            continue;
 
-            boost::property_tree::ptree message_sub_tree(message_iter->second);
-            if (message_sub_tree.get<std::string>("type") != "journal-article")
-                continue;
+        CreateAndWriteMarcRecord(marc_writer, item.second, map_descriptors);
+        ++document_count;
+    }
 
-            const boost::property_tree::ptree::const_assoc_iterator container_titles(
-                message_sub_tree.find("container-title"));
-            if (container_titles == record_property_tree.not_found())
-                continue;
-
-            bool matched_at_least_one(false);
-            for (const auto container_title_node : container_titles->second) {
-                if (FuzzyTextMatch(journal_name, container_title_node.second.data())) {
-                    matched_at_least_one = true;
-                    break;
-                }
-            }
-            if (not matched_at_least_one)
-                continue;
-
-            CreateAndWriteMarcRecord(marc_writer, message_sub_tree, map_descriptors);
-            ++document_count;
-        }
-
-        return document_count > 0;
+    return document_count > 0;
 }
 
 
