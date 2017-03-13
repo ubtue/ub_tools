@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2015,2016, Library of the University of Tübingen
+    Copyright (C) 2015-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -33,7 +33,7 @@
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
-#include "RegexMatcher.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
@@ -46,23 +46,6 @@ void Usage() {
     std::cerr << "  master_marc_input and writes this augmented file as marc_output.  The ISBNs and ISSNs are\n";
     std::cerr << "  extracted from superior entries found in master_marc_input.\n";
     std::exit(EXIT_FAILURE);
-}
-
-
-bool IsPossibleISSN(const std::string &issn_candidate) {
-    static RegexMatcher *matcher(nullptr);
-    std::string err_msg;
-    if (unlikely(matcher == nullptr)) {
-        matcher = RegexMatcher::RegexMatcherFactory("\\d{4}\\-\\d{3}[\\dX]", &err_msg);
-        if (matcher == nullptr)
-            Error(err_msg);
-    }
-
-    const bool is_possible_issn(matcher->matched(issn_candidate, &err_msg));
-    if (unlikely(not err_msg.empty()))
-        Error(err_msg);
-
-    return is_possible_issn;
 }
 
 
@@ -178,7 +161,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(const bool verbose, MarcReader * con
             continue;
         }
 
-        if (IsPossibleISSN(parent_isbn_or_issn_iter->second)) {
+        if (MiscUtil::IsPossibleISSN(parent_isbn_or_issn_iter->second)) {
             subfields.addSubfield('x', parent_isbn_or_issn_iter->second);
             record.updateField(_773_index, subfields.toString());
             ++issns_added;
