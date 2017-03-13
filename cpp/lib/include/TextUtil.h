@@ -61,12 +61,43 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
 
 /** \brief Convert a wide character to UTF8. */
 bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string);
-    
+
 
 /** \brief Converts a UTF8 string to lowercase.
  *  \return True if no character set conversion error occurred, o/w false.
   */
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string);
+
+
+/** Converts UTF-32 a.k.a. UCS-4 to UTF-8. */
+std::string UTF32ToUTF8(const uint32_t code_point);
+
+
+/** Converts single UTF-16 characters and surrogate pairs to UTF-32 a.k.a. UCS-4. */
+inline uint32_t UTF16ToUTF32(const uint16_t u1, const uint16_t u2 = 0) {
+    if (u2 == 0)
+        return u1;
+
+    return ((u1 & 0x3Fu) << 10u) | (u2 & 0x3Fu);
+}
+
+
+/** \return True if "u1" is a valid first UTF-16 character in a surrogate pair. */
+inline bool IsFirstHalfOfSurrogatePair(const uint16_t u1) {
+    return (u1 & 0xD800u) == 0xD800u;
+}
+
+
+/** \return True if "u2" is a valid second UTF-16 character in a surrogate pair. */
+inline bool IsSecondHalfOfSurrogatePair(const uint16_t u2) {
+    return (u2 & 0xDC00) == 0xDC00;
+}
+
+
+/** \return True if "u" is might be a valid single UTF-16 character, i.e. not part of a surrogate pair. */
+inline bool IsValidSingleUTF16Char(const uint16_t u) {
+    return (u <= 0xD7FFu) or (0xE000u <= u and u <= 0xFFFF);
+}
 
 
 /** \brief Break up text into individual lowercase "words".
@@ -112,7 +143,7 @@ std::string Base64Encode(const std::string &s, const char symbol63 = '+', const 
  */
 std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace = false);
 
-    
+
 } // namespace TextUtil
 
 
