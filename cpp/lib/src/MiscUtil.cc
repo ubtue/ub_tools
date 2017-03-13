@@ -27,7 +27,6 @@
  */
 
 #include "MiscUtil.h"
-#include <iostream>
 #include <map>
 #include <set>
 #include <stack>
@@ -800,7 +799,7 @@ bool IsPossibleISSN(std::string issn_candidate) {
     if (issn_candidate.length() == 9) {
         if (issn_candidate[4] != '-')
             return false;
-        issn_candidate = issn_candidate.substr(0, 4) + issn_candidate.substr(4, 4); // Remove hyphen.
+        issn_candidate = issn_candidate.substr(0, 4) + issn_candidate.substr(5, 4); // Remove hyphen.
     }
 
     //
