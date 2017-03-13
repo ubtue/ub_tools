@@ -794,4 +794,43 @@ std::string GetUserName() {
 }
 
 
+bool IsPossibleISSN(std::string issn_candidate) {
+    if (issn_candidate.length() != 8 and issn_candidate.length() != 9)
+        return false;
+    if (issn_candidate.length() == 9) {
+        if (issn_candidate[4] != '-')
+            return false;
+        issn_candidate = issn_candidate.substr(0, 4) + issn_candidate.substr(4, 4); // Remove hyphen.
+    }
+
+    //
+    // For an explanation of how to determine the chcksum digit, have a look at
+    // https://en.wikipedia.org/wiki/International_Standard_Serial_Number#Code_format&oldid=767018094
+    //
+
+    unsigned sum(0), position(8);
+    for (unsigned i(0); i < 7; ++i) {
+        const char ch(issn_candidate[i]);
+        if (not StringUtil::IsDigit(ch))
+            return false;
+        sum += position * (ch - '0');
+        --position;
+    }
+    const unsigned modulus(sum % 11);
+
+    char check_digit;
+    if (modulus == 0)
+        check_digit = '0';
+    else {
+        unsigned digit(11 - modulus);
+        if (digit == 10)
+            check_digit = 'X';
+        else
+            check_digit = '0' + digit;
+    }
+
+    return issn_candidate[7] == check_digit;
+}
+
+
 } // namespace MiscUtil
