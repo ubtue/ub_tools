@@ -4,7 +4,7 @@
  *
  *  \copyright 2005-2008 Project iVia.
  *  \copyright 2005-2008 The Regents of The University of California.
- *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbiblothek Tübingen.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -53,6 +53,7 @@ public:
     static const long DEFAULT_MAX_REDIRECTS     = 10;
     static const long MAX_MAX_REDIRECT_COUNT    = 20;
     static const long DEFAULT_DNS_CACHE_TIMEOUT = 600;
+    static const std::string DEFAULT_USER_AGENT_STRING;
     static const std::string DEFAULT_ACCEPTABLE_LANGUAGES;
     static const unsigned DEFAULT_TIME_LIMIT    = 20000; // In ms.
 private:
@@ -85,10 +86,11 @@ public:
         bool follow_redirects_;
 
     public:
-        explicit Params(const std::string &user_agent = GetDefaultUserAgentString(),
+        explicit Params(const std::string &user_agent = DEFAULT_USER_AGENT_STRING,
                         const std::string &acceptable_languages = DEFAULT_ACCEPTABLE_LANGUAGES,
                         const long max_redirect_count = DEFAULT_MAX_REDIRECTS,
-                        const long dns_cache_timeout = DEFAULT_DNS_CACHE_TIMEOUT, const bool honour_robots_dot_txt = false,
+                        const long dns_cache_timeout = DEFAULT_DNS_CACHE_TIMEOUT,
+                        const bool honour_robots_dot_txt = false,
                         const TextTranslationMode text_translation_mode = MAP_TO_LATIN9,
                         const PerlCompatRegExps &banned_reg_exps = PerlCompatRegExps(), const bool debugging = false,
                         const bool follow_redirects = true);
