@@ -2,7 +2,9 @@
  *  \brief  Functions for downloading of web resources.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2005-2008 Project iVia.
+ *  \copyright 2005-2008 The Regents of The University of California.
+ *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -172,7 +174,7 @@ private:
  *  \param url              The address.
  *  \param output_filename  Where to store the downloaded document.
  *  \param timeout          Max. amount of time to try to download a document.
- *  \param cookie_file      Cookies will be read before the attenpted download and later stored here.
+ *  \param cookie_file      Cookies will be read before the attempted download and later stored here.
  *  \return Exit code of the child process.  0 upon success.
  */
 int Download(const std::string &url, const std::string &output_filename, const unsigned timeout,
@@ -183,7 +185,7 @@ int Download(const std::string &url, const std::string &output_filename, const u
  *  \param url      The address.
  *  \param timeout  Max. amount of time to try to download a document.
  *  \param output   Where to store the downloaded document.
- *  \param cookie_file      Cookies will be read before the attenpted download and later stored here.
+ *  \param cookie_file      Cookies will be read before the attempted download and later stored here.
  *  \return Exit code of the child process.  0 upon success.
  */
 int Download(const std::string &url, const unsigned timeout, std::string * const output,
