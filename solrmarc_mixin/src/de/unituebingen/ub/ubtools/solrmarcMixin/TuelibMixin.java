@@ -239,8 +239,11 @@ public class TuelibMixin extends SolrIndexerMixin {
             // Differentiate between field and subfield specifications:
             if (fieldSpec.length() == 3 + 1) { // We have a subfield specification.
                 final DataField field = (DataField) record.getVariableField(fieldSpec.substring(0, 2));
-                for (final Subfield subfield : field.getSubfields(fieldSpec.charAt(3)))
-                    extractedValues.add(subfield.getData());
+                for (final Subfield subfield : field.getSubfields(fieldSpec.charAt(3))) {
+                    if (subfield.getCode() != excludeSubfield) {
+                        extractedValues.add(subfield.getData());
+                    }
+                }
             } else if (fieldSpec.length() == 3) { // We have a field specification.
                 final DataField field = (DataField) record.getVariableField(fieldSpec);
                 for (final Subfield subfield : field.getSubfields())
