@@ -230,6 +230,33 @@ public class TuelibMixin extends SolrIndexerMixin {
         return Utils.cleanData(subfield_data);
     }
 
+    static private Set<String> getAllSubfieldsBut(final Record record, final String fieldSpecList,
+                                                  char excludeSubfield)
+    {
+        final Set<String> extractedValues = new TreeSet<>();
+        final String[] fieldSpecs = fieldSpecList.split(":");
+        for (final String fieldSpec : fieldSpecs) {
+            // Differentiate between field and subfield specifications:
+            if (fieldSpec.length() == 3 + 1) { // We have a subfield specification.
+                final DataField field = (DataField) record.getVariableField(fieldSpec.substring(0, 2));
+                for (final Subfield subfield : field.getSubfields(fieldSpec.charAt(3))) {
+                    if (subfield.getCode() != excludeSubfield) {
+                        extractedValues.add(subfield.getData());
+                    }
+                }
+            } else if (fieldSpec.length() == 3) { // We have a field specification.
+                final DataField field = (DataField) record.getVariableField(fieldSpec);
+                for (final Subfield subfield : field.getSubfields())
+                    extractedValues.add(subfield.getData());
+            } else { // We have garbage.
+                System.err.println("in TuelibMixin.getAllSubfieldsBut: invalid field specification: " + fieldSpec);
+                System.exit(1);
+            }
+        }
+
+        return extractedValues;
+    }
+    
     /**
      * get the local subjects from LOK-tagged fields and get subjects from 936k
      * and 689a subfields
@@ -242,8 +269,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return Set of local subjects
      */
     public Set<String> getAllTopics(final Record record) {
-        final Set<String> topics = SolrIndexerShim.instance()
-            .getAllAlphaSubfields(record, "600:610:611:630:650:653:656:689a:936a", " ");
+        final Set<String> topics = getAllSubfieldsBut(record, "600:610:611:630:650:653:656:689a:936a", '0');
         for (final VariableField variableField : record.getVariableFields("LOK")) {
             final DataField lokfield = (DataField) variableField;
             final Subfield subfield0 = lokfield.getSubfield('0');
@@ -267,8 +293,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return Set "topic_facet"
      */
     public Set<String> getFacetTopics(final Record record) {
-        final Set<String> result = SolrIndexerShim.instance()
-            .getAllAlphaSubfields(record, "600x:610x:611x:630x:648x:650a:650x:651x:655x", " ");
+        final Set<String> result = getAllSubfieldsBut(record, "600x:610x:611x:630x:648x:650a:650x:651x:655x", '0');
         String topic_string;
         // Check 689 subfield a and d
         final List<VariableField> fields = record.getVariableFields("689");
