@@ -38,7 +38,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--timeout seconds] journal_list crossref_to_marc_mapping marc_output\n";
+    std::cerr << "Usage: " << ::progname << " [--timeout seconds] journal_list marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -49,86 +49,50 @@ void Usage() {
 class MapDescriptor {
 public:
     enum FieldType { STRING, AUTHOR_VECTOR, STRING_VECTOR };
-private:
+protected:
     std::string json_field_;
     FieldType field_type_;
     std::string marc_subfield_;
 public:
     MapDescriptor(const std::string &json_field, const FieldType field_type, const std::string &marc_subfield)
         : json_field_(json_field), field_type_(field_type), marc_subfield_(marc_subfield) { }
+    virtual ~MapDescriptor() { }
+    
     inline const std::string &getJsonField() const { return json_field_; }
     inline FieldType getFieldType() const { return field_type_; }
     inline const std::string &getMarcSubfield() const { return marc_subfield_; }
-
-    /** \return True if we found a matching field type, otherwise false. */
-    static bool MapStringToFieldType(const std::string &field_type_candidate, FieldType * const field_type);
+    virtual void insertMarcData(const std::string &subfield_value, MarcRecord * const record);
 };
 
 
-bool MapDescriptor::MapStringToFieldType(const std::string &field_type_candidate, FieldType * const field_type) {
-    if (field_type_candidate == "string") {
-        *field_type = STRING;
-        return true;
-    }
-
-    if (field_type_candidate == "author_vector") {
-        *field_type = AUTHOR_VECTOR;
-        return true;
-    }
-
-    if (field_type_candidate == "string_vector") {
-        *field_type = STRING_VECTOR;
-        return true;
-    }
-
-    return false;
+void MapDescriptor::insertMarcData(const std::string &subfield_value, MarcRecord * const record) {
+    const std::string tag(marc_subfield_.substr(0, DirectoryEntry::TAG_LENGTH));
+    const char subfield_code(marc_subfield_.back());
+    record->insertSubfield(tag, subfield_code, subfield_value);
 }
 
 
-void ParseSingleMapping(const std::string &line, const unsigned line_no, std::string * const json_field,
-                        MapDescriptor::FieldType * const field_type, std::string * const marc_subfield)
-{
-    const size_t arrow_start_pos(line.find("->"));
-    if (unlikely(arrow_start_pos == std::string::npos))
-        Error("Crossref-to-MARC mapping missing \"->\" on line #" + std::to_string(line_no) + "!");
+class DOIMapDescriptor: public MapDescriptor {
+public:
+    DOIMapDescriptor(): MapDescriptor("DOI", MapDescriptor::STRING, "024a") { }
+    virtual void insertMarcData(const std::string &subfield_value, MarcRecord * const record);
+};
 
-    *json_field = line.substr(0, arrow_start_pos - 1);
-    StringUtil::TrimWhite(json_field);
-    if (unlikely(json_field->empty()))
-        Error("Crossref-to-MARC mapping missing JSON field name on line #" + std::to_string(line_no) + "!");
 
-    std::vector<std::string> parts;
-    if (unlikely(StringUtil::SplitThenTrimWhite(line.substr(arrow_start_pos + 2), ',', &parts) != 2))
-        Error("Crossref-to-MARC mapping malformed line #" + std::to_string(line_no) + "!");
-
-    if (unlikely(not MapDescriptor::MapStringToFieldType(parts[0], field_type)))
-        Error("Crossref-to-MARC mapping contains invalid field type \"" + parts[0] + "\" on line #"
-              + std::to_string(line_no) + "!");
-
-    if (unlikely(parts[1].length() != 4))
-        Error("Crossref-to-MARC mapping contains a bad MARC-21 subfield specification \"" + parts[1] + "\" on line #"
-              + std::to_string(line_no) + "!");
-    *marc_subfield = parts[1];
+void DOIMapDescriptor::insertMarcData(const std::string &subfield_value, MarcRecord * const record) {
+    const std::string tag(marc_subfield_.substr(0, DirectoryEntry::TAG_LENGTH));
+    const char subfield_code(marc_subfield_.back());
+    record->insertField(tag, "7 \x1F" + std::string(1, subfield_code) + subfield_value + "\x1F""2doi");
 }
 
 
-void ParseCrossrefToMarcMapping(File * const input, std::vector<MapDescriptor> * const map_descriptors) {
-    unsigned line_no(0);
-    while (not input->eof()) {
-        std::string line;
-        input->getline(&line);
-        ++line_no;
-        StringUtil::Trim(&line);
-        if (line.empty())
-            continue;
-
-        std::string json_field, marc_subfield;
-        MapDescriptor::FieldType field_type;
-        ParseSingleMapping(line, line_no, &json_field, &field_type, &marc_subfield);
-        map_descriptors->emplace_back(json_field, field_type, marc_subfield);
-    }
-
-    std::cout << "Read " << map_descriptors->size() << " mappings from Crossref JSON fields to MARC-21 fields.\n";
+void InitCrossrefToMarcMapping(std::vector<MapDescriptor *> * const map_descriptors) {
+    map_descriptors->emplace_back(new MapDescriptor("URL", MapDescriptor::STRING, "856u"));
+    map_descriptors->emplace_back(new MapDescriptor("author", MapDescriptor::AUTHOR_VECTOR, "100a"));
+    map_descriptors->emplace_back(new MapDescriptor("title", MapDescriptor::STRING, "245a"));
+    map_descriptors->emplace_back(new MapDescriptor("publisher", MapDescriptor::STRING, "260a"));
+    map_descriptors->emplace_back(new MapDescriptor("ISSN", MapDescriptor::STRING_VECTOR, "022a"));
+    map_descriptors->emplace_back(new DOIMapDescriptor());
 }
 
 
@@ -223,7 +187,7 @@ std::vector<std::string> ExtractStringVector(const boost::property_tree::ptree &
 
 
 void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const boost::property_tree::ptree &message_tree,
-                              const std::vector<MapDescriptor> &map_descriptors)
+                              const std::vector<MapDescriptor *> &map_descriptors)
 {
     MarcRecord record;
     record.getLeader().setBibliographicLevel('a'); // We have an article.
@@ -232,24 +196,22 @@ void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const boost::prope
 
     for (const auto &map_descriptor : map_descriptors) {
         std::vector<std::string> field_values;
-        switch (map_descriptor.getFieldType()) {
+        switch (map_descriptor->getFieldType()) {
         case MapDescriptor::STRING:
-            field_values = ExtractString(message_tree, map_descriptor.getJsonField());
+            field_values = ExtractString(message_tree, map_descriptor->getJsonField());
             break;
         case MapDescriptor::AUTHOR_VECTOR:
-            field_values = ExtractAuthorVector(message_tree, map_descriptor.getJsonField());
+            field_values = ExtractAuthorVector(message_tree, map_descriptor->getJsonField());
             break;
         case MapDescriptor::STRING_VECTOR:
-            field_values = ExtractStringVector(message_tree, map_descriptor.getJsonField());
+            field_values = ExtractStringVector(message_tree, map_descriptor->getJsonField());
             break;
         default:
             Error("in CreateAndWriteMarcRecord: unexpected field type!");
         }
 
-        const std::string tag(map_descriptor.getMarcSubfield().substr(0, DirectoryEntry::TAG_LENGTH));
-        const char subfield_code(map_descriptor.getMarcSubfield().back());
         for (const auto field_value : field_values)
-            record.insertSubfield(tag, subfield_code, field_value);
+            map_descriptor->insertMarcData(field_value, &record);
     }
 
     marc_writer->write(record);
@@ -350,7 +312,7 @@ bool GetISSNAndJournalName(const std::string &line, std::string * const issn, st
 
 
 unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter * const marc_writer,
-                        const std::vector<MapDescriptor> &map_descriptors)
+                        const std::vector<MapDescriptor *> &map_descriptors)
 {
     std::string issn, journal_name;
     if (unlikely(not GetISSNAndJournalName(line, &issn, &journal_name)))
@@ -403,7 +365,7 @@ unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWri
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 4 and argc != 6)
+    if (argc != 3 and argc != 5)
         Usage();
 
     const unsigned DEFAULT_TIMEOUT(20); // seconds
@@ -415,21 +377,18 @@ int main(int argc, char *argv[]) {
         argv += 2;
     }
 
-    if (argc != 4)
+    if (argc != 3)
         Usage();
 
     const std::string journal_list_filename(argv[1]);
-    const std::string crossref_to_marc_mapping_filename(argv[2]);
-    const std::string marc_output_filename(argv[3]);
+    const std::string marc_output_filename(argv[2]);
 
     try {
         const std::unique_ptr<File> journal_list_file(FileUtil::OpenInputFileOrDie(journal_list_filename));
-        const std::unique_ptr<File> crossref_to_marc_mapping_file(
-            FileUtil::OpenInputFileOrDie(crossref_to_marc_mapping_filename));
         const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
 
-        std::vector<MapDescriptor> map_descriptors;
-        ParseCrossrefToMarcMapping(crossref_to_marc_mapping_file.get(), &map_descriptors);
+        std::vector<MapDescriptor *> map_descriptors;
+        InitCrossrefToMarcMapping(&map_descriptors);
 
         unsigned success_count(0), total_article_count(0);
         while (not journal_list_file->eof()) {
