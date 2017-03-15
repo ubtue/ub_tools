@@ -27,6 +27,7 @@
 #include "Compiler.h"
 #include "Downloader.h"
 #include "FileUtil.h"
+#include "HttpHeader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "MiscUtil.h"
@@ -348,30 +349,41 @@ bool GetISSNAndJournalName(const std::string &line, std::string * const issn, st
 }
 
 
-bool ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter * const marc_writer,
-                    const std::vector<MapDescriptor> &map_descriptors)
+unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter * const marc_writer,
+                        const std::vector<MapDescriptor> &map_descriptors)
 {
     std::string issn, journal_name;
     if (unlikely(not GetISSNAndJournalName(line, &issn, &journal_name)))
         Error("bad input line \"" + line + "\"!");
     std::cout << "Processing " << journal_name << '\n';
-    
-    std::string json_document;
-    if (Download("https://api.crossref.org/v1/journals/" + issn + "/works", timeout, &json_document) != 0)
-        return false;
-    json_document = UnescapeCrossRefJSON(json_document);
 
+    Downloader downloader("https://api.crossref.org/v1/journals/" + issn + "/works", Downloader::Params(),
+                          timeout * 1000);
+    if (downloader.anErrorOccurred()) {
+        std::cerr << "Error while downloading metadata for ISSN " << issn << ": " << downloader.getLastErrorMessage()
+                  << '\n';
+        return 0;
+    }
+
+    // Check for rate limiting and error status codes:
+    const HttpHeader http_header(downloader.getMessageHeader());
+    if (http_header.getStatusCode() != 200) {
+        Warning("Crossref returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "!");
+        return 0;
+    }
+
+    const std::string json_document(UnescapeCrossRefJSON(downloader.getMessageBody()));
     std::stringstream query_input(json_document, std::ios_base::in);
     boost::property_tree::ptree full_tree;
     boost::property_tree::json_parser::read_json(query_input, full_tree);
 
     const boost::property_tree::ptree::const_assoc_iterator message_iter(full_tree.find("message"));
     if (unlikely(message_iter == full_tree.not_found()))
-        return false;
+        return 0;
 
     const boost::property_tree::ptree::const_assoc_iterator items_iter(message_iter->second.find("items"));
     if (unlikely(items_iter == items_iter->second.not_found()))
-        return false;
+        return 0;
     
     unsigned document_count(0);
     for (const auto &item : items_iter->second) {
@@ -384,7 +396,7 @@ bool ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter 
         ++document_count;
     }
 
-    return document_count > 0;
+    return document_count;
 }
 
 
@@ -419,16 +431,23 @@ int main(int argc, char *argv[]) {
         std::vector<MapDescriptor> map_descriptors;
         ParseCrossrefToMarcMapping(crossref_to_marc_mapping_file.get(), &map_descriptors);
 
-        unsigned success_count(0);
+        unsigned success_count(0), total_article_count(0);
         while (not journal_list_file->eof()) {
             std::string line;
             journal_list_file->getline(&line);
             StringUtil::Trim(&line);
-            if (not line.empty() and ProcessJournal(timeout, line, marc_writer.get(), map_descriptors))
-                ++success_count;
+            if (not line.empty()) {
+                const unsigned article_count(ProcessJournal(timeout, line, marc_writer.get(), map_descriptors));
+                if (article_count > 0) {
+                    ++success_count;
+                    total_article_count += article_count;
+                }
+            }
         }
 
         std::cout << "Downloaded metadata for at least one article from " << success_count << " journals.\n";
+        std::cout << "The total number of artciles for which metadata was downloaded is " << total_article_count
+                  << ".\n";
         return success_count == 0 ? EXIT_FAILURE : EXIT_SUCCESS;
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
