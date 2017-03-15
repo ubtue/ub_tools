@@ -43,6 +43,135 @@ void Usage() {
 }
 
 
+class CrossRefDate {
+    unsigned year_, month_, day_;
+public:
+    CrossRefDate(const boost::property_tree::ptree &tree, const std::string &field);
+    bool isValid() const { return year_ != 0; }
+    bool operator<(const CrossRefDate &rhs) const;
+    std::string toString() const;
+};
+
+
+// Parses a JSON subtree that, should it exist looks like [[YYYY, MM, DD]] where the day as well as the
+// month may be missing.
+CrossRefDate::CrossRefDate(const boost::property_tree::ptree &tree, const std::string &field) {
+    boost::property_tree::ptree::const_assoc_iterator tree_iter(tree.find(field));
+    if (tree_iter == tree.not_found()) {
+        year_ = month_ = day_ = 0;
+        return;
+    }
+
+    auto nested_array_tree_iter(tree_iter->second.begin());
+    if (unlikely(nested_array_tree_iter == tree_iter->second.end()))
+        Error("in CrossRefDate::CrossRefDate: nested child of \"" + field + "\" does not exist!");
+
+    auto date_component_iter(nested_array_tree_iter->second.begin());
+    const auto &date_end(nested_array_tree_iter->second.end());
+    if (unlikely(date_component_iter == date_end))
+        Error("in CrossRefDate::CrossRefDate: year is missing for the \"" + field + "\" date field!");
+
+    if (unlikely(not StringUtil::ToUnsigned(date_component_iter->first, &year_)))
+        Error("in CrossRefDate::CrossRefDate: cannot convert year component \"" + date_component_iter->first
+              + "\" to an unsigned integer!");
+    if (unlikely(year_ < 1000 or year_ > 3000))
+        Error("in CrossRefDate::CrossRefDate: year component \"" + date_component_iter->first
+              + "\" is unlikely to be a year!");
+
+    ++date_component_iter;
+    if (date_component_iter == date_end) {
+        month_ = day_ = 0;
+        return;
+    }
+
+    if (unlikely(not StringUtil::ToUnsigned(date_component_iter->first, &month_)))
+        Error("in CrossRefDate::CrossRefDate: cannot convert month component \"" + date_component_iter->first
+              + "\" to an unsigned integer!");
+    if (unlikely(month_ < 1 or month_ > 12))
+        Error("in CrossRefDate::CrossRefDate: month component \"" + date_component_iter->first
+              + "\" is not a month!");
+
+    ++date_component_iter;
+    if (date_component_iter == date_end) {
+        day_ = 0;
+        return;
+    }
+
+    if (unlikely(not StringUtil::ToUnsigned(date_component_iter->first, &day_)))
+        Error("in CrossRefDate::CrossRefDate: cannot convert day component \"" + date_component_iter->first
+              + "\" to an unsigned integer!");
+    if (unlikely(day_ < 1 or day_ > 31))
+        Error("in CrossRefDate::CrossRefDate: day component \"" + date_component_iter->first
+              + "\" is not a day!");
+}
+
+
+bool CrossRefDate::operator<(const CrossRefDate &rhs) const {
+    if (rhs.year_ > year_)
+        return true;
+    if (year_ > rhs.year_)
+        return false;
+    if (rhs.month_ > month_)
+        return true;
+    if (month_ > rhs.month_)
+        return false;
+    return rhs.day_ > day_;
+}
+
+
+std::string CrossRefDate::toString() const {
+    if (month_ == 0)
+        return std::to_string(year_);
+
+    std::string month_as_string;
+    switch (month_) {
+    case 1:
+        month_as_string += "January";
+        break;
+    case 2:
+        month_as_string += "February";
+        break;
+    case 3:
+        month_as_string += "March";
+        break;
+    case 4:
+        month_as_string += "April";
+        break;
+    case 5:
+        month_as_string += "May";
+        break;
+    case 6:
+        month_as_string += "June";
+        break;
+    case 7:
+        month_as_string += "July";
+        break;
+    case 8:
+        month_as_string += "August";
+        break;
+    case 9:
+        month_as_string += "September";
+        break;
+    case 10:
+        month_as_string += "October";
+        break;
+    case 11:
+        month_as_string += "November";
+        break;
+    case 12:
+        month_as_string += "December";
+        break;
+    default:
+        Error("in CrossRefDate::toString: " + std::to_string(month_) + " is not a valid month!");
+    }
+    
+    if (day_ == 0)
+        return month_as_string + ", " + std::to_string(year_);
+
+    return month_as_string + " " + std::to_string(day_) + ", " + std::to_string(year_);
+}
+
+
 /** \class MapDescriptor
  *  \brief Describes a mapping from a Crossref JSON field to a MARC-21 field.
  */
