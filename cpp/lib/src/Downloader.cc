@@ -6,6 +6,7 @@
 /*
  *  Copyright 2008 Project iVia.
  *  Copyright 2008 The Regents of The University of California.
+ *  Copyright 2017 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -62,15 +63,17 @@ std::mutex *Downloader::dns_mutex_(nullptr);
 std::mutex *Downloader::cookie_mutex_(nullptr);
 std::mutex *Downloader::robots_dot_txt_mutex_(nullptr);
 std::unordered_map<std::string, RobotsDotTxt> Downloader::url_to_robots_dot_txt_map_;
+const std::string Downloader::DEFAULT_USER_AGENT_STRING("UB Tübingen C++ Downloader");
 const std::string Downloader::DEFAULT_ACCEPTABLE_LANGUAGES("en,eng,english");
 std::string Downloader::DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG("Disallowed by robots.txt.");
 std::string Downloader::default_user_agent_string_;
 
 
-Downloader::Params::Params(const std::string &user_agent, const std::string &acceptable_languages, const long max_redirect_count,
-                           const long dns_cache_timeout, const bool honour_robots_dot_txt,
-                           const TextTranslationMode text_translation_mode, const PerlCompatRegExps &banned_reg_exps,
-                           const bool debugging, const bool follow_redirects)
+Downloader::Params::Params(const std::string &user_agent, const std::string &acceptable_languages,
+                           const long max_redirect_count, const long dns_cache_timeout,
+                           const bool honour_robots_dot_txt, const TextTranslationMode text_translation_mode,
+                           const PerlCompatRegExps &banned_reg_exps, const bool debugging,
+                           const bool follow_redirects)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
       dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt),
       text_translation_mode_(text_translation_mode), banned_reg_exps_(banned_reg_exps), debugging_(debugging),
@@ -214,9 +217,9 @@ void Downloader::init() {
 
     last_error_message_.clear();
 
-    Downloader::InitCurlEasyHandle(params_.dns_cache_timeout_, error_buffer_, params_.debugging_, WriteFunction, LockFunction,
-                                    UnlockFunction, HeaderFunction, DebugFunction, &easy_handle_, &params_.user_agent_,
-                                   params_.follow_redirects_);
+    Downloader::InitCurlEasyHandle(params_.dns_cache_timeout_, error_buffer_, params_.debugging_, WriteFunction,
+                                   LockFunction, UnlockFunction, HeaderFunction, DebugFunction, &easy_handle_,
+                                   &params_.user_agent_, params_.follow_redirects_);
 
     if (not params_.acceptable_languages_.empty())
         additional_http_headers_ = curl_slist_append(additional_http_headers_,
@@ -235,8 +238,9 @@ void Downloader::init() {
 }
 
 
-void Downloader::InitCurlEasyHandle(const long dns_cache_timeout, const char * const error_buffer, const bool debugging,
-                                    WriteFunc write_func, LockFunc lock_func, UnlockFunc unlock_func, HeaderFunc header_func,
+void Downloader::InitCurlEasyHandle(const long dns_cache_timeout, const char * const error_buffer,
+                                    const bool debugging, WriteFunc write_func, LockFunc lock_func,
+                                    UnlockFunc unlock_func, HeaderFunc header_func,
                                     DebugFunc debug_func, CURL ** const easy_handle, std::string * const user_agent,
                                     const bool follow_redirects)
 {
@@ -295,8 +299,7 @@ void Downloader::InitCurlEasyHandle(const long dns_cache_timeout, const char * c
         throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (9)!");
 
     // User agent information:
-    const IniFile ini_file(ETC_DIR "/CachedPageFetcher.conf");
-    *user_agent = std::string(progname) + "/Downloader (" + ini_file.getString("User Agent", "default_url") + ")";
+    *user_agent = Downloader::DEFAULT_USER_AGENT_STRING;
     if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_USERAGENT, user_agent->c_str()) != CURLE_OK))
         throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (10)!");
 
@@ -491,10 +494,8 @@ const PerlCompatRegExps &Downloader::GetBannedUrlRegExps() {
 
 
 const std::string &Downloader::GetDefaultUserAgentString() {
-    if (default_user_agent_string_.empty()) {
-        IniFile ini_file(ETC_DIR "/CachedPageFetcher.conf");
-        default_user_agent_string_ = ini_file.getString("User Agent", "default_url");
-    }
+    if (default_user_agent_string_.empty())
+        default_user_agent_string_ = Downloader::DEFAULT_USER_AGENT_STRING;
 
     return default_user_agent_string_;
 }
@@ -522,7 +523,8 @@ bool Downloader::getHttpEquivRedirect(std::string * const redirect_url) const {
         return false;
 
     std::string delay, url_and_possible_junk;
-    if (not StringUtil::SplitOnStringThenTrimWhite(refresh_meta_tags.front().second, ";", &delay, &url_and_possible_junk))
+    if (not StringUtil::SplitOnStringThenTrimWhite(refresh_meta_tags.front().second, ";", &delay,
+                                                   &url_and_possible_junk))
         return false;
 
     const char * const url_and_equal_sign(::strcasestr(url_and_possible_junk.c_str(), "url="));
