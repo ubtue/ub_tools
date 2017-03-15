@@ -377,11 +377,11 @@ int main(int argc, char *argv[]) {
         argv += 2;
     }
 
-    if (argc != 4)
+    if (argc != 3)
         Usage();
 
     const std::string journal_list_filename(argv[1]);
-    const std::string marc_output_filename(argv[3]);
+    const std::string marc_output_filename(argv[2]);
 
     try {
         const std::unique_ptr<File> journal_list_file(FileUtil::OpenInputFileOrDie(journal_list_filename));
