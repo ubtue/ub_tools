@@ -1,5 +1,9 @@
 #!/bin/bash
 
+ENVIRONMENT_FILE=/etc/profile.d/vufind.sh
+source $ENVIRONMENT_FILE
+
+
 LOG_FILE=/var/log/ixtheo/set_tad_access_flag.log
 
 if [[ $# != 1 ]]; then
