@@ -43,19 +43,21 @@ void Usage() {
 }
 
 
-class CrossRefDate {
+class CrossrefDate {
     unsigned year_, month_, day_;
 public:
-    CrossRefDate(const boost::property_tree::ptree &tree, const std::string &field);
+    CrossrefDate(const boost::property_tree::ptree &tree, const std::string &field);
     bool isValid() const { return year_ != 0; }
-    bool operator<(const CrossRefDate &rhs) const;
+    unsigned getYear() const { return year_; }
+    unsigned getMonth() const { return month_; }
+    unsigned getDay() const { return day_; }
     std::string toString() const;
 };
 
 
 // Parses a JSON subtree that, should it exist looks like [[YYYY, MM, DD]] where the day as well as the
 // month may be missing.
-CrossRefDate::CrossRefDate(const boost::property_tree::ptree &tree, const std::string &field) {
+CrossrefDate::CrossrefDate(const boost::property_tree::ptree &tree, const std::string &field) {
     boost::property_tree::ptree::const_assoc_iterator tree_iter(tree.find(field));
     if (tree_iter == tree.not_found()) {
         year_ = month_ = day_ = 0;
@@ -64,19 +66,22 @@ CrossRefDate::CrossRefDate(const boost::property_tree::ptree &tree, const std::s
 
     auto nested_array_tree_iter(tree_iter->second.begin());
     if (unlikely(nested_array_tree_iter == tree_iter->second.end()))
-        Error("in CrossRefDate::CrossRefDate: nested child of \"" + field + "\" does not exist!");
+        Error("in CrossrefDate::CrossrefDate: nested child of \"" + field + "\" does not exist!");
+    auto nested_array_tree2_iter(nested_array_tree_iter->second.begin());
+    if (unlikely(nested_array_tree_iter == nested_array_tree_iter->second.end()))
+        Error("in CrossrefDate::CrossrefDate: inner nested child of \"" + field + "\" does not exist!");
 
-    auto date_component_iter(nested_array_tree_iter->second.begin());
-    const auto &date_end(nested_array_tree_iter->second.end());
+    auto date_component_iter(nested_array_tree2_iter->second.begin());
+    const auto &date_end(nested_array_tree2_iter->second.end());
     if (unlikely(date_component_iter == date_end))
-        Error("in CrossRefDate::CrossRefDate: year is missing for the \"" + field + "\" date field!");
+        Error("in CrossrefDate::CrossrefDate: year is missing for the \"" + field + "\" date field!");
 
-    if (unlikely(not StringUtil::ToUnsigned(date_component_iter->first, &year_)))
-        Error("in CrossRefDate::CrossRefDate: cannot convert year component \"" + date_component_iter->first
+    const std::string year_candidate(date_component_iter->second.data());
+    if (unlikely(not StringUtil::ToUnsigned(year_candidate, &year_)))
+        Error("in CrossrefDate::CrossrefDate: cannot convert year component \"" + year_candidate
               + "\" to an unsigned integer!");
     if (unlikely(year_ < 1000 or year_ > 3000))
-        Error("in CrossRefDate::CrossRefDate: year component \"" + date_component_iter->first
-              + "\" is unlikely to be a year!");
+        Error("in CrossrefDate::CrossrefDate: year component \"" + year_candidate + "\" is unlikely to be a year!");
 
     ++date_component_iter;
     if (date_component_iter == date_end) {
@@ -84,11 +89,11 @@ CrossRefDate::CrossRefDate(const boost::property_tree::ptree &tree, const std::s
         return;
     }
 
-    if (unlikely(not StringUtil::ToUnsigned(date_component_iter->first, &month_)))
-        Error("in CrossRefDate::CrossRefDate: cannot convert month component \"" + date_component_iter->first
+    if (unlikely(not StringUtil::ToUnsigned(date_component_iter->second.data(), &month_)))
+        Error("in CrossrefDate::CrossrefDate: cannot convert month component \"" + date_component_iter->first
               + "\" to an unsigned integer!");
     if (unlikely(month_ < 1 or month_ > 12))
-        Error("in CrossRefDate::CrossRefDate: month component \"" + date_component_iter->first
+        Error("in CrossrefDate::CrossrefDate: month component \"" + date_component_iter->first
               + "\" is not a month!");
 
     ++date_component_iter;
@@ -97,29 +102,16 @@ CrossRefDate::CrossRefDate(const boost::property_tree::ptree &tree, const std::s
         return;
     }
 
-    if (unlikely(not StringUtil::ToUnsigned(date_component_iter->first, &day_)))
-        Error("in CrossRefDate::CrossRefDate: cannot convert day component \"" + date_component_iter->first
+    if (unlikely(not StringUtil::ToUnsigned(date_component_iter->second.data(), &day_)))
+        Error("in CrossrefDate::CrossrefDate: cannot convert day component \"" + date_component_iter->first
               + "\" to an unsigned integer!");
     if (unlikely(day_ < 1 or day_ > 31))
-        Error("in CrossRefDate::CrossRefDate: day component \"" + date_component_iter->first
+        Error("in CrossrefDate::CrossrefDate: day component \"" + date_component_iter->first
               + "\" is not a day!");
 }
 
 
-bool CrossRefDate::operator<(const CrossRefDate &rhs) const {
-    if (rhs.year_ > year_)
-        return true;
-    if (year_ > rhs.year_)
-        return false;
-    if (rhs.month_ > month_)
-        return true;
-    if (month_ > rhs.month_)
-        return false;
-    return rhs.day_ > day_;
-}
-
-
-std::string CrossRefDate::toString() const {
+std::string CrossrefDate::toString() const {
     if (month_ == 0)
         return std::to_string(year_);
 
@@ -162,7 +154,7 @@ std::string CrossRefDate::toString() const {
         month_as_string += "December";
         break;
     default:
-        Error("in CrossRefDate::toString: " + std::to_string(month_) + " is not a valid month!");
+        Error("in CrossrefDate::toString: " + std::to_string(month_) + " is not a valid month!");
     }
     
     if (day_ == 0)
@@ -177,7 +169,7 @@ std::string CrossRefDate::toString() const {
  */
 class MapDescriptor {
 public:
-    enum FieldType { STRING, AUTHOR_VECTOR, STRING_VECTOR };
+    enum FieldType { STRING, AUTHOR_VECTOR, STRING_VECTOR, YEAR };
 protected:
     std::string json_field_;
     FieldType field_type_;
@@ -215,6 +207,21 @@ void DOIMapDescriptor::insertMarcData(const std::string &subfield_value, MarcRec
 }
 
 
+class YearMapDescriptor: public MapDescriptor {
+public:
+    YearMapDescriptor(const std::string &json_field, const std::string &marc_subfield)
+        : MapDescriptor(json_field, MapDescriptor::YEAR, marc_subfield) { }
+    virtual void insertMarcData(const std::string &subfield_value, MarcRecord * const record);
+};
+
+
+void YearMapDescriptor::insertMarcData(const std::string &subfield_value, MarcRecord * const record) {
+    const std::string tag(marc_subfield_.substr(0, DirectoryEntry::TAG_LENGTH));
+    const char subfield_code(marc_subfield_.back());
+    record->insertField(tag, "  \x1F" + std::string(1, subfield_code) + subfield_value + "\x1F""2doi");
+}
+
+
 void InitCrossrefToMarcMapping(std::vector<MapDescriptor *> * const map_descriptors) {
     map_descriptors->emplace_back(new MapDescriptor("URL", MapDescriptor::STRING, "856u"));
     map_descriptors->emplace_back(new MapDescriptor("author", MapDescriptor::AUTHOR_VECTOR, "100a"));
@@ -222,6 +229,7 @@ void InitCrossrefToMarcMapping(std::vector<MapDescriptor *> * const map_descript
     map_descriptors->emplace_back(new MapDescriptor("publisher", MapDescriptor::STRING, "260a"));
     map_descriptors->emplace_back(new MapDescriptor("ISSN", MapDescriptor::STRING_VECTOR, "022a"));
     map_descriptors->emplace_back(new DOIMapDescriptor());
+    map_descriptors->emplace_back(new YearMapDescriptor("issued", "936j"));
 }
 
 
@@ -315,6 +323,18 @@ std::vector<std::string> ExtractStringVector(const boost::property_tree::ptree &
 }
 
 
+std::vector<std::string> ExtractYear(const boost::property_tree::ptree &message_tree,
+                                     const std::string &json_field_name)
+{
+    std::vector<std::string> extracted_values;
+
+    const CrossrefDate crossref_date(message_tree, json_field_name);
+    extracted_values.emplace_back(std::to_string(crossref_date.getYear()));
+
+    return extracted_values;
+}
+
+
 void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const boost::property_tree::ptree &message_tree,
                               const std::vector<MapDescriptor *> &map_descriptors)
 {
@@ -334,6 +354,9 @@ void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const boost::prope
             break;
         case MapDescriptor::STRING_VECTOR:
             field_values = ExtractStringVector(message_tree, map_descriptor->getJsonField());
+            break;
+        case MapDescriptor::YEAR:
+            field_values = ExtractYear(message_tree, map_descriptor->getJsonField());
             break;
         default:
             Error("in CreateAndWriteMarcRecord: unexpected field type!");
@@ -458,7 +481,9 @@ unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWri
 
     // Check for rate limiting and error status codes:
     const HttpHeader http_header(downloader.getMessageHeader());
-    if (http_header.getStatusCode() != 200) {
+    if (http_header.getStatusCode() == 429)
+        Error("we got rate limited!");
+    else if (http_header.getStatusCode() != 200) {
         Warning("Crossref returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "!");
         return 0;
     }
@@ -534,7 +559,7 @@ int main(int argc, char *argv[]) {
         }
 
         std::cout << "Downloaded metadata for at least one article from " << success_count << " journals.\n";
-        std::cout << "The total number of artciles for which metadata was downloaded is " << total_article_count
+        std::cout << "The total number of articles for which metadata was downloaded is " << total_article_count
                   << ".\n";
         return success_count == 0 ? EXIT_FAILURE : EXIT_SUCCESS;
     } catch (const std::exception &e) {
