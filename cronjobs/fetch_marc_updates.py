@@ -59,19 +59,6 @@ def IncrementStringDate(yymmdd_string):
     return date.strftime("%y%m%d")
 
 
-def Login(ftp_host, ftp_user, ftp_passwd):
-    try:
-        ftp = FTP(host=ftp_host, timeout=120)
-    except Exception as e:
-        util.Error("failed to connect to FTP server! (" + str(e) + ")")
-
-    try:
-        ftp.login(user=ftp_user, passwd=ftp_passwd)
-    except Exception as e:
-        util.Error("failed to login to FTP server! (" + str(e) + ")")
-    return ftp
-
-
 def GetMostRecentFile(filename_regex, filename_generator):
     most_recent_date = "000000"
     most_recent_file = None
@@ -296,9 +283,9 @@ def Main():
         ftp_user   = config.get("FTP", "username")
         ftp_passwd = config.get("FTP", "password")
     except Exception as e:
-        util.Error("failed to read config file! ("+ str(e) + ")")
+        util.Error("failed to read config file! (" + str(e) + ")")
 
-    ftp = Login(ftp_host, ftp_user, ftp_passwd)
+    ftp = util.FTPLogin(ftp_host, ftp_user, ftp_passwd)
     msg = []
 
     download_cutoff_date = IncrementStringDate(GetCutoffDateForDownloads(config))
