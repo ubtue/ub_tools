@@ -156,7 +156,7 @@ std::string CrossrefDate::toString() const {
     default:
         Error("in CrossrefDate::toString: " + std::to_string(month_) + " is not a valid month!");
     }
-    
+
     if (day_ == 0)
         return month_as_string + ", " + std::to_string(year_);
 
@@ -178,7 +178,7 @@ public:
     MapDescriptor(const std::string &json_field, const FieldType field_type, const std::string &marc_subfield)
         : json_field_(json_field), field_type_(field_type), marc_subfield_(marc_subfield) { }
     virtual ~MapDescriptor() { }
-    
+
     inline const std::string &getJsonField() const { return json_field_; }
     inline FieldType getFieldType() const { return field_type_; }
     inline const std::string &getMarcSubfield() const { return marc_subfield_; }
@@ -200,25 +200,16 @@ public:
 };
 
 
-void DOIMapDescriptor::insertMarcData(const std::string &subfield_value, MarcRecord * const record) {
-    const std::string tag(marc_subfield_.substr(0, DirectoryEntry::TAG_LENGTH));
-    const char subfield_code(marc_subfield_.back());
-    record->insertField(tag, "7 \x1F" + std::string(1, subfield_code) + subfield_value + "\x1F""2doi");
+inline std::string CreateSubfield(const char subfield_code, const std::string &subfield_data) {
+    return "\x1F" + std::string(1, subfield_code) + subfield_data;
 }
 
 
-class YearMapDescriptor: public MapDescriptor {
-public:
-    YearMapDescriptor(const std::string &json_field, const std::string &marc_subfield)
-        : MapDescriptor(json_field, MapDescriptor::YEAR, marc_subfield) { }
-    virtual void insertMarcData(const std::string &subfield_value, MarcRecord * const record);
-};
-
-
-void YearMapDescriptor::insertMarcData(const std::string &subfield_value, MarcRecord * const record) {
+void DOIMapDescriptor::insertMarcData(const std::string &subfield_value, MarcRecord * const record) {
     const std::string tag(marc_subfield_.substr(0, DirectoryEntry::TAG_LENGTH));
     const char subfield_code(marc_subfield_.back());
-    record->insertField(tag, "  \x1F" + std::string(1, subfield_code) + subfield_value + "\x1F""2doi");
+    record->insertField(tag, "7 " + CreateSubfield(subfield_code, subfield_value)
+                        + CreateSubfield('2', "doi"));
 }
 
 
@@ -229,7 +220,6 @@ void InitCrossrefToMarcMapping(std::vector<MapDescriptor *> * const map_descript
     map_descriptors->emplace_back(new MapDescriptor("publisher", MapDescriptor::STRING, "260a"));
     map_descriptors->emplace_back(new MapDescriptor("ISSN", MapDescriptor::STRING_VECTOR, "022a"));
     map_descriptors->emplace_back(new DOIMapDescriptor());
-    map_descriptors->emplace_back(new YearMapDescriptor("issued", "936j"));
 }
 
 
@@ -323,15 +313,28 @@ std::vector<std::string> ExtractStringVector(const boost::property_tree::ptree &
 }
 
 
-std::vector<std::string> ExtractYear(const boost::property_tree::ptree &message_tree,
-                                     const std::string &json_field_name)
-{
-    std::vector<std::string> extracted_values;
+void AddIssueInfo(const boost::property_tree::ptree &message_tree, MarcRecord * const marc_record) {
+    std::string field_data;
+    const CrossrefDate issued_date(message_tree, "issued");
+    if (issued_date.getDay() != 0)
+        field_data += CreateSubfield('b', std::to_string(issued_date.getDay()));
+    if (issued_date.getMonth() != 0)
+        field_data += CreateSubfield('c', std::to_string(issued_date.getMonth()));
 
-    const CrossrefDate crossref_date(message_tree, json_field_name);
-    extracted_values.emplace_back(std::to_string(crossref_date.getYear()));
+    const std::string optional_volume(message_tree.get<std::string>("volume", ""));
+    if (not optional_volume.empty())
+        field_data += CreateSubfield('d', optional_volume);
 
-    return extracted_values;
+    const std::string optional_issue(message_tree.get<std::string>("issue", ""));
+    if (not optional_issue.empty())
+        field_data += CreateSubfield('e', optional_issue);
+
+    const std::string optional_page(message_tree.get<std::string>("page", ""));
+    if (not optional_page.empty())
+        field_data += CreateSubfield('h', optional_page);
+
+    field_data += CreateSubfield('j', std::to_string(issued_date.getYear()));
+    marc_record->insertField("936", "rv" + field_data);
 }
 
 
@@ -355,15 +358,13 @@ void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const boost::prope
         case MapDescriptor::STRING_VECTOR:
             field_values = ExtractStringVector(message_tree, map_descriptor->getJsonField());
             break;
-        case MapDescriptor::YEAR:
-            field_values = ExtractYear(message_tree, map_descriptor->getJsonField());
-            break;
         default:
             Error("in CreateAndWriteMarcRecord: unexpected field type!");
         }
 
         for (const auto field_value : field_values)
             map_descriptor->insertMarcData(field_value, &record);
+        AddIssueInfo(message_tree, &record);
     }
 
     marc_writer->write(record);
@@ -394,7 +395,7 @@ std::string UTF16EscapeToUTF8(std::string::const_iterator &cp, const std::string
         Error("in UTF16EscapeToUTF8: could not find expected '\\' as part of the 2nd half of a surrogate pair!");
     if (unlikely(cp == end or *cp++ != 'u'))
         Error("in UTF16EscapeToUTF8: could not find expected 'u' as part of the 2nd half of a surrogate pair!");
-    
+
     hex_codes.clear();
     for (unsigned i(0); i < 4; ++i) {
         if (unlikely(cp == end))
@@ -500,7 +501,7 @@ unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWri
     const boost::property_tree::ptree::const_assoc_iterator items_iter(message_iter->second.find("items"));
     if (unlikely(items_iter == items_iter->second.not_found()))
         return 0;
-    
+
     unsigned document_count(0);
     for (const auto &item : items_iter->second) {
         const boost::property_tree::ptree::const_assoc_iterator container_titles(
