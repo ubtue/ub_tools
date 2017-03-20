@@ -4,6 +4,7 @@
 
 from __future__ import print_function
 from email.mime.text import MIMEText
+from ftplib import FTP
 import ConfigParser
 import ctypes
 import datetime
@@ -344,3 +345,24 @@ def GetLogDirectory():
 def Touch(filename, times=None):
     with open(filename, "a"):
         os.utime(filename, times)
+
+
+def FTPLogin(ftp_host, ftp_user, ftp_passwd):
+    try:
+        ftp = FTP(host=ftp_host, timeout=120)
+    except Exception as e:
+        Error("failed to connect to FTP server! (" + str(e) + ")")
+
+    try:
+        ftp.login(user=ftp_user, passwd=ftp_passwd)
+    except Exception as e:
+        Error("failed to login to FTP server! (" + str(e) + ")")
+    return ftp
+
+
+def ExecOrDie(cmd_name, args, log_file_name):
+    if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
+                             new_stderr=log_file_name, append_stdout=True, append_stderr=True) == 0:
+        SendEmail("Create Refterm File",  "Failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name
+                  + "\" for the reason.", priority=1)
+        sys.exit(-1)
