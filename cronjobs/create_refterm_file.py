@@ -4,7 +4,6 @@
 import datetime
 import glob
 import os
-import process_util
 import struct
 import sys
 import tarfile
@@ -12,13 +11,6 @@ import traceback
 import re
 import urllib2
 import util
-
-
-def ExecOrDie(cmd_name, args, log_file_name):
-    if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
-                             new_stderr=log_file_name, append_stdout=True, append_stderr=True) == 0:
-        util.SendEmail("Create Refterm File",  "Failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name + "\" for the reason.", priority=1)
-        sys.exit(-1)
 
 
 def FoundNewBSZDataFile(link_filename):
@@ -32,7 +24,8 @@ def FoundNewBSZDataFile(link_filename):
 
 
 def ExtractRefDataMarcFile(gzipped_tar_archive, output_marc_file, log_file_name):
-    ExecOrDie("/usr/local/bin/extract_refterm_archive.sh", [gzipped_tar_archive, output_marc_file], log_file_name)
+    util.ExecOrDie("/usr/local/bin/extract_refterm_archive.sh", [gzipped_tar_archive, output_marc_file],
+                   log_file_name)
 
 
 def ExtractTitleDataMarcFile(link_name):
@@ -62,7 +55,7 @@ def RenameTitleDataFile(title_data_file_orig, date_string):
 
 def SetupTemporarySolrInstance(title_data_file, conf, log_file_name):
     # Setup a temporary solr instance in a ramdisk and import title data
-    ExecOrDie("/usr/local/bin/setup_refterm_solr.sh", [title_data_file], log_file_name)
+    util.ExecOrDie("/usr/local/bin/setup_refterm_solr.sh", [title_data_file], log_file_name)
 
 
 def CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name):
@@ -73,14 +66,16 @@ def CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name):
     ExtractRefDataMarcFile(ref_data_archive, ref_data_marc_file, log_file_name)
     ref_data_synonym_file = ref_data_base_filename + ".txt"
     # Make a refterm -> circumscription table file
-    ExecOrDie("/usr/local/bin/extract_referenceterms", [ref_data_marc_file, ref_data_synonym_file] , log_file_name)
+    util.ExecOrDie("/usr/local/bin/extract_referenceterms", [ref_data_marc_file, ref_data_synonym_file],
+                   log_file_name)
     # Create a file with a list of refterms and containing ids
-    ExecOrDie("/usr/local/bin/create_reference_import_file.sh", [ref_data_synonym_file, os.getcwd()], log_file_name)
+    util.ExecOrDie("/usr/local/bin/create_reference_import_file.sh", [ref_data_synonym_file, os.getcwd()],
+                   log_file_name)
 
 
 def CreateSerialSortDate(title_data_file, date_string, log_file_name):
     serial_ppn_sort_list = "Schriftenreihen-Sortierung-" + date_string + ".txt"
-    ExecOrDie("/usr/local/bin/query_serial_sort_data.sh", [title_data_file, serial_ppn_sort_list], log_file_name)
+    util.ExecOrDie("/usr/local/bin/query_serial_sort_data.sh", [title_data_file, serial_ppn_sort_list], log_file_name)
 
 
 def CreateLogFile():
@@ -88,7 +83,7 @@ def CreateLogFile():
 
 def CleanUp(title_data_file, log_file_name):
     # Terminate the temporary solr instance
-    ExecOrDie("/usr/local/bin/shutdown_refterm_solr.sh", [] , log_file_name)
+    util.ExecOrDie("/usr/local/bin/shutdown_refterm_solr.sh", [] , log_file_name)
     # Clean up temporary title data
     util.Remove(title_data_file)
 
