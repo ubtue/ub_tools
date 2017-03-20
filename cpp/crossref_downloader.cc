@@ -334,7 +334,7 @@ void AddIssueInfo(const boost::property_tree::ptree &message_tree, MarcRecord * 
         field_data += CreateSubfield('h', optional_page);
 
     field_data += CreateSubfield('j', std::to_string(issued_date.getYear()));
-    marc_record->insertField("936", "uw" + field_data);
+    marc_record->insertField("936", "rv" + field_data);
 }
 
 
