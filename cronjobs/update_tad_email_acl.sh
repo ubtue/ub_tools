@@ -22,6 +22,5 @@ Failed to download a new TAD email ACL from $DOWNLOAD_URL.
 END_OF_EMAIL
 elif ! diff --brief "$DOWNLOAD_DOCUMENT" "$TARGET_DOCUMENT" > /dev/null; then
     mv "$DOWNLOAD_DOCUMENT" "$TARGET_DOCUMENT"
+    /usr/local/bin/set_tad_access_flag --update-all-users
 fi
-
-/usr/local/bin/set_tad_access_flag --update-all-users
