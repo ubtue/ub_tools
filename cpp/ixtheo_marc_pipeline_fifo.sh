@@ -189,7 +189,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-StartPhase "Integrate Resasonable Sort Year for Serials"
+StartPhase "Integrate Reasonable Sort Year for Serials"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_publication_year_to_serials \
     Schriftenreihen-Sortierung-"${date}".txt \
@@ -204,8 +204,17 @@ StartPhase "Integrate Refterms"
 EndPhase || Abort) &
 wait
 
+
 StartPhase "Adding the Library Sigil to Articles Where Appropriate"
 (add_ub_sigil_to_articles --verbose \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+StartPhase "Tag PDA candidates"
+(augment_pda \
+    gvi_ppn_list-"${date}".txt \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
