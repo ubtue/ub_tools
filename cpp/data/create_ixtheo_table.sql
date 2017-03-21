@@ -35,7 +35,7 @@ CREATE TABLE ixtheo_pda_subscriptions (
 CREATE TABLE ixtheo_user (
        id INT(11) NOT NULL,
        user_type ENUM('ixtheo', 'relbib') DEFAULT 'ixtheo',
-       sex VARCHAR(64),
+       appellation VARCHAR(64),
        title VARCHAR(64),
        institution VARCHAR(256),
        country VARCHAR(256),
