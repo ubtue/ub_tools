@@ -2,7 +2,7 @@
  *  \brief  Utility functions etc. related to the sending of email messages.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,6 +31,9 @@ enum Priority { DO_NOT_SET_PRIORITY = 0, VERY_LOW = 5, LOW = 4, MEDIUM = 3, HIGH
 enum Format { PLAIN_TEXT, HTML };
 
 
+/** \note Please note that "sender" and "recipient" email addresses may either be regular email addresses or of the
+ *        form "Name<email_address>".
+ */
 bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
                const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
                const Format format = PLAIN_TEXT);
