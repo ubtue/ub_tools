@@ -42,10 +42,10 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port] user_type hostname\n"
+    std::cerr << "Usage: " << ::progname << " [--verbose] [solr_host_and_port] user_type hostname sender_email\n"
               << "  Sends out notification emails for journal subscribers.\n"
               << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
-              << "  \"user_type\" must be \"ixtheo\" or \"relbib\"."
+              << "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
               << "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
               << "  URL's that a user might see.\n\n";
     std::exit(EXIT_FAILURE);
@@ -89,8 +89,10 @@ bool ExtractNewIssueInfos(const std::string &json_document, std::vector<NewIssue
         const auto &id(document.second.get<std::string>("id"));
         const auto &issue_title(document.second.get<std::string>("title"));
         const auto &journal_issue_node(document.second.get_child_optional("journal_issue"));
-        const std::string journal_title_received(not journal_issue_node ? "" : document.second.get_child("journal_issue").equal_range("").first->second.get_value<std::string>());
-        const std::string journal_title(not journal_title_received.empty() ? journal_title_received : "*No Journal Title*");
+        const std::string journal_title_received(
+            not journal_issue_node ? "" : document.second.get_child("journal_issue").equal_range("").first->second.get_value<std::string>());
+        const std::string journal_title(
+            not journal_title_received.empty() ? journal_title_received : "*No Journal Title*");
         new_issue_infos->emplace_back(id, journal_title, issue_title);
 
         const auto &recording_date(document.second.get<std::string>("recording_date"));
@@ -121,8 +123,9 @@ bool GetNewIssues(const std::string &solr_host_and_port, const std::string &seri
 }
 
 
-void SendNotificationEmail(const std::string &firstname, const std::string &lastname, const std::string &email,
-                           const std::string &vufind_host, const std::vector<NewIssueInfo> &new_issue_infos)
+void SendNotificationEmail(const std::string &firstname, const std::string &lastname,
+                           const std::string &recipient_email, const std::string &vufind_host,
+                           const std::string &sender_email, const std::vector<NewIssueInfo> &new_issue_infos)
 {
     const std::string EMAIL_TEMPLATE_PATH("/var/lib/tuelib/subscriptions_email.template");
     std::string email_template;
@@ -146,15 +149,16 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
     std::ostringstream email_contents;
     MiscUtil::ExpandTemplate(input, email_contents, names_to_values_map);
 
-    if (unlikely(not EmailSender::SendEmail("notifications@ixtheo.de", email, "Ixtheo Subscriptions",
+    if (unlikely(not EmailSender::SendEmail(sender_email, recipient_email, "Ixtheo Subscriptions",
                                             email_contents.str(), EmailSender::DO_NOT_SET_PRIORITY,
                                             EmailSender::HTML)))
-        Error("failed to send a notification email to \"" + email + "\"!");
+        Error("failed to send a notification email to \"" + recipient_email + "\"!");
 }
 
 
 void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, const std::string &user_id,
                        const std::string &solr_host_and_port, const std::string &hostname,
+                       const std::string &sender_email,
                        std::vector<SerialControlNumberAndLastIssueDate> &control_numbers_and_last_issue_dates)
 {
     const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user WHERE id='" + user_id + "'");
@@ -188,7 +192,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
         std::cerr << "Found " << new_issue_infos.size() << " new issues for " << " \"" << username << "\".\n";
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(firstname, lastname, email, hostname, new_issue_infos);
+        SendNotificationEmail(firstname, lastname, email, hostname, sender_email, new_issue_infos);
 
     // Update the database with the new last issue dates.
     for (const auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
@@ -207,10 +211,11 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
 
 void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection,
                           const std::string &solr_host_and_port, const std::string &user_type,
-                          const std::string &hostname)
+                          const std::string &hostname, const std::string &sender_email)
 {
     const std::string SELECT_IDS_STMT("SELECT DISTINCT id FROM ixtheo_journal_subscriptions "
-                                      "WHERE id IN (SELECT id FROM ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
+                                      "WHERE id IN (SELECT id FROM ixtheo_user WHERE ixtheo_user.user_type = '"
+                                      + user_type  + "')");
     if (unlikely(not db_connection->query(SELECT_IDS_STMT)))
         Error("Select failed: " + SELECT_IDS_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
@@ -232,7 +237,7 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
                 row["journal_control_number"], row["last_issue_date"]));
             ++subscription_count;
         }
-        ProcessSingleUser(verbose, db_connection, user_id, solr_host_and_port, hostname,
+        ProcessSingleUser(verbose, db_connection, user_id, solr_host_and_port, hostname, sender_email,
                           control_numbers_and_last_issue_dates);
     }
 
@@ -244,12 +249,12 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc < 3)
+    if (argc < 4)
         Usage();
 
     bool verbose;
     if (std::strcmp("--verbose", argv[1]) == 0) {
-        if (argc < 4)
+        if (argc < 5)
             Usage();
         verbose = true;
         --argc, ++argv;
@@ -257,9 +262,9 @@ int main(int argc, char **argv) {
         verbose = false;
     
     std::string solr_host_and_port;
-    if (argc == 3)
+    if (argc == 4)
         solr_host_and_port = "localhost:8080";
-    else if (argc == 4) {
+    else if (argc == 5) {
         solr_host_and_port = argv[1];
         --argc, ++argv;
     } else
@@ -270,13 +275,14 @@ int main(int argc, char **argv) {
         Error("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
     
     const std::string hostname(argv[2]);
+    const std::string sender_email(argv[3]);
 
     try {
         std::string mysql_url;
         VuFind::GetMysqlURL(&mysql_url);
         DbConnection db_connection(mysql_url);
 
-        ProcessSubscriptions(verbose, &db_connection, solr_host_and_port, user_type, hostname);
+        ProcessSubscriptions(verbose, &db_connection, solr_host_and_port, user_type, hostname, sender_email);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
