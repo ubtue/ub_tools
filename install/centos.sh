@@ -21,7 +21,7 @@ yum -y install epel-release awk git mariadb mariadb-server httpd php php-devel p
 yum -y install php-mysql php-xsl php-gd php-mbstring php-mcrypt java-*-openjdk-devel mawk mod_ssl epel-release wget
 yum -y install policycoreutils-python curl-openssl mutt golang lsof clang gcc-c++.x86_64 file-devel pcre-devel
 yum -y install kyotocabinet-devel tokyocabinet-devel poppler-utils libwebp mariadb-devel.x86_64 libxml2-devel.x86_64
-yum -y install libcurl-openssl-devel.x86_64 ant lz4 unzip libarchive-devel boost-devel openssl-devel
+yum -y install libcurl-openssl-devel.x86_64 ant lz4 unzip libarchive-devel boost-devel openssl-devel cifs-utils
 systemctl start mariadb.service
 
 
