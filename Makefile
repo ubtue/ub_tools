@@ -15,6 +15,7 @@ install:
 	$(MAKE) -C solr_plugins install;
 	$(MAKE) -C solrmarc_mixin install;
 	$(MAKE) -C cronjobs install
+	$(MAKE) -C git_helpers install
 
 clean: 
 	$(MAKE) -C cpp/lib/mkdep clean;
