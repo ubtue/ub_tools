@@ -160,7 +160,7 @@ bool IsDirectory(const std::string &dir_name);
  *  \param  mode       The access permission for the directory/directories that will be created.
  *  \return True if the directory already existed or has been created else false.
  */
-bool MakeDirectory(const std::string &path, const bool recursive = false, const mode_t mode = 0775);
+bool MakeDirectory(const std::string &path, const bool recursive = false, const mode_t mode = 0755);
 
 
 /** \brief  Recursively delete a directory and all the files and subdirectories contained in it.

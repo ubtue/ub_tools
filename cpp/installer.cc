@@ -98,6 +98,9 @@ bool FileContainsLineStartingWith(const std::string &path, const std::string &pr
 
 
 void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
+    const std::string MOUNT_POINT("/mnt/ZE020150/");
+    if (not FileUtil::MakeDirectory(MOUNT_POINT))
+        Error("failed to create mount point \"" + MOUNT_POINT + "\"!");
     const std::string role_account(vufind_system_type == KRIMDOK ? "qubob15" : "qubob16");
     const std::string password(GetPassword("Enter password for " + role_account));
     const std::string credentials_file("/root/.smbcredentials");
@@ -106,10 +109,10 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
         Error("failed to write " + credentials_file + "!");
     if (not FileContainsLineStartingWith("/etc/fstab", "//sn00.zdv.uni-tuebingen.de/ZE020150"))
         FileUtil::AppendStringToFile("/etc/fstab",
-                                     "//sn00.zdv.uni-tuebingen.de/ZE020150 /mnt/ZE020150 cifs "
+                                     "//sn00.zdv.uni-tuebingen.de/ZE020150 " + MOUNT_POINT + " cifs "
                                      "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
                                      "gid=root,auto 0 0");
-    ExecOrDie("/bin/mount", { "/mnt/ZE020150/" });
+    ExecOrDie("/bin/mount", { MOUNT_POINT });
     Echo("Successfully mounted the department drive.");
 }
 
