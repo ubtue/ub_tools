@@ -69,6 +69,8 @@ char HexDigit(const unsigned value);
  */
 void ExpandTemplate(std::istream &input, std::ostream &output,
                     const std::map<std::string, std::vector<std::string>> &names_to_values_map);
+std::string ExpandTemplate(const std::string &template_string,
+                           const std::map<std::string, std::vector<std::string>> &names_to_values_map);
 
 
 /** Given a Pica Production Number w/o the checksum digit, this function will return said digit. */

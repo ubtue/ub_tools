@@ -29,6 +29,7 @@
 #include "MiscUtil.h"
 #include <map>
 #include <set>
+#include <sstream>
 #include <stack>
 #include <stdexcept>
 #include <cctype>
@@ -685,7 +686,8 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
             }
             const unsigned start_line_no(scanner.getLineNo());
             if (likely(loop_count > 0))
-                scopes.push_back(Scope::MakeLoopScope(start_line_no, scanner.getInputStreamPos(), loop_vars, loop_count));
+                scopes.push_back(Scope::MakeLoopScope(start_line_no, scanner.getInputStreamPos(), loop_vars,
+                                                      loop_count));
             else
                 SkipToToken(&scanner, TemplateScanner::ENDLOOP);
 
@@ -729,6 +731,16 @@ void ExpandTemplate(std::istream &input, std::ostream &output,
                                  + std::to_string(scanner.getLineNo()) + ": LOOP started on line "
                                  + std::to_string(scope.getStartLineNumber()) + " was never closed!");
     }
+}
+
+
+std::string ExpandTemplate(const std::string &template_string,
+                           const std::map<std::string, std::vector<std::string>> &names_to_values_map)
+{
+    std::istringstream input(template_string);
+    std::ostringstream expanded_template;
+    ExpandTemplate(input, expanded_template, names_to_values_map);
+    return expanded_template.str();
 }
 
 
