@@ -21,6 +21,7 @@
 #include "Compiler.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -60,6 +61,16 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &argum
     int exit_code;
     if ((exit_code = ExecUtil::Exec(command, arguments, "", new_stdin, new_stdout)) != 0)
         Error("Failed to execute \"" + command + "\"! (exit code was " + std::to_string(exit_code) + ")");
+}
+
+
+const std::string UB_TOOLS_DIRECTORY("/usr/local/ub_tools");
+
+
+void ChangeDirectoryOrDie(const std::string &new_working_directory) {
+    if (::chdir(new_working_directory.c_str()) != 0)
+        Error("failed to set the new working directory to \"" + new_working_directory + "\"! ("
+              + std::string(::strerror(errno)) + ")");
 }
 
 
@@ -103,106 +114,10 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
 }
 
 
-void ExecuteCommandSequence(
-    const std::vector<std::pair<std::string, std::vector<std::string>>> &commands_and_arguments)
-{
-    for (const auto &command_and_arguments : commands_and_arguments)
-        ExecOrDie(command_and_arguments.first, command_and_arguments.second);
-}
-
-
-inline std::pair<std::string, std::vector<std::string>> CmdAndArgs(const std::string &command,
-                                                                   const std::vector<std::string> &arguments)
-{
-    return std::pair<std::string, std::vector<std::string>>(command, arguments);
-}
-
-
-void InstallUbuntuSoftwarePackages(const VuFindSystemType vufind_system_type) {
-    const std::vector<std::pair<std::string, std::vector<std::string>>> &commands_and_arguments {
-        CmdAndArgs("/usr/bin/add-apt-repository", { "--yes", "ppa:ubuntu-lxc/lxd-stable" }),
-        CmdAndArgs("/usr/bin/apt", { "update" }),
-        CmdAndArgs(
-            "/usr/bin/apt",
-            { "install", "--yes", "clang", "golang", "wget", "curl", "git", "apache2", "libapache2-mod-gnutls",
-                    "mysql-server", "php7.0", "php7.0-dev", "php-pear", "php7.0-json", "php7.0-ldap", "php7.0-mcrypt",
-              "php7.0-mysql", "php7.0-xsl", "php7.0-intl", "php7.0-gd", "libapache2-mod-php7.0", "composer",
-              "openjdk-8-jdk", "libmagic-dev", "libpcre3-dev", "libssl-dev", "libkyotocabinet-dev", "mutt",
-              "libxml2-dev", "libmysqlclient-dev", "libcurl4-openssl-dev", "ant", "libtokyocabinet-dev",
-              "liblz4-tool", "libarchive-dev", "libboost-all-dev", "clang-3.8", "clang++-3.8", "clang", "golang" }),
-        CmdAndArgs("/usr/sbin/a2enmod", { "rewrite" }),
-        CmdAndArgs("/usr/sbin/phpenmod", { "mcrypt" }),
-        CmdAndArgs("/etc/init.d/apache2", { "restart" }),
-//        CmdAndArgs("mysql_secure_installation", {  }),
-    };
-    ExecuteCommandSequence(commands_and_arguments);
-
-    // If installing a KrimDok system we need tesseract:
-    if (vufind_system_type == KRIMDOK)
-        ExecOrDie("/usr/bin/apt", { "install", "--yes", "tesseract-ocr-all" });
-}
-
-
-void InstallCentOSSoftwarePackages(const VuFindSystemType vufind_system_type) {
-    const std::vector<std::pair<std::string, std::vector<std::string>>> &commands_and_arguments {
-        CmdAndArgs("/bin/yum", { "update" }),
-        CmdAndArgs("/bin/yum", { "-y", "install", "epel-release" }),
-        CmdAndArgs(
-            "/bin/yum",
-            { "-y", "install", "mawk", "git", "mariadb", "mariadb-server", "httpd", "php", "php-devel", "php-mcrypt",
-              "php-intl", "php-ldap", "php-mysql", "php-xsl", "php-gd", "php-mbstring", "php-mcrypt",
-              "java-*-openjdk-devel", "mawk", "mod_ssl", "epel-release", "wget", "policycoreutils-python" }),
-        CmdAndArgs("systemctl", { "start", "mariadb.service" }),
-        CmdAndArgs("mysql_secure_installation", {  }),
-        CmdAndArgs(
-            "/bin/wget",
-            { "http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo",
-              "--directory-prefix=/etc/yum.repos.d/" }),
-        CmdAndArgs(
-            "/bin/yum",
-            { "-y", "install", "curl-openssl", "mutt", "golang", "lsof", "clang", "gcc-c++.x86_64", "file-devel",
-              "pcre-devel", "openssl-devel", "kyotocabinet-devel", "tokyocabinet-devel", "poppler-utils", "libwebp",
-              "mariadb-devel.x86_64", "libxml2-devel.x86_64", "libcurl-openssl-devel.x86_64", "ant", "lz4", "unzip",
-              "libarchive-devel", "boost-devel" }),
-        CmdAndArgs(
-            "/bin/ln",
-            { "-s", "/usr/share/tessdata/deu.traineddata", "/usr/share/tesseract/tessdata/deu.traineddata" }),
-    };
-    ExecuteCommandSequence(commands_and_arguments);
-
-    if (vufind_system_type == KRIMDOK) {
-        std::vector<std::string> rpm_package_install_args;
-        FileUtil::GetFileNameList("*.\\\\.rpm", &rpm_package_install_args,
-                                  "/mnt/ZE020150/IT-Abteilung/02_Projekte/11_KrimDok_neu/05_Pakete/");
-        rpm_package_install_args.insert(rpm_package_install_args.begin(), "-y");
-        rpm_package_install_args.insert(rpm_package_install_args.begin(), "install");
-        ExecOrDie("/bin/yum", rpm_package_install_args);
-    }
-}
-
-
-void InstallSoftwarePackages(const OSSystemType os_system_type, const VuFindSystemType vufind_system_type) {
-    if (os_system_type == UBUNTU)
-        InstallUbuntuSoftwarePackages(vufind_system_type);
-    else
-        InstallCentOSSoftwarePackages(vufind_system_type);
-    Echo("Installed system software packages.");
-}
-
-
-void ChangeDirectoryOrDie(const std::string &new_working_directory) {
-    if (::chdir(new_working_directory.c_str()) != 0)
-        Error("failed to set the new working directory to \"" + new_working_directory + "\"! ("
-              + std::string(::strerror(errno)) + ")");
-}
-
-
-const std::string UB_TOOLS_DIRECTORY("/usr/local/ub_tools");
-
-
-void DownloadUBTools() {
-    ExecOrDie(ExecUtil::Which("git"), { "clone", "https://github.com/ubtue/ub_tools.git", UB_TOOLS_DIRECTORY });
-    Echo("Downloaded VuFind git repository.");
+void InstallUBToolsSubmodules() {
+    ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
+    ExecOrDie(ExecUtil::Which("git"), { "submodule", "update", "--init", "--recursive" });
+    Echo("Installed ub_tools submodules.");
 }
 
 
@@ -254,14 +169,34 @@ static char ixtheo_cronjobs[] =
     "0 4 * * * cd \"$BSZ_DATEN\" && \"$BIN/create_refterm_file.py\" \"$EMAIL\" 2>&1\n"
     "0 5 * * * cd \"$BSZ_DATEN\" && \"$BIN/initiate_marc_pipeline.py\" \"$EMAIL\" "
         "\"$BIN/ixtheo_marc_pipeline_fifo.sh\" > $LOG_DIR/initiate_marc_pipeline.log 2>&1\n"
-    "0 22 * * * $BIN/new_journal_alert ixtheo ixtheo-test.de\n"
-    "0 23 * * * $BIN/new_journal_alert relbib test.relbib.de\n"
+    "0 22 * * * $BIN/new_journal_alert ixtheo {ixtheo_host} \"IxTheo Team<ixtheo-noreply@uni-tuebingen.de\" "
+        "\"IxTheo Subscriptions\"\n"
+    "0 23 * * * $BIN/new_journal_alert relbib {relbib_host} ""\"Relbib Team<relbib-noreply@uni-tuebingen.de>\" "
+        "\"RelBib Subscriptions\"\n"
     "0 24 * * * $BIN/update_tad_email_acl.sh \"$EMAIL\"\n"
     "0 21 * * 7 $VUFIND_HOME/solr.sh restart\n"
 ;
 
 
+std::string GetStringFromTerminal(const std::string &prompt) {
+    std::cout << prompt << " >";
+    std::string input;
+    std::getline(std::cin, input);
+    return StringUtil::TrimWhite(&input);
+}
+
+
 void InstallCronjobs(const VuFindSystemType vufind_system_type) {
+    std::map<std::string, std::vector<std::string>> names_to_values_map;
+    if (vufind_system_type == IXTHEO) {
+        names_to_values_map.insert(
+            std::make_pair<std::string, std::vector<std::string>>(
+                "ixtheo_host", { GetStringFromTerminal("IxTheo Hostname") }));
+        names_to_values_map.insert(
+            std::make_pair<std::string, std::vector<std::string>>(
+                "relbib_host", { GetStringFromTerminal("RelBib Hostname") }));
+    }
+    
     FileUtil::AutoTempFile crontab_temp_file1;
     ExecOrDie(ExecUtil::Which("crontab"), { "-l" }, "", crontab_temp_file1.getFilePath());
     FileUtil::AutoTempFile crontab_temp_file2;
@@ -273,7 +208,7 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
     if (vufind_system_type == KRIMDOK)
         cronjobs += krimdok_cronjobs;
     else
-        cronjobs += ixtheo_cronjobs;
+        cronjobs += MiscUtil::ExpandTemplate(ixtheo_cronjobs, names_to_values_map);
     cronjobs += "# END VUFIND AUTOGENERATE\n";
     FileUtil::AppendStringToFile(crontab_temp_file2.getFilePath(), cronjobs);
     ExecOrDie(ExecUtil::Which("crontab"), { crontab_temp_file2.getFilePath() });
@@ -306,12 +241,11 @@ int main(int argc, char **argv) {
     else
         Error("system type must be either \"krimdok\" or \"ixtheo\"!");
 
-    const OSSystemType os_system_type(DetermineOSSystemType());
+    //const OSSystemType os_system_type(DetermineOSSystemType());
 
     try {
-        InstallSoftwarePackages(os_system_type, vufind_system_type);
-        DownloadUBTools();
         MountDeptDriveOrDie(vufind_system_type);
+        InstallUBToolsSubmodules();
         InstallUBTools();
         InstallCronjobs(vufind_system_type);
         InstallVuFind(vufind_system_type);
