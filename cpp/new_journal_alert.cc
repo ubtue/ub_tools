@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016,2017 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -78,8 +78,8 @@ public:
 
 
 /** \return True if new issues were found, false o/w. */
-bool ExtractNewIssueInfos(const std::string &json_document, std::vector<NewIssueInfo> * const new_issue_infos,
-                          std::string * const max_last_issue_date)
+bool ExtractNewIssueInfos(const std::string &query, const std::string &json_document,
+                          std::vector<NewIssueInfo> * const new_issue_infos, std::string * const max_last_issue_date)
 {
     std::stringstream input(json_document, std::ios_base::in);
     boost::property_tree::ptree property_tree;
@@ -87,11 +87,15 @@ bool ExtractNewIssueInfos(const std::string &json_document, std::vector<NewIssue
 
     bool found_at_least_one_new_issue(false);
     for (const auto &document : property_tree.get_child("response.docs.")) {
-        const auto &id(document.second.get<std::string>("id"));
-        const auto &issue_title(document.second.get<std::string>("title"));
-        const auto &journal_issue_node(document.second.get_child_optional("journal_issue"));
+        const auto id(document.second.get<std::string>("id", ""));
+        if (unlikely(id.empty()))
+            Error("Did not find 'id' node in JSON, query was " + query);
+        const auto issue_title(document.second.get<std::string>("title", ""));
+        if (unlikely(issue_title.empty()))
+            Error("Did not find 'title' node in JSON, query was " + query);
+        const auto journal_issue(document.second.get_child_optional("journal_issue"));
         const std::string journal_title_received(
-            not journal_issue_node ? "" : document.second.get_child("journal_issue").equal_range("").first->second.get_value<std::string>());
+            not journal_issue ? "" : document.second.get_child("journal_issue").equal_range("").first->second.get_value<std::string>());
         const std::string journal_title(
             not journal_title_received.empty() ? journal_title_received : "*No Journal Title*");
         new_issue_infos->emplace_back(id, journal_title, issue_title);
@@ -120,7 +124,7 @@ bool GetNewIssues(const std::string &solr_host_and_port, const std::string &seri
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         Error("Solr query failed or timed-out: \"" + QUERY + "\".");
 
-    return ExtractNewIssueInfos(json_result, new_issue_infos, max_last_issue_date);
+    return ExtractNewIssueInfos(QUERY, json_result, new_issue_infos, max_last_issue_date);
 }
 
 
