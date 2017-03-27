@@ -54,6 +54,11 @@ SetupRamdisk() {
         fi
     fi
 
+    # Make sure the partition table is not garbled from a previous read
+    if ! partprobe /dev/zram0; then
+        ErrorExit 'Failed to reread partition table'
+    fi
+
     # Create a file system in RAM...
     if ! mkfs.ext4 -q -m 0 -b 4096 -O sparse_super -L zram /dev/zram0; then
         ErrorExit 'Failed to create an Ext4 file system in RAM!'
