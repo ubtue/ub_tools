@@ -32,7 +32,7 @@ enum Format { PLAIN_TEXT, HTML };
 
 
 /** \note Please note that "sender" and "recipient" email addresses may either be regular email addresses or of the
- *        form "Name<email_address>".
+ *        form "Name<email_address>".  Also "subject" and "message_body" are assumed to be in UTF-8,
  */
 bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
                const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
