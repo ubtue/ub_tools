@@ -1030,6 +1030,30 @@ public class TuelibMixin extends SolrIndexerMixin {
         return iso8601_date.toString();
     }
 
+    /**
+     * @brief Extracts the date and time from the 005 field.
+     */
+    public String getLastModificationTime(final Record record) {
+        final ControlField _005_field = (ControlField) record.getVariableField("005");
+        final String fieldContents = _005_field.getData();
+
+        final StringBuilder iso8601_date = new StringBuilder(19);
+        iso8601_date.append(fieldContents.substring(0, 4));
+        iso8601_date.append('-');
+        iso8601_date.append(fieldContents.substring(4, 6));
+        iso8601_date.append('-');
+        iso8601_date.append(fieldContents.substring(6, 8));
+        iso8601_date.append('T');
+        iso8601_date.append(fieldContents.substring(8, 10));
+        iso8601_date.append(':');
+        iso8601_date.append(fieldContents.substring(10, 12));
+        iso8601_date.append(':');
+        iso8601_date.append(fieldContents.substring(12, 14));
+        iso8601_date.append('Z');
+
+        return iso8601_date.toString();
+    }
+
     public Set<String> getGenre(final Record record, final String fieldSpecs) {
         final Set<String> genres = getValuesOrUnassigned(record, fieldSpecs);
 
