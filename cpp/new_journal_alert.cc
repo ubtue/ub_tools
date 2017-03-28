@@ -90,12 +90,10 @@ bool ExtractNewIssueInfos(const std::string &query, const std::string &json_docu
         const auto id(document.second.get<std::string>("id", ""));
         if (unlikely(id.empty()))
             Error("Did not find 'id' node in JSON, query was " + query);
-        const auto issue_title(document.second.get<std::string>("title", ""));
-        if (unlikely(issue_title.empty()))
-            {
-                FileUtil::WriteString("/tmp/new_journal_alert.json", json_document);
-            Error("Did not find 'title' node in JSON, 'id' was " + id + ", query was " + query);
-            }
+        const std::string NO_AVAILABLE_TITLE("*No available title*");
+        const auto issue_title(document.second.get<std::string>("title", NO_AVAILABLE_TITLE));
+        if (unlikely(issue_title == NO_AVAILABLE_TITLE))
+            Warning("No title found for ID " + id + "!");
         const auto journal_issue(document.second.get_child_optional("journal_issue"));
         const std::string journal_title_received(
             not journal_issue ? "" : document.second.get_child("journal_issue").equal_range("").first->second.get_value<std::string>());
