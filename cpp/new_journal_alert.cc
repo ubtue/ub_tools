@@ -21,12 +21,14 @@
 */
 
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <vector>
 #include <cstdlib>
 #include <cstring>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <kchashdb.h>
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
@@ -36,6 +38,7 @@
 #include "MiscUtil.h"
 #include "Solr.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "UrlUtil.h"
 #include "util.h"
 #include "VuFind.h"
@@ -53,15 +56,17 @@ void Usage() {
 }
 
 
-struct SerialControlNumberAndLastIssueDate {
+struct SerialControlNumberAndMaxLastModificationTime {
     std::string serial_control_number_;
-    std::string last_issue_date_;
+    std::string last_modification_time_;
     bool changed_;
 public:
-    SerialControlNumberAndLastIssueDate(const std::string &serial_control_number, const std::string &last_issue_date)
-        : serial_control_number_(serial_control_number), last_issue_date_(last_issue_date), changed_(false) { }
-    inline void setLastIssueDate(const std::string &new_last_issue_date)
-        { last_issue_date_ = new_last_issue_date; changed_ = true; }
+    SerialControlNumberAndMaxLastModificationTime(const std::string &serial_control_number,
+                                                  const std::string &last_modification_time)
+        : serial_control_number_(serial_control_number), last_modification_time_(last_modification_time),
+          changed_(false) { }
+    inline void setMaxLastModificationTime(const std::string &new_last_modification_time)
+        { last_modification_time_ = new_last_modification_time; changed_ = true; }
     inline bool changed() const { return changed_; }
 };
 
@@ -70,7 +75,7 @@ struct NewIssueInfo {
     std::string control_number_;
     std::string journal_title_;
     std::string issue_title_;
-    std::string last_issue_date_;
+    std::string last_modification_time_;
 public:
     NewIssueInfo(const std::string &control_number, const std::string &journal_title, const std::string &issue_title)
         : control_number_(control_number), journal_title_(journal_title), issue_title_(issue_title) { }
@@ -78,8 +83,10 @@ public:
 
 
 /** \return True if new issues were found, false o/w. */
-bool ExtractNewIssueInfos(const std::string &query, const std::string &json_document,
-                          std::vector<NewIssueInfo> * const new_issue_infos, std::string * const max_last_issue_date)
+bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+                          std::unordered_set<std::string> * const new_notification_ids, const std::string &query,
+                          const std::string &json_document, std::vector<NewIssueInfo> * const new_issue_infos,
+                          std::string * const max_last_modification_time)
 {
     std::stringstream input(json_document, std::ios_base::in);
     boost::property_tree::ptree property_tree;
@@ -90,20 +97,26 @@ bool ExtractNewIssueInfos(const std::string &query, const std::string &json_docu
         const auto id(document.second.get<std::string>("id", ""));
         if (unlikely(id.empty()))
             Error("Did not find 'id' node in JSON, query was " + query);
+        if (notified_db->check(id) > 0)
+            continue; // We sent a notification for this issue.
+
+        new_notification_ids->insert(id);
         const std::string NO_AVAILABLE_TITLE("*No available title*");
         const auto issue_title(document.second.get<std::string>("title", NO_AVAILABLE_TITLE));
         if (unlikely(issue_title == NO_AVAILABLE_TITLE))
             Warning("No title found for ID " + id + "!");
         const auto journal_issue(document.second.get_child_optional("journal_issue"));
         const std::string journal_title_received(
-            not journal_issue ? "" : document.second.get_child("journal_issue").equal_range("").first->second.get_value<std::string>());
+            not journal_issue ? ""
+                              : document.second.get_child("journal_issue").equal_range("").first
+                                    ->second.get_value<std::string>());
         const std::string journal_title(
             not journal_title_received.empty() ? journal_title_received : "*No Journal Title*");
         new_issue_infos->emplace_back(id, journal_title, issue_title);
 
-        const auto &recording_date(document.second.get<std::string>("recording_date"));
-        if (recording_date > *max_last_issue_date) {
-            *max_last_issue_date = recording_date;
+        const auto &last_modification_time(document.second.get<std::string>("last_modification_time"));
+        if (last_modification_time > *max_last_modification_time) {
+            *max_last_modification_time = last_modification_time;
             found_at_least_one_new_issue = true;
         }
     }
@@ -112,20 +125,22 @@ bool ExtractNewIssueInfos(const std::string &query, const std::string &json_docu
 }
 
 
-bool GetNewIssues(const std::string &solr_host_and_port, const std::string &serial_control_number,
-                  std::string last_issue_date, std::vector<NewIssueInfo> * const new_issue_infos,
-                  std::string * const max_last_issue_date)
+bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+                  std::unordered_set<std::string> * const new_notification_ids, const std::string &solr_host_and_port,
+                  const std::string &serial_control_number, std::string last_modification_time,
+                  std::vector<NewIssueInfo> * const new_issue_infos, std::string * const max_last_modification_time)
 {
-    if (not StringUtil::EndsWith(last_issue_date, "Z"))
-        last_issue_date += "T00:00:00Z"; // Solr does not support the short form of the ISO 8601 date formats.
-    const std::string QUERY("superior_ppn:" + serial_control_number + " AND recording_date:{" + last_issue_date
-                            + " TO *}");
+    if (not StringUtil::EndsWith(last_modification_time, "Z"))
+        last_modification_time += "T00:00:00Z"; // Solr does not support the short form of the ISO 8601 date formats.
+    const std::string QUERY("superior_ppn:" + serial_control_number + " AND last_modification_time:{"
+                            + last_modification_time + " TO *}");
     std::string json_result;
-    if (unlikely(not Solr::Query(QUERY, "id,title,recording_date,journal_issue", &json_result,
+    if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,journal_issue", &json_result,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         Error("Solr query failed or timed-out: \"" + QUERY + "\".");
 
-    return ExtractNewIssueInfos(QUERY, json_result, new_issue_infos, max_last_issue_date);
+    return ExtractNewIssueInfos(notified_db, new_notification_ids, QUERY, json_result, new_issue_infos,
+                                max_last_modification_time);
 }
 
 
@@ -162,10 +177,13 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
 }
 
 
-void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, const std::string &user_id,
+void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
+                       const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+                       std::unordered_set<std::string> * const new_notification_ids, const std::string &user_id,
                        const std::string &solr_host_and_port, const std::string &hostname,
                        const std::string &sender_email, const std::string &email_subject,
-                       std::vector<SerialControlNumberAndLastIssueDate> &control_numbers_and_last_issue_dates)
+                       std::vector<SerialControlNumberAndMaxLastModificationTime>
+                           &control_numbers_and_last_modification_times)
 {
     const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user WHERE id='" + user_id + "'");
     if (unlikely(not db_connection->query(SELECT_USER_ATTRIBUTES)))
@@ -179,8 +197,8 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
     const DbRow row(result_set.getNextRow());
     const std::string username(row["username"]);
     if (verbose)
-        std::cerr << "Found " << control_numbers_and_last_issue_dates.size() << " subscriptions for \"" << username
-                  << ".\n";
+        std::cerr << "Found " << control_numbers_and_last_modification_times.size() << " subscriptions for \""
+                  << username << ".\n";
 
     const std::string firstname(row["firstname"]);
     const std::string lastname(row["lastname"]);
@@ -188,11 +206,13 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
 
     // Collect the dates for new issues.
     std::vector<NewIssueInfo> new_issue_infos;
-    for (auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
-        std::string max_last_issue_date(control_number_and_last_issue_date.last_issue_date_);
-        if (GetNewIssues(solr_host_and_port, control_number_and_last_issue_date.serial_control_number_,
-                         control_number_and_last_issue_date.last_issue_date_, &new_issue_infos, &max_last_issue_date))
-            control_number_and_last_issue_date.setLastIssueDate(max_last_issue_date);
+    for (auto &control_number_and_last_modification_time : control_numbers_and_last_modification_times) {
+        std::string max_last_modification_time(control_number_and_last_modification_time.last_modification_time_);
+        if (GetNewIssues(notified_db, new_notification_ids, solr_host_and_port,
+                         control_number_and_last_modification_time.serial_control_number_,
+                         control_number_and_last_modification_time.last_modification_time_, &new_issue_infos,
+                         &max_last_modification_time))
+            control_number_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
     }
     if (verbose)
         std::cerr << "Found " << new_issue_infos.size() << " new issues for " << " \"" << username << "\".\n";
@@ -201,14 +221,15 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
         SendNotificationEmail(firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos);
 
     // Update the database with the new last issue dates.
-    for (const auto &control_number_and_last_issue_date : control_numbers_and_last_issue_dates) {
-        if (not control_number_and_last_issue_date.changed())
+    for (const auto &control_number_and_last_modification_time : control_numbers_and_last_modification_times) {
+        if (not control_number_and_last_modification_time.changed())
             continue;
 
         const std::string REPLACE_STMT("REPLACE INTO ixtheo_journal_subscriptions SET id=" + user_id
-                                       + ",last_issue_date='" + control_number_and_last_issue_date.last_issue_date_
+                                       + ",last_modification_time='"
+                                       + control_number_and_last_modification_time.last_modification_time_
                                        + "',journal_control_number='"
-                                       + control_number_and_last_issue_date.serial_control_number_ + "'");
+                                       + control_number_and_last_modification_time.serial_control_number_ + "'");
         if (unlikely(not db_connection->query(REPLACE_STMT)))
             Error("Replace failed: " + REPLACE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
     }
@@ -216,6 +237,8 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection, c
 
 
 void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection,
+                          const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+                          std::unordered_set<std::string> * const new_notification_ids,
                           const std::string &solr_host_and_port, const std::string &user_type,
                           const std::string &hostname, const std::string &sender_email,
                           const std::string &email_subject)
@@ -232,24 +255,46 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
     while (const DbRow id_row = id_result_set.getNextRow()) {
         const std::string user_id(id_row["id"]);
 
-        const std::string SELECT_SUBSCRIPTION_INFO("SELECT journal_control_number,last_issue_date FROM "
+        const std::string SELECT_SUBSCRIPTION_INFO("SELECT journal_control_number,max_last_modification_time FROM "
                                                    "ixtheo_journal_subscriptions WHERE id=" + user_id);
         if (unlikely(not db_connection->query(SELECT_SUBSCRIPTION_INFO)))
             Error("Select failed: " + SELECT_SUBSCRIPTION_INFO + " (" + db_connection->getLastErrorMessage() + ")");
 
         DbResultSet result_set(db_connection->getLastResultSet());
-        std::vector<SerialControlNumberAndLastIssueDate> control_numbers_and_last_issue_dates;
+        std::vector<SerialControlNumberAndMaxLastModificationTime> control_numbers_and_last_modification_times;
         while (const DbRow row = result_set.getNextRow()) {
-            control_numbers_and_last_issue_dates.emplace_back(SerialControlNumberAndLastIssueDate(
-                row["journal_control_number"], row["last_issue_date"]));
+            control_numbers_and_last_modification_times.emplace_back(SerialControlNumberAndMaxLastModificationTime(
+                row["journal_control_number"], row["max_last_modification_time"]));
             ++subscription_count;
         }
-        ProcessSingleUser(verbose, db_connection, user_id, solr_host_and_port, hostname, sender_email,
-                          email_subject, control_numbers_and_last_issue_dates);
+        ProcessSingleUser(verbose, db_connection, notified_db, new_notification_ids, user_id, solr_host_and_port,
+                          hostname, sender_email, email_subject, control_numbers_and_last_modification_times);
     }
 
     if (verbose)
         std::cout << "Processed " << user_count << " users and " << subscription_count << " subscriptions.\n";
+}
+
+
+void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
+                            const std::unordered_set<std::string> &new_notification_ids)
+{
+    const std::string now(TimeUtil::GetCurrentDateAndTime());
+    for (const auto &id : new_notification_ids) {
+        if (not notified_db->add(id, now))
+            Error("Failed to add key/value pair to database \"" + notified_db->path() + "\" ("
+                  + std::string(notified_db->error().message()) + ")!");
+    }
+}
+
+
+std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &user_type) {
+    const std::string DB_FILENAME("/var/lib/tuelib/" + user_type + "_notified.db");
+    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
+    if (not (db->open(DB_FILENAME,
+                      kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
+        Error("failed to open or create \"" + DB_FILENAME + "\"!");
+    return db;
 }
 
 
@@ -285,13 +330,17 @@ int main(int argc, char **argv) {
     const std::string sender_email(argv[3]);
     const std::string email_subject(argv[4]);
 
+    std::unique_ptr<kyotocabinet::HashDB> notified_db(CreateOrOpenKeyValueDB(user_type));
+
     try {
         std::string mysql_url;
         VuFind::GetMysqlURL(&mysql_url);
         DbConnection db_connection(mysql_url);
 
-        ProcessSubscriptions(verbose, &db_connection, solr_host_and_port, user_type, hostname,
-                             sender_email, email_subject);
+        std::unordered_set<std::string> new_notification_ids;
+        ProcessSubscriptions(verbose, &db_connection, notified_db, &new_notification_ids, solr_host_and_port,
+                             user_type, hostname, sender_email, email_subject);
+        RecordNewlyNotifiedIds(notified_db, new_notification_ids);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
