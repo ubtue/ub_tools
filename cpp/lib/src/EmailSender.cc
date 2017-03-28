@@ -53,7 +53,7 @@ ReplaceEnvVar::ReplaceEnvVar(const std::string &variable_name, const std::string
     if (unlikely(::setenv(variable_name.c_str(), temp_value.c_str(), /* overwrite = */ true) != 0))
         Error("setenv(3) failed in ReplaceEnvVar::ReplaceEnvVar! (errno: " + std::to_string(errno) + ")");
 }
-    
+
 
 ReplaceEnvVar:: ~ReplaceEnvVar() {
     if (not variable_name_.empty()) {
@@ -91,15 +91,15 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
         message += "X-Priority: " + std::to_string(priority) + "\n";
     message += '\n';
     message += message_body;
-    
+
     if (not FileUtil::WriteString(stdin_replacement_for_mutt, message))
         Error("in EmailSender::SendEmail: can't write the message body into a temporary file!");
 
-    if (format == PLAIN_TEXT)
-        return ExecUtil::Exec(mutt_path, { "-e set copy=no", "-H", "-" }, stdin_replacement_for_mutt) == 0;
-    else // Send icky HTML email.
-        return ExecUtil::Exec(mutt_path, { "-e set copy=no", "-H", "-", "-e set content_type=text/html" },
-                              stdin_replacement_for_mutt) == 0;
+    std::vector<std::string> mutt_args{ "-e set copy=no", "-e set send_charset=\"utf-8\"", "-H", "-" };
+    if (format == HTML)
+        mutt_args.emplace_back("-e set content_type=text/html");
+
+    return ExecUtil::Exec(mutt_path, mutt_args, stdin_replacement_for_mutt) == 0;
 }
 
 
