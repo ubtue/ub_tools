@@ -226,7 +226,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
             continue;
 
         const std::string REPLACE_STMT("REPLACE INTO ixtheo_journal_subscriptions SET id=" + user_id
-                                       + ",last_modification_time='"
+                                       + ",max_last_modification_time='"
                                        + control_number_and_last_modification_time.last_modification_time_
                                        + "',journal_control_number='"
                                        + control_number_and_last_modification_time.serial_control_number_ + "'");
