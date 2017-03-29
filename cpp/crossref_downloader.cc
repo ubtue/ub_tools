@@ -19,6 +19,7 @@
  */
 #include <iostream>
 #include <stdexcept>
+#include <unordered_set>
 #include <vector>
 #include <cstdlib>
 #include <cstring>
@@ -449,29 +450,32 @@ std::string UnescapeCrossRefJSON(const std::string &json_text) {
 }
 
 
-// Expects "line" to look like "XXXX-XXXX JJJ" where "XXXX-XXXX" is an ISSN and "JJJ" a journal title.
-bool GetISSNAndJournalName(const std::string &line, std::string * const issn, std::string * const journal_name) {
+// Expects "line" to look like "XXXX-XXXX,YYYY-YYYY,...ZZZZ-ZZZZ JJJ" where "XXXX-XXXX", "YYYY-YYYY" and "ZZZZ-ZZZZ"
+// are ISSN's and "JJJ" a journal title.
+bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * const issns,
+                            std::string * const journal_name)
+{
     const size_t first_space_pos(line.find(' '));
-    if (unlikely(first_space_pos == std::string::npos))
+    if (unlikely(first_space_pos == std::string::npos or first_space_pos == 0))
         return false;
 
-    *issn = line.substr(0, first_space_pos);
-    if (unlikely(not MiscUtil::IsPossibleISSN(*issn)))
+    if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns) == 0)
         return false;
+
+    for (const auto &issn : *issns) {
+        if (unlikely(not MiscUtil::IsPossibleISSN(issn)))
+            return false;
+    }
 
     *journal_name = StringUtil::TrimWhite(line.substr(first_space_pos + 1));
     return not journal_name->empty();
 }
 
 
-unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter * const marc_writer,
-                        const std::vector<MapDescriptor *> &map_descriptors)
+unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter * const marc_writer,
+                     const std::vector<MapDescriptor *> &map_descriptors,
+                     std::unordered_set<std::string> * const already_seen)
 {
-    std::string issn, journal_name;
-    if (unlikely(not GetISSNAndJournalName(line, &issn, &journal_name)))
-        Error("bad input line \"" + line + "\"!");
-    std::cout << "Processing " << journal_name << '\n';
-
     Downloader downloader("https://api.crossref.org/v1/journals/" + issn + "/works", Downloader::Params(),
                           timeout * 1000);
     if (downloader.anErrorOccurred()) {
@@ -509,11 +513,38 @@ unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWri
         if (container_titles == item.second.not_found())
             continue;
 
+        const std::string member(item.second.get<std::string>("member", ""));
+        if (unlikely(member.empty()))
+            Error("No \"member\" for an item returned for the ISSN " + issn + "!");
+
+        // Have we already seen this item?
+        if (already_seen->find(member) != already_seen->cend())
+            continue;
+        already_seen->insert(member);
+
         CreateAndWriteMarcRecord(marc_writer, item.second, map_descriptors);
         ++document_count;
     }
 
     return document_count;
+}
+
+
+unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter * const marc_writer,
+                        const std::vector<MapDescriptor *> &map_descriptors)
+{
+    std::vector<std::string> issns;
+    std::string journal_name;
+    if (unlikely(not GetISSNsAndJournalName(line, &issns, &journal_name)))
+        Error("bad input line \"" + line + "\"!");
+    std::cout << "Processing " << journal_name << '\n';
+
+    unsigned total_document_count(0);
+    std::unordered_set<std::string> already_seen;
+    for (const auto &issn : issns)
+        total_document_count += ProcessISSN(issn, timeout, marc_writer, map_descriptors, &already_seen);
+
+    return total_document_count;
 }
 
 
