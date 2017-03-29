@@ -2,15 +2,15 @@ SUBDIRS = Schlagwortfolgensuche Bibelstellensuche PrefixSortFacetten MultiLangua
 
 all: 
 	for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir; \
+		$(MAKE) -C $$dir || exit 1; \
 	done
 
 install:
 	for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir install;\
+		$(MAKE) -C $$dir install || exit 1;\
 	done	
 
 clean: 
 	for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir clean; \
+		$(MAKE) -C $$dir clean || exit 1; \
 	done
