@@ -243,14 +243,40 @@ TokenType Scanner::parseStringConstant() {
                 return ERROR;
             }
             ++ch_;
-            if (*ch_ == '/' or *ch_ == '"')
+            switch (*ch_) {
+            case '/':
+            case '"':
+            case '\\':
                 string_value += *ch_++;
-            else if (*ch_ == 'u') {
+                break;
+            case 'b':
+                ++ch_;
+                string_value += '\b';
+                break;
+            case 'f':
+                ++ch_;
+                string_value += '\f';
+                break;
+            case 'n':
+                ++ch_;
+                string_value += '\n';
+                break;
+            case 'r':
+                ++ch_;
+                string_value += '\r';
+                break;
+            case 't':
+                ++ch_;
+                string_value += '\t';
+                break;
+            case 'u': {
                 std::string utf8;
                 if (unlikely(not UTF16EscapeToUTF8(&utf8)))
                     return ERROR;
                 string_value += utf8;
-            } else {
+                break;
+            }
+            default:
                 last_error_message_ = "unexpected escape \\" + std::string(1, *ch_) + " in string constant!";
                 return ERROR;
             }
