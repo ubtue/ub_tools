@@ -309,12 +309,6 @@ TokenType Scanner::parseStringConstant() {
 }
 
 
-ObjectNode::~ObjectNode() {
-    for (auto &entry : entries_)
-        delete entry.second;
-}
-
-
 static std::string EscapeDoubleQuotes(const std::string &unescaped) {
     std::string escaped;
     escaped.reserve(unescaped.length());
@@ -329,11 +323,22 @@ static std::string EscapeDoubleQuotes(const std::string &unescaped) {
 }
 
 
+std::string StringNode::toString() const {
+    return "\"" + EscapeDoubleQuotes(value_) + "\"";
+}
+
+
+ObjectNode::~ObjectNode() {
+    for (auto &entry : entries_)
+        delete entry.second;
+}
+
+
 std::string ObjectNode::toString() const {
     std::string as_string;
     as_string += "{ ";
     for (const auto &entry : entries_) {
-        as_string += EscapeDoubleQuotes(entry.first);
+        as_string += "\"" + EscapeDoubleQuotes(entry.first) + "\"";
         as_string += ": ";
         as_string += entry.second->toString();
         as_string += ", ";
