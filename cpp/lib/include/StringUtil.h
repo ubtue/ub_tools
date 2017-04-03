@@ -11,7 +11,7 @@
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
  *  Copyright 2002-2004 Dr. Johannes Ruscheinski.
- *  Copyright 2015 Universitätsbibliothek Tübingen
+ *  Copyright 2015 UniversitÃ¤tsbibliothek TÃ¼bingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -509,7 +509,7 @@ long ToNumber(const std::string &s, const unsigned base = 10);
  *  If the input is not comprised solely of digits (except for base "0" and a leading "0x"), then this function will
  *  generate an error.  (Unlike the other version, which will simply return false.)
  */
-unsigned short ToUnsgnedShort(const std::string &s, const unsigned base = 10);
+unsigned short ToUnsignedShort(const std::string &s, const unsigned base = 10);
 
 
 /** \brief   Convert a string into a short unsigned number.
@@ -1689,7 +1689,7 @@ inline std::string CollapseAndTrimWhitespace(const std::string &s)
  *  exception of a single decimal digit specify "[^0123456789]".
  *
  *  \par Copyright notice
- * (c© 1988,1990,2001 Johannes Ruscheinski. All Rights Reserved.  I
+ * (cÂ© 1988,1990,2001 Johannes Ruscheinski. All Rights Reserved.  I
  * grant the exception that this function may be contained and used
  * with the rest of the INFOMINE library under the the same copyright
  * rules as the INFOMINE library if it is any version of the GPL (GNU
