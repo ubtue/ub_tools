@@ -145,12 +145,12 @@ void GetDisplayLanguages(std::vector<std::string> *const display_languages, cons
 
     display_languages->clear();
 
-    // Insert German as Display language in any case for keywords
-    if (category == KEYWORDS and std::find(translation_languages.cbegin(), translation_languages.cend(), "ger") == translation_languages.end())
-        display_languages->emplace_back("ger");
-
-    else if (category == VUFIND)
+    if (category == VUFIND)
         display_languages->emplace_back(TOKEN_COLUMN_DESCRIPTOR);
+
+    // Insert German as Display language in any case
+    if (std::find(translation_languages.cbegin(), translation_languages.cend(), "ger") == translation_languages.end())
+        display_languages->emplace_back("ger");
 
     display_languages->insert(display_languages->end(), translation_languages.begin(), translation_languages.end());
     display_languages->insert(display_languages->end(), additional_view_languages.begin(), additional_view_languages.end());
