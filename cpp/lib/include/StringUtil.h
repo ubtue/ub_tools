@@ -11,7 +11,7 @@
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
  *  Copyright 2002-2004 Dr. Johannes Ruscheinski.
- *  Copyright 2015 Universitätsbibliothek Tübingen
+ *  Copyright 2015 UniversitÃ¤tsbibliothek TÃ¼bingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -617,6 +617,30 @@ bool ToUInt64T(const std::string &s, uint64_t * const n, const unsigned base = 0
  *  generate an error.  (Unlike the other version, which will simply return false.)
  */
 uint64_t ToUInt64T(const std::string &s, const unsigned base = 10);
+
+
+/** \brief   Convert a string into an int64_t number.
+ *  \param   s     The string to convert.
+ *  \param   n     Pointer to an int64_t that will hold the result.
+ *  \param   base  The base of the string representation.  A value of "0" has the special meaning that if the string
+ *                 starts with a "0" followed by one or more digits the base is assumed to be 8, if the string starts
+ *                 with "0x" the base is assumed to be 16, in all other cases the base is assumed to be 10.
+ *  \return  true if the conversion was successful, false otherwise.
+ */
+bool ToInt64T(const std::string &s, int64_t * const n, const unsigned base = 0);
+
+
+/** \brief   Convert a string into a uint64_t number.
+ *  \param   s     The string to convert.
+ *  \param   base  The base of the string representation.  A value of "0" has the special meaning that if the string
+ *                 starts with a "0" followed by one or more digits the base is assumed to be 8, if the string starts
+ *                 with "0x" the base is assumed to be 16, in all other cases the base is assumed to be 10.
+ *  \return  The converted number.
+ *
+ *  If the input is not comprised solely of digits (except for base "0" and a leading "0x"), then this function will
+ *  generate an error.  (Unlike the other version, which will simply return false.)
+ */
+int64_t ToInt64T(const std::string &s, const unsigned base = 10);
 
 
 /** \brief   Convert a string to a double-precision number.
@@ -1665,7 +1689,7 @@ inline std::string CollapseAndTrimWhitespace(const std::string &s)
  *  exception of a single decimal digit specify "[^0123456789]".
  *
  *  \par Copyright notice
- * (c© 1988,1990,2001 Johannes Ruscheinski. All Rights Reserved.  I
+ * (cÂ© 1988,1990,2001 Johannes Ruscheinski. All Rights Reserved.  I
  * grant the exception that this function may be contained and used
  * with the rest of the INFOMINE library under the the same copyright
  * rules as the INFOMINE library if it is any version of the GPL (GNU
