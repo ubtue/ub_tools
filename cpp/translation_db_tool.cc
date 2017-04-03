@@ -39,8 +39,10 @@ void Usage() {
     std::cerr << "Usage: " << ::progname << " command [args]\n\n";
     std::cerr << "       Possible commands are:\n";
     std::cerr << "       get_missing language_code\n";
-    std::cerr << "       insert token language_code text\n";
-    std::cerr << "       insert ppn gnd_code language_code text\n";
+    std::cerr << "       insert token language_code text translator\n";
+    std::cerr << "       insert ppn gnd_code language_code text translator\n";
+    std::cerr << "       update token language_code text translator\n";
+    std::cerr << "       update ppn gnd_code language_code text translator\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -255,11 +257,11 @@ int main(int argc, char *argv[]) {
                 Error("\"update\" requires four or five arguments: token or ppn, gnd_code (if ppn), "
                       "language_code, text and translator!");
 
-            const std::string language_code(argv[(argc == 5) ? 3 : 4]);
+            const std::string language_code(argv[(argc == 6) ? 3 : 4]);
             if (not TranslationUtil::IsValidFake3LetterEnglishLanguagesCode(language_code))
                 Error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
 
-            if (argc == 5)
+            if (argc == 6)
                 UpdateIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4], argv[5]);
             else
                 UpdateIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5], argv[6]);
