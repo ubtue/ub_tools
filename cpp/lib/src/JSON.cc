@@ -51,13 +51,13 @@ TokenType Scanner::getToken() {
         return OPEN_BRACE;
     case '}':
         ++ch_;
-        return CLOSE_BRACKET;
+        return CLOSE_BRACE;
     case '[':
         ++ch_;
         return OPEN_BRACKET;
     case ']':
         ++ch_;
-        return CLOSE_BRACE;
+        return CLOSE_BRACKET;
     case '"':
         return parseStringConstant();
     case 't':
@@ -88,7 +88,7 @@ TokenType Scanner::getToken() {
 
 void Scanner::ungetToken(const TokenType token) {
     if (unlikely(pushed_back_))
-        throw std::runtime_error("in JSON::Scanner::ungetToken: can't push back two toeksn in a row!");
+        throw std::runtime_error("in JSON::Scanner::ungetToken: can't push back two tokesn in a row!");
     pushed_back_token_ = token;
     pushed_back_ = true;
 }
@@ -144,7 +144,7 @@ TokenType Scanner::parseNumber() {
     }
 
     if (*ch_ == '.') {
-        for (; ch_ != end_ and StringUtil::IsDigit(*ch_); ++ch_)
+        for (++ch_; ch_ != end_ and StringUtil::IsDigit(*ch_); ++ch_)
             number_as_string += *ch_;
     }
 
@@ -401,19 +401,20 @@ bool Parser::parseObject(JSONNode **new_object_node) {
     *new_object_node = new ObjectNode();
     TokenType token(scanner_.getToken());
     if (unlikely(token == CLOSE_BRACE))
-        return true; // We havbe an empty object.
-    scanner_.ungetToken(token);
+        return true; // We have an empty object.
 
     for (;;) {
         if (unlikely(token != STRING_CONST)) {
-            error_message_ = "label expected on line " + std::to_string(scanner_.getLineNumber()) + "!";
+            error_message_ = "label expected on line " + std::to_string(scanner_.getLineNumber())
+                             + " found '" + TokenTypeToString(token) + "' instead!";
             return false;
         }
         const std::string label(scanner_.getLastStringConstant());
 
         token = scanner_.getToken();
         if (unlikely(token != COLON)) {
-            error_message_ = "colon expected after label on line " + std::to_string(scanner_.getLineNumber()) + "!";
+            error_message_ = "colon expected after label on line " + std::to_string(scanner_.getLineNumber())
+                + " found '" + TokenTypeToString(token) + "' instead!";
             return false;
         }
 
@@ -423,7 +424,7 @@ bool Parser::parseObject(JSONNode **new_object_node) {
             return false;
         }
 
-        reinterpret_cast<ObjectNode *>(new_object_node)->insert(label, new_node);
+        reinterpret_cast<ObjectNode *>(*new_object_node)->insert(label, new_node);
 
         token = scanner_.getToken();
         if (token == COMMA)
@@ -452,11 +453,11 @@ bool Parser::parseArray(JSONNode **new_array_node) {
             delete new_node;
             return false;
         }
-        reinterpret_cast<ArrayNode *>(new_array_node)->push_back(new_node);
+        reinterpret_cast<ArrayNode *>(*new_array_node)->push_back(new_node);
 
         token = scanner_.getToken();
         if (token == COMMA)
-            token = scanner_.getToken();
+            /* Intentionally empty! */;
         else if (token == CLOSE_BRACKET)
             return true;
         else {
@@ -484,6 +485,9 @@ bool Parser::parseAny(JSONNode **new_node) {
         return true;
     case DOUBLE_CONST:
         *new_node = new DoubleNode(scanner_.getLastDoubleConstant());
+        return true;
+    case STRING_CONST:
+        *new_node = new StringNode(scanner_.getLastStringConstant());
         return true;
     case TRUE_CONST:
         *new_node = new BooleanNode(true);
