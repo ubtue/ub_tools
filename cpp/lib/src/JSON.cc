@@ -295,4 +295,92 @@ TokenType Scanner::parseStringConstant() {
 }
 
 
+ObjectNode::~ObjectNode() {
+    for (auto &entry : entries_)
+        delete entry.second;
+}
+
+
+static std::string EscapeDoubleQuotes(const std::string &unescaped) {
+    std::string escaped;
+    escaped.reserve(unescaped.length());
+    for (const char ch : unescaped) {
+        if (ch == '"')
+            escaped += "\\\"";
+        else
+            escaped += ch;
+    }
+
+    return escaped;
+}
+
+
+std::string ObjectNode::toString() const {
+    std::string as_string;
+    as_string += "{ ";
+    for (const auto &entry : entries_) {
+        as_string += EscapeDoubleQuotes(entry.first);
+        as_string += ": ";
+        as_string += entry.second->toString();
+        as_string += ", ";
+    }
+    if (not entries_.empty())
+        as_string.resize(as_string.size() - 2); // Strip off final comma+space.
+    as_string += " }";
+
+    return as_string;
+}
+
+
+bool ObjectNode::insert(const std::string &label, JSONNode * const node) {
+    if (entries_.find(label) != entries_.end())
+        return false;
+    entries_.insert(std::make_pair(label, node));
+
+    return true;
+}
+
+
+bool ObjectNode::remove(const std::string &label) {
+    const auto entry(entries_.find(label));
+    if (entry == entries_.cend())
+        return false;
+    entries_.erase(entry);
+    return true;
+}
+
+
+const JSONNode *ObjectNode::operator[](const std::string &label) const {
+    const auto entry(entries_.find(label));
+    return entry == entries_.cend() ? nullptr : entry->second;
+}
+
+
+JSONNode *ObjectNode::operator[](const std::string &label) {
+    const auto entry(entries_.find(label));
+    return entry == entries_.cend() ? nullptr : entry->second;
+}
+
+
+ArrayNode::~ArrayNode() {
+    for (auto &value : values_)
+        delete value;
+}
+
+
+std::string ArrayNode::toString() const {
+    std::string as_string;
+    as_string += "[ ";
+    for (const auto &value : values_) {
+        as_string += value->toString();
+        as_string += ", ";
+    }
+    if (not values_.empty())
+        as_string.resize(as_string.size() - 2); // Strip off final comma+space.
+    as_string += " ]";
+
+    return as_string;
+}
+
+
 } // namespace JSON
