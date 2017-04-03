@@ -22,6 +22,8 @@
 
 
 #include <string>
+#include <unordered_map>
+#include <vector>
 #include <cinttypes>
 
 
@@ -64,6 +66,86 @@ private:
 
     /** \return Either STRING_CONST upon success or ERROR upon failure. */
     TokenType parseStringConstant();
+};
+
+
+class JSONNode {
+public:
+    enum Type { BOOLEAN_NODE, NULL_NODE, STRING_NODE, OBJECT_NODE, ARRAY_NODE };
+public:
+    virtual ~JSONNode() { }
+
+    virtual Type getType() const = 0;
+    virtual std::string toString() const = 0;
+};
+
+
+class BooleanNode final : public JSONNode {
+    bool value_;
+public:
+    explicit BooleanNode(const bool value): value_(value) { }
+
+    virtual Type getType() const { return BOOLEAN_NODE; }
+    virtual std::string toString() const { return value_ ? "true" : "false"; }
+    bool getValue() const { return value_; }
+};
+
+
+class NullNode final : public JSONNode {
+public:
+    NullNode() { }
+
+    virtual Type getType() const { return NULL_NODE; }
+    virtual std::string toString() const { return "null"; }
+};
+
+
+class StringNode final : public JSONNode {
+    std::string value_;
+public:
+    explicit StringNode(const std::string value): value_(value) { }
+
+    virtual Type getType() const { return STRING_NODE; }
+    virtual std::string toString() const { return value_; }
+    const std::string &getValue() const { return value_; }
+};
+
+
+class ObjectNode final : public JSONNode {
+    std::unordered_map<std::string, JSONNode *> entries_;
+public:
+    ObjectNode() { }
+    virtual ~ObjectNode();
+    virtual Type getType() const { return OBJECT_NODE; }
+    virtual std::string toString() const;
+
+    /** \return False if the new node was not inserted because the label already existed, o/w true. */
+    bool insert(const std::string &label, JSONNode * const node);
+
+    /** \return False if there was nothing to remove, o/w true. */
+    bool remove(const std::string &label);
+
+    // Member accessors, they return NULL if there is no entry for the provided label o/w they return the entry.
+    const JSONNode *operator[](const std::string &label) const;
+    JSONNode *operator[](const std::string &label);
+};
+
+
+class ArrayNode final : public JSONNode {
+    std::vector<JSONNode *> values_;
+public:
+    typedef std::vector<JSONNode *>::const_iterator const_iterator;
+public:
+    explicit ArrayNode() { }
+    virtual ~ArrayNode();
+
+    virtual Type getType() const { return ARRAY_NODE; }
+    virtual std::string toString() const;
+    const JSONNode &getValue(const size_t index) const { return *values_[index]; }
+    size_t size() const { return values_.size(); }
+    const_iterator cbegin() const { return values_.cbegin(); }
+    const_iterator cend() const { return values_.cend(); }
+    void push_back(JSONNode * const node) { values_.push_back(node); }
 };
 
 
