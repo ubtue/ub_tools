@@ -72,7 +72,7 @@ getusername_test
 insert_translation_gaps
 installer
 iViaCore-mkdep
-json_parser_test
+json_grep
 json_scanner_test
 jop_grep
 kcdb_info
