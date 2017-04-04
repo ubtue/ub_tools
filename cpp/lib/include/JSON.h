@@ -198,6 +198,15 @@ private:
 std::string TokenTypeToString(const TokenType token);
 
 
+/** \brief Extracts a datum from a JSON tree structure.
+ *  \param path           A path of the form /X/Y/X...  Individual path components may contain slashes if they are
+ *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
+ *                        supported.
+ *  \param tree           The root of a JSON tree structure.
+ *  \param default_value  If not NULL, a value which will be returned if "path" does not reference a scalar value.
+ *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
+ *  \throws std::runtime_error if the datum is not found and "default_value" is NULL
+ */
 std::string LookupString(const std::string &path, const JSONNode * const tree,
                          const std::string * const default_value = nullptr);
 

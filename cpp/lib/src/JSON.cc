@@ -570,8 +570,10 @@ std::string TokenTypeToString(const TokenType token) {
 static size_t ParsePath(const std::string &path, std::vector<std::string> * const components) {
     std::string component;
 
+    if (not StringUtil::StartsWith(path, "/"))
+        throw std::runtime_error("in JSON::ParsePath: path must start with a slash!");
     bool escaped(false);
-    for (const char ch : path) {
+    for (const char ch : path.substr(1)) {
         if (escaped) {
             component += ch;
             escaped = false;
