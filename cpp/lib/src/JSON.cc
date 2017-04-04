@@ -635,7 +635,7 @@ std::string LookupString(const std::string &path, const JSONNode * const tree,
             if (unlikely(index >= array_node->size()))
                 throw std::runtime_error("in JSON::LookupString: path component \"" + path_component
                                          + "\" in path \"" + path + "\" is too large as an array index!");
-            next_node = &array_node->getValue(index);
+            next_node = array_node->getValue(index);
             break;
         }
     }
@@ -655,6 +655,68 @@ std::string LookupString(const std::string &path, const JSONNode * const tree,
         throw std::runtime_error("in JSON::LookupString: can't get a unique value from an object node!");
     case JSONNode::ARRAY_NODE:
         throw std::runtime_error("in JSON::LookupString: can't get a unique value from an array node!");
+    }
+}
+
+
+int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t * const default_value) {
+    std::vector<std::string> path_components;
+    if (unlikely(ParsePath(path, &path_components) == 0))
+        throw std::runtime_error("in JSON::LookupInteger: an empty path is invalid!");
+
+    const JSONNode *next_node(tree);
+    for (const auto &path_component : path_components) {
+        if (next_node == nullptr) {
+            if (unlikely(default_value == nullptr))
+                throw std::runtime_error("in JSON::LookupInteger: can't find \"" + path + "\" in our JSON tree!");
+            return *default_value;
+        }
+
+        switch (next_node->getType()) {
+        case JSONNode::BOOLEAN_NODE:
+        case JSONNode::NULL_NODE:
+        case JSONNode::STRING_NODE:
+        case JSONNode::INT64_NODE:
+        case JSONNode::DOUBLE_NODE:
+            throw std::runtime_error("in JSON::LookupInteger: can't descend into a scalar node!");
+        case JSONNode::OBJECT_NODE:
+            next_node = reinterpret_cast<const ObjectNode *>(next_node)->getValue(path_component);
+            if (next_node == nullptr) {
+                if (unlikely(default_value == nullptr))
+                    throw std::runtime_error("in JSON::LookupInteger: can't find path component \"" + path_component
+                                             + "\" in path \"" + path + "\" in our JSON tree!");
+                return *default_value;
+            }
+            break;
+        case JSONNode::ARRAY_NODE:
+            unsigned index;
+            if (unlikely(not StringUtil::ToUnsigned(path_component, &index)))
+                throw std::runtime_error("in JSON::LookupInteger: path component \"" + path_component
+                                         + "\" in path \"" + path + "\" can't be converted to an array index!");
+            const ArrayNode * const array_node(reinterpret_cast<const ArrayNode *>(next_node));
+            if (unlikely(index >= array_node->size()))
+                throw std::runtime_error("in JSON::LookupInteger: path component \"" + path_component
+                                         + "\" in path \"" + path + "\" is too large as an array index!");
+            next_node = array_node->getValue(index);
+            break;
+        }
+    }
+
+    switch (next_node->getType()) {
+    case JSONNode::BOOLEAN_NODE:
+        throw std::runtime_error("in JSON::LookupInteger: can't convert a boolean value to an integer!");
+    case JSONNode::NULL_NODE:
+        throw std::runtime_error("in JSON::LookupInteger: can't convert \"null\" to an integer!");
+    case JSONNode::STRING_NODE:
+        throw std::runtime_error("in JSON::LookupInteger: can't convert a string value to an integer!");
+    case JSONNode::INT64_NODE:
+        return reinterpret_cast<const IntegerNode *>(next_node)->getValue();
+    case JSONNode::DOUBLE_NODE:
+        throw std::runtime_error("in JSON::LookupInteger: can't convert a double value to an integer!");
+    case JSONNode::OBJECT_NODE:
+        throw std::runtime_error("in JSON::LookupInteger: can't get a unique value from an object node!");
+    case JSONNode::ARRAY_NODE:
+        throw std::runtime_error("in JSON::LookupInteger: can't get a unique value from an array node!");
     }
 }
 
