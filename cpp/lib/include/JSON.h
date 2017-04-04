@@ -141,6 +141,7 @@ public:
     virtual ~ObjectNode();
     virtual Type getType() const { return OBJECT_NODE; }
     virtual std::string toString() const;
+    bool empty() const { return entries_.empty(); }
 
     /** \return False if the new node was not inserted because the label already existed, o/w true. */
     bool insert(const std::string &label, JSONNode * const node);
@@ -164,7 +165,9 @@ public:
 
     virtual Type getType() const { return ARRAY_NODE; }
     virtual std::string toString() const;
-    const JSONNode &getValue(const size_t index) const { return *values_[index]; }
+    bool empty() const { return values_.empty(); }
+    const JSONNode *getValue(const size_t index) const { return values_[index]; }
+    JSONNode *getValue(const size_t index) { return values_[index]; }
     size_t size() const { return values_.size(); }
     const_iterator cbegin() const { return values_.cbegin(); }
     const_iterator cend() const { return values_.cend(); }
@@ -198,7 +201,22 @@ private:
 std::string TokenTypeToString(const TokenType token);
 
 
-/** \brief Extracts a datum from a JSON tree structure.
+/** \brief Extracts a string datum from a JSON tree structure.
+ *  \param path           A path of the form /X/Y/X...  Individual path components may contain slashes if they are
+ *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
+ *                        supported.
+ *  \param tree           The root of a JSON tree structure.
+ *  \param default_value  If not NULL, a value which will be returned if "path" does not reference a scalar value.
+ *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
+ *  \throws std::runtime_error if the datum is not found and "default_value" is NULL
+ *  \note Should "path" reference a scalar node that is not a string, a string representation. thereof will be
+ *        returned.
+ */
+std::string LookupString(const std::string &path, const JSONNode * const tree,
+                         const std::string * const default_value = nullptr);
+
+
+/** \brief Extracts an integer datum from a JSON tree structure.
  *  \param path           A path of the form /X/Y/X...  Individual path components may contain slashes if they are
  *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
  *                        supported.
@@ -207,8 +225,8 @@ std::string TokenTypeToString(const TokenType token);
  *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
  *  \throws std::runtime_error if the datum is not found and "default_value" is NULL
  */
-std::string LookupString(const std::string &path, const JSONNode * const tree,
-                         const std::string * const default_value = nullptr);
+int64_t LookupInteger(const std::string &path, const JSONNode * const tree,
+                      const int64_t * const default_value = nullptr);
 
 
 } // namespace JSON
