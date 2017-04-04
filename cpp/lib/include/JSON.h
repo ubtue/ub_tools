@@ -109,7 +109,7 @@ public:
     explicit StringNode(const std::string value): value_(value) { }
 
     virtual Type getType() const { return STRING_NODE; }
-    virtual std::string toString() const { return value_; }
+    virtual std::string toString() const;
     const std::string &getValue() const { return value_; }
 };
 
@@ -133,7 +133,7 @@ public:
     double getValue() const { return value_; }
 };
 
-    
+
 class ObjectNode final : public JSONNode {
     std::unordered_map<std::string, JSONNode *> entries_;
 public:
@@ -196,6 +196,10 @@ private:
 
 
 std::string TokenTypeToString(const TokenType token);
+
+
+std::string LookupString(const std::string &path, const JSONNode * const tree,
+                         const std::string * const default_value = nullptr);
 
 
 } // namespace JSON
