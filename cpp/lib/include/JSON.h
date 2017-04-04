@@ -149,8 +149,8 @@ public:
     bool remove(const std::string &label);
 
     // Member accessors, they return NULL if there is no entry for the provided label o/w they return the entry.
-    const JSONNode *operator[](const std::string &label) const;
-    JSONNode *operator[](const std::string &label);
+    const JSONNode *getValue(const std::string &label) const;
+    JSONNode *getValue(const std::string &label);
 };
 
 

@@ -369,13 +369,13 @@ bool ObjectNode::remove(const std::string &label) {
 }
 
 
-const JSONNode *ObjectNode::operator[](const std::string &label) const {
+const JSONNode *ObjectNode::getValue(const std::string &label) const {
     const auto entry(entries_.find(label));
     return entry == entries_.cend() ? nullptr : entry->second;
 }
 
 
-JSONNode *ObjectNode::operator[](const std::string &label) {
+JSONNode *ObjectNode::getValue(const std::string &label) {
     const auto entry(entries_.find(label));
     return entry == entries_.cend() ? nullptr : entry->second;
 }
@@ -614,9 +614,9 @@ std::string LookupString(const std::string &path, const JSONNode * const tree,
         case JSONNode::STRING_NODE:
         case JSONNode::INT64_NODE:
         case JSONNode::DOUBLE_NODE:
-            throw std::runtime_error("in JSON::LookupString: can't descend into a primitive node!");
+            throw std::runtime_error("in JSON::LookupString: can't descend into a scalar node!");
         case JSONNode::OBJECT_NODE:
-            next_node = reinterpret_cast<const ObjectNode *>(next_node);
+            next_node = reinterpret_cast<const ObjectNode *>(next_node)->getValue(path_component);
             if (next_node == nullptr) {
                 if (unlikely(default_value == nullptr))
                     throw std::runtime_error("in JSON::LookupString: can't find path component \"" + path_component
