@@ -8,39 +8,65 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--print] json_input_file\n";
+    std::cerr << "Usage: " << ::progname << " [--print] json_input_file [lookup_path [default]]\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
+int main(int /*argc*/, char *argv[]) {
+    ::progname = *argv;
+    ++argv;
 
-    if (argc != 2 and argc != 3)
+    if (*argv == nullptr)
         Usage();
 
     bool print(false);
-    if (argc == 3) {
-        if (std::strcmp(argv[1], "--print") != 0)
-            Usage();
+    if (std::strcmp(*argv, "--print") == 0) {
         print = true;
+        ++argv;
     }
 
-    const std::string json_input_filename(argv[argc == 2 ? 1 : 2]);
-    std::string json_document;
-    if (not FileUtil::ReadString(json_input_filename, &json_document))
-        Error("could not read \"" + json_input_filename + "\"!");
+    if (*argv == nullptr)
+        Usage();
 
-    JSON::Parser parser(json_document);
-    JSON::JSONNode *tree;
-    if (not parser.parse(&tree)) {
-        std::cerr << ::progname << ": " << parser.getErrorMessage() << '\n';
+    const std::string json_input_filename(*argv);
+    ++argv;
+
+    std::string lookup_path;
+    if (*argv != nullptr) {
+        lookup_path = *argv;
+        ++argv;
+    }
+
+    std::string default_value;
+    if (*argv != nullptr) {
+        default_value = *argv;
+        ++argv;
+    }
+
+    try {
+        std::string json_document;
+        if (not FileUtil::ReadString(json_input_filename, &json_document))
+            Error("could not read \"" + json_input_filename + "\"!");
+
+        JSON::Parser parser(json_document);
+        JSON::JSONNode *tree;
+        if (not parser.parse(&tree)) {
+            std::cerr << ::progname << ": " << parser.getErrorMessage() << '\n';
+            delete tree;
+            return EXIT_FAILURE;
+        }
+
+        if (print)
+            std::cout << tree->toString() << '\n';
+
+        if (not lookup_path.empty())
+            std::cerr << lookup_path << ": "
+                      << JSON::LookupString(lookup_path, tree, default_value.empty() ? nullptr : &default_value)
+                      << '\n';
+
         delete tree;
-        return EXIT_FAILURE;
+    } catch (const std::exception &x) {
+        Error("caught exception: " + std::string(x.what()));
     }
-
-    if (print)
-        std::cout << tree->toString() << '\n';
-
-    delete tree;
 }
