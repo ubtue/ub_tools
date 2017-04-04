@@ -27,6 +27,7 @@ int main(int argc, char *argv[]) {
     JSON::Scanner scanner(json_document);
     for (;;) {
         const JSON::TokenType token(scanner.getToken());
+        std::cout << scanner.getLineNumber() << ": ";
         switch (token) {
         case JSON::COMMA:
             std::cout << "COMMA\n";

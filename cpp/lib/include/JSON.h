@@ -42,10 +42,13 @@ class Scanner {
     unsigned line_no_;
     std::string::const_iterator ch_;
     const std::string::const_iterator end_;
+    bool pushed_back_;
+    TokenType pushed_back_token_;
 public:
     explicit Scanner(const std::string &json_document)
-        : line_no_(1), ch_(json_document.cbegin()), end_(json_document.cend()) { }
+        : line_no_(1), ch_(json_document.cbegin()), end_(json_document.cend()), pushed_back_(false) { }
     TokenType getToken();
+    void ungetToken(const TokenType token);
     const std::string &getLastStringConstant() const { return last_string_constant_; }
     int64_t getLastIntegerConstant() const { return last_integer_constant_; }
     double getLastDoubleConstant() const { return last_double_constant_; }
@@ -71,7 +74,7 @@ private:
 
 class JSONNode {
 public:
-    enum Type { BOOLEAN_NODE, NULL_NODE, STRING_NODE, OBJECT_NODE, ARRAY_NODE };
+    enum Type { BOOLEAN_NODE, NULL_NODE, STRING_NODE, INT64_NODE, DOUBLE_NODE, OBJECT_NODE, ARRAY_NODE };
 public:
     virtual ~JSONNode() { }
 
@@ -111,6 +114,26 @@ public:
 };
 
 
+class IntegerNode final : public JSONNode {
+    int64_t value_;
+public:
+    explicit IntegerNode(const int64_t value): value_(value) { }
+    virtual Type getType() const { return INT64_NODE; }
+    virtual std::string toString() const { return std::to_string(value_); }
+    int64_t getValue() const { return value_; }
+};
+
+
+class DoubleNode final : public JSONNode {
+    double value_;
+public:
+    explicit DoubleNode(const double value): value_(value) { }
+    virtual Type getType() const { return DOUBLE_NODE; }
+    virtual std::string toString() const { return std::to_string(value_); }
+    double getValue() const { return value_; }
+};
+
+    
 class ObjectNode final : public JSONNode {
     std::unordered_map<std::string, JSONNode *> entries_;
 public:
@@ -147,6 +170,32 @@ public:
     const_iterator cend() const { return values_.cend(); }
     void push_back(JSONNode * const node) { values_.push_back(node); }
 };
+
+
+class Parser {
+    Scanner scanner_;
+    std::string error_message_;
+public:
+    explicit Parser(const std::string &json_document): scanner_(json_document) { }
+
+    // Typical use case:
+    //
+    // JSONNode *tree_root;
+    // if (not (parser.parse(&tree_root)))
+    //     ...
+    //  ...
+    //  delete tree_root;
+    bool parse(JSONNode **tree_root);
+
+    const std::string &getErrorMessage() const { return error_message_; }
+private:
+    bool parseObject(JSONNode **new_object_node);
+    bool parseArray(JSONNode **new_array_node);
+    bool parseAny(JSONNode **new_node);
+};
+
+
+std::string TokenTypeToString(const TokenType token);
 
 
 } // namespace JSON
