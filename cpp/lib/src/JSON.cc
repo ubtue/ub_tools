@@ -132,7 +132,7 @@ TokenType Scanner::parseNumber() {
         return ERROR;
     }
 
-    if (ch_ == end_ or (*ch_ != '.' and *ch_ != 'e')) {
+    if (ch_ == end_ or (*ch_ != '.' and *ch_ != 'e' and *ch_ != 'E')) {
         int64_t value;
         if (unlikely(not StringUtil::ToInt64T(number_as_string, &value))) {
             last_error_message_ = "failed to convert \"" + number_as_string + "\" to a 64-bit integer!";
@@ -148,7 +148,7 @@ TokenType Scanner::parseNumber() {
             number_as_string += *ch_;
     }
 
-    if (ch_ == end_ or *ch_ != 'e') {
+    if (ch_ == end_ or (*ch_ != 'e' and  *ch_ != 'E')) {
         double value;
         if (unlikely(not StringUtil::ToDouble(number_as_string, &value))) {
             last_error_message_ = "failed to convert \"" + number_as_string + "\" to a floating point value!";
@@ -563,6 +563,96 @@ std::string TokenTypeToString(const TokenType token) {
         return "end-of-input";
     case ERROR:
         return "error";
+    }
+}
+
+
+static size_t ParsePath(const std::string &path, std::vector<std::string> * const components) {
+    std::string component;
+
+    bool escaped(false);
+    for (const char ch : path) {
+        if (escaped) {
+            component += ch;
+            escaped = false;
+        } else if (ch == '\\')
+            escaped = true;
+        else if (ch == '/') {
+            if (unlikely(component.empty()))
+                throw std::runtime_error("in JSON::ParsePath: detected an empty path component!");
+            components->emplace_back(component);
+            component.clear();
+        } else
+            component += ch;
+    }
+
+    if (not component.empty())
+        components->emplace_back(component);
+
+    return components->size();
+}
+
+
+std::string LookupString(const std::string &path, const JSONNode * const tree,
+                         const std::string * const default_value)
+{
+    std::vector<std::string> path_components;
+    if (unlikely(ParsePath(path, &path_components) == 0))
+        throw std::runtime_error("in JSON::LookupString: an empty path is invalid!");
+
+    const JSONNode *next_node(tree);
+    for (const auto &path_component : path_components) {
+        if (next_node == nullptr) {
+            if (unlikely(default_value == nullptr))
+                throw std::runtime_error("in JSON::LookupString: can't find \"" + path + "\" in our JSON tree!");
+            return *default_value;
+        }
+
+        switch (next_node->getType()) {
+        case JSONNode::BOOLEAN_NODE:
+        case JSONNode::NULL_NODE:
+        case JSONNode::STRING_NODE:
+        case JSONNode::INT64_NODE:
+        case JSONNode::DOUBLE_NODE:
+            throw std::runtime_error("in JSON::LookupString: can't descend into a primitive node!");
+        case JSONNode::OBJECT_NODE:
+            next_node = reinterpret_cast<const ObjectNode *>(next_node);
+            if (next_node == nullptr) {
+                if (unlikely(default_value == nullptr))
+                    throw std::runtime_error("in JSON::LookupString: can't find path component \"" + path_component
+                                             + "\" in path \"" + path + "\" in our JSON tree!");
+                return *default_value;
+            }
+            break;
+        case JSONNode::ARRAY_NODE:
+            unsigned index;
+            if (unlikely(not StringUtil::ToUnsigned(path_component, &index)))
+                throw std::runtime_error("in JSON::LookupString: path component \"" + path_component
+                                         + "\" in path \"" + path + "\" can't be converted to an array index!");
+            const ArrayNode * const array_node(reinterpret_cast<const ArrayNode *>(next_node));
+            if (unlikely(index >= array_node->size()))
+                throw std::runtime_error("in JSON::LookupString: path component \"" + path_component
+                                         + "\" in path \"" + path + "\" is too large as an array index!");
+            next_node = &array_node->getValue(index);
+            break;
+        }
+    }
+
+    switch (next_node->getType()) {
+    case JSONNode::BOOLEAN_NODE:
+        return reinterpret_cast<const BooleanNode *>(next_node)->getValue() ? "true" : "false";
+    case JSONNode::NULL_NODE:
+        return "null";
+    case JSONNode::STRING_NODE:
+        return reinterpret_cast<const StringNode *>(next_node)->getValue();
+    case JSONNode::INT64_NODE:
+        return std::to_string(reinterpret_cast<const IntegerNode *>(next_node)->getValue());
+    case JSONNode::DOUBLE_NODE:
+        return std::to_string(reinterpret_cast<const DoubleNode *>(next_node)->getValue());
+    case JSONNode::OBJECT_NODE:
+        throw std::runtime_error("in JSON::LookupString: can't get a unique value from an object node!");
+    case JSONNode::ARRAY_NODE:
+        throw std::runtime_error("in JSON::LookupString: can't get a unique value from an array node!");
     }
 }
 
