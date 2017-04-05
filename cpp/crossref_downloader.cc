@@ -23,12 +23,11 @@
 #include <vector>
 #include <cstdlib>
 #include <cstring>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include "Compiler.h"
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "HttpHeader.h"
+#include "JSON.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "MiscUtil.h"
@@ -47,7 +46,7 @@ void Usage() {
 class CrossrefDate {
     unsigned year_, month_, day_;
 public:
-    CrossrefDate(const boost::property_tree::ptree &tree, const std::string &field);
+    CrossrefDate(const JSON::ObjectNode &tree, const std::string &field);
     bool isValid() const { return year_ != 0; }
     unsigned getYear() const { return year_; }
     unsigned getMonth() const { return month_; }
@@ -58,31 +57,37 @@ public:
 
 // Parses a JSON subtree that, should it exist looks like [[YYYY, MM, DD]] where the day as well as the
 // month may be missing.
-CrossrefDate::CrossrefDate(const boost::property_tree::ptree &tree, const std::string &field) {
-    boost::property_tree::ptree::const_assoc_iterator tree_iter(tree.find(field));
-    if (tree_iter == tree.not_found()) {
+CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &field) {
+    const JSON::JSONNode * const subtree(object.getValue(field));
+    if (subtree == nullptr) {
         year_ = month_ = day_ = 0;
         return;
     }
 
-    auto nested_array_tree_iter(tree_iter->second.begin());
-    if (unlikely(nested_array_tree_iter == tree_iter->second.end()))
-        Error("in CrossrefDate::CrossrefDate: nested child of \"" + field + "\" does not exist!");
-    auto nested_array_tree2_iter(nested_array_tree_iter->second.begin());
-    if (unlikely(nested_array_tree_iter == nested_array_tree_iter->second.end()))
-        Error("in CrossrefDate::CrossrefDate: inner nested child of \"" + field + "\" does not exist!");
+    const JSON::ArrayNode * const array_node(dynamic_cast<const JSON::ArrayNode *>(subtree));
+    if (unlikely(array_node == nullptr))
+        Error("in CrossrefDate::CrossrefDate: \"" + field + "\" does not exist or is not a JSON array!");
 
-    auto date_component_iter(nested_array_tree2_iter->second.begin());
-    const auto &date_end(nested_array_tree2_iter->second.end());
+    if (unlikely(array_node->empty()))
+        Error("in CrossrefDate::CrossrefDate: nested child of \"" + field + "\" does not exist!");
+
+    const JSON::ArrayNode * const array_node2(dynamic_cast<const JSON::ArrayNode *>(array_node->getValue(0)));
+    if (unlikely(array_node2 == nullptr))
+        Error("in CrossrefDate::CrossrefDate: inner nested child of \"" + field + "\" is not a JSON array!");
+
+    auto date_component_iter(array_node2->cbegin());
+    const auto &date_end(array_node2->cend());
     if (unlikely(date_component_iter == date_end))
         Error("in CrossrefDate::CrossrefDate: year is missing for the \"" + field + "\" date field!");
 
-    const std::string year_candidate(date_component_iter->second.data());
-    if (unlikely(not StringUtil::ToUnsigned(year_candidate, &year_)))
-        Error("in CrossrefDate::CrossrefDate: cannot convert year component \"" + year_candidate
+    const JSON::IntegerNode *year_node(dynamic_cast<const JSON::IntegerNode *>(*date_component_iter));
+    if (year_node == nullptr or year_node->getValue() < 0)
+        Error("in CrossrefDate::CrossrefDate: cannot convert year component \"" + (*date_component_iter)->toString()
               + "\" to an unsigned integer!");
+    year_ = static_cast<unsigned>(year_node->getValue());
     if (unlikely(year_ < 1000 or year_ > 3000))
-        Error("in CrossrefDate::CrossrefDate: year component \"" + year_candidate + "\" is unlikely to be a year!");
+        Error("in CrossrefDate::CrossrefDate: year component \"" + std::to_string(year_)
+              + "\" is unlikely to be a year!");
 
     ++date_component_iter;
     if (date_component_iter == date_end) {
@@ -90,12 +95,13 @@ CrossrefDate::CrossrefDate(const boost::property_tree::ptree &tree, const std::s
         return;
     }
 
-    if (unlikely(not StringUtil::ToUnsigned(date_component_iter->second.data(), &month_)))
-        Error("in CrossrefDate::CrossrefDate: cannot convert month component \"" + date_component_iter->first
+    const JSON::IntegerNode *month_node(dynamic_cast<const JSON::IntegerNode *>(*date_component_iter));
+    if (month_node == nullptr or month_node->getValue() < 0)
+        Error("in CrossrefDate::CrossrefDate: cannot convert month component \"" + (*date_component_iter)->toString()
               + "\" to an unsigned integer!");
+    month_ = static_cast<unsigned>(month_node->getValue());
     if (unlikely(month_ < 1 or month_ > 12))
-        Error("in CrossrefDate::CrossrefDate: month component \"" + date_component_iter->first
-              + "\" is not a month!");
+        Error("in CrossrefDate::CrossrefDate: month component \"" + std::to_string(month_) + "\" is not a month!");
 
     ++date_component_iter;
     if (date_component_iter == date_end) {
@@ -103,12 +109,13 @@ CrossrefDate::CrossrefDate(const boost::property_tree::ptree &tree, const std::s
         return;
     }
 
-    if (unlikely(not StringUtil::ToUnsigned(date_component_iter->second.data(), &day_)))
-        Error("in CrossrefDate::CrossrefDate: cannot convert day component \"" + date_component_iter->first
+    const JSON::IntegerNode *day_node(dynamic_cast<const JSON::IntegerNode *>(*date_component_iter));
+    if (day_node == nullptr or day_node->getValue() < 0)
+        Error("in CrossrefDate::CrossrefDate: cannot convert day component \"" + (*date_component_iter)->toString()
               + "\" to an unsigned integer!");
+    day_ = static_cast<unsigned>(day_node->getValue());
     if (unlikely(day_ < 1 or day_ > 31))
-        Error("in CrossrefDate::CrossrefDate: day component \"" + date_component_iter->first
-              + "\" is not a day!");
+        Error("in CrossrefDate::CrossrefDate: day component \"" + std::to_string(day_) + "\" is not a day!");
 }
 
 
@@ -262,59 +269,86 @@ bool FuzzyTextMatch(const std::string &s1, const std::string &s2) {
 }
 
 
-std::vector<std::string> ExtractString(const boost::property_tree::ptree &message_tree,
-                                       const std::string &json_field_name)
-{
+std::vector<std::string> ExtractString(const JSON::ObjectNode &object_node, const std::string &json_field_name) {
     std::vector<std::string> extracted_values;
-    const std::string value(message_tree.get<std::string>(json_field_name, ""));
-    if (not value.empty())
-        extracted_values.emplace_back(value);
+    const JSON::JSONNode * const node(object_node.getValue(json_field_name));
+    if (node == nullptr or node->getType() != JSON::JSONNode::STRING_NODE)
+        return extracted_values;
+
+    extracted_values.emplace_back(reinterpret_cast<const JSON::StringNode *>(node)->getValue());
 
     return extracted_values;
 }
 
 
-std::string ExtractAuthor(const boost::property_tree::ptree &author_ptree) {
-    std::string author(author_ptree.get<std::string>("family"));
-    const std::string given_name(author_ptree.get<std::string>("given", ""));
-    if (not given_name.empty())
-        author += ", " + given_name;
+std::string ExtractAuthor(const JSON::ObjectNode &object_node) {
+    const JSON::StringNode * const family_node(
+        dynamic_cast<const JSON::StringNode *>(object_node.getValue("family")));
+    if (unlikely(family_node == nullptr))
+        Error("in ExtractAuthor: missing or invalid \"family\" node!");
+
+    std::string author(family_node->getValue());
+    const JSON::StringNode * const given_node(
+        dynamic_cast<const JSON::StringNode *>(object_node.getValue("given")));
+    if (given_node != nullptr)
+        author += ", " + given_node->getValue();
 
     return author;
 }
 
 
-std::vector<std::string> ExtractAuthorVector(const boost::property_tree::ptree &message_tree,
+std::vector<std::string> ExtractAuthorVector(const JSON::ObjectNode &object_node,
                                              const std::string &json_field_name)
 {
     std::vector<std::string> extracted_values;
 
-    boost::property_tree::ptree::const_assoc_iterator array_iter(message_tree.find(json_field_name));
-    if (array_iter != message_tree.not_found()) {
-        for (const auto &array_entry : array_iter->second)
-            extracted_values.emplace_back(ExtractAuthor(array_entry.second));
+    const JSON::ArrayNode *array_node(dynamic_cast<const JSON::ArrayNode *>(object_node.getValue(json_field_name)));
+    if (array_node == nullptr)
+        return extracted_values;
+
+    for (JSON::ArrayNode::const_iterator array_entry(array_node->cbegin()); array_entry != array_node->cend();
+         ++array_entry)
+    {
+        const JSON::ObjectNode *author_node(dynamic_cast<const JSON::ObjectNode *>(*array_entry));
+        if (author_node != nullptr)
+            extracted_values.emplace_back(ExtractAuthor(*author_node));
     }
 
     return extracted_values;
 }
 
 
-std::vector<std::string> ExtractStringVector(const boost::property_tree::ptree &message_tree,
+std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node,
                                              const std::string &json_field_name)
 {
     std::vector<std::string> extracted_values;
 
-    boost::property_tree::ptree::const_assoc_iterator array_iter(message_tree.find(json_field_name));
-    if (array_iter != message_tree.not_found()) {
-        for (const auto &array_entry : array_iter->second)
-            extracted_values.emplace_back(array_entry.second.data());
+    const JSON::ArrayNode *array_node(dynamic_cast<const JSON::ArrayNode *>(object_node.getValue(json_field_name)));
+    if (array_node == nullptr)
+        return extracted_values;
+
+    for (JSON::ArrayNode::const_iterator array_entry(array_node->cbegin()); array_entry != array_node->cend();
+         ++array_entry)
+    {
+        const JSON::StringNode *string_node(dynamic_cast<const JSON::StringNode *>(*array_entry));
+        if (unlikely(string_node == nullptr))
+            Error("in ExtractStringVector: expected a string node!");
+        extracted_values.emplace_back(string_node->getValue());
     }
 
     return extracted_values;
 }
 
 
-void AddIssueInfo(const boost::property_tree::ptree &message_tree, MarcRecord * const marc_record) {
+static std::string GetOptionalStringValue(const JSON::ObjectNode &object_node, const std::string &json_field_name) {
+    const JSON::StringNode *string_node(dynamic_cast<const JSON::StringNode *>(
+        object_node.getValue(json_field_name)));
+    return (string_node == nullptr) ? "" : string_node->getValue();
+    
+}
+
+
+void AddIssueInfo(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
     std::string field_data;
     const CrossrefDate issued_date(message_tree, "issued");
     if (issued_date.getDay() != 0)
@@ -322,15 +356,15 @@ void AddIssueInfo(const boost::property_tree::ptree &message_tree, MarcRecord * 
     if (issued_date.getMonth() != 0)
         field_data += CreateSubfield('c', std::to_string(issued_date.getMonth()));
 
-    const std::string optional_volume(message_tree.get<std::string>("volume", ""));
+    const std::string optional_volume(GetOptionalStringValue(message_tree, "volume"));
     if (not optional_volume.empty())
         field_data += CreateSubfield('d', optional_volume);
 
-    const std::string optional_issue(message_tree.get<std::string>("issue", ""));
+    const std::string optional_issue(GetOptionalStringValue(message_tree, "issue"));
     if (not optional_issue.empty())
         field_data += CreateSubfield('e', optional_issue);
 
-    const std::string optional_page(message_tree.get<std::string>("page", ""));
+    const std::string optional_page(GetOptionalStringValue(message_tree, "page"));
     if (not optional_page.empty())
         field_data += CreateSubfield('h', optional_page);
 
@@ -339,7 +373,7 @@ void AddIssueInfo(const boost::property_tree::ptree &message_tree, MarcRecord * 
 }
 
 
-void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const boost::property_tree::ptree &message_tree,
+void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const JSON::ObjectNode &message_tree,
                               const std::vector<MapDescriptor *> &map_descriptors)
 {
     MarcRecord record;
@@ -372,84 +406,6 @@ void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const boost::prope
 }
 
 
-// Converts the nnnn part of \unnnn to UTF-8. */
-std::string UTF16EscapeToUTF8(std::string::const_iterator &cp, const std::string::const_iterator &end) {
-    std::string hex_codes;
-    for (unsigned i(0); i < 4; ++i) {
-        if (unlikely(cp == end))
-            Error("in UTF16EscapeToUTF8: unexpected end of input!");
-        hex_codes += *cp++;
-    }
-
-    uint16_t u1;
-    if (unlikely(not StringUtil::ToUnsignedShort(hex_codes, &u1, 16)))
-            Error("in UTF16EscapeToUTF8: invalid hex sequence \\u" + hex_codes + "! (1)");
-
-    if (TextUtil::IsValidSingleUTF16Char(u1))
-        return TextUtil::UTF32ToUTF8(TextUtil::UTF16ToUTF32(u1));
-
-    if (unlikely(not TextUtil::IsFirstHalfOfSurrogatePair(u1)))
-        Error("in UTF16EscapeToUTF8: \\u" + hex_codes + " is neither a standalone UTF-8 character nor a valid "
-              "first half of a UTF-16 surrogate pair!");
-
-    if (unlikely(cp == end or *cp++ != '\\'))
-        Error("in UTF16EscapeToUTF8: could not find expected '\\' as part of the 2nd half of a surrogate pair!");
-    if (unlikely(cp == end or *cp++ != 'u'))
-        Error("in UTF16EscapeToUTF8: could not find expected 'u' as part of the 2nd half of a surrogate pair!");
-
-    hex_codes.clear();
-    for (unsigned i(0); i < 4; ++i) {
-        if (unlikely(cp == end))
-            Error("in UTF16EscapeToUTF8: unexpected end of input while attempting to read a 2nd half of a surrogate "
-                  "pair!");
-        hex_codes += *cp++;
-    }
-
-    uint16_t u2;
-    if (unlikely(not StringUtil::ToUnsignedShort(hex_codes, &u2, 16)))
-            Error("in UTF16EscapeToUTF8: invalid hex sequence \\u" + hex_codes + "! (2)");
-    if (unlikely(not TextUtil::IsSecondHalfOfSurrogatePair(u2)))
-            Error("in UTF16EscapeToUTF8: invalid 2nd half of a surrogate pair: \\u" + hex_codes + "!");
-
-    return TextUtil::UTF32ToUTF8(TextUtil::UTF16ToUTF32(u1, u2));
-}
-
-
-std::string UnescapeCrossRefJSON(const std::string &json_text) {
-    std::string unescaped_string;
-    bool in_text(false);
-    auto cp(json_text.cbegin());
-    while (cp != json_text.cend()) {
-        if (in_text) {
-            if (*cp == '\\') {
-                if (unlikely(cp + 1 == json_text.cend()))
-                    Error("in UnescapeCrossRefJSON: malformed JSON!");
-                ++cp;
-                if (*cp == '/')
-                    unescaped_string += *cp++;
-                else if (*cp == 'u')
-                    unescaped_string += UTF16EscapeToUTF8(++cp, json_text.cend());
-                else {
-                    unescaped_string += '\\';
-                    Warning("in UnescapeCrossRefJSON: unexpected escape \\" + std::string(1, *cp)
-                            + "in JSON string constant!");
-                    unescaped_string += *cp++;
-                }
-            } else {
-                if (*cp == '"')
-                    in_text = false;
-                unescaped_string += *cp++;
-            }
-        } else {
-            in_text = *cp == '"';
-            unescaped_string += *cp++;
-        }
-    }
-
-    return unescaped_string;
-}
-
-
 // Expects "line" to look like "XXXX-XXXX,YYYY-YYYY,...ZZZZ-ZZZZ JJJ" where "XXXX-XXXX", "YYYY-YYYY" and "ZZZZ-ZZZZ"
 // are ISSN's and "JJJ" a journal title.
 bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * const issns,
@@ -463,8 +419,10 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
         return false;
 
     for (const auto &issn : *issns) {
-        if (unlikely(not MiscUtil::IsPossibleISSN(issn)))
+        if (unlikely(not MiscUtil::IsPossibleISSN(issn))) {
+            Warning(issn + " is not a valid ISSN!");
             return false;
+        }
     }
 
     *journal_name = StringUtil::TrimWhite(line.substr(first_space_pos + 1));
@@ -476,7 +434,8 @@ unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter
                      const std::vector<MapDescriptor *> &map_descriptors,
                      std::unordered_set<std::string> * const already_seen)
 {
-    Downloader downloader("https://api.crossref.org/v1/journals/" + issn + "/works", Downloader::Params(),
+    const std::string DOWNLOAD_URL("https://api.crossref.org/v1/journals/" + issn + "/works");
+    Downloader downloader(DOWNLOAD_URL, Downloader::Params(),
                           timeout * 1000);
     if (downloader.anErrorOccurred()) {
         std::cerr << "Error while downloading metadata for ISSN " << issn << ": " << downloader.getLastErrorMessage()
@@ -493,27 +452,33 @@ unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter
         return 0;
     }
 
-    const std::string json_document(UnescapeCrossRefJSON(downloader.getMessageBody()));
-    std::stringstream query_input(json_document, std::ios_base::in);
-    boost::property_tree::ptree full_tree;
-    boost::property_tree::json_parser::read_json(query_input, full_tree);
+    const std::string &json_document(downloader.getMessageBody());
+    JSON::JSONNode *full_tree;
+    JSON::Parser parser(json_document);
+    if (not parser.parse(&full_tree))
+        Error("failed to parse JSON (" + parser.getErrorMessage() + "), download URL was: " + DOWNLOAD_URL);
 
-    const boost::property_tree::ptree::const_assoc_iterator message_iter(full_tree.find("message"));
-    if (unlikely(message_iter == full_tree.not_found()))
+    const JSON::ObjectNode * const top_node(dynamic_cast<const JSON::ObjectNode *>(full_tree));
+    if (unlikely(top_node == nullptr))
+        Error("JSON returned from Crossref is not an object! (URL was " + DOWNLOAD_URL + ")");
+
+    const JSON::ObjectNode * const message_node(
+        dynamic_cast<const JSON::ObjectNode *>(top_node->getValue("message")));
+    if (unlikely(message_node == nullptr))
         return 0;
 
-    const boost::property_tree::ptree::const_assoc_iterator items_iter(message_iter->second.find("items"));
-    if (unlikely(items_iter == items_iter->second.not_found()))
+    const JSON::ArrayNode * const items(dynamic_cast<const JSON::ArrayNode *>(message_node->getValue("items")));
+    if (unlikely(items == nullptr))
         return 0;
 
     unsigned document_count(0);
-    for (const auto &item : items_iter->second) {
-        const boost::property_tree::ptree::const_assoc_iterator container_titles(
-            item.second.find("container-title"));
-        if (container_titles == item.second.not_found())
-            continue;
+    for (auto item_iter(items->cbegin()); item_iter != items->cend(); ++item_iter) {
+        const JSON::ObjectNode * const item(dynamic_cast<JSON::ObjectNode *>(*item_iter));
+        if (unlikely(item == nullptr))
+            Error("item is JSON \"items\" array as returned by Crossref is not an object!");
 
-        const std::string member(item.second.get<std::string>("member", ""));
+        static const std::string EMPTY_STRING;
+        const std::string member(JSON::LookupString("/member", item, &EMPTY_STRING));
         if (unlikely(member.empty()))
             Error("No \"member\" for an item returned for the ISSN " + issn + "!");
 
@@ -522,7 +487,7 @@ unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter
             continue;
         already_seen->insert(member);
 
-        CreateAndWriteMarcRecord(marc_writer, item.second, map_descriptors);
+        CreateAndWriteMarcRecord(marc_writer, *item, map_descriptors);
         ++document_count;
     }
 
