@@ -130,8 +130,6 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                   const std::string &serial_control_number, std::string last_modification_time,
                   std::vector<NewIssueInfo> * const new_issue_infos, std::string * const max_last_modification_time)
 {
-    if (not StringUtil::EndsWith(last_modification_time, "Z"))
-        last_modification_time += "T00:00:00Z"; // Solr does not support the short form of the ISO 8601 date formats.
     const std::string QUERY("superior_ppn:" + serial_control_number + " AND last_modification_time:{"
                             + last_modification_time + " TO *}");
     std::string json_result;
@@ -236,6 +234,15 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
 }
 
 
+// Makes "date" look like an ISO-8601 date.
+std::string ConvertDateToZuluDate(std::string date) {
+    if (unlikely(date.length() != 28 or date[10] != ' '))
+        Error("unexpected datetime in ConvertDateToZuluDate: \"" + date + "\"!");
+    date[10] = 'T';
+    return date + 'Z';
+}
+
+
 void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection,
                           const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                           std::unordered_set<std::string> * const new_notification_ids,
@@ -264,7 +271,7 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
         std::vector<SerialControlNumberAndMaxLastModificationTime> control_numbers_and_last_modification_times;
         while (const DbRow row = result_set.getNextRow()) {
             control_numbers_and_last_modification_times.emplace_back(SerialControlNumberAndMaxLastModificationTime(
-                row["journal_control_number"], row["max_last_modification_time"]));
+                row["journal_control_number"], ConvertDateToZuluDate(row["max_last_modification_time"])));
             ++subscription_count;
         }
         ProcessSingleUser(verbose, db_connection, notified_db, new_notification_ids, user_id, solr_host_and_port,
