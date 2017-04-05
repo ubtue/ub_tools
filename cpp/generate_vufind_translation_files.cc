@@ -59,8 +59,8 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
     if (unlikely(output.fail()))
         Error("failed to open \"" + output_file_path + "\" for writing!");
 
-    const std::string SELECT_STMT("SELECT token,translation FROM vufind_translations WHERE language_code='" + _3letter_code
-                                  + "'");
+    const std::string SELECT_STMT("SELECT token,translation FROM vufind_translations WHERE language_code='"
+                                  + _3letter_code + "'");
     if (unlikely(not db_connection->query(SELECT_STMT)))
         Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 
@@ -101,10 +101,12 @@ void GetLanguageCodes(DbConnection * const db_connection, std::map<std::string, 
         Error("no language codes found, expected multiple!");
 
     while (const DbRow row = language_codes_result_set.getNextRow()) {
-        const std::string german_language_code(TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row[0]));
+        const std::string german_language_code(
+            TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row[0]));
         if (german_language_code == "???")
             continue;
-        const std::string international_language_code(TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode(german_language_code));
+        const std::string international_language_code(
+            TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode(german_language_code));
         language_codes->emplace(international_language_code, row[0]);
     }
 }
