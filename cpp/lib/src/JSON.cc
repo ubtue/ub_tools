@@ -284,6 +284,7 @@ TokenType Scanner::parseStringConstant() {
                 string_value += '\t';
                 break;
             case 'u': {
+                ++ch_;
                 std::string utf8;
                 if (unlikely(not UTF16EscapeToUTF8(&utf8)))
                     return ERROR;
