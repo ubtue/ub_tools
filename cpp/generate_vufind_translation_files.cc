@@ -82,9 +82,13 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
                  const std::tuple<unsigned, std::string,std::string> &right)
               { return std::get<0>(left) < std::get<0>(right); });
 
-    for (const auto &line_no_token_and_translation : line_nos_tokens_and_translations)
-        output << std::get<1>(line_no_token_and_translation) << " = \""
-               << std::get<2>(line_no_token_and_translation) << "\"\n";
+    for (const auto &line_no_token_and_translation : line_nos_tokens_and_translations) {
+        std::string token = std::get<1>(line_no_token_and_translation);
+        std::string translation = std::get<2>(line_no_token_and_translation);
+        if (translation.empty())
+            continue;
+        output << token << " = \"" << translation << "\"\n";
+    }
 
     std::cout << "Wrote " << line_nos_tokens_and_translations.size() << " language mappings to \""
               << output_file_path << "\"\n";
