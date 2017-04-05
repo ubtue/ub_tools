@@ -840,7 +840,7 @@ bool IsPossibleISSN(std::string issn_candidate) {
             check_digit = '0' + digit;
     }
 
-    return issn_candidate[7] == check_digit;
+    return std::toupper(issn_candidate[7]) == check_digit;
 }
 
 
