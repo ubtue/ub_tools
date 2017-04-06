@@ -379,7 +379,8 @@ void AddIssueInfo(const JSON::ObjectNode &message_tree, MarcRecord * const marc_
 }
 
 
-void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::HashDB * const notified_db,
+/** \return True, if we wrote a record and false if we suppressed a duplicate. */
+bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::HashDB * const notified_db,
                               const std::string &DOI, const JSON::ObjectNode &message_tree,
                               const std::vector<MapDescriptor *> &map_descriptors)
 {
@@ -413,13 +414,14 @@ void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
     std::string old_hash, new_hash(record.calcChecksum());
     if (notified_db->get(DOI, &old_hash)) {
         if (old_hash == new_hash)
-            return;
+            return false;
     }
-    if (unlikely(notified_db->set(DOI, new_hash)))
-        Error("failed to write the DOI \"" + DOI + "\" into \"" + notified_db->path() + "\"! ("
-              + std::string(notified_db->error().message()) + ")");
+    if (unlikely(not notified_db->set(DOI, new_hash)))
+        Error("in CreateAndWriteMarcRecord: failed to write the DOI \"" + DOI + "\" into \"" + notified_db->path()
+              + "\"! (" + std::string(notified_db->error().message()) + ")");
 
     marc_writer->write(record);
+    return true;
 }
 
 
@@ -451,17 +453,20 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
 }
 
 
-unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter * const marc_writer,
-                     kyotocabinet::HashDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
-                     std::unordered_set<std::string> * const already_seen)
+void ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter * const marc_writer,
+                 kyotocabinet::HashDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
+                 std::unordered_set<std::string> * const already_seen, unsigned * const written_count,
+                 unsigned * const suppressed_count)
 {
+    *written_count = *suppressed_count = 0;
+
     const std::string DOWNLOAD_URL("https://api.crossref.org/v1/journals/" + issn + "/works");
     Downloader downloader(DOWNLOAD_URL, Downloader::Params(),
                           timeout * 1000);
     if (downloader.anErrorOccurred()) {
         std::cerr << "Error while downloading metadata for ISSN " << issn << ": " << downloader.getLastErrorMessage()
                   << '\n';
-        return 0;
+        return;
     }
 
     // Check for rate limiting and error status codes:
@@ -470,7 +475,7 @@ unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter
         Error("we got rate limited!");
     else if (http_header.getStatusCode() != 200) {
         Warning("Crossref returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "!");
-        return 0;
+        return;
     }
 
     const std::string &json_document(downloader.getMessageBody());
@@ -486,13 +491,12 @@ unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter
     const JSON::ObjectNode * const message_node(
         dynamic_cast<const JSON::ObjectNode *>(top_node->getValue("message")));
     if (unlikely(message_node == nullptr))
-        return 0;
+        return;
 
     const JSON::ArrayNode * const items(dynamic_cast<const JSON::ArrayNode *>(message_node->getValue("items")));
     if (unlikely(items == nullptr))
-        return 0;
+        return;
 
-    unsigned document_count(0);
     for (auto item_iter(items->cbegin()); item_iter != items->cend(); ++item_iter) {
         const JSON::ObjectNode * const item(dynamic_cast<JSON::ObjectNode *>(*item_iter));
         if (unlikely(item == nullptr))
@@ -504,21 +508,23 @@ unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter
             Error("No \"DOI\" for an item returned for the ISSN " + issn + "!");
 
         // Have we already seen this item?
-        if (already_seen->find(DOI) != already_seen->cend())
+        if (already_seen->find(DOI) != already_seen->cend()) {
+            ++*suppressed_count;
             continue;
+        }
         already_seen->insert(DOI);
 
-        CreateAndWriteMarcRecord(marc_writer, notified_db, DOI, *item, map_descriptors);
-        ++document_count;
+        if (CreateAndWriteMarcRecord(marc_writer, notified_db, DOI, *item, map_descriptors))
+            ++*written_count;
+        else
+            ++*suppressed_count;
     }
-
-    return document_count;
 }
 
 
-unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter * const marc_writer,
-                        kyotocabinet::HashDB * const notified_db,
-                        const std::vector<MapDescriptor *> &map_descriptors)
+void ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter * const marc_writer,
+                    kyotocabinet::HashDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
+                    unsigned * const total_written_count, unsigned * const total_suppressed_count)
 {
     std::vector<std::string> issns;
     std::string journal_name;
@@ -526,12 +532,14 @@ unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWri
         Error("bad input line \"" + line + "\"!");
     std::cout << "Processing " << journal_name << '\n';
 
-    unsigned total_document_count(0);
     std::unordered_set<std::string> already_seen;
-    for (const auto &issn : issns)
-        total_document_count += ProcessISSN(issn, timeout, marc_writer, notified_db, map_descriptors, &already_seen);
-
-    return total_document_count;
+    for (const auto &issn : issns) {
+        unsigned written_count, suppressed_count;
+        ProcessISSN(issn, timeout, marc_writer, notified_db, map_descriptors, &already_seen, &written_count,
+                    &suppressed_count);
+        *total_written_count    += written_count;
+        *total_suppressed_count += suppressed_count;
+    }
 }
 
 
@@ -575,24 +583,25 @@ int main(int argc, char *argv[]) {
         std::vector<MapDescriptor *> map_descriptors;
         InitCrossrefToMarcMapping(&map_descriptors);
 
-        unsigned success_count(0), total_article_count(0);
+        unsigned success_count(0), total_written_count(0), total_success_count(0);
         while (not journal_list_file->eof()) {
             std::string line;
             journal_list_file->getline(&line);
             StringUtil::Trim(&line);
             if (not line.empty()) {
-                const unsigned article_count(ProcessJournal(timeout, line, marc_writer.get(), notified_db.get(),
-                                                            map_descriptors));
-                if (article_count > 0) {
+                const unsigned old_total_written_count(total_written_count);
+                ProcessJournal(timeout, line, marc_writer.get(), notified_db.get(), map_descriptors,
+                               &total_written_count , &total_success_count);
+                if (old_total_written_count < total_written_count)
                     ++success_count;
-                    total_article_count += article_count;
-                }
             }
         }
 
         std::cout << "Downloaded metadata for at least one article from " << success_count << " journals.\n";
-        std::cout << "The total number of articles for which metadata was downloaded is " << total_article_count
-                  << ".\n";
+        std::cout << "The total number of articles for which metadata was downloaded and written out is "
+                  << total_written_count
+                  << ".\nAnd the number of articles that were identical to previous downloads and therefore "
+                  << "suppressed is " << total_success_count << ".\n";
         return success_count == 0 ? EXIT_FAILURE : EXIT_SUCCESS;
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
