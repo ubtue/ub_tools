@@ -91,7 +91,7 @@ void MarcRecord::updateField(const size_t field_index, const std::string &new_fi
     if (unlikely(new_field_value.size() > MAX_FIELD_LENGTH))
         throw std::runtime_error("in MarcRecord::updateField: can't accept more than MarcRecord::MAX_FIELD_LENGTH "
                                  "of field data!");
-    
+
     DirectoryEntry &entry(directory_entries_[field_index]);
     size_t offset = raw_data_.size();
     size_t length = new_field_value.length() + 1 /* For new field separator. */;
@@ -328,14 +328,27 @@ bool MarcRecord::isElectronicResource() const {
 
 void MarcRecord::combine(const MarcRecord &record) {
     const size_t offset(raw_data_.size());
-    raw_data_ += record.raw_data_;
+    raw_data_ += record.raw_data_.substr(record.directory_entries_[0].getFieldLength());
 
     // Ignore first field. We only need one 001-field.
-    directory_entries_.reserve(record.directory_entries_.size() - 1);
+    directory_entries_.reserve(directory_entries_.size() + record.directory_entries_.size() - 1);
     for (auto iter(record.directory_entries_.begin() + 1); iter < record.directory_entries_.end(); ++iter) {
         directory_entries_.emplace_back(*iter);
         directory_entries_.back().setFieldOffset(iter->getFieldOffset() + offset);
     }
+}
+
+
+std::string MarcRecord::calcChecksum() const {
+    std::string blob;
+    blob.reserve(200000); // Rougly twice the maximum size of a single MARC-21 record.
+
+    blob += leader_.toString();
+    for (const auto &dir_entry : directory_entries_)
+        blob += dir_entry.toString();
+    blob += raw_data_;
+
+    return StringUtil::Sha1(blob);
 }
 
 
