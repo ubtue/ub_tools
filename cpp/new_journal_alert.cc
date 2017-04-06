@@ -236,7 +236,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
 
 // Makes "date" look like an ISO-8601 date.
 std::string ConvertDateToZuluDate(std::string date) {
-    if (unlikely(date.length() != 28 or date[10] != ' '))
+    if (unlikely(date.length() != 19 or date[10] != ' '))
         Error("unexpected datetime in ConvertDateToZuluDate: \"" + date + "\"!");
     date[10] = 'T';
     return date + 'Z';
