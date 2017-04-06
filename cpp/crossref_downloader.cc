@@ -23,6 +23,7 @@
 #include <vector>
 #include <cstdlib>
 #include <cstring>
+#include <kchashdb.h>
 #include "Compiler.h"
 #include "Downloader.h"
 #include "FileUtil.h"
@@ -58,15 +59,15 @@ public:
 // Parses a JSON subtree that, should it exist looks like [[YYYY, MM, DD]] where the day as well as the
 // month may be missing.
 CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &field) {
-    const JSON::JSONNode * const subtree(object.getValue(field));
+    const JSON::ObjectNode * const subtree(dynamic_cast<const JSON::ObjectNode *>(object.getValue(field)));
     if (subtree == nullptr) {
         year_ = month_ = day_ = 0;
         return;
     }
 
-    const JSON::ArrayNode * const array_node(dynamic_cast<const JSON::ArrayNode *>(subtree));
+    const JSON::ArrayNode * const array_node(dynamic_cast<const JSON::ArrayNode *>(subtree->getValue("date-parts")));
     if (unlikely(array_node == nullptr))
-        Error("in CrossrefDate::CrossrefDate: \"" + field + "\" does not exist or is not a JSON array!");
+        Error("in CrossrefDate::CrossrefDate: \"date-parts\" does not exist or is not a JSON array!");
 
     if (unlikely(array_node->empty()))
         Error("in CrossrefDate::CrossrefDate: nested child of \"" + field + "\" does not exist!");
@@ -282,6 +283,11 @@ std::vector<std::string> ExtractString(const JSON::ObjectNode &object_node, cons
 
 
 std::string ExtractAuthor(const JSON::ObjectNode &object_node) {
+    const JSON::StringNode * const name_node(
+        dynamic_cast<const JSON::StringNode *>(object_node.getValue("name")));
+    if (name_node != nullptr)
+        return name_node->getValue();
+
     const JSON::StringNode * const family_node(
         dynamic_cast<const JSON::StringNode *>(object_node.getValue("family")));
     if (unlikely(family_node == nullptr))
@@ -344,7 +350,7 @@ static std::string GetOptionalStringValue(const JSON::ObjectNode &object_node, c
     const JSON::StringNode *string_node(dynamic_cast<const JSON::StringNode *>(
         object_node.getValue(json_field_name)));
     return (string_node == nullptr) ? "" : string_node->getValue();
-    
+
 }
 
 
@@ -373,7 +379,8 @@ void AddIssueInfo(const JSON::ObjectNode &message_tree, MarcRecord * const marc_
 }
 
 
-void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const JSON::ObjectNode &message_tree,
+void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::HashDB * const notified_db,
+                              const std::string &DOI, const JSON::ObjectNode &message_tree,
                               const std::vector<MapDescriptor *> &map_descriptors)
 {
     MarcRecord record;
@@ -402,6 +409,19 @@ void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, const JSON::Object
         AddIssueInfo(message_tree, &record);
     }
 
+    // If we have already encountered the exact same record in the past we skip writing it:
+    std::string old_hash, new_hash;
+    if (notified_db->get(DOI, &old_hash)) {
+        new_hash = record.calcChecksum();
+        if (old_hash == new_hash)
+            return;
+    }
+    if (new_hash.empty())
+        new_hash = record.calcChecksum();
+    if (unlikely(notified_db->set(DOI, new_hash)))
+        Error("failed to write the DOI \"" + DOI + "\" into \"" + notified_db->path() + "\"! ("
+              + std::string(notified_db->error().message()) + ")");
+
     marc_writer->write(record);
 }
 
@@ -412,11 +432,15 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
                             std::string * const journal_name)
 {
     const size_t first_space_pos(line.find(' '));
-    if (unlikely(first_space_pos == std::string::npos or first_space_pos == 0))
+    if (unlikely(first_space_pos == std::string::npos or first_space_pos == 0)) {
+        Warning("No space found!");
         return false;
+    }
 
-    if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns) == 0)
+    if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns) == 0) {
+        Warning("No ISSNS found!");
         return false;
+    }
 
     for (const auto &issn : *issns) {
         if (unlikely(not MiscUtil::IsPossibleISSN(issn))) {
@@ -431,7 +455,7 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
 
 
 unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter * const marc_writer,
-                     const std::vector<MapDescriptor *> &map_descriptors,
+                     kyotocabinet::HashDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
                      std::unordered_set<std::string> * const already_seen)
 {
     const std::string DOWNLOAD_URL("https://api.crossref.org/v1/journals/" + issn + "/works");
@@ -478,16 +502,16 @@ unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter
             Error("item is JSON \"items\" array as returned by Crossref is not an object!");
 
         static const std::string EMPTY_STRING;
-        const std::string member(JSON::LookupString("/member", item, &EMPTY_STRING));
-        if (unlikely(member.empty()))
-            Error("No \"member\" for an item returned for the ISSN " + issn + "!");
+        const std::string DOI(JSON::LookupString("/DOI", item, &EMPTY_STRING));
+        if (unlikely(DOI.empty()))
+            Error("No \"DOI\" for an item returned for the ISSN " + issn + "!");
 
         // Have we already seen this item?
-        if (already_seen->find(member) != already_seen->cend())
+        if (already_seen->find(DOI) != already_seen->cend())
             continue;
-        already_seen->insert(member);
+        already_seen->insert(DOI);
 
-        CreateAndWriteMarcRecord(marc_writer, *item, map_descriptors);
+        CreateAndWriteMarcRecord(marc_writer, notified_db, DOI, *item, map_descriptors);
         ++document_count;
     }
 
@@ -496,6 +520,7 @@ unsigned ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter
 
 
 unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter * const marc_writer,
+                        kyotocabinet::HashDB * const notified_db,
                         const std::vector<MapDescriptor *> &map_descriptors)
 {
     std::vector<std::string> issns;
@@ -507,9 +532,19 @@ unsigned ProcessJournal(const unsigned timeout, const std::string &line, MarcWri
     unsigned total_document_count(0);
     std::unordered_set<std::string> already_seen;
     for (const auto &issn : issns)
-        total_document_count += ProcessISSN(issn, timeout, marc_writer, map_descriptors, &already_seen);
+        total_document_count += ProcessISSN(issn, timeout, marc_writer, notified_db, map_descriptors, &already_seen);
 
     return total_document_count;
+}
+
+
+std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
+    const std::string DB_FILENAME("/var/lib/tuelib/crossref_downloader/notified.db");
+    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
+    if (not (db->open(DB_FILENAME,
+                      kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
+        Error("failed to open or create \"" + DB_FILENAME + "\"!");
+    return db;
 }
 
 
@@ -535,6 +570,8 @@ int main(int argc, char *argv[]) {
     const std::string marc_output_filename(argv[2]);
 
     try {
+        std::unique_ptr<kyotocabinet::HashDB> notified_db(CreateOrOpenKeyValueDB());
+
         const std::unique_ptr<File> journal_list_file(FileUtil::OpenInputFileOrDie(journal_list_filename));
         const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
 
@@ -547,7 +584,8 @@ int main(int argc, char *argv[]) {
             journal_list_file->getline(&line);
             StringUtil::Trim(&line);
             if (not line.empty()) {
-                const unsigned article_count(ProcessJournal(timeout, line, marc_writer.get(), map_descriptors));
+                const unsigned article_count(ProcessJournal(timeout, line, marc_writer.get(), notified_db.get(),
+                                                            map_descriptors));
                 if (article_count > 0) {
                     ++success_count;
                     total_article_count += article_count;
