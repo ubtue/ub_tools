@@ -184,6 +184,11 @@ public:
 
     bool isElectronicResource() const;
 
+    /** \brief Generates a reproducible SHA-1 hash over our internal data.
+     *  \return the hash
+     */
+    std::string calcChecksum() const;
+    
     using RecordFunc = bool (&)(MarcRecord * const record, MarcWriter * const marc_writer,
                                 std::string * const err_msg);
 

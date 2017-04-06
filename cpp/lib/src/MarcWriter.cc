@@ -79,9 +79,8 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
     size_t raw_data_offset;
     size_t raw_data_length;
 
-    const std::string ppn = record.getControlNumber();
-    const size_t ppn_field_length = ppn.size() + 1;
-
+    const std::string ppn(record.getControlNumber());
+    const size_t ppn_field_length(ppn.size() + 1);
 
     auto directory_iter(record.directory_entries_.cbegin());
     if (unlikely(directory_iter == record.directory_entries_.cend()))
