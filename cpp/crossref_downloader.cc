@@ -410,14 +410,11 @@ void CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
     }
 
     // If we have already encountered the exact same record in the past we skip writing it:
-    std::string old_hash, new_hash;
+    std::string old_hash, new_hash(record.calcChecksum());
     if (notified_db->get(DOI, &old_hash)) {
-        new_hash = record.calcChecksum();
         if (old_hash == new_hash)
             return;
     }
-    if (new_hash.empty())
-        new_hash = record.calcChecksum();
     if (unlikely(notified_db->set(DOI, new_hash)))
         Error("failed to write the DOI \"" + DOI + "\" into \"" + notified_db->path() + "\"! ("
               + std::string(notified_db->error().message()) + ")");
