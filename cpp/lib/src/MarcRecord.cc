@@ -327,7 +327,7 @@ bool MarcRecord::isElectronicResource() const {
 
 
 void MarcRecord::combine(const MarcRecord &record) {
-    const size_t offset(raw_data_.size());
+    const size_t offset(raw_data_.size() - record.directory_entries_[0].getFieldLength());
     raw_data_ += record.raw_data_.substr(record.directory_entries_[0].getFieldLength());
 
     // Ignore first field. We only need one 001-field.
