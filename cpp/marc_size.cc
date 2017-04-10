@@ -18,13 +18,8 @@
 */
 
 #include <iostream>
-//#include <map>
 #include <stdexcept>
-//#include <unordered_set>
-//#include <vector>
-//#include <cstdio>
 #include <cstdlib>
-//#include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "util.h"
