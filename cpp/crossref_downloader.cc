@@ -602,7 +602,6 @@ int main(int argc, char *argv[]) {
                   << total_written_count
                   << ".\nAnd the number of articles that were identical to previous downloads and therefore "
                   << "suppressed is " << total_success_count << ".\n";
-        return success_count == 0 ? EXIT_FAILURE : EXIT_SUCCESS;
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
