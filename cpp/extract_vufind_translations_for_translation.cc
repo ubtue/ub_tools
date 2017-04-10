@@ -28,6 +28,8 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
+#include "DbResultSet.h"
+#include "DbRow.h"
 #include "File.h"
 #include "IniFile.h"
 #include "StringUtil.h"
@@ -47,6 +49,21 @@ void InsertTranslations(
     for (const auto &keys_to_line_no_and_translation : keys_to_line_no_and_translation_map) {
         const std::string key = connection->escapeString(keys_to_line_no_and_translation.first);
         const std::string translation = connection->escapeString(keys_to_line_no_and_translation.second.second);
+
+        // Skip inserting translations if we have a translator, i.e. the web translation tool was used
+        // to insert the translations into the database
+        const std::string GET_TRANSLATOR("SELECT translator FROM vufind_translations WHERE language_code=\""
+           + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
+           + "\" AND token=\"" + key + "\"");
+        if (not connection->query(GET_TRANSLATOR))
+            Error("Select failed: " + GET_TRANSLATOR + " (" + connection->getLastErrorMessage() + ")");
+        DbResultSet result(connection->getLastResultSet());
+        if (not result.hasColumn("translator"))
+            Error("Translator column not found");
+        const std::string translator(result.getNextRow()["translator"]);
+        if (not translator.empty())
+            continue;
+
         const std::string INSERT_OTHER(
            "REPLACE INTO vufind_translations SET language_code=\""
 	   + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
