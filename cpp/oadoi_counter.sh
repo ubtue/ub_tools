@@ -15,7 +15,7 @@ declare -i found=0
 while IFS='' read -r doi || [[ -n "$doi" ]]; do
     if [ ! -z "$doi" ]; then
         echo "Processing $doi"
-        oa_color=$(curl 'https://api.oadoi.org/'$doi"?email=$EMAIL" --silent --output - \
+        oa_color=$(curl 'https://api.oadoi.org/'"$doi?email=$EMAIL" --silent --output - \
                            | jq --monochrome-output '.results[0].oa_color')
         ((++total))
         if [[ $oa_color != "null" ]]; then
