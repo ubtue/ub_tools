@@ -69,7 +69,7 @@ def Main():
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
 
-    marc_filename = "/tmp/crossref_marc.xml")
+    marc_filename = "/tmp/crossref_marc.xml"
     no_of_records = DownloadCrossrefData(marc_filename)
     os.unlink(marc_filename)
     if no_of_records == 0:
