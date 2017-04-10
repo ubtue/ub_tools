@@ -13,11 +13,13 @@ EMAIL="johannes.ruscheinski@uni-tuebingen.de"
 declare -i total=0
 declare -i found=0
 while IFS='' read -r doi || [[ -n "$doi" ]]; do
-    oa_color=$(curl 'https://api.oadoi.org/'$doi"?email=$EMAIL" --silent --output - \
-                       | jq --monochrome-output '.results[0].oa_color')
-    ((++total))
-    if [[ $oa_color != "null" ]]; then
-        ((++found))
+    if [ ! -z "$doi" ]; then
+        oa_color=$(curl 'https://api.oadoi.org/'$doi"?email=$EMAIL" --silent --output - \
+                           | jq --monochrome-output '.results[0].oa_color')
+        ((++total))
+        if [[ $oa_color != "null" ]]; then
+            ((++found))
+        fi
     fi
 done < $1
 
