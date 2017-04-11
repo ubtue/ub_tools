@@ -55,6 +55,9 @@ public:
 
     /** \brief Retrieves the field w/ column name "column_name" from the row. */
     std::string operator[](const std::string &column_name) const;
+
+    bool isNull(const size_t i) const;
+    bool isNull(const std::string &column_name) const;
 };
 
 
