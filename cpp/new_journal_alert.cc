@@ -106,12 +106,10 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
         if (unlikely(issue_title == NO_AVAILABLE_TITLE))
             Warning("No title found for ID " + id + "!");
         const auto journal_issue(document.second.get_child_optional("journal_issue"));
-        const std::string journal_title_received(
-            not journal_issue ? ""
-                              : document.second.get_child("journal_issue").equal_range("").first
-                                    ->second.get_value<std::string>());
         const std::string journal_title(
-            not journal_title_received.empty() ? journal_title_received : "*No Journal Title*");
+            journal_issue ? document.second.get_child("journal_issue").equal_range("").first
+                                ->second.get_value<std::string>()
+                          : "*No Journal Title*");
         new_issue_infos->emplace_back(id, journal_title, issue_title);
 
         const auto &last_modification_time(document.second.get<std::string>("last_modification_time"));
