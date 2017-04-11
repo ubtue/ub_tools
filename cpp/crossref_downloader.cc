@@ -178,19 +178,22 @@ std::string CrossrefDate::toString() const {
  */
 class MapDescriptor {
 public:
-    enum FieldType { STRING, AUTHOR_VECTOR, STRING_VECTOR, YEAR };
+    enum FieldType { STRING, STRING_VECTOR, YEAR };
 protected:
     std::string json_field_;
     FieldType field_type_;
     std::string marc_subfield_;
+    bool repeatable_;
 public:
-    MapDescriptor(const std::string &json_field, const FieldType field_type, const std::string &marc_subfield)
-        : json_field_(json_field), field_type_(field_type), marc_subfield_(marc_subfield) { }
+    MapDescriptor(const std::string &json_field, const FieldType field_type, const std::string &marc_subfield,
+                  const bool repeatable = false)
+        : json_field_(json_field), field_type_(field_type), marc_subfield_(marc_subfield), repeatable_(repeatable) { }
     virtual ~MapDescriptor() { }
 
     inline const std::string &getJsonField() const { return json_field_; }
     inline FieldType getFieldType() const { return field_type_; }
     inline const std::string &getMarcSubfield() const { return marc_subfield_; }
+    inline bool isRepeatable() const { return repeatable_; }
     virtual void insertMarcData(const std::string &subfield_value, MarcRecord * const record);
 };
 
@@ -224,10 +227,10 @@ void DOIMapDescriptor::insertMarcData(const std::string &subfield_value, MarcRec
 
 void InitCrossrefToMarcMapping(std::vector<MapDescriptor *> * const map_descriptors) {
     map_descriptors->emplace_back(new MapDescriptor("URL", MapDescriptor::STRING, "856u"));
-    map_descriptors->emplace_back(new MapDescriptor("author", MapDescriptor::AUTHOR_VECTOR, "100a"));
-    map_descriptors->emplace_back(new MapDescriptor("title", MapDescriptor::STRING, "245a"));
-    map_descriptors->emplace_back(new MapDescriptor("publisher", MapDescriptor::STRING, "260a"));
-    map_descriptors->emplace_back(new MapDescriptor("ISSN", MapDescriptor::STRING_VECTOR, "022a"));
+    map_descriptors->emplace_back(new MapDescriptor("title", MapDescriptor::STRING_VECTOR, "245a"));
+    map_descriptors->emplace_back(new MapDescriptor("publisher", MapDescriptor::STRING, "260b"));
+    map_descriptors->emplace_back(new MapDescriptor("ISSN", MapDescriptor::STRING_VECTOR, "022a",
+                                                    /* repeatable = */true));
     map_descriptors->emplace_back(new DOIMapDescriptor());
 }
 
@@ -324,8 +327,8 @@ std::vector<std::string> ExtractAuthorVector(const JSON::ObjectNode &object_node
 }
 
 
-std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node,
-                                             const std::string &json_field_name)
+std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node, const std::string &json_field_name,
+                                             const bool is_repeatable)
 {
     std::vector<std::string> extracted_values;
 
@@ -340,6 +343,8 @@ std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node
         if (unlikely(string_node == nullptr))
             Error("in ExtractStringVector: expected a string node!");
         extracted_values.emplace_back(string_node->getValue());
+        if (not is_repeatable)
+            break;
     }
 
     return extracted_values;
@@ -351,6 +356,55 @@ static std::string GetOptionalStringValue(const JSON::ObjectNode &object_node, c
         object_node.getValue(json_field_name)));
     return (string_node == nullptr) ? "" : string_node->getValue();
 
+}
+
+
+std::string ExtractName(const JSON::ObjectNode * const object_node) {
+    const JSON::JSONNode *const given(object_node->getValue("given"));
+    const JSON::JSONNode *const family(object_node->getValue("family"));
+    std::string name;
+    
+    if (given != nullptr) {
+        if (unlikely(given->getType() != JSON::JSONNode::STRING_NODE))
+            Error("\"given\" field of \"author\" node is not a string!");
+        name = reinterpret_cast<const JSON::StringNode * const>(given)->getValue();
+    }
+    
+    if (family != nullptr) {
+        if (unlikely(family->getType() != JSON::JSONNode::STRING_NODE))
+            Error("\"family\" field of \"author\" node is not a string!");
+        if (not name.empty())
+            name += ' ';
+        name += reinterpret_cast<const JSON::StringNode * const>(family)->getValue();
+    }
+    
+    return name;
+}
+
+
+void AddAuthors(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+    const JSON::ArrayNode *authors(dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("author")));
+    if (authors == nullptr) {
+        Warning("no author node found!");
+        return;
+    }
+
+    bool first(true);
+    for (auto author(authors->cbegin()); author != authors->cend(); ++author) {
+        const JSON::ObjectNode * const author_node(dynamic_cast<const JSON::ObjectNode *>(*author));
+        if (unlikely(author_node == nullptr))
+            Error("weird author node is not a JSON object!");
+
+        const std::string author_name(ExtractName(author_node));
+        if (unlikely(author_name.empty()))
+            continue;
+        
+        if (first) {
+            first = false;
+            marc_record->insertField("100", "  " + CreateSubfield('a', author_name));
+        } else
+            marc_record->insertField("700", "0 " + CreateSubfield('0', "aut") + CreateSubfield('a', author_name));
+    }
 }
 
 
@@ -389,17 +443,16 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
     static unsigned control_number(0);
     record.insertField("001", std::to_string(++control_number));
 
+    AddAuthors(message_tree, &record);
     for (const auto &map_descriptor : map_descriptors) {
         std::vector<std::string> field_values;
         switch (map_descriptor->getFieldType()) {
         case MapDescriptor::STRING:
             field_values = ExtractString(message_tree, map_descriptor->getJsonField());
             break;
-        case MapDescriptor::AUTHOR_VECTOR:
-            field_values = ExtractAuthorVector(message_tree, map_descriptor->getJsonField());
-            break;
         case MapDescriptor::STRING_VECTOR:
-            field_values = ExtractStringVector(message_tree, map_descriptor->getJsonField());
+            field_values = ExtractStringVector(message_tree, map_descriptor->getJsonField(),
+                                               map_descriptor->isRepeatable());
             break;
         default:
             Error("in CreateAndWriteMarcRecord: unexpected field type!");
@@ -407,8 +460,8 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
 
         for (const auto field_value : field_values)
             map_descriptor->insertMarcData(field_value, &record);
-        AddIssueInfo(message_tree, &record);
     }
+    AddIssueInfo(message_tree, &record);
 
     // If we have already encountered the exact same record in the past we skip writing it:
     std::string old_hash, new_hash(record.calcChecksum());
