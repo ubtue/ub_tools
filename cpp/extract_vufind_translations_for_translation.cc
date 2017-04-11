@@ -63,7 +63,7 @@ void InsertTranslations(
             if (not row.isNull("translator")) {
                 const std::string translator(row["translator"]);
                 if (not translator.empty())
-                continue;
+                    continue;
             }
         }
 
