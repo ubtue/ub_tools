@@ -12,7 +12,7 @@ EMAIL="johannes.ruscheinski@uni-tuebingen.de"
 
 declare -i total=0
 declare -i found=0
-declare -A origin
+declare -A origin=()
 while IFS='' read -r doi || [[ -n "$doi" ]]; do
     if [ ! -z "$doi" ]; then
         echo "Processing $doi"
@@ -23,11 +23,7 @@ while IFS='' read -r doi || [[ -n "$doi" ]]; do
         if [[ $oa_color != "null" ]]; then
             ((++found))
             evidence=$(echo $contents | jq --monochrome-output '.results[0].evidence')
-            if [ ${origin["$evidence"]+_} ]; then
-                ((++origin["$evidence"]))
-            else
-                origin["$evidence"]=1
-            fi
+            ((++origin["${evidence}"]))
         fi
     fi
 done < $1
