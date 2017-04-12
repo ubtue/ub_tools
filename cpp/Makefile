@@ -56,11 +56,11 @@ regular_install: $(INSTALL_PROGS)
 	@echo "Installing programs and data..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
 	mkdir --parents /var/lib/tuelib/bibleRef/
-	cp data/books_of_the_bible_to_canonical_form.map \
-            /var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map
+	cp data/books_of_the_bible_to_canonical_form.map /var/lib/tuelib/bibleRef/
 	mkdir --parents /var/lib/tuelib/translate_chainer
-	cp data/done_translating.html  data/translate.html data/translation_front_page.html data/mytranslations_template.msg /var/lib/tuelib/translate_chainer/
-	cp ../configs/ixtheo/subscriptions_email.template /var/lib/tuelib/subscriptions_email.template
+	cp data/done_translating.html  data/translate.html data/translation_front_page.html \
+            data/mytranslations_template.msg /var/lib/tuelib/translate_chainer/
+	cp data/subscriptions_email.template /var/lib/tuelib/
 
 cgi_install: $(CGI_PROGS)
 	@echo "Installing CGI programs..."
