@@ -16,7 +16,10 @@ import org.solrmarc.tools.Utils;
 
 public class RelBib extends IxTheo {
 
-    protected final static Pattern RELBIB_POSITIVE_MATCH_PATTERN = Pattern.compile("^A.*|^B.*|^KB.*|^T.*|^V.*|^X.*|^Z.*|^.*Unassigned.*");
+    protected final static Pattern RELBIB_POSITIVE_MATCH_PATTERN =
+        Pattern.compile("^A.*|^B.*|^HD.*|^HH.*|^KB.*|" +
+                        "KCA|KCG|KDG|KDH|NBC|NBD|NBE|NBH|NBK|NBQ|NCB|NCC|NCD|NCE|NCF|NCG|NCH|NCJ|" +
+                        "^T.*|^V.*|^X.*|^Z.*|^.*Unassigned.*");
 
     /*
      * Predicate to check whether an IxTheo-Notation is relevant for RelBib
