@@ -23,6 +23,7 @@ while IFS='' read -r doi || [[ -n "$doi" ]]; do
         if [[ $oa_color != "null" ]]; then
             ((++found))
             evidence=$(echo $contents | jq --monochrome-output '.results[0].evidence')
+            [ -z "$evidence" ] && evidence="missing"
             ((++origin["${evidence}"]))
         fi
     fi
