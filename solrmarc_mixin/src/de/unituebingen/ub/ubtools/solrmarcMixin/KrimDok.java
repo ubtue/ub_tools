@@ -16,7 +16,7 @@ public class KrimDok extends SolrIndexerMixin {
      * get thew records's recoding date from a LOK-tagged field
      *
      * @param record  the record
-     * @return The date
+     * @return The date in ISO-8601 format
      */
     public String getLocalRecordingDate(final Record record) {
         for (final VariableField variableField : record.getVariableFields("LOK")) {
@@ -30,7 +30,7 @@ public class KrimDok extends SolrIndexerMixin {
                         // We only use this check that we have a valid date.
                         final Date recodingDate = recordingDateFormat.parse("20" + dateCandidate);
 
-                        return dateCandidate;
+                        return "20" + dateCandidate.substring(0, 2) + "-" + dateCandidate.substring(2, 4) + "-01";
                     } catch (Exception e) {
                         System.err.println("strange local recoding date: " + dateCandidate);
                     }
