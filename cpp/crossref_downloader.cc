@@ -229,8 +229,6 @@ void InitCrossrefToMarcMapping(std::vector<MapDescriptor *> * const map_descript
     map_descriptors->emplace_back(new MapDescriptor("URL", MapDescriptor::STRING, "856u"));
     map_descriptors->emplace_back(new MapDescriptor("title", MapDescriptor::STRING_VECTOR, "245a"));
     map_descriptors->emplace_back(new MapDescriptor("publisher", MapDescriptor::STRING, "260b"));
-    map_descriptors->emplace_back(new MapDescriptor("ISSN", MapDescriptor::STRING_VECTOR, "022a",
-                                                    /* repeatable = */true));
     map_descriptors->emplace_back(new DOIMapDescriptor());
 }
 
@@ -433,6 +431,57 @@ void AddIssueInfo(const JSON::ObjectNode &message_tree, MarcRecord * const marc_
 }
 
 
+// First tries to extract data from an optional "issn-type" JSON list, if that doesn't exists tries its luck with an
+// optional "ISSN" list.
+void AddISSNs(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+    const JSON::ArrayNode * const issn_types(
+        dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("issn-type")));
+    if (issn_types != nullptr) {
+        std::string issn;
+        for (auto issn_type(issn_types->cbegin()); issn_type != issn_types->cend(); ++issn_type) {
+            const JSON::ObjectNode * const issn_type_node(dynamic_cast<const JSON::ObjectNode *>(*issn_type));
+            if (unlikely(issn_type_node == nullptr)) {
+                Warning("in AddISSNs: strange, issn-type entry is not a JSON object!");
+                continue;
+            }
+
+            const JSON::StringNode * const value_node(
+                dynamic_cast<const JSON::StringNode *>(issn_type_node->getValue("value")));
+            const JSON::StringNode * const type_node(
+                dynamic_cast<const JSON::StringNode *>(issn_type_node->getValue("type")));
+            if (unlikely(value_node == nullptr or type_node == nullptr)) {
+                Warning("in AddISSNs: strange, issn-type entry is missing a \"value\" or \"type\" string subnode!");
+                continue;
+            }
+
+            issn = value_node->getValue();
+            if (type_node->getValue() == "electronic") {
+                marc_record->insertSubfield("022", 'a', issn);
+                return;
+            }
+        }
+
+        if (not issn.empty()) {
+            marc_record->insertSubfield("022", 'a', issn);
+            return;
+        }
+    }
+
+    const JSON::ArrayNode * const issns(dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("ISSN")));
+    if (issns == nullptr)
+        return;
+    if (unlikely(issns->empty())) {
+        Warning("in AddISSNs: bizarre, ISSN list is empty!");
+        return;
+    }
+    const JSON::StringNode * const first_issn(dynamic_cast<const JSON::StringNode *>(issns->getValue(0)));
+    if (likely(first_issn != nullptr))
+        marc_record->insertSubfield("022", 'a', first_issn->getValue());
+    else
+        Warning("first entry of ISSN list is not a string node!");
+}
+
+
 /** \return True, if we wrote a record and false if we suppressed a duplicate. */
 bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::HashDB * const notified_db,
                               const std::string &DOI, const JSON::ObjectNode &message_tree,
@@ -443,6 +492,7 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
     static unsigned control_number(0);
     record.insertField("001", std::to_string(++control_number));
 
+    AddISSNs(message_tree, &record);
     AddAuthors(message_tree, &record);
     for (const auto &map_descriptor : map_descriptors) {
         std::vector<std::string> field_values;
