@@ -30,7 +30,8 @@ public class KrimDok extends SolrIndexerMixin {
                         // We only use this check that we have a valid date.
                         final Date recodingDate = recordingDateFormat.parse("20" + dateCandidate);
 
-                        return "20" + dateCandidate.substring(0, 2) + "-" + dateCandidate.substring(2, 4) + "-01";
+                        return "20" + dateCandidate.substring(0, 2) + "-" + dateCandidate.substring(2, 4)
+                               + "-01T00:00:00Z";
                     } catch (Exception e) {
                         System.err.println("strange local recoding date: " + dateCandidate);
                     }
