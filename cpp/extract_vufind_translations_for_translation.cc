@@ -58,11 +58,14 @@ void InsertTranslations(
         if (not connection->query(GET_TRANSLATOR))
             Error("Select failed: " + GET_TRANSLATOR + " (" + connection->getLastErrorMessage() + ")");
         DbResultSet result(connection->getLastResultSet());
-        if (not result.hasColumn("translator"))
-            Error("Translator column not found");
-        const std::string translator(result.getNextRow()["translator"]);
-        if (not translator.empty())
-            continue;
+        if (not result.empty()) {
+            const DbRow row(result.getNextRow());
+            if (not row.isNull("translator")) {
+                const std::string translator(row["translator"]);
+                if (not translator.empty())
+                    continue;
+            }
+        }
 
         const std::string INSERT_OTHER(
            "REPLACE INTO vufind_translations SET language_code=\""
