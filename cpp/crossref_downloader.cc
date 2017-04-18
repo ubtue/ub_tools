@@ -433,6 +433,10 @@ void AddIssueInfo(const JSON::ObjectNode &message_tree, MarcRecord * const marc_
 
 // First tries to extract data from an optional "issn-type" JSON list, if that doesn't exists tries its luck with an
 // optional "ISSN" list.
+// Specifically, if an "issn-type" JSON list exists with one or more nodes of "type" "electronic" we always use the
+// first ISSN associated with such a node.  If no nodes in an "issn-type" JSON list exists we look for nodes in a
+// list called "ISSN" and take the first ISSN from such a list, should it exist.  If neither of these two lists exist
+// or contain ISSNs we will not set any ISSN in "marc_record".
 void AddISSNs(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
     const JSON::ArrayNode * const issn_types(
         dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("issn-type")));
