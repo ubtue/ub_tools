@@ -93,12 +93,28 @@ void MarcRecord::updateField(const size_t field_index, const std::string &new_fi
                                  "of field data!");
 
     DirectoryEntry &entry(directory_entries_[field_index]);
-    size_t offset = raw_data_.size();
-    size_t length = new_field_value.length() + 1 /* For new field separator. */;
+    const size_t old_field_length(entry.getFieldLength());
+    const size_t new_field_length(new_field_value.length() + 1 /* For new field separator. */);
 
-    entry.setFieldLength(length);
-    entry.setFieldOffset(offset);
-    raw_data_ += new_field_value + '\x1E';
+    const ssize_t delta(static_cast<ssize_t>(new_field_length) - static_cast<ssize_t>(old_field_length));
+    entry.setFieldLength(entry.getFieldLength() + delta);
+    if (delta != 0) {
+        for (size_t index(field_index + 1); index < directory_entries_.size(); ++index)
+            directory_entries_[index].setFieldOffset(directory_entries_[index].getFieldOffset() + delta);
+
+        if (delta > 0) // We need more room.
+            raw_data_.resize(raw_data_.size() + delta);
+        if (field_index != directory_entries_.size() - 1) // Not the last field.
+            std::memmove(const_cast<char *>(raw_data_.data()) + entry.getFieldOffset() + new_field_length,
+                         const_cast<char *>(raw_data_.data()) + entry.getFieldOffset() + old_field_length,
+                         raw_data_.size() - directory_entries_[field_index + 1].getFieldOffset());
+        if (delta < 0)
+            raw_data_.resize(raw_data_.size() + delta);
+    }
+                
+    std::memcpy(const_cast<char *>(raw_data_.data()) + entry.getFieldOffset(), new_field_value.data(),
+                new_field_length);
+    *(const_cast<char *>(raw_data_.data()) + entry.getFieldOffset() + entry.getFieldLength() - 1) = '\x1E';
 }
 
 
@@ -106,6 +122,19 @@ bool MarcRecord::insertSubfield(const MarcTag &new_field_tag, const char subfiel
                                 const std::string &new_subfield_value, const char indicator1, const char indicator2) {
     return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + "\x1F"
                                       + std::string(1, subfield_code) + new_subfield_value);
+}
+
+
+bool MarcRecord::addSubfield(const MarcTag &field_tag, const char subfield_code, const std::string &subfield_value) {
+    const size_t field_index(getFieldIndex(field_tag));
+    if (unlikely(field_index == MarcRecord::FIELD_NOT_FOUND))
+        return false;
+
+    std::string new_field_value(getFieldData(field_index));
+    new_field_value += std::string(1, subfield_code) + subfield_value;
+    updateField(field_index, new_field_value);
+
+    return true;
 }
 
 
