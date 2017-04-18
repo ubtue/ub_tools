@@ -61,8 +61,8 @@ regular_install: $(INSTALL_PROGS)
 	cp data/done_translating.html  data/translate.html data/translation_front_page.html \
             data/mytranslations_template.msg /var/lib/tuelib/translate_chainer/
 	cp data/subscriptions_email.template /var/lib/tuelib/
-        mkdir --parents /var/lib/tuelib/crossref_downloader/
-        cp data/crossref_journal_list /var/lib/tuelib/crossref_downloader/
+	mkdir --parents /var/lib/tuelib/crossref_downloader/
+	cp data/crossref_journal_list /var/lib/tuelib/crossref_downloader/
 
 cgi_install: $(CGI_PROGS)
 	@echo "Installing CGI programs..."
