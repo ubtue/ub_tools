@@ -73,10 +73,14 @@ public:
     /** \brief Returns the content of the field at given index or an empty string if this index is not present. **/
     std::string getFieldData(const size_t tag_index) const;
 
-    /** \brief Returns the subfields of the first field with given tag or an empty Subfields if the tag is not present. **/
+    /** \brief Returns the subfields of the first field with given tag or an empty Subfields if the tag is not
+     *         present.
+     **/
     inline Subfields getSubfields(const MarcTag &tag) const { return getSubfields(getFieldIndex(tag)); }
 
-    /** \brief Returns the subfields of the first field with given tag or an empty Subfield if this index is not present. **/
+    /** \brief Returns the subfields of the first field with given tag or an empty Subfield if this index is not
+     *         present.
+     **/
     Subfields getSubfields(const size_t field_index) const;
 
     /** \brief Deletes subfield for field index "field_index" and subfield code "subfield_code". */
@@ -85,7 +89,9 @@ public:
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
     MarcTag getTag(const size_t index) const;
 
-    /** \brief Returns the tag of the field at given index or MarcRecord::FIELD_NOT_FOUND if the tag is not present **/
+    /** \brief Returns the tag of the field at given index or MarcRecord::FIELD_NOT_FOUND if the tag is not
+     *         present.
+     **/
     size_t getFieldIndex(const MarcTag &field_tag) const;
 
     /** \return The number of field indices for the tag "tag". */
@@ -98,8 +104,13 @@ public:
         updateField(field_index, subfields.toString());
     }
 
-    bool insertSubfield(const MarcTag &new_field_tag, const char subfield_code,
-                   const std::string &new_subfield_value, const char indicator1 = ' ', const char indicator2 = ' ');
+    bool insertSubfield(const MarcTag &new_field_tag, const char subfield_code, const std::string &new_subfield_value,
+                        const char indicator1 = ' ', const char indicator2 = ' ');
+
+    /** \brief  Adds a subfield to the first existing field with tag "field_tag".
+     *  \return True if a field with field tag "field_tag" existed and false if no such field was found.
+     */
+    bool addSubfield(const MarcTag &field_tag, const char subfield_code, const std::string &subfield_value);
 
     size_t insertField(const MarcTag &new_field_tag, const std::string &new_field_value);
 

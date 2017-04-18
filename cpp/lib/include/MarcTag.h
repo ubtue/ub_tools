@@ -1,14 +1,7 @@
-/** \file    delete_unused_local_data.cc
+/** \file    MarcTag.h
  *  \author  Oliver Obenland
- *
- *  Local data blocks are embedded marc records inside of a record using LOK-Fields.
- *  Each local data block belongs to an institution and is marked by the institution's sigil.
- *  This tool filters for local data blocks of some institutions of the University of Tübingen
- *  and deletes all other local blocks.
- */
 
-/*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016,2017 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -32,6 +25,7 @@
 #include <string>
 #include <stdint.h>
 #include "util.h"
+
 
 class MarcTag {
     /* We have to double this up, so we have one little endian integer for comparison, and one big endian integer
