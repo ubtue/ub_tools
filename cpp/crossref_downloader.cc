@@ -380,10 +380,10 @@ std::string ExtractName(const JSON::ObjectNode * const object_node) {
 }
 
 
-void AddAuthors(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+void AddAuthors(const std::string &DOI, const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
     const JSON::ArrayNode *authors(dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("author")));
     if (authors == nullptr) {
-        Warning("no author node found!");
+        Warning("no author node found, DOI was \"" + DOI + "\"!");
         return;
     }
 
@@ -497,7 +497,7 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
     record.insertField("001", std::to_string(++control_number));
 
     AddISSNs(message_tree, &record);
-    AddAuthors(message_tree, &record);
+    AddAuthors(DOI, message_tree, &record);
     for (const auto &map_descriptor : map_descriptors) {
         std::vector<std::string> field_values;
         switch (map_descriptor->getFieldType()) {
