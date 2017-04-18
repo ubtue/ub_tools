@@ -68,7 +68,7 @@ public:
     size_t getNumberOfFields() const { return directory_entries_.size(); }
 
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
-    inline std::string getFieldData(const MarcTag &tag) const  { return getFieldData(getFieldIndex(tag)); }
+    inline std::string getFieldData(const MarcTag &tag) const { return getFieldData(getFieldIndex(tag)); }
 
     /** \brief Returns the content of the field at given index or an empty string if this index is not present. **/
     std::string getFieldData(const size_t tag_index) const;
