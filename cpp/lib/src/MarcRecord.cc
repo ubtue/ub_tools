@@ -97,8 +97,8 @@ void MarcRecord::updateField(const size_t field_index, const std::string &new_fi
     const size_t new_field_length(new_field_value.length() + 1 /* For new field separator. */);
 
     const ssize_t delta(static_cast<ssize_t>(new_field_length) - static_cast<ssize_t>(old_field_length));
-    entry.setFieldLength(entry.getFieldLength() + delta);
     if (delta != 0) {
+        entry.setFieldLength(entry.getFieldLength() + delta);
         for (size_t index(field_index + 1); index < directory_entries_.size(); ++index)
             directory_entries_[index].setFieldOffset(directory_entries_[index].getFieldOffset() + delta);
 
@@ -113,7 +113,7 @@ void MarcRecord::updateField(const size_t field_index, const std::string &new_fi
     }
                 
     std::memcpy(const_cast<char *>(raw_data_.data()) + entry.getFieldOffset(), new_field_value.data(),
-                new_field_length);
+                new_field_value.length());
     *(const_cast<char *>(raw_data_.data()) + entry.getFieldOffset() + entry.getFieldLength() - 1) = '\x1E';
 }
 
