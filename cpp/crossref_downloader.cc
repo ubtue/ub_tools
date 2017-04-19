@@ -507,7 +507,7 @@ void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_recor
 }
 
 
-bool AddTtle(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+bool AddTitle(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
     const JSON::ArrayNode * const titles(
         dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("title")));
     if (unlikely(titles == nullptr or titles->empty()))
@@ -541,7 +541,7 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
     record.insertField("001", std::to_string(++control_number));
 
     AddISSN(message_tree, &record);
-    if (unlikely(not AddTtle(message_tree, &record))) {
+    if (unlikely(not AddTitle(message_tree, &record))) {
         Warning("no title found for DOI \"" + DOI + "\" and ISSN \"" + ISSN + "\".  Record skipped!");
         return false;
     }
