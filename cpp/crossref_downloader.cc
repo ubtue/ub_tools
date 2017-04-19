@@ -227,7 +227,7 @@ void DOIMapDescriptor::insertMarcData(const std::string &subfield_value, MarcRec
 
 void InitCrossrefToMarcMapping(std::vector<MapDescriptor *> * const map_descriptors) {
     map_descriptors->emplace_back(new MapDescriptor("URL", MapDescriptor::STRING, "856u"));
-    map_descriptors->emplace_back(new MapDescriptor("title", MapDescriptor::STRING_VECTOR, "245a"));
+    map_descriptors->emplace_back(new MapDescriptor("subject", MapDescriptor::STRING_VECTOR, "653a"));
     map_descriptors->emplace_back(new MapDescriptor("publisher", MapDescriptor::STRING, "260b"));
     map_descriptors->emplace_back(new DOIMapDescriptor());
 }
@@ -361,13 +361,13 @@ std::string ExtractName(const JSON::ObjectNode * const object_node) {
     const JSON::JSONNode *const given(object_node->getValue("given"));
     const JSON::JSONNode *const family(object_node->getValue("family"));
     std::string name;
-    
+
     if (given != nullptr) {
         if (unlikely(given->getType() != JSON::JSONNode::STRING_NODE))
             Error("\"given\" field of \"author\" node is not a string!");
         name = reinterpret_cast<const JSON::StringNode * const>(given)->getValue();
     }
-    
+
     if (family != nullptr) {
         if (unlikely(family->getType() != JSON::JSONNode::STRING_NODE))
             Error("\"family\" field of \"author\" node is not a string!");
@@ -375,15 +375,17 @@ std::string ExtractName(const JSON::ObjectNode * const object_node) {
             name += ' ';
         name += reinterpret_cast<const JSON::StringNode * const>(family)->getValue();
     }
-    
+
     return name;
 }
 
 
-void AddAuthors(const std::string &DOI, const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+void AddAuthors(const std::string &DOI, const std::string &ISSN, const JSON::ObjectNode &message_tree,
+                MarcRecord * const marc_record)
+{
     const JSON::ArrayNode *authors(dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("author")));
     if (authors == nullptr) {
-        Warning("no author node found, DOI was \"" + DOI + "\"!");
+        Warning("no author node found, DOI was \"" + DOI + "\", ISSN was \"" + ISSN + "\"!");
         return;
     }
 
@@ -396,12 +398,31 @@ void AddAuthors(const std::string &DOI, const JSON::ObjectNode &message_tree, Ma
         const std::string author_name(ExtractName(author_node));
         if (unlikely(author_name.empty()))
             continue;
-        
+
         if (first) {
             first = false;
             marc_record->insertField("100", "  " + CreateSubfield('a', author_name));
         } else
             marc_record->insertField("700", "0 " + CreateSubfield('0', "aut") + CreateSubfield('a', author_name));
+    }
+}
+
+
+void AddEditors(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+    const JSON::ArrayNode *editors(dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("editor")));
+    if (editors == nullptr)
+        return;
+
+    for (auto editor(editors->cbegin()); editor != editors->cend(); ++editor) {
+        const JSON::ObjectNode * const editor_node(dynamic_cast<const JSON::ObjectNode *>(*editor));
+        if (unlikely(editor_node == nullptr))
+            Error("weird editor node is not a JSON object!");
+
+        const std::string editor_name(ExtractName(editor_node));
+        if (unlikely(editor_name.empty()))
+            continue;
+
+        marc_record->insertField("700", "0 " + CreateSubfield('0', "edt") + CreateSubfield('a', editor_name));
     }
 }
 
@@ -437,7 +458,7 @@ void AddIssueInfo(const JSON::ObjectNode &message_tree, MarcRecord * const marc_
 // first ISSN associated with such a node.  If no nodes in an "issn-type" JSON list exists we look for nodes in a
 // list called "ISSN" and take the first ISSN from such a list, should it exist.  If neither of these two lists exist
 // or contain ISSNs we will not set any ISSN in "marc_record".
-void AddISSNs(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
     const JSON::ArrayNode * const issn_types(
         dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("issn-type")));
     if (issn_types != nullptr) {
@@ -445,7 +466,7 @@ void AddISSNs(const JSON::ObjectNode &message_tree, MarcRecord * const marc_reco
         for (auto issn_type(issn_types->cbegin()); issn_type != issn_types->cend(); ++issn_type) {
             const JSON::ObjectNode * const issn_type_node(dynamic_cast<const JSON::ObjectNode *>(*issn_type));
             if (unlikely(issn_type_node == nullptr)) {
-                Warning("in AddISSNs: strange, issn-type entry is not a JSON object!");
+                Warning("in AddISSN: strange, issn-type entry is not a JSON object!");
                 continue;
             }
 
@@ -454,7 +475,7 @@ void AddISSNs(const JSON::ObjectNode &message_tree, MarcRecord * const marc_reco
             const JSON::StringNode * const type_node(
                 dynamic_cast<const JSON::StringNode *>(issn_type_node->getValue("type")));
             if (unlikely(value_node == nullptr or type_node == nullptr)) {
-                Warning("in AddISSNs: strange, issn-type entry is missing a \"value\" or \"type\" string subnode!");
+                Warning("in AddISSN: strange, issn-type entry is missing a \"value\" or \"type\" string subnode!");
                 continue;
             }
 
@@ -475,7 +496,7 @@ void AddISSNs(const JSON::ObjectNode &message_tree, MarcRecord * const marc_reco
     if (issns == nullptr)
         return;
     if (unlikely(issns->empty())) {
-        Warning("in AddISSNs: bizarre, ISSN list is empty!");
+        Warning("in AddISSN: bizarre, ISSN list is empty!");
         return;
     }
     const JSON::StringNode * const first_issn(dynamic_cast<const JSON::StringNode *>(issns->getValue(0)));
@@ -486,9 +507,32 @@ void AddISSNs(const JSON::ObjectNode &message_tree, MarcRecord * const marc_reco
 }
 
 
+bool AddTitel(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
+    const JSON::ArrayNode * const titles(
+        dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("title")));
+    if (unlikely(titles == nullptr or titles->empty()))
+        return false;
+    const JSON::StringNode * const first_title(dynamic_cast<const JSON::StringNode *>(titles->getValue(0)));
+    if (unlikely(first_title == nullptr))
+        return false;
+    marc_record->insertSubfield("245", 'a', first_title->getValue());
+
+    const JSON::ArrayNode * const subtitles(
+        dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("subtitle")));
+    if (subtitles != nullptr and not subtitles->empty()) {
+        const JSON::StringNode * const first_subtitle_node(
+            dynamic_cast<const JSON::StringNode *>(subtitles->getValue(0)));
+        if (likely(first_subtitle_node != nullptr))
+            marc_record->addSubfield("245", 'b', first_subtitle_node->getValue());
+    }
+
+    return true;
+}
+
+
 /** \return True, if we wrote a record and false if we suppressed a duplicate. */
 bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::HashDB * const notified_db,
-                              const std::string &DOI, const JSON::ObjectNode &message_tree,
+                              const std::string &DOI, const std::string &ISSN, const JSON::ObjectNode &message_tree,
                               const std::vector<MapDescriptor *> &map_descriptors)
 {
     MarcRecord record;
@@ -496,8 +540,13 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
     static unsigned control_number(0);
     record.insertField("001", std::to_string(++control_number));
 
-    AddISSNs(message_tree, &record);
-    AddAuthors(DOI, message_tree, &record);
+    AddISSN(message_tree, &record);
+    if (unlikely(not AddTitel(message_tree, &record))) {
+        Warning("no title found for DOI \"" + DOI + "\" and ISSN \"" + ISSN + "\".  Record skipped!");
+        return false;
+    }
+    AddAuthors(DOI, ISSN, message_tree, &record);
+    AddEditors(message_tree, &record);
     for (const auto &map_descriptor : map_descriptors) {
         std::vector<std::string> field_values;
         switch (map_descriptor->getFieldType()) {
@@ -560,18 +609,18 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
 }
 
 
-void ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter * const marc_writer,
+void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * const marc_writer,
                  kyotocabinet::HashDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
                  std::unordered_set<std::string> * const already_seen, unsigned * const written_count,
                  unsigned * const suppressed_count)
 {
     *written_count = *suppressed_count = 0;
 
-    const std::string DOWNLOAD_URL("https://api.crossref.org/v1/journals/" + issn + "/works");
+    const std::string DOWNLOAD_URL("https://api.crossref.org/v1/journals/" + ISSN + "/works");
     Downloader downloader(DOWNLOAD_URL, Downloader::Params(),
                           timeout * 1000);
     if (downloader.anErrorOccurred()) {
-        std::cerr << "Error while downloading metadata for ISSN " << issn << ": " << downloader.getLastErrorMessage()
+        std::cerr << "Error while downloading metadata for ISSN " << ISSN << ": " << downloader.getLastErrorMessage()
                   << '\n';
         return;
     }
@@ -612,7 +661,7 @@ void ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter * c
         static const std::string EMPTY_STRING;
         const std::string DOI(JSON::LookupString("/DOI", item, &EMPTY_STRING));
         if (unlikely(DOI.empty()))
-            Error("No \"DOI\" for an item returned for the ISSN " + issn + "!");
+            Error("No \"DOI\" for an item returned for the ISSN " + ISSN + "!");
 
         // Have we already seen this item?
         if (already_seen->find(DOI) != already_seen->cend()) {
@@ -621,7 +670,7 @@ void ProcessISSN(const std::string &issn, const unsigned timeout, MarcWriter * c
         }
         already_seen->insert(DOI);
 
-        if (CreateAndWriteMarcRecord(marc_writer, notified_db, DOI, *item, map_descriptors))
+        if (CreateAndWriteMarcRecord(marc_writer, notified_db, DOI, ISSN, *item, map_descriptors))
             ++*written_count;
         else
             ++*suppressed_count;
