@@ -17,7 +17,7 @@ fi
 cd /etc/yum.repos.d/
 wget http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
 yum -y update
-yum -y install epel-release awk git mariadb mariadb-server httpd php php-devel php-mcrypt php-intl php-ldap
+yum -y install epel-release awk git mariadb mariadb-server httpd php php-devel php-mcrypt php-intl php-ldap jq
 yum -y install php-mysql php-xsl php-gd php-mbstring php-mcrypt java-*-openjdk-devel mawk mod_ssl epel-release wget
 yum -y install policycoreutils-python curl-openssl mutt golang lsof clang gcc-c++.x86_64 file-devel pcre-devel
 yum -y install kyotocabinet-devel tokyocabinet-devel poppler-utils libwebp mariadb-devel.x86_64 libxml2-devel.x86_64
