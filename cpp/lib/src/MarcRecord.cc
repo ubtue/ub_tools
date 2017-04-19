@@ -101,20 +101,9 @@ void MarcRecord::updateField(const size_t field_index, const std::string &new_fi
         entry.setFieldLength(entry.getFieldLength() + delta);
         for (size_t index(field_index + 1); index < directory_entries_.size(); ++index)
             directory_entries_[index].setFieldOffset(directory_entries_[index].getFieldOffset() + delta);
-
-        if (delta > 0) // We need more room.
-            raw_data_.resize(raw_data_.size() + delta);
-        if (field_index != directory_entries_.size() - 1) // Not the last field.
-            std::memmove(const_cast<char *>(raw_data_.data()) + entry.getFieldOffset() + new_field_length,
-                         const_cast<char *>(raw_data_.data()) + entry.getFieldOffset() + old_field_length,
-                         raw_data_.size() - directory_entries_[field_index + 1].getFieldOffset());
-        if (delta < 0)
-            raw_data_.resize(raw_data_.size() + delta);
     }
-                
-    std::memcpy(const_cast<char *>(raw_data_.data()) + entry.getFieldOffset(), new_field_value.data(),
-                new_field_value.length());
-    *(const_cast<char *>(raw_data_.data()) + entry.getFieldOffset() + entry.getFieldLength() - 1) = '\x1E';
+
+    StringUtil::ReplaceSection(&raw_data_, entry.getFieldOffset(), entry.getFieldLength(), new_field_value + "\x1E");
 }
 
 
