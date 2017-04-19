@@ -131,7 +131,7 @@ bool MarcRecord::addSubfield(const MarcTag &field_tag, const char subfield_code,
         return false;
 
     std::string new_field_value(getFieldData(field_index));
-    new_field_value += std::string(1, subfield_code) + subfield_value;
+    new_field_value += "\x1F" + std::string(1, subfield_code) + subfield_value;
     updateField(field_index, new_field_value);
 
     return true;
@@ -251,7 +251,8 @@ size_t MarcRecord::extractSubfields(const MarcTag &tag, const std::string &subfi
 }
 
 
-size_t MarcRecord::findAllLocalDataBlocks(std::vector <std::pair<size_t, size_t>> *const local_block_boundaries) const {
+size_t MarcRecord::findAllLocalDataBlocks(std::vector <std::pair<size_t, size_t>> *const local_block_boundaries) const
+{
     local_block_boundaries->clear();
 
     size_t local_block_start(getFieldIndex("LOK"));
