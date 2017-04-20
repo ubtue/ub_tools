@@ -60,16 +60,9 @@ bool IsSuffixOfURL(const std::string &url, const std::string &test_string) {
     if (not starts_with_http and not StringUtil::StartsWith(url, "https://"))
         return false;
 
-    size_t next_slash_pos;
-    if (starts_with_http) {
-        next_slash_pos = url.find('/', std::strlen("http://"));
-        if (unlikely(next_slash_pos == std::string::npos))
-            return false;
-    } else { // We assume that "url" started with "https://"
-        next_slash_pos = url.find('/', std::strlen("https://"));
-        if (unlikely(next_slash_pos == std::string::npos))
-            return false;
-    }
+    const size_t next_slash_pos(url.find('/', starts_with_http ? std::strlen("http://") : std::strlen("https://")));
+    if (unlikely(next_slash_pos == std::string::npos))
+        return false;
     if (unlikely(next_slash_pos + 1 >= url.size()))
         return false; // We have no path component in our URL.
 
