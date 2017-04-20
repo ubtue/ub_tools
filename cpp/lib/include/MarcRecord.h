@@ -67,6 +67,9 @@ public:
 
     size_t getNumberOfFields() const { return directory_entries_.size(); }
 
+    char getIndicator1(const size_t field_index) const;
+    char getIndicator2(const size_t field_index) const;
+
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
     inline std::string getFieldData(const MarcTag &tag) const { return getFieldData(getFieldIndex(tag)); }
 
@@ -199,7 +202,7 @@ public:
      *  \return the hash
      */
     std::string calcChecksum() const;
-    
+
     using RecordFunc = bool (&)(MarcRecord * const record, MarcWriter * const marc_writer,
                                 std::string * const err_msg);
 
