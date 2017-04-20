@@ -36,6 +36,22 @@ MarcRecord &MarcRecord::operator=(const MarcRecord &rhs) {
 }
 
 
+char MarcRecord::getIndicator1(const size_t field_index) const {
+    if (unlikely(field_index >= directory_entries_.size()))
+        throw std::out_of_range("in MarcRecord::getIndicator1: index is " + std::to_string(field_index)
+                                + " but record only has " + std::to_string(directory_entries_.size()) + " entries!");
+    return raw_data_[directory_entries_[field_index].getFieldOffset()];
+}
+
+
+char MarcRecord::getIndicator2(const size_t field_index) const {
+    if (unlikely(field_index >= directory_entries_.size()))
+        throw std::out_of_range("in MarcRecord::getIndicator2: index is " + std::to_string(field_index)
+                                + " but record only has " + std::to_string(directory_entries_.size()) + " entries!");
+    return raw_data_[directory_entries_[field_index].getFieldOffset() + 1];
+}
+
+
 std::string MarcRecord::getFieldData(const size_t index) const {
     if (index == MarcRecord::FIELD_NOT_FOUND or directory_entries_.cbegin() + index >= directory_entries_.cend())
         return "";
