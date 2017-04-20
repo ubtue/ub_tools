@@ -1,7 +1,7 @@
 /** \brief  A MARC-21 filter uliity that replace URNs in 856u-fields with URLs
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,6 +25,7 @@
 #include "MarcRecord.h"
 #include "MarcWriter.h"
 
+
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [-v|--verbose] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
@@ -36,18 +37,66 @@ inline bool IsHttpOrHttpsURL(const std::string &url_candidate) {
 }
 
 
+// Returns the number of extracted 856u subfields.
+size_t ExtractAllHttpOrHttps856uSubfields(const MarcRecord &record, std::vector<std::string> * const _856u_urls) {
+    std::vector<size_t> field_indices;
+    if (record.getFieldIndices("856", &field_indices) == 0)
+        return 0;
+
+    for (const auto field_index : field_indices) {
+        std::string _856u_subfield_value(record.extractFirstSubfield(field_index, 'u'));
+        if (IsHttpOrHttpsURL(_856u_subfield_value))
+            _856u_urls->emplace_back(_856u_subfield_value);
+    }
+
+    return _856u_urls->size();
+}
+
+
+// Returns true if "test_string" is the suffix of "url" after stripping off the schema and domain name as well as
+// a single slash after the domain name.
+bool IsSuffixOfURL(const std::string &url, const std::string &test_string) {
+    const bool starts_with_http(StringUtil::StartsWith(url, "http://"));
+    if (not starts_with_http and not StringUtil::StartsWith(url, "https://"))
+        return false;
+
+    const size_t next_slash_pos(url.find('/', starts_with_http ? std::strlen("http://") : std::strlen("https://")));
+    if (unlikely(next_slash_pos == std::string::npos))
+        return false;
+    if (unlikely(next_slash_pos + 1 >= url.size()))
+        return false; // We have no path component in our URL.
+
+    return url.substr(next_slash_pos + 1) == test_string;
+}
+
+
+// Returns true if "test_string" is a proper suffix of any of the URLs contained in "urls".
+bool IsSuffixOfAnyURL(const std::vector<std::string> &urls, const std::string &test_string) {
+    for (const auto &url : urls) {
+        if (IsSuffixOfURL(url, test_string))
+            return true;
+    }
+
+    return false;
+}
+
+
 void NormaliseURLs(const bool verbose, MarcReader * const reader, MarcWriter * const writer) {
     unsigned count(0), modified_count(0), duplicate_skip_count(0);
     while (MarcRecord record = reader->read()) {
         ++count;
 
+        std::vector<std::string> _856u_urls;
+        ExtractAllHttpOrHttps856uSubfields(record, &_856u_urls);
+
         bool modified_record(false);
         std::unordered_set<std::string> already_seen_links;
 
+        std::vector<size_t> erase_field_indices;
         for (size_t field_no(record.getFieldIndex("856")); record.getTag(field_no) == "856"; /* empty */) {
             Subfields _856_subfields(record.getSubfields(field_no));
             bool duplicate_link(false);
-            if (_856_subfields.getIndicator1() != '7' and _856_subfields.hasSubfield('u')) {
+            if (_856_subfields.hasSubfield('u')) {
                 const std::string u_subfield(StringUtil::Trim(_856_subfields.getFirstSubfieldValue('u')));
 
                 if (IsHttpOrHttpsURL(u_subfield)) {
@@ -55,12 +104,15 @@ void NormaliseURLs(const bool verbose, MarcReader * const reader, MarcWriter * c
                         already_seen_links.insert(u_subfield);
                     else
                         duplicate_link = true;
-                } else {
+                } else if (IsSuffixOfAnyURL(_856u_urls, u_subfield) )
+                    erase_field_indices.emplace_back(field_no);
+                else {
                     std::string new_http_replacement_link;
                     if (StringUtil::StartsWith(u_subfield, "urn:"))
                         new_http_replacement_link = "https://nbn-resolving.org/" + u_subfield;
                     else if (StringUtil::StartsWith(u_subfield, "10900/"))
-                        new_http_replacement_link = "https://publikationen.uni-tuebingen.de/xmlui/handle/" + u_subfield;
+                        new_http_replacement_link = "https://publikationen.uni-tuebingen.de/xmlui/handle/"
+                                                    + u_subfield;
                     else
                         new_http_replacement_link = "http://" + u_subfield;
                     if (already_seen_links.find(new_http_replacement_link) == already_seen_links.cend()) {
@@ -85,6 +137,17 @@ void NormaliseURLs(const bool verbose, MarcReader * const reader, MarcWriter * c
                 modified_record = true;
             }
         }
+
+        if (not erase_field_indices.empty()) {
+            // We need to remove fields starting from the end of the record.
+            std::sort(erase_field_indices.begin(), erase_field_indices.end(), std::greater<size_t>());
+
+            for (const size_t field_index : erase_field_indices)
+                record.deleteField(field_index);
+            
+            modified_record = true;
+        }
+        
         if (modified_record)
             ++modified_count;
 
@@ -106,8 +169,8 @@ int main(int argc, char **argv) {
     bool verbose(std::strcmp("-v", argv[1]) == 0 or std::strcmp("--verbose", argv[1]) == 0);
     if (verbose)
         ++argv;
-    std::unique_ptr <MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
-    std::unique_ptr <MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
+    std::unique_ptr <MarcReader> marc_reader(MarcReader::Factory(argv[1]));
+    std::unique_ptr <MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
     try {
         NormaliseURLs(verbose, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
