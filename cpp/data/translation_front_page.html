@@ -54,12 +54,13 @@
        var gnd_code = $(object).attr("gnd_code");
        var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine anguage from the heading
        var old_translation = $(object).attr("translation");
+       var translator_exists = $(object).attr("translator_exists");
        var translation = $(object).text();
        if (translation == old_translation) 
            return;
 
        $(object).attr("translation", translation);
-       var action = (old_translation == '') ? "insert" : "update"
+       var action = (!translator_exists) ? "insert" : "update"
        $.ajax({{
           type: "PUT",
           url: "translator_ajax",
