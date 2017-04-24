@@ -30,10 +30,10 @@ static const size_t MAX_MARC_21_RECORD_LENGTH(99999);
 static char write_buffer[MAX_MARC_21_RECORD_LENGTH];
 
 
-static bool inline HasDirectoryEntryEnoughSpace(const size_t baseAddress, const size_t data_length,
+static bool inline HasDirectoryEntryEnoughSpace(const size_t base_address, const size_t data_length,
                                                 const size_t next_field_length)
 {
-    return baseAddress + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + data_length + next_field_length + 1
+    return base_address + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + data_length + next_field_length + 1
            <= MAX_MARC_21_RECORD_LENGTH;
 }
 
