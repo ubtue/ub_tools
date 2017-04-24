@@ -32,11 +32,12 @@ enum Format { PLAIN_TEXT, HTML };
 
 
 /** \note Please note that "sender" and "recipient" email addresses may either be regular email addresses or of the
- *        form "Name<email_address>".  Also "subject" and "message_body" are assumed to be in UTF-8,
+ *        form "Name<email_address>".  Also "subject" and "message_body" are assumed to be in UTF-8.  Also, at least
+ *        one of "sender" or "reply_to" have to be specified.
  */
 bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
                const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
-               const Format format = PLAIN_TEXT);
+               const Format format = PLAIN_TEXT, const std::string &reply_to = "");
 
 
 } // namespace EmailSender
