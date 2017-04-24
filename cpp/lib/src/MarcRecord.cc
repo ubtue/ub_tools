@@ -114,12 +114,12 @@ void MarcRecord::updateField(const size_t field_index, const std::string &new_fi
 
     const ssize_t delta(static_cast<ssize_t>(new_field_length) - static_cast<ssize_t>(old_field_length));
     if (delta != 0) {
-        entry.setFieldLength(entry.getFieldLength() + delta);
+        entry.setFieldLength(new_field_length);
         for (size_t index(field_index + 1); index < directory_entries_.size(); ++index)
             directory_entries_[index].setFieldOffset(directory_entries_[index].getFieldOffset() + delta);
     }
 
-    StringUtil::ReplaceSection(&raw_data_, entry.getFieldOffset(), entry.getFieldLength(), new_field_value + "\x1E");
+    StringUtil::ReplaceSection(&raw_data_, entry.getFieldOffset(), old_field_length, new_field_value + "\x1E");
 }
 
 
