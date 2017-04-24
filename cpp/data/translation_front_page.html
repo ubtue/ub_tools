@@ -60,7 +60,7 @@
            return;
 
        $(object).attr("translation", translation);
-       var action = (! translator_exists) ? "insert" : "update"
+       var action = (!translator_exists) ? "insert" : "update"
        $.ajax({{
           type: "PUT",
           url: "translator_ajax",
