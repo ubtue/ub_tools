@@ -39,25 +39,25 @@ static bool inline HasDirectoryEntryEnoughSpace(const size_t baseAddress, const 
 
 
 /**
- * Intentionally we want a copy of directory_iter, so it behaves like a lookahead.
+ * We need a copy of directory_iter so it behaves like a lookahead.
  */
 static void inline PrecalculateBaseAddressOfData(std::vector<DirectoryEntry>::const_iterator directory_iter,
                                                  const std::vector<DirectoryEntry>::const_iterator &end_iter,
-                                                 size_t *number_of_directory_entries, size_t *baseAddress,
+                                                 size_t *number_of_directory_entries, size_t *base_address,
                                                  size_t *record_length)
 {
-    *baseAddress += Leader::LEADER_LENGTH + 1 /* for directory separator byte */;
+    *base_address += Leader::LEADER_LENGTH + 1 /* for directory separator byte */;
     *record_length += 1 /* for end of record byte */;
     for (/* empty */;
          directory_iter < end_iter
-         and HasDirectoryEntryEnoughSpace(*baseAddress, *record_length, directory_iter->getFieldLength());
+         and HasDirectoryEntryEnoughSpace(*base_address, *record_length, directory_iter->getFieldLength());
          ++directory_iter)
     {
-        *baseAddress += DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
+        *base_address += DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
         *record_length += directory_iter->getFieldLength();
         ++*number_of_directory_entries;
     }
-    *record_length += *baseAddress;
+    *record_length += *base_address;
 }
 
 
@@ -73,48 +73,47 @@ static void inline WriteToBuffer(char *&dest, const char* source, size_t offset,
 }
 
 
-
 void BinaryMarcWriter::write(const MarcRecord &record) {
     size_t written_data_offset;
     size_t raw_data_offset;
     size_t raw_data_length;
 
-    const std::string ppn(record.getControlNumber());
-    const size_t ppn_field_length(ppn.size() + 1);
+    const std::string control_number(record.getControlNumber());
+    const size_t control_number_field_length(control_number.size() + 1);
 
     auto directory_iter(record.directory_entries_.cbegin());
     if (unlikely(directory_iter == record.directory_entries_.cend()))
         Error("BinaryMarcWriter::write: can't write a record w/ an empty directory!");
     if (unlikely(directory_iter->getTag() != "001"))
         Error("BinaryMarcWriter::write: first directory entry has to be 001! Found: "
-              + directory_iter->getTag().to_string() + " (PPN: " + record.getControlNumber() + ")");
+              + directory_iter->getTag().to_string() + " (Control number: " + record.getControlNumber() + ")");
     ++directory_iter;
 
     while (directory_iter < record.directory_entries_.cend()) {
-        size_t number_of_directory_entries = 0;
-        size_t record_length = ppn_field_length;
-        size_t baseAddress = DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
+        size_t number_of_directory_entries(0);
+        size_t record_length(control_number_field_length);
+        size_t base_address(DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
         PrecalculateBaseAddressOfData(directory_iter, record.directory_entries_.cend(), &number_of_directory_entries,
-                                      &baseAddress, &record_length);
+                                      &base_address, &record_length);
 
         char *leader_pointer = write_buffer;
         char *directory_pointer = write_buffer + Leader::LEADER_LENGTH;
-        char *data_pointer = write_buffer + baseAddress;
+        char *data_pointer = write_buffer + base_address;
 
-        record.leader_.setBaseAddressOfData(baseAddress);
+        record.leader_.setBaseAddressOfData(base_address);
         record.leader_.setRecordLength(record_length);
         record.leader_.setMultiPartRecord(directory_iter + number_of_directory_entries + 1
                                           < record.directory_entries_.cend());
         WriteToBuffer(leader_pointer, record.leader_.toString());
 
-        // Write PPN in each record as first directory entry.
+        // Write CONTROL_NUMBER in each record as first directory entry.
         WriteToBuffer(directory_pointer, "001");
-        WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(ppn_field_length), 4, '0'));
+        WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(control_number_field_length), 4, '0'));
         WriteToBuffer(directory_pointer, "00000");
 
         raw_data_offset = 0;
-        raw_data_length = ppn_field_length;
-        written_data_offset = ppn_field_length;
+        raw_data_length = control_number_field_length;
+        written_data_offset = control_number_field_length;
 
         const std::vector<DirectoryEntry>::const_iterator &end_iter = directory_iter + number_of_directory_entries;
         for (; directory_iter < end_iter; ++directory_iter) {
