@@ -135,8 +135,10 @@ std::string CreateEditableRowEntry(const std::string &token, const std::string &
     (void)status;
     std::string term_identifiers(AssembleTermIdentifiers(category, token, language_code, gnd_code, label));
     std::string background_color((GetTranslatorOrEmptyString() == db_translator) ? "RoyalBlue" : "LightBlue");
-    return  "<td contenteditable=\"true\" class=\"editable_translation\"" + term_identifiers + "style=\"background-color:" + background_color + "\">" 
-                + HtmlUtil::HtmlEscape(label) +"</td>";
+    const bool translator_exists(not db_translator.empty() ? true : false);
+    return  "<td contenteditable=\"true\" class=\"editable_translation\"" + term_identifiers + "style=\"background-color:" + background_color +  "\""
+             + (translator_exists ? " translator_exists=\"1\"" : "") + ">"
+             + HtmlUtil::HtmlEscape(label) +"</td>";
 }
 
 
