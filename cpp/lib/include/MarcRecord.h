@@ -2,7 +2,7 @@
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -45,16 +45,16 @@ public:
 private:
     mutable Leader leader_;
     std::vector<DirectoryEntry> directory_entries_;
-    std::string raw_data_;
+    std::string field_data_;
 
-    MarcRecord(Leader &leader, std::vector<DirectoryEntry> directory_entries, std::string &raw_data)
+    MarcRecord(Leader &leader, std::vector<DirectoryEntry> directory_entries, std::string &field_data)
         : leader_(std::move(leader)), directory_entries_(std::move(directory_entries)),
-          raw_data_(std::move(raw_data)) { }
+          field_data_(std::move(field_data)) { }
 public:
     MarcRecord() = default;
     MarcRecord(MarcRecord &&other) noexcept
         : leader_(std::move(other.leader_)), directory_entries_(std::move(other.directory_entries_)),
-          raw_data_(std::move(other.raw_data_)) { }
+          field_data_(std::move(other.field_data_)) { }
 
     MarcRecord &operator=(const MarcRecord &rhs);
     operator bool () const { return not directory_entries_.empty(); }
