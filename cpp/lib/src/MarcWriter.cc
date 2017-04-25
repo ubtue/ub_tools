@@ -127,7 +127,7 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
         size_t field_data_length(control_number_field_length);
         size_t written_data_offset(control_number_field_length);
 
-        const std::vector<DirectoryEntry>::const_iterator &end_iter = directory_iter + number_of_directory_entries;
+        const std::vector<DirectoryEntry>::const_iterator end_iter(directory_iter + number_of_directory_entries);
         for (; directory_iter < end_iter; ++directory_iter) {
             WriteDirEntryToBuffer(directory_pointer, *directory_iter);
 
