@@ -104,13 +104,13 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
     ++directory_iter;
 
     while (directory_iter < record.directory_entries_.cend()) {
-        size_t number_of_directory_entries, record_length, base_address;
+        size_t number_of_directory_entries, record_length, base_address_of_data;
         DetermineRecordDimensions(control_number_field_length, directory_iter, record.directory_entries_.cend(),
-                                  &number_of_directory_entries, &base_address, &record_length);
+                                  &number_of_directory_entries, &base_address_of_data, &record_length);
 
         // Update and write the leader:
         char *leader_pointer(write_buffer);
-        record.leader_.setBaseAddressOfData(base_address);
+        record.leader_.setBaseAddressOfData(base_address_of_data);
         record.leader_.setRecordLength(record_length);
         record.leader_.setMultiPartRecord(directory_iter + number_of_directory_entries + 1
                                           < record.directory_entries_.cend());
@@ -122,25 +122,16 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
 
         size_t field_data_offset(0);
         size_t field_data_length(control_number_field_length);
-        size_t written_data_offset(control_number_field_length);
 
         const std::vector<DirectoryEntry>::const_iterator end_iter(directory_iter + number_of_directory_entries);
-        char *field_data_pointer(write_buffer + base_address);
+        char *field_data_pointer(write_buffer + base_address_of_data);
         for (; directory_iter < end_iter; ++directory_iter) {
             WriteDirEntryToBuffer(directory_pointer, *directory_iter);
-
-            if (field_data_offset + field_data_length == directory_iter->getFieldOffset()) {
-                field_data_length += directory_iter->getFieldLength();
-            } else {
-                WriteToBuffer(field_data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
-                field_data_offset = directory_iter->getFieldOffset();
-                field_data_length = directory_iter->getFieldLength();
-            }
-
-            written_data_offset += directory_iter->getFieldLength();
+            WriteToBuffer(field_data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
+            field_data_offset = directory_iter->getFieldOffset();
+            field_data_length = directory_iter->getFieldLength();
         }
         WriteToBuffer(directory_pointer, "\x1E");
-        WriteToBuffer(field_data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
         WriteToBuffer(field_data_pointer, "\x1D");
         output_->write(write_buffer, record_length);
     }
