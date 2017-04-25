@@ -107,6 +107,9 @@ void MarcRecord::updateField(const size_t field_index, const std::string &new_fi
     if (unlikely(new_field_value.size() > MAX_FIELD_LENGTH))
         throw std::runtime_error("in MarcRecord::updateField: can't accept more than MarcRecord::MAX_FIELD_LENGTH "
                                  "of field data!");
+    if (unlikely(field_index >= directory_entries_.size()))
+        throw std::out_of_range("in MarcRecord::updateField: field index " + std::to_string(field_index)
+                                + " is out of range!");
 
     DirectoryEntry &entry(directory_entries_[field_index]);
     const size_t old_field_length(entry.getFieldLength());
