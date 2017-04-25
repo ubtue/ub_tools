@@ -30,33 +30,43 @@ static const size_t MAX_MARC_21_RECORD_LENGTH(99999);
 static char write_buffer[MAX_MARC_21_RECORD_LENGTH];
 
 
-static bool inline DirectoryEntryHasEnoughSpace(const size_t base_address, const size_t data_length,
-                                                const size_t next_field_length)
+// Returns true if we can add the new field to our record w/o overflowing the maximum size of a binary
+// MARC-21 record, o/w we return false.
+static bool inline NewFieldDoesFit(const size_t base_address, const size_t current_record_length,
+                                   const size_t next_field_length)
 {
-    return base_address + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + data_length + next_field_length + 1
+    return base_address + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + current_record_length + next_field_length + 1
            <= MAX_MARC_21_RECORD_LENGTH;
 }
 
 
 /**
- * We need a copy of directory_iter so it behaves like a lookahead.
+ * We determine the record dimensions by adding sizes of fields one-by-one (starting with the field represented by
+ * "directory_iter") while we do not overflow the maximum
+ * size of a binary MARC-21 record.
  */
-static void inline PrecalculateBaseAddressOfData(std::vector<DirectoryEntry>::const_iterator directory_iter,
-                                                 const std::vector<DirectoryEntry>::const_iterator &end_iter,
-                                                 size_t *number_of_directory_entries, size_t *base_address,
-                                                 size_t *record_length)
+static void inline DetermineRecordDimensions(const size_t control_number_field_length,
+                                             std::vector<DirectoryEntry>::const_iterator directory_iter,
+                                             const std::vector<DirectoryEntry>::const_iterator &end_iter,
+                                             size_t * const number_of_directory_entries, size_t * const base_address,
+                                             size_t * const record_length)
 {
-    *base_address += Leader::LEADER_LENGTH + 1 /* for directory separator byte */;
-    *record_length += 1 /* for end of record byte */;
+    *number_of_directory_entries = 0;
+    *base_address = DirectoryEntry::DIRECTORY_ENTRY_LENGTH /* for the control number field */
+                    + Leader::LEADER_LENGTH + 1 /* for directory separator byte */;
+    *record_length = control_number_field_length + 1 /* for end of record byte */;
+
+    // Now we add fields one-by-one while taking care not to overflow the maximum record size:
     for (/* empty */;
          directory_iter < end_iter
-         and DirectoryEntryHasEnoughSpace(*base_address, *record_length, directory_iter->getFieldLength());
+         and NewFieldDoesFit(*base_address, *record_length, directory_iter->getFieldLength());
          ++directory_iter)
     {
         *base_address += DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
         *record_length += directory_iter->getFieldLength();
         ++*number_of_directory_entries;
     }
+
     *record_length += *base_address;
 }
 
@@ -90,11 +100,11 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
     ++directory_iter;
 
     while (directory_iter < record.directory_entries_.cend()) {
-        size_t number_of_directory_entries(0);
-        size_t record_length(control_number_field_length);
-        size_t base_address(DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
-        PrecalculateBaseAddressOfData(directory_iter, record.directory_entries_.cend(), &number_of_directory_entries,
-                                      &base_address, &record_length);
+        size_t number_of_directory_entries;
+        size_t record_length;
+        size_t base_address;
+        DetermineRecordDimensions(control_number_field_length, directory_iter, record.directory_entries_.cend(),
+                                  &number_of_directory_entries, &base_address, &record_length);
 
         char *leader_pointer(write_buffer);
         char *directory_pointer(write_buffer + Leader::LEADER_LENGTH);
