@@ -104,16 +104,12 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
     ++directory_iter;
 
     while (directory_iter < record.directory_entries_.cend()) {
-        size_t number_of_directory_entries;
-        size_t record_length;
-        size_t base_address;
+        size_t number_of_directory_entries, record_length, base_address;
         DetermineRecordDimensions(control_number_field_length, directory_iter, record.directory_entries_.cend(),
                                   &number_of_directory_entries, &base_address, &record_length);
 
+        // Update and write the leader:
         char *leader_pointer(write_buffer);
-        char *directory_pointer(write_buffer + Leader::LEADER_LENGTH);
-        char *data_pointer(write_buffer + base_address);
-
         record.leader_.setBaseAddressOfData(base_address);
         record.leader_.setRecordLength(record_length);
         record.leader_.setMultiPartRecord(directory_iter + number_of_directory_entries + 1
@@ -121,20 +117,22 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
         WriteToBuffer(leader_pointer, record.leader_.toString());
 
         // Write a control number directory entry for each record as the first entry in the directory section:
+        char *directory_pointer(write_buffer + Leader::LEADER_LENGTH);
         WriteDirEntryToBuffer(directory_pointer, record.directory_entries_.front());
 
         size_t field_data_offset(0);
         size_t field_data_length(control_number_field_length);
         size_t written_data_offset(control_number_field_length);
 
-        const std::vector<DirectoryEntry>::const_iterator &end_iter = directory_iter + number_of_directory_entries;
+        const std::vector<DirectoryEntry>::const_iterator end_iter(directory_iter + number_of_directory_entries);
+        char *field_data_pointer(write_buffer + base_address);
         for (; directory_iter < end_iter; ++directory_iter) {
             WriteDirEntryToBuffer(directory_pointer, *directory_iter);
 
             if (field_data_offset + field_data_length == directory_iter->getFieldOffset()) {
                 field_data_length += directory_iter->getFieldLength();
             } else {
-                WriteToBuffer(data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
+                WriteToBuffer(field_data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
                 field_data_offset = directory_iter->getFieldOffset();
                 field_data_length = directory_iter->getFieldLength();
             }
@@ -142,8 +140,8 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
             written_data_offset += directory_iter->getFieldLength();
         }
         WriteToBuffer(directory_pointer, "\x1E");
-        WriteToBuffer(data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
-        WriteToBuffer(data_pointer, "\x1D");
+        WriteToBuffer(field_data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
+        WriteToBuffer(field_data_pointer, "\x1D");
         output_->write(write_buffer, record_length);
     }
 }
