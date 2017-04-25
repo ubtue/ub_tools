@@ -23,6 +23,8 @@ INSTALL_PROGS  = $(filter-out %_test,$(PROGS)) *.sh
 .PHONY: all amd64 install clean
 
 all: .deps $(PROGS)
+	$(MAKE) -C tests
+
 amd64: .deps $(AMD64_PROGS)
 
 %.o: %.cc
