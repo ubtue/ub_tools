@@ -30,7 +30,7 @@ static const size_t MAX_MARC_21_RECORD_LENGTH(99999);
 static char write_buffer[MAX_MARC_21_RECORD_LENGTH];
 
 
-static bool inline HasDirectoryEntryEnoughSpace(const size_t base_address, const size_t data_length,
+static bool inline DirectoryEntryHasEnoughSpace(const size_t base_address, const size_t data_length,
                                                 const size_t next_field_length)
 {
     return base_address + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + data_length + next_field_length + 1
@@ -50,7 +50,7 @@ static void inline PrecalculateBaseAddressOfData(std::vector<DirectoryEntry>::co
     *record_length += 1 /* for end of record byte */;
     for (/* empty */;
          directory_iter < end_iter
-         and HasDirectoryEntryEnoughSpace(*base_address, *record_length, directory_iter->getFieldLength());
+         and DirectoryEntryHasEnoughSpace(*base_address, *record_length, directory_iter->getFieldLength());
          ++directory_iter)
     {
         *base_address += DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
@@ -75,8 +75,8 @@ static void inline WriteToBuffer(char *&dest, const char* source, size_t offset,
 
 void BinaryMarcWriter::write(const MarcRecord &record) {
     size_t written_data_offset;
-    size_t raw_data_offset;
-    size_t raw_data_length;
+    size_t field_data_offset;
+    size_t field_data_length;
 
     const std::string control_number(record.getControlNumber());
     const size_t control_number_field_length(control_number.size() + 1);
@@ -96,9 +96,9 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
         PrecalculateBaseAddressOfData(directory_iter, record.directory_entries_.cend(), &number_of_directory_entries,
                                       &base_address, &record_length);
 
-        char *leader_pointer = write_buffer;
-        char *directory_pointer = write_buffer + Leader::LEADER_LENGTH;
-        char *data_pointer = write_buffer + base_address;
+        char *leader_pointer(write_buffer);
+        char *directory_pointer(write_buffer + Leader::LEADER_LENGTH);
+        char *data_pointer(write_buffer + base_address);
 
         record.leader_.setBaseAddressOfData(base_address);
         record.leader_.setRecordLength(record_length);
@@ -111,8 +111,8 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
         WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(control_number_field_length), 4, '0'));
         WriteToBuffer(directory_pointer, "00000");
 
-        raw_data_offset = 0;
-        raw_data_length = control_number_field_length;
+        field_data_offset = 0;
+        field_data_length = control_number_field_length;
         written_data_offset = control_number_field_length;
 
         const std::vector<DirectoryEntry>::const_iterator &end_iter = directory_iter + number_of_directory_entries;
@@ -122,18 +122,18 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
                                                                     4, '0'));
             WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(written_data_offset), 5, '0'));
 
-            if (raw_data_offset + raw_data_length == directory_iter->getFieldOffset()) {
-                raw_data_length += directory_iter->getFieldLength();
+            if (field_data_offset + field_data_length == directory_iter->getFieldOffset()) {
+                field_data_length += directory_iter->getFieldLength();
             } else {
-                WriteToBuffer(data_pointer, record.raw_data_.data(), raw_data_offset, raw_data_length);
-                raw_data_offset = directory_iter->getFieldOffset();
-                raw_data_length = directory_iter->getFieldLength();
+                WriteToBuffer(data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
+                field_data_offset = directory_iter->getFieldOffset();
+                field_data_length = directory_iter->getFieldLength();
             }
 
             written_data_offset += directory_iter->getFieldLength();
         }
         WriteToBuffer(directory_pointer, "\x1E");
-        WriteToBuffer(data_pointer, record.raw_data_.data(), raw_data_offset, raw_data_length);
+        WriteToBuffer(data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
         WriteToBuffer(data_pointer, "\x1D");
         output_->write(write_buffer, record_length);
     }

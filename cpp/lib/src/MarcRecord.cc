@@ -373,6 +373,11 @@ void MarcRecord::combine(const MarcRecord &record) {
         directory_entries_.emplace_back(*iter);
         directory_entries_.back().setFieldOffset(iter->getFieldOffset() + offset);
     }
+
+    // Adjust the leader:
+    leader_.setBaseAddressOfData(Leader::LEADER_LENGTH + directory_entries_.size()
+                                 * DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
+    leader_.setRecordLength(leader_.getBaseAddressOfData() + field_data_.size());
 }
 
 
