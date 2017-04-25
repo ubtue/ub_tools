@@ -1,7 +1,7 @@
 /** \brief Test cases for MarcRecord
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,7 @@
 #define BOOST_TEST_MODULE MarcRecord
 #define BOOST_TEST_DYN_LINK
 
+
 #include <boost/test/unit_test.hpp>
 #include <typeinfo>
 #include <vector>
@@ -34,16 +35,19 @@ TEST(empty) {
     BOOST_CHECK_EQUAL(emptyRecord, false);
 
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
     BOOST_CHECK_EQUAL(record, true);
 }
+
 
 TEST(getNumberOfFields) {
     MarcRecord emptyRecord;
     BOOST_CHECK_EQUAL(emptyRecord.getNumberOfFields(), 0);
 
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
     BOOST_CHECK_EQUAL(record.getNumberOfFields(), 13);
 
     size_t index(record.insertSubfield("TST", 'a', "TEST"));
@@ -53,12 +57,14 @@ TEST(getNumberOfFields) {
     BOOST_CHECK_EQUAL(record.getNumberOfFields(), 13);
 }
 
+
 TEST(getFieldIndex) {
     MarcRecord emptyRecord;
     BOOST_CHECK_EQUAL(emptyRecord.getFieldIndex("001"), MarcRecord::FIELD_NOT_FOUND);
 
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
 
     BOOST_CHECK_NE(record.getFieldIndex("001"), MarcRecord::FIELD_NOT_FOUND);
 
@@ -66,6 +72,7 @@ TEST(getFieldIndex) {
     BOOST_CHECK_EQUAL(record.getTag(record.getFieldIndex("100")), "100");
     BOOST_CHECK_EQUAL(record.getTag(record.getFieldIndex("LOK")), "LOK");
 }
+
 
 TEST(getFieldIndices) {
     MarcRecord emptyRecord;
@@ -77,7 +84,8 @@ TEST(getFieldIndices) {
     BOOST_CHECK_EQUAL(count, 0);
 
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
     count = record.getFieldIndices("001", &indices);
     BOOST_CHECK_EQUAL(count, 1);
     BOOST_CHECK_EQUAL(indices[0], 0);
@@ -91,19 +99,23 @@ TEST(getFieldIndices) {
     BOOST_CHECK_EQUAL(indices.size(), count);
 }
 
+
 TEST(getTag) {
     MarcRecord emptyRecord;
     BOOST_CHECK_EQUAL(emptyRecord.getTag(0), "");
 
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
 
     BOOST_CHECK_EQUAL(record.getTag(0), "001");
 }
 
+
 TEST(deleteFields) {
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
 
     std::vector<std::pair<size_t, size_t>> indices;
     indices.emplace_back(1, 3);
@@ -117,9 +129,11 @@ TEST(deleteFields) {
 
 }
 
+
 TEST(findAllLocalDataBlocks) {
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
 
     std::vector<std::pair<size_t, size_t>> local_blocks;
     size_t count(record.findAllLocalDataBlocks(&local_blocks));
@@ -135,9 +149,11 @@ TEST(findAllLocalDataBlocks) {
 
 }
 
+
 TEST(extractSubfield) {
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
 
     std::vector<std::string> values;
     record.extractSubfield("591", 'a', &values);
@@ -147,9 +163,11 @@ TEST(extractSubfield) {
     BOOST_CHECK_EQUAL(values.size(), 5);
 }
 
+
 TEST(filterTags) {
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
 
     std::unordered_set<MarcTag> tags;
     tags.emplace("LOK");
@@ -161,22 +179,26 @@ TEST(filterTags) {
     BOOST_CHECK_EQUAL(count, 0);
 }
 
+
 TEST(getLanguage) {
     MarcRecord emptyRecord;
     BOOST_CHECK_EQUAL(emptyRecord.getLanguage("not found"), "not found");
     BOOST_CHECK_EQUAL(emptyRecord.getLanguage(), "ger");
 
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
     BOOST_CHECK_EQUAL(record.getLanguage("not found"), "ger");
     BOOST_CHECK_EQUAL(record.getLanguage(), "ger");
 }
+
 
 TEST(getLanguageCode) {
     MarcRecord emptyRecord;
     BOOST_CHECK_EQUAL(emptyRecord.getLanguageCode(), "");
 
     File input("data/marc_record_test.mrc", "r");
-    MarcRecord record(MarcReader::Read(&input));
+    BinaryMarcReader reader(&input);
+    MarcRecord record(reader.read());
     BOOST_CHECK_EQUAL(record.getLanguageCode(), "ger");
 }
