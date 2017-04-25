@@ -27,7 +27,7 @@
 
 
 static const size_t MAX_MARC_21_RECORD_LENGTH(99999);
-static char write_buffer[MAX_MARC_21_RECORD_LENGTH];
+static char write_buffer[MAX_MARC_21_RECORD_LENGTH]; // Possibly too big for the stack!
 
 
 // Returns true if we can add the new field to our record w/o overflowing the maximum size of a binary
@@ -35,8 +35,8 @@ static char write_buffer[MAX_MARC_21_RECORD_LENGTH];
 static bool inline NewFieldDoesFit(const size_t base_address, const size_t current_record_length,
                                    const size_t next_field_length)
 {
-    return base_address + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + current_record_length + next_field_length + 1
-           <= MAX_MARC_21_RECORD_LENGTH;
+    return base_address + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + current_record_length + next_field_length
+           + 1 /* for the field terminator byte */ <= MAX_MARC_21_RECORD_LENGTH;
 }
 
 
@@ -77,17 +77,21 @@ static void inline WriteToBuffer(char *&dest, const std::string &data) {
 }
 
 
-static void inline WriteToBuffer(char *&dest, const char* source, size_t offset, size_t length) {
+static void inline WriteToBuffer(char *&dest, const char * const source, size_t offset, size_t length) {
     std::memcpy(dest, source + offset, length);
     dest += length;
 }
 
 
-void BinaryMarcWriter::write(const MarcRecord &record) {
-    size_t written_data_offset;
-    size_t field_data_offset;
-    size_t field_data_length;
+static void inline WriteDirEntryToBuffer(char *&directory_pointer, const DirectoryEntry &dir_entry) {
+    const MarcTag &tag(dir_entry.getTag());
+    WriteToBuffer(directory_pointer, tag.c_str(), DirectoryEntry::TAG_LENGTH, 0);
+    WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(dir_entry.getFieldLength()), 4, '0'));
+    WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(dir_entry.getFieldOffset()), 5, '0'));
+}
 
+
+void BinaryMarcWriter::write(const MarcRecord &record) {
     const std::string control_number(record.getControlNumber());
     const size_t control_number_field_length(control_number.size() + 1);
 
@@ -116,21 +120,16 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
                                           < record.directory_entries_.cend());
         WriteToBuffer(leader_pointer, record.leader_.toString());
 
-        // Write CONTROL_NUMBER in each record as first directory entry.
-        WriteToBuffer(directory_pointer, "001");
-        WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(control_number_field_length), 4, '0'));
-        WriteToBuffer(directory_pointer, "00000");
+        // Write a control number directory entry for each record as the first entry in the directory section:
+        WriteDirEntryToBuffer(directory_pointer, record.directory_entries_.front());
 
-        field_data_offset = 0;
-        field_data_length = control_number_field_length;
-        written_data_offset = control_number_field_length;
+        size_t field_data_offset(0);
+        size_t field_data_length(control_number_field_length);
+        size_t written_data_offset(control_number_field_length);
 
         const std::vector<DirectoryEntry>::const_iterator &end_iter = directory_iter + number_of_directory_entries;
         for (; directory_iter < end_iter; ++directory_iter) {
-            WriteToBuffer(directory_pointer, directory_iter->getTag().to_string());
-            WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(directory_iter->getFieldLength()),
-                                                                    4, '0'));
-            WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(written_data_offset), 5, '0'));
+            WriteDirEntryToBuffer(directory_pointer, *directory_iter);
 
             if (field_data_offset + field_data_length == directory_iter->getFieldOffset()) {
                 field_data_length += directory_iter->getFieldLength();
