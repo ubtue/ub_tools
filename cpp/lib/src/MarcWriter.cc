@@ -77,15 +77,15 @@ static void inline WriteToBuffer(char *&dest, const std::string &data) {
 }
 
 
-static void inline WriteToBuffer(char *&dest, const char * const source, size_t offset, size_t length) {
-    std::memcpy(dest, source + offset, length);
+static void inline WriteToBuffer(char *&dest, const char * const source, const size_t length) {
+    std::memcpy(dest, source, length);
     dest += length;
 }
 
 
 static void inline WriteDirEntryToBuffer(char *&directory_pointer, const DirectoryEntry &dir_entry) {
     const MarcTag &tag(dir_entry.getTag());
-    WriteToBuffer(directory_pointer, tag.c_str(), DirectoryEntry::TAG_LENGTH, 0);
+    WriteToBuffer(directory_pointer, tag.c_str(), DirectoryEntry::TAG_LENGTH);
     WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(dir_entry.getFieldLength()), 4, '0'));
     WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(dir_entry.getFieldOffset()), 5, '0'));
 }
@@ -95,24 +95,24 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
     const std::string control_number(record.getControlNumber());
     const size_t control_number_field_length(control_number.size() + 1);
 
-    auto directory_iter(record.directory_entries_.cbegin());
-    if (unlikely(directory_iter == record.directory_entries_.cend()))
+    auto dir_entry(record.directory_entries_.cbegin());
+    if (unlikely(dir_entry == record.directory_entries_.cend()))
         Error("BinaryMarcWriter::write: can't write a record w/ an empty directory!");
-    if (unlikely(directory_iter->getTag() != "001"))
+    if (unlikely(dir_entry->getTag() != "001"))
         Error("BinaryMarcWriter::write: first directory entry has to be 001! Found: "
-              + directory_iter->getTag().to_string() + " (Control number: " + record.getControlNumber() + ")");
-    ++directory_iter;
+              + dir_entry->getTag().to_string() + " (Control number: " + record.getControlNumber() + ")");
+    ++dir_entry;
 
-    while (directory_iter < record.directory_entries_.cend()) {
-        size_t number_of_directory_entries, record_length, base_address;
-        DetermineRecordDimensions(control_number_field_length, directory_iter, record.directory_entries_.cend(),
-                                  &number_of_directory_entries, &base_address, &record_length);
+    while (dir_entry < record.directory_entries_.cend()) {
+        size_t number_of_directory_entries, record_length, base_address_of_data;
+        DetermineRecordDimensions(control_number_field_length, dir_entry, record.directory_entries_.cend(),
+                                  &number_of_directory_entries, &base_address_of_data, &record_length);
 
         // Update and write the leader:
         char *leader_pointer(write_buffer);
-        record.leader_.setBaseAddressOfData(base_address);
+        record.leader_.setBaseAddressOfData(base_address_of_data);
         record.leader_.setRecordLength(record_length);
-        record.leader_.setMultiPartRecord(directory_iter + number_of_directory_entries + 1
+        record.leader_.setMultiPartRecord(dir_entry + number_of_directory_entries + 1
                                           < record.directory_entries_.cend());
         WriteToBuffer(leader_pointer, record.leader_.toString());
 
@@ -120,28 +120,22 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
         char *directory_pointer(write_buffer + Leader::LEADER_LENGTH);
         WriteDirEntryToBuffer(directory_pointer, record.directory_entries_.front());
 
-        size_t field_data_offset(0);
-        size_t field_data_length(control_number_field_length);
-        size_t written_data_offset(control_number_field_length);
+        const std::vector<DirectoryEntry>::const_iterator end_iter(dir_entry + number_of_directory_entries);
+        char *field_data_pointer(write_buffer + base_address_of_data);
 
-        const std::vector<DirectoryEntry>::const_iterator end_iter(directory_iter + number_of_directory_entries);
-        char *field_data_pointer(write_buffer + base_address);
-        for (; directory_iter < end_iter; ++directory_iter) {
-            WriteDirEntryToBuffer(directory_pointer, *directory_iter);
+        // Write the control number field data:
+        WriteToBuffer(field_data_pointer, record.field_data_.data(), control_number_field_length);
 
-            if (field_data_offset + field_data_length == directory_iter->getFieldOffset()) {
-                field_data_length += directory_iter->getFieldLength();
-            } else {
-                WriteToBuffer(field_data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
-                field_data_offset = directory_iter->getFieldOffset();
-                field_data_length = directory_iter->getFieldLength();
-            }
-
-            written_data_offset += directory_iter->getFieldLength();
+        // Now write the field data for all fields after the 001-field:
+        for (; dir_entry < end_iter; ++dir_entry) {
+            WriteDirEntryToBuffer(directory_pointer, *dir_entry);
+            WriteToBuffer(field_data_pointer, record.field_data_.data() + dir_entry->getFieldOffset(),
+                          dir_entry->getFieldLength());
         }
-        WriteToBuffer(directory_pointer, "\x1E");
-        WriteToBuffer(field_data_pointer, record.field_data_.data(), field_data_offset, field_data_length);
-        WriteToBuffer(field_data_pointer, "\x1D");
+
+        WriteToBuffer(directory_pointer, "\x1E", 1);  // End of directory.
+        WriteToBuffer(field_data_pointer, "\x1D", 1); // End of field data.
+
         output_->write(write_buffer, record_length);
     }
 }
