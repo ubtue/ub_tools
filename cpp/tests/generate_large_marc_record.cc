@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], format == "xml" ? MarcWriter::XML
                                                                                              : MarcWriter::BINARY));
         marc_writer->write(record);
-        std::cout << "The record had been written!\n";
+        std::cout << "The record has been written!\n";
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
