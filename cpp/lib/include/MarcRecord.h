@@ -22,7 +22,6 @@
 #define MARC_RECORD_H
 
 
-#include <iostream>
 #include <limits>
 #include <string>
 #include <unordered_set>
