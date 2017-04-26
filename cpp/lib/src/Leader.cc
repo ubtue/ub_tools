@@ -106,7 +106,8 @@ bool Leader::setRecordLength(const unsigned new_record_length, std::string * con
     }
 
     record_length_ = new_record_length;
-    raw_leader_ = StringUtil::PadLeading(std::to_string(record_length_), 5, '0') + raw_leader_.substr(5);
+    const unsigned dummy_record_length(record_length_ > 99999 ? 0 : record_length_);
+    raw_leader_ = StringUtil::PadLeading(std::to_string(dummy_record_length), 5, '0') + raw_leader_.substr(5);
     return true;
 }
 
