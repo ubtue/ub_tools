@@ -43,7 +43,7 @@ public:
     Leader(Leader &&other) noexcept
         : raw_leader_(std::move(other.raw_leader_)), record_length_(other.record_length_),
           base_address_of_data_(other.base_address_of_data_) 
-        { other.record_length_ = LEADER_LENGTH; }
+        { other.record_length_ = LEADER_LENGTH + 2 /*Directory terminator + Record terminator*/; }
 
     /** Copy-assignment operator. */
     Leader &operator=(const Leader &rhs);
