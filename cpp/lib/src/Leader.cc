@@ -98,10 +98,10 @@ bool Leader::setRecordLength(const unsigned new_record_length, std::string * con
     if (err_msg != nullptr)
         err_msg->clear();
 
-    if (new_record_length > 99999) {
+    if (new_record_length < LEADER_LENGTH + 2 /*Directory terminator + Record terminator*/) {
         if (err_msg != nullptr)
             *err_msg = "new record length (" + std::to_string(new_record_length)
-                       + ") exceeds valid maximum (99999)!";
+                       + ") cannot be less than the length of a leader plus the directory terminator and record terminator!";
         return false;
     }
 
