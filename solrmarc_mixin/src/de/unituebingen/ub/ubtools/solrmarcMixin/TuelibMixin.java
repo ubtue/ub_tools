@@ -198,6 +198,9 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final Set<String> otherTitles = new TreeSet<>();
         for (final VariableField otherTitleField : otherTitleFields) {
+            final DataField dataField = (DataField) otherTitleField;
+            if (dataField.getIndicator1() == '3' && dataField.getIndicator2() == '0')
+                continue;
             final String otherTitle = getTitleFromField((DataField) otherTitleField);
             if (otherTitle != null)
                 otherTitles.add(otherTitle);

@@ -2,7 +2,7 @@
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,7 +22,6 @@
 #define MARC_RECORD_H
 
 
-#include <iostream>
 #include <limits>
 #include <string>
 #include <unordered_set>
@@ -45,16 +44,16 @@ public:
 private:
     mutable Leader leader_;
     std::vector<DirectoryEntry> directory_entries_;
-    std::string raw_data_;
+    std::string field_data_;
 
-    MarcRecord(Leader &leader, std::vector<DirectoryEntry> directory_entries, std::string &raw_data)
+    MarcRecord(Leader &leader, std::vector<DirectoryEntry> directory_entries, std::string &field_data)
         : leader_(std::move(leader)), directory_entries_(std::move(directory_entries)),
-          raw_data_(std::move(raw_data)) { }
+          field_data_(std::move(field_data)) { }
 public:
     MarcRecord() = default;
     MarcRecord(MarcRecord &&other) noexcept
         : leader_(std::move(other.leader_)), directory_entries_(std::move(other.directory_entries_)),
-          raw_data_(std::move(other.raw_data_)) { }
+          field_data_(std::move(other.field_data_)) { }
 
     MarcRecord &operator=(const MarcRecord &rhs);
     operator bool () const { return not directory_entries_.empty(); }
@@ -67,16 +66,23 @@ public:
 
     size_t getNumberOfFields() const { return directory_entries_.size(); }
 
+    char getIndicator1(const size_t field_index) const;
+    char getIndicator2(const size_t field_index) const;
+
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
     inline std::string getFieldData(const MarcTag &tag) const { return getFieldData(getFieldIndex(tag)); }
 
     /** \brief Returns the content of the field at given index or an empty string if this index is not present. **/
     std::string getFieldData(const size_t tag_index) const;
 
-    /** \brief Returns the subfields of the first field with given tag or an empty Subfields if the tag is not present. **/
+    /** \brief Returns the subfields of the first field with given tag or an empty Subfields if the tag is not
+     *         present.
+     **/
     inline Subfields getSubfields(const MarcTag &tag) const { return getSubfields(getFieldIndex(tag)); }
 
-    /** \brief Returns the subfields of the first field with given tag or an empty Subfield if this index is not present. **/
+    /** \brief Returns the subfields of the first field with given tag or an empty Subfield if this index is not
+     *         present.
+     **/
     Subfields getSubfields(const size_t field_index) const;
 
     /** \brief Deletes subfield for field index "field_index" and subfield code "subfield_code". */
@@ -85,7 +91,9 @@ public:
     /** \brief Returns the content of the first field with given tag or an empty string if the tag is not present. **/
     MarcTag getTag(const size_t index) const;
 
-    /** \brief Returns the tag of the field at given index or MarcRecord::FIELD_NOT_FOUND if the tag is not present **/
+    /** \brief Returns the tag of the field at given index or MarcRecord::FIELD_NOT_FOUND if the tag is not
+     *         present.
+     **/
     size_t getFieldIndex(const MarcTag &field_tag) const;
 
     /** \return The number of field indices for the tag "tag". */
@@ -98,8 +106,13 @@ public:
         updateField(field_index, subfields.toString());
     }
 
-    bool insertSubfield(const MarcTag &new_field_tag, const char subfield_code,
-                   const std::string &new_subfield_value, const char indicator1 = ' ', const char indicator2 = ' ');
+    bool insertSubfield(const MarcTag &new_field_tag, const char subfield_code, const std::string &new_subfield_value,
+                        const char indicator1 = ' ', const char indicator2 = ' ');
+
+    /** \brief  Adds a subfield to the first existing field with tag "field_tag".
+     *  \return True if a field with field tag "field_tag" existed and false if no such field was found.
+     */
+    bool addSubfield(const MarcTag &field_tag, const char subfield_code, const std::string &subfield_value);
 
     size_t insertField(const MarcTag &new_field_tag, const std::string &new_field_value);
 
@@ -188,7 +201,7 @@ public:
      *  \return the hash
      */
     std::string calcChecksum() const;
-    
+
     using RecordFunc = bool (&)(MarcRecord * const record, MarcWriter * const marc_writer,
                                 std::string * const err_msg);
 

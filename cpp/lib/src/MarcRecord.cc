@@ -2,7 +2,7 @@
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -29,10 +29,26 @@ const size_t MarcRecord::FIELD_NOT_FOUND;
 MarcRecord &MarcRecord::operator=(const MarcRecord &rhs) {
     if (likely(&rhs != this)) {
         leader_ = rhs.leader_;
-        raw_data_ = rhs.raw_data_;
+        field_data_ = rhs.field_data_;
         directory_entries_ = rhs.directory_entries_;
     }
     return *this;
+}
+
+
+char MarcRecord::getIndicator1(const size_t field_index) const {
+    if (unlikely(field_index >= directory_entries_.size()))
+        throw std::out_of_range("in MarcRecord::getIndicator1: index is " + std::to_string(field_index)
+                                + " but record only has " + std::to_string(directory_entries_.size()) + " entries!");
+    return field_data_[directory_entries_[field_index].getFieldOffset()];
+}
+
+
+char MarcRecord::getIndicator2(const size_t field_index) const {
+    if (unlikely(field_index >= directory_entries_.size()))
+        throw std::out_of_range("in MarcRecord::getIndicator2: index is " + std::to_string(field_index)
+                                + " but record only has " + std::to_string(directory_entries_.size()) + " entries!");
+    return field_data_[directory_entries_[field_index].getFieldOffset() + 1];
 }
 
 
@@ -40,7 +56,7 @@ std::string MarcRecord::getFieldData(const size_t index) const {
     if (index == MarcRecord::FIELD_NOT_FOUND or directory_entries_.cbegin() + index >= directory_entries_.cend())
         return "";
     const DirectoryEntry &entry(directory_entries_[index]);
-    return std::string(raw_data_, entry.getFieldOffset(), entry.getFieldLength() - 1);
+    return std::string(field_data_, entry.getFieldOffset(), entry.getFieldLength() - 1);
 }
 
 
@@ -91,14 +107,22 @@ void MarcRecord::updateField(const size_t field_index, const std::string &new_fi
     if (unlikely(new_field_value.size() > MAX_FIELD_LENGTH))
         throw std::runtime_error("in MarcRecord::updateField: can't accept more than MarcRecord::MAX_FIELD_LENGTH "
                                  "of field data!");
+    if (unlikely(field_index >= directory_entries_.size()))
+        throw std::out_of_range("in MarcRecord::updateField: field index " + std::to_string(field_index)
+                                + " is out of range!");
 
     DirectoryEntry &entry(directory_entries_[field_index]);
-    size_t offset = raw_data_.size();
-    size_t length = new_field_value.length() + 1 /* For new field separator. */;
+    const size_t old_field_length(entry.getFieldLength());
+    const size_t new_field_length(new_field_value.length() + 1 /* For new field separator. */);
 
-    entry.setFieldLength(length);
-    entry.setFieldOffset(offset);
-    raw_data_ += new_field_value + '\x1E';
+    const ssize_t delta(static_cast<ssize_t>(new_field_length) - static_cast<ssize_t>(old_field_length));
+    if (delta != 0) {
+        entry.setFieldLength(new_field_length);
+        for (size_t index(field_index + 1); index < directory_entries_.size(); ++index)
+            directory_entries_[index].setFieldOffset(directory_entries_[index].getFieldOffset() + delta);
+    }
+
+    StringUtil::ReplaceSection(&field_data_, entry.getFieldOffset(), old_field_length, new_field_value + "\x1E");
 }
 
 
@@ -106,6 +130,19 @@ bool MarcRecord::insertSubfield(const MarcTag &new_field_tag, const char subfiel
                                 const std::string &new_subfield_value, const char indicator1, const char indicator2) {
     return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + "\x1F"
                                       + std::string(1, subfield_code) + new_subfield_value);
+}
+
+
+bool MarcRecord::addSubfield(const MarcTag &field_tag, const char subfield_code, const std::string &subfield_value) {
+    const size_t field_index(getFieldIndex(field_tag));
+    if (unlikely(field_index == MarcRecord::FIELD_NOT_FOUND))
+        return false;
+
+    std::string new_field_value(getFieldData(field_index));
+    new_field_value += "\x1F" + std::string(1, subfield_code) + subfield_value;
+    updateField(field_index, new_field_value);
+
+    return true;
 }
 
 
@@ -119,10 +156,14 @@ size_t MarcRecord::insertField(const MarcTag &new_field_tag, const std::string &
     while (insertion_location != directory_entries_.end() and new_field_tag >= insertion_location->getTag())
         ++insertion_location;
 
-    const size_t offset(raw_data_.size());
+    const size_t offset(field_data_.size());
     const size_t length(new_field_value.length() + 1) /* For new field separator. */;
     const auto inserted_location(directory_entries_.emplace(insertion_location, new_field_tag, length, offset));
-    raw_data_ += new_field_value + '\x1E';
+    field_data_ += new_field_value + '\x1E';
+
+    // Adjust the record size:
+    leader_.setRecordLength(leader_.getRecordLength() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH
+                            + new_field_value.length() + 1 /* field terminator */);
 
     const size_t index(std::distance(directory_entries_.begin(), inserted_location));
     return index;
@@ -222,7 +263,8 @@ size_t MarcRecord::extractSubfields(const MarcTag &tag, const std::string &subfi
 }
 
 
-size_t MarcRecord::findAllLocalDataBlocks(std::vector <std::pair<size_t, size_t>> *const local_block_boundaries) const {
+size_t MarcRecord::findAllLocalDataBlocks(std::vector <std::pair<size_t, size_t>> *const local_block_boundaries) const
+{
     local_block_boundaries->clear();
 
     size_t local_block_start(getFieldIndex("LOK"));
@@ -304,7 +346,7 @@ std::string MarcRecord::getLanguageCode() const {
     if (entry.getFieldLength() < 38)
         return "";
 
-    return std::string(raw_data_, entry.getFieldOffset() + 35, 3);
+    return std::string(field_data_, entry.getFieldOffset() + 35, 3);
 }
 
 
@@ -327,15 +369,22 @@ bool MarcRecord::isElectronicResource() const {
 
 
 void MarcRecord::combine(const MarcRecord &record) {
-    const size_t offset(raw_data_.size() - record.directory_entries_[0].getFieldLength());
-    raw_data_ += record.raw_data_.substr(record.directory_entries_[0].getFieldLength());
+    const size_t offset(field_data_.size() - record.directory_entries_[0].getFieldLength());
 
     // Ignore first field. We only need one 001-field.
+    field_data_ += record.field_data_.substr(record.directory_entries_[0].getFieldLength());
     directory_entries_.reserve(directory_entries_.size() + record.directory_entries_.size() - 1);
+
+    // Adjust and add the new directory entries while skipping the 2nd 001-field:
     for (auto iter(record.directory_entries_.begin() + 1); iter < record.directory_entries_.end(); ++iter) {
         directory_entries_.emplace_back(*iter);
         directory_entries_.back().setFieldOffset(iter->getFieldOffset() + offset);
     }
+
+    // Adjust the leader:
+    leader_.setBaseAddressOfData(Leader::LEADER_LENGTH + directory_entries_.size()
+                                 * DirectoryEntry::DIRECTORY_ENTRY_LENGTH);
+    leader_.setRecordLength(leader_.getBaseAddressOfData() + field_data_.size());
 }
 
 
@@ -346,7 +395,7 @@ std::string MarcRecord::calcChecksum() const {
     blob += leader_.toString();
     for (const auto &dir_entry : directory_entries_)
         blob += dir_entry.toString();
-    blob += raw_data_;
+    blob += field_data_;
 
     return StringUtil::Sha1(blob);
 }
@@ -428,7 +477,7 @@ MarcRecord MarcRecord::ReadSingleRecord(File * const input) {
                                  + input->getPath() + ", record_start_pos was " + std::to_string(record_start_pos)
                                  + ", current: " + std::to_string(input->tell()) + ")");
 
-    record.raw_data_.append(raw_field_data, FIELD_DATA_SIZE);
+    record.field_data_ = std::string(raw_field_data, FIELD_DATA_SIZE);
 
     return record;
 }
