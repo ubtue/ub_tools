@@ -22,10 +22,11 @@
 #define BOOST_TEST_DYN_LINK
 
 
-#include <boost/test/unit_test.hpp>
-#include <cstdlib>
+#include <iostream>
 #include <string>
 #include <vector>
+#include <cstdlib>
+#include <boost/test/unit_test.hpp>
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
