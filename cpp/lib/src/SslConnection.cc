@@ -265,9 +265,6 @@ SSL_CTX *SslConnection::InitClientAndServer(const Method method) {
         ssl_method = ::SSLv2_method();
         break;
 #endif
-    case SSL_V3:
-        ssl_method = ::SSLv3_method();
-        break;
     case TLS_V1:
         ssl_method = ::TLSv1_method();
         break;
