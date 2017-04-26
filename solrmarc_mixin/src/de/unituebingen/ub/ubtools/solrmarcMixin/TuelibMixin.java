@@ -1601,6 +1601,25 @@ public class TuelibMixin extends SolrIndexerMixin {
     
         return calculateLastPublicationDate(dates);
     }
+    
+    public Set<String> getRecordSelectors(final Record record) {
+        final Set<String> result = new HashSet<String>();
+        
+        for (final VariableField variableField : record.getVariableFields("LOK")) {
+            final DataField lokfield = (DataField) variableField;
+            final Subfield subfield0 = lokfield.getSubfield('0');
+            if (subfield0 == null || !subfield0.getData().equals("935  ")) {
+                continue;
+            }
+            final Subfield subfieldA = lokfield.getSubfield('a');
+            if (subfieldA == null || subfieldA.getData().length() <= 1) {
+                continue;
+            }
+            result.add(subfieldA.getData());
+        }
+        
+        return result;
+    }
 
     public String getZDBNumber(final Record record) {
         final DataField _035Field = (DataField)record.getVariableField("035");
