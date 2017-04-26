@@ -118,18 +118,21 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
         size_t number_of_directory_entries, record_length, base_address_of_data;
         DetermineRecordDimensions(control_number_field_length, dir_entry, record.directory_entries_.cend(),
                                   &number_of_directory_entries, &base_address_of_data, &record_length);
+        const std::vector<DirectoryEntry>::const_iterator end_iter(dir_entry + number_of_directory_entries);
 
-        // Update and write the leader:
         char *leader_pointer(write_buffer);
         record.leader_.setBaseAddressOfData(base_address_of_data);
         record.leader_.setRecordLength(record_length);
+
+        // In the case of a multi-part records all but the last record need to have the multi-part flag set:
+        record.leader_.setMultiPartRecord(end_iter != record.directory_entries_.cend());
+
         WriteToBuffer(leader_pointer, record.leader_.toString());
 
         // Write a control number directory entry for each record as the first entry in the directory section:
         char *directory_pointer(write_buffer + Leader::LEADER_LENGTH);
         WriteDirEntryToBuffer(directory_pointer, record.directory_entries_.front());
 
-        const std::vector<DirectoryEntry>::const_iterator end_iter(dir_entry + number_of_directory_entries);
         char *field_data_pointer(write_buffer + base_address_of_data);
 
         // Write the control number field data:
@@ -144,9 +147,6 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
 
         WriteToBuffer(directory_pointer, "\x1E", 1);  // End of directory.
         WriteToBuffer(field_data_pointer, "\x1D", 1); // End of field data.
-
-        // In the case of a multi-part records all but the last record need to have the multi-part flag set:
-        record.leader_.setMultiPartRecord(end_iter != record.directory_entries_.cend());
 
         output_->write(write_buffer, record_length);
     }
