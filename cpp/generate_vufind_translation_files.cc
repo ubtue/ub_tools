@@ -85,7 +85,7 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
     for (const auto &line_no_token_and_translation : line_nos_tokens_and_translations) {
         const std::string token(std::get<1>(line_no_token_and_translation));
         const std::string translation(std::get<2>(line_no_token_and_translation));
-        if (translation.empty())
+        if (not translation.empty())
             output << token << " = \"" << translation << "\"\n";
     }
 

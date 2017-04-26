@@ -70,8 +70,12 @@ namespace EmailSender {
 
 
 bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
-               const std::string &message_body, const Priority priority, const Format format)
+               const std::string &message_body, const Priority priority, const Format format,
+               const std::string &reply_to)
 {
+    if (unlikely(sender.empty() and reply_to.empty()))
+        Error("in EmailSender::SendEmail: both \"sender\" and \"reply_to\" can't be empty!");
+
     static std::string mutt_path;
     if (mutt_path.empty()) {
         ReplaceEnvVar replace_env_var("PATH", "/bin:/usr/bin");
@@ -84,8 +88,11 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
     const std::string &stdin_replacement_for_mutt(auto_temp_file.getFilePath());
 
     std::string message;
-    message += "From: " + sender + "\n";
+    if (not sender.empty())
+        message += "From: " + sender + "\n";
     message += "To: " + recipient + "\n";
+    if (not reply_to.empty())
+        message += "From: " + reply_to + "\n";
     message += "Subject: " + subject + "\n";
     if (priority != DO_NOT_SET_PRIORITY)
         message += "X-Priority: " + std::to_string(priority) + "\n";

@@ -12,15 +12,25 @@ EMAIL="johannes.ruscheinski@uni-tuebingen.de"
 
 declare -i total=0
 declare -i found=0
+declare -A origin=()
 while IFS='' read -r doi || [[ -n "$doi" ]]; do
     if [ ! -z "$doi" ]; then
-        oa_color=$(curl 'https://api.oadoi.org/'$doi"?email=$EMAIL" --silent --output - \
-                           | jq --monochrome-output '.results[0].oa_color')
+        echo "Processing $doi"
+        contents=$(curl 'https://api.oadoi.org/'"$doi?email=$EMAIL" --silent --output -)
+        oa_color=$(echo $contents | jq --monochrome-output '.results[0].oa_color')
+        echo $oa_color
         ((++total))
         if [[ $oa_color != "null" ]]; then
             ((++found))
+            evidence=$(echo $contents | jq --monochrome-output '.results[0].evidence')
+            [ -z "$evidence" ] && evidence="missing"
+            ((++origin["${evidence}"]))
         fi
     fi
 done < $1
+
+for key in "${!origin[@]}"; do
+    echo "$key : ${origin[$key]}"
+done
 
 echo "Found $found of $total objects."

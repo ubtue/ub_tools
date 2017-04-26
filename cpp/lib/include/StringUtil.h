@@ -11,7 +11,7 @@
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
  *  Copyright 2002-2004 Dr. Johannes Ruscheinski.
- *  Copyright 2015 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -2486,6 +2486,18 @@ size_t FindCaseInsensitive(const std::string &haystack, const std::string &needl
 /** Removes all occurrences of any of the characters in "remove_set" from "source"
     and returns the result. */
 std::string Filter(const std::string &source, const std::string &remove_set);
+
+
+/** \brief Replaces a section of a string with another string.
+ *  \param s               The string that will be modified.
+ *  \param start_index     The index of the first character that will be replaced.
+ *  \param section_length  The length of the section that will be replaced.
+ *  \param replacement     The string that will be inserted into "s".
+ *  \return The modified string.
+ *  \throws std::out_of_range if "start_index+section_length >= s.size()".
+ */
+std::string &ReplaceSection(std::string * const s, const size_t start_index, const size_t section_length,
+                            const std::string &replacement);
 
 
 } // Namespace StringUtil

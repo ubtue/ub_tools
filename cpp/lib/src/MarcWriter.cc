@@ -26,116 +26,128 @@
 #include "util.h"
 
 
+#define DEBUG 1
+
+
 static const size_t MAX_MARC_21_RECORD_LENGTH(99999);
-static char write_buffer[MAX_MARC_21_RECORD_LENGTH];
+static char write_buffer[MAX_MARC_21_RECORD_LENGTH]; // Possibly too big for the stack!
 
 
-static bool inline HasDirectoryEntryEnoughSpace(const size_t baseAddress, const size_t data_length,
-                                                const size_t next_field_length)
+// Returns true if we can add the new field to our record w/o overflowing the maximum size of a binary
+// MARC-21 record, o/w we return false.
+static bool inline NewFieldDoesFit(const size_t base_address, const size_t current_record_length,
+                                   const size_t next_field_length)
 {
-    return baseAddress + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + data_length + next_field_length + 1
-           <= MAX_MARC_21_RECORD_LENGTH;
+    return base_address + DirectoryEntry::DIRECTORY_ENTRY_LENGTH + current_record_length + next_field_length
+           + 1 /* for the field terminator byte */ <= MAX_MARC_21_RECORD_LENGTH;
 }
 
 
 /**
- * Intentionally we want a copy of directory_iter, so it behaves like a lookahead.
+ * We determine the record dimensions by adding sizes of fields one-by-one (starting with the field represented by
+ * "directory_iter") while we do not overflow the maximum
+ * size of a binary MARC-21 record.
  */
-static void inline PrecalculateBaseAddressOfData(std::vector<DirectoryEntry>::const_iterator directory_iter,
-                                                 const std::vector<DirectoryEntry>::const_iterator &end_iter,
-                                                 size_t *number_of_directory_entries, size_t *baseAddress,
-                                                 size_t *record_length)
+static void inline DetermineRecordDimensions(const size_t control_number_field_length,
+                                             std::vector<DirectoryEntry>::const_iterator directory_iter,
+                                             const std::vector<DirectoryEntry>::const_iterator &end_iter,
+                                             size_t * const number_of_directory_entries, size_t * const base_address,
+                                             size_t * const record_length)
 {
-    *baseAddress += Leader::LEADER_LENGTH + 1 /* for directory separator byte */;
-    *record_length += 1 /* for end of record byte */;
+    *number_of_directory_entries = 0;
+    *base_address = DirectoryEntry::DIRECTORY_ENTRY_LENGTH /* for the control number field */
+                    + Leader::LEADER_LENGTH + 1 /* for directory separator byte */;
+    *record_length = control_number_field_length + 1 /* for end of record byte */;
+
+    // Now we add fields one-by-one while taking care not to overflow the maximum record size:
     for (/* empty */;
          directory_iter < end_iter
-         and HasDirectoryEntryEnoughSpace(*baseAddress, *record_length, directory_iter->getFieldLength());
+         and NewFieldDoesFit(*base_address, *record_length, directory_iter->getFieldLength());
          ++directory_iter)
     {
-        *baseAddress += DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
+        *base_address += DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
         *record_length += directory_iter->getFieldLength();
         ++*number_of_directory_entries;
     }
-    *record_length += *baseAddress;
+
+    *record_length += *base_address;
 }
 
 
 static void inline WriteToBuffer(char *&dest, const std::string &data) {
+    #if DEBUG
+    if (unlikely(dest + data.size() > write_buffer + sizeof(write_buffer)))
+        Error("write past end of write_buffer! (1)");
+    #endif
     std::memcpy(dest, data.data(), data.size());
     dest += data.size();
 }
 
 
-static void inline WriteToBuffer(char *&dest, const char* source, size_t offset, size_t length) {
-    std::memcpy(dest, source + offset, length);
+static void inline WriteToBuffer(char *&dest, const char * const source, const size_t length) {
+    #if DEBUG
+    if (unlikely(dest + length > write_buffer + sizeof(write_buffer)))
+        Error("write past end of write_buffer! (2)");
+    #endif
+    std::memcpy(dest, source, length);
     dest += length;
 }
 
 
+static void inline WriteDirEntryToBuffer(char *&directory_pointer, const DirectoryEntry &dir_entry) {
+    const MarcTag &tag(dir_entry.getTag());
+    WriteToBuffer(directory_pointer, tag.c_str(), DirectoryEntry::TAG_LENGTH);
+    WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(dir_entry.getFieldLength()), 4, '0'));
+    WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(dir_entry.getFieldOffset()), 5, '0'));
+}
+
 
 void BinaryMarcWriter::write(const MarcRecord &record) {
-    size_t written_data_offset;
-    size_t raw_data_offset;
-    size_t raw_data_length;
+    const std::string control_number(record.getControlNumber());
+    const size_t control_number_field_length(control_number.size() + 1);
 
-    const std::string ppn(record.getControlNumber());
-    const size_t ppn_field_length(ppn.size() + 1);
-
-    auto directory_iter(record.directory_entries_.cbegin());
-    if (unlikely(directory_iter == record.directory_entries_.cend()))
+    auto dir_entry(record.directory_entries_.cbegin());
+    if (unlikely(dir_entry == record.directory_entries_.cend()))
         Error("BinaryMarcWriter::write: can't write a record w/ an empty directory!");
-    if (unlikely(directory_iter->getTag() != "001"))
+    if (unlikely(dir_entry->getTag() != "001"))
         Error("BinaryMarcWriter::write: first directory entry has to be 001! Found: "
-              + directory_iter->getTag().to_string() + " (PPN: " + record.getControlNumber() + ")");
-    ++directory_iter;
+              + dir_entry->getTag().to_string() + " (Control number: " + record.getControlNumber() + ")");
+    ++dir_entry;
 
-    while (directory_iter < record.directory_entries_.cend()) {
-        size_t number_of_directory_entries = 0;
-        size_t record_length = ppn_field_length;
-        size_t baseAddress = DirectoryEntry::DIRECTORY_ENTRY_LENGTH;
-        PrecalculateBaseAddressOfData(directory_iter, record.directory_entries_.cend(), &number_of_directory_entries,
-                                      &baseAddress, &record_length);
+    bool first_record(true);
+    while (dir_entry < record.directory_entries_.cend()) {
+        size_t number_of_directory_entries, record_length, base_address_of_data;
+        DetermineRecordDimensions(control_number_field_length, dir_entry, record.directory_entries_.cend(),
+                                  &number_of_directory_entries, &base_address_of_data, &record_length);
 
-        char *leader_pointer = write_buffer;
-        char *directory_pointer = write_buffer + Leader::LEADER_LENGTH;
-        char *data_pointer = write_buffer + baseAddress;
-
-        record.leader_.setBaseAddressOfData(baseAddress);
+        // Update and write the leader:
+        char *leader_pointer(write_buffer);
+        record.leader_.setBaseAddressOfData(base_address_of_data);
         record.leader_.setRecordLength(record_length);
-        record.leader_.setMultiPartRecord(directory_iter + number_of_directory_entries + 1
-                                          < record.directory_entries_.cend());
+        record.leader_.setMultiPartRecord(not first_record);
+        first_record = false; // For the next iteration.
         WriteToBuffer(leader_pointer, record.leader_.toString());
 
-        // Write PPN in each record as first directory entry.
-        WriteToBuffer(directory_pointer, "001");
-        WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(ppn_field_length), 4, '0'));
-        WriteToBuffer(directory_pointer, "00000");
+        // Write a control number directory entry for each record as the first entry in the directory section:
+        char *directory_pointer(write_buffer + Leader::LEADER_LENGTH);
+        WriteDirEntryToBuffer(directory_pointer, record.directory_entries_.front());
 
-        raw_data_offset = 0;
-        raw_data_length = ppn_field_length;
-        written_data_offset = ppn_field_length;
+        const std::vector<DirectoryEntry>::const_iterator end_iter(dir_entry + number_of_directory_entries);
+        char *field_data_pointer(write_buffer + base_address_of_data);
 
-        const std::vector<DirectoryEntry>::const_iterator &end_iter = directory_iter + number_of_directory_entries;
-        for (; directory_iter < end_iter; ++directory_iter) {
-            WriteToBuffer(directory_pointer, directory_iter->getTag().to_string());
-            WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(directory_iter->getFieldLength()),
-                                                                    4, '0'));
-            WriteToBuffer(directory_pointer, StringUtil::PadLeading(std::to_string(written_data_offset), 5, '0'));
+        // Write the control number field data:
+        WriteToBuffer(field_data_pointer, record.field_data_.data(), control_number_field_length);
 
-            if (raw_data_offset + raw_data_length == directory_iter->getFieldOffset()) {
-                raw_data_length += directory_iter->getFieldLength();
-            } else {
-                WriteToBuffer(data_pointer, record.raw_data_.data(), raw_data_offset, raw_data_length);
-                raw_data_offset = directory_iter->getFieldOffset();
-                raw_data_length = directory_iter->getFieldLength();
-            }
-
-            written_data_offset += directory_iter->getFieldLength();
+        // Now write the field data for all fields after the 001-field:
+        for (; dir_entry < end_iter; ++dir_entry) {
+            WriteDirEntryToBuffer(directory_pointer, *dir_entry);
+            WriteToBuffer(field_data_pointer, record.field_data_.data() + dir_entry->getFieldOffset(),
+                          dir_entry->getFieldLength());
         }
-        WriteToBuffer(directory_pointer, "\x1E");
-        WriteToBuffer(data_pointer, record.raw_data_.data(), raw_data_offset, raw_data_length);
-        WriteToBuffer(data_pointer, "\x1D");
+
+        WriteToBuffer(directory_pointer, "\x1E", 1);  // End of directory.
+        WriteToBuffer(field_data_pointer, "\x1D", 1); // End of field data.
+
         output_->write(write_buffer, record_length);
     }
 }
