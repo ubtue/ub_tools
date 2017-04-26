@@ -114,7 +114,6 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
               + dir_entry->getTag().to_string() + " (Control number: " + record.getControlNumber() + ")");
     ++dir_entry;
 
-    bool first_record(true);
     while (dir_entry < record.directory_entries_.cend()) {
         size_t number_of_directory_entries, record_length, base_address_of_data;
         DetermineRecordDimensions(control_number_field_length, dir_entry, record.directory_entries_.cend(),
@@ -124,8 +123,6 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
         char *leader_pointer(write_buffer);
         record.leader_.setBaseAddressOfData(base_address_of_data);
         record.leader_.setRecordLength(record_length);
-        record.leader_.setMultiPartRecord(not first_record);
-        first_record = false; // For the next iteration.
         WriteToBuffer(leader_pointer, record.leader_.toString());
 
         // Write a control number directory entry for each record as the first entry in the directory section:
@@ -147,6 +144,9 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
 
         WriteToBuffer(directory_pointer, "\x1E", 1);  // End of directory.
         WriteToBuffer(field_data_pointer, "\x1D", 1); // End of field data.
+
+        // In the case of a multi-part records all but the last record need to have the multi-part flag set:
+        record.leader_.setMultiPartRecord(end_iter != record.directory_entries_.cend());
 
         output_->write(write_buffer, record_length);
     }
