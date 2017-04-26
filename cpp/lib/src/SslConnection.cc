@@ -4,8 +4,9 @@
  */
 
 /*
- *  Copyright 2006-2008 Project iVia.
- *  Copyright 2006-2008 The Regents of The University of California.
+ *  \copyright 2006-2008 Project iVia.
+ *  \copyright 2006-2008 The Regents of The University of California.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -212,9 +213,6 @@ SSL_CTX *SslConnection::InitClient(const Method method) {
         ssl_method = ::SSLv2_client_method();
         break;
 #endif
-    case SSL_V3:
-        ssl_method = ::SSLv3_client_method();
-        break;
     case TLS_V1:
         ssl_method = ::TLSv1_client_method();
         break;
@@ -241,9 +239,6 @@ SSL_CTX *SslConnection::InitServer(const Method method) {
         ssl_method = ::SSLv2_server_method();
         break;
 #endif
-    case SSL_V3:
-        ssl_method = ::SSLv3_server_method();
-        break;
     case TLS_V1:
         ssl_method = ::TLSv1_server_method();
         break;
