@@ -2896,7 +2896,7 @@ std::string Filter(const std::string &source, const std::string &remove_set) {
 std::string &ReplaceSection(std::string * const s, const size_t start_index, const size_t section_length,
                             const std::string &replacement)
 {
-    if (unlikely(start_index + section_length >= s->length()))
+    if (unlikely(start_index + section_length > s->length()))
         throw std::out_of_range("in StringUtil::ReplaceSection: impossible replacement request!");
 
     const ssize_t delta(static_cast<ssize_t>(replacement.length()) - static_cast<ssize_t>(section_length));
