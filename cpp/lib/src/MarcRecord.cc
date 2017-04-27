@@ -470,7 +470,7 @@ bool MarcRecord::isProbablyCorrect(std::string * const flaw_description) const {
 
 std::string MarcRecord::calcChecksum() const {
     std::string blob;
-    blob.reserve(200000); // Rougly twice the maximum size of a single MARC-21 record.
+    blob.reserve(200000); // Roughly twice the maximum size of a single MARC-21 record.
 
     blob += leader_.toString();
     for (const auto &dir_entry : directory_entries_)
