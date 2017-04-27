@@ -159,17 +159,24 @@ size_t MarcRecord::insertField(const MarcTag &new_field_tag, const std::string &
     while (insertion_location != directory_entries_.end() and new_field_tag >= insertion_location->getTag())
         ++insertion_location;
 
-    const size_t offset(field_data_.size());
+    size_t new_field_start;
+    if (insertion_location == directory_entries_.begin())
+        new_field_start = 0;
+    else
+        new_field_start = (insertion_location - 1)->getFieldOffset() + (insertion_location - 1)->getFieldLength();
+    
     const size_t length(new_field_value.length() + 1) /* For new field separator. */;
-    const auto inserted_location(directory_entries_.emplace(insertion_location, new_field_tag, length, offset));
-    field_data_ += new_field_value + '\x1E';
+    const auto inserted_location(directory_entries_.emplace(insertion_location, new_field_tag, length,
+                                                            new_field_start));
+    field_data_ = field_data_.substr(0, new_field_start) + new_field_value + '\x1E'
+                  + field_data_.substr(new_field_start + 1);
 
     // Adjust the record size:
     leader_.setRecordLength(leader_.getRecordLength() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH
                             + new_field_value.length() + 1 /* field terminator */);
 
-    const size_t index(std::distance(directory_entries_.begin(), inserted_location));
-    return index;
+    // Return the index of the new entry:
+    return inserted_location - directory_entries_.begin();
 }
 
 
@@ -433,7 +440,9 @@ bool MarcRecord::isProbablyCorrect(std::string * const flaw_description) const {
 
         if (unlikely(dir_entry->getFieldOffset() != expected_offset)) {
             *flaw_description = "the data of field #" + std::to_string(index)
-                                 + " do not follow immediately after those of the previous field!";
+                                 + " do not follow immediately after those of the previous field"
+                                 + " (Previous field ends at " + std::to_string(expected_offset + 1)
+                                 + " this fields starts at " + std::to_string(dir_entry->getFieldOffset()) + ")!";
             return false;
         }
 
@@ -451,11 +460,7 @@ bool MarcRecord::isProbablyCorrect(std::string * const flaw_description) const {
     }
 
     if (unlikely(expected_offset != field_data_.size())) {
-        *flaw_description = "last field doesn't end just before the record terminator byte!";
-        return false;
-    }
-    if (unlikely(field_data_.back() != '\x1D')) {
-        *flaw_description = "field data doesn't end with the record terminator byte!";
+        *flaw_description = "last field doesn't end at end-of-record!";
         return false;
     }
 
@@ -557,7 +562,7 @@ MarcRecord MarcRecord::ReadSingleRecord(File * const input) {
     std::string flaw_description;
     if (unlikely(not record.isProbablyCorrect(&flaw_description)))
         Error("in MarcRecord::ReadSingleRecord: record w/ control #" + record.getControlNumber() + " has a flaw: "
-              + flaw_description + "!");
+              + flaw_description);
 
     return record;
 }
