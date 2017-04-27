@@ -169,7 +169,7 @@ size_t MarcRecord::insertField(const MarcTag &new_field_tag, const std::string &
     const auto inserted_location(directory_entries_.emplace(insertion_location, new_field_tag, length,
                                                             new_field_start));
     field_data_ = field_data_.substr(0, new_field_start) + new_field_value + '\x1E'
-                  + field_data_.substr(new_field_start + 1);
+                  + field_data_.substr(new_field_start);
 
     // Adjust the record size:
     leader_.setRecordLength(leader_.getRecordLength() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH
