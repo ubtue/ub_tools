@@ -123,6 +123,9 @@ public:
     /** \brief Deletes the field at index "field_index" and adjusts various field and records lengths. */
     void deleteField(const size_t field_index);
 
+    /** \brief Deletes the fields specified in "field_indices" and adjusts various field and records lengths. */
+    void deleteFields(const std::vector<size_t> &field_indices);
+
     /** \brief Expecting a sorted, non-overlapping list of ranges, which should be deleted. */
     void deleteFields(const std::vector<std::pair<size_t, size_t>> &blocks);
 
