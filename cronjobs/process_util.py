@@ -73,7 +73,7 @@ def Exec(cmd_path, args = None, timeout = 0, env = None, new_stdout = None, new_
             return os.WEXITSTATUS(exit_code)
         elif os.WIFSIGNALED(exit_code):
             raise Exception("in exec.Exec: " + cmd_path + " was killed by signal \""
-                            + os.WTERMSIG(exit_code) + "!")
+                            + str(os.WTERMSIG(exit_code)) + "!")
         else:
             raise Exception("in exec.Exec: no idea why " + cmd_path + " exited!")
         return exit_code
