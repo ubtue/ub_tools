@@ -391,7 +391,7 @@ void MarcRecord::combine(const MarcRecord &record) {
 }
 
 
-bool MarcRecord::isProbablyCorrect(std::string * const flaw_description) {
+bool MarcRecord::isProbablyCorrect(std::string * const flaw_description) const {
     if (unlikely(directory_entries_.empty())) {
         *flaw_description = "directory is empty";
         return false;
@@ -417,7 +417,7 @@ bool MarcRecord::isProbablyCorrect(std::string * const flaw_description) {
         *flaw_description = "field length of first directory entry exceeds the field data size!";
         return false;
     }
-    if (unsigned(field_data_[dir_entry->getFieldOffset() - 1] != '\x1E')) {
+    if (unsigned(field_data_[dir_entry->getFieldLength() - 1] != '\x1E')) {
         *flaw_description = "the first field does not end with a field terminator!";
         return false;
     }
@@ -450,7 +450,7 @@ bool MarcRecord::isProbablyCorrect(std::string * const flaw_description) {
         }
     }
 
-    if (unlikely(expected_offset != field_data_.size() - 1)) {
+    if (unlikely(expected_offset != field_data_.size())) {
         *flaw_description = "last field doesn't end just before the record terminator byte!";
         return false;
     }
@@ -553,6 +553,11 @@ MarcRecord MarcRecord::ReadSingleRecord(File * const input) {
                                  + ", current: " + std::to_string(input->tell()) + ")");
 
     record.field_data_ = std::string(raw_field_data, FIELD_DATA_SIZE);
+
+    std::string flaw_description;
+    if (unlikely(not record.isProbablyCorrect(&flaw_description)))
+        Error("in MarcRecord::ReadSingleRecord: record w/ control #" + record.getControlNumber() + " has a flaw: "
+              + flaw_description + "!");
 
     return record;
 }
