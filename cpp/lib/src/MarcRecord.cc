@@ -226,6 +226,8 @@ void MarcRecord::deleteFields(const std::vector<size_t> &field_indices) {
         copy_start = index + 1;
     }
     if (copy_start < directory_entries_.size()) {
+        new_entries.insert(new_entries.end(), directory_entries_.cbegin() + copy_start,
+                           directory_entries_.cend() - 1);
         const size_t copy_range_start(directory_entries_[copy_start].getFieldOffset());
         const size_t copy_range_length(directory_entries_.back().getFieldOffset()
                                        + directory_entries_.back().getFieldLength() - copy_range_start);
