@@ -108,8 +108,8 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
 
     std::string flaw_description;
     if (unlikely(not record.isProbablyCorrect(&flaw_description)))
-        Error("in BinaryMarcWriter::write: record w/ control #" + control_number + " has a flaw: " + flaw_description
-              + "!");
+        Error("in BinaryMarcWriter::write: record w/ control #" + control_number + " has a flaw: "
+              + flaw_description);
 
     auto dir_entry(record.directory_entries_.cbegin());
     if (unlikely(dir_entry == record.directory_entries_.cend()))
