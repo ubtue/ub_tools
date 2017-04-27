@@ -106,6 +106,11 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
     const std::string control_number(record.getControlNumber());
     const size_t control_number_field_length(control_number.size() + 1);
 
+    std::string flaw_description;
+    if (unlikely(not record.isProbablyCorrect(&flaw_description)))
+        Error("in BinaryMarcWriter::write: record w/ control #" + control_number + " has a flaw: "
+              + flaw_description);
+
     auto dir_entry(record.directory_entries_.cbegin());
     if (unlikely(dir_entry == record.directory_entries_.cend()))
         Error("BinaryMarcWriter::write: can't write a record w/ an empty directory!");
