@@ -243,17 +243,13 @@ void MarcRecord::deleteFields(const std::vector<size_t> &field_indices) {
 
 
 void MarcRecord::deleteFields(const std::vector <std::pair<size_t, size_t>> &blocks) {
-    std::vector <DirectoryEntry> new_entries;
-    new_entries.reserve(directory_entries_.size());
-
-    size_t copy_start(0);
+    std::vector<size_t> deletion_indices;
     for (const std::pair <size_t, size_t> block : blocks) {
-        new_entries.insert(new_entries.end(), directory_entries_.begin() + copy_start,
-                           directory_entries_.begin() + block.first);
-        copy_start = block.second;
+        for (size_t index(block.first); index < block.second; ++index)
+            deletion_indices.emplace_back(index);
     }
-    new_entries.insert(new_entries.end(), directory_entries_.begin() + copy_start, directory_entries_.end());
-    new_entries.swap(directory_entries_);
+
+    deleteFields(deletion_indices);
 }
 
 
