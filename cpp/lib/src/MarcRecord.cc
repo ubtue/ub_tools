@@ -557,7 +557,7 @@ MarcRecord MarcRecord::ReadSingleRecord(File * const input) {
                                  + input->getPath() + ", record_start_pos was " + std::to_string(record_start_pos)
                                  + ", current: " + std::to_string(input->tell()) + ")");
 
-    record.field_data_ = std::string(raw_field_data, FIELD_DATA_SIZE);
+    record.field_data_ = std::string(raw_field_data, FIELD_DATA_SIZE - 1); // don't keep the end-of-record terminator
 
     std::string flaw_description;
     if (unlikely(not record.isProbablyCorrect(&flaw_description)))
