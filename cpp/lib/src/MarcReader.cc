@@ -2,7 +2,7 @@
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -302,6 +302,8 @@ std::unique_ptr<MarcReader> MarcReader::Factory(const std::string &input_filenam
 {
     if (reader_type == AUTO) {
         const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
+        if (unlikely(media_type == "cannot"))
+            Error("not found or no permissions: \"" + input_filename + "\"!");
         if (unlikely(media_type.empty()))
             Error("can't determine media type of \"" + input_filename + "\"!");
         if (media_type != "application/xml" and media_type != "application/marc")
