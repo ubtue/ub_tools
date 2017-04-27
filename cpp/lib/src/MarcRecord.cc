@@ -200,7 +200,7 @@ void MarcRecord::deleteField(const size_t field_index) {
 
 void MarcRecord::deleteFields(const std::vector<size_t> &field_indices) {
     std::vector<size_t> sorted_indices(field_indices);
-    std::sort(sorted_indices.begin(), sorted_indices.end(), std::greater<size_t>());
+    std::sort(sorted_indices.begin(), sorted_indices.end());
 
     size_t remainder_size(field_data_.size());
     for (const size_t index : sorted_indices)
