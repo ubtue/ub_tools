@@ -244,7 +244,7 @@ void MarcRecord::deleteFields(const std::vector<size_t> &field_indices) {
 
 void MarcRecord::deleteFields(const std::vector <std::pair<size_t, size_t>> &blocks) {
     std::vector<size_t> deletion_indices;
-    for (const std::pair <size_t, size_t> block : blocks) {
+    for (const std::pair<size_t, size_t> block : blocks) {
         for (size_t index(block.first); index < block.second; ++index)
             deletion_indices.emplace_back(index);
     }
