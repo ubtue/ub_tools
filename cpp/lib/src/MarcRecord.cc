@@ -543,6 +543,7 @@ std::string MarcRecord::getDebugRepresentation() const {
     for (const auto &dir_entry : directory_entries_)
         debug_representation += dir_entry.toString() + " ("
                                 + field_data_.substr(dir_entry.getFieldOffset(), dir_entry.getFieldLength()) + ")\n";
+    debug_representation += "FIELD DATA:" + field_data_ + "\n";
 
     return debug_representation;
 }
