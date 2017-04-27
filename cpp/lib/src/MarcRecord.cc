@@ -534,6 +534,18 @@ std::string MarcRecord::calcChecksum() const {
 }
 
 
+std::string MarcRecord::getDebugRepresentation() const {
+    std::string debug_representation;
+
+    debug_representation += leader_.toString() + "\n";
+    for (const auto &dir_entry : directory_entries_)
+        debug_representation += dir_entry.toString() + " ("
+                                + field_data_.substr(dir_entry.getFieldOffset(), dir_entry.getFieldLength()) + ")\n";
+
+    return debug_representation;
+}
+
+
 bool MarcRecord::ProcessRecords(MarcReader * const marc_reader, RecordFunc process_record,
                                 MarcWriter * const marc_writer, std::string * const err_msg)
 {
