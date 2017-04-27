@@ -56,7 +56,10 @@ std::string MarcRecord::getFieldData(const size_t index) const {
     if (index == MarcRecord::FIELD_NOT_FOUND or directory_entries_.cbegin() + index >= directory_entries_.cend())
         return "";
     const DirectoryEntry &entry(directory_entries_[index]);
-    return std::string(field_data_, entry.getFieldOffset(), entry.getFieldLength() - 1);
+    if (unlikely(entry.getFieldOffset() + entry.getFieldLength() > field_data_.size()))
+        throw std::out_of_range("in MarcRecord::getFieldData: direcory entry with index " + std::to_string(index)
+                                + " points at least partially past the end of the field data!");
+    return field_data_.substr(entry.getFieldOffset(), entry.getFieldLength() - 1);
 }
 
 
