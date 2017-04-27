@@ -2899,21 +2899,7 @@ std::string &ReplaceSection(std::string * const s, const size_t start_index, con
     if (unlikely(start_index + section_length > s->length()))
         throw std::out_of_range("in StringUtil::ReplaceSection: impossible replacement request!");
 
-    const ssize_t delta(static_cast<ssize_t>(replacement.length()) - static_cast<ssize_t>(section_length));
-    if (delta != 0) {
-        if (delta > 0) // We need more room.
-            s->resize(s->size() + delta);
-        if (section_length != replacement.length())
-            std::memmove(const_cast<char *>(s->data()) + start_index + replacement.length(),
-                         const_cast<char *>(s->data()) + start_index + section_length,
-                         s->size() - start_index - section_length);
-        if (delta < 0)
-            s->resize(s->size() + delta);
-    }
-
-    std::memcpy(const_cast<char *>(s->data()) + start_index, replacement.data(), replacement.length());
-
-    return *s;
+    return *s = s->substr(0, start_index) + replacement + s->substr(start_index + section_length);
 }
 
 
