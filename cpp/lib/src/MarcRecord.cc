@@ -198,6 +198,45 @@ void MarcRecord::deleteField(const size_t field_index) {
 }
 
 
+void MarcRecord::deleteFields(const std::vector<size_t> &field_indices) {
+    std::vector<size_t> sorted_indices(field_indices);
+    std::sort(sorted_indices.begin(), sorted_indices.end(), std::greater<size_t>());
+
+    size_t remainder_size(field_data_.size());
+    for (const size_t index : sorted_indices)
+        remainder_size -= directory_entries_[index].getFieldLength();
+
+    std::string new_field_data;
+    new_field_data.reserve(remainder_size);
+
+    std::vector <DirectoryEntry> new_entries;
+    new_entries.reserve(directory_entries_.size() - field_indices.size());
+
+    size_t copy_start(0);
+    for (const size_t index : sorted_indices) {
+        if (index > copy_start) {
+            new_entries.insert(new_entries.end(), directory_entries_.cbegin() + copy_start,
+                               directory_entries_.cbegin() + index - 1);
+            const size_t copy_range_start(directory_entries_[copy_start].getFieldOffset());
+            const size_t copy_range_length(directory_entries_[index - 1].getFieldOffset()
+                                           + directory_entries_[index - 1].getFieldLength() - copy_range_start);
+            new_field_data += field_data_.substr(copy_range_start, copy_range_length);
+        }
+                
+        copy_start = index + 1;
+    }
+    if (copy_start < directory_entries_.size()) {
+        const size_t copy_range_start(directory_entries_[copy_start].getFieldOffset());
+        const size_t copy_range_length(directory_entries_.back().getFieldOffset()
+                                       + directory_entries_.back().getFieldLength() - copy_range_start);
+        new_field_data += field_data_.substr(copy_range_start, copy_range_length);
+    }
+
+    field_data_.swap(new_field_data);
+    new_entries.swap(directory_entries_);
+}
+
+
 void MarcRecord::deleteFields(const std::vector <std::pair<size_t, size_t>> &blocks) {
     std::vector <DirectoryEntry> new_entries;
     new_entries.reserve(directory_entries_.size());
