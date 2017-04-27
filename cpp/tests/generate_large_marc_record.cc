@@ -80,6 +80,9 @@ int main(int argc, char *argv[]) {
         while (leader.getRecordLength() <= 99999) {
             std::cout << "Inserted new field w/ index " << record.insertField(tag, std::string(5555, 'x')) << ".\n";
             std::cout << "Record length is now " << leader.getRecordLength() << ".\n";
+            std::string flaw_description;
+            if (not record.isProbablyCorrect(&flaw_description))
+                Error("after adding tag \"" + tag + "\": " + flaw_description);
             tag = IncrementTag(tag);
         }
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], format == "xml" ? MarcWriter::XML

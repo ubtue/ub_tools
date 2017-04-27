@@ -159,17 +159,24 @@ size_t MarcRecord::insertField(const MarcTag &new_field_tag, const std::string &
     while (insertion_location != directory_entries_.end() and new_field_tag >= insertion_location->getTag())
         ++insertion_location;
 
-    const size_t offset(field_data_.size());
+    size_t new_field_start;
+    if (insertion_location == directory_entries_.begin())
+        new_field_start = 0;
+    else
+        new_field_start = (insertion_location - 1)->getFieldOffset() + (insertion_location - 1)->getFieldLength();
+    
     const size_t length(new_field_value.length() + 1) /* For new field separator. */;
-    const auto inserted_location(directory_entries_.emplace(insertion_location, new_field_tag, length, offset));
-    field_data_ += new_field_value + '\x1E';
+    const auto inserted_location(directory_entries_.emplace(insertion_location, new_field_tag, length,
+                                                            new_field_start));
+    field_data_ = field_data_.substr(0, new_field_start) + new_field_value + '\x1E'
+                  + field_data_.substr(new_field_start);
 
     // Adjust the record size:
     leader_.setRecordLength(leader_.getRecordLength() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH
                             + new_field_value.length() + 1 /* field terminator */);
 
-    const size_t index(std::distance(directory_entries_.begin(), inserted_location));
-    return index;
+    // Return the index of the new entry:
+    return inserted_location - directory_entries_.begin();
 }
 
 
@@ -391,9 +398,79 @@ void MarcRecord::combine(const MarcRecord &record) {
 }
 
 
+bool MarcRecord::isProbablyCorrect(std::string * const flaw_description) const {
+    if (unlikely(directory_entries_.empty())) {
+        *flaw_description = "directory is empty";
+        return false;
+    }
+
+    if (unlikely(field_data_.empty())) {
+        *flaw_description = "field data is empty";
+        return false;
+    }
+
+    auto dir_entry(directory_entries_.cbegin());
+
+    // Special case the first directory entry:
+    if (unlikely(dir_entry->getFieldOffset() != 0)) {
+        *flaw_description = "field offset of first directory entry is not zero!";
+        return false;
+    }
+    if (unlikely(dir_entry->getFieldLength() == 0)) {
+        *flaw_description = "field length of first directory entry is zero!";
+        return false;
+    }
+    if (unlikely(dir_entry->getFieldLength() > field_data_.size())) {
+        *flaw_description = "field length of first directory entry exceeds the field data size!";
+        return false;
+    }
+    if (unsigned(field_data_[dir_entry->getFieldLength() - 1] != '\x1E')) {
+        *flaw_description = "the first field does not end with a field terminator!";
+        return false;
+    }
+
+    unsigned expected_offset(dir_entry->getFieldLength());
+    for (++dir_entry; dir_entry != directory_entries_.cend(); ++dir_entry) {
+        const size_t index(dir_entry - directory_entries_.cbegin());
+
+        if (unlikely(dir_entry->getFieldLength() == 0)) {
+            *flaw_description = "field length of first directory entry #" + std::to_string(index) + " is zero!";
+            return false;
+        }
+
+        if (unlikely(dir_entry->getFieldOffset() != expected_offset)) {
+            *flaw_description = "the data of field #" + std::to_string(index)
+                                 + " do not follow immediately after those of the previous field"
+                                 + " (Previous field ends at " + std::to_string(expected_offset + 1)
+                                 + " this fields starts at " + std::to_string(dir_entry->getFieldOffset()) + ")!";
+            return false;
+        }
+
+        if (unlikely(dir_entry->getFieldOffset() + dir_entry->getFieldLength() > field_data_.size())) {
+            *flaw_description = "field offset + field length of directory entry #" + std::to_string(index)
+                                + " exceeds the field data size!";
+            return false;
+        }
+
+        expected_offset += dir_entry->getFieldLength();
+        if (unsigned(field_data_[expected_offset - 1] != '\x1E')) {
+            *flaw_description = "field #" + std::to_string(index) + " does not end with a field terminator!";
+            return false;
+        }
+    }
+
+    if (unlikely(expected_offset != field_data_.size())) {
+        *flaw_description = "last field doesn't end at end-of-record!";
+        return false;
+    }
+
+    return true;
+}
+
+
 std::string MarcRecord::calcChecksum() const {
     std::string blob;
-    blob.reserve(200000); // Rougly twice the maximum size of a single MARC-21 record.
+    blob.reserve(200000); // Roughly twice the maximum size of a single MARC-21 record.
 
     blob += leader_.toString();
     for (const auto &dir_entry : directory_entries_)
@@ -480,7 +557,12 @@ MarcRecord MarcRecord::ReadSingleRecord(File * const input) {
                                  + input->getPath() + ", record_start_pos was " + std::to_string(record_start_pos)
                                  + ", current: " + std::to_string(input->tell()) + ")");
 
-    record.field_data_ = std::string(raw_field_data, FIELD_DATA_SIZE);
+    record.field_data_ = std::string(raw_field_data, FIELD_DATA_SIZE - 1); // don't keep the end-of-record terminator
+
+    std::string flaw_description;
+    if (unlikely(not record.isProbablyCorrect(&flaw_description)))
+        Error("in MarcRecord::ReadSingleRecord: record w/ control #" + record.getControlNumber() + " has a flaw: "
+              + flaw_description);
 
     return record;
 }
