@@ -188,7 +188,11 @@ void MarcRecord::deleteField(const size_t field_index) {
 
     // Adjust the record size:
     leader_.setRecordLength(leader_.getRecordLength() - DirectoryEntry::DIRECTORY_ENTRY_LENGTH
-                            + dir_entry_to_be_deleted->getFieldLength());
+                            - dir_entry_to_be_deleted->getFieldLength());
+
+    // Adjust all following directory entries:
+    for (auto dir_entry(dir_entry_to_be_deleted + 1); dir_entry != directory_entries_.end(); ++dir_entry)
+        dir_entry->setFieldOffset(dir_entry->getFieldOffset() - dir_entry_to_be_deleted->getFieldLength());
 
     directory_entries_.erase(dir_entry_to_be_deleted);
 }
