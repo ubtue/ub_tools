@@ -222,7 +222,7 @@ void MarcRecord::deleteFields(const std::vector<size_t> &field_indices) {
                                            + directory_entries_[index - 1].getFieldLength() - copy_range_start);
             new_field_data += field_data_.substr(copy_range_start, copy_range_length);
         }
-                
+
         copy_start = index + 1;
     }
     if (copy_start < directory_entries_.size()) {
@@ -231,6 +231,11 @@ void MarcRecord::deleteFields(const std::vector<size_t> &field_indices) {
                                        + directory_entries_.back().getFieldLength() - copy_range_start);
         new_field_data += field_data_.substr(copy_range_start, copy_range_length);
     }
+
+    // Adjust the record size:
+    leader_.setRecordLength(leader_.getRecordLength() - field_indices.size() * DirectoryEntry::DIRECTORY_ENTRY_LENGTH
+                            - (field_data_.size() - new_field_data.size()));
+
 
     field_data_.swap(new_field_data);
     new_entries.swap(directory_entries_);
