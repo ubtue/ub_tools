@@ -197,6 +197,12 @@ public:
 
     bool isElectronicResource() const;
 
+    /** \brief Performs sanity checks on the internal data structures of a MarcRecord.
+     *  \param flaw_description  If we find a flaw, this will be set to a description of the detected flaw.
+     *  \return True if no flaw was found else false.
+     */
+    bool isProbablyCorrect(std::string * const flaw_description) const;
+    
     /** \brief Generates a reproducible SHA-1 hash over our internal data.
      *  \return the hash
      */
