@@ -164,7 +164,7 @@ size_t MarcRecord::insertField(const MarcTag &new_field_tag, const std::string &
         new_field_start = 0;
     else
         new_field_start = (insertion_location - 1)->getFieldOffset() + (insertion_location - 1)->getFieldLength();
-    
+
     const size_t length(new_field_value.length() + 1) /* For new field separator. */;
     const auto inserted_location(directory_entries_.emplace(insertion_location, new_field_tag, length,
                                                             new_field_start));
@@ -181,7 +181,16 @@ size_t MarcRecord::insertField(const MarcTag &new_field_tag, const std::string &
 
 
 void MarcRecord::deleteField(const size_t field_index) {
-    directory_entries_.erase(directory_entries_.begin() + field_index);
+    const auto dir_entry_to_be_deleted(directory_entries_.begin() + field_index);
+    field_data_ = field_data_.substr(0, dir_entry_to_be_deleted->getFieldOffset())
+                  + field_data_.substr(dir_entry_to_be_deleted->getFieldOffset()
+                                       + dir_entry_to_be_deleted->getFieldLength());
+
+    // Adjust the record size:
+    leader_.setRecordLength(leader_.getRecordLength() - DirectoryEntry::DIRECTORY_ENTRY_LENGTH
+                            + dir_entry_to_be_deleted->getFieldLength());
+
+    directory_entries_.erase(dir_entry_to_be_deleted);
 }
 
 
