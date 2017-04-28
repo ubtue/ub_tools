@@ -198,6 +198,30 @@ void MarcRecord::deleteField(const size_t field_index) {
 }
 
 
+// Copies directory entries with index range [start_index, end_index) from "source_entries" to "target_entries" and
+// the associated field data from "source_field_data" to "target_field_data".
+inline void CopyRange(const size_t start_index, const size_t end_index,
+                      const std::vector<DirectoryEntry> &source_entries,
+                      std::vector<DirectoryEntry> * const target_entries, const std::string &source_field_data,
+                      std::string * const target_field_data)
+{
+    size_t offset(0);
+    if (not target_entries->empty())
+        offset = target_entries->back().getFieldOffset() + target_entries->back().getFieldLength();
+    for (auto source_entry(source_entries.cbegin() + start_index); source_entry < source_entries.cbegin() + end_index;
+         ++source_entry)
+    {
+        target_entries->emplace_back(source_entry->getTag(), source_entry->getFieldLength(), offset);
+        offset += source_entry->getFieldLength();
+    }
+
+    const size_t copy_range_start(source_entries[start_index].getFieldOffset());
+    const size_t copy_range_length(source_entries[end_index - 1].getFieldOffset()
+                                   + source_entries[end_index - 1].getFieldLength() - copy_range_start);
+    *target_field_data += source_field_data.substr(copy_range_start, copy_range_length);
+}
+
+
 void MarcRecord::deleteFields(const std::vector<size_t> &field_indices) {
     std::vector<size_t> sorted_indices(field_indices);
     std::sort(sorted_indices.begin(), sorted_indices.end());
@@ -214,25 +238,14 @@ void MarcRecord::deleteFields(const std::vector<size_t> &field_indices) {
 
     size_t copy_start(0);
     for (const size_t index : sorted_indices) {
-        if (index > copy_start) {
-            new_entries.insert(new_entries.end(), directory_entries_.cbegin() + copy_start,
-                               directory_entries_.cbegin() + index);
-            const size_t copy_range_start(directory_entries_[copy_start].getFieldOffset());
-            const size_t copy_range_length(directory_entries_[index - 1].getFieldOffset()
-                                           + directory_entries_[index - 1].getFieldLength() - copy_range_start);
-            new_field_data += field_data_.substr(copy_range_start, copy_range_length);
-        }
+        if (index > copy_start)
+            CopyRange(copy_start, index, directory_entries_, &new_entries, field_data_, &new_field_data);
 
         copy_start = index + 1;
     }
-    if (copy_start < directory_entries_.size()) {
-        new_entries.insert(new_entries.end(), directory_entries_.cbegin() + copy_start,
-                           directory_entries_.cend());
-        const size_t copy_range_start(directory_entries_[copy_start].getFieldOffset());
-        const size_t copy_range_length(directory_entries_.back().getFieldOffset()
-                                       + directory_entries_.back().getFieldLength() - copy_range_start);
-        new_field_data += field_data_.substr(copy_range_start, copy_range_length);
-    }
+    if (copy_start < directory_entries_.size())
+        CopyRange(copy_start, directory_entries_.size(), directory_entries_, &new_entries, field_data_,
+                  &new_field_data);
 
     // Adjust the record size:
     leader_.setRecordLength(leader_.getRecordLength() - field_indices.size() * DirectoryEntry::DIRECTORY_ENTRY_LENGTH
@@ -540,9 +553,11 @@ std::string MarcRecord::getDebugRepresentation() const {
     std::string debug_representation;
 
     debug_representation += leader_.toString() + "\n";
+#if 1
     for (const auto &dir_entry : directory_entries_)
         debug_representation += dir_entry.toString() + " ("
                                 + field_data_.substr(dir_entry.getFieldOffset(), dir_entry.getFieldLength()) + ")\n";
+#endif
     debug_representation += "FIELD DATA:" + field_data_ + "\n";
 
     return debug_representation;
