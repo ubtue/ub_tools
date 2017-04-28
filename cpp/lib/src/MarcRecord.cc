@@ -168,12 +168,17 @@ size_t MarcRecord::insertField(const MarcTag &new_field_tag, const std::string &
     const size_t length(new_field_value.length() + 1) /* For new field separator. */;
     const auto inserted_location(directory_entries_.emplace(insertion_location, new_field_tag, length,
                                                             new_field_start));
+    // Insert field data
     field_data_ = field_data_.substr(0, new_field_start) + new_field_value + '\x1E'
                   + field_data_.substr(new_field_start);
 
     // Adjust the record size:
     leader_.setRecordLength(leader_.getRecordLength() + DirectoryEntry::DIRECTORY_ENTRY_LENGTH
                             + new_field_value.length() + 1 /* field terminator */);
+
+    // Adjust the following directory entries:
+    for (auto dir_entry(inserted_location + 1); dir_entry != directory_entries_.end(); ++dir_entry)
+	dir_entry->setFieldOffset(dir_entry->getFieldOffset() + length);
 
     // Return the index of the new entry:
     return inserted_location - directory_entries_.begin();
