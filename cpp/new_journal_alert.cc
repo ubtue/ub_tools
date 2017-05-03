@@ -132,7 +132,6 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
         new_issue_infos->emplace_back(id, journal_title, issue_title);
 
         const auto &last_modification_time(document.second.get<std::string>("last_modification_time"));
-        std::cout << "modtime " << last_modification_time << "\n";
         if (last_modification_time > *max_last_modification_time) {
             *max_last_modification_time = last_modification_time;
             found_at_least_one_new_issue = true;
