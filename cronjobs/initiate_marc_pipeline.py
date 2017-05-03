@@ -38,8 +38,8 @@ def ImportIntoVuFind(pattern, log_file_name):
         util.Error("\"" + pattern + "\" matched " + str(len(args))
                    + " files! (Should have matched exactly 1 file!)")
     DeleteSolrIndex()
-    ExecOrDie("/usr/local/vufind2/import-marc.sh", args, log_file_name)
-    ExecOrDie("/usr/local/vufind2/index-alphabetic-browse.sh", None, log_file_name)
+    ExecOrDie("/usr/local/vufind/import-marc.sh", args, log_file_name)
+    ExecOrDie("/usr/local/vufind/index-alphabetic-browse.sh", None, log_file_name)
 
     
 def StartPipeline(pipeline_script_name, data_files, conf):

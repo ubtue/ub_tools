@@ -1,5 +1,5 @@
 #!/bin/bash
-export SOLR_BIN=/usr/local/vufind2/solr/vendor/bin/
+export SOLR_BIN=/usr/local/vufind/solr/vendor/bin/
 export SOLRMARC_HOME=/mnt/zram/import
 export SOLR_HOME=/mnt/zram/solr/vufind/
 export SOLR_PORT=8081
