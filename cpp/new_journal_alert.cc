@@ -82,6 +82,23 @@ public:
 };
 
 
+// Makes "date" look like an ISO-8601 date ("2017-01-01 00:00:00" => "2017-01-01T00:00:00Z")
+std::string ConvertDateToZuluDate(std::string date) {
+    if (unlikely(date.length() != 19 or date[10] != ' '))
+        Error("unexpected datetime in " + std::string(__FUNCTION__) + ": \"" + date + "\"!");
+    date[10] = 'T';
+    return date + 'Z';
+}
+
+// Converts ISO-8601 date back to mysql-like date format ("2017-01-01T00:00:00Z" => "2017-01-01 00:00:00")
+std::string ConvertDateFromZuluDate(std::string date) {
+    if (unlikely(date.length() != 20 or date[10] != 'T' or date[19] != 'Z'))
+        Error("unexpected datetime in " + std::string(__FUNCTION__) + ": \"" + date + "\"!");
+    date[10] = ' ';
+    return date.substr(0, 19);
+}
+
+
 /** \return True if new issues were found, false o/w. */
 bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                           std::unordered_set<std::string> * const new_notification_ids, const std::string &query,
@@ -95,6 +112,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
     bool found_at_least_one_new_issue(false);
     for (const auto &document : property_tree.get_child("response.docs.")) {
         const auto id(document.second.get<std::string>("id", ""));
+        
         if (unlikely(id.empty()))
             Error("Did not find 'id' node in JSON, query was " + query);
         if (notified_db->check(id) > 0)
@@ -113,6 +131,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
         new_issue_infos->emplace_back(id, journal_title, issue_title);
 
         const auto &last_modification_time(document.second.get<std::string>("last_modification_time"));
+        std::cout << "modtime " << last_modification_time << "\n";
         if (last_modification_time > *max_last_modification_time) {
             *max_last_modification_time = last_modification_time;
             found_at_least_one_new_issue = true;
@@ -120,6 +139,17 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
     }
 
     return found_at_least_one_new_issue;
+}
+
+std::string GetEmailTemplate(const std::string user_type)
+{
+    std::string result;
+    const std::string EMAIL_TEMPLATE_PATH("/var/lib/tuelib/subscriptions_email." + user_type + ".template");
+    
+    if (unlikely(!FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
+        Error("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
+    
+    return result;
 }
 
 
@@ -130,6 +160,9 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
 {
     const std::string QUERY("superior_ppn:" + serial_control_number + " AND last_modification_time:{"
                             + last_modification_time + " TO *}");
+    
+    
+    
     std::string json_result;
     if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,journal_issue", &json_result,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
@@ -143,12 +176,10 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
 void SendNotificationEmail(const std::string &firstname, const std::string &lastname,
                            const std::string &recipient_email, const std::string &vufind_host,
                            const std::string &sender_email, const std::string &email_subject,
-                           const std::vector<NewIssueInfo> &new_issue_infos)
+                           const std::vector<NewIssueInfo> &new_issue_infos,
+                           const std::string &user_type)
 {
-    const std::string EMAIL_TEMPLATE_PATH("/var/lib/tuelib/subscriptions_email.template");
-    std::string email_template;
-    if (unlikely(not FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &email_template)))
-        Error("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
+    std::string email_template = GetEmailTemplate(user_type);
 
     // Process the email template:
     std::map<std::string, std::vector<std::string>> names_to_values_map;
@@ -181,24 +212,28 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
                        std::vector<SerialControlNumberAndMaxLastModificationTime>
                            &control_numbers_and_last_modification_times)
 {
-    const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user WHERE id='" + user_id + "'");
+    const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id='" + user_id + "'");
     if (unlikely(not db_connection->query(SELECT_USER_ATTRIBUTES)))
         Error("Select failed: " + SELECT_USER_ATTRIBUTES + " (" + db_connection->getLastErrorMessage() + ")");
+    
     DbResultSet result_set(db_connection->getLastResultSet());
+    
     if (result_set.empty())
         Error("found no user attributes in table \"user\" for ID \"" + user_id + "\"!");
     if (result_set.size() > 1)
         Error("found multiple user attribute sets in table \"user\" for ID \"" + user_id + "\"!");
 
     const DbRow row(result_set.getNextRow());
+
     const std::string username(row["username"]);
     if (verbose)
         std::cerr << "Found " << control_numbers_and_last_modification_times.size() << " subscriptions for \""
-                  << username << ".\n";
+                  << username << "\".\n";
 
     const std::string firstname(row["firstname"]);
     const std::string lastname(row["lastname"]);
     const std::string email(row["email"]);
+    const std::string user_type(row["user_type"]);
 
     // Collect the dates for new issues.
     std::vector<NewIssueInfo> new_issue_infos;
@@ -214,30 +249,20 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
         std::cerr << "Found " << new_issue_infos.size() << " new issues for " << " \"" << username << "\".\n";
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos);
+        SendNotificationEmail(firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
 
     // Update the database with the new last issue dates.
     for (const auto &control_number_and_last_modification_time : control_numbers_and_last_modification_times) {
         if (not control_number_and_last_modification_time.changed())
             continue;
-
-        const std::string REPLACE_STMT("REPLACE INTO ixtheo_journal_subscriptions SET id=" + user_id
-                                       + ",max_last_modification_time='"
-                                       + control_number_and_last_modification_time.last_modification_time_
-                                       + "',journal_control_number='"
-                                       + control_number_and_last_modification_time.serial_control_number_ + "'");
-        if (unlikely(not db_connection->query(REPLACE_STMT)))
-            Error("Replace failed: " + REPLACE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+        
+        const std::string UPDATE_STMT("UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='" + ConvertDateFromZuluDate(control_number_and_last_modification_time.last_modification_time_)
+                                       + "' WHERE id=" + user_id
+                                       + " AND journal_control_number=" + control_number_and_last_modification_time.serial_control_number_);
+        
+        if (unlikely(not db_connection->query(UPDATE_STMT)))
+            Error("UPDATE failed: " + UPDATE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
     }
-}
-
-
-// Makes "date" look like an ISO-8601 date.
-std::string ConvertDateToZuluDate(std::string date) {
-    if (unlikely(date.length() != 19 or date[10] != ' '))
-        Error("unexpected datetime in ConvertDateToZuluDate: \"" + date + "\"!");
-    date[10] = 'T';
-    return date + 'Z';
 }
 
 
@@ -302,7 +327,8 @@ std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &
     return db;
 }
 
-
+// gets user subscriptions for superior works from mysql
+// uses kyotocabinet HashDB (file) to prevent entries from being sent multiple times to same user
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
