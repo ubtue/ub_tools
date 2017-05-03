@@ -3,7 +3,7 @@
 set -o errexit -o nounset
 
 if [ -z "$VUFIND_HOME" ]; then
-    VUFIND_HOME=/usr/local/vufind2
+    VUFIND_HOME=/usr/local/vufind
 fi
 
 if [ $# != 2 ]; then
