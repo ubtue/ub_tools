@@ -90,6 +90,7 @@ std::string ConvertDateToZuluDate(std::string date) {
     return date + 'Z';
 }
 
+
 // Converts ISO-8601 date back to mysql-like date format ("2017-01-01T00:00:00Z" => "2017-01-01 00:00:00")
 std::string ConvertDateFromZuluDate(std::string date) {
     if (unlikely(date.length() != 20 or date[10] != 'T' or date[19] != 'Z'))
@@ -140,6 +141,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
 
     return found_at_least_one_new_issue;
 }
+
 
 std::string GetEmailTemplate(const std::string user_type)
 {
@@ -324,6 +326,7 @@ std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &
         Error("failed to open or create \"" + DB_FILENAME + "\"!");
     return db;
 }
+
 
 // gets user subscriptions for superior works from mysql
 // uses kyotocabinet HashDB (file) to prevent entries from being sent multiple times to same user
