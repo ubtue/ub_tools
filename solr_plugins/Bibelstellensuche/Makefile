@@ -1,5 +1,5 @@
 # Locate directories
-VUFIND_HOME=/usr/local/vufind2
+VUFIND_HOME=/usr/local/vufind
 PROJECT_NAME=bibleRangeSearch
 JAR_FILE=BibleRangeParser-1.0.0.jar
 SOLR_JAR_FILE=$(VUFIND_HOME)/solr/vufind/jars/BibleRangeParser.jar
@@ -9,10 +9,10 @@ PACKAGE_DIRECOTRY=de/uni_tuebingen/ub/ixTheo/$(PROJECT_NAME)
 
 EMPTY :=
 SPACE := $(EMPTY) $(EMPTY)
-LIB_DIRECTORY_0=$(subst $(SPACE),:,$(wildcard /usr/local/vufind2/solr/lib/*.jar))
-LIB_DIRECTORY_1=$(subst $(SPACE),:,$(wildcard /usr/local/vufind2/solr/vendor/server/lib/*.jar))
-LIB_DIRECTORY_2=$(subst $(SPACE),:,$(wildcard /usr/local/vufind2/solr/vendor/server/lib/ext/*.jar))
-LIB_DIRECTORY_3=$(subst $(SPACE),:,$(wildcard /usr/local/vufind2/solr/vendor/server/solr-webapp/webapp/WEB-INF/lib/*.jar))
+LIB_DIRECTORY_0=$(subst $(SPACE),:,$(wildcard /usr/local/vufind/solr/lib/*.jar))
+LIB_DIRECTORY_1=$(subst $(SPACE),:,$(wildcard /usr/local/vufind/solr/vendor/server/lib/*.jar))
+LIB_DIRECTORY_2=$(subst $(SPACE),:,$(wildcard /usr/local/vufind/solr/vendor/server/lib/ext/*.jar))
+LIB_DIRECTORY_3=$(subst $(SPACE),:,$(wildcard /usr/local/vufind/solr/vendor/server/solr-webapp/webapp/WEB-INF/lib/*.jar))
 
 LIB_DIRECTORY=$(LIB_DIRECTORY_0):$(LIB_DIRECTORY_1):$(LIB_DIRECTORY_2):$(LIB_DIRECTORY_3)
 

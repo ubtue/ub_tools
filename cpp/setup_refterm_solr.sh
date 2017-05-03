@@ -2,7 +2,7 @@
 set -o errexit -o nounset
 
 FILE_TO_IMPORT="$1"
-VUFIND_HOME=/usr/local/vufind2
+VUFIND_HOME=/usr/local/vufind
 VUFIND_SOLRMARC_HOME=$VUFIND_HOME/import/
 UB_TOOLS_HOME=/usr/local/ub_tools/
 CONFIG_FILE_DIR=$UB_TOOLS_HOME/cpp/data/refterm_solr_conf
