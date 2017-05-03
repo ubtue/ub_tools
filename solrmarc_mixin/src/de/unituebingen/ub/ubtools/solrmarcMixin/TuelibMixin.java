@@ -1651,14 +1651,14 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /** @return "true" if we have an open access publication, else "false". */
-    public Boolean getOpenAccessStatus(final Record record) {
+    public String getOpenAccessStatus(final Record record) {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField dataField = (DataField) variableField;
             final Subfield subfieldZ = dataField.getSubfield('z');
             if (subfieldZ != null && subfieldZ.getData().toLowerCase().startsWith("kostenfrei"))
-                return true;
+                return Boolean.TRUE.toString();
         }
         
-        return false;
+        return Boolean.FALSE.toString();
     }
 }
