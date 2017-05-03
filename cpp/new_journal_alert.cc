@@ -161,8 +161,6 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
     const std::string QUERY("superior_ppn:" + serial_control_number + " AND last_modification_time:{"
                             + last_modification_time + " TO *}");
     
-    
-    
     std::string json_result;
     if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,journal_issue", &json_result,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
