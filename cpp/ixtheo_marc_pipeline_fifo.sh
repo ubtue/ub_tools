@@ -107,20 +107,19 @@ extract_vufind_translations_for_translation \
     $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
 generate_vufind_translation_files "$VUFIND_HOME"/local/languages/ >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait 
 
 
 StartPhase "Normalise URL's"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait 
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items" 
-(create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc >> "${log}" 2>&1 && \
-add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+(create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
+add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  superior_ppns >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -139,6 +138,7 @@ StartPhase "Adding of ISBN's and ISSN's to Component Parts"
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
 
 StartPhase "Extracting Keywords from Titles" 
 (enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
@@ -220,6 +220,7 @@ StartPhase "Adding the Library Sigil to Articles Where Appropriate"
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
 
 StartPhase "Tag PDA candidates"
 (augment_pda \
