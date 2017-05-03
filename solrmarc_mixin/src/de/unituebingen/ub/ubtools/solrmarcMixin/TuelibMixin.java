@@ -1656,9 +1656,9 @@ public class TuelibMixin extends SolrIndexerMixin {
             final DataField dataField = (DataField) variableField;
             final Subfield subfieldZ = dataField.getSubfield('z');
             if (subfieldZ != null && subfieldZ.getData().toLowerCase().startsWith("kostenfrei"))
-                return Boolean.TRUE.toString();
+                return "open-access";
         }
         
-        return Boolean.FALSE.toString();
+        return "non-open-access";
     }
 }
