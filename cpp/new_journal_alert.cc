@@ -85,7 +85,7 @@ public:
 // Makes "date" look like an ISO-8601 date ("2017-01-01 00:00:00" => "2017-01-01T00:00:00Z")
 std::string ConvertDateToZuluDate(std::string date) {
     if (unlikely(date.length() != 19 or date[10] != ' '))
-        Error("unexpected datetime in " + std::string(__FUNCTION__) + ": \"" + date + "\"!");
+        Error("in " + std::string(__FUNCTION__) + ": unexpected datetime \"" + date + "\"!");
     date[10] = 'T';
     return date + 'Z';
 }
