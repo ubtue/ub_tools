@@ -142,8 +142,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
 }
 
 
-std::string GetEmailTemplate(const std::string user_type)
-{
+std::string GetEmailTemplate(const std::string user_type) {
     std::string result;
     const std::string EMAIL_TEMPLATE_PATH("/var/lib/tuelib/subscriptions_email." + user_type + ".template");
     
