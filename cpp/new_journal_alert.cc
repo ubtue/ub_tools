@@ -257,7 +257,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
         
         const std::string UPDATE_STMT("UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='" + ConvertDateFromZuluDate(control_number_and_last_modification_time.last_modification_time_)
                                        + "' WHERE id=" + user_id
-                                       + " AND journal_control_number=" + control_number_and_last_modification_time.serial_control_number_);
+                                       + " AND journal_control_number='" + control_number_and_last_modification_time.serial_control_number_ + "'");
         
         if (unlikely(not db_connection->query(UPDATE_STMT)))
             Error("UPDATE failed: " + UPDATE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
