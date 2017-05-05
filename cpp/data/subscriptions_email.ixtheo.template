@@ -2,7 +2,7 @@ Dear {firstname} {lastname},<br /><br />
 An automated process has determined that new issues are available for
 serials that you are subscribed to.  The list is:
 <ul>
-{LOOP url,journal_title,issue_title}  <li>{journal_title}:<br />&nbsp;&nbsp;&nbsp;<a href="{url}">{issue_title}</a></li>
+{LOOP url,series_title,issue_title}  <li>{series_title}:<br />&nbsp;&nbsp;&nbsp;<a href="{url}">{issue_title}</a></li>
 {ENDLOOP}</ul>
 <br />
 Sincerely,<br />
