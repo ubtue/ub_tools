@@ -229,12 +229,9 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                   const std::string &serial_control_number, std::string last_modification_time,
                   std::vector<NewIssueInfo> * const new_issue_infos, std::string * const max_last_modification_time)
 {
-    const unsigned min_recording_year(StringUtil::ToUnsigned(TimeUtil::GetCurrentYear()) - 2);
-    const std::string min_recording_datetime(std::to_string(min_recording_year) + "-01-01T00:00:00Z");
     
     const std::string QUERY("superior_ppn:" + serial_control_number
                             + " AND last_modification_time:{" + last_modification_time + " TO *}"
-                            + " AND recording_date:{" + min_recording_datetime + " TO *}"
     );
     
     std::string json_result;
