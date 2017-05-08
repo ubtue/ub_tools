@@ -3,7 +3,7 @@
 set -o errexit -o nounset
 
 if [ -z "$VUFIND_HOME" ]; then
-    VUFIND_HOME=/usr/local/vufind2
+    VUFIND_HOME=/usr/local/vufind
 fi
 
 if [ $# != 2 ]; then
@@ -128,6 +128,12 @@ create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc 
 add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-pipeline-"${date}".mrc \
                                  superior_ppns >> "${log}" 2>&1
+EndPhase
+
+
+StartPhase "Fill in missing 773\$a Subfields"
+augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                       GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1
 EndPhase
 
 

@@ -62,7 +62,8 @@ regular_install: $(INSTALL_PROGS)
 	mkdir --parents /var/lib/tuelib/translate_chainer
 	cp data/done_translating.html  data/translate.html data/translation_front_page.html \
             data/mytranslations_template.msg /var/lib/tuelib/translate_chainer/
-	cp data/subscriptions_email.template /var/lib/tuelib/
+	cp data/subscriptions_email.ixtheo.template /var/lib/tuelib/
+	cp data/subscriptions_email.relbib.template /var/lib/tuelib/
 	mkdir --parents /var/lib/tuelib/crossref_downloader/
 	cp data/crossref_journal_list /var/lib/tuelib/crossref_downloader/
 

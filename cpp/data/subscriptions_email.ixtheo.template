@@ -2,11 +2,11 @@ Dear {firstname} {lastname},<br /><br />
 An automated process has determined that new issues are available for
 serials that you are subscribed to.  The list is:
 <ul>
-{LOOP url,title}  <li><a href="{url}">{title}</a></li>
+{LOOP url,journal_title,issue_title}  <li>{journal_title}:<br />&nbsp;&nbsp;&nbsp;<a href="{url}">{issue_title}</a></li>
 {ENDLOOP}</ul>
 <br />
 Sincerely,<br />
 The IxTheo Team
 <br />--<br />
 If you have questions regarding this service please contact
-<a href="ixtheo@ub.uni-tuebingen.de>ixtheo@ub.uni-tuebingen.de</a>.
+<a href="mailto:ixtheo@ub.uni-tuebingen.de">ixtheo@ub.uni-tuebingen.de</a>.
