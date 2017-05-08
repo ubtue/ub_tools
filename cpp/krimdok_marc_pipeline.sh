@@ -131,12 +131,6 @@ add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${da
 EndPhase
 
 
-StartPhase "Fill in missing 773\$a Subfields"
-augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                       GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1
-EndPhase
-
-
 StartPhase "Cleanup of Intermediate Files"
 for p in $(seq "$((PHASE-1))"); do
     rm -f GesamtTiteldaten-post-phase"$PHASE"-??????.mrc
