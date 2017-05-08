@@ -117,10 +117,16 @@ populate_in_tuebingen_available --verbose \
 EndPhase
 
 
+StartPhase "Fill in missing 773\$a Subfields"
+augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                       GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+EndPhase
+
+
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
 create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
 add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                                 GesamtTiteldaten-post-pipeline-"${date}".mrc \
                                  superior_ppns >> "${log}" 2>&1
 EndPhase
 
