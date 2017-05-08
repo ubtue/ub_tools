@@ -799,29 +799,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return results;
     }
 
-    private static Map<String, String> GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP = new TreeMap<String, String>();
-
-    static {
-        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verfasser", "aut");
-        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verfasserin", "aut");
-        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verleger", "hg");
-        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("verlegerin", "hg");
-        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("herausgeber", "hg");
-        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("herausgeberin", "hg");
-        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("hrsg", "hg");
-        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("übersetzer", "trl");
-        GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.put("übersetzerin", "trl");
-    }
-
-    private String translateAuthorRole(final String germanRole) {
-        final String translation = GERMAN_AUTHOR_ROLE_TO_ENGLISH_MAP.get(germanRole);
-        if (translation == null) {
-            System.err.println("No English mapping for \"" + germanRole + "\" found!");
-            return germanRole;
-        }
-        return translation;
-    }
-
     // Removes any non-letters from "original_role".
     private static String cleanRole(final String original_role) {
         final StringBuilder canonised_role = new StringBuilder();
@@ -855,7 +832,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
 
             final Subfield eSubfield = data_field.getSubfield('e');
-            final String author2role = (eSubfield != null) ? translateAuthorRole(cleanRole(eSubfield.getData())) : null;
+            final String author2role = (eSubfield != null) ? cleanRole(eSubfield.getData()) : null;
 
             if (author2 != null && author2role != null) {
                 final StringBuilder author2AndRole = new StringBuilder();
@@ -1656,9 +1633,9 @@ public class TuelibMixin extends SolrIndexerMixin {
             final DataField dataField = (DataField) variableField;
             final Subfield subfieldZ = dataField.getSubfield('z');
             if (subfieldZ != null && subfieldZ.getData().toLowerCase().startsWith("kostenfrei"))
-                return Boolean.TRUE.toString();
+                return "open-access";
         }
         
-        return Boolean.FALSE.toString();
+        return "non-open-access";
     }
 }

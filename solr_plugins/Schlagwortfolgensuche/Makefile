@@ -1,12 +1,12 @@
 # Locate directories
-VUFIND_HOME=/usr/local/vufind2
+VUFIND_HOME=/usr/local/vufind
 PROJECT_NAME=keywordChainSearch
 JAR_FILE=KeywordChainParser-0.0.1.jar
 SOLR_JAR_FILE=$(VUFIND_HOME)/solr/vufind/jars/KeywordChainParser.jar
 BIN=bin
 SRC=src
 PACKAGE_DIRECOTRY=de/uni_tuebingen/ub/ixTheo/$(PROJECT_NAME)
-LIB_DIRECTORY=/usr/local/vufind2/solr/vendor/server/lib/*:/usr/local/vufind2/solrvendor/server/lib/ext/*:/usr/local/vufind2/solr/vendor/server/solr-webapp/webapp/WEB-INF/lib/*
+LIB_DIRECTORY=/usr/local/vufind/solr/vendor/server/lib/*:/usr/local/vufind/solrvendor/server/lib/ext/*:/usr/local/vufind/solr/vendor/server/solr-webapp/webapp/WEB-INF/lib/*
 JAVA_VERSION=1.7
 
 # Compiler
