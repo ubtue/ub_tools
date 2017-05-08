@@ -263,7 +263,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return extractedValues;
     }
-    
+
     /**
      * get the local subjects from LOK-tagged fields and get subjects from 936k
      * and 689a subfields
@@ -929,7 +929,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 System.err.println("getDates [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
             return dates;
         }
-        
+
         // Case 2:
         // Test whether we have a 190j field
         // This was generated in the pipeline for superior works that do not contain a reasonable 008(7,10) entry
@@ -956,7 +956,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
         final String _008FieldContents = _008_field.getData();
         final String yearExtracted = _008FieldContents.substring(7, 11);
-        // Test whether we have a reasonable value 
+        // Test whether we have a reasonable value
         final String year = checkValidYear(yearExtracted);
         if (year.isEmpty())
             System.err.println("getDates [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
@@ -1337,6 +1337,18 @@ public class TuelibMixin extends SolrIndexerMixin {
             result.add("Unknown");
         }
 
+        // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
+        if (result.contains("Book")) {
+            final DataField _935Field = (DataField) record.getVariableField("935");
+            if (_935Field != null) {
+                final Subfield cSubfield = _935Field.getSubfield('c');
+                if (cSubfield != null && cSubfield.getData().equals("sodr")) {
+                    result.remove("Book");
+                    result.add("Article");
+                }
+            }
+        }
+
         return result;
     }
 
@@ -1575,13 +1587,13 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Set<String> dates = getDates(record);
         if (dates.isEmpty())
             return "";
-    
+
         return calculateLastPublicationDate(dates);
     }
-    
+
     public Set<String> getRecordSelectors(final Record record) {
         final Set<String> result = new HashSet<String>();
-        
+
         for (final VariableField variableField : record.getVariableFields("LOK")) {
             final DataField lokfield = (DataField) variableField;
             final Subfield subfield0 = lokfield.getSubfield('0');
@@ -1594,7 +1606,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
             result.add(subfieldA.getData());
         }
-        
+
         return result;
     }
 
@@ -1635,7 +1647,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (subfieldZ != null && subfieldZ.getData().toLowerCase().startsWith("kostenfrei"))
                 return "open-access";
         }
-        
+
         return "non-open-access";
     }
 }
