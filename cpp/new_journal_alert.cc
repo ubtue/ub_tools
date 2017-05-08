@@ -26,8 +26,6 @@
 #include <vector>
 #include <cstdlib>
 #include <cstring>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <kchashdb.h>
 #include "Compiler.h"
 #include "DbConnection.h"
@@ -35,6 +33,7 @@
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "HtmlUtil.h"
+#include "JSON.h"
 #include "MiscUtil.h"
 #include "Solr.h"
 #include "StringUtil.h"
@@ -73,19 +72,19 @@ public:
 
 struct NewIssueInfo {
     std::string control_number_;
-    std::string journal_title_;
+    std::string series_title_;
     std::string issue_title_;
     std::string last_modification_time_;
 public:
-    NewIssueInfo(const std::string &control_number, const std::string &journal_title, const std::string &issue_title)
-        : control_number_(control_number), journal_title_(journal_title), issue_title_(issue_title) { }
+    NewIssueInfo(const std::string &control_number, const std::string &series_title, const std::string &issue_title)
+        : control_number_(control_number), series_title_(series_title), issue_title_(issue_title) { }
 };
 
 
 // Makes "date" look like an ISO-8601 date ("2017-01-01 00:00:00" => "2017-01-01T00:00:00Z")
 std::string ConvertDateToZuluDate(std::string date) {
     if (unlikely(date.length() != 19 or date[10] != ' '))
-        Error("in " + std::string(__FUNCTION__) + ": unexpected datetime \"" + date + "\"!");
+        Error("unexpected datetime in " + std::string(__FUNCTION__) + ": \"" + date + "\"!");
     date[10] = 'T';
     return date + 'Z';
 }
@@ -100,38 +99,110 @@ std::string ConvertDateFromZuluDate(std::string date) {
 }
 
 
+static std::string EMPTY_STRING;
+
+
+std::string GetIssueId(const JSON::ObjectNode * const doc_obj) {
+    const std::string id(JSON::LookupString("/id", doc_obj, &EMPTY_STRING));
+    if (unlikely(id.empty()))
+        Error("Did not find 'id' node in JSON tree!");
+    
+    return id;
+}
+
+
+std::string GetIssueTitle(const std::string &id, const JSON::ObjectNode * const doc_obj) {
+    const std::string NO_AVAILABLE_TITLE("*No available title*");
+    const auto issue_title(JSON::LookupString("/title", doc_obj, &NO_AVAILABLE_TITLE));
+    if (unlikely(issue_title == NO_AVAILABLE_TITLE))
+        Warning("No title found for ID " + id + "!");
+    
+    return issue_title;
+}
+
+
+std::string GetLastModificationTime(const JSON::ObjectNode * const doc_obj) {
+    const std::string last_modification_time(JSON::LookupString("/last_modification_time", doc_obj, &EMPTY_STRING));
+    if (unlikely(last_modification_time.empty()))
+        Error("Did not find 'last_modification_time' node in JSON tree!");
+    
+    return last_modification_time;
+}
+
+
+std::string GetSeriesTitle(const JSON::ObjectNode * const doc_obj) {
+    const std::string NO_SERIES_TITLE("*No Series Title*");
+    const JSON::JSONNode * const container_ids_and_titles(doc_obj->getValue("container_ids_and_titles"));
+    if (container_ids_and_titles == nullptr) {
+        Warning("\"container_ids_and_titles\" is null");
+        return NO_SERIES_TITLE;
+    }
+        
+    const JSON::ArrayNode * const container_ids_and_titles_array(dynamic_cast<const JSON::ArrayNode *>(container_ids_and_titles));
+    
+    if (unlikely(container_ids_and_titles_array == nullptr))
+        Error("\"container_ids_and_titles\" is not a JSON array!");
+    if (container_ids_and_titles_array->empty()) {
+        Warning("\"container_ids_and_titles\" is empty");
+        return NO_SERIES_TITLE;
+    }
+    const JSON::JSONNode *first_id_and_title(container_ids_and_titles_array->getValue(0));
+    const JSON::StringNode *first_id_and_title_string(dynamic_cast<const JSON::StringNode *>(first_id_and_title));
+    if (first_id_and_title_string == nullptr)
+        Error("first entry in container_ids_and_titles is not a JSON string!");
+    std::string first_id_and_title_string_value(first_id_and_title_string->getValue());
+    
+    StringUtil::ReplaceString("#31;", "\x1F", &first_id_and_title_string_value);
+    std::vector<std::string> parts;
+    StringUtil::Split(first_id_and_title_string_value, '\x1F', &parts);
+    if (unlikely(parts.size() < 2))
+        Error("strange id and title value \"" + first_id_and_title_string_value + "\"!");
+    
+    return parts[1];
+}
+
+
 /** \return True if new issues were found, false o/w. */
 bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
-                          std::unordered_set<std::string> * const new_notification_ids, const std::string &query,
+                          std::unordered_set<std::string> * const new_notification_ids,
                           const std::string &json_document, std::vector<NewIssueInfo> * const new_issue_infos,
                           std::string * const max_last_modification_time)
 {
-    std::stringstream input(json_document, std::ios_base::in);
-    boost::property_tree::ptree property_tree;
-    boost::property_tree::json_parser::read_json(input, property_tree);
-
     bool found_at_least_one_new_issue(false);
-    for (const auto &document : property_tree.get_child("response.docs.")) {
-        const auto id(document.second.get<std::string>("id", ""));
+    
+    JSON::Parser parser(json_document);
+    JSON::JSONNode *tree;
+    if (not parser.parse(&tree))
+        Error("in " + std::string(__FUNCTION__) + " JSON parser failed: " + parser.getErrorMessage());
+
+    const JSON::ObjectNode * const tree_obj(dynamic_cast<const JSON::ObjectNode *>(tree));
+    if (unlikely(tree_obj == nullptr))
+        Error("in " + std::string(__FUNCTION__) + ": top level JSON entity is not an object type!");
+    
+    const JSON::ObjectNode * const response(dynamic_cast<const JSON::ObjectNode *>(tree_obj->getValue("response")));
+    if (unlikely(response == nullptr))
+        Error("in " + std::string(__FUNCTION__) + ": top level node \"response\" in JSON tree is missing!");
+    
+    const JSON::ArrayNode * const docs(dynamic_cast<const JSON::ArrayNode *>(response->getValue("docs")));
+    if (unlikely(docs == nullptr))
+        Error("in " + std::string(__FUNCTION__) + ": array node \"docs\" in JSON tree is missing!");
+    
+    for (auto doc(docs->cbegin()); doc != docs->cend(); ++doc) {
+        const JSON::ObjectNode * const doc_obj(dynamic_cast<const JSON::ObjectNode *>(*doc));
+        if (unlikely(doc_obj == nullptr))
+            Error("in " + std::string(__FUNCTION__) + ": document object is missing!");
         
-        if (unlikely(id.empty()))
-            Error("Did not find 'id' node in JSON, query was " + query);
+        const std::string id(GetIssueId(doc_obj));
         if (notified_db->check(id) > 0)
             continue; // We sent a notification for this issue.
-
         new_notification_ids->insert(id);
-        const std::string NO_AVAILABLE_TITLE("*No available title*");
-        const auto issue_title(document.second.get<std::string>("title", NO_AVAILABLE_TITLE));
-        if (unlikely(issue_title == NO_AVAILABLE_TITLE))
-            Warning("No title found for ID " + id + "!");
-        const auto journal_issue(document.second.get_child_optional("journal_issue"));
-        const std::string journal_title(
-            journal_issue ? document.second.get_child("journal_issue").equal_range("").first
-                                ->second.get_value<std::string>()
-                          : "*No Journal Title*");
-        new_issue_infos->emplace_back(id, journal_title, issue_title);
-
-        const auto &last_modification_time(document.second.get<std::string>("last_modification_time"));
+        
+        const std::string issue_title(GetIssueTitle(id, doc_obj));
+        const std::string series_title(GetSeriesTitle(doc_obj));
+        
+        new_issue_infos->emplace_back(id, series_title, issue_title);
+        
+        const std::string last_modification_time(GetLastModificationTime(doc_obj));
         if (last_modification_time > *max_last_modification_time) {
             *max_last_modification_time = last_modification_time;
             found_at_least_one_new_issue = true;
@@ -158,15 +229,19 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                   const std::string &serial_control_number, std::string last_modification_time,
                   std::vector<NewIssueInfo> * const new_issue_infos, std::string * const max_last_modification_time)
 {
-    const std::string QUERY("superior_ppn:" + serial_control_number + " AND last_modification_time:{"
-                            + last_modification_time + " TO *}");
+    const unsigned year_current(StringUtil::ToUnsigned(TimeUtil::GetCurrentYear()));
+    const unsigned year_min(year_current - 2);
+    const std::string QUERY("superior_ppn:" + serial_control_number
+                            + " AND last_modification_time:{" + last_modification_time + " TO *}"
+                            + " AND year:[" + std::to_string(year_min) + " TO " + std::to_string(year_current) + "]"
+    );
     
     std::string json_result;
-    if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,journal_issue", &json_result,
+    if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,container_ids_and_titles", &json_result,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         Error("Solr query failed or timed-out: \"" + QUERY + "\".");
 
-    return ExtractNewIssueInfos(notified_db, new_notification_ids, QUERY, json_result, new_issue_infos,
+    return ExtractNewIssueInfos(notified_db, new_notification_ids, json_result, new_issue_infos,
                                 max_last_modification_time);
 }
 
@@ -183,14 +258,14 @@ void SendNotificationEmail(const std::string &firstname, const std::string &last
     std::map<std::string, std::vector<std::string>> names_to_values_map;
     names_to_values_map["firstname"] = std::vector<std::string>{ firstname };
     names_to_values_map["lastname"] = std::vector<std::string>{ lastname };
-    std::vector<std::string> urls, journal_titles, issue_titles;
+    std::vector<std::string> urls, series_titles, issue_titles;
     for (const auto &new_issue_info : new_issue_infos) {
         urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
-        journal_titles.emplace_back(new_issue_info.journal_title_);
+        series_titles.emplace_back(new_issue_info.series_title_);
         issue_titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.issue_title_));
     }
     names_to_values_map["url"]           = urls;
-    names_to_values_map["journal_title"] = journal_titles;
+    names_to_values_map["series_title"]  = series_titles;
     names_to_values_map["issue_title"]   = issue_titles;
     std::istringstream input(email_template);
     std::ostringstream email_contents;
@@ -244,7 +319,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
             control_number_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
     }
     if (verbose)
-        std::cerr << "Found " << new_issue_infos.size() << " new issues for " << " \"" << username << "\".\n";
+        std::cerr << "Found " << new_issue_infos.size() << " new issues for " << "\"" << username << "\".\n";
 
     if (not new_issue_infos.empty())
         SendNotificationEmail(firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
