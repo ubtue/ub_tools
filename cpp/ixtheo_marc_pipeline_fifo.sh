@@ -110,7 +110,6 @@ EndPhase || Abort) &
 
 
 StartPhase "Normalise URL's"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (normalise_urls GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
