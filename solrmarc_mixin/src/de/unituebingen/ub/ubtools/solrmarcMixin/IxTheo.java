@@ -12,6 +12,7 @@ import org.marc4j.marc.Record;
 import org.marc4j.marc.VariableField;
 import org.marc4j.marc.*;
 import org.solrmarc.index.SolrIndexerMixin;
+import org.solrmarc.tools.DataUtil;
 import org.solrmarc.tools.Utils;
 
 public class IxTheo extends SolrIndexerMixin {
@@ -348,7 +349,7 @@ public class IxTheo extends SolrIndexerMixin {
                                 if (term.length() > 0)
                                     // Escape slashes in single topics since
                                     // they interfere with KWCs
-                                    collector.add(translateTopic(Utils.cleanData(term.replace("/", "\\/")), langShortcut));
+                                    collector.add(translateTopic(DataUtil.cleanData(term.replace("/", "\\/")), langShortcut));
                             }
                         }
                         // Case 2: Generate a complex string using the
@@ -371,7 +372,7 @@ public class IxTheo extends SolrIndexerMixin {
                                 }
                             }
                             if (buffer.length() > 0)
-                                collector.add(Utils.cleanData(buffer.toString()));
+                                collector.add(DataUtil.cleanData(buffer.toString()));
                         }
                     }
                 }
@@ -394,7 +395,7 @@ public class IxTheo extends SolrIndexerMixin {
                                     continue;
                                 String term = subfield.getData().trim();
                                 if (term.length() > 0)
-                                    collector.add(translateTopic(Utils.cleanData(term.replace("/", "\\/")), langShortcut));
+                                    collector.add(translateTopic(DataUtil.cleanData(term.replace("/", "\\/")), langShortcut));
                             }
                         }
                         // Case 2: Generate a complex string using the
@@ -417,7 +418,7 @@ public class IxTheo extends SolrIndexerMixin {
                                 }
                             }
                             if (buffer.length() > 0)
-                                collector.add(Utils.cleanData(buffer.toString()));
+                                collector.add(DataUtil.cleanData(buffer.toString()));
                         }
                     }
                 }
