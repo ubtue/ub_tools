@@ -10,7 +10,7 @@ fi
 
 rm --force superior_ppns
 
-marc_grep $1 '"800w:810w:830w:773w"' \
+marc_grep $1 '"800w:810w:830w:773w:776w"' \
     | grep '(DE-576)' \
     | sed -r 's/^([^:]+)[^)]+[)](.+)$/\2/' \
     | sort \
