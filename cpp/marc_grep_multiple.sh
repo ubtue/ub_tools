@@ -30,7 +30,7 @@ for filename in "$@"; do
                 exit 1
             fi
             last_line=$(echo "$marc_grep_output" | tail -1)
-	    rm "$archive_member"
+            rm "$archive_member"
             if [[ ! $last_line =~ ^Matched\ 0 && $last_line =~ ^Matched ]]; then
 		echo "was found in $tar_filename($archive_member)"
 	    fi
