@@ -765,6 +765,49 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return null;
     }
+    
+    /**
+     * Returns a Set<String> of Persistent Identifiers, e.g. DOIs and URNs
+     * e.g.
+     *  DOI:<doi1>
+     *  URN:<urn1>
+     *  URN:<urn2>
+     * URLs are scanned for URNs from 856$u. "urn:" will be part of the URN.
+     * Furthermore 024$2 will be checked for "doi".
+     */
+    public Set<String> getPersistentIdentifiers(final Record record) {
+        final Set<String> result = new TreeSet<>();
+
+        // Handle DOIs
+        for (final VariableField variableField : record.getVariableFields("024")) {
+            final DataField field = (DataField) variableField;
+            final Subfield subfield_2 = field.getSubfield('2');
+            if (subfield_2 != null && subfield_2.getData().equals("doi")) {
+                final Subfield subfield_a = field.getSubfield('a');
+                if (subfield_a != null) {
+                    result.add("DOI:" + subfield_a.getData());
+                }
+            }
+        }
+        
+        // Handle URNs
+        for (final VariableField variableField : record.getVariableFields("856")) {
+            final DataField field = (DataField) variableField;
+
+            for (final Subfield subfield_u : field.getSubfields('u')) {
+                final String rawLink = subfield_u.getData();
+                final int index = rawLink.indexOf("urn:", 0);
+
+                if(index >= 0) {
+                    final String link = rawLink.substring(index);
+                    result.add("URN:" + link);
+                }
+            }
+        }
+        
+
+        return result;
+    }
 
     /**
      * @param record
