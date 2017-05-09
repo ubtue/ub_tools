@@ -8,7 +8,7 @@ import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.index.SolrIndexerShim;
-import org.solrmarc.tools.Utils;
+import org.solrmarc.tools.DataUtil;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -163,20 +163,20 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final StringBuilder completeTitle = new StringBuilder();
         if (titleA == null)
-            completeTitle.append(Utils.cleanData(titleB));
+            completeTitle.append(DataUtil.cleanData(titleB));
         else if (titleB == null)
-            completeTitle.append(Utils.cleanData(titleA));
+            completeTitle.append(DataUtil.cleanData(titleA));
         else { // Neither titleA nor titleB are null.
-            completeTitle.append(Utils.cleanData(titleA));
+            completeTitle.append(DataUtil.cleanData(titleA));
             if (!titleB.startsWith(" = "))
                 completeTitle.append(" : ");
-            completeTitle.append(Utils.cleanData(titleB));
+            completeTitle.append(DataUtil.cleanData(titleB));
         }
 
         final String titleN = (titleField.getSubfield('n') == null) ? null : titleField.getSubfield('n').getData();
         if (titleN != null) {
             completeTitle.append(' ');
-            completeTitle.append(Utils.cleanData(titleN));
+            completeTitle.append(DataUtil.cleanData(titleN));
         }
         return completeTitle.toString();
     }
@@ -230,7 +230,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (subfield_data == null)
             return null;
 
-        return Utils.cleanData(subfield_data);
+        return DataUtil.cleanData(subfield_data);
     }
 
     static private Set<String> getAllSubfieldsBut(final Record record, final String fieldSpecList,
@@ -726,12 +726,28 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
+    // Returns the contents of the first data field with tag "tag" and subfield code "subfield_code" or null if no
+    // such field and subfield were found.
+    static private String getFirstSubfieldValue(final Record record, final String tag, final char subfieldCode) {
+        if (tag == null || tag.length() != 3)
+            throw new IllegalArgumentException("bad tag (null or length != 3)!");
+
+        for (final VariableField variableField : record.getVariableFields(tag)) {
+            final DataField dataField = (DataField) variableField;
+            final Subfield subfield = dataField.getSubfield(subfieldCode);
+            if (subfield != null)
+                return subfield.getData();
+        }
+
+        return null;
+    }
+
     /**
      * @param record
      *            the record
      */
     public String getPageRange(final Record record) {
-        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936h");
+        final String field_value = getFirstSubfieldValue(record, "936", 'h');
         if (field_value == null)
             return null;
 
@@ -755,7 +771,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            the record
      */
     public String getContainerYear(final Record record) {
-        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936j");
+        final String field_value = getFirstSubfieldValue(record, "936", 'j');
         if (field_value == null)
             return null;
 
@@ -768,7 +784,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            the record
      */
     public String getContainerVolume(final Record record) {
-        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936d");
+        final String field_value = getFirstSubfieldValue(record, "936", 'd');
         if (field_value == null)
             return null;
 
@@ -1574,7 +1590,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // time, e.g. works with hindu time
         final String DIFFERENT_CALCULATION_OF_TIME_REGEX = ".*?\\[(.*?)\\=\\s*(\\d+)\\s*\\].*";
         Matcher differentCalcOfTimeMatcher = Pattern.compile(DIFFERENT_CALCULATION_OF_TIME_REGEX).matcher(dateString);
-        return differentCalcOfTimeMatcher.find() ? differentCalcOfTimeMatcher.group(2) : Utils.cleanDate(dateString);
+        return differentCalcOfTimeMatcher.find() ? differentCalcOfTimeMatcher.group(2) : DataUtil.cleanDate(dateString);
 
     }
 
