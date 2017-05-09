@@ -1655,19 +1655,21 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public Set<String> getRecordSelectors(final Record record) {
-        final Set<String> result = new HashSet<String>();
+        final Set<String> result = new TreeSet<String>();
 
         for (final VariableField variableField : record.getVariableFields("LOK")) {
             final DataField lokfield = (DataField) variableField;
-            final Subfield subfield0 = lokfield.getSubfield('0');
-            if (subfield0 == null || !subfield0.getData().equals("935  ")) {
+            final Subfield subfield_0 = lokfield.getSubfield('0');
+            if (subfield_0 == null || !subfield_0.getData().equals("935  ")) {
                 continue;
             }
-            final Subfield subfieldA = lokfield.getSubfield('a');
-            if (subfieldA == null || subfieldA.getData().length() <= 1) {
-                continue;
+            
+            for (final Subfield subfield_a : lokfield.getSubfields('a')) {
+                if (subfield_a == null || subfield_a.getData().length() <= 1) {
+                    continue;
+                }
+                result.add(subfield_a.getData());
             }
-            result.add(subfieldA.getData());
         }
 
         return result;
