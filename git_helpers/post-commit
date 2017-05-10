@@ -1,3 +1,0 @@
-#!/bin/sh
-#
-sudo mount /dev/mapper/configs /usr/local/ub_tools/configs
