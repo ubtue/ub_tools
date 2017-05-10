@@ -1664,10 +1664,9 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
             
             for (final Subfield subfield_a : lokfield.getSubfields('a')) {
-                if (subfield_a == null || subfield_a.getData().length() <= 1) {
-                    continue;
+                if (!subfield_a.getData().isEmpty()) {
+                    result.add(subfield_a.getData());
                 }
-                result.add(subfield_a.getData());
             }
         }
 
