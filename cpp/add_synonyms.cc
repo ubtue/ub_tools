@@ -52,12 +52,12 @@ void Usage() {
 }
 
 
-std::string GetTag(const std::string &tag_and_subfields_spec) {
+inline std::string GetTag(const std::string &tag_and_subfields_spec) {
     return tag_and_subfields_spec.substr(0, 3);
 }
 
 
-std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
+inline std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
     return tag_and_subfields_spec.substr(3);
 }
 
@@ -71,7 +71,7 @@ bool FilterPasses(const MarcRecord &record, const std::map<std::string, std::pai
       // We have field_spec in key and rule to match in value
       std::string subfield_codes(GetSubfieldCodes(rule.first));
       if (subfield_codes.length() != 1)
-         Error("Invalid subfield specification "  + subfield_codes + " for filter");
+         Error("in FilterPasses: Invalid subfield specification "  + subfield_codes + " for filter!");
 
       std::string subfield_value;
       if ((subfield_value = record.extractFirstSubfield(GetTag(rule.first), subfield_codes.c_str()[0])).empty())
@@ -82,14 +82,14 @@ bool FilterPasses(const MarcRecord &record, const std::map<std::string, std::pai
 
 
 void ExtractSynonyms(MarcReader * const authority_reader,
-                     const std::set<std::string> &primary_tags_and_subfield_codes,
-                     const std::set<std::string> &synonym_tags_and_subfield_codes,
+                     const std::vector<std::string> &primary_tags_and_subfield_codes,
+                     const std::vector<std::string> &synonym_tags_and_subfield_codes,
                      std::vector<std::map<std::string, std::string>> * const synonym_maps,
                      const std::map<std::string, std::pair<std::string, std::string>> &filter_spec)
 {
     while (const MarcRecord record = authority_reader->read()) {
-        std::set<std::string>::const_iterator primary;
-        std::set<std::string>::const_iterator synonym;
+        std::vector<std::string>::const_iterator primary;
+        std::vector<std::string>::const_iterator synonym;
         unsigned int i(0);
         for (primary = primary_tags_and_subfield_codes.begin(), synonym = synonym_tags_and_subfield_codes.begin();  
             primary != primary_tags_and_subfield_codes.end();
@@ -101,7 +101,7 @@ void ExtractSynonyms(MarcReader * const authority_reader,
 
             if (FilterPasses(record, filter_spec, *primary) and
                 record.extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values) and 
-                record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values)) 
+                record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values))
                     (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','),
                                                StringUtil::Join(synonym_values, ','));
         }
@@ -118,11 +118,11 @@ inline std::string GetMapValueOrEmptyString(const std::map<std::string, std::str
 
 
 void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::string, std::string>> &synonym_maps,
-                   const std::set<std::string> &primary_tags_and_subfield_codes,
-                   const std::set<std::string> &output_tags_and_subfield_codes) 
+                   const std::vector<std::string> &primary_tags_and_subfield_codes,
+                   const std::vector<std::string> &output_tags_and_subfield_codes)
 {
-    std::set<std::string>::const_iterator primary;
-    std::set<std::string>::const_iterator output;
+    std::vector<std::string>::const_iterator primary;
+    std::vector<std::string>::const_iterator output;
     unsigned int i(0);
     bool modified_record(false);
 
@@ -132,29 +132,19 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
             ++primary, ++output, ++i) 
         {
             std::vector<std::string> primary_values;
-            std::set<std::string> synonym_values;
+            std::vector<std::string> synonym_values;
             std::vector<size_t> field_indices;
             if (record->getFieldIndices(GetTag(*primary), &field_indices) != MarcRecord::FIELD_NOT_FOUND) {
                 for (auto field_index : field_indices) {
                      primary_values.clear();
                      if (record->getSubfields(field_index).extractSubfields(GetSubfieldCodes(*primary), &primary_values)) {
                         std::string searchterm = StringUtil::Join(primary_values, ',');
-                        // First case: Look up synonyms only in one category
-                        if (i < synonym_maps.size()) {
-                            const auto &synonym_map(synonym_maps[i]);
-                            const auto synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
-                            if (not synonym.empty())
-                                synonym_values.insert(synonym);
-                        }
-                       
-                        // Second case: Look up synonyms in all categories
-                        else {
-                            for (auto &synonym_map : synonym_maps) {
-                                const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
+                        // Look up synonyms in all categories
+                        for (auto &synonym_map : synonym_maps) {
+                            const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
                                 if (not synonym.empty())
-                                   synonym_values.insert(synonym);
-                            }
-                        }
+                                   synonym_values.push_back(synonym);
+                       }
                     }
                  }
 
@@ -165,11 +155,11 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                 // Abort if field is already populated
                 std::string tag(GetTag(*output));
                 if (record->getFieldIndex(tag) != MarcRecord::FIELD_NOT_FOUND)
-                    Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
+                    Error("in ProcessRecord: Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '!');
                 std::string subfield_spec(GetSubfieldCodes(*output));
                 if (unlikely(subfield_spec.size() != 1))
-                    Error("We currently only support a single subfield and thus specifying " + subfield_spec
-                          + " as output subfield is not valid\n");
+                    Error("in ProcessRecord: We currently only support a single subfield and thus specifying " + subfield_spec
+                          + " as output subfield is not valid!");
 
                 std::string synonyms;
                 unsigned current_length(0);
@@ -186,7 +176,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                          ++synonym_it;
                     } else {
                         if (not(record->insertSubfield(tag, subfield_spec[0], synonyms, '0', indicator2 + '0')))
-                            Error("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+                            Error("in ProcessRecord: Could not insert field " + tag + " for PPN " + record->getControlNumber() + '!');
                         synonyms.clear();
                         current_length = 0;
                         ++indicator2;
@@ -196,7 +186,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                 // Write rest of data
                 if (not synonyms.empty()) {
                     if (not(record->insertSubfield(tag, subfield_spec[0], synonyms, '0', indicator2 + '0')))
-                            Error("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+                            Error("in ProcessRecord: Could not insert field " + tag + " for PPN " + record->getControlNumber() + '!');
                     modified_record = true;
                 }
             }   
@@ -208,8 +198,8 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
 
 
 void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * const marc_writer,
-                    const std::set<std::string> &primary_tags_and_subfield_codes,
-                    const std::set<std::string> &output_tags_and_subfield_codes,
+                    const std::vector<std::string> &primary_tags_and_subfield_codes,
+                    const std::vector<std::string> &output_tags_and_subfield_codes,
                     std::vector<std::map<std::string, std::string>> &synonym_maps) 
 {
     while (MarcRecord record = marc_reader->read()) {
@@ -222,17 +212,17 @@ void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * const marc_writ
 }
 
 
-bool ParseSpec(std::string spec_str, std::set<std::string> * const field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
-    std::set<std::string> raw_field_specs;
+bool ParseSpec(std::string spec_str, std::vector<std::string> * const field_specs, std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr) {
+    std::vector<std::string> raw_field_specs;
 
     if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs) == 0)) {
-        Error("Need at least one field");
+        Error("in ParseSpec: Need at least one field!");
         return false;
     }
 
     if (filter_specs == nullptr) {
         *field_specs = raw_field_specs;
-	return true;
+        return true;
     }
 
     // Iterate over all Field-specs and extract possible filters
@@ -244,7 +234,7 @@ bool ParseSpec(std::string spec_str, std::set<std::string> * const field_specs, 
             auto bracket = field_spec.find("[");
             field_spec = (bracket != std::string::npos) ? field_spec.erase(bracket, field_spec.length()) : field_spec;
         }
-        field_specs->insert(field_spec);
+        field_specs->push_back(field_spec);
     }
     return true;
 }
@@ -273,16 +263,16 @@ int main(int argc, char **argv) {
     try {
         // Determine possible mappings
         // Values in square brackets specify a positive criterion for values to be taken into account
-        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd[079v=piz]:110abcd:111abcd:130abcd:150abcd:151abcd");
-        const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd:410abcd:411abcd:430abcd:450abcd:451abcd");
+        const std::string AUTHORITY_DATA_PRIMARY_SPEC("100abcd[079v=piz]:110abcd:111abcd:130abcd:150abcd:151abcd:100a");
+        const std::string AUTHORITY_DATA_SYNONYM_SPEC("400abcd:410abcd:411abcd:430abcd:450abcd:451abcd:700a");
         const std::string TITLE_DATA_PRIMARY_SPEC("600abcd:610abcd:611abcd:630abcd:650abcd:651abcd:689abcd");
         const std::string TITLE_DATA_UNUSED_FIELDS_FOR_SYNONYMS("180a:181a:182a:183a:184a:185a:186a");
 
         // Determine fields to handle
-        std::set<std::string> primary_tags_and_subfield_codes;
-        std::set<std::string> synonym_tags_and_subfield_codes;
-        std::set<std::string> input_tags_and_subfield_codes;
-        std::set<std::string> output_tags_and_subfield_codes;
+        std::vector<std::string> primary_tags_and_subfield_codes;
+        std::vector<std::string> synonym_tags_and_subfield_codes;
+        std::vector<std::string> input_tags_and_subfield_codes;
+        std::vector<std::string> output_tags_and_subfield_codes;
 
         std::map<std::string, std::pair<std::string, std::string>> filter_specs;
 
