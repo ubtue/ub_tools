@@ -775,7 +775,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * URLs are scanned for URNs from 856$u. "urn:" will be part of the URN.
      * Furthermore 024$2 will be checked for "doi".
      */
-    public Set<String> getPersistentIdentifiers(final Record record) {
+    public Set<String> getTypesAndPersistentIdentifiers(final Record record) {
         final Set<String> result = new TreeSet<>();
 
         // Handle DOIs
@@ -798,13 +798,12 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final String rawLink = subfield_u.getData();
                 final int index = rawLink.indexOf("urn:", 0);
 
-                if(index >= 0) {
+                if (index >= 0) {
                     final String link = rawLink.substring(index);
                     result.add("URN:" + link);
                 }
             }
         }
-        
 
         return result;
     }
