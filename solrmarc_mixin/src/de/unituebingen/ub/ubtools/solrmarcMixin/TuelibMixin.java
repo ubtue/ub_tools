@@ -953,7 +953,6 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
 
     public Set<String> getDates(final Record record) {
-
         final Set<String> dates = new LinkedHashSet<>();
         final Set<String> format = getFormatIncludingElectronic(record);
 
@@ -974,7 +973,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             final DataField dataField = (DataField) _534Field;
             final Subfield cSubfield = dataField.getSubfield('c');
             if (cSubfield != null) {
-                dates.add(yyMMDateToString(record.getControlNumber(), cSubfield.getData()));
+                dates.add(cSubfield.getData());
                 return dates;
             }
         }
