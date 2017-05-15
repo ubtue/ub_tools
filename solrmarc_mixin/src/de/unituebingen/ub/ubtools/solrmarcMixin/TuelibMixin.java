@@ -8,7 +8,7 @@ import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.index.SolrIndexerShim;
-import org.solrmarc.tools.Utils;
+import org.solrmarc.tools.DataUtil;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -163,20 +163,20 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final StringBuilder completeTitle = new StringBuilder();
         if (titleA == null)
-            completeTitle.append(Utils.cleanData(titleB));
+            completeTitle.append(DataUtil.cleanData(titleB));
         else if (titleB == null)
-            completeTitle.append(Utils.cleanData(titleA));
+            completeTitle.append(DataUtil.cleanData(titleA));
         else { // Neither titleA nor titleB are null.
-            completeTitle.append(Utils.cleanData(titleA));
+            completeTitle.append(DataUtil.cleanData(titleA));
             if (!titleB.startsWith(" = "))
                 completeTitle.append(" : ");
-            completeTitle.append(Utils.cleanData(titleB));
+            completeTitle.append(DataUtil.cleanData(titleB));
         }
 
         final String titleN = (titleField.getSubfield('n') == null) ? null : titleField.getSubfield('n').getData();
         if (titleN != null) {
             completeTitle.append(' ');
-            completeTitle.append(Utils.cleanData(titleN));
+            completeTitle.append(DataUtil.cleanData(titleN));
         }
         return completeTitle.toString();
     }
@@ -230,7 +230,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (subfield_data == null)
             return null;
 
-        return Utils.cleanData(subfield_data);
+        return DataUtil.cleanData(subfield_data);
     }
 
     static private Set<String> getAllSubfieldsBut(final Record record, final String fieldSpecList,
@@ -683,7 +683,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @param record
      *            the record
      */
-    public String getBSZIndexedDate(final Record record) {
+    public String getTueLocalIndexedDate(final Record record) {
         for (final VariableField variableField : record.getVariableFields("LOK")) {
             final DataField lokfield = (DataField) variableField;
             final List<Subfield> subfields = lokfield.getSubfields();
@@ -726,12 +726,28 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
+    // Returns the contents of the first data field with tag "tag" and subfield code "subfield_code" or null if no
+    // such field and subfield were found.
+    static private String getFirstSubfieldValue(final Record record, final String tag, final char subfieldCode) {
+        if (tag == null || tag.length() != 3)
+            throw new IllegalArgumentException("bad tag (null or length != 3)!");
+
+        for (final VariableField variableField : record.getVariableFields(tag)) {
+            final DataField dataField = (DataField) variableField;
+            final Subfield subfield = dataField.getSubfield(subfieldCode);
+            if (subfield != null)
+                return subfield.getData();
+        }
+
+        return null;
+    }
+
     /**
      * @param record
      *            the record
      */
     public String getPageRange(final Record record) {
-        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936h");
+        final String field_value = getFirstSubfieldValue(record, "936", 'h');
         if (field_value == null)
             return null;
 
@@ -749,13 +765,55 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return null;
     }
+    
+    /**
+     * Returns a Set<String> of Persistent Identifiers, e.g. DOIs and URNs
+     * e.g.
+     *  DOI:<doi1>
+     *  URN:<urn1>
+     *  URN:<urn2>
+     * URLs are scanned for URNs from 856$u. "urn:" will be part of the URN.
+     * Furthermore 024$2 will be checked for "doi".
+     */
+    public Set<String> getTypesAndPersistentIdentifiers(final Record record) {
+        final Set<String> result = new TreeSet<>();
+
+        // Handle DOIs
+        for (final VariableField variableField : record.getVariableFields("024")) {
+            final DataField field = (DataField) variableField;
+            final Subfield subfield_2 = field.getSubfield('2');
+            if (subfield_2 != null && subfield_2.getData().equals("doi")) {
+                final Subfield subfield_a = field.getSubfield('a');
+                if (subfield_a != null) {
+                    result.add("DOI:" + subfield_a.getData());
+                }
+            }
+        }
+        
+        // Handle URNs
+        for (final VariableField variableField : record.getVariableFields("856")) {
+            final DataField field = (DataField) variableField;
+
+            for (final Subfield subfield_u : field.getSubfields('u')) {
+                final String rawLink = subfield_u.getData();
+                final int index = rawLink.indexOf("urn:", 0);
+
+                if (index >= 0) {
+                    final String link = rawLink.substring(index);
+                    result.add("URN:" + link);
+                }
+            }
+        }
+
+        return result;
+    }
 
     /**
      * @param record
      *            the record
      */
     public String getContainerYear(final Record record) {
-        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936j");
+        final String field_value = getFirstSubfieldValue(record, "936", 'j');
         if (field_value == null)
             return null;
 
@@ -768,7 +826,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            the record
      */
     public String getContainerVolume(final Record record) {
-        final String field_value = SolrIndexerShim.instance().getFirstFieldVal(record, "936d");
+        final String field_value = getFirstSubfieldValue(record, "936", 'd');
         if (field_value == null)
             return null;
 
@@ -1339,12 +1397,16 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
         if (result.contains("Book")) {
-            final DataField _935Field = (DataField) record.getVariableField("935");
-            if (_935Field != null) {
-                final Subfield cSubfield = _935Field.getSubfield('c');
-                if (cSubfield != null && cSubfield.getData().equals("sodr")) {
-                    result.remove("Book");
-                    result.add("Article");
+            final List<VariableField> _935Fields = record.getVariableFields("935");
+            for (final VariableField variableField : _935Fields) {
+                final DataField _935Field = (DataField) variableField;
+                if (_935Field != null) {
+                    final Subfield cSubfield = _935Field.getSubfield('c');
+                    if (cSubfield != null && cSubfield.getData().equals("sodr")) {
+                        result.remove("Book");
+                        result.add("Article");
+                        break;
+                    }
                 }
             }
         }
@@ -1570,7 +1632,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // time, e.g. works with hindu time
         final String DIFFERENT_CALCULATION_OF_TIME_REGEX = ".*?\\[(.*?)\\=\\s*(\\d+)\\s*\\].*";
         Matcher differentCalcOfTimeMatcher = Pattern.compile(DIFFERENT_CALCULATION_OF_TIME_REGEX).matcher(dateString);
-        return differentCalcOfTimeMatcher.find() ? differentCalcOfTimeMatcher.group(2) : Utils.cleanDate(dateString);
+        return differentCalcOfTimeMatcher.find() ? differentCalcOfTimeMatcher.group(2) : DataUtil.cleanDate(dateString);
 
     }
 
@@ -1592,19 +1654,20 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public Set<String> getRecordSelectors(final Record record) {
-        final Set<String> result = new HashSet<String>();
+        final Set<String> result = new TreeSet<String>();
 
         for (final VariableField variableField : record.getVariableFields("LOK")) {
             final DataField lokfield = (DataField) variableField;
-            final Subfield subfield0 = lokfield.getSubfield('0');
-            if (subfield0 == null || !subfield0.getData().equals("935  ")) {
+            final Subfield subfield_0 = lokfield.getSubfield('0');
+            if (subfield_0 == null || !subfield_0.getData().equals("935  ")) {
                 continue;
             }
-            final Subfield subfieldA = lokfield.getSubfield('a');
-            if (subfieldA == null || subfieldA.getData().length() <= 1) {
-                continue;
+            
+            for (final Subfield subfield_a : lokfield.getSubfields('a')) {
+                if (!subfield_a.getData().isEmpty()) {
+                    result.add(subfield_a.getData());
+                }
             }
-            result.add(subfieldA.getData());
         }
 
         return result;

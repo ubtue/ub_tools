@@ -52,12 +52,12 @@ void Usage() {
 }
 
 
-std::string GetTag(const std::string &tag_and_subfields_spec) {
+inline std::string GetTag(const std::string &tag_and_subfields_spec) {
     return tag_and_subfields_spec.substr(0, 3);
 }
 
 
-std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
+inline std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
     return tag_and_subfields_spec.substr(3);
 }
 
@@ -71,7 +71,7 @@ bool FilterPasses(const MarcRecord &record, const std::map<std::string, std::pai
       // We have field_spec in key and rule to match in value
       std::string subfield_codes(GetSubfieldCodes(rule.first));
       if (subfield_codes.length() != 1)
-         Error("Invalid subfield specification "  + subfield_codes + " for filter");
+         Error("in FilterPasses: Invalid subfield specification "  + subfield_codes + " for filter!");
 
       std::string subfield_value;
       if ((subfield_value = record.extractFirstSubfield(GetTag(rule.first), subfield_codes.c_str()[0])).empty())
@@ -155,11 +155,11 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                 // Abort if field is already populated
                 std::string tag(GetTag(*output));
                 if (record->getFieldIndex(tag) != MarcRecord::FIELD_NOT_FOUND)
-                    Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
+                    Error("in ProcessRecord: Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '!');
                 std::string subfield_spec(GetSubfieldCodes(*output));
                 if (unlikely(subfield_spec.size() != 1))
-                    Error("We currently only support a single subfield and thus specifying " + subfield_spec
-                          + " as output subfield is not valid\n");
+                    Error("in ProcessRecord: We currently only support a single subfield and thus specifying " + subfield_spec
+                          + " as output subfield is not valid!");
 
                 std::string synonyms;
                 unsigned current_length(0);
@@ -176,7 +176,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                          ++synonym_it;
                     } else {
                         if (not(record->insertSubfield(tag, subfield_spec[0], synonyms, '0', indicator2 + '0')))
-                            Error("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+                            Error("in ProcessRecord: Could not insert field " + tag + " for PPN " + record->getControlNumber() + '!');
                         synonyms.clear();
                         current_length = 0;
                         ++indicator2;
@@ -186,7 +186,7 @@ void ProcessRecord(MarcRecord * const record, const std::vector<std::map<std::st
                 // Write rest of data
                 if (not synonyms.empty()) {
                     if (not(record->insertSubfield(tag, subfield_spec[0], synonyms, '0', indicator2 + '0')))
-                            Error("Could not insert field " + tag + " for PPN " + record->getControlNumber() + '\n');
+                            Error("in ProcessRecord: Could not insert field " + tag + " for PPN " + record->getControlNumber() + '!');
                     modified_record = true;
                 }
             }   
@@ -216,13 +216,13 @@ bool ParseSpec(std::string spec_str, std::vector<std::string> * const field_spec
     std::vector<std::string> raw_field_specs;
 
     if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs) == 0)) {
-        Error("Need at least one field");
+        Error("in ParseSpec: Need at least one field!");
         return false;
     }
 
     if (filter_specs == nullptr) {
         *field_specs = raw_field_specs;
-	return true;
+        return true;
     }
 
     // Iterate over all Field-specs and extract possible filters

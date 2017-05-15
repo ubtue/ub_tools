@@ -1110,7 +1110,11 @@ bool ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer, st
             const Subfields subfields1(record->getSubfields(_852_index));
             const std::string not_available_subfield(subfields1.getFirstSubfieldValue('z'));
             if (not_available_subfield == "Kein Bestand am IfK; Nachweis für KrimDok")
-                continue;
+                goto final_processing;
+
+            // Only ordered but not actually available?
+            if (subfields1.getFirstSubfieldValue('m') == "e")
+                goto final_processing;
 
             const std::string isil_subfield(subfields1.getFirstSubfieldValue('a'));
             if (isil_subfield != "DE-21" and isil_subfield != "DE-21-110")
@@ -1162,6 +1166,7 @@ bool ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer, st
         }
     }
 
+final_processing:
     if (modified_record)
         ++modified_record_count;
     else if (ElectronicArticleIsAvailableInTuebingen(*record)) {
