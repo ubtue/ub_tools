@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016, 2017 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -59,7 +59,7 @@ void Usage() {
 }
 
 
-inline bool IsSynonym(const std::string &status) { return status == "replaced_synonym" or status == "new_synonym"; }
+inline bool IsSynonym(const std::string &status) { return status == "replaced_synonym" or status == "new_synonym" or status == "derived_synonym"; }
 
 
 void ExecSqlOrDie(const std::string &select_statement, DbConnection * const connection) {
@@ -77,9 +77,23 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
         DbResultSet result_set(db_connection->getLastResultSet());
         std::vector<OneTranslation> translations;
         while (const DbRow row = result_set.getNextRow()) {
-            // We are not interested in synonym fields
-            if (not IsSynonym(row["status"]))
-                translations.emplace_back(row["translation"], row["language_code"], row["origin"], row["status"]);
+            // We are not interested in synonym fields as we will directly derive synonyms from the translation field
+            // Furthermore we insert keywords where the german translation is the reference and needs no further inserting
+            if (not IsSynonym(row["status"]) and row["language_code"] != "ger") {
+                std::string translation(row["translation"]);
+                // Handle '#'-separated synonyms appropriately
+                if (translation.find("#") == std::string::npos)
+                    translations.emplace_back(translation, row["language_code"], row["origin"], row["status"]);
+                else {
+                    std::vector<std::string> primary_and_synonyms;
+                    StringUtil::SplitThenTrim(translation, "#", " \t\n", &primary_and_synonyms); 
+		    // Use the first translation as non-synonmym
+                    translations.emplace_back(primary_and_synonyms[0], row["language_code"], row["origin"], row["status"]);
+                    // Add further synonyms as derived synonyms
+                    for (auto it(std::next(primary_and_synonyms.cbegin())); it != primary_and_synonyms.cend(); ++it)
+                        translations.emplace_back(*it, row["language_code"], row["origin"], "derived_synonym");
+                }
+            }
         }
         all_translations->insert(std::make_pair(ppn, translations));
     }
@@ -87,11 +101,11 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
 
 
 std::string MapLanguageCode(const std::string lang_code) {
-    if (lang_code == "deu")
+    if (lang_code == "ger")
         return "de";
     if (lang_code == "eng")
         return "en";
-    if (lang_code == "fra")
+    if (lang_code == "fre")
         return "fr";
     if (lang_code == "dut")
         return "nl";
@@ -135,11 +149,18 @@ char DetermineNextFreeIndicator1(MarcRecord * const record, std::vector<size_t> 
 }
 
 
-size_t GetFieldIndexForExistingTranslation(const MarcRecord *record, const std::vector<size_t> &field_indices, const std::string &language_code) {
+size_t GetFieldIndexForExistingTranslation(const MarcRecord *record, const std::vector<size_t> &field_indices, 
+                                           const std::string &language_code, const std::string &status) {
+    // We can have several either previously existing or already inserted synonyms, so don't replace synonyms
+    if (IsSynonym(status))
+        return MarcRecord::FIELD_NOT_FOUND;
+
     for (auto field_index : field_indices) {
         Subfields subfields_present(record->getSubfields(field_index));
-        if (subfields_present.hasSubfieldWithValue('2', "IxTheo") and subfields_present.hasSubfieldWithValue('9', "L:" + MapLanguageCode(language_code)))
-            return field_index;
+        if (subfields_present.hasSubfieldWithValue('2', "IxTheo") and
+            subfields_present.hasSubfieldWithValue('9', "L:" + MapLanguageCode(language_code)) and
+            subfields_present.hasSubfieldWithValue('9', "Z:AF"))
+                return field_index;
     }
     return MarcRecord::FIELD_NOT_FOUND;
 }
@@ -151,21 +172,20 @@ void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::v
 
     if (one_translation != all_translations.cend()) {
         // We only insert/replace IxTheo-Translations
-        // For MACS Translations we insert an additional field
         for (auto &one_lang_translation : one_translation->second) {
             std::string term(std::get<0>(one_lang_translation));
             std::string language_code(std::get<1>(one_lang_translation));
             std::string origin(std::get<2>(one_lang_translation));
             std::string status(std::get<3>(one_lang_translation));
 
-            // Skip synonyms, german terms and unreliable translations
-            if (StringUtil::EndsWith(status, "synonym") or status == "unreliable" or language_code == "deu")
+            // Skip non-derived synonyms, german terms and unreliable translations
+            if ((status != "derived_synonym" and StringUtil::EndsWith(status, "synonym")) or status == "unreliable" or language_code == "ger")
                 continue;
 
             // Don't touch MACS translations, but find and potentially replace IxTheo translations
             std::vector<size_t> field_indices;
             if (record->getFieldIndices("750", &field_indices) > 0) {
-                const size_t field_index(GetFieldIndexForExistingTranslation(record, field_indices, language_code));
+                const size_t field_index(GetFieldIndexForExistingTranslation(record, field_indices, language_code, status));
                 if (field_index != MarcRecord::FIELD_NOT_FOUND)
                     record->deleteField(field_index);
             }
@@ -208,9 +228,9 @@ int main(int argc, char **argv) {
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
 
         const IniFile ini_file(CONF_FILE_PATH);
-        const std::string sql_database(ini_file.getString("", "sql_database"));
-        const std::string sql_username(ini_file.getString("", "sql_username"));
-        const std::string sql_password(ini_file.getString("", "sql_password"));
+        const std::string sql_database(ini_file.getString("Database", "sql_database"));
+        const std::string sql_username(ini_file.getString("Database", "sql_username"));
+        const std::string sql_password(ini_file.getString("Database", "sql_password"));
         DbConnection db_connection(sql_database, sql_username, sql_password);
 
         std::map<std::string, std::vector<OneTranslation> > all_translations;
