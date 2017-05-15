@@ -931,6 +931,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         return validFourDigitYearMatcher.matches() ? fourDigitYear : "";
     }
 
+    private String yyMMDateToString(final String controlNumber, final String yyMMDate) {
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+        int yearTwoDigit = currentYear - 2000;  // If extraction fails later we fall back to current year
+        try {
+            yearTwoDigit = Integer.parseInt(yyMMDate.substring(0, 1));
+        }
+        catch (NumberFormatException e) {
+            System.err.println("in yyMMDateToString: expected date in YYMM format, found \"" + yyMMDate
+                               + "\" instead! (Control number was " + controlNumber + ")");
+        }
+        return Integer.toString(yearTwoDigit < (currentYear - 2000) ? (2000 + yearTwoDigit) : (1900 + yearTwoDigit));
+    }
+    
     /**
      * Get all available dates from the record.
      *
@@ -944,28 +957,29 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Set<String> dates = new LinkedHashSet<>();
         final Set<String> format = getFormatIncludingElectronic(record);
 
-        // Case 0 [Website]
+        // Case 1 [Website]
         if (format.contains("Website")) {
             final ControlField _008_field = (ControlField) record.getVariableField("008");
             if (_008_field == null) {
                 System.err.println("getDates [No 008 Field for Website " + record.getControlNumber() + "]");
                 return dates;
             }
-            final String _008FieldContents = _008_field.getData();
-            int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-            int yearTwoDigit = currentYear - 2000;  // If extraction fails later we fall back to current year
-            try {
-                yearTwoDigit = Integer.parseInt(_008FieldContents.substring(0, 1));
-            }
-            catch (NumberFormatException e) {
-                System.err.println("get Dates [Invalid year for Website " + record.getControlNumber());
-            }
-            final int year = yearTwoDigit < (currentYear - 2000) ? (2000 + yearTwoDigit) : (1900 + yearTwoDigit);
-            dates.add(Integer.toString(year));
+            dates.add(yyMMDateToString(record.getControlNumber(), _008_field.getData()));
             return dates;
         }
 
-        // Case 1 [Article or Review]
+        // Case 2 [Reproduction] (Reproductions have the publication date of the original work in 534$c.)
+        final VariableField _534Field = record.getVariableField("534");
+        if (_534Field != null) {
+            final DataField dataField = (DataField) _534Field;
+            final Subfield cSubfield = dataField.getSubfield('c');
+            if (cSubfield != null) {
+                dates.add(yyMMDateToString(record.getControlNumber(), cSubfield.getData()));
+                return dates;
+            }
+        }
+        
+        // Case 3 [Article or Review]
         // Match also the case of publication date transgressing one year
         // (Format YYYY/YY for older and Format YYYY/YYYY) for
         // newer entries
@@ -988,7 +1002,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             return dates;
         }
 
-        // Case 2:
+        // Case 4:
         // Test whether we have a 190j field
         // This was generated in the pipeline for superior works that do not contain a reasonable 008(7,10) entry
         final List<VariableField> _190Fields = record.getVariableFields("190");
@@ -1005,7 +1019,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
 
-        // Case 3:
+        // Case 5:
         // Use the sort date given in the 008-Field
         final ControlField _008_field = (ControlField) record.getVariableField("008");
         if (_008_field == null) {
