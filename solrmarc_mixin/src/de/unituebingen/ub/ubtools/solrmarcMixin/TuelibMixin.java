@@ -683,7 +683,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @param record
      *            the record
      */
-    public String getBSZIndexedDate(final Record record) {
+    public String getTueLocalIndexedDate(final Record record) {
         for (final VariableField variableField : record.getVariableFields("LOK")) {
             final DataField lokfield = (DataField) variableField;
             final List<Subfield> subfields = lokfield.getSubfields();
