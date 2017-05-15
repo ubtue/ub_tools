@@ -452,7 +452,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getContainerIdsWithTitles(final Record record) {
         final Set<String> containerIdsAndTitles = new TreeSet<>();
 
-        for (final String tag : new String[] { "800", "810", "830", "773" }) {
+        for (final String tag : new String[] { "800", "810", "830", "773", "776" }) {
             for (final VariableField variableField : record.getVariableFields(tag)) {
                 final DataField field = (DataField) variableField;
                 final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't', 'a');
