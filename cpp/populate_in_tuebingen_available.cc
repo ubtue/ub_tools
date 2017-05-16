@@ -1238,7 +1238,7 @@ int main(int argc, char **argv) {
 
     try {
         std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[argc == 3 ? 1 : 2]));
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[argc == 3 ? 2 : 3], MarcWriter::BINARY));
+        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[argc == 3 ? 2 : 3]));
         PopulateTheInTuebingenAvailableField(verbose, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
