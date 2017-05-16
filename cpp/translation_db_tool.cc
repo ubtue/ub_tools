@@ -184,7 +184,7 @@ void UpdateIntoKeywordTranslations(DbConnection * const connection, const std::s
                  + connection->escapeString(text) 
                  + "\", translator=\"" + translator
                  + "\" WHERE ppn=\"" + ppn + "\" AND gnd_code=\"" + gnd_code
-                 + "\" AND language_code=\"" + language_code + "\";", connection);
+                 + "\" AND language_code=\"" + language_code + "\"" + "AND status != \"unreliable\";", connection);
 }
 
 
