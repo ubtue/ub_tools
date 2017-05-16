@@ -75,6 +75,8 @@
                    alert("Writing to database failed");
           }
        }); // end ajax
+       // Make sure that translator_exists will be correctly present for subsequent calls   
+       $(object).attr("translator_exists", "1");
     }
     </script>
 
