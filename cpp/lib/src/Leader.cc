@@ -2,7 +2,7 @@
  *  \brief  Implementation of the MARC-21 Leader class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -42,7 +42,8 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader
     if (leader_string.size() != LEADER_LENGTH) {
         if (err_msg != nullptr)
             *err_msg = "Leader length must be " + std::to_string(LEADER_LENGTH) +
-                ", found " + std::to_string(leader_string.size()) + "!";
+                       ", found " + std::to_string(leader_string.size()) + "! (Leader bytes are "
+                       + StringUtil:: CStyleEscape(leader_string) + ")";
         return false;
     }
 
@@ -75,7 +76,8 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader
     // Check subfield code length:
     if (leader_string[11] != '2') {
         if (err_msg != nullptr)
-            *err_msg = "Invalid subfield code length!";
+            *err_msg = "Invalid subfield code length! (Leader bytes are " + StringUtil:: CStyleEscape(leader_string)
+                       + ")";
         return false;
     }
 
