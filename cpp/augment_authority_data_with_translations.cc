@@ -59,7 +59,7 @@ void Usage() {
 }
 
 
-inline bool IsSynonym(const std::string &status) { return status == "replaced_synonym" or status == "new_synonym" or status == "derived_synonym"; }
+inline bool IsReliableSynonym(const std::string &status) { return status == "replaced_synonym" or status == "new_synonym" or status == "derived_synonym"; }
 
 
 void ExecSqlOrDie(const std::string &select_statement, DbConnection * const connection) {
@@ -79,7 +79,7 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
         while (const DbRow row = result_set.getNextRow()) {
             // We are not interested in synonym fields as we will directly derive synonyms from the translation field
             // Furthermore we insert keywords where the german translation is the reference and needs no further inserting
-            if (not IsSynonym(row["status"]) and row["language_code"] != "ger") {
+            if (not IsReliableSynonym(row["status"]) and row["language_code"] != "ger") {
                 std::string translation(row["translation"]);
                 // Handle '#'-separated synonyms appropriately
                 if (translation.find("#") == std::string::npos)
@@ -90,8 +90,8 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
 		    // Use the first translation as non-synonmym
                     translations.emplace_back(primary_and_synonyms[0], row["language_code"], row["origin"], row["status"]);
                     // Add further synonyms as derived synonyms
-                    for (auto it(std::next(primary_and_synonyms.cbegin())); it != primary_and_synonyms.cend(); ++it)
-                        translations.emplace_back(*it, row["language_code"], row["origin"], "derived_synonym");
+                    for (auto synonyms(std::next(primary_and_synonyms.cbegin())); synonyms != primary_and_synonyms.cend(); ++synonyms)
+                        translations.emplace_back(*synonyms, row["language_code"], row["origin"], "derived_synonym");
                 }
             }
         }
@@ -125,7 +125,7 @@ void InsertTranslation(MarcRecord * const record, const char indicator1, const c
     Subfields subfields(indicator1, indicator2);
     subfields.addSubfield('a', term);
     subfields.addSubfield('9', "L:" + language_code);
-    subfields.addSubfield('9', "Z:" + std::string(IsSynonym(status) ? "VW" : "AF"));
+    subfields.addSubfield('9', "Z:" + std::string(IsReliableSynonym(status) ? "VW" : "AF"));
     subfields.addSubfield('2', "IxTheo");
     record->insertField("750", subfields);
 }
@@ -152,7 +152,7 @@ char DetermineNextFreeIndicator1(MarcRecord * const record, std::vector<size_t> 
 size_t GetFieldIndexForExistingTranslation(const MarcRecord *record, const std::vector<size_t> &field_indices, 
                                            const std::string &language_code, const std::string &status) {
     // We can have several either previously existing or already inserted synonyms, so don't replace synonyms
-    if (IsSynonym(status))
+    if (IsReliableSynonym(status))
         return MarcRecord::FIELD_NOT_FOUND;
 
     for (auto field_index : field_indices) {
@@ -172,7 +172,7 @@ void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::v
 
     if (one_translation != all_translations.cend()) {
         // We only insert/replace IxTheo-Translations
-        for (auto &one_lang_translation : one_translation->second) {
+        for (const auto &one_lang_translation : one_translation->second) {
             std::string term(std::get<0>(one_lang_translation));
             std::string language_code(std::get<1>(one_lang_translation));
             std::string origin(std::get<2>(one_lang_translation));
