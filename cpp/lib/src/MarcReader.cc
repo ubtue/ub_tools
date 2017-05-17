@@ -287,13 +287,17 @@ MarcRecord XmlMarcReader::read() {
 
 
 void XmlMarcReader::rewind() {
+    // We can't handle FIFO's here:
+    struct stat stat_buf;
+    if (unlikely(fstat(input_->getFileDescriptor(), &stat_buf) and S_ISFIFO(stat_buf.st_mode)))
+        Error("in XmlMarcReader::rewind: can't rewind a FIFO!");
+
+    input_->rewind();
+
     delete xml_parser_;
     xml_parser_ = new SimpleXmlParser(input_);
 
-    // If we use FIFO's we may not use tell but have to skip over the start of the XML document anyway:
-    struct stat stat_buf;
-    if ((not fstat(input_->getFileDescriptor(), &stat_buf) and S_ISFIFO(stat_buf.st_mode)) or (input_->tell() == 0))
-        SkipOverStartOfDocument(xml_parser_);
+    SkipOverStartOfDocument(xml_parser_);
 }
 
 
