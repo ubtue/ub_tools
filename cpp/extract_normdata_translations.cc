@@ -67,8 +67,8 @@ void Usage() {
 
 // We would like to determine the translation, the language and the the origin (ram, lcsh, ixtheo)
 void ExtractOneTranslation(const Subfields &all_subfields, const std::string &translation_subfield_codes,
-                           std::pair<std::string, std::string> * const language_translation_pair) {
-
+                           std::pair<std::string, std::string> * const language_translation_pair)
+{
     language_translation_pair->first = "";
     language_translation_pair->second = "";
 
@@ -78,12 +78,11 @@ void ExtractOneTranslation(const Subfields &all_subfields, const std::string &tr
     std::vector<std::string> translation_vector;
     all_subfields.extractSubfields(translation_subfield_codes, &translation_vector);
 
-    std::vector<std::string> language_and_type;
-    all_subfields.extractSubfields("9", &language_and_type);
+    const std::string language_and_type(all_subfields.getFirstSubfieldValue('9'));
 
     // Skip entry if we do not have IxTheo or MACS Mapping
     if (StringUtil::Join(translation_origin, ' ') != "IxTheo"
-        and (not StringUtil::StartsWith(StringUtil::Join(language_and_type, ' '), "v:MACS-Mapping"))) {
+        and (not StringUtil::StartsWith(language_and_type, "v:MACS-Mapping"))) {
             return;
         }
 
@@ -94,19 +93,16 @@ void ExtractOneTranslation(const Subfields &all_subfields, const std::string &tr
     const std::string translation_type_prefix("Z:");
 
     // Try to find the correct field and extract the information
-
-    for (auto lang_and_type_it(language_and_type.cbegin()); lang_and_type_it != language_and_type.cend(); ++lang_and_type_it) {
-         auto lang_it(std::mismatch(language_prefix.cbegin(), language_prefix.cend(), lang_and_type_it->cbegin()));
-         auto type_it(std::mismatch(translation_type_prefix.cbegin(), translation_type_prefix.cend(), lang_and_type_it->cbegin()));
-         // Check if we matched the prefix
-         if (lang_it.first == language_prefix.cend())
-             language = std::string(lang_it.second, lang_and_type_it->cend());
-         else if (type_it.first == translation_type_prefix.cend()) {
-             translation_type = std::string(type_it.second, lang_and_type_it->cend());
-             // We need a single translation so don't return synonyms
-             if (translation_type == "VW")
-                 return;
-        }
+    auto lang(std::mismatch(language_prefix.cbegin(), language_prefix.cend(), language_and_type.cbegin()));
+    auto type(std::mismatch(translation_type_prefix.cbegin(), translation_type_prefix.cend(), language_and_type.cbegin()));
+    // Check if we matched the prefix
+    if (lang.first == language_prefix.cend())
+        language = std::string(lang.second, language_and_type.cend());
+    else if (type.first == translation_type_prefix.cend()) {
+        translation_type = std::string(type.second, language_and_type.cend());
+        // We need a single translation so don't return synonyms
+        if (translation_type == "VW")
+            return;
     }
 
     if (translation_origin.size() == 1) {
