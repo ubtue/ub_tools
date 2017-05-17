@@ -124,7 +124,7 @@ std::string MapLanguageCode(const std::string lang_code) {
 void InsertTranslation(MarcRecord * const record, const char indicator1, const char indicator2, const std::string &term, const std::string &language_code, const std::string &status) {
     Subfields subfields(indicator1, indicator2);
     subfields.addSubfield('a', term);
-    subfields.addSubfield('9', "L:" + MapLanguageCode(language_code));
+    subfields.addSubfield('9', "L:" + language_code);
     subfields.addSubfield('9', "Z:" + std::string(IsSynonym(status) ? "VW" : "AF"));
     subfields.addSubfield('2', "IxTheo");
     record->insertField("750", subfields);
