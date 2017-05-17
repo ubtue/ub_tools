@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016, 2017 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -55,9 +55,9 @@
 
 
 // Languages to handle
-const unsigned int NUMBER_OF_LANGUAGES(2);
-const std::vector<std::string> languages_to_create{ "en", "fr" };
-enum Languages { EN, FR };
+const unsigned int NUMBER_OF_LANGUAGES(6);
+const std::vector<std::string> languages_to_create{ "en", "fr", "es", "it", "hans", "hant" };
+enum Languages { EN, FR, ES, IT, HANS, HANT };
 
 
 void Usage() {
@@ -65,30 +65,68 @@ void Usage() {
     std::exit(EXIT_FAILURE);
 }
 
-
-void AugmentIxTheoTagWithLanguage(const MarcRecord &record, const std::string &tag,
-                                  std::vector<std::string> * const translations)
+// We would like to determine the translation, the language and the the origin (ram, lcsh, ixtheo)
+void ExtractOneTranslation(const Subfields &all_subfields, const std::string &translation_subfield_codes,
+                           std::pair<std::string, std::string> * const language_translation_pair)
 {
-    auto ixtheo_pos(std::find(translations->begin(), translations->end(), "IxTheo"));
-    if (ixtheo_pos != translations->end()) {
-        std::vector<std::string> ixtheo_lang_codes;
-        record.extractSubfields(tag, "9", &ixtheo_lang_codes);
-        bool already_found_ixtheo_translation(false);
-        for (const auto &lang_code : ixtheo_lang_codes) {
-            if (lang_code[0] != 'L')
-                continue;
-            if (already_found_ixtheo_translation)
-                continue;
-            if (lang_code.find("eng") != std::string::npos and *ixtheo_pos != "IxTheo_eng") {
-                *ixtheo_pos += + "_eng";
-                already_found_ixtheo_translation = true;
-            } else if (lang_code.find("fra") != std::string::npos and *ixtheo_pos != "IxTheo_fra") {
-                *ixtheo_pos += "_fra";
-                already_found_ixtheo_translation = true;
-            } else 
-                Warning("Unsupported language code \"" + lang_code + "\" for PPN " + record.getControlNumber());
+    language_translation_pair->first = "";
+    language_translation_pair->second = "";
+
+    std::vector<std::string> translation_origin;
+    all_subfields.extractSubfields("2", &translation_origin);
+
+    std::vector<std::string> translation_vector;
+    all_subfields.extractSubfields(translation_subfield_codes, &translation_vector);
+
+    const std::string language_and_type(all_subfields.getFirstSubfieldValue('9'));
+
+    // Skip entry if we do not have IxTheo or MACS Mapping
+    if (StringUtil::Join(translation_origin, ' ') != "IxTheo"
+        and (not StringUtil::StartsWith(language_and_type, "v:MACS-Mapping"))) {
+            return;
         }
+
+    std::string language;
+    std::string translation_type;
+
+    const std::string language_prefix("L:");
+    const std::string translation_type_prefix("Z:");
+
+    // Try to find the correct field and extract the information
+    auto lang(std::mismatch(language_prefix.cbegin(), language_prefix.cend(), language_and_type.cbegin()));
+    auto type(std::mismatch(translation_type_prefix.cbegin(), translation_type_prefix.cend(), language_and_type.cbegin()));
+    // Check if we matched the prefix
+    if (lang.first == language_prefix.cend())
+        language = std::string(lang.second, language_and_type.cend());
+    else if (type.first == translation_type_prefix.cend()) {
+        translation_type = std::string(type.second, language_and_type.cend());
+        // We need a single translation so don't return synonyms
+        if (translation_type == "VW")
+            return;
     }
+
+    if (translation_origin.size() == 1) {
+        language_translation_pair->first = (translation_origin[0] == "IxTheo") ? translation_origin[0] + "_" + language : translation_origin[0];
+        language_translation_pair->second = StringUtil::Join(translation_vector, ' ');
+    } else
+        Error("Incorrect translation origin translation " + StringUtil::Join(translation_vector, ' '));
+}
+
+
+void RemoveMACSIfIxTheoPresent(std::vector<std::string> * const translations) {
+
+     if (std::find(translations->begin(), translations->end(), "IxTheo_eng") != translations->end()) {
+         auto lcsh_it(std::find(translations->begin(), translations->end(), "lcsh"));
+         if (lcsh_it != translations->end())
+             translations->erase(lcsh_it, lcsh_it + 2);
+
+     }
+
+     if (std::find(translations->begin(), translations->end(), "IxTheo_fre") != translations->end()) {
+         auto ram_it(std::find(translations->begin(), translations->end(), "ram"));
+         if (ram_it != translations->end())
+             translations->erase(ram_it, ram_it + 2);
+     }
 }
 
 
@@ -96,11 +134,11 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
                          const std::string &translation_field_spec,
                          std::map<std::string, std::string> term_to_translation_maps[])
 {
-    std::set<std::string> german_tags_and_subfield_codes;
+    std::vector<std::string> german_tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(german_term_field_spec, ':', &german_tags_and_subfield_codes) < 1))
         Error("ExtractTranslations: Need at least one translation field");
 
-    std::set<std::string> translation_tags_and_subfield_codes;
+    std::vector<std::string> translation_tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(translation_field_spec, ':', &translation_tags_and_subfield_codes) < 1))
         Error("ExtractTranslations: Need at least one translation field");
     
@@ -113,34 +151,50 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
 
         for (auto german_and_translations_it(std::make_pair(german_tags_and_subfield_codes.cbegin(),
                                                             translation_tags_and_subfield_codes.cbegin()));
-             german_and_translations_it.first != german_tags_and_subfield_codes.cend();
-             ++german_and_translations_it.first, ++german_and_translations_it.second) 
+            german_and_translations_it.first != german_tags_and_subfield_codes.cend();
+            ++german_and_translations_it.first, ++german_and_translations_it.second)
         {
-             const std::string german_tag((*german_and_translations_it.first).substr(0, 3));
-             const std::string german_subfields((*german_and_translations_it.first).substr(3));
-             const std::string translation_tag((*german_and_translations_it.second).substr(0, 3));
-             const std::string translation_subfields((*german_and_translations_it.second).substr(3));
+            const std::string german_tag((*german_and_translations_it.first).substr(0, 3));
+            const std::string german_subfields((*german_and_translations_it.first).substr(3));
+            const std::string translation_tag((*german_and_translations_it.second).substr(0, 3));
+            const std::string translation_subfields((*german_and_translations_it.second).substr(3));
 
             auto german_subfield_code_iterator(german_subfields.begin());
             auto translation_subfield_code_iterator(translation_subfields.begin());
-             for (/* empty */; german_subfield_code_iterator != german_subfields.cend();
+            for (/* empty */; german_subfield_code_iterator != german_subfields.cend();
                              ++german_subfield_code_iterator, ++translation_subfield_code_iterator)
-             {
-                  std::vector<std::string> german_terms;
-                  record.extractSubfield(german_tag, *german_subfield_code_iterator, &german_terms);
+            {
+                 std::vector<std::string> german_terms;
+                 record.extractSubfield(german_tag, *german_subfield_code_iterator, &german_terms);
                  if (german_terms.empty())
                      continue;
 
-                 // Always extract subfield 2 where "IxTheo" is located
-                 std::vector<std::string> translations;
-                 record.extractSubfields(translation_tag, std::string(1, *translation_subfield_code_iterator) + "2",
-                                         &translations);
-                 if (translations.empty())
-                     continue;
+                std::vector<std::string> translations;
+                std::vector<size_t> translation_field_indices;
+                record.getFieldIndices(translation_tag, &translation_field_indices);
 
-                 // For IxTheo-Translations add the language code in the same field
-                 AugmentIxTheoTagWithLanguage(record, translation_tag, &translations);
-                 all_translations.insert(std::make_pair(StringUtil::Join(german_terms, ' '), translations));
+                for (auto translation_field_index(translation_field_indices.cbegin());
+                     translation_field_index != translation_field_indices.cend();
+                     ++translation_field_index)
+                {
+                         Subfields all_subfields(record.getSubfields(*translation_field_index));
+                         // Extract the translation in parameter given and subfields 2 and 9 where translation origin and translation type information
+                         // is given
+                         const std::string translation_subfield_codes(std::string(1, *translation_subfield_code_iterator));
+                         std::pair<std::string, std::string> one_translation_and_metadata;
+                         ExtractOneTranslation(all_subfields, translation_subfield_codes, &one_translation_and_metadata);
+                         if (not (one_translation_and_metadata.first.empty() or one_translation_and_metadata.second.empty())) {
+                            translations.push_back(one_translation_and_metadata.first);
+                            translations.push_back(one_translation_and_metadata.second);
+                         }
+                }
+
+                if (translations.empty())
+                    continue;
+                
+                // Make sure we use the more specific IxTheo translations if available
+                RemoveMACSIfIxTheoPresent(&translations);
+                all_translations.insert(std::make_pair(StringUtil::Join(german_terms, ' '), translations));
             }
         }   
  
@@ -148,22 +202,24 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
              ++all_translations_it)
         {
             const std::string german_term(all_translations_it->first);
-
             for (auto translation_vector_it(all_translations_it->second.begin());
                  translation_vector_it != all_translations_it->second.end();
                  ++translation_vector_it)
             {
-                // FIXME: Die Reihenfolge scheint teilweise nicht zu stimmen. Die Schlüsselwörter können
-                // FIXME: auch in falscher Reihenfolge kommen. Siehe PPN 208836667:
-                // FIXME: Abakus: {Abacus, lcsh, Abaques (mathématiques), ram}
-                // FIXME: - Obenland, 18.09.2016
                 if (translation_vector_it + 1 == all_translations_it->second.end())
                     break;
-
                 if (*translation_vector_it == "IxTheo_eng")
                     term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "IxTheo_fra")
+                else if (*translation_vector_it == "IxTheo_fre")
                     term_to_translation_maps[FR].emplace(german_term, *(++translation_vector_it));
+                else if (*translation_vector_it == "IxTheo_spa")
+                    term_to_translation_maps[ES].emplace(german_term, *(++translation_vector_it));
+                else if (*translation_vector_it == "IxTheo_ita")
+                    term_to_translation_maps[IT].emplace(german_term, *(++translation_vector_it));
+                else if (*translation_vector_it == "IxTheo_hans")
+                    term_to_translation_maps[HANS].emplace(german_term, *(++translation_vector_it));
+                else if (*translation_vector_it == "IxTheo_hant")
+                    term_to_translation_maps[HANT].emplace(german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "lcsh")
                     term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "ram")
@@ -172,8 +228,13 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
         }
         ++count;
     }
-    std::cerr << "Found EN: " << term_to_translation_maps[EN].size() << ", FR: "
-              << term_to_translation_maps[FR].size() << " in " << count << " records.\n";
+    std::cerr << "Found EN: " << term_to_translation_maps[EN].size()
+              << ", FR: " << term_to_translation_maps[FR].size()
+              << ", ES: " << term_to_translation_maps[ES].size()
+              << ", IT: " << term_to_translation_maps[IT].size()
+              << ", HANS: " << term_to_translation_maps[HANS].size()
+              << ", HANT: " << term_to_translation_maps[HANT].size()
+              << " in " << count << " records.\n";
 }
 
 
@@ -227,6 +288,18 @@ int main(int argc, char **argv) {
 
         for (const auto &line : term_to_translation_maps[FR])
             *(lang_files[FR]) << line.first << '|' << line.second << '\n';
+
+        for (const auto &line : term_to_translation_maps[ES])
+            *(lang_files[ES]) << line.first << '|' << line.second << '\n';
+
+        for (const auto &line : term_to_translation_maps[IT])
+            *(lang_files[IT]) << line.first << '|' << line.second << '\n';
+
+        for (const auto &line : term_to_translation_maps[HANS])
+            *(lang_files[HANS]) << line.first << '|' << line.second << '\n';
+
+        for (const auto &line : term_to_translation_maps[HANT])
+            *(lang_files[HANT]) << line.first << '|' << line.second << '\n';
 
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
