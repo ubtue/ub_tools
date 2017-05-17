@@ -77,13 +77,13 @@ CleanUp
 
 OVERALL_START=$(date +%s.%N)
 
-
 StartPhase "Filter out Local Data of Other Institutions" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (delete_unused_local_data GesamtTiteldaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          >> "${log}" 2>&1 &&
 EndPhase || Abort) &
+
 
 
 StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, Superflous Subfield 2 in Topic Fields and Remove Sorting Chars\$a"
@@ -109,8 +109,15 @@ generate_vufind_translation_files "$VUFIND_HOME"/local/languages/ >> "${log}" 2>
 EndPhase || Abort) &
 
 
+StartPhase "Augment Normdata with Keyword Translations"
+(augment_authority_data_with_translations Normdaten-"${date}".mrc \
+                                          Normdaten-augmented-"${date}".mrc \
+                                          >> "${log}" 2>&1 &&
+EndPhase || Abort) &
+
+
 StartPhase "Normalise URL's"
-(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait 
@@ -177,7 +184,7 @@ EndPhase || Abort) &
 StartPhase "Add Keyword Synonyms from Authority Data"
 (add_synonyms \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    Normdaten-"${date}".mrc \
+    Normdaten-augmented-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -230,7 +237,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Extract Normdata Translations"
-(extract_normdata_translations Normdaten-"${date}".mrc \
+(extract_normdata_translations Normdaten-augmented-"${date}".mrc \
      normdata_translations.txt >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 wait 
