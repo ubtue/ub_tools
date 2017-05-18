@@ -22,6 +22,7 @@
 #include <cctype>
 #include <cstdio>
 #include "StringUtil.h"
+#include "util.h"
 
 
 Leader &Leader::operator=(const Leader &rhs) {
@@ -67,26 +68,17 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader
     //
 
     // Check indicator count:
-    if (leader_string[10] != '2') {
-        if (err_msg != nullptr)
-            *err_msg = "Invalid indicator count '" + leader_string.substr(10, 1) + "'!";
-        return false;
-    }
+    if (leader_string[10] != '2')
+        Warning("in Leader::ParseLeader: Invalid indicator count '" + leader_string.substr(10, 1) + "'!");
   
     // Check subfield code length:
-    if (leader_string[11] != '2') {
-        if (err_msg != nullptr)
-            *err_msg = "Invalid subfield code length! (Leader bytes are " + StringUtil:: CStyleEscape(leader_string)
-                       + ")";
-        return false;
-    }
+    if (leader_string[11] != '2')
+        Warning("in Leader::ParseLeader: Invalid subfield code length! (Leader bytes are "
+                + StringUtil:: CStyleEscape(leader_string) + ")");
 
     // Check entry map:
-    if (leader_string.substr(20, 3) != "450") {
-        if (err_msg != nullptr)
-            *err_msg = "Invalid entry map!";
-        return false;
-    }
+    if (leader_string.substr(20, 3) != "450")
+        Warning("in Leader::ParseLeader: Invalid entry map!");
 
     leader->raw_leader_           = leader_string;
     leader->record_length_        = record_length;
