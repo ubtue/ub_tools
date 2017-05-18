@@ -35,7 +35,8 @@
 
 void Usage() {
     std::cerr << "usage: " << ::progname << " [[--input-format=(marc-xml|marc-21)]\n"
-              << "       [--output-format=(marc-xml|marc-21)] marc_input marc_output subject_list\n";
+              << "       [--output-format=(marc-xml|marc-21)] marc_input marc_output subject_list\n\n"
+              << "       where \"subject_list\" must contain LCSH's, one per line.\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -73,7 +74,7 @@ void Filter(MarcReader * const marc_reader, MarcWriter * const marc_writer,
             const std::unordered_set<std::string> &loc_subject_headings)
 {
     unsigned total_count(0), matched_count(0);
-    while (MarcRecord record = marc_reader->read()) {
+    while (const MarcRecord record = marc_reader->read()) {
         ++total_count;
         if (Matched(record, loc_subject_headings)) {
             ++matched_count;
@@ -103,15 +104,14 @@ int main(int /*argc*/, char **argv) {
     if (*argv == nullptr)
         Usage();
 
-    MarcWriter::WriterType writer_type;
+    MarcWriter::WriterType writer_type(MarcWriter::AUTO);
     if (std::strcmp("--output-format=marc-xml", *argv) == 0) {
         writer_type = MarcWriter::XML;
         ++argv;
     } else if (std::strcmp("--output-format=marc-21", *argv) == 0) {
         writer_type = MarcWriter::BINARY;
         ++argv;
-    } else
-        writer_type = MarcWriter::AUTO;
+    }
     if (*argv == nullptr)
         Usage();
 
