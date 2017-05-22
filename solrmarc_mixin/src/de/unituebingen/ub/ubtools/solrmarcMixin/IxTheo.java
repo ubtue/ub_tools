@@ -118,7 +118,7 @@ public class IxTheo extends SolrIndexerMixin {
         String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
 
         // Only read the data from file if necessary
-        if (translation_map.isEmpty() && (new File(translationsFilename).length() != 0) != 0)))  {
+        if (translation_map.isEmpty() && (new File(translationsFilename).length() != 0))  {
 
             try {
                 BufferedReader in = new BufferedReader(new FileReader(translationsFilename));
