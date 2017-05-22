@@ -977,7 +977,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 String date = cSubfield.getData();
                 date = date.replaceAll("^[^0-9]+", "");
                 date = date.replaceAll("[^0-9]+$", "");
-
                 dates.add(date);
                 return dates;
             }
