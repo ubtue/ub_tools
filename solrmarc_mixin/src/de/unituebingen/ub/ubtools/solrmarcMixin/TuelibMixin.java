@@ -1002,7 +1002,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
             if (dates.isEmpty())
                 System.err.println("getDates [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
-            return dates;
+            else
+                return dates;
         }
 
         // Case 4:
