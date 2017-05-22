@@ -2,7 +2,7 @@
  *  \brief  Implementation of the MARC-21 Leader class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,6 +22,7 @@
 #include <cctype>
 #include <cstdio>
 #include "StringUtil.h"
+#include "util.h"
 
 
 Leader &Leader::operator=(const Leader &rhs) {
@@ -42,7 +43,8 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader
     if (leader_string.size() != LEADER_LENGTH) {
         if (err_msg != nullptr)
             *err_msg = "Leader length must be " + std::to_string(LEADER_LENGTH) +
-                ", found " + std::to_string(leader_string.size()) + "!";
+                       ", found " + std::to_string(leader_string.size()) + "! (Leader bytes are "
+                       + StringUtil:: CStyleEscape(leader_string) + ")";
         return false;
     }
 
@@ -66,25 +68,17 @@ bool Leader::ParseLeader(const std::string &leader_string, Leader * const leader
     //
 
     // Check indicator count:
-    if (leader_string[10] != '2') {
-        if (err_msg != nullptr)
-            *err_msg = "Invalid indicator count '" + leader_string.substr(10, 1) + "'!";
-        return false;
-    }
+    if (leader_string[10] != '2')
+        Warning("in Leader::ParseLeader: Invalid indicator count '" + leader_string.substr(10, 1) + "'!");
   
     // Check subfield code length:
-    if (leader_string[11] != '2') {
-        if (err_msg != nullptr)
-            *err_msg = "Invalid subfield code length!";
-        return false;
-    }
+    if (leader_string[11] != '2')
+        Warning("in Leader::ParseLeader: Invalid subfield code length! (Leader bytes are "
+                + StringUtil:: CStyleEscape(leader_string) + ")");
 
     // Check entry map:
-    if (leader_string.substr(20, 3) != "450") {
-        if (err_msg != nullptr)
-            *err_msg = "Invalid entry map!";
-        return false;
-    }
+    if (leader_string.substr(20, 3) != "450")
+        Warning("in Leader::ParseLeader: Invalid entry map!");
 
     leader->raw_leader_           = leader_string;
     leader->record_length_        = record_length;

@@ -108,8 +108,7 @@ void ExtractOneTranslation(const Subfields &all_subfields, const std::string &tr
     if (translation_origin.size() == 1) {
         language_translation_pair->first = (translation_origin[0] == "IxTheo") ? translation_origin[0] + "_" + language : translation_origin[0];
         language_translation_pair->second = StringUtil::Join(translation_vector, ' ');
-    }
-    else
+    } else
         Error("Incorrect translation origin translation " + StringUtil::Join(translation_vector, ' '));
 }
 
@@ -128,7 +127,6 @@ void RemoveMACSIfIxTheoPresent(std::vector<std::string> * const translations) {
          if (ram_it != translations->end())
              translations->erase(ram_it, ram_it + 2);
      }
-
 }
 
 
@@ -177,7 +175,8 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
 
                 for (auto translation_field_index(translation_field_indices.cbegin());
                      translation_field_index != translation_field_indices.cend();
-                     ++translation_field_index) {
+                     ++translation_field_index)
+                {
                          Subfields all_subfields(record.getSubfields(*translation_field_index));
                          // Extract the translation in parameter given and subfields 2 and 9 where translation origin and translation type information
                          // is given
@@ -192,6 +191,7 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
 
                 if (translations.empty())
                     continue;
+                
                 // Make sure we use the more specific IxTheo translations if available
                 RemoveMACSIfIxTheoPresent(&translations);
                 all_translations.insert(std::make_pair(StringUtil::Join(german_terms, ' '), translations));
