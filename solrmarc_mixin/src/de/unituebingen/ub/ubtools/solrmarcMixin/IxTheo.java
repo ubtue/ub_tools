@@ -81,6 +81,10 @@ public class IxTheo extends SolrIndexerMixin {
 
     Map<String, String> translation_map_en = new HashMap<String, String>();
     Map<String, String> translation_map_fr = new HashMap<String, String>();
+    Map<String, String> translation_map_it = new HashMap<String, String>();
+    Map<String, String> translation_map_es = new HashMap<String, String>();
+    Map<String, String> translation_map_hant = new HashMap<String, String>();
+    Map<String, String> translation_map_hans = new HashMap<String, String>();
 
     public Map<String, String> getTranslationMap(String langShortcut) throws IllegalArgumentException {
         Map<String, String> translation_map;
@@ -92,18 +96,31 @@ public class IxTheo extends SolrIndexerMixin {
         case "fr":
             translation_map = translation_map_fr;
             break;
+        case "it":
+            translation_map = translation_map_it;
+            break;
+        case "es":
+            translation_map = translation_map_es;
+            break;
+        case "hant":
+            translation_map = translation_map_hant;
+            break;
+        case "hans":
+            translation_map = translation_map_hans;
+            break;
         default:
             throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
         }
 
+        final String dir = "/usr/local/ub_tools/bsz_daten/";
+        final String ext = "txt";
+        final String basename = "normdata_translations";
+        String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
+
         // Only read the data from file if necessary
-        if (translation_map.isEmpty()) {
-            final String dir = "/usr/local/ub_tools/bsz_daten/";
-            final String ext = "txt";
-            final String basename = "normdata_translations";
+        if (translation_map.isEmpty() && (new File(translationsFilename).length() != 0))  {
 
             try {
-                String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
                 BufferedReader in = new BufferedReader(new FileReader(translationsFilename));
                 String line;
 
