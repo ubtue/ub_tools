@@ -126,7 +126,7 @@ public class IxTheo extends SolrIndexerMixin {
 
                 while ((line = in.readLine()) != null) {
                     String[] translations = line.split("\\|");
-                    if (!translations[0].equals(""))
+                    if (!translations[0].equals("") && !translations[1].equals(""))
                         translation_map.put(translations[0], translations[1]);
                 }
             } catch (IOException e) {
