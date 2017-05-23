@@ -184,14 +184,14 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
                          std::pair<std::string, std::string> one_translation_and_metadata;
                          ExtractOneTranslation(all_subfields, translation_subfield_codes, &one_translation_and_metadata);
                          if (not (one_translation_and_metadata.first.empty() or one_translation_and_metadata.second.empty())) {
-                            translations.push_back(one_translation_and_metadata.first);
-                            translations.push_back(one_translation_and_metadata.second);
+                            translations.push_back(StringUtil::Trim(one_translation_and_metadata.first, " \t\n"));
+                            translations.push_back(StringUtil::Trim(one_translation_and_metadata.second," \t\n"));
                          }
                 }
 
                 if (translations.empty())
                     continue;
-                
+
                 // Make sure we use the more specific IxTheo translations if available
                 RemoveMACSIfIxTheoPresent(&translations);
                 all_translations.insert(std::make_pair(StringUtil::Join(german_terms, ' '), translations));
