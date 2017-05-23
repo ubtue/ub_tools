@@ -18,7 +18,7 @@ public class MultiLanguageQueryParser extends QParser {
     protected Query query;
     protected String searchString;
     protected static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
-    protected String[] SUPPORTED_LANGUAGES = { "de", "en", "fr" };
+    protected String[] SUPPORTED_LANGUAGES = { "de", "en", "fr", "it", "es", "hant", "hans" };
     protected SolrQueryRequest newRequest;
     protected ModifiableSolrParams newParams;
 
