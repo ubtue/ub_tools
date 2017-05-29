@@ -358,11 +358,11 @@ def FTPLogin(ftp_host, ftp_user, ftp_passwd):
     except Exception as e:
         Error("failed to login to FTP server! (" + str(e) + ")")
     return ftp
-
-
+                
+    
 def ExecOrDie(cmd_name, args, log_file_name):
     if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
                              new_stderr=log_file_name, append_stdout=True, append_stderr=True) == 0:
-        SendEmail("Create Refterm File",  "Failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name
+        SendEmail("util.ExecOrDie", "Failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name
                   + "\" for the reason.", priority=1)
         sys.exit(-1)
