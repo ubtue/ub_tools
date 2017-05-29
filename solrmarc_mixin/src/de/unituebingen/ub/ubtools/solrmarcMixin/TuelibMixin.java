@@ -281,11 +281,11 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (subfield0 == null || !subfield0.getData().equals("689  ")) {
                 continue;
             }
-            final Subfield subfieldA = lokfield.getSubfield('a');
-            if (subfieldA == null || subfieldA.getData().length() <= 1) {
-                continue;
+            for (final Subfield subfieldA : lokfield.getSubfields('a')) {
+                if (subfieldA != null && subfieldA.getData() != null && subfieldA.getData().length() > 2) {
+                    topics.add(subfieldA.getData());
+                }
             }
-            topics.add(subfieldA.getData());
         }
         return topics;
     }
