@@ -48,7 +48,7 @@ def Main():
     if most_recent_titles_filename is None:
         util.SendEmail("Beacon Generator", "Found no matching title files!", priority=1)
 
-    # Extract the GND numbers from the 035$a subfield of the MARC title data:
+    # Extract the GND numbers from the 035$a subfield of the MARC authority data:
     gnd_numbers_path = "/tmp/gnd_numbers"
     util.Remove(gnd_numbers_path)
     util.ExecOrDie("/usr/local/bin/marc_grep", [ most_recent_authority_filename, "\"035a\"", "no_label" ],
