@@ -167,7 +167,7 @@ def WriteTimestamp(prefix=None, timestamp=None):
 
 def LoadConfigFile(path=None, no_error=False):
     if path is None: # Take script name w/ "py" extension replaced by "conf".
-        # Check whether there is a machine specific subdirectory 
+        # Check whether there is a machine specific subdirectory
         hostname_dir = default_config_file_dir + socket.gethostname() + "/"
         path = hostname_dir + os.path.basename(sys.argv[0])[:-2] + "conf"
         if not os.access(path, os.R_OK):
@@ -358,8 +358,8 @@ def FTPLogin(ftp_host, ftp_user, ftp_passwd):
     except Exception as e:
         Error("failed to login to FTP server! (" + str(e) + ")")
     return ftp
-                
-    
+
+
 def ExecOrDie(cmd_name, args, log_file_name):
     if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
                              new_stderr=log_file_name, append_stdout=True, append_stderr=True) == 0:
