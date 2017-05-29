@@ -4,6 +4,7 @@
 # A tool for the automatic generation of a Beacon file.
 # (https://meta.wikimedia.org/wiki/Dynamic_links_to_external_resources)
 
+import datetime
 import os
 import re
 import sys
@@ -49,22 +50,32 @@ def Main():
         util.SendEmail("Beacon Generator", "Found no matching title files!", priority=1)
 
     # Extract the GND numbers from the 035$a subfield of the MARC authority data:
+    _035a_contents_filename = "/tmp/035a"
     gnd_numbers_path = "/tmp/gnd_numbers"
-    util.Remove(gnd_numbers_path)
     util.ExecOrDie("/usr/local/bin/marc_grep", [ most_recent_authority_filename, "\"035a\"", "no_label" ],
-                   "/tmp/035a")
-    util.ExecOrDie("/bin/egrep", [ "^\\(DE-588\\)", "/tmp/035a" ], gnd_numbers_path)
-    os.unlink("/tmp/035a")
+                   _035a_contents_filename)
+    util.ExecOrDie("/bin/egrep", [ "^\\(DE-588\\)", _035a_contents_filename ], gnd_numbers_path)
 
     # Count GND references in the title data:
     gnd_counts_filename = "/tmp/gnd_counts"
     if not util.ExecOrDie("/usr/local/bin/count_gnd_refs",
                           [ gnd_numbers_path, most_recent_titles_filename, gnd_counts_filename ])
 
+    # Generate a file with a timestamp in the Beacon format:
+    timestamp_filename = "/tmp/beacon_timestamp"
+    with open(timestamp_filename, "w") as timestamp_file:
+        timestamp_file.write("#TIMESTAMP: " + str(datetime.date.today()) + "\n")
+
     # Now generate the final output (header + counts):
-    if not util.ConcatenateFiles([ sys.argv[2], gnd_counts_filename ], sys.argv[3]):
+    if not util.ConcatenateFiles([ sys.argv[2], timestamp_filename, gnd_counts_filename ], sys.argv[3]):
          util.SendEmail("Beacon Generator", "An unexpected error occurred: could not write \""
                         + sys.argv[3] + "\"!", priority=1)
+
+    # Cleanup of temp files:
+    os.unlink(gnd_numbers_path)
+    os.unlink(_035a_contents_filename)
+    os.unlink(timestamp_filename)
+    os.unlink(gnd_counts_filename)
 
 
 try:
