@@ -21,7 +21,7 @@ def GetMostRecentBSZFile(filename_pattern):
     try:
         filename_regex = re.compile(filename_pattern_complete_data)
     except Exception as e:
-        util.Error("filename pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")    
+        util.Error("filename pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
     most_recent_date = "000000"
     most_recent_file = None
     for filename in filename_generator:
