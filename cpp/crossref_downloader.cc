@@ -82,9 +82,12 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
         Error("in CrossrefDate::CrossrefDate: year is missing for the \"" + field + "\" date field!");
 
     const JSON::IntegerNode *year_node(dynamic_cast<const JSON::IntegerNode *>(*date_component_iter));
-    if (year_node == nullptr or year_node->getValue() < 0)
-        Error("in CrossrefDate::CrossrefDate: cannot convert year component \"" + (*date_component_iter)->toString()
-              + "\" to an unsigned integer!");
+    if (year_node == nullptr or year_node->getValue() < 0) {
+        Warning("in CrossrefDate::CrossrefDate: cannot convert year component \"" + (*date_component_iter)->toString()
+                + "\" to an unsigned integer!");
+        return;
+    }
+
     year_ = static_cast<unsigned>(year_node->getValue());
     if (unlikely(year_ < 1000 or year_ > 3000))
         Error("in CrossrefDate::CrossrefDate: year component \"" + std::to_string(year_)
@@ -121,6 +124,9 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
 
 
 std::string CrossrefDate::toString() const {
+    if (not isValid())
+        Error("in CrossrefDate::toString: can't convert an invalid CrossrefDate to a string!");
+
     if (month_ == 0)
         return std::to_string(year_);
 
@@ -430,10 +436,12 @@ void AddEditors(const JSON::ObjectNode &message_tree, MarcRecord * const marc_re
 void AddIssueInfo(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
     std::string field_data;
     const CrossrefDate issued_date(message_tree, "issued");
-    if (issued_date.getDay() != 0)
-        field_data += CreateSubfield('b', std::to_string(issued_date.getDay()));
-    if (issued_date.getMonth() != 0)
-        field_data += CreateSubfield('c', std::to_string(issued_date.getMonth()));
+    if (issued_date.isValid()) {
+        if (issued_date.getDay() != 0)
+            field_data += CreateSubfield('b', std::to_string(issued_date.getDay()));
+        if (issued_date.getMonth() != 0)
+            field_data += CreateSubfield('c', std::to_string(issued_date.getMonth()));
+    }
 
     const std::string optional_volume(GetOptionalStringValue(message_tree, "volume"));
     if (not optional_volume.empty())
