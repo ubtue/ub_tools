@@ -20,7 +20,7 @@ def GetMostRecentBSZFile(filename_pattern):
             return os.listdir(local_directory)
 
     try:
-        filename_regex = re.compile(filename_pattern_complete_data)
+        filename_regex = re.compile(filename_pattern)
     except Exception as e:
         util.Error("filename pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
     most_recent_date = "000000"
