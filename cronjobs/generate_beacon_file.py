@@ -59,7 +59,8 @@ def Main():
     # Count GND references in the title data:
     gnd_counts_filename = "/tmp/gnd_counts"
     if not util.ExecOrDie("/usr/local/bin/count_gnd_refs",
-                          [ gnd_numbers_path, most_recent_titles_filename, gnd_counts_filename ])
+                          [ gnd_numbers_path, most_recent_titles_filename, gnd_counts_filename ]):
+         util.SendEmail("Beacon Generator", "An unexpected error occurred: /usr/local/bin/count_gnd_refs failed!")
 
     # Generate a file with a timestamp in the Beacon format:
     timestamp_filename = "/tmp/beacon_timestamp"
