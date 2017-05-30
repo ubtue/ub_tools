@@ -13,19 +13,13 @@ import util
 
 
 def GetMostRecentBSZFile(filename_pattern):
-    def FilenameGenerator():
-        if local_directory is None:
-            return os.listdir("/usr/local/ub_tools/bsz_daten/")
-        else:
-            return os.listdir(local_directory)
-
     try:
         filename_regex = re.compile(filename_pattern)
     except Exception as e:
         util.Error("filename pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
     most_recent_date = "000000"
     most_recent_file = None
-    for filename in filename_generator:
+    for filename in os.listdir("/usr/local/ub_tools/bsz_daten/"):
         match = filename_regex.match(filename)
         if match and match.group(1) > most_recent_date:
             most_recent_date = match.group(1)
