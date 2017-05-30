@@ -40,7 +40,7 @@ def Exec(cmd_path, args = None, timeout = 0, env = None, new_stdout = None, new_
         args = []
 
     if not os.access(cmd_path, os.X_OK):
-        raise Exception("in exec.Exec: command \"" + cmd_path + "\" either does not exist or is not executable!")
+        raise Exception("in process_util.Exec: command \"" + cmd_path + "\" either does not exist or is not executable!")
 
     child_pid = os.fork()
     if child_pid != 0: # We're the parent.
@@ -72,15 +72,15 @@ def Exec(cmd_path, args = None, timeout = 0, env = None, new_stdout = None, new_
         if os.WIFEXITED(exit_code):
             return os.WEXITSTATUS(exit_code)
         elif os.WIFSIGNALED(exit_code):
-            raise Exception("in exec.Exec: " + cmd_path + " was killed by signal \""
+            raise Exception("in process_util.Exec: " + cmd_path + " was killed by signal \""
                             + str(os.WTERMSIG(exit_code)) + "!")
         else:
-            raise Exception("in exec.Exec: no idea why " + cmd_path + " exited!")
+            raise Exception("in process_util.Exec: no idea why " + cmd_path + " exited!")
         return exit_code
 
     else: # We're the child.
         if os.setsid() == -1:
-            util.Info("in exec.Exec: os.setsid() failed!", file=sys.stderr)
+            util.Info("in process_util.Exec: os.setsid() failed!", file=sys.stderr)
             sys.exit(-1)
 
         if new_stdout is not None:
@@ -97,7 +97,7 @@ def Exec(cmd_path, args = None, timeout = 0, env = None, new_stdout = None, new_
             os.execv(cmd_path, args)
         else: 
            os.execve(cmd_path, args, env)
-        raise Exception("in exec.Exec: we should never get here! (" + os.strerror(errno.EPERM) + ")")
+        raise Exception("in process_util.Exec: we should never get here! (" + os.strerror(errno.EPERM) + ")")
 
 
 if __name__ == '__main__':
