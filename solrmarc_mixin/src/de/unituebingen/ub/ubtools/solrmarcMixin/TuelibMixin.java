@@ -439,16 +439,15 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * Returns either a Set<String> of parent (ID + colon + parent title). Only
-     * IDs w/o titles will not be returned, instead a warning will be emitted on
-     * stderr.
+     * Returns a Set<String> of parent (ID + colon + parent title + optional volume). Only
+     * ID's w/o titles will not be returned.
      *
      * @param record
      *            the record
-     * @return A, possibly empty, Set<String> containing the ID/title pairs.
+     * @return A, possibly empty, Set<String> containing the ID/title(/volume) pairs and triples.
      */
     public Set<String> getContainerIdsWithTitles(final Record record) {
-        final Set<String> containerIdsAndTitles = new TreeSet<>();
+        final Set<String> containerIdsTitlesAndOptionalVolumes = new TreeSet<>();
 
         for (final String tag : new String[] { "800", "810", "830", "773", "776" }) {
             for (final VariableField variableField : record.getVariableFields(tag)) {
@@ -465,11 +464,12 @@ public class TuelibMixin extends SolrIndexerMixin {
                     continue;
                 final String parentId = matcher.group(1);
 
-                containerIdsAndTitles
-                        .add(parentId + (char) 0x1F + titleSubfield.getData() + (char) 0x1F + (volumeSubfield == null ? "" : volumeSubfield.getData()));
+                containerIdsTitlesAndOptionalVolumes
+                        .add(parentId + (char) 0x1F + titleSubfield.getData()
+                             + (char) 0x1F + (volumeSubfield == null ? "" : volumeSubfield.getData()));
             }
         }
-        return containerIdsAndTitles;
+        return containerIdsTitlesAndOptionalVolumes;
     }
 
     private void collectReviewsAndReviewedRecords(final Record record) {
