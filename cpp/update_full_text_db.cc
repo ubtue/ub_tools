@@ -1,7 +1,7 @@
 /** \brief Utility for augmenting MARC records with links to a local full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -99,7 +99,8 @@ std::string GetTesseractLanguageCode(const MarcRecord &record) {
 
 
 bool GetTextFromImagePDF(const std::string &document, const std::string &media_type, const std::string &original_url,
-                         const MarcRecord &record, const std::string &pdf_images_script, std::string * const extracted_text)
+                         const MarcRecord &record, const std::string &pdf_images_script,
+                         std::string * const extracted_text)
 {
     extracted_text->clear();
 
@@ -208,8 +209,32 @@ bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std:
 }
 
 
+const unsigned CACHE_EXPIRE_TIME_DELTA(84600 * 60); // About 2 months.
+
+
+// \return True if we find "url" in the database and the entry is older than now+CACHE_EXPIRE_TIME_DELTA or if "url"
+//         is not found in the database, else false.
+bool CacheExpired(DbConnection * const db_connection, const std::string &url) {
+    const std::string LAST_USED_QUERY("SELECT last_used FROM full_text_cache WHERE url=\"" + url + "\"");
+    if (unlikely(not db_connection->query(LAST_USED_QUERY)))
+        Error("in CacheExpired, DB query failed: " + LAST_USED_QUERY);
+    
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.empty())
+        return true;
+
+    const DbRow first_row(result_set.getNextRow());
+    const time_t last_used(SqlUtil::DatetimeToTimeT(first_row["last_used"]));
+    const time_t now(std::time(nullptr));
+
+    return last_used + CACHE_EXPIRE_TIME_DELTA < now;
+}
+
+
 // Returns true if text has been successfully extracted, else false.
-bool ProcessRecord(MarcReader * const marc_reader, const std::string &pdf_images_script, const std::string &db_filename) {
+bool ProcessRecord(MarcReader * const marc_reader, const std::string &pdf_images_script,
+                   const std::string &db_filename)
+{
     MarcRecord record(marc_reader->read());
 
     size_t _856_index(record.getFieldIndex("856"));
@@ -235,6 +260,9 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &pdf_images
         std::string mysql_url;
         VuFind::GetMysqlURL(&mysql_url);
         DbConnection db_connection(mysql_url);
+
+        if (not CacheExpired(&db_connection, url))
+            continue;
 
         std::string extracted_text, key;
         if (GetExtractedTextFromDatabase(&db_connection, url, document, &extracted_text))
