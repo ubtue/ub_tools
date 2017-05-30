@@ -209,10 +209,10 @@ bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std:
 }
 
 
-const unsigned CACHE_EXPIRE_TIME_DELTA(84600 * 60); // About 2 months.
+const unsigned CACHE_EXPIRE_TIME_DELTA(84600 * 60); // About 2 months in seconds.
 
 
-// \return True if we find "url" in the database and the entry is older than now+CACHE_EXPIRE_TIME_DELTA or if "url"
+// \return True if we find "url" in the database and the entry is older than now-CACHE_EXPIRE_TIME_DELTA or if "url"
 //         is not found in the database, else false.
 bool CacheExpired(DbConnection * const db_connection, const std::string &url) {
     const std::string LAST_USED_QUERY("SELECT last_used FROM full_text_cache WHERE url=\"" + url + "\"");
