@@ -1417,11 +1417,12 @@ public class TuelibMixin extends SolrIndexerMixin {
             for (final VariableField variableField : _935Fields) {
                 final DataField _935Field = (DataField) variableField;
                 if (_935Field != null) {
-                    final Subfield cSubfield = _935Field.getSubfield('c');
-                    if (cSubfield != null && cSubfield.getData().equals("sodr")) {
-                        result.remove("Book");
-                        result.add("Article");
-                        break;
+                    for (final Subfield cSubfield : _935Field.getSubfields('c')) {
+                        if (cSubfield.getData().equals("sodr")) {
+                            result.remove("Book");
+                            result.add("Article");
+                            break;
+                        }
                     }
                 }
             }
