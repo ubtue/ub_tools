@@ -46,9 +46,9 @@ def Main():
     # Extract the GND numbers from the 035$a subfield of the MARC authority data:
     _035a_contents_filename = "/tmp/035a"
     gnd_numbers_path = "/tmp/gnd_numbers"
-    util.ExecOrDie("/usr/local/bin/marc_grep", [ most_recent_authority_filename, "\"035a\"", "no_label" ],
-                   _035a_contents_filename)
-    util.ExecOrDie("/bin/egrep", [ "^\\(DE-588\\)", _035a_contents_filename ], gnd_numbers_path)
+    util.ExecOrDie("/usr/local/bin/marc_grep",
+                   [ most_recent_authority_filename, "\"035a\"", "no_label", _035a_contents_filename)
+    util.ExecOrDie("/bin/egrep", [ "^\\(DE-588\\)", _035a_contents_filename, gnd_numbers_path])
 
     # Count GND references in the title data:
     gnd_counts_filename = "/tmp/gnd_counts"
