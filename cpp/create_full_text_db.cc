@@ -165,7 +165,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Spawned " << spawn_count << " subprocesses.\n";
     std::cerr << semaphore.getValue()
-              << " documents were not downloaded because theitr cached values had not yet expired.\n";
+              << " documents were not downloaded because their cached values had not yet expired.\n";
     std::cerr << child_reported_failure_count << " children reported a failure!\n";
 }
 
