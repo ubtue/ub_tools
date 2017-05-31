@@ -234,7 +234,6 @@ def IsExecutableFile(executable_candidate):
 
 # @return the path to the executable "executable_candidate" if found, or else None
 def Which(executable_candidate):
-
     dirname, basename = os.path.split(executable_candidate)
     if dirname:
         if IsExecutableFile(executable_candidate):
