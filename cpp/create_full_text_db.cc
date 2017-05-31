@@ -1,7 +1,7 @@
 /** \brief Utility for augmenting MARC records with links to a local full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,6 +39,7 @@
 #include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "RegexMatcher.h"
+#include "Semaphore.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "TimeLimit.h"
@@ -118,6 +119,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
                     MarcWriter * const marc_writer, const std::string &db_filename,
                     const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
 {
+    Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
 
@@ -162,6 +164,8 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
         Error(err_msg);
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Spawned " << spawn_count << " subprocesses.\n";
+    std::cerr << semaphore.getValue()
+              << " documents were not downloaded because theitr cached values had not yet expired.\n";
     std::cerr << child_reported_failure_count << " children reported a failure!\n";
 }
 

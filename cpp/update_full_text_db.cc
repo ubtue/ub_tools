@@ -36,6 +36,7 @@
 #include "MarcWriter.h"
 #include "MediaTypeUtil.h"
 #include "PdfUtil.h"
+#include "Semaphore.h"
 #include "SmartDownloader.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -261,8 +262,11 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &pdf_images
         VuFind::GetMysqlURL(&mysql_url);
         DbConnection db_connection(mysql_url);
 
-        if (not CacheExpired(&db_connection, url))
+        if (not CacheExpired(&db_connection, url)) {
+            Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
+            ++semaphore;
             continue;
+        }
 
         std::string extracted_text, key;
         if (GetExtractedTextFromDatabase(&db_connection, url, document, &extracted_text))
