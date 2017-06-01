@@ -43,8 +43,9 @@ static void Usage() {
 }
 
 
-void ProcessReferenceRecords(MarcReader * const marc_reader,
-                             std::unordered_map<std::string, off_t> * const control_number_to_offset_map)
+/** \brief Populates a map of control numbers to record offsets. */
+unsigned CollectRecordOffsets(MarcReader * const marc_reader,
+                          std::unordered_map<std::string, off_t> * const control_number_to_offset_map)
 {
     unsigned record_count(0);
     for (;;) {
@@ -56,7 +57,7 @@ void ProcessReferenceRecords(MarcReader * const marc_reader,
         (*control_number_to_offset_map)[record.getControlNumber()] = offset;
     }
 
-    std::cout << "Read " << record_count << " reference records.\n";
+    return record_count;
 }
 
 
@@ -100,7 +101,9 @@ int main(int argc, char *argv[]) {
 
     try {
         std::unordered_map<std::string, off_t> control_number_to_offset_map;
-        ProcessReferenceRecords(marc_reference_reader.get(), &control_number_to_offset_map);
+        std::cout << "Read " << CollectRecordOffsets(marc_reference_reader.get(), &control_number_to_offset_map)
+                  << " reference records.\n";
+
         ProcessSourceRecords(marc_source_reader.get(), marc_reference_reader.get(), marc_target_writer.get(),
                              control_number_to_offset_map);
     } catch (const std::exception &e) {
