@@ -26,6 +26,7 @@
 #include "Compiler.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
+#include "MarcUtil.h"
 #include "MarcWriter.h"
 #include "util.h"
 
@@ -40,24 +41,6 @@ static void Usage() {
               << "       \"reference_records\".  The file with the replacements as well as any records\n"
               << "       that could not be replaced is the output file \"target_records\".\n\n";
     std::exit(EXIT_FAILURE);
-}
-
-
-/** \brief Populates a map of control numbers to record offsets. */
-unsigned CollectRecordOffsets(MarcReader * const marc_reader,
-                          std::unordered_map<std::string, off_t> * const control_number_to_offset_map)
-{
-    unsigned record_count(0);
-    for (;;) {
-        const off_t offset(marc_reader->tell());
-        const MarcRecord record(marc_reader->read());
-        if (not record)
-            break;
-        ++record_count;
-        (*control_number_to_offset_map)[record.getControlNumber()] = offset;
-    }
-
-    return record_count;
 }
 
 
@@ -101,7 +84,8 @@ int main(int argc, char *argv[]) {
 
     try {
         std::unordered_map<std::string, off_t> control_number_to_offset_map;
-        std::cout << "Read " << CollectRecordOffsets(marc_reference_reader.get(), &control_number_to_offset_map)
+        std::cout << "Read "
+                  << MarcUtil::CollectRecordOffsets(marc_reference_reader.get(), &control_number_to_offset_map)
                   << " reference records.\n";
 
         ProcessSourceRecords(marc_source_reader.get(), marc_reference_reader.get(), marc_target_writer.get(),
