@@ -64,9 +64,9 @@ void ProcessSourceRecords(MarcReader * const marc_source_reader, MarcReader * co
                           MarcWriter * const marc_writer,
                           const std::unordered_map<std::string, off_t> &control_number_to_offset_map)
 {
-    unsigned record_count(0), replacement_count(0);
+    unsigned source_record_count(0), replacement_count(0);
     while (const MarcRecord source_record = marc_source_reader->read()) {
-        ++record_count;
+        ++source_record_count;
 
         const auto control_number_and_offset(control_number_to_offset_map.find(source_record.getControlNumber()));
         if (control_number_and_offset == control_number_to_offset_map.cend()) { // No replacement found.
@@ -83,7 +83,7 @@ void ProcessSourceRecords(MarcReader * const marc_source_reader, MarcReader * co
         ++replacement_count;
     }
 
-    std::cout << "Read " << record_count << " source records.\n";
+    std::cout << "Read " << source_record_count << " source records.\n";
     std::cout << "Replaced " << replacement_count << " records.\n";
 }
 
