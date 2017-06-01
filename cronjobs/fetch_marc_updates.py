@@ -26,6 +26,10 @@ directory_on_ftp_server = /ixtheo
 filename_pattern = ^SA-MARC-ixtheo_hinweis-(\d\d\d\d\d\d).tar.gz$
 directory_on_ftp_server = /ixtheo
 
+[Normdatendifferenzabzug]
+filename_pattern = ^(?:WA-MARCcomb)-(\d\d\d\d\d\d).tar.gz$
+directory_on_ftp_server = /sekkor
+
 [Loeschlisten]
 filename_pattern = ^LOEPPN-(\d\d\d\d\d\d)$
 directory_on_ftp_server = /sekkor
@@ -267,10 +271,6 @@ def DownloadCompleteData(config, ftp, download_cutoff_date, msg):
         util.Error("downloaded multiple complete date tar files!")
 
 
-def DownloadOtherData(config, section, ftp, download_cutoff_date, msg):
-    DownloadData(config, section, ftp, download_cutoff_date, msg)
-
-
 def Main():
     if len(sys.argv) != 2:
         util.SendEmail(os.path.basename(sys.argv[0]),
@@ -292,12 +292,13 @@ def Main():
     complete_data_filename = DownloadCompleteData(config, ftp, download_cutoff_date, msg)
     if complete_data_filename is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filename)
-    DownloadOtherData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
-    DownloadOtherData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
+    DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
+    DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     if config.has_section("Hinweisabzug"):
-        DownloadOtherData(config, "Hinweisabzug", ftp, 000000, msg)
+        DownloadData(config, "Hinweisabzug", ftp, "000000", msg)
     if config.has_section("Errors"):
-        DownloadOtherData(config, "Errors", ftp, download_cutoff_date, msg)
+        DownloadData(config, "Errors", ftp, download_cutoff_date, msg)
+    DownloadData(config, "Normdatendifferenzabzug", ftp, download_cutoff_date, msg)
     CleanUpCumulativeCollection(config)
     util.SendEmail("BSZ File Update", string.join(msg, ""), priority=5)
 
