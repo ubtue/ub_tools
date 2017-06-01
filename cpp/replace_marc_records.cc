@@ -79,7 +79,7 @@ void ProcessSourceRecords(MarcReader * const marc_source_reader, MarcReader * co
                   + std::to_string(control_number_and_offset->second));
 
         const MarcRecord reference_record(marc_reference_reader->read());
-        marc_writer->write(source_record);
+        marc_writer->write(reference_record);
         ++replacement_count;
     }
 
