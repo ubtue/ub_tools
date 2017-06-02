@@ -67,12 +67,11 @@ std::string GetMostRecentFile(const std::string &path_regex) {
     if (unlikely(matcher == nullptr))
         Error("in GetMostRecentFile: failed to compile regex \"" + filename + "\"! (" + err_msg + ")");
 
-    std::string most_recent_file;
-
     DIR * const directory_stream(::opendir(directory.c_str()));
     if (unlikely(directory_stream == nullptr))
         Error("in GetMostRecentFile: opendir(" + directory + ") failed(" + std::string(::strerror(errno)) + ")");
 
+    std::string most_recent_file;
     struct dirent *entry;
     while ((entry = ::readdir(directory_stream)) != nullptr) {
         if ((entry->d_type == DT_REG or entry->d_type == DT_UNKNOWN) and matcher->matched(entry->d_name)) {
@@ -82,6 +81,7 @@ std::string GetMostRecentFile(const std::string &path_regex) {
         }
     }
     ::closedir(directory_stream);
+    delete matcher;
 
     return most_recent_file;
 }
