@@ -23,6 +23,7 @@
 #include <unordered_map>
 #include <cstdio>
 #include <cstdlib>
+#include <dirent.h>
 #include "Compiler.h"
 #include "BSZUtil.h"
 #include "ExecUtil.h"
@@ -31,6 +32,7 @@
 #include "MarcRecord.h"
 #include "MarcUtil.h"
 #include "MarcWriter.h"
+#include "RegexMatcher.h"
 #include "util.h"
 
 
@@ -42,8 +44,46 @@ static void Usage() {
               << "       Replaces all records in \"source_records\" that have an identical control number\n"
               << "       as a record in \"reference_records\" with the corresponding record in\n"
               << "       \"reference_records\".  The file with the replacements as well as any records\n"
-              << "       that could not be replaced is the output file \"target_records\".\n\n";
+              << "       that could not be replaced is the output file \"target_records\".\n"
+              << "       \"deletion_list\", \"reference_records\", and \"source_records\" must all be regular\n"
+              << "       expressions containing \\d\\d\\d\\d\\d\\d stading in for YYYYMMMDD.  No other\n"
+              << "       metacharacters should probably be used.\n\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+/** \param path_regex  A PCRE regex that must contain a \d\d\d\d\d\d subexpression standing in for YYYYMMDD.
+ *  \return Either the most recent file or the empty string if no files matched the regex.
+ */
+std::string GetMostRecentFile(const std::string &path_regex) {
+    if (unlikely(path_regex.find("\\d\\d\\d\\d\\d\\d") == std::string::npos))
+        Error("in GetMostRecentFile: regex \"" + path_regex + "\" does not contain \\d\\d\\d\\d\\d\\d!");
+
+    std::string filename, directory;
+    FileUtil::DirnameAndBasename(path_regex, &filename, &directory);
+    
+    std::string err_msg;
+    RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory(filename, &err_msg));
+    if (unlikely(matcher == nullptr))
+        Error("in GetMostRecentFile: failed to compile regex \"" + filename + "\"! (" + err_msg + ")");
+
+    std::string most_recent_file;
+
+    DIR * const directory_stream(::opendir(directory.c_str()));
+    if (unlikely(directory_stream == nullptr))
+        Error("in GetMostRecentFile: opendir(" + directory + ") failed(" + std::string(::strerror(errno)) + ")");
+
+    struct dirent *entry;
+    while ((entry = ::readdir(directory_stream)) != nullptr) {
+        if ((entry->d_type == DT_REG or entry->d_type == DT_UNKNOWN) and matcher->matched(entry->d_name)) {
+            std::string dir_entry(entry->d_name);
+            if (dir_entry > most_recent_file)
+                most_recent_file.swap(dir_entry);
+        }
+    }
+    ::closedir(directory_stream);
+
+    return most_recent_file;
 }
 
 
@@ -75,17 +115,16 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
-        std::unique_ptr<File> deletion_list_file(FileUtil::OpenInputFileOrDie(argv[1]));
+        std::unique_ptr<File> deletion_list_file(FileUtil::OpenInputFileOrDie(GetMostRecentFile(argv[1])));
         std::unordered_set <std::string> delete_full_record_ids, local_deletion_ids;
         BSZUtil::ExtractDeletionIds(deletion_list_file.get(), &delete_full_record_ids, &local_deletion_ids);
 
-
-        std::unique_ptr<MarcReader> marc_source_reader(MarcReader::Factory(argv[3]));
+        std::unique_ptr<MarcReader> marc_source_reader(MarcReader::Factory(GetMostRecentFile(argv[3])));
         const std::string MARC_TEMPFILE("/tmp/update_authority_data.temp.mrc");
         std::unique_ptr<MarcWriter> marc_temp_writer(MarcWriter::Factory(MARC_TEMPFILE));
         EraseRecords(marc_source_reader.get(), marc_temp_writer.get(), delete_full_record_ids);
 
-        const std::string MARC_REFERENCE_FILE(argv[2]);
+        const std::string MARC_REFERENCE_FILE(GetMostRecentFile(argv[2]));
         const std::string MARC_TARGET_FILE(argv[4]);
         const std::string REPLACE_MARC_RECORDS_PATH("/usr/local/bin/replace_marc_records");
         if (ExecUtil::Exec(REPLACE_MARC_RECORDS_PATH, { MARC_REFERENCE_FILE, MARC_TEMPFILE, MARC_TARGET_FILE }) != 0)
