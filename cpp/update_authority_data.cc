@@ -46,7 +46,7 @@ static void Usage() {
               << "       \"reference_records\".  The file with the replacements as well as any records\n"
               << "       that could not be replaced is the output file \"target_records\".\n"
               << "       \"deletion_list\", \"reference_records\", and \"source_records\" must all be regular\n"
-              << "       expressions containing \\d\\d\\d\\d\\d\\d stading in for YYYYMMMDD.  No other\n"
+              << "       expressions containing \\d\\d\\d\\d\\d\\d stading in for YYMMDD.  No other\n"
               << "       metacharacters should probably be used.\n\n";
     std::exit(EXIT_FAILURE);
 }
