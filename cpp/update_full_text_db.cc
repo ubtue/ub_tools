@@ -293,7 +293,6 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &pdf_images
 
     // Safely append the modified MARC data to the MARC output file:
     const std::string marc_output_filename("./fulltext/" + record.getControlNumber() + ".mrc");
-    std::cerr << "Write to " << marc_output_filename << "\n";
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
     marc_writer->write(record);
 
