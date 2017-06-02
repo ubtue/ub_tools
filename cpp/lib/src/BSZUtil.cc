@@ -43,6 +43,7 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
     const size_t SEPARATOR_INDEX(PPN_START_INDEX - 1);
 
     unsigned line_no(0);
+top_loop:
     while (not deletion_list->eof()) {
         const std::string line(StringUtil::Trim(deletion_list->getline()));
         ++line_no;
@@ -54,7 +55,7 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
         for (const char indicator : FULL_RECORD_DELETE_INDICATORS) {
             if (line[SEPARATOR_INDEX] == indicator) {
                 delete_full_record_ids->insert(line.substr(PPN_START_INDEX)); // extract PPN
-                continue;
+                goto top_loop;
             }
         }
         for (const char indicator : LOCAL_DATA_DELETE_INDICATORS) {
@@ -63,7 +64,7 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
                     Error("unexpected line length " + std::to_string(line.length()) + " for local entry on line "
                           + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath() + "\"!");
                 local_deletion_ids->insert(line.substr(PPN_START_INDEX, PPN_LENGTH)); // extract ELN
-                continue;
+                goto top_loop;
             }
         }
         Warning("in \"" + deletion_list->getPath() + " \" on line #" + std::to_string(line_no)
