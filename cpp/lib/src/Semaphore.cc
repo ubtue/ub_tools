@@ -30,7 +30,7 @@ Semaphore::Semaphore(const std::string &name, const OpenMode open_mode, const in
     if (open_mode == ATTACH)
         semaphore_ = ::sem_open(name.c_str(), O_RDWR);
     else
-        semaphore_ = ::sem_open(name.c_str(), O_RDWR, 0600, initial_value);
+        semaphore_ = ::sem_open(name.c_str(), O_CREAT, 0600, initial_value);
 
     if (unlikely(semaphore_ == SEM_FAILED))
         throw std::runtime_error("in Semaphore::Semaphore: sem_open(3) failed! ("
