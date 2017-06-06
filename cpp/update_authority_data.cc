@@ -130,17 +130,22 @@ int main(int argc, char *argv[]) {
         }
         
         const std::string DELETION_LIST_FILENAME(GetMostRecentFile(argv[1]));
-        const std::string DELETION_LIST_DATE(BSZUtil::ExtractDateFromFilenameOrDie(DELETION_LIST_FILENAME));
+        if (not DELETION_LIST_FILENAME.empty()) {
+            const std::string DELETION_LIST_DATE(BSZUtil::ExtractDateFromFilenameOrDie(DELETION_LIST_FILENAME));
 
-        if (DELETION_LIST_DATE >= MARC_SOURCE_DATE) {
-            std::unique_ptr<File> deletion_list_file(FileUtil::OpenInputFileOrDie(DELETION_LIST_FILENAME));
-            std::unordered_set <std::string> delete_full_record_ids, local_deletion_ids;
-            BSZUtil::ExtractDeletionIds(deletion_list_file.get(), &delete_full_record_ids, &local_deletion_ids);
+            if (DELETION_LIST_DATE >= MARC_SOURCE_DATE) {
+                std::unique_ptr<File> deletion_list_file(FileUtil::OpenInputFileOrDie(DELETION_LIST_FILENAME));
+                std::unordered_set <std::string> delete_full_record_ids, local_deletion_ids;
+                BSZUtil::ExtractDeletionIds(deletion_list_file.get(), &delete_full_record_ids, &local_deletion_ids);
 
-            std::unique_ptr<MarcReader> marc_source_reader(MarcReader::Factory(MARC_SOURCE_FILENAME));
-            std::unique_ptr<MarcWriter> marc_temp_writer(MarcWriter::Factory(MARC_TEMP_FILENAME));
-            EraseRecords(marc_source_reader.get(), marc_temp_writer.get(), delete_full_record_ids);
-        } else
+                std::unique_ptr<MarcReader> marc_source_reader(MarcReader::Factory(MARC_SOURCE_FILENAME));
+                std::unique_ptr<MarcWriter> marc_temp_writer(MarcWriter::Factory(MARC_TEMP_FILENAME));
+                EraseRecords(marc_source_reader.get(), marc_temp_writer.get(), delete_full_record_ids);
+            }
+        }
+
+        // If we did not apply a deletion list we'll still need our temporary file for the next phase:
+        if (not FileUtil::Exists(MARC_TEMP_FILENAME))
             FileUtil::CopyOrDie(MARC_SOURCE_FILENAME, MARC_TEMP_FILENAME);
         
         const std::string MARC_REFERENCE_FILENAME(GetMostRecentFile(argv[2]));
