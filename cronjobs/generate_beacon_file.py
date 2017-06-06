@@ -13,19 +13,13 @@ import util
 
 
 def GetMostRecentBSZFile(filename_pattern):
-    def FilenameGenerator():
-        if local_directory is None:
-            return os.listdir("/usr/local/ub_tools/bsz_daten/")
-        else:
-            return os.listdir(local_directory)
-
     try:
-        filename_regex = re.compile(filename_pattern_complete_data)
+        filename_regex = re.compile(filename_pattern)
     except Exception as e:
         util.Error("filename pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
     most_recent_date = "000000"
     most_recent_file = None
-    for filename in filename_generator:
+    for filename in os.listdir("/usr/local/ub_tools/bsz_daten/"):
         match = filename_regex.match(filename)
         if match and match.group(1) > most_recent_date:
             most_recent_date = match.group(1)
@@ -52,15 +46,14 @@ def Main():
     # Extract the GND numbers from the 035$a subfield of the MARC authority data:
     _035a_contents_filename = "/tmp/035a"
     gnd_numbers_path = "/tmp/gnd_numbers"
-    util.ExecOrDie("/usr/local/bin/marc_grep", [ most_recent_authority_filename, "\"035a\"", "no_label" ],
-                   _035a_contents_filename)
+    util.ExecOrDie("/usr/local/bin/marc_grep",
+                   [ most_recent_authority_filename, "\"035a\"", "no_label" ], _035a_contents_filename)
     util.ExecOrDie("/bin/egrep", [ "^\\(DE-588\\)", _035a_contents_filename ], gnd_numbers_path)
 
     # Count GND references in the title data:
     gnd_counts_filename = "/tmp/gnd_counts"
-    if not util.ExecOrDie("/usr/local/bin/count_gnd_refs",
-                          [ gnd_numbers_path, most_recent_titles_filename, gnd_counts_filename ]):
-         util.SendEmail("Beacon Generator", "An unexpected error occurred: /usr/local/bin/count_gnd_refs failed!")
+    util.ExecOrDie("/usr/local/bin/count_gnd_refs",
+                   [ gnd_numbers_path, most_recent_titles_filename, gnd_counts_filename ])
 
     # Generate a file with a timestamp in the Beacon format:
     timestamp_filename = "/tmp/beacon_timestamp"

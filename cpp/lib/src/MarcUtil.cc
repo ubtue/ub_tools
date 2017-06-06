@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2014-2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -68,6 +68,26 @@ std::string GetParentPPN(const MarcRecord &marc_record) {
     }
 
     return "";
+}
+
+
+/** \brief Populates a map of control numbers to record offsets.
+ *  \return The number of processed records.
+ */
+unsigned CollectRecordOffsets(MarcReader * const marc_reader,
+                              std::unordered_map<std::string, off_t> * const control_number_to_offset_map)
+{
+    unsigned record_count(0);
+    for (;;) {
+        const off_t offset(marc_reader->tell());
+        const MarcRecord record(marc_reader->read());
+        if (not record)
+            break;
+        ++record_count;
+        (*control_number_to_offset_map)[record.getControlNumber()] = offset;
+    }
+
+    return record_count;
 }
 
 

@@ -1,7 +1,7 @@
 /** \brief Utility for deleting partial or entire MARC records based on an input list.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,11 +21,10 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
-#include <unordered_set>
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
-#include "Compiler.h"
+#include "BSZUtil.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
@@ -43,56 +42,9 @@ static void Usage() {
 }
 
 
-static std::set<std::string> unknown_types;
-
-
-// Use the following indicators to select whether to fully delete a record or remove its local data
-// For a description of indicators
-// c.f. https://wiki.bsz-bw.de/doku.php?id=v-team:daten:datendienste:sekkor (20160426)
-const char FULL_RECORD_DELETE_INDICATORS[] = { 'A', 'B', 'C', 'D', 'E' };
-const char LOCAL_DATA_DELETE_INDICATORS[] = { '3', '4', '5', '9' };
-const size_t MIN_LINE_LENGTH = 21;
-
-
-void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
-                        std::unordered_set <std::string> * const local_deletion_ids)
-{
-    const size_t PPN_LENGTH(9);
-    const size_t PPN_START_INDEX(12);
-    const size_t SEPARATOR_INDEX(PPN_START_INDEX - 1);
-
-    unsigned line_no(0);
-loop_top:
-    while (not deletion_list->eof()) {
-        const std::string line(StringUtil::Trim(deletion_list->getline()));
-        ++line_no;
-        if (unlikely(line.empty())) // Ignore empty lines.
-            continue;
-        if (line.length() < PPN_START_INDEX)
-            Error("short line " + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath()
-                  + "\": \"" + line + "\"!");
-        for (const char indicator : FULL_RECORD_DELETE_INDICATORS) {
-            if (line[SEPARATOR_INDEX] == indicator) {
-                delete_full_record_ids->insert(line.substr(PPN_START_INDEX)); // extract PPN
-                goto loop_top;
-            }
-        }
-        for (const char indicator : LOCAL_DATA_DELETE_INDICATORS) {
-            if (line[SEPARATOR_INDEX] == indicator) {
-                if (line.length() < MIN_LINE_LENGTH)
-                    Error("unexpected line length " + std::to_string(line.length()) + " for local entry on line "
-                          + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath() + "\"!");
-                local_deletion_ids->insert(line.substr(PPN_START_INDEX, PPN_LENGTH)); // extract ELN
-                goto loop_top;
-            }
-        }
-        unknown_types.emplace(line.substr(SEPARATOR_INDEX, 1));
-    }
-}
-
-
 int MatchLocalID(const std::unordered_set <std::string> &local_ids, const std::vector <DirectoryEntry> &dir_entries,
-                 const std::vector <std::string> &field_data) {
+                 const std::vector <std::string> &field_data)
+{
     for (size_t i(0); i < dir_entries.size(); ++i) {
         if (dir_entries[i].getTag() != "LOK")
             continue;
@@ -125,8 +77,7 @@ public:
 /** \brief Deletes LOK sections if their pseudo tags are found in "local_deletion_ids"
  *  \return True if at least one local section has been deleted, else false.
  */
-bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_ids, MarcRecord * const record)
-{
+bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_ids, MarcRecord * const record) {
     bool modified(false);
 
     std::vector<std::pair<size_t, size_t>> local_block_boundaries;
@@ -195,7 +146,7 @@ int main(int argc, char *argv[]) {
         Error("can't open \"" + deletion_list_filename + "\" for reading!");
 
     std::unordered_set <std::string> title_deletion_ids, local_deletion_ids;
-    ExtractDeletionIds(&deletion_list, &title_deletion_ids, &local_deletion_ids);
+    BSZUtil::ExtractDeletionIds(&deletion_list, &title_deletion_ids, &local_deletion_ids);
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3], MarcWriter::BINARY));
@@ -205,7 +156,4 @@ int main(int argc, char *argv[]) {
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
-
-    if (not unknown_types.empty())
-        Error("Unknown types: " + StringUtil::Join(unknown_types, ", "));
 }
