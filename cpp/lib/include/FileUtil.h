@@ -268,6 +268,9 @@ std::unique_ptr<File> OpenForAppeningOrDie(const std::string &filename);
 bool Copy(File * const from, File * const to, const size_t no_of_bytes);
 
 
+void CopyOrDie(const std::string &from_path, const std::string &to_path);
+
+
 /** \brief  Tests a file descriptor for readiness for reading.
  *  \param  fd          The file descriptor that we we want to test for read readiness.
  *  \param  time_limit  Up to how long to wait, in milliseconds, for the descriptor to become ready for reading.
