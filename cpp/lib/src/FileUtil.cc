@@ -752,7 +752,7 @@ void CopyOrDie(const std::string &from_path, const std::string &to_path) {
     for (;;) {
         const ssize_t no_of_bytes(::read(from_fd, &buf[0], sizeof(buf)));
         if (no_of_bytes == 0)
-            break;
+            return;
 
         if (unlikely(no_of_bytes < 0))
             Error("in FileUtil::CopyOrDie: read(2) failed! (" + std::string(::strerror(errno)) + ")");
