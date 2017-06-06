@@ -14,8 +14,8 @@ function Abort {
 }
 
 
-if [ $# != 2 ]; then
-    echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc" "Normdaten-YYMMDD.mrc"
+if [ $# != 1 ]; then
+    echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
     exit 1
 fi
 
@@ -29,15 +29,9 @@ fi
 date=$(echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1)
 
 
-if [[ "$2" != "Normdaten-${date}.mrc" ]]; then
-    echo "Authority data file must be named \"$2\"\ to match the bibliographic file name!"
-    exit 1
-fi
-
-
 function StartPhase {
     if [ -z ${PHASE+x} ]; then
-        PHASE=0
+        PHASE=1
     else
         ((++PHASE))
     fi
@@ -76,6 +70,11 @@ rm -f "${log}"
 CleanUp
 
 OVERALL_START=$(date +%s.%N)
+
+StartPhase "Apply Updates to Our Authority Data"
+update_authority_data 'LOEPPN-\d\d\d\d\d\d' 'Normdaten-\d\d\d\d\d\d'.mrc 'WA-MARCcomb-\d\d\d\d\d\d.tar.gz' Normdaten-"${date}".mrc >> "${log}" 2>&1 &&
+EndPhase
+
 
 StartPhase "Filter out Local Data of Other Institutions" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc

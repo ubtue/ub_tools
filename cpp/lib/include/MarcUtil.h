@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2014-2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,7 +23,9 @@
 #define MARC_UTIL_H
 
 
+#include <unordered_map>
 #include "MarcRecord.h"
+#include "MarcReader.h"
 
 
 namespace MarcUtil {
@@ -38,6 +40,13 @@ bool UBTueIsElectronicResource(const MarcRecord &marc_record);
 
 /** \return A Non-empty string if we managed to find a parent PPN o/w the empty string. */
 std::string GetParentPPN(const MarcRecord &marc_record);
+
+
+/** \brief Populates a map of control numbers to record offsets.
+ *  \return The number of processed records.
+ */
+unsigned CollectRecordOffsets(MarcReader * const marc_reader,
+                              std::unordered_map<std::string, off_t> * const control_number_to_offset_map);
 
 
 } // namespace MarcUtil
