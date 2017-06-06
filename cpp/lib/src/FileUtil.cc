@@ -2,7 +2,7 @@
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,7 @@
 #include <stdexcept>
 #include <cassert>
 #include <climits>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
@@ -733,6 +734,35 @@ bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
     if (unlikely(from->read((void *)buffer.data(), no_of_bytes) != no_of_bytes))
         return false;
     return to->write((void *)buffer.data(), no_of_bytes) == no_of_bytes;
+}
+
+
+void CopyOrDie(const std::string &from_path, const std::string &to_path) {
+    const int from_fd(::open(from_path.c_str(), O_RDONLY));
+    if (unlikely(from_fd == -1))
+        Error("in FileUtil::CopyOrDie: failed to open \"" + from_path  + "\" for reading! ("
+              + std::string(::strerror(errno)) + ")");
+
+    const int to_fd(::open(to_path.c_str(), O_WRONLY));
+    if (unlikely(to_fd == -1))
+        Error("in FileUtil::CopyOrDie: failed to open \"" + to_path  + "\" for writing! ("
+              + std::string(::strerror(errno)) + ")");
+
+    char buf[BUFSIZ];
+    for (;;) {
+        const ssize_t no_of_bytes(::read(from_fd, &buf[0], sizeof(buf)));
+        if (no_of_bytes == 0)
+            break;
+
+        if (unlikely(no_of_bytes < 0))
+            Error("in FileUtil::CopyOrDie: read(2) failed! (" + std::string(::strerror(errno)) + ")");
+
+        if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes))
+            Error("in FileUtil::CopyOrDie: writ(2) failed! (" + std::string(::strerror(errno)) + ")");
+    }
+
+    ::close(from_fd);
+    ::close(to_fd);
 }
 
 
