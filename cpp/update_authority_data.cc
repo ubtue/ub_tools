@@ -123,6 +123,11 @@ int main(int argc, char *argv[]) {
 
         const std::string MARC_SOURCE_FILENAME(GetMostRecentFile(argv[3]));
         const std::string MARC_SOURCE_DATE(BSZUtil::ExtractDateFromFilenameOrDie(MARC_SOURCE_FILENAME));
+
+        if (MARC_TARGET_DATE >= MARC_SOURCE_DATE) {
+            std::cout << "Nothing to be done!\n";
+            return EXIT_SUCCESS;
+        }
         
         const std::string DELETION_LIST_FILENAME(GetMostRecentFile(argv[1]));
         const std::string DELETION_LIST_DATE(BSZUtil::ExtractDateFromFilenameOrDie(DELETION_LIST_FILENAME));
