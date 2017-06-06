@@ -99,7 +99,7 @@ bool ArchiveReader::extractEntry(const std::string &member_name, std::string out
             continue;
 
         if (entry_info.isDirectory())
-            Error("in ArchiveReader::extractEntry: can't extract a direcvtory!");
+            Error("in ArchiveReader::extractEntry: can't extract a directory!");
 
         const int to_fd(::open(output_filename.c_str(), O_WRONLY));
         if (unlikely(to_fd == -1))
@@ -109,8 +109,10 @@ bool ArchiveReader::extractEntry(const std::string &member_name, std::string out
         char buf[BUFSIZ];
         for (;;) {
             const ssize_t no_of_bytes(read(&buf[0], sizeof(buf)));
-            if (no_of_bytes == 0)
-                break;
+            if (no_of_bytes == 0) {
+                ::close(to_fd);
+                return true;
+            }
 
             if (unlikely(no_of_bytes < 0))
                 Error("in ArchiveReader::extractEntry: " + getLastErrorMessage());
