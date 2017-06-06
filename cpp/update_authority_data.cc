@@ -46,8 +46,9 @@ static void Usage() {
               << "       \"reference_records\".  The file with the replacements as well as any records\n"
               << "       that could not be replaced is the output file \"target_records\".\n"
               << "       \"deletion_list\", \"reference_records\", and \"source_records\" must all be regular\n"
-              << "       expressions containing \\d\\d\\d\\d\\d\\d stading in for YYMMDD.  No other\n"
-              << "       metacharacters should probably be used.\n\n";
+              << "       expressions containing \\d\\d\\d\\d\\d\\d stading in for YYMMDD.  Additionally\n"
+              << "       \"target_records\" must also contain the YYMMDD patternNo  (No other metacharacters\n"
+              << "       than \\d should probably be used.)\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -115,20 +116,37 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
-        std::unique_ptr<File> deletion_list_file(FileUtil::OpenInputFileOrDie(GetMostRecentFile(argv[1])));
-        std::unordered_set <std::string> delete_full_record_ids, local_deletion_ids;
-        BSZUtil::ExtractDeletionIds(deletion_list_file.get(), &delete_full_record_ids, &local_deletion_ids);
+        const std::string MARC_TEMP_FILENAME("/tmp/update_authority_data.temp.mrc");
+        
+        const std::string MARC_TARGET_FILENAME(argv[4]);
+        const std::string MARC_TARGET_DATE(BSZUtil::ExtractDateFromFilenameOrDie(MARC_TARGET_FILENAME));
 
-        std::unique_ptr<MarcReader> marc_source_reader(MarcReader::Factory(GetMostRecentFile(argv[3])));
-        const std::string MARC_TEMPFILE("/tmp/update_authority_data.temp.mrc");
-        std::unique_ptr<MarcWriter> marc_temp_writer(MarcWriter::Factory(MARC_TEMPFILE));
-        EraseRecords(marc_source_reader.get(), marc_temp_writer.get(), delete_full_record_ids);
+        const std::string MARC_SOURCE_FILENAME(GetMostRecentFile(argv[3]));
+        const std::string MARC_SOURCE_DATE(BSZUtil::ExtractDateFromFilenameOrDie(MARC_SOURCE_FILENAME));
+        
+        const std::string DELETION_LIST_FILENAME(GetMostRecentFile(argv[1]));
+        const std::string DELETION_LIST_DATE(BSZUtil::ExtractDateFromFilenameOrDie(DELETION_LIST_FILENAME));
 
-        const std::string MARC_REFERENCE_FILE(GetMostRecentFile(argv[2]));
-        const std::string MARC_TARGET_FILE(argv[4]);
-        const std::string REPLACE_MARC_RECORDS_PATH("/usr/local/bin/replace_marc_records");
-        if (ExecUtil::Exec(REPLACE_MARC_RECORDS_PATH, { MARC_REFERENCE_FILE, MARC_TEMPFILE, MARC_TARGET_FILE }) != 0)
-            Error("failed to execute \"" + REPLACE_MARC_RECORDS_PATH + "\"!");
+        if (DELETION_LIST_DATE >= MARC_SOURCE_DATE) {
+            std::unique_ptr<File> deletion_list_file(FileUtil::OpenInputFileOrDie(DELETION_LIST_FILENAME));
+            std::unordered_set <std::string> delete_full_record_ids, local_deletion_ids;
+            BSZUtil::ExtractDeletionIds(deletion_list_file.get(), &delete_full_record_ids, &local_deletion_ids);
+
+            std::unique_ptr<MarcReader> marc_source_reader(MarcReader::Factory(MARC_SOURCE_FILENAME));
+            std::unique_ptr<MarcWriter> marc_temp_writer(MarcWriter::Factory(MARC_TEMP_FILENAME));
+            EraseRecords(marc_source_reader.get(), marc_temp_writer.get(), delete_full_record_ids);
+        } else
+            FileUtil::CopyOrDie(MARC_SOURCE_FILENAME, MARC_TEMP_FILENAME);
+        
+        const std::string MARC_REFERENCE_FILENAME(GetMostRecentFile(argv[2]));
+        const std::string MARC_REFERENCE_DATE(BSZUtil::ExtractDateFromFilenameOrDie(MARC_REFERENCE_FILENAME));
+        if (MARC_REFERENCE_DATE >= MARC_SOURCE_DATE) {
+            const std::string REPLACE_MARC_RECORDS_PATH("/usr/local/bin/replace_marc_records");
+            if (ExecUtil::Exec(REPLACE_MARC_RECORDS_PATH,
+                               { MARC_REFERENCE_FILENAME, MARC_TEMP_FILENAME, MARC_TARGET_FILENAME }) != 0)
+                Error("failed to execute \"" + REPLACE_MARC_RECORDS_PATH + "\"!");
+        } else
+            FileUtil::CopyOrDie(MARC_TEMP_FILENAME, MARC_TARGET_FILENAME);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
