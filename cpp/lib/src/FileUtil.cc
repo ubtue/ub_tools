@@ -758,7 +758,7 @@ void CopyOrDie(const std::string &from_path, const std::string &to_path) {
             Error("in FileUtil::CopyOrDie: read(2) failed! (" + std::string(::strerror(errno)) + ")");
 
         if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes))
-            Error("in FileUtil::CopyOrDie: writ(2) failed! (" + std::string(::strerror(errno)) + ")");
+            Error("in FileUtil::CopyOrDie: write(2) failed! (" + std::string(::strerror(errno)) + ")");
     }
 
     ::close(from_fd);

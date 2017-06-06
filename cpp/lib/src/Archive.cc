@@ -2,7 +2,7 @@
  *  \brief  Implementations of the ArchiveReader and ArchiveWriter classes which are wrappers around libtar.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,9 +21,11 @@
 #include <stdexcept>
 #include <cstring>
 #include <archive_entry.h>
+#include <fcntl.h>
 #include "Compiler.h"
 #include "File.h"
 #include "StringUtil.h"
+#include "util.h"
 
 
 const std::string ArchiveReader::EntryInfo::getFilename() const {
@@ -48,7 +50,8 @@ ArchiveReader::ArchiveReader(const std::string &archive_file_name) {
     archive_handle_ = ::archive_read_new();
     ::archive_read_support_filter_all(archive_handle_);
     ::archive_read_support_format_all(archive_handle_);
-    if (unlikely(::archive_read_open_filename(archive_handle_, archive_file_name.c_str(), DEFAULT_BLOCKSIZE) != ARCHIVE_OK))
+    if (unlikely(::archive_read_open_filename(archive_handle_, archive_file_name.c_str(), DEFAULT_BLOCKSIZE)
+                 != ARCHIVE_OK))
         throw std::runtime_error("in ArchiveReader::ArchiveReader: archive_read_open_filename(3) failed: "
                                  + std::string(::archive_error_string(archive_handle_)));
 }
@@ -56,7 +59,8 @@ ArchiveReader::ArchiveReader(const std::string &archive_file_name) {
 
 ArchiveReader::~ArchiveReader() {
     if (unlikely(::archive_read_free(archive_handle_) != ARCHIVE_OK))
-        throw std::runtime_error("in ArchiveReader::~ArchiveReader: archive_read_free(3) failed: " + std::string(::strerror(errno)));
+        throw std::runtime_error("in ArchiveReader::~ArchiveReader: archive_read_free(3) failed: "
+                                 + std::string(::strerror(errno)));
 }
 
 
@@ -85,7 +89,46 @@ ssize_t ArchiveReader::read(char * const buffer, const size_t size) {
 }
 
 
-ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const FileType file_type): archive_entry_(nullptr) {
+bool ArchiveReader::extractEntry(const std::string &member_name, std::string output_filename) {
+    if (output_filename.empty())
+        output_filename = member_name;
+
+    EntryInfo entry_info;
+    while (getNext(&entry_info)) {
+        if (entry_info.getFilename() != member_name)
+            continue;
+
+        if (entry_info.isDirectory())
+            Error("in ArchiveReader::extractEntry: can't extract a direcvtory!");
+
+        const int to_fd(::open(output_filename.c_str(), O_WRONLY));
+        if (unlikely(to_fd == -1))
+            Error("in FileUtil::CopyOrDie: failed to open \"" + output_filename  + "\" for writing! ("
+                  + std::string(::strerror(errno)) + ")");
+
+        char buf[BUFSIZ];
+        for (;;) {
+            const ssize_t no_of_bytes(read(&buf[0], sizeof(buf)));
+            if (no_of_bytes == 0)
+                break;
+
+            if (unlikely(no_of_bytes < 0))
+                Error("in ArchiveReader::extractEntry: " + getLastErrorMessage());
+
+            if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes))
+                Error("in ArchiveReader::extractEntry: write(2) failed! (" + std::string(::strerror(errno)) + ")");
+        }
+
+        ::close(to_fd);
+    }
+    
+    return false;
+}
+
+
+ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const FileType file_type)
+    : archive_entry_(nullptr)
+{
     archive_handle_ = ::archive_write_new();
 
     switch (file_type) {
@@ -97,7 +140,8 @@ ArchiveWriter::ArchiveWriter(const std::string &archive_file_name, const FileTyp
             ::archive_write_set_format_pax_restricted(archive_handle_);
         } else
             throw std::runtime_error("in ArchiveWriter::ArchiveWriter: FileType::AUTO selected but,"
-                                     " can't guess the file type from the given filename \"" + archive_file_name + "\"!");
+                                     " can't guess the file type from the given filename \"" + archive_file_name
+                                     + "\"!");
         break;
     case FileType::TAR:
         ::archive_write_set_format_pax_restricted(archive_handle_);

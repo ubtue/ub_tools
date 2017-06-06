@@ -2,7 +2,7 @@
  *  \brief  Interfaces for the ArchiveReader and ArchiveWriter classes which are wrappers around libtar.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -53,6 +53,14 @@ public:
     ssize_t read(char * const buffer, const size_t size);
 
     std::string getLastErrorMessage() const { return ::archive_error_string(archive_handle_); }
+
+    /** \brief Attempts to extract the archive member named "member_name".
+     *  \param member_name      Which member to extract.
+     *  \param output_filename  Where to write the extracted data.  If this is the empty string \"member_name\"
+     *         will be used.
+     *  \return True if "member_name" was found and successfully extracted, o/w false.
+     */
+    bool extractEntry(const std::string &member_name, std::string output_filename = "");
 };
 
 
