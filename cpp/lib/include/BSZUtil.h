@@ -36,6 +36,10 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
                         std::unordered_set <std::string> * const local_deletion_ids);
 
 
+/** Extracts a date in the form of YYMMDD from "filename". */
+std::string ExtractDateFromFilenameOrDie(const std::string &filename);
+
+
 } // namespace BSZUtil
 
 

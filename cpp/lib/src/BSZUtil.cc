@@ -22,6 +22,7 @@
 #include "BSZUtil.h"
 #include "StringUtil.h"
 #include "util.h"
+#include "RegexMatcher.h"
 
 
 namespace BSZUtil {
@@ -70,6 +71,24 @@ top_loop:
         Warning("in \"" + deletion_list->getPath() + " \" on line #" + std::to_string(line_no)
                 + " unknown indicator: '" + line.substr(SEPARATOR_INDEX, 1) + "'!");
     }
+}
+
+
+std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
+    static const std::string DATE_EXTRACTION_REGEX(".*(\\d{6}).*");
+    static RegexMatcher *matcher;
+    if (matcher == nullptr) {
+        std::string err_msg;
+        matcher = RegexMatcher::RegexMatcherFactory(DATE_EXTRACTION_REGEX, &err_msg);
+        if (unlikely(not err_msg.empty()))
+            Error("in ExtractDateFromFilenameOrDie: failed to compile regex: \"" + DATE_EXTRACTION_REGEX +"\".");
+    }
+
+    if (unlikely(not matcher->matched(filename)))
+        Error("in ExtractDateFromFilenameOrDie: \"" + filename + "\" failed to match the regex \""
+              + DATE_EXTRACTION_REGEX + "\"!");
+
+    return (*matcher)[1];
 }
 
 
