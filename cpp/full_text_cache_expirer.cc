@@ -48,6 +48,8 @@ void ExpungeOldRecords(const unsigned no_of_months) {
     if (not db_connection.query(DELETE_STMT))
         throw std::runtime_error("Query \"" + DELETE_STMT + "\" failed because: "
                                  + db_connection.getLastErrorMessage());
+
+    std::cout << "Deleted " << db_connection.getNoOfAffectedRows() << " rows from the cache.\n";
 }
 
 
