@@ -53,6 +53,7 @@ server_password = vv:*i%Nk
 #include <sys/types.h>
 #include <unistd.h>
 #include "Archive.h"
+#include "BSZUtil.h"
 #include "Compiler.h"
 #include "EmailSender.h"
 #include "ExecUtil.h"
@@ -171,30 +172,12 @@ std::string PickCompleteDumpFilename(const std::string &complete_dump_pattern) {
 }
 
 
-std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
-    static const std::string DATE_EXTRACTION_REGEX(".*(\\d{6}).*");
-    static RegexMatcher *matcher;
-    if (matcher == nullptr) {
-        std::string err_msg;
-        matcher = RegexMatcher::RegexMatcherFactory(DATE_EXTRACTION_REGEX, &err_msg);
-        if (unlikely(not err_msg.empty()))
-            LogSendEmailAndDie("in ExtractDate: failed to compile regex: \"" + DATE_EXTRACTION_REGEX +"\".");
-    }
-
-    if (unlikely(not matcher->matched(filename)))
-        LogSendEmailAndDie("in ExtractDate: \"" + filename + "\" failed to match the regex \""
-                           + DATE_EXTRACTION_REGEX + "\"!");
-
-    return (*matcher)[1];
-}
-
-
 enum CompOutcome { CO_GREATER, CO_SMALLER, CO_EQUAL };
 
 
 CompOutcome DateCompare(const std::string &filename1, const std::string &filename2) {
-    const std::string date1(ExtractDateFromFilenameOrDie(filename1));
-    const std::string date2(ExtractDateFromFilenameOrDie(filename2));
+    const std::string date1(BSZUtil::ExtractDateFromFilenameOrDie(filename1));
+    const std::string date2(BSZUtil::ExtractDateFromFilenameOrDie(filename2));
     if (date1 < date2)
         return CO_SMALLER;
     else if (date1 > date2)
@@ -230,7 +213,7 @@ void GetFilesMoreRecentThanOrEqual(const std::string &cutoff_date, const std::st
     const auto first_deletion_position(filenames->begin());
     auto last_deletion_position(filenames->begin());
     while (last_deletion_position < filenames->end()
-           and ExtractDateFromFilenameOrDie(*last_deletion_position) < cutoff_date)
+           and BSZUtil::ExtractDateFromFilenameOrDie(*last_deletion_position) < cutoff_date)
         ++last_deletion_position;
 
     const auto erase_count(std::distance(first_deletion_position, last_deletion_position));
@@ -710,8 +693,8 @@ std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_
                         "");
             ++deletion_list_filename;
         } else {
-            const std::string deletion_list_date(ExtractDateFromFilenameOrDie(*deletion_list_filename));
-            const std::string incremental_dump_date(ExtractDateFromFilenameOrDie(*incremental_dump_filename));
+            const std::string deletion_list_date(BSZUtil::ExtractDateFromFilenameOrDie(*deletion_list_filename));
+            const std::string incremental_dump_date(BSZUtil::ExtractDateFromFilenameOrDie(*incremental_dump_filename));
             if (deletion_list_date < incremental_dump_date) {
                 ApplyUpdate(keep_intermediate_files, apply_count, *deletion_list_filename,
                             AdvanceToDate(*deletion_list_filename, errors_list_filenames.cend(),
@@ -735,7 +718,7 @@ std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_
         }
     }
 
-    const std::string old_date(ExtractDateFromFilenameOrDie("../" + complete_dump_filename));
+    const std::string old_date(BSZUtil::ExtractDateFromFilenameOrDie("../" + complete_dump_filename));
 
     if (not keep_intermediate_files) {
         Log("deleting \"" + complete_dump_filename + "\".");
@@ -801,7 +784,7 @@ int main(int argc, char *argv[]) {
         ini_file.lookup("Files", "error_list", &errors_list_pattern);
 
         const std::string complete_dump_filename(PickCompleteDumpFilename(complete_dump_pattern));
-        const std::string complete_dump_filename_date(ExtractDateFromFilenameOrDie(complete_dump_filename));
+        const std::string complete_dump_filename_date(BSZUtil::ExtractDateFromFilenameOrDie(complete_dump_filename));
 
         std::vector<std::string> deletion_list_filenames;
         GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
