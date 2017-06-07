@@ -83,13 +83,6 @@ std::string GetHost(const std::string &url) {
 }
 
 
-inline bool CompareDomainsAndCountsByCounts(const std::pair<std::string, unsigned> &domain_and_count1,
-                                            const std::pair<std::string, unsigned> &domain_and_count2)
-{
-    return domain_and_count1.second > domain_and_count2.second;
-}
-
-
 void DetermineNewStats(std::vector<std::pair<std::string, unsigned>> * const domains_and_counts) {
     domains_and_counts->clear();
     
@@ -116,8 +109,6 @@ void DetermineNewStats(std::vector<std::pair<std::string, unsigned>> * const dom
 
     for (const auto &domain_and_count : domains_to_counts_map)
         domains_and_counts->emplace_back(domain_and_count);
-
-    std::sort(domains_and_counts->begin(), domains_and_counts->end(), CompareDomainsAndCountsByCounts);
 }
 
 
@@ -171,10 +162,6 @@ int main(int argc, char *argv[]) {
 
     if (argc != 3)
         Usage();
-
-    unsigned no_of_months;
-    if (not StringUtil::ToUnsigned(argv[1], &no_of_months))
-        Error("no_of_months must be a number!");
 
     try {
         std::vector<std::pair<std::string, unsigned>> old_domains_and_counts;
