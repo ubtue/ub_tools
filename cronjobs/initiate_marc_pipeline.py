@@ -4,20 +4,12 @@
 
 import datetime
 import glob
-import process_util
 import urllib2
 import os
 import struct
 import sys
 import traceback
 import util
-
-
-def ExecOrDie(cmd_name, args, log_file_name):
-    if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
-                             new_stderr=log_file_name, append_stdout=True, append_stderr=True) == 0:
-        util.SendEmail("MARC-21 Pipeline",  "Pipeline failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name + "\" for the reason.", priority=1)
-        sys.exit(-1)
 
 
 # Delete the index to do away with old data that might remain otherwise
@@ -38,21 +30,22 @@ def ImportIntoVuFind(pattern, log_file_name):
         util.Error("\"" + pattern + "\" matched " + str(len(args))
                    + " files! (Should have matched exactly 1 file!)")
     DeleteSolrIndex()
-    ExecOrDie("/usr/local/vufind/import-marc.sh", args, log_file_name)
-    ExecOrDie("/usr/local/vufind/index-alphabetic-browse.sh", None, log_file_name)
+    util.ExecOrDie("/usr/local/vufind/import-marc.sh", args, log_file_name)
+    util.ExecOrDie("/usr/local/vufind/index-alphabetic-browse.sh", None, log_file_name)
 
-    
-def StartPipeline(pipeline_script_name, data_files, conf):
+
+def StartPipeline(pipeline_script_name, marc_title, conf):
     log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
-    ExecOrDie(pipeline_script_name, data_files, log_file_name)
+    util.ExecOrDie(pipeline_script_name, marc_title, log_file_name)
 
     deletion_list_glob = "LOEPPN-[0-9][0-9][0-9][0-9][0-9][0-9]"
     most_recent_deletion_list = util.getMostRecentFileMatchingGlob(deletion_list_glob)
     if not most_recent_deletion_list:
-        util.SendEmail("MARC-21 Pipeline", "Did not find any files matching \"" + deletion_list_glob + "\".", priority=5)
+        util.SendEmail("MARC-21 Pipeline", "Did not find any files matching \"" + deletion_list_glob + "\".",
+                       priority=5)
     else:
         delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
-        ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
+        util.ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
 
     ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), log_file_name)
 
@@ -91,8 +84,8 @@ def Main():
         if not bsz_data.endswith(".tar.gz"):
             util.Error("BSZ data file must end in .tar.gz!")
         file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
-        
-        StartPipeline(pipeline_script_name, file_name_list, conf)
+
+        StartPipeline(pipeline_script_name, file_name_list[0], conf)
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5)
         util.WriteTimestamp()
     else:
