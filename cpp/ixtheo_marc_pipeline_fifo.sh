@@ -69,7 +69,9 @@ rm -f "${log}"
 
 CleanUp
 
+
 OVERALL_START=$(date +%s.%N)
+
 
 StartPhase "Apply Updates to Our Authority Data"
 update_authority_data 'LOEPPN-\d\d\d\d\d\d' 'Normdaten-\d\d\d\d\d\d'.mrc 'WA-MARCcomb-\d\d\d\d\d\d.tar.gz' Normdaten-"${date}".mrc >> "${log}" 2>&1 &&
