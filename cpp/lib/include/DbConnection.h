@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -42,6 +42,12 @@ public:
     bool query(const std::string &query_statement) { return ::mysql_query(&mysql_, query_statement.c_str()) == 0; }
     DbResultSet getLastResultSet();
     std::string getLastErrorMessage() const { return ::mysql_error(&mysql_); }
+
+    /** \return The the number of rows changed, deleted, or inserted by the last statement if it was an UPDATE,
+     *          DELETE, or INSERT.
+     *  \note   Must be called immediately after calling "query()".
+     */
+    unsigned getNoOfAffectedRows() const { return ::mysql_affected_rows(&mysql_); }
 
     /** Converts the binary contents of "unescaped_string" into a form that can used as a string (you still
         need to add quotes around it) in SQL statements. */
