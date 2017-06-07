@@ -44,7 +44,7 @@ void ExpungeOldRecords(const unsigned no_of_months) {
 
     const time_t now(std::time(nullptr));
     const std::string cutoff_datetime(SqlUtil::TimeTToDatetime(now - no_of_months * 30 * 86400));
-    const std::string DELETE_STMT("DELETE FROM full_text_cache SET WHERE last_used < \"" + cutoff_datetime + "\"");
+    const std::string DELETE_STMT("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
     if (not db_connection.query(DELETE_STMT))
         throw std::runtime_error("Query \"" + DELETE_STMT + "\" failed because: "
                                  + db_connection.getLastErrorMessage());
