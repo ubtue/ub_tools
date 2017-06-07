@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2016 Universitätsbibliothek Tübingen
+ *  Copyright 2016-2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -29,22 +29,7 @@
 
 #include "HtmlUtil.h"
 #include <cstring>
-/*
-#include <iostream>
-#include <stack>
-#include <cctype>
-#include <cerrno>
-#include <HttpHeader.h>
-#include <IniFile.h>
-#include <MiscUtil.h>
-#include <MsgUtil.h>
-#include <NGramUtil.h>
-#include <PerlCompatRegExp.h>
-#include <StringUtil.h>
-#include <Template.h>
-#include <TextUtil.h>
-#include <Url.h>
-*/
+#include "HtmlParser.h"
 
 
 namespace HtmlUtil {
@@ -640,6 +625,21 @@ std::string HtmlEscape(const std::string &unescaped_text) {
     }
 
     return escaped_text;
+}
+
+
+size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string> * const urls) {
+    std::list<UrlExtractorParser::UrlAndAnchorText> urls_and_anchor_texts;
+    std::string base_url;
+    UrlExtractorParser parser(html_document, /* accept_frame_tags = */ true, /* ignore_image_tags = */ false,
+                              /* clean_up_anchor_text = */ true, &urls_and_anchor_texts, &base_url);
+    parser.parse();
+
+    urls->clear();
+    for (const auto &url_and_anchor_text : urls_and_anchor_texts)
+        urls->emplace_back(url_and_anchor_text.url_);
+
+    return urls->size();
 }
 
 
