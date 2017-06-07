@@ -36,7 +36,7 @@ def ImportIntoVuFind(pattern, log_file_name):
 
 def StartPipeline(pipeline_script_name, marc_title, conf):
     log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
-    util.ExecOrDie(pipeline_script_name, marc_title, log_file_name)
+    util.ExecOrDie(pipeline_script_name, [ marc_title ], log_file_name)
 
     deletion_list_glob = "LOEPPN-[0-9][0-9][0-9][0-9][0-9][0-9]"
     most_recent_deletion_list = util.getMostRecentFileMatchingGlob(deletion_list_glob)
