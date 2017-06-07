@@ -131,29 +131,32 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
     auto old_iter(old_domains_and_counts.cbegin());
     auto new_iter(new_domains_and_counts.cbegin());
 
-    EmailSender::SendEmail("no_return@ub.uni-tuebingen.de", email_address, "Full Text Stats", report_text,
-                           found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW);
-
     while (old_iter != old_domains_and_counts.cend() or new_iter != new_domains_and_counts.cend()) {
         if (old_iter == old_domains_and_counts.cend()) {
+            report_text += new_iter->first + " (count: " + std::to_string(new_iter->second) + ") was added.\n";
             ++new_iter;
         } else if (new_iter == new_domains_and_counts.cend()) {
+            report_text += old_iter->first + " (count: " + std::to_string(old_iter->second) + ") disappeared.\n";
             ++old_iter;
+            found_one_or_more_problems = true;
         } else {
             if (old_iter->first == new_iter->first) {
-                report_text = old_iter->first + ", old count: " + std::to_string(old_iter->second) + ", new count: "
-                              + std::to_string(old_iter->second) + "\n"; 
+                report_text += old_iter->first + ", old count: " + std::to_string(old_iter->second) + ", new count: "
+                               + std::to_string(old_iter->second) + "\n"; 
                 ++new_iter, ++old_iter;
             } else if (old_iter->first < new_iter->first) {
+                report_text += old_iter->first + " (count: " + std::to_string(old_iter->second) + ") disappeared.\n";
                 ++old_iter;
-                report_text = old_iter->first + " (count: " + std::to_string(old_iter->second) + ") disappeard.\n";
                 found_one_or_more_problems = true;
             } else if (old_iter->first > new_iter->first) {
-                report_text = new_iter->first + " (count: " + std::to_string(new_iter->second) + ") was added.\n";
+                report_text += new_iter->first + " (count: " + std::to_string(new_iter->second) + ") was added.\n";
                 ++new_iter;
             }
         }
     }
+    
+    EmailSender::SendEmail("no_return@ub.uni-tuebingen.de", email_address, "Full Text Stats", report_text,
+                           found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW);
 }
 
 
