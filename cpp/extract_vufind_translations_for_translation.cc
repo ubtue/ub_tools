@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016,2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -55,8 +55,7 @@ void InsertTranslations(
         const std::string GET_TRANSLATOR("SELECT translator FROM vufind_translations WHERE language_code=\""
            + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
            + "\" AND token=\"" + key + "\"");
-        if (not connection->query(GET_TRANSLATOR))
-            Error("Select failed: " + GET_TRANSLATOR + " (" + connection->getLastErrorMessage() + ")");
+        connection->queryOrDie(GET_TRANSLATOR);
         DbResultSet result(connection->getLastResultSet());
         if (not result.empty()) {
             const DbRow row(result.getNextRow());
@@ -71,8 +70,7 @@ void InsertTranslations(
            "REPLACE INTO vufind_translations SET language_code=\""
 	   + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
 	   + "\", token=\"" + key + "\", translation=\"" + translation + "\"");
-        if (not connection->query(INSERT_OTHER))
-            Error("Insert failed: " + INSERT_OTHER + " (" + connection->getLastErrorMessage() + ")");
+        connection->queryOrDie(INSERT_OTHER);
     }
 }
 

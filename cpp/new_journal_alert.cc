@@ -285,10 +285,8 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
                        std::vector<SerialControlNumberAndMaxLastModificationTime>
                            &control_numbers_and_last_modification_times)
 {
-    const std::string SELECT_USER_ATTRIBUTES("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id='" + user_id + "'");
-    if (unlikely(not db_connection->query(SELECT_USER_ATTRIBUTES)))
-        Error("Select failed: " + SELECT_USER_ATTRIBUTES + " (" + db_connection->getLastErrorMessage() + ")");
-    
+    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id='"
+                              + user_id + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     
     if (result_set.empty())
@@ -322,19 +320,20 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
         std::cerr << "Found " << new_issue_infos.size() << " new issues for " << "\"" << username << "\".\n";
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
+        SendNotificationEmail(firstname, lastname, email, hostname, sender_email, email_subject, new_issue_infos,
+                              user_type);
 
     // Update the database with the new last issue dates.
     for (const auto &control_number_and_last_modification_time : control_numbers_and_last_modification_times) {
         if (not control_number_and_last_modification_time.changed())
             continue;
         
-        const std::string UPDATE_STMT("UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='" + ConvertDateFromZuluDate(control_number_and_last_modification_time.last_modification_time_)
-                                       + "' WHERE id=" + user_id
-                                       + " AND journal_control_number='" + control_number_and_last_modification_time.serial_control_number_ + "'");
-        
-        if (unlikely(not db_connection->query(UPDATE_STMT)))
-            Error("UPDATE failed: " + UPDATE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+        db_connection->queryOrDie(
+            "UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='"
+            + ConvertDateFromZuluDate(control_number_and_last_modification_time.last_modification_time_)
+            + "' WHERE id=" + user_id
+            + " AND journal_control_number='" + control_number_and_last_modification_time.serial_control_number_
+            + "'");
     }
 }
 
@@ -358,11 +357,8 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
     while (const DbRow id_row = id_result_set.getNextRow()) {
         const std::string user_id(id_row["id"]);
 
-        const std::string SELECT_SUBSCRIPTION_INFO("SELECT journal_control_number,max_last_modification_time FROM "
-                                                   "ixtheo_journal_subscriptions WHERE id=" + user_id);
-        if (unlikely(not db_connection->query(SELECT_SUBSCRIPTION_INFO)))
-            Error("Select failed: " + SELECT_SUBSCRIPTION_INFO + " (" + db_connection->getLastErrorMessage() + ")");
-
+        db_connection->queryOrDie("SELECT journal_control_number,max_last_modification_time FROM "
+                                  "ixtheo_journal_subscriptions WHERE id=" + user_id);
         DbResultSet result_set(db_connection->getLastResultSet());
         std::vector<SerialControlNumberAndMaxLastModificationTime> control_numbers_and_last_modification_times;
         while (const DbRow row = result_set.getNextRow()) {

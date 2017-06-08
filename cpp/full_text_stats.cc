@@ -93,10 +93,7 @@ void DetermineNewStats(std::vector<std::pair<std::string, unsigned>> * const dom
     VuFind::GetMysqlURL(&mysql_url);
     DbConnection db_connection(mysql_url);
 
-    const std::string SELECT_STMT("SELECT url FROM full_text_cache");
-    if (not db_connection.query(SELECT_STMT))
-        throw std::runtime_error("Query \"" + SELECT_STMT + "\" failed because: "
-                                 + db_connection.getLastErrorMessage());
+    db_connection.queryOrDie("SELECT url FROM full_text_cache");
     DbResultSet result_set(db_connection.getLastResultSet());
 
     std::unordered_map<std::string, unsigned> domains_to_counts_map;

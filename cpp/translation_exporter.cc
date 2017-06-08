@@ -2,7 +2,7 @@
  *  \brief A tool creating authority data records from expert-translated keywords.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -37,12 +37,6 @@ void Usage() {
 }
 
 
-void ExecSqlOrDie(const std::string &sql_statement, DbConnection * const connection) {
-    if (unlikely(not connection->query(sql_statement)))
-        Error("SQL Statement failed: " + sql_statement + " (" + connection->getLastErrorMessage() + ")");
-}
-
-
 inline bool IsSynonym(const std::string &status) {
     return status == "replaced_synonym" or status == "new_synonym";
 }
@@ -69,14 +63,14 @@ void GetMainAndAdditionalTranslations(const std::string &translation, std::strin
 
 
 void GenerateAuthortyRecords(DbConnection * const db_connection, MarcWriter * const marc_writer) {
-    ExecSqlOrDie("SELECT DISTINCT ppn FROM keyword_translations WHERE status='new' OR status='replaced'"
-                 " OR status='replaced_synonym' OR status='new_synonym'", db_connection);
+    db_connection->queryOrDie("SELECT DISTINCT ppn FROM keyword_translations WHERE status='new' OR status='replaced'"
+                              " OR status='replaced_synonym' OR status='new_synonym'");
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
         const std::string ppn(ppn_row["ppn"]);
         const std::string status(ppn_row["status"]);
-        ExecSqlOrDie("SELECT language_code,translation FROM keyword_translations WHERE ppn='" + ppn
-                     + "' AND (status='new' OR status='replaced')", db_connection);
+        db_connection->queryOrDie("SELECT language_code,translation FROM keyword_translations WHERE ppn='" + ppn
+                                  + "' AND (status='new' OR status='replaced')");
         DbResultSet result_set(db_connection->getLastResultSet());
 
         MarcRecord new_record;
