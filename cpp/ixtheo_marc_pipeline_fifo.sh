@@ -14,6 +14,12 @@ function Abort {
 }
 
 
+# @param filename_pattern
+function GetMostRecentFile {
+    return $(ls -t "$1" | head -1)
+}
+
+
 if [ $# != 1 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
     exit 1
@@ -231,7 +237,7 @@ wait
 
 StartPhase "Tag PDA candidates"
 (augment_pda \
-    gvi_ppn_list-"${date}".txt \
+    $(ls -t gvi_ppn_list-??????.txt | head -1) \ # Use the most recent GVI PPN list.
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
