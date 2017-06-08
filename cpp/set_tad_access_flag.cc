@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016,2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -317,26 +317,20 @@ const std::string EMAIL_RULES_FILE("/var/lib/tuelib/tad_email_acl.yaml");
 void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns,
                       const std::string &user_ID)
 {
-    const std::string SELECT_EMAIL_STMT("SELECT email FROM user WHERE id=" + user_ID);
-    if (unlikely(not db_connection->query(SELECT_EMAIL_STMT)))
-        Error("Select failed: " + SELECT_EMAIL_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    db_connection->queryOrDie("SELECT email FROM user WHERE id=" + user_ID);
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty())
         Error("No email address found for user ID " + user_ID + "!");
     const std::string email_address(result_set.getNextRow()["email"]);
 
-    const std::string UPDATE_STMT("UPDATE ixtheo_user SET can_use_tad="
-                                  + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
-                                  + " WHERE id=" + user_ID);
-    if (unlikely(not db_connection->query(UPDATE_STMT)))
-        Error("Update failed: " + UPDATE_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    db_connection->queryOrDie("UPDATE ixtheo_user SET can_use_tad="
+                              + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
+                              + " WHERE id=" + user_ID);
 }
 
 
 void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Pattern> &patterns) {
-    const std::string SELECT_USER_IDS_STMT("SELECT id FROM ixtheo_user");
-    if (unlikely(not db_connection->query(SELECT_USER_IDS_STMT)))
-        Error("Select failed: " + SELECT_USER_IDS_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    db_connection->queryOrDie("SELECT id FROM ixtheo_user");
     DbResultSet result_set(db_connection->getLastResultSet());
 
     while (const DbRow row = result_set.getNextRow())

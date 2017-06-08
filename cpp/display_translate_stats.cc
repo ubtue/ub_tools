@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016,2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,18 +30,11 @@
 #include "util.h"
 
 
-void ExecSqlOrDie(const std::string &select_statement, DbConnection * const connection) {
-    if (unlikely(not connection->query(select_statement)))
-        Error("SQL Statement failed: " + select_statement + " (" + connection->getLastErrorMessage() + ")");
-}
-
-
 const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 
 
 void GetLanguageCodes(DbConnection * const db_connection, std::vector<std::string> * const language_codes) {
-    ExecSqlOrDie("SELECT DISTINCT language_code FROM vufind_translations;", db_connection);
-
+    db_connection->queryOrDie("SELECT DISTINCT language_code FROM vufind_translations;");
     DbResultSet result_set(db_connection->getLastResultSet());
     DbRow row;
     while (row = result_set.getNextRow())
@@ -53,8 +46,8 @@ void GenerateStats(DbConnection * const db_connection, const std::vector<std::st
                    const std::string &table_name, const std::string &table_key_name)
 {
     for (const auto &language_code : language_codes) {
-        ExecSqlOrDie("SELECT COUNT(*) FROM " + table_name + " WHERE language_code='" + language_code + "';",
-                     db_connection);
+        db_connection->queryOrDie("SELECT COUNT(*) FROM " + table_name + " WHERE language_code='" + language_code
+                                  + "';");
         DbResultSet result_set(db_connection->getLastResultSet());
         unsigned translated_count;
         if (result_set.empty())
@@ -65,9 +58,9 @@ void GenerateStats(DbConnection * const db_connection, const std::vector<std::st
         }
 
         // Find tokens/PPN's where "language_code" is missing:
-        ExecSqlOrDie("SELECT DISTINCT " + table_key_name + " FROM " + table_name + " WHERE " + table_key_name + 
-                     " NOT IN (SELECT DISTINCT " + table_key_name + " FROM " + table_name + 
-                     " WHERE language_code = \"" + language_code + "\");", db_connection);
+        db_connection->queryOrDie("SELECT DISTINCT " + table_key_name + " FROM " + table_name + " WHERE "
+                                  + table_key_name + " NOT IN (SELECT DISTINCT " + table_key_name + " FROM "
+                                  + table_name + " WHERE language_code = \"" + language_code + "\");");
         const unsigned not_yet_translated(db_connection->getLastResultSet().size());
 
         std::cout << "        <tr>" << language_code << "</tr><tr>" << (translated_count + not_yet_translated)

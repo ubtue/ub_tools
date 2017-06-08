@@ -179,9 +179,7 @@ std::string DbLockedWriteDocumentWithMediaType(const std::string &media_type, co
 bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std::string &url,
                                   const std::string &document, std::string * const extracted_text)
 {
-    const std::string QUERY("SELECT hash,full_text FROM full_text_cache WHERE url=\"" + url + "\"");
-    if (not db_connection->query(QUERY))
-        throw std::runtime_error("Query \"" + QUERY + "\" failed because: " + db_connection->getLastErrorMessage());
+    db_connection->queryOrDie("SELECT hash,full_text FROM full_text_cache WHERE url=\"" + url + "\"");
 
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty())
@@ -199,11 +197,8 @@ bool GetExtractedTextFromDatabase(DbConnection * const db_connection, const std:
     // Update the timestap:
     const time_t now(std::time(nullptr));
     const std::string current_datetime(SqlUtil::TimeTToDatetime(now));
-    const std::string UPDATE_STMT("UPDATE full_text_cache SET last_used=\"" + current_datetime + "\" WHERE url=\""
-                                  + url + "\"");
-    if (not db_connection->query(UPDATE_STMT))
-        throw std::runtime_error("Query \"" + UPDATE_STMT + "\" failed because: "
-                                 + db_connection->getLastErrorMessage());
+    db_connection->queryOrDie("UPDATE full_text_cache SET last_used=\"" + current_datetime + "\" WHERE url=\""
+                              + url + "\"");
 
     return true;
 }
@@ -275,12 +270,9 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &pdf_images
             const std::string hash(StringUtil::ToHexString(StringUtil::Sha1(document)));
             const time_t now(std::time(nullptr));
             const std::string current_datetime(SqlUtil::TimeTToDatetime(now));
-            const std::string REPLACE_INTO_STMT("REPLACE INTO full_text_cache SET url=\"" + url + "\", hash=\"" + hash
-                                                + "\", full_text=\"" + SqlUtil::EscapeBlob(&extracted_text)
-                                                + "\", last_used=\"" + current_datetime + "\"");
-            if (not db_connection.query(REPLACE_INTO_STMT))
-                throw std::runtime_error("Query \"" + REPLACE_INTO_STMT + "\" failed because: "
-                                         + db_connection.getLastErrorMessage());
+            db_connection.queryOrDie("REPLACE INTO full_text_cache SET url=\"" + url + "\", hash=\"" + hash
+                                     + "\", full_text=\"" + SqlUtil::EscapeBlob(&extracted_text)
+                                     + "\", last_used=\"" + current_datetime + "\"");
         } else
             key = DbLockedWriteDocumentWithMediaType(media_type, document, db_filename);
 
