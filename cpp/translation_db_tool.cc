@@ -2,7 +2,7 @@
  *  \brief A tool for reading/editing of the "translations" SQL table.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -47,12 +47,6 @@ void Usage() {
 }
 
 
-void ExecSqlOrDie(const std::string &select_statement, DbConnection * const connection) {
-    if (unlikely(not connection->query(select_statement)))
-        Error("SQL Statement failed: " + select_statement + " (" + connection->getLastErrorMessage() + ")");
-}
-
-
 // Replaces a comma with "\," and a slash with "\\".
 std::string EscapeCommasAndBackslashes(const std::string &text) {
     std::string escaped_text;
@@ -71,11 +65,11 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
                     const std::string &language_code, const std::string &additional_condition = "")
 {
     // Find a token/ppn where "language_code" is missing:
-    ExecSqlOrDie("SELECT distinct " + table_key_name + " FROM " + table_name + " WHERE " + table_key_name +
-                 " NOT IN (SELECT distinct " + table_key_name + " FROM " + table_name +
-                 " WHERE language_code = \"" + language_code + "\") "
-                 + (additional_condition.empty() ? "" : " AND (" + additional_condition + ")")
-                 + " ORDER BY RAND();", connection);
+    connection->queryOrDie("SELECT distinct " + table_key_name + " FROM " + table_name + " WHERE " + table_key_name
+                           + " NOT IN (SELECT distinct " + table_key_name + " FROM " + table_name
+                           + " WHERE language_code = \"" + language_code + "\") "
+                           + (additional_condition.empty() ? "" : " AND (" + additional_condition + ")")
+                           + " ORDER BY RAND();");
     DbResultSet keys_result_set(connection->getLastResultSet());
     if (keys_result_set.empty())
         return 0;
@@ -83,7 +77,7 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
     // Print the contents of all rows with the token from the last query on stdout:
     DbRow row(keys_result_set.getNextRow());
     const std::string matching_key(row[table_key_name]);
-    ExecSqlOrDie("SELECT * FROM " + table_name + " WHERE " + table_key_name + "='" + matching_key + "';", connection);
+    connection->queryOrDie("SELECT * FROM " + table_name + " WHERE " + table_key_name + "='" + matching_key + "';");
     DbResultSet result_set(connection->getLastResultSet());
     if (result_set.empty())
         return 0;
@@ -92,8 +86,8 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
     const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
 
     while (row = result_set.getNextRow())
-        std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << keys_result_set.size() << ',' << row["language_code"] << ','
-                  << EscapeCommasAndBackslashes(row["translation"]) << ',' << category
+        std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << keys_result_set.size() << ','
+                  << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["translation"]) << ',' << category
                   << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
 
     return result_set.size();
@@ -115,13 +109,13 @@ unsigned GetExisting(DbConnection * const connection, const std::string &table_n
                     const std::string &language_code, const std::string &index_value)
 {
     // Find a token/ppn where "language_code" is missing:
-    ExecSqlOrDie("SELECT distinct " + table_key_name + " FROM " + table_name + " WHERE " + table_key_name +
+    connection->queryOrDie("SELECT distinct " + table_key_name + " FROM " + table_name + " WHERE " + table_key_name +
                  " NOT IN (SELECT distinct " + table_key_name + " FROM " + table_name +
-                 " WHERE language_code = \"" + language_code + "\") ORDER BY RAND();", connection);
+                 " WHERE language_code = \"" + language_code + "\") ORDER BY RAND();");
     DbResultSet keys_result_set(connection->getLastResultSet());
     const size_t count(keys_result_set.size());
 
-    ExecSqlOrDie("SELECT * FROM " + table_name + " WHERE " + table_key_name + "='" + index_value + "';", connection);
+    connection->queryOrDie("SELECT * FROM " + table_name + " WHERE " + table_key_name + "='" + index_value + "';");
     DbResultSet result_set(connection->getLastResultSet());
     if (result_set.empty())
         return 0;
@@ -138,22 +132,28 @@ unsigned GetExisting(DbConnection * const connection, const std::string &table_n
 }
 
 
-unsigned GetExistingVuFindTranslations(DbConnection * const connection, const std::string &language_code, const std::string &index_value) {
+unsigned GetExistingVuFindTranslations(DbConnection * const connection, const std::string &language_code,
+                                       const std::string &index_value)
+{
     return GetExisting(connection, "vufind_translations", "token", "vufind_translations", language_code, index_value);
 }
 
 
-unsigned GetExistingKeywordTranslations(DbConnection * const connection, const std::string &language_code, const std::string &index_value) {
+unsigned GetExistingKeywordTranslations(DbConnection * const connection, const std::string &language_code,
+                                        const std::string &index_value)
+{
     return GetExisting(connection, "keyword_translations", "ppn", "keyword_translations", language_code, index_value);
 }
 
 
 
 void InsertIntoVuFindTranslations(DbConnection * const connection, const std::string &token,
-                                  const std::string &language_code, const std::string &text, const std::string &translator)
+                                  const std::string &language_code, const std::string &text,
+                                  const std::string &translator)
 {
-    ExecSqlOrDie("INSERT INTO vufind_translations SET token=\"" + token + "\",language_code=\"" + language_code
-                 + "\",translation=\"" + connection->escapeString(text) + "\",translator=\"" + translator + "\";", connection);
+    connection->queryOrDie("INSERT INTO vufind_translations SET token=\"" + token + "\",language_code=\""
+                           + language_code + "\",translation=\"" + connection->escapeString(text)
+                           + "\",translator=\"" + translator + "\";");
 }
 
 
@@ -161,18 +161,20 @@ void InsertIntoKeywordTranslations(DbConnection * const connection, const std::s
                                    const std::string &gnd_code, const std::string &language_code,
                                    const std::string &text, const std::string &translator)
 {
-    ExecSqlOrDie("INSERT INTO keyword_translations SET ppn=\"" + ppn + "\",gnd_code=\"" + gnd_code
-                 + "\",language_code=\"" + language_code + "\",translation=\""
-                 + connection->escapeString(text) + "\",origin=\"150\",status=\"new\"" + ",translator=\"" + translator + "\";", connection);
+    connection->queryOrDie("INSERT INTO keyword_translations SET ppn=\"" + ppn + "\",gnd_code=\"" + gnd_code
+                           + "\",language_code=\"" + language_code + "\",translation=\""
+                           + connection->escapeString(text) + "\",origin=\"150\",status=\"new\"" + ",translator=\""
+                           + translator + "\";");
 }
 
 
 void UpdateIntoVuFindTranslations(DbConnection * const connection, const std::string &token,
-                                  const std::string &language_code, const std::string &text, const std::string &translator)
+                                  const std::string &language_code, const std::string &text,
+                                  const std::string &translator)
 {
-    ExecSqlOrDie("UPDATE vufind_translations SET translation=\"" + connection->escapeString(text) + "\", translator=\"" + translator
-                 + "\" WHERE token=\"" + token + "\" AND language_code=\"" + language_code
-                 + "\";", connection);
+    connection->queryOrDie("UPDATE vufind_translations SET translation=\"" + connection->escapeString(text)
+                           + "\", translator=\"" + translator + "\" WHERE token=\"" + token
+                           + "\" AND language_code=\"" + language_code + "\";");
 }
 
 
@@ -180,17 +182,18 @@ void UpdateIntoKeywordTranslations(DbConnection * const connection, const std::s
                                    const std::string &gnd_code, const std::string &language_code,
                                    const std::string &text, const std::string &translator)
 {
-    ExecSqlOrDie("UPDATE keyword_translations SET translation=\"" 
-                 + connection->escapeString(text) 
-                 + "\", translator=\"" + translator
-                 + "\" WHERE ppn=\"" + ppn + "\" AND gnd_code=\"" + gnd_code
-                 + "\" AND language_code=\"" + language_code + "\"" + "AND status != \"unreliable\";", connection);
+    connection->queryOrDie("UPDATE keyword_translations SET translation=\"" + connection->escapeString(text) 
+                           + "\", translator=\"" + translator + "\" WHERE ppn=\"" + ppn + "\" AND gnd_code=\""
+                           + gnd_code + "\" AND language_code=\"" + language_code + "\""
+                           + "AND status != \"unreliable\";");
 }
 
 
-void ValidateKeywordTranslation(DbConnection * const connection, const std::string &ppn, const std::string &translation) {
+void ValidateKeywordTranslation(DbConnection * const connection, const std::string &ppn,
+                                const std::string &translation)
+{
     const std::string query("SELECT translation FROM keyword_translations WHERE ppn = \"" + ppn + "\";");
-    ExecSqlOrDie(query, connection);
+    connection->queryOrDie(query);
     DbResultSet result_set(connection->getLastResultSet());
 
     while (const DbRow row = result_set.getNextRow()) {

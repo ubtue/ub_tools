@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016,2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -181,8 +181,7 @@ void FlushToDatabase(std::string &insert_statement) {
     insert_statement.resize(insert_statement.size() - 2);
 
     insert_statement += ';';
-    if (not shared_connection->query(insert_statement))
-        Error("Insert failed: " + insert_statement + " (" + shared_connection->getLastErrorMessage() + ")");
+    shared_connection->queryOrDie(insert_statement);
 }
 
 
@@ -232,10 +231,8 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, MarcWriter *
 
     // Remove entries for which authoritative translation were shipped to us from the BSZ:
     const std::string ppn(record->getControlNumber());
-    const std::string DELETE_STMT("DELETE FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND "
+    shared_connection->queryOrDie("DELETE FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND "
                                   + GenerateLanguageCodeWhereClause(text_language_codes_statuses_and_origin_tags));
-    if (not shared_connection->query(DELETE_STMT))
-        Error("Delete failed: " + DELETE_STMT + " (" + shared_connection->getLastErrorMessage() + ")");
 
     std::string gnd_code;
     if (not MarcUtil::GetGNDCode(*record, &gnd_code)) {
