@@ -38,6 +38,7 @@ static void Usage() {
 }
 
 
+// Returns the date of the oldest entry in our table or the empty string if the table was empty.
 std::string GetDateOfOldestEntry(DbConnection * const db_connection) {
     const std::string SELECT_STMT("SELECT MAX(last_used) AS max_last_used FROM full_text_cache");
     db_connection->queryOrDie(SELECT_STMT);
@@ -53,15 +54,13 @@ void ExpungeOldRecords(const unsigned no_of_months) {
     DbConnection db_connection(mysql_url);
 
     const std::string oldest_date(GetDateOfOldestEntry(&db_connection));
-
-    const time_t now(std::time(nullptr));
-    const std::string cutoff_datetime(SqlUtil::TimeTToDatetime(now - no_of_months * 30 * 86400));
-    const std::string DELETE_STMT("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
-    db_connection.queryOrDie(DELETE_STMT);
-
     if (oldest_date.empty())
         std::cout << "The \"full_text_cache\" table was empty!\n";
     else {
+        const time_t now(std::time(nullptr));
+        const std::string cutoff_datetime(SqlUtil::TimeTToDatetime(now - no_of_months * 30 * 86400));
+        const std::string DELETE_STMT("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
+        db_connection.queryOrDie(DELETE_STMT);
         std::cout << "Deleted " << db_connection.getNoOfAffectedRows() << " rows from the cache.\n";
         std::cout << "The date of the oldest entry was " << oldest_date << ".\n";
     }
