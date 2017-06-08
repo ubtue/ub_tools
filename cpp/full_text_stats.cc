@@ -43,6 +43,9 @@ static void Usage() {
 void LoadOldStats(const std::string &stats_file_path,
                   std::vector<std::pair<std::string, unsigned>> * const domains_and_counts)
 {
+    if (not FileUtil::Exists(stats_file_path)) // This should only be the case the first time we run this program!
+        return;
+
     domains_and_counts->clear();
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(stats_file_path));
     unsigned line_no(0);
@@ -50,7 +53,7 @@ void LoadOldStats(const std::string &stats_file_path,
         std::string line;
         input->getline(&line);
         ++line_no;
-        
+
         const std::string::size_type vertical_bar_pos(line.find('|'));
         if (vertical_bar_pos == std::string::npos)
             continue;
@@ -85,7 +88,7 @@ std::string GetHost(const std::string &url) {
 
 void DetermineNewStats(std::vector<std::pair<std::string, unsigned>> * const domains_and_counts) {
     domains_and_counts->clear();
-    
+
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
     DbConnection db_connection(mysql_url);
@@ -142,7 +145,7 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
         } else {
             if (old_iter->first == new_iter->first) {
                 report_text += old_iter->first + ", old count: " + std::to_string(old_iter->second) + ", new count: "
-                               + std::to_string(old_iter->second) + "\n"; 
+                               + std::to_string(old_iter->second) + "\n";
                 ++new_iter, ++old_iter;
             } else if (old_iter->first < new_iter->first) {
                 report_text += old_iter->first + " (count: " + std::to_string(old_iter->second) + ") disappeared.\n";
@@ -154,7 +157,7 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
             }
         }
     }
-    
+
     EmailSender::SendEmail("no_return@ub.uni-tuebingen.de", email_address, "Full Text Stats", report_text,
                            found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW);
 }
@@ -169,7 +172,7 @@ int main(int argc, char *argv[]) {
     try {
         std::vector<std::pair<std::string, unsigned>> old_domains_and_counts;
         LoadOldStats(argv[1], &old_domains_and_counts);
-        
+
         std::vector<std::pair<std::string, unsigned>> new_domains_and_counts;
         DetermineNewStats(&new_domains_and_counts);
 
