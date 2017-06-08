@@ -73,11 +73,11 @@ std::string GetHost(const std::string &url) {
 
     const std::string::size_type first_colon_pos(url.find(':', 9));
     if (first_colon_pos != std::string::npos)
-        return url.substr(first_colon_pos);
+        return url.substr(0, first_colon_pos);
 
     const std::string::size_type first_slash_pos(url.find('/', 9));
     if (first_slash_pos != std::string::npos)
-        return url.substr(first_slash_pos);
+        return url.substr(0, first_slash_pos);
 
     return url;
 }
