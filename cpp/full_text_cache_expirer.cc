@@ -20,6 +20,7 @@
 #include <iostream>
 #include <cstdlib>
 #include "DbConnection.h"
+#include "DbResultSet.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -37,19 +38,32 @@ static void Usage() {
 }
 
 
+// Returns the date of the oldest entry in our table or the empty string if the table was empty.
+std::string GetDateOfOldestEntry(DbConnection * const db_connection) {
+    const std::string SELECT_STMT("SELECT MAX(last_used) AS max_last_used FROM full_text_cache");
+    db_connection->queryOrDie(SELECT_STMT);
+    DbResultSet result_set(db_connection->getLastResultSet());
+
+    return result_set.empty() ? "" : result_set.getNextRow()["max_last_used"];
+}
+
+
 void ExpungeOldRecords(const unsigned no_of_months) {
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
     DbConnection db_connection(mysql_url);
 
-    const time_t now(std::time(nullptr));
-    const std::string cutoff_datetime(SqlUtil::TimeTToDatetime(now - no_of_months * 30 * 86400));
-    const std::string DELETE_STMT("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
-    if (not db_connection.query(DELETE_STMT))
-        throw std::runtime_error("Query \"" + DELETE_STMT + "\" failed because: "
-                                 + db_connection.getLastErrorMessage());
-
-    std::cout << "Deleted " << db_connection.getNoOfAffectedRows() << " rows from the cache.\n";
+    const std::string oldest_date(GetDateOfOldestEntry(&db_connection));
+    if (oldest_date.empty())
+        std::cout << "The \"full_text_cache\" table was empty!\n";
+    else {
+        const time_t now(std::time(nullptr));
+        const std::string cutoff_datetime(SqlUtil::TimeTToDatetime(now - no_of_months * 30 * 86400));
+        const std::string DELETE_STMT("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
+        db_connection.queryOrDie(DELETE_STMT);
+        std::cout << "Deleted " << db_connection.getNoOfAffectedRows() << " rows from the cache.\n";
+        std::cout << "The date of the oldest entry was " << oldest_date << ".\n";
+    }
 }
 
 
