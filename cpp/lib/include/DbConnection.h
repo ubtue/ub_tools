@@ -40,6 +40,10 @@ public:
     virtual ~DbConnection();
 
     bool query(const std::string &query_statement) { return ::mysql_query(&mysql_, query_statement.c_str()) == 0; }
+
+    /** \brief Executes an SQL statement and aborts printing an error message to stderr if an error occurred. */
+    void queryOrDie(const std::string &query_statement);
+
     DbResultSet getLastResultSet();
     std::string getLastErrorMessage() const { return ::mysql_error(&mysql_); }
 
