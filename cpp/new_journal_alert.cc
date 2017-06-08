@@ -345,11 +345,8 @@ void ProcessSubscriptions(const bool verbose, DbConnection * const db_connection
                           const std::string &hostname, const std::string &sender_email,
                           const std::string &email_subject)
 {
-    const std::string SELECT_IDS_STMT("SELECT DISTINCT id FROM ixtheo_journal_subscriptions "
-                                      "WHERE id IN (SELECT id FROM ixtheo_user WHERE ixtheo_user.user_type = '"
-                                      + user_type  + "')");
-    if (unlikely(not db_connection->query(SELECT_IDS_STMT)))
-        Error("Select failed: " + SELECT_IDS_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    db_connection->queryOrDie("SELECT DISTINCT id FROM ixtheo_journal_subscriptions WHERE id IN (SELECT id FROM "
+                              "ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
 
     unsigned subscription_count(0);
     DbResultSet id_result_set(db_connection->getLastResultSet());

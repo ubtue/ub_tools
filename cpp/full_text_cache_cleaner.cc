@@ -1,7 +1,7 @@
 /** \brief Tool to delete old cache entries from the KrimDok full text cache.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -40,9 +40,7 @@ void Usage() {
 
 
 unsigned GetTableSize(DbConnection * const connection, const std::string &table_name) {
-    const std::string SIZE_QUERY("SELECT COUNT(*) FROM " + table_name);
-    if (not connection->query(SIZE_QUERY))
-        throw std::runtime_error("Query \"" + SIZE_QUERY + "\" failed because: " + connection->getLastErrorMessage());
+    connection->queryOrDie("SELECT COUNT(*) FROM " + table_name);
     DbResultSet result_set(connection->getLastResultSet());
     const DbRow first_row(result_set.getNextRow());
 
@@ -70,12 +68,11 @@ int main(int argc, char *argv[]) {
         DbConnection db_connection(mysql_url);
         const unsigned size_before_deletion(GetTableSize(&db_connection, "full_text_cache"));
 
-        const std::string DELETION_QUERY("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
-        if (not db_connection.query(DELETION_QUERY))
-            Error("Query \"" + DELETION_QUERY + "\" failed because: " + db_connection.getLastErrorMessage());
+        db_connection.queryOrDie("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
 
         const unsigned size_after_deletion(GetTableSize(&db_connection, "full_text_cache"));
-        std::cout << "Expired " << (size_before_deletion - size_after_deletion) << " records from the full_text_cache table.\n";
+        std::cout << "Expired " << (size_before_deletion - size_after_deletion)
+                  << " records from the full_text_cache table.\n";
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));    
     }

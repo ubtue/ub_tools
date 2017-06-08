@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016,2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -59,11 +59,8 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
     if (unlikely(output.fail()))
         Error("failed to open \"" + output_file_path + "\" for writing!");
 
-    const std::string SELECT_STMT("SELECT token,translation FROM vufind_translations WHERE language_code='"
-                                  + _3letter_code + "'");
-    if (unlikely(not db_connection->query(SELECT_STMT)))
-        Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
-
+    db_connection->queryOrDie("SELECT token,translation FROM vufind_translations WHERE language_code='"
+                              + _3letter_code + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (unlikely(result_set.empty()))
         Error("found no translations for language code \"" + _3letter_code + "\"!");
@@ -95,10 +92,7 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
 
 
 void GetLanguageCodes(DbConnection * const db_connection, std::map<std::string, std::string> * language_codes) {
-    const std::string SELECT_STMT("SELECT DISTINCT language_code FROM vufind_translations");
-    if (unlikely(not db_connection->query(SELECT_STMT)))
-        Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
-
+    db_connection->queryOrDie("SELECT DISTINCT language_code FROM vufind_translations");
     DbResultSet language_codes_result_set(db_connection->getLastResultSet());
     if (unlikely(language_codes_result_set.empty()))
         Error("no language codes found, expected multiple!");
