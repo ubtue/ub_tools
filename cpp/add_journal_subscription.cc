@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016,2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -48,10 +48,8 @@ inline std::string ZuluNow() {
 
 bool SubscriptionExists(DbConnection * const db_connection, const std::string &user_id, const std::string &parent_ppn)
 {
-    const std::string SELECT_STMT("SELECT last_issue_date FROM ixtheo_journal_subscriptions WHERE id=" + user_id
-                                  + " AND journal_control_number='" + parent_ppn + "'");
-    if (unlikely(not db_connection->query(SELECT_STMT)))
-        Error("Select failed: " + SELECT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    db_connection->queryOrDie("SELECT last_issue_date FROM ixtheo_journal_subscriptions WHERE id=" + user_id
+                              + " AND journal_control_number='" + parent_ppn + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     return not result_set.empty();
 }
@@ -77,9 +75,7 @@ void AddSubscription(const bool verbose, DbConnection * const db_connection, con
 void AddSubscriptions(const bool verbose, DbConnection * const db_connection, const std::string &user_id,
                       const std::vector<std::string> &parent_ppns)
 {
-    const std::string SELECT_ID_STMT("SELECT id FROM user WHERE id=" + user_id);
-    if (unlikely(not db_connection->query(SELECT_ID_STMT)))
-        Error("Select failed: " + SELECT_ID_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+    db_connection->queryOrDie("SELECT id FROM user WHERE id=" + user_id);
     DbResultSet id_result_set(db_connection->getLastResultSet());
     if (id_result_set.empty())
         Error(user_id + " is an unknown user ID!");
@@ -90,7 +86,7 @@ void AddSubscriptions(const bool verbose, DbConnection * const db_connection, co
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc < 3)
         Usage();
