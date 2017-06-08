@@ -2,21 +2,16 @@
 # Runs through the phases of the IxTheo MARC processing pipeline.
 set -o errexit -o nounset
 
+
 function ExitHandler {
     (setsid kill -- -$$) &
     exit 1
 }
-
 trap ExitHandler SIGINT
+
 
 function Abort {
     kill -INT $$
-}
-
-
-# @param filename_pattern
-function GetMostRecentFile {
-    return $(ls -t "$1" | head -1)
 }
 
 
