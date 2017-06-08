@@ -1,7 +1,7 @@
 /** \brief Test program for the new MySQL Db* classes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -54,9 +54,7 @@ int main(int argc, char *argv[]) {
 
     try {
         DbConnection connection(db, user, passwd);
-        if (not connection.query(query))
-            Error("Query failed: \"" + query + "\" (" + connection.getLastErrorMessage() + ")!");
-
+        connection.queryOrDie(query);
         DbResultSet result_set(connection.getLastResultSet());
         if (not raw)
             std::cout << "The number of rows in the result set is " << result_set.size() << ".\n";
