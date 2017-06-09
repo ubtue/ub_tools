@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
     const std::string marc_output_filename(argc == 6 ? argv[5] : argv[4]);
 
     try {
-        const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+        const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
 
         const IniFile ini_file(ini_filename);
         Marc21OaiPmhClient oai_pmh_client(ini_file, ini_section_name, marc_writer.get());
