@@ -41,7 +41,7 @@
 #       include <string>
 #       define STRING
 #endif
-#ifndef INI_FILE
+#ifndef INI_FILE_H
 #       include <IniFile.h>
 #endif
 
