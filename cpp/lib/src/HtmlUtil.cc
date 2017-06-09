@@ -628,6 +628,32 @@ std::string HtmlEscape(const std::string &unescaped_text) {
 }
 
 
+// IsHtmlEscaped --  Are all '&' and '<' and '>' and quotes escaped?
+//
+bool IsHtmlEscaped(const std::string &raw_text) {
+    for (std::string::const_iterator ch(raw_text.begin()); ch != raw_text.end(); ++ch) {
+        if (*ch == '&') {
+            ++ch;
+            std::string possible_entity;
+            const unsigned MAX_ENTITY_NAME_LENGTH(6);
+            for (unsigned char_count(0);
+                 ch != raw_text.end() and *ch != ';' and char_count < MAX_ENTITY_NAME_LENGTH + 1; ++ch, ++char_count)
+                possible_entity += *ch;
+            if (ch == raw_text.end() or *ch != ';') // No entity!
+                return false;
+
+            char dummy;
+            if (not DecodeEntity(possible_entity, &dummy))
+                return false; // Not an entity!
+        } else if (*ch == '<' or *ch == '>' or *ch == '"' or *ch == '\'')
+            return false;
+    }
+
+    // If we make it this far, everything is okay:
+    return true;
+}
+
+
 size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string> * const urls) {
     std::list<UrlExtractorParser::UrlAndAnchorText> urls_and_anchor_texts;
     std::string base_url;

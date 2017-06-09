@@ -28,6 +28,7 @@
 
 #include "OaiPmh.h"
 #include <stdexcept>
+#include "Compiler.h"
 #include "HtmlUtil.h"
 #include "IniFile.h"
 #include "StringUtil.h"
@@ -51,12 +52,12 @@ HarvestMode StringToHarvestMode(const std::string &harvest_mode_str) {
 
 // Field::Field -- Construct an unqulaified OAI-PMH metadata element.
 //
-Field::Field(const std::string &field, const std::string &value, const std::string &attribute)
-    : field_(field), value_(value), attribute_(attribute)
+Field::Field(const std::string &field_name, const std::string &value, const std::string &attribute)
+    : field_name_(field_name), value_(value), attribute_(attribute)
 {
-    if (not HtmlUtil::IsHtmlEscaped(value))
+    if (unlikely(not HtmlUtil::IsHtmlEscaped(value)))
         throw std::runtime_error("in OaiPmh::Field constructor: metadata field value is not HTML escaped: field \""
-                                 + field + "\", attribute \"" + attribute + "\","" value \"" + value + "\".");
+                                 + field_name + "\", attribute \"" + attribute + "\","" value \"" + value + "\".");
 }
 
 
