@@ -72,7 +72,7 @@ HarvestMode StringToHarvestMode(const std::string &harvest_mode_str);
  */
 class Field {
 	/** The metadata field name (e.g. 'subject'). */
-	std::string field_;
+	std::string field_name_;
 
 	/** The OAI-PMH metadata value as a string (e.g. 'History -- United States'). */
 	std::string value_;
@@ -81,9 +81,9 @@ class Field {
 	std::string attribute_;
 public:
 	/** \brief  Construct an unqulaified OAI-PMH metadata element.
-	 *  \param  field  The metadata field name.
-	 *  \param  value  The metadata field value.
-	 *  \param  attribute  An optional attribute describing the ,metadata field type.
+	 *  \param  field_name  The metadata field name.
+	 *  \param  value       The metadata field value.
+	 *  \param  attribute   An optional attribute describing the metadata field type.
 	 *
 	 *  The value must be HTML escaped, otherwise an exception
 	 *  will be thrown.  The value is assumed to be ISO 8859.15 encoded.
@@ -94,7 +94,7 @@ public:
 	virtual ~Field() { }
 
 	/** Get the metadata field. */
-	std::string getField() const { return field_; }
+	std::string getFieldName() const { return field_name_; }
 
 	/** Get the metadata value. */
 	std::string getValue() const { return value_; }

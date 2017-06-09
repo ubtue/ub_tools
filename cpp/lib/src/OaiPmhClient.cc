@@ -274,9 +274,9 @@ namespace { // Helper functions for making OAI-PMH requests.
 
 
 bool GetListRecordsResponse(const std::string &server_url, const std::string &from, const std::string &until,
-			    const std::string &set_spec, const std::string &metadataPrefix,
-			    const std::string &resumptionToken, const unsigned verbosity,
-			    Logger * const logger, std::string * const data)
+                            const std::string &set_spec, const std::string &metadataPrefix,
+                            const std::string &resumptionToken, const unsigned verbosity,
+                            Logger * const logger, std::string * const data)
 {
     // Check the base URL:
     Url url(server_url, Url::NO_AUTO_OPERATIONS);
@@ -391,7 +391,7 @@ std::string Client::progressFile(const std::string &set_name) {
 // Client::harvestSet -- harvest a single set from a repository
 //
 void Client::harvestSet(const std::string &set_spec, const std::string &from, const std::string &until,
-			const unsigned verbosity, Logger * const logger)
+                        const unsigned verbosity, Logger * const logger)
 {
     if (verbosity >= 2) {
         logger->log("Harvesting repository '%s', set '%s'",

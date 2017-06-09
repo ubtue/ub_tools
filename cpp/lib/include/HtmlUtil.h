@@ -68,6 +68,21 @@ inline std::string ReplaceEntities(const std::string &s,
 std::string HtmlEscape(const std::string &unescaped_text);
 
 
+/** \brief Replaces ampersands, less-than and greater than symbols with HTML entities. */
+inline std::string HtmlEscape(std::string * const unescaped_text) {
+    return *unescaped_text = HtmlEscape(*unescaped_text);
+}
+
+
+/** \brief   Test whether a string is correctly HTML-escaped.
+ *  \param   raw_text  The text to test.
+ *  \return  True if the string appears to be fully HTML escaped, otherwise false.
+ *
+ *  This function tests for the presence of '&', '<', '>' and quotes which are not escaped with "&amp;", "&lt;", "&gt;" etc.
+ */
+bool IsHtmlEscaped(const std::string &raw_text);
+
+
 /** \brief Extracts all links from an HTML document.
  *  \return The number of extracted hrefs
  */
