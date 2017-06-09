@@ -149,6 +149,50 @@ void GetArgvArgs(const int argc, char * argv[], std::multimap<std::string, std::
 void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int argc = 1, char *argv[] = NULL);
 
 
+/** \brief  Excutes a CGI script via POST.
+ *  \param  username_password    A colon-separated username/password pair.  Currently we only support "Basic"
+ *                               authorization!
+ *  \param  address              The IP address or domain name.
+ *  \param  port                 The TCP port number (typically 80).
+ *  \param  time_limit           Up to how long to wait for the Web server to respond (in milliseconds).
+ *  \param  cgi_path             The path to the CGI script, e.g. "/cgi-bin/canned_search".
+ *  \param  post_args            A list of name/value pairs.
+ *  \param  document_source      The output of the CGI script.
+ *  \param  error_message        If an error occurs, a description of the error will be stored here..
+ *  \param  accept               List of comman separated media types which are acceptable for the response.
+ *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
+ *  \return True if no error occurred, otherwise false.
+ */
+bool ExecCGI(const std::string &username_password, const std::string &address, const unsigned short port,
+             const TimeLimit &time_limit, const std::string &cgi_path, const StringMap &post_args,
+             std::string * const document_source, std::string * const error_message,
+	     const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
+             const bool include_http_header = false);
+
+
+/** \brief  Excutes a CGI script via POST.
+ *  \param  address              The IP address or domain name.
+ *  \param  port                 The TCP port number (typically 80).
+ *  \param  time_limit           Up to how long to wait for the Web server to respond (in milliseconds).
+ *  \param  cgi_path             The path to the CGI script, e.g. "/cgi-bin/canned_search".
+ *  \param  post_args            A list of name/value pairs.
+ *  \param  document_source      The output of the CGI script.
+ *  \param  error_message        If an error occurs, a description of the error will be stored here..
+ *  \param  accept               List of comman separated media types which are acceptable for the response.
+ *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
+ *  \return True if no error occurred, otherwise false.
+ */
+inline bool ExecCGI(const std::string &address, const unsigned short port, const TimeLimit &time_limit,
+                    const std::string &cgi_path, const StringMap &post_args, std::string * const document_source,
+                    std::string * const error_message,
+                    const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
+                    const bool include_http_header = false)
+{
+    return ExecCGI("", address, port, time_limit, cgi_path, post_args, document_source, error_message, accept,
+                   include_http_header);
+}
+
+
 } // namespace WebUtil
 
 
