@@ -75,94 +75,94 @@ namespace OaiPmh {
  */
 class Client {
 protected:
-	/** The name of the repository we will harvest records from. */
-	std::string repository_name_;
+    /** The name of the repository we will harvest records from. */
+    std::string repository_name_;
 
-	/** The base URL for the repository. */
-	std::string base_url_;
+    /** The base URL for the repository. */
+    std::string base_url_;
 
-	/** The list of known sets at the repository. */
-	std::list<std::string> sets_;
+    /** The list of known sets at the repository. */
+    std::list<std::string> sets_;
 
-	/** Do we perform a full or incremental harvest (default: INCREMENTAL)? */
-	HarvestMode harvest_mode_;
+    /** Do we perform a full or incremental harvest (default: INCREMENTAL)? */
+    HarvestMode harvest_mode_;
 
-	/** The metadataPrefix argument to use during the harvest. */
-	std::string metadata_prefix_;
+    /** The metadataPrefix argument to use during the harvest. */
+    std::string metadata_prefix_;
 
-	/** The date that the first response was returned in this run of the program. */
-	std::string first_response_date_;
+    /** The date that the first response was returned in this run of the program. */
+    std::string first_response_date_;
 
 public:
-	/** \brief  Construct a Client object based on a configuration file.
-	 *  \param  ini_file       The IniFile object.
-	 *  \param  section_name   The name of the section where the harvest is defined.
-	 */
-	Client(const IniFile &ini_file, const std::string &section_name);
+    /** \brief  Construct a Client object based on a configuration file.
+     *  \param  ini_file       The IniFile object.
+     *  \param  section_name   The name of the section where the harvest is defined.
+     */
+    Client(const IniFile &ini_file, const std::string &section_name);
 
-        /** \brief  Destroy an OAI-PMH client instance. */
-	virtual ~Client();
+    /** \brief  Destroy an OAI-PMH client instance. */
+    virtual ~Client();
 
-	/** \brief Change the harvest mode. */
-	void setHarvestMode(const HarvestMode harvest_mode) 
-		{ harvest_mode_ = harvest_mode; }
+    /** \brief Change the harvest mode. */
+    void setHarvestMode(const HarvestMode harvest_mode) 
+    { harvest_mode_ = harvest_mode; }
 
-	/** \brief  Harvest a single set.
-	 *  \param  set_name       The name of the set to harvest.
-         *  \param  verbosity      The quantity of log messages (0 = none, 3 = normal, 5 = too much).
-	 *  \param  logger         A logger object, or NULL for no logging.
-	 */
-	void harvest(const std::string &set_name, const unsigned verbosity, Logger * const logger);
+    /** \brief  Harvest a single set.
+     *  \param  set_name       The name of the set to harvest.
+     *  \param  verbosity      The quantity of log messages (0 = none, 3 = normal, 5 = too much).
+     *  \param  logger         A logger object, or NULL for no logging.
+     */
+    void harvest(const std::string &set_name, const unsigned verbosity, Logger * const logger);
 
-	/** \brief  Harvest the list of known sets.
-	 *  \param  logger         A logger object, or NULL for no logging.
-         *  \param  verbosity      The quantity of log messages (0 = none, 3 = normal, 5 = too much).
-	 */
-	void harvest(const unsigned verbosity, Logger * const logger);
+    /** \brief  Harvest the list of known sets.
+     *  \param  logger         A logger object, or NULL for no logging.
+     *  \param  verbosity      The quantity of log messages (0 = none, 3 = normal, 5 = too much).
+     */
+    void harvest(const unsigned verbosity, Logger * const logger);
 
-	/** \brief   Retrieve the repository's XML response ro an Identify query.
-	 *  \param   xml_response    Output variable which will hold the XML returned.
-	 *  \param   error_message  Output variable which will hold any error encountered.
-	 *  \return  True if a useful response was discovered, otherwose false.
-	 */
-	bool identify(std::string * const xml_response, std::string * const error_message);
+    /** \brief   Retrieve the repository's XML response to an Identify query.
+     *  \param   xml_response    Output variable which will hold the XML returned.
+     *  \param   error_message  Output variable which will hold any error encountered.
+     *  \return  True if a useful response was discovered, otherwose false.
+     */
+    bool identify(std::string * const xml_response, std::string * const error_message);
 
 protected:
-	/** \brief   Get the filename of a progress file for a particular set.
-	 *  \param   set_name  The name of the set being harvested.
-	 *  \return  The absolute path of the progress file.
-	 *
-	 *  The progress file is used to implement incremental
-	 *  harvests.  It will be used to store the last harvest date
-	 *  for the given set.  It defaults to
-	 *  "/tmp/[client_program].[repository].[set_name].progress"
-	 *
-	 *  This function SHOULD be implemented by Subclasses to use a
-	 *  directory other than /tmp.
-	 */
-	virtual std::string progressFile(const std::string &set_name);
+    /** \brief   Get the filename of a progress file for a particular set.
+     *  \param   set_name  The name of the set being harvested.
+     *  \return  The absolute path of the progress file.
+     *
+     *  The progress file is used to implement incremental
+     *  harvests.  It will be used to store the last harvest date
+     *  for the given set.  It defaults to
+     *  "/tmp/[client_program].[repository].[set_name].progress"
+     *
+     *  This function SHOULD be implemented by Subclasses to use a
+     *  directory other than /tmp.
+     */
+    virtual std::string progressFile(const std::string &set_name);
 
-	/** \brief   Process a single record that has been imported by the client.
-	 *  \param   record     An OAI-PMH record that was read from the repository.
-         *  \param   verbosity  The quantity of log messages (0 = none, 3 = normal, 5 = too much).
-	 *  \param   logger     A logger object, or NULL for no logging.
-	 *  \return  True if the record was imported, false if for any reason it was not.
-	 *
-	 *  This function MUST be implemented by subclasses.  It is
-	 *  called once for each record harvested from the OAI-PMH
-	 *  client, and its purpose is to take the imported record and
-	 *  store it in a method appropriate to the local application.
-	 *
-	 *  \note  The return value is only used to maintain statistics
-	 *         about the imported records and has no effect on the
-	 *         progress of the harvest.
-	 */
-	virtual bool processRecord(const Record &record, const unsigned verbosity, Logger * const logger) = 0;
+    /** \brief   Process a single record that has been imported by the client.
+     *  \param   record     An OAI-PMH record that was read from the repository.
+     *  \param   verbosity  The quantity of log messages (0 = none, 3 = normal, 5 = too much).
+     *  \param   logger     A logger object, or NULL for no logging.
+     *  \return  True if the record was imported, false if for any reason it was not.
+     *
+     *  This function MUST be implemented by subclasses.  It is
+     *  called once for each record harvested from the OAI-PMH
+     *  client, and its purpose is to take the imported record and
+     *  store it in a method appropriate to the local application.
+     *
+     *  \note  The return value is only used to maintain statistics
+     *         about the imported records and has no effect on the
+     *         progress of the harvest.
+     */
+    virtual bool processRecord(const Record &record, const unsigned verbosity, Logger * const logger) = 0;
 
 private:
-	/** \brief  Harvest a specific set. */
-	void harvestSet(const std::string &set_spec, const std::string &from, const std::string &until,
-			const unsigned verbosity, Logger * const logger);
+    /** \brief  Harvest a specific set. */
+    void harvestSet(const std::string &set_spec, const std::string &from, const std::string &until,
+                    const unsigned verbosity, Logger * const logger);
 };
 
 
