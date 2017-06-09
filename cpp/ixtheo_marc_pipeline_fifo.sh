@@ -2,12 +2,13 @@
 # Runs through the phases of the IxTheo MARC processing pipeline.
 set -o errexit -o nounset
 
+
 function ExitHandler {
     (setsid kill -- -$$) &
     exit 1
 }
-
 trap ExitHandler SIGINT
+
 
 function Abort {
     kill -INT $$
@@ -69,7 +70,9 @@ rm -f "${log}"
 
 CleanUp
 
+
 OVERALL_START=$(date +%s.%N)
+
 
 StartPhase "Apply Updates to Our Authority Data"
 update_authority_data 'LOEPPN-\d\d\d\d\d\d' 'Normdaten-\d\d\d\d\d\d'.mrc 'WA-MARCcomb-\d\d\d\d\d\d.tar.gz' Normdaten-"${date}".mrc >> "${log}" 2>&1 &&
@@ -229,7 +232,7 @@ wait
 
 StartPhase "Tag PDA candidates"
 (augment_pda \
-    gvi_ppn_list-"${date}".txt \
+    $(ls -t gvi_ppn_list-??????.txt | head -1) \ # Use the most recent GVI PPN list.
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &

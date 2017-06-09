@@ -23,6 +23,7 @@
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
+#include "util.h"
 
 
 DbConnection::DbConnection(const std::string &mysql_url) {
@@ -51,6 +52,12 @@ DbConnection::DbConnection(const std::string &mysql_url) {
 DbConnection::~DbConnection() {
     if (initialised_)
         ::mysql_close(&mysql_);
+}
+
+
+void DbConnection::queryOrDie(const std::string &query_statement) {
+    if (not query(query_statement))
+        Error("in DbConnection::queryOrDie: \"" + query_statement + "\" failed: " + getLastErrorMessage());
 }
 
 
