@@ -626,4 +626,103 @@ void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int
 }
 
 
+bool ExecCGI(const std::string &username_password, const std::string &address, const unsigned short port,
+	     const TimeLimit &time_limit, const std::string &cgi_path, const StringMap &post_args,
+	     std::string * const document_source, std::string * const error_message, const std::string &accept,
+	     const bool include_http_header)
+{
+    document_source->clear();
+    error_message->clear();
+
+    try {
+        std::string tcp_connect_error_message;
+        const FileDescriptor socket_fd(SocketUtil::TcpConnect(address, port, time_limit,
+                                                              &tcp_connect_error_message));
+        if (socket_fd == -1) {
+            *error_message = "Could not open TCP connection to " + address + ", port "
+                + StringUtil::ToString(port) + ": " + tcp_connect_error_message;
+            *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime())
+                + ").";
+            return false;
+        }
+
+        std::string data_to_be_sent("POST ");
+        data_to_be_sent += cgi_path;
+        data_to_be_sent += " HTTP/1.0\r\n";
+        data_to_be_sent += "Host: ";
+        data_to_be_sent += address;
+        data_to_be_sent += "\r\n";
+        data_to_be_sent += "User-Agent: ExecCGI/1.0 iVia\r\n";
+        data_to_be_sent += "Accept: " + accept + "\r\n";
+        data_to_be_sent += "Accept-Encoding: identity\r\n";
+
+        // Do we want a username and password to be sent?
+        if (not username_password.empty()) { // Yes!
+            if (unlikely(username_password.find(':') == std::string::npos))
+                throw std::runtime_error("in WebUtil::ExecCGI: username/password pair is missing a colon!");
+            data_to_be_sent += "Authorization: Basic " + TextUtil::Base64Encode(username_password) + "\r\n";
+        }
+
+        data_to_be_sent += WwwFormUrlEncode(post_args);
+
+        if (SocketUtil::TimedWrite(socket_fd, time_limit, data_to_be_sent.c_str(), data_to_be_sent.length())
+            == -1)
+        {
+            *error_message = "Could not write to socket";
+            *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime()) + ")";
+            *error_message += '!';
+            return false;
+        }
+
+        char http_response_header[10240 + 1];
+        ssize_t no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, http_response_header,
+                                                         sizeof(http_response_header) - 1);
+        if (no_of_bytes_read == -1) {
+            *error_message = "Could not read from socket (1).";
+            *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime()) + ").";
+            return false;
+        }
+        http_response_header[no_of_bytes_read] = '\0';
+        HttpHeader http_header(http_response_header);
+
+        // the 2xx codes indicate success:
+        if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {
+            *error_message = "Web server returned error status code (" + std::to_string(http_header.getStatusCode())
+                             + ")";
+            return false;
+        }
+
+        // read the returned document source:
+        std::string response(http_response_header, no_of_bytes_read);
+        char buf[10240+1];
+        do {
+            no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf) - 1);
+            if (no_of_bytes_read == -1) {
+                *error_message = "Could not read from socket (2).";
+                *error_message += " (Time remaining: "
+                    + StringUtil::ToString(time_limit.getRemainingTime()) + ").";
+                return false;
+            }
+            if (no_of_bytes_read > 0)
+                response += std::string(buf, no_of_bytes_read);
+        } while (no_of_bytes_read > 0);
+
+        if (include_http_header)
+            *document_source = response;
+        else {
+            std::string::size_type pos = response.find("\r\n\r\n"); // the header ends with two cr/lf pairs!
+            if (pos != std::string::npos) {
+                pos += 4;
+                *document_source = response.substr(pos);
+            }
+        }
+
+        return true;
+    } catch (const std::exception &x) {
+        throw std::runtime_error("in WebUtil::ExecCGI: (address = " + address + ") caught exception: "
+                                 + std::string(x.what()));
+    }
+}
+
+
 } // namespace WebUtil
