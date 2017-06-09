@@ -2,7 +2,7 @@
  *  \brief  Implementation of descedants of the SmartDownloader class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -74,6 +74,39 @@ bool SmartDownloader::downloadDoc(const std::string &url, const TimeLimit time_l
         return true;
     } else
         return false;
+}
+
+
+bool DSpaceDownloader::canHandleThis(const std::string &url) const {
+    return url.find("dspace") != std::string::npos;
+}
+
+
+bool DSpaceDownloader::downloadDocImpl(const std::string &url, const TimeLimit time_limit,
+                                       std::string * const document)
+{
+    document->clear();
+
+    std::string html_document_candidate;
+    if (Download(url, ToNearestSecond(time_limit.getRemainingTime()), &html_document_candidate) != 0)
+        return false;
+
+    static RegexMatcher *matcher;
+    if (matcher == nullptr) {
+        std::string err_msg;
+        matcher = RegexMatcher::RegexMatcherFactory("meta content=\"http(.*)pdf\"", &err_msg);
+        if (matcher == nullptr)
+            Error("in DSpaceDownloader::downloadDocImpl: failed to compile regex! (" + err_msg + ")");
+    }
+
+    if (not matcher->matched(html_document_candidate))
+        return false;
+
+    const std::string pdf_link("http" + (*matcher)[1] + "pdf");
+    if (Download(pdf_link, ToNearestSecond(time_limit.getRemainingTime()), document) != 0)
+        return false;
+
+    return true;
 }
 
 
@@ -298,6 +331,7 @@ bool SmartDownload(const std::string &url, const unsigned max_download_time, std
     document->clear();
 
     static std::vector<SmartDownloader *> smart_downloaders{
+        new DSpaceDownloader(trace),
         new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }, trace),
             new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }, trace),
             new SimplePrefixDownloader({ "http://deposit.d-nb.de/cgi-bin/dokserv?" }, trace),

@@ -316,18 +316,14 @@ void InsertIdsIntoTheIxtheoIdResultSetsTable(const std::string &query_id, const 
 {
     std::string serialized_ids;
     SerialiseIds(ids, &serialized_ids);
-    const std::string replace_stmt("REPLACE INTO ixtheo_id_result_sets (id,ids) VALUES(" + query_id + ",\""
-                                  + connection->escapeString(serialized_ids) + "\")");
-    if (not connection->query(replace_stmt))
-        Error("Insert failed: \"" + replace_stmt + "\" (" + connection->getLastErrorMessage() + ")!");
+    connection->queryOrDie("REPLACE INTO ixtheo_id_result_sets (id,ids) VALUES(" + query_id + ",\""
+                           + connection->escapeString(serialized_ids) + "\")");
 }
 
 
 /** \return true = we need to notify the user that something has changed that they would like to know about */
 bool ProcessUser(const std::string &user_id, const std::string &/*email_address*/, DbConnection * const connection) {
-    const std::string query("SELECT id,search_object FROM search WHERE user_id=" + user_id);
-    if (not connection->query(query))
-        Error("Query failed: \"" + query + "\" (" + connection->getLastErrorMessage() + ")!");
+    connection->queryOrDie("SELECT id,search_object FROM search WHERE user_id=" + user_id);
 
     constexpr unsigned SOLR_QUERY_TIMEOUT(20); // seconds
     DbResultSet search_object_result_set(connection->getLastResultSet());
@@ -355,9 +351,7 @@ bool ProcessUser(const std::string &user_id, const std::string &/*email_address*
         id_extractor.getExtractedIds(&ids);
         std::sort(ids.begin(), ids.end());
 
-        const std::string ids_query("SELECT ids FROM ixtheo_id_result_sets WHERE id=" + query_id);
-        if (not connection->query(ids_query))
-            Error("Query failed: \"" + ids_query + "\" (" + connection->getLastErrorMessage() + ")!");
+        connection->queryOrDie("SELECT ids FROM ixtheo_id_result_sets WHERE id=" + query_id);
         DbResultSet ids_result_set(connection->getLastResultSet());
 
         if (ids_result_set.empty()) // We have nothing to compare against this time.
@@ -366,7 +360,6 @@ bool ProcessUser(const std::string &user_id, const std::string &/*email_address*
             const DbRow serialised_ids_row(ids_result_set.getNextRow());
             const std::string serialised_ids(serialised_ids_row[0]);
             std::vector<std::string> old_ids;
-std::cerr << "serialised_ids.size()="<<serialised_ids.size()<<'\n';
             DeserialiseIds(serialised_ids, &old_ids);
 
             std::vector<std::string> additional_ids;
@@ -401,11 +394,8 @@ int main(int argc, char *argv[]) {
         const std::string passwd(ini_file.getString("", "passwd"));
         const std::string db(ini_file.getString("", "database"));
 
-        const std::string query("SELECT id,email FROM user");
         DbConnection connection(db, user, passwd);
-        if (not connection.query(query))
-            Error("Query failed: \"" + query + "\" (" + connection.getLastErrorMessage() + ")!");
-
+        connection.queryOrDie("SELECT id,email FROM user");
         DbResultSet result_set(connection.getLastResultSet());
         DbRow row;
         while (row = result_set.getNextRow()) {

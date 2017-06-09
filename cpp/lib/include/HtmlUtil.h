@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2016 Universitätsbibliothek Tübingen
+ *  Copyright 2016-2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -32,6 +32,7 @@
 
 
 #include <string>
+#include <vector>
 
 
 namespace HtmlUtil {
@@ -65,6 +66,12 @@ inline std::string ReplaceEntities(const std::string &s,
 
 /** \brief Replaces ampersands, less-than and greater than symbols with HTML entities. */
 std::string HtmlEscape(const std::string &unescaped_text);
+
+
+/** \brief Extracts all links from an HTML document.
+ *  \return The number of extracted hrefs
+ */
+size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string> * const urls);
 
 
 } // namespace HtmlUtil
