@@ -285,25 +285,25 @@ bool GetListRecordsResponse(const std::string &server_url, const std::string &fr
         throw std::runtime_error("in GetListRecordsResponse: bad server URL \"" + server_url + "\"!");
 
     // Construct CGI arguments:
-    StringMap post_args;
-    post_args["verb"] = "ListRecords";
+    StringMap args;
+    args["verb"] = "ListRecords";
 
     if (not resumptionToken.empty())
-        post_args["resumptionToken"] = resumptionToken;
+        args["resumptionToken"] = resumptionToken;
     else {
         if (not from.empty())
-            post_args["from"] = from;
+            args["from"] = from;
         if (not until.empty())
-            post_args["until"] = until;
+            args["until"] = until;
         if (not set_spec.empty())
-            post_args["set"] = set_spec;
-        post_args["metadataPrefix"] = metadataPrefix;
+            args["set"] = set_spec;
+        args["metadataPrefix"] = metadataPrefix;
     }
 
     // Log the request details:
     if (verbosity >= 3) {
         std::string msg("HTTP POST: " + server_url);
-        for (std::map<std::string, std::string>::const_iterator pair(post_args.begin()); pair != post_args.end();
+        for (std::map<std::string, std::string>::const_iterator pair(args.begin()); pair != args.end();
              ++pair)
             msg += " " + pair->first + "=" + pair->second;
         logger->log(msg);
@@ -320,9 +320,7 @@ bool GetListRecordsResponse(const std::string &server_url, const std::string &fr
         const TimeLimit time_limit(200000 /* ms */); // requests can take a long time.
         std::string error_message;
 
-        cgi_success = WebUtil::ExecCGI(url.getUsernamePassword(), url.getAuthority(), url.getPort(), time_limit,
-                                       (url.getPath().empty() ? "/" : url.getPath()), post_args, data,
-                                       &error_message, "text/xml");
+        cgi_success = WebUtil::ExecGetHTTPRequest(url, time_limit, args, data, &error_message, "text/xml");
 
         // If we succeed, return true
         if (cgi_success)
@@ -536,12 +534,15 @@ bool Client::identify(std::string * const xml_response, std::string * const erro
     error_message->clear();
 
     Url url(base_url_, Url::NO_AUTO_OPERATIONS);
-    StringMap post_args;
-    post_args["verb"] = "Identify";
-    const std::string path(url.getPath().empty() ? "/" : url.getPath());
+    StringMap args;
+    args["verb"] = "Identify";
+    std::string path(url.getPath().empty() ? "/" : url.getPath());
+    if (StringUtil::EndsWith(path, "/"))
+        path += "request";
+    else
+        path += "/request";
 
-    return WebUtil::ExecCGI(url.getAuthority(), url.getPort(), TimeLimit(20000 /* ms */), path, post_args,
-                            xml_response, error_message, "text/xml");
+    return WebUtil::ExecGetHTTPRequest(url, TimeLimit(20000 /* ms */), args, xml_response, error_message, "text/xml");
 }
 
 

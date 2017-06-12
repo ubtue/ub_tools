@@ -123,7 +123,7 @@ public:
     /** \brief   Retrieve the repository's XML response to an Identify query.
      *  \param   xml_response    Output variable which will hold the XML returned.
      *  \param   error_message  Output variable which will hold any error encountered.
-     *  \return  True if a useful response was discovered, otherwose false.
+     *  \return  True if a useful response was discovered, otherwise false.
      */
     bool identify(std::string * const xml_response, std::string * const error_message);
 

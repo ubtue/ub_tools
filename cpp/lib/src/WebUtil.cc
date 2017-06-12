@@ -633,15 +633,20 @@ void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int
 }
 
 
-bool ExecCGI(const std::string &username_password, const std::string &address, const unsigned short port,
-	     const TimeLimit &time_limit, const std::string &cgi_path, const StringMap &post_args,
-	     std::string * const document_source, std::string * const error_message, const std::string &accept,
-	     const bool include_http_header)
+enum RequestType { POST, GET };
+
+
+static bool ExecHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
+                            const StringMap &args, enum RequestType request_type,
+                            std::string * const document_source, std::string * const error_message,
+                            const std::string &accept, const bool include_http_header)
 {
     document_source->clear();
     error_message->clear();
 
     try {
+        const std::string address(url.getAuthority());
+        const unsigned short port(url.getPort());
         std::string tcp_connect_error_message;
         const FileDescriptor socket_fd(SocketUtil::TcpConnect(address, port, time_limit,
                                                               &tcp_connect_error_message));
@@ -652,11 +657,21 @@ bool ExecCGI(const std::string &username_password, const std::string &address, c
             return false;
         }
 
-        std::string data_to_be_sent("POST ");
-        data_to_be_sent += cgi_path;
+        std::string data_to_be_sent(request_type == POST ? "POST " : "GET ");
+        if (request_type == POST)
+            data_to_be_sent += url.getPath().empty() ? "/" : url.getPath();
+        else if (not args.empty()) { // request_type == GET
+            data_to_be_sent += '?';
+            for (const auto &key_and_value : args) {
+                if (data_to_be_sent[data_to_be_sent.length() - 1] != '?')
+                    data_to_be_sent += '&';
+                data_to_be_sent += UrlUtil::UrlEncode(key_and_value.first) + "="
+                                   + UrlUtil::UrlEncode(key_and_value.second);
+            }
+        }
         data_to_be_sent += " HTTP/1.0\r\n";
         data_to_be_sent += "Host: ";
-        data_to_be_sent += address;
+        data_to_be_sent += request_type == POST ? address : url.toString();
         data_to_be_sent += "\r\n";
         data_to_be_sent += "User-Agent: ExecCGI/1.0 iVia\r\n";
         data_to_be_sent += "Accept: " + accept + "\r\n";
@@ -669,7 +684,8 @@ bool ExecCGI(const std::string &username_password, const std::string &address, c
             data_to_be_sent += "Authorization: Basic " + TextUtil::Base64Encode(username_password) + "\r\n";
         }
 
-        data_to_be_sent += WwwFormUrlEncode(post_args);
+        if (request_type == POST)
+            data_to_be_sent += WwwFormUrlEncode(args);
 
         if (SocketUtil::TimedWrite(socket_fd, time_limit, data_to_be_sent.c_str(), data_to_be_sent.length())
             == -1)
@@ -694,9 +710,7 @@ bool ExecCGI(const std::string &username_password, const std::string &address, c
         // the 2xx codes indicate success:
         if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {
             *error_message = "Web server returned error status code (" + std::to_string(http_header.getStatusCode())
-                             + "), address was " + address + ", port was " + std::to_string(port)
-                             + ", cgi_path was \"" + cgi_path + ", post_args="
-                             + MiscUtil::StringMapToString(post_args) + "!";
+                             + "), URL was " + url.toString() + ", args=" + MiscUtil::StringMapToString(args) + "!";
             return false;
         }
 
@@ -708,7 +722,7 @@ bool ExecCGI(const std::string &username_password, const std::string &address, c
             if (no_of_bytes_read == -1) {
                 *error_message = "Could not read from socket (2).";
                 *error_message += " (Time remaining: "
-                    + StringUtil::ToString(time_limit.getRemainingTime()) + ").";
+                                  + StringUtil::ToString(time_limit.getRemainingTime()) + ").";
                 return false;
             }
             if (no_of_bytes_read > 0)
@@ -727,10 +741,29 @@ bool ExecCGI(const std::string &username_password, const std::string &address, c
 
         return true;
     } catch (const std::exception &x) {
-        throw std::runtime_error("in WebUtil::ExecCGI: (address = " + address + ") caught exception: "
+        throw std::runtime_error("in WebUtil::ExecCGI: (url = " + url.toString() + ") caught exception: "
                                  + std::string(x.what()));
     }
 }
 
+
+bool ExecPostHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
+                         const StringMap &args, std::string * const document_source,
+                         std::string * const error_message, const std::string &accept,
+                         const bool include_http_header)
+{
+    return ExecHTTPRequest(username_password, url, time_limit, args, POST, document_source,
+                           error_message, accept, include_http_header);
+}
+
+
+bool ExecGetHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
+                        const StringMap &args, std::string * const document_source, std::string * const error_message,
+                        const std::string &accept, const bool include_http_header)
+{
+    return ExecHTTPRequest(username_password, url, time_limit, args, GET, document_source,
+                           error_message, accept, include_http_header);
+}
+    
 
 } // namespace WebUtil
