@@ -36,6 +36,7 @@
 #include "HtmlParser.h"
 #include "HttpHeader.h"
 #include "MiscUtil.h"
+#include "SslConnection.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -661,34 +662,39 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
         if (request_type == POST)
             data_to_be_sent += url.getPath().empty() ? "/" : url.getPath();
         else if (not args.empty()) { // request_type == GET
-            data_to_be_sent += '?';
-            for (const auto &key_and_value : args) {
-                if (data_to_be_sent[data_to_be_sent.length() - 1] != '?')
-                    data_to_be_sent += '&';
-                data_to_be_sent += UrlUtil::UrlEncode(key_and_value.first) + "="
-                                   + UrlUtil::UrlEncode(key_and_value.second);
+            data_to_be_sent += url.getPath();
+            if (not args.empty()) {
+                data_to_be_sent += '?';
+                for (const auto &key_and_value : args) {
+                    if (data_to_be_sent[data_to_be_sent.length() - 1] != '?')
+                        data_to_be_sent += '&';
+                    data_to_be_sent += UrlUtil::UrlEncode(key_and_value.first) + "="
+                                       + UrlUtil::UrlEncode(key_and_value.second);
+                }
             }
         }
-        data_to_be_sent += " HTTP/1.0\r\n";
-        data_to_be_sent += "Host: ";
-        data_to_be_sent += request_type == POST ? address : url.toString();
-        data_to_be_sent += "\r\n";
-        data_to_be_sent += "User-Agent: ExecCGI/1.0 iVia\r\n";
+        data_to_be_sent += " HTTP/1.1\r\n";
+        data_to_be_sent += "Host: " + address + "\r\n";
+        data_to_be_sent += "User-Agent: ExecHTTPRequest/1.0 TueLib\r\n";
         data_to_be_sent += "Accept: " + accept + "\r\n";
         data_to_be_sent += "Accept-Encoding: identity\r\n";
+        data_to_be_sent += "Connection: close\r\n";
 
         // Do we want a username and password to be sent?
         if (not username_password.empty()) { // Yes!
             if (unlikely(username_password.find(':') == std::string::npos))
-                throw std::runtime_error("in WebUtil::ExecCGI: username/password pair is missing a colon!");
+                throw std::runtime_error("in WebUtil::ExecHTTPRequest: username/password pair is missing a colon!");
             data_to_be_sent += "Authorization: Basic " + TextUtil::Base64Encode(username_password) + "\r\n";
         }
 
         if (request_type == POST)
             data_to_be_sent += WwwFormUrlEncode(args);
+        data_to_be_sent += "\r\n";
 
-        if (SocketUtil::TimedWrite(socket_fd, time_limit, data_to_be_sent.c_str(), data_to_be_sent.length())
-            == -1)
+        std::unique_ptr<SslConnection> ssl_connection(url.getScheme() != "https" ? nullptr
+                                                                                 : new SslConnection(socket_fd));
+        if (SocketUtil::TimedWrite(socket_fd, time_limit, data_to_be_sent.c_str(), data_to_be_sent.length(),
+                                   ssl_connection.get()) == -1)
         {
             *error_message = "Could not write to socket";
             *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime()) + ")";
@@ -698,7 +704,7 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
 
         char http_response_header[10240 + 1];
         ssize_t no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, http_response_header,
-                                                         sizeof(http_response_header) - 1);
+                                                         sizeof(http_response_header) - 1, ssl_connection.get());
         if (no_of_bytes_read == -1) {
             *error_message = "Could not read from socket (1).";
             *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime()) + ").";
@@ -718,7 +724,8 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
         std::string response(http_response_header, no_of_bytes_read);
         char buf[10240+1];
         do {
-            no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf) - 1);
+            no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf) - 1,
+                                                     ssl_connection.get());
             if (no_of_bytes_read == -1) {
                 *error_message = "Could not read from socket (2).";
                 *error_message += " (Time remaining: "
@@ -741,7 +748,7 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
 
         return true;
     } catch (const std::exception &x) {
-        throw std::runtime_error("in WebUtil::ExecCGI: (url = " + url.toString() + ") caught exception: "
+        throw std::runtime_error("in WebUtil::ExecHTTPRequest: (url = " + url.toString() + ") caught exception: "
                                  + std::string(x.what()));
     }
 }

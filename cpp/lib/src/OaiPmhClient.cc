@@ -533,14 +533,15 @@ bool Client::identify(std::string * const xml_response, std::string * const erro
     xml_response->clear();
     error_message->clear();
 
-    Url url(base_url_, Url::NO_AUTO_OPERATIONS);
+    std::string url_as_string(base_url_);
+    if (StringUtil::EndsWith(url_as_string, "/"))
+        url_as_string += "request";
+    else
+        url_as_string += "/request";
+
+    Url url(url_as_string, Url::NO_AUTO_OPERATIONS);
     StringMap args;
     args["verb"] = "Identify";
-    std::string path(url.getPath().empty() ? "/" : url.getPath());
-    if (StringUtil::EndsWith(path, "/"))
-        path += "request";
-    else
-        path += "/request";
 
     return WebUtil::ExecGetHTTPRequest(url, TimeLimit(20000 /* ms */), args, xml_response, error_message, "text/xml");
 }
