@@ -8,6 +8,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -34,6 +35,7 @@
 #include "FileUtil.h"
 #include "HtmlParser.h"
 #include "HttpHeader.h"
+#include "MiscUtil.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -43,7 +45,8 @@
 namespace WebUtil {
 
 
-std::string WwwFormUrlEncode(const StringMap &post_args, const bool generate_content_type_and_content_length_headers) {
+std::string WwwFormUrlEncode(const StringMap &post_args,
+                             const bool generate_content_type_and_content_length_headers) {
     std::string name_value_pairs;
     for (const auto &name_value_pair : post_args) {
         if (not name_value_pairs.empty())
@@ -104,7 +107,7 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
         // Do we want a username and password to be sent?
         if (not username_password.empty()) { // Yes!
             if (unlikely(username_password.find(':') == std::string::npos))
-                throw std::runtime_error("in WebUtil::ExecCGI: username/password pair is missing a colon!");
+                throw std::runtime_error("in WebUtil::ProcessPOST: username/password pair is missing a colon!");
             data_to_be_sent += "Authorization: Basic " + TextUtil::Base64Encode(username_password) + "\r\n";
         }
 
@@ -134,7 +137,8 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
         // the 2xx codes indicate success:
         if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {
             *error_message = "Web server returned error status code ("
-                + std::to_string(http_header.getStatusCode()) + ")";
+                             + std::to_string(http_header.getStatusCode()) + "), address was "
+                             + address + ", port was " + std::to_string(port) + ", path was \"" + path + "!";
             return false;
         }
 
@@ -164,7 +168,8 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
 
         return true;
     } catch (const std::exception &x) {
-        throw std::runtime_error("in WebUtil::ExecCGI: (address = " + address + ") caught exception: " + std::string(x.what()));
+        throw std::runtime_error("in WebUtil::ProcessPOST: (address = " + address + ") caught exception: "
+                                 + std::string(x.what()));
     }
 }
 
@@ -288,7 +293,9 @@ std::string ConvertToLatin9(const HttpHeader &http_header, const std::string &or
     character_encoding = http_header.getCharset();
 
     // ...if not available from the header, let's try to get it from the HTML:
-    if (character_encoding.empty() and (http_header.getMediaType() == "text/html" or http_header.getMediaType() == "text/xhtml")) {
+    if (character_encoding.empty()
+        and (http_header.getMediaType() == "text/html" or http_header.getMediaType() == "text/xhtml"))
+    {
         std::list< std::pair<std::string, std::string> > extracted_data;
         HttpEquivExtractor http_equiv_extractor(original_document, "Content-Type", &extracted_data);
         http_equiv_extractor.parse();
@@ -639,10 +646,9 @@ bool ExecCGI(const std::string &username_password, const std::string &address, c
         const FileDescriptor socket_fd(SocketUtil::TcpConnect(address, port, time_limit,
                                                               &tcp_connect_error_message));
         if (socket_fd == -1) {
-            *error_message = "Could not open TCP connection to " + address + ", port "
-                + StringUtil::ToString(port) + ": " + tcp_connect_error_message;
-            *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime())
-                + ").";
+            *error_message = "Could not open TCP connection to " + address + ", port " + std::to_string(port) + ": "
+                             + tcp_connect_error_message;
+            *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ").";
             return false;
         }
 
@@ -688,7 +694,9 @@ bool ExecCGI(const std::string &username_password, const std::string &address, c
         // the 2xx codes indicate success:
         if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {
             *error_message = "Web server returned error status code (" + std::to_string(http_header.getStatusCode())
-                             + ")";
+                             + "), address was " + address + ", port was " + std::to_string(port)
+                             + ", cgi_path was \"" + cgi_path + ", post_args="
+                             + MiscUtil::StringMapToString(post_args) + "!";
             return false;
         }
 

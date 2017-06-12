@@ -6,7 +6,8 @@
 
 /*
  *  Copyright 2003-2008 Project iVia.
- *  Copyright 2003-2008 The Regents of The University of California.
+ *  Copyright 2003-2008 The Regents of The University of California.]
+ *  Copyright 2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaOaiPmh package.
  *
@@ -316,7 +317,7 @@ bool GetListRecordsResponse(const std::string &server_url, const std::string &fr
 
     while (not cgi_success and cgi_attempts <= max_attempts) {
         ++cgi_attempts;
-        const TimeLimit time_limit(300000 /* ms */); // requests can take a long time.
+        const TimeLimit time_limit(200000 /* ms */); // requests can take a long time.
         std::string error_message;
 
         cgi_success = WebUtil::ExecCGI(url.getUsernamePassword(), url.getAuthority(), url.getPort(), time_limit,
@@ -536,10 +537,10 @@ bool Client::identify(std::string * const xml_response, std::string * const erro
 
     Url url(base_url_, Url::NO_AUTO_OPERATIONS);
     StringMap post_args;
-    post_args["verb"] = "ListRecords";
+    post_args["verb"] = "Identify";
     const std::string path(url.getPath().empty() ? "/" : url.getPath());
 
-    return WebUtil::ExecCGI(url.getAuthority(), url.getPort(), TimeLimit(30000 /* ms */), path, post_args,
+    return WebUtil::ExecCGI(url.getAuthority(), url.getPort(), TimeLimit(20000 /* ms */), path, post_args,
                             xml_response, error_message, "text/xml");
 }
 

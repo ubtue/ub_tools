@@ -49,11 +49,17 @@ int main(int argc, char **argv) {
         const IniFile ini_file(ini_filename);
         Marc21OaiPmhClient oai_pmh_client(ini_file, ini_section_name, marc_writer.get());
 
+        std::string xml_response, err_msg;
+        if (not oai_pmh_client.identify(&xml_response, &err_msg))
+            Error("\"Identify\" failed: " + err_msg);
+        std::cout << xml_response;
+
         Logger logger(argv[1]);
         if (harvest_set.empty())
             oai_pmh_client.harvest(/* verbosity = */ 3, &logger);
         else
             oai_pmh_client.harvest(harvest_set, /* verbosity = */ 3, &logger);
+        std::cout << "Harvested " << oai_pmh_client.getRecordCount() << " record(s).\n";
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

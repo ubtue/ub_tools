@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2017 Universtitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -168,7 +169,8 @@ bool TimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit
 {
     // Make sure we *never* take more than 20 seconds:
     if (unlikely(time_limit.getRemainingTime() > 20000))
-        throw std::runtime_error("in DnsUtil::TimedGetHostByName: the time limit must *not* exceed 20s!");
+        throw std::runtime_error("in DnsUtil::TimedGetHostByName: the time limit ("
+                                 + std::to_string(time_limit.getRemainingTime()) + ") must *not* exceed 20000ms!");
 
     try {
         static SimpleResolver resolver;
