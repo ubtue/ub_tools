@@ -22,6 +22,8 @@
 bool Marc21OaiPmhClient::processRecord(const OaiPmh::Record &/*record*/, const unsigned /*verbosity*/,
                                        Logger * const /*logger*/)
 {
+    ++record_count_;
+
     (void)marc_writer_;
     return true;
 }
