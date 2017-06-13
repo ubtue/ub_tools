@@ -6,7 +6,7 @@
 /*
  *  Copyright 2005-2008 Project iVia.
  *  Copyright 2005-2008 The Regents of The University of California.
-    Copyright 2015-2016 Library of the University of Tübingen
+ *  Copyright 2015-2017 Library of the University of Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -33,7 +33,7 @@
 
 
 File::File(const std::string &filename, const std::string &mode, const ThrowOnOpenBehaviour throw_on_error_behaviour)
-    : filename_(filename), buffer_ptr_(buffer_), read_count_(0), file_(nullptr), pushed_back_(false), precision_(6)
+    : filename_(filename), buffer_ptr_(buffer_), read_count_(0), file_(nullptr), pushed_back_count_(0), precision_(6)
 {
     if (mode == "w")
         open_mode_ = WRITING;
@@ -60,7 +60,7 @@ File::File(const std::string &filename, const std::string &mode, const ThrowOnOp
 
 File::File(const int fd, const std::string &mode)
     : filename_("/proc/self/fd/" + std::to_string(fd)), buffer_ptr_(buffer_), read_count_(0), file_(nullptr),
-      pushed_back_(false), precision_(6)
+      pushed_back_count_(0), precision_(6)
 {
     std::string local_mode;
     if (mode.empty()) {
