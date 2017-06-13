@@ -22,6 +22,7 @@
 
 
 #include <map>
+#include <stdexcept>
 #include <string>
 #include "Compiler.h"
 #include "StringUtil.h"
@@ -39,8 +40,7 @@ private:
     bool last_element_was_empty_;
     std::string last_tag_name_;
 public:
-    SimpleXmlParser(DataSource * const input)
-        : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false) { }
+    SimpleXmlParser(DataSource * const input);
 
     bool getNext(Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data);
 
@@ -51,6 +51,7 @@ public:
     static std::string TypeToString(const Type type);
 private:
     void skipWhiteSpace();
+    void parseOptionalPrologue();
     bool extractName(std::string * const name);
     bool extractQuotedString(const int closing_quote, std::string * const s);
     bool parseProlog();
@@ -58,6 +59,30 @@ private:
                          std::string * const error_message);
     bool parseClosingTag(std::string * const tag_name);
 };
+
+
+template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input)
+        : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false)
+{
+    parseOptionalPrologue();
+}
+
+
+template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPrologue() {
+    skipWhiteSpace();
+    int ch(input_->get());
+    if (unlikely(ch != '<') or input_->peek() != '?') {
+        input_->putback(ch);
+        return;
+    }
+
+    std::string name;
+    if (not extractName(&name) or name != "xml")
+        throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: failed to parse a prologue!");
+
+    while (ch != EOF and ch != '>')
+        ch = input_->get();
+}
 
 
 template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace() {
