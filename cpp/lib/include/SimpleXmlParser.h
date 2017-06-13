@@ -48,6 +48,13 @@ public:
     unsigned getLineNo() const { return line_no_; }
     DataSource *getDataSource() const { return input_; }
 
+    /** \brief Skip forward until we encounter a certain element.
+     *  \param type  The type of element we're looking for.
+     *  \param tag   If "type" is OPENING_TAG or CLOSING_TAG, the name of the tag we're looking for.
+     *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
+     */
+    bool skipTo(const Type type, const std::string &tag);
+
     static std::string TypeToString(const Type type);
 private:
     void skipWhiteSpace();
@@ -75,13 +82,17 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
         input_->putback(ch);
         return;
     }
+    input_->get(); // Skip over '?'.
 
     std::string name;
     if (not extractName(&name) or name != "xml")
         throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: failed to parse a prologue!");
 
-    while (ch != EOF and ch != '>')
+    while (ch != EOF and ch != '>') {
+        if (unlikely(ch == '\n'))
+            ++line_no_;
         ch = input_->get();
+    }
 }
 
 
@@ -242,6 +253,26 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
     }
 
     return true;
+}
+
+
+template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(const Type expected_type,
+                                                                       const std::string &expected_tag)
+{
+    for (;;) {
+        Type type;
+        std::map<std::string, std::string> attrib_map;
+        std::string data;
+        if (unlikely(not getNext(&type, &attrib_map, &data)))
+            throw std::runtime_error("in SimpleXmlParser::skipTo: " + last_error_message_);
+
+        if ((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and data == expected_tag)
+            return true;
+        if (expected_type == type)
+            return true;
+        if (type == END_OF_DOCUMENT)
+            return false;
+    }
 }
 
 
