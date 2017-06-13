@@ -33,8 +33,12 @@
 #include "HtmlUtil.h"
 #include "IniFile.h"
 #include "Logger.h"
+#include "MiscUtil.h"
+#include "SimpleXmlParser.h"
+#include "StringDataSource.h"
 #include "StringUtil.h"
 #include "Url.h"
+#include "UrlUtil.h"
 #include "util.h"
 #include "XmlParser.h"
 #include "WebUtil.h"
@@ -128,8 +132,8 @@ bool ListRecordsParser::importReceivedRecord() {
 
     // Create a result:
     records_.push_back(OaiPmh::Record(identifier_, datestamp_));
-    for (std::list<OaiPmh::Field>::const_iterator field(metadata_fields_.begin()); field != metadata_fields_.end(); ++field)
-        records_.back().addField(*field);
+    for (const auto &field : metadata_fields_)
+        records_.back().addField(field);
 
     // All done:
     ++received_record_count_;
@@ -158,8 +162,8 @@ void ListRecordsParser::notify(const Chunk &chunk) {
     if (chunk.type_ == XmlParser::WARNING or chunk.type_ == XmlParser::ERROR
         or chunk.type_ == XmlParser::FATAL_ERROR)
     {
-            detected_error_ = true;
-            error_message_  = "the XML parser reported an error: " + chunk.text_;
+        detected_error_ = true;
+        error_message_  = "the XML parser reported an error: " + chunk.text_;
     } else if (chunk.type_ == XmlParser::START_ELEMENT) {
         if (chunk.text_ == "error") {
             error_tag_open_ = true;
@@ -284,7 +288,7 @@ bool GetListRecordsResponse(const std::string &server_url, const std::string &fr
     if (not url.isValid())
         throw std::runtime_error("in GetListRecordsResponse: bad server URL \"" + server_url + "\"!");
 
-    // Construct CGI arguments:
+    // Construct query arguments:
     StringMap args;
     args["verb"] = "ListRecords";
 
@@ -297,39 +301,36 @@ bool GetListRecordsResponse(const std::string &server_url, const std::string &fr
             args["until"] = until;
         if (not set_spec.empty())
             args["set"] = set_spec;
-        args["metadataPrefix"] = metadataPrefix;
+        if (not metadataPrefix.empty())
+            args["metadataPrefix"] = metadataPrefix;
     }
 
     // Log the request details:
-    if (verbosity >= 3) {
-        std::string msg("HTTP POST: " + server_url);
-        for (std::map<std::string, std::string>::const_iterator pair(args.begin()); pair != args.end();
-             ++pair)
-            msg += " " + pair->first + "=" + pair->second;
-        logger->log(msg);
-    }
+    if (verbosity >= 3)
+        logger->log("HTTP GET: " + server_url + " " + MiscUtil::StringMapToString(args));
+
 
     // Contact the OAI-PMH server:
-    bool cgi_success            = false;
-    unsigned cgi_attempts       = 0;
-    unsigned sleep_time         = 30; // seconds
-    const unsigned max_attempts = 3;
+    bool success(false);
+    unsigned attempt_count(0);
+    unsigned sleep_time(30); // seconds
+    const unsigned max_attempts(3);
 
-    while (not cgi_success and cgi_attempts <= max_attempts) {
-        ++cgi_attempts;
+    while (not success and attempt_count <= max_attempts) {
+        ++attempt_count;
         const TimeLimit time_limit(200000 /* ms */); // requests can take a long time.
         std::string error_message;
 
-        cgi_success = WebUtil::ExecGetHTTPRequest(url, time_limit, args, data, &error_message, "text/xml");
+        success = WebUtil::ExecGetHTTPRequest(url, time_limit, args, data, &error_message, "text/xml");
 
         // If we succeed, return true
-        if (cgi_success)
+        if (success)
             return true;
 
         // If we fail, sleep then try again.
-        logger->log("HTTP POST failed: " + error_message);
+        logger->log("HTTP GET failed: " + error_message);
 
-        if (cgi_attempts <= max_attempts) {
+        if (attempt_count <= max_attempts) {
             logger->log("Retrying in %d seconds", sleep_time);
             ::sleep(sleep_time);
             sleep_time *= 2;
@@ -344,6 +345,16 @@ bool GetListRecordsResponse(const std::string &server_url, const std::string &fr
 
 
 namespace OaiPmh {
+
+
+std::string Client::MetadataFormatDescriptor::toString() const {
+    std::string as_string;
+    as_string += "metadataPrefix: " + metadata_prefix_;
+    as_string += ", schema: " + schema_;
+    as_string += ", metadataNamespace: " + metadata_namespace_;
+
+    return "{ " + as_string + " }";
+}
 
 
 // Client constructor -- create a repository data structure from a config file.
@@ -384,6 +395,48 @@ Client::~Client() {
 std::string Client::progressFile(const std::string &set_name) {
     return ("/tmp/" + std::string(::progname) + std::string(".") + repository_name_
             + std::string(set_name.empty() ? "" : "." + set_name) + ".progress");
+}
+
+    
+bool Client::listMetadataFormats(std::vector<MetadataFormatDescriptor> * const metadata_format_list,
+                                 std::string * const error_message, const std::string &identifier)
+{
+    error_message->clear();
+
+    std::string url_as_string(base_url_);
+    if (StringUtil::EndsWith(url_as_string, "/"))
+        url_as_string += "request";
+    else
+        url_as_string += "/request";
+
+    const Url url(url_as_string, Url::NO_AUTO_OPERATIONS);
+
+    StringMap args;
+    args["verb"] = "ListMetadataFormats";
+    if (not identifier.empty())
+        args["identifier"] = UrlUtil::UrlEncode(identifier);
+
+    std::string xml_response;
+    const bool success(WebUtil::ExecGetHTTPRequest(url, TimeLimit(20000 /* ms */), args, &xml_response, error_message,
+                                                   "text/xml"));
+    if (not success)
+        return false;
+
+    metadata_format_list->clear();
+
+    StringDataSource string_data_source(xml_response);
+    SimpleXmlParser<StringDataSource> xml_parser(&string_data_source);
+//    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    std::string data;
+
+    /*
+    for (;;) {
+        if (unlikely(not 
+    }
+    */
+    
+    return true;
 }
 
 
