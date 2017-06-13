@@ -49,11 +49,11 @@ public:
     DataSource *getDataSource() const { return input_; }
 
     /** \brief Skip forward until we encounter a certain element.
-     *  \param type  The type of element we're looking for.
-     *  \param tag   If "type" is OPENING_TAG or CLOSING_TAG, the name of the tag we're looking for.
+     *  \param expected_type  The type of element we're looking for.
+     *  \param expected_tag   If "type" is OPENING_TAG or CLOSING_TAG, the name of the tag we're looking for.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
-    bool skipTo(const Type type, const std::string &tag);
+    bool skipTo(const Type expected_type, const std::string &expected_tag = "");
 
     static std::string TypeToString(const Type type);
 private:
@@ -259,6 +259,10 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
 template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(const Type expected_type,
                                                                        const std::string &expected_tag)
 {
+    if (unlikely((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and expected_tag.empty()))
+    throw std::runtime_error("in SimpleXmlParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
+                             "tag name has been specified!");
+
     for (;;) {
         Type type;
         std::map<std::string, std::string> attrib_map;
