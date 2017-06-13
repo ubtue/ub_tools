@@ -266,11 +266,13 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(const Typ
         if (unlikely(not getNext(&type, &attrib_map, &data)))
             throw std::runtime_error("in SimpleXmlParser::skipTo: " + last_error_message_);
 
-        if ((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and data == expected_tag)
-            return true;
-        if (expected_type == type)
-            return true;
-        if (type == END_OF_DOCUMENT)
+        if (expected_type == type) {
+            if (expected_type == OPENING_TAG or expected_type == CLOSING_TAG) {
+                if (data == expected_tag)
+                    return true;
+            } else
+                return true;
+        } else if (type == END_OF_DOCUMENT)
             return false;
     }
 }
