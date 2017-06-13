@@ -6,7 +6,7 @@
 /*
  *  Copyright 2005-2008 Project iVia.
  *  Copyright 2005-2008 The Regents of The University of California.
-    Copyright 2015-2016 Library of the University of Tübingen
+ *  Copyright 2015-2017 Library of the University of Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -51,8 +51,8 @@ private:
     char *buffer_ptr_;
     size_t read_count_;
     FILE *file_;
-    bool pushed_back_;
-    char pushed_back_char_;
+    unsigned pushed_back_count_;
+    char pushed_back_chars_[2];
     int precision_;
     OpenMode open_mode_;
 public:
@@ -98,9 +98,12 @@ public:
     bool seek(const off_t offset, const int whence = SEEK_SET);
     
     inline int get() {
-        if (unlikely(pushed_back_)) {
-            pushed_back_ = false;
-            return pushed_back_char_;
+        if (unlikely(pushed_back_count_ > 0)) {
+            const char pushed_back_char(pushed_back_chars_[0]);
+            ++pushed_back_count_;
+            for (unsigned i(0); i < pushed_back_count_; ++i)
+                pushed_back_chars_[i] = pushed_back_chars_[i + 1];
+            return pushed_back_char;
         }
         
         if (unlikely(buffer_ptr_ == buffer_ + read_count_))
@@ -130,20 +133,21 @@ public:
     inline int put(const char ch) { return putc(ch, file_); }
     
     inline void putback(const char ch) {
-        if (unlikely(pushed_back_))
-            throw std::runtime_error("in File::putback: can't push back two characters in a row!");
-        pushed_back_char_ = ch;
-        pushed_back_ = true;
+        if (unlikely(pushed_back_count_ == sizeof(pushed_back_chars_)))
+            throw std::runtime_error("in File::putback: can't push back " + std::to_string(sizeof(pushed_back_chars_))
+                                     + " characters in a row!");
+        for (unsigned i(pushed_back_count_); i > 0; --i)
+            pushed_back_chars_[i] = pushed_back_chars_[i - 1];
+        pushed_back_chars_[0] = ch;
+        ++pushed_back_count_;
     }
 
     inline int peek() {
-        if (unlikely(pushed_back_))
-            return pushed_back_char_;
+        if (unlikely(pushed_back_count_ > 0))
+            return pushed_back_chars_[0];
         const int ch(get());
-        if (likely(ch != EOF)) {
-            pushed_back_ = true;
-            pushed_back_char_ = static_cast<char>(ch);
-        }
+        if (likely(ch != EOF))
+            putback(static_cast<char>(ch));
         return ch;
     }
 
