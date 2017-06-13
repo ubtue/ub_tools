@@ -397,7 +397,89 @@ std::string Client::progressFile(const std::string &set_name) {
             + std::string(set_name.empty() ? "" : "." + set_name) + ".progress");
 }
 
-    
+
+static bool LookFor(const std::string &expected_tag, SimpleXmlParser<StringDataSource> * const xml_parser,
+                    std::string * const extracted_data, std::string * const err_msg)
+{
+    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    std::string data;
+
+    if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)
+                 or type == SimpleXmlParser<StringDataSource>::ERROR))
+    {
+        *err_msg = "XML parser failed: " + xml_parser->getLastErrorMessage();
+        return false;
+    }
+
+    if (unlikely(type != SimpleXmlParser<StringDataSource>::OPENING_TAG or data != expected_tag)) {
+        *err_msg = "expected opening <metadataPrefix> tag on line #" + std::to_string(xml_parser->getLineNo()) + "!";
+        return false;
+    }
+
+    if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)
+                 or type == SimpleXmlParser<StringDataSource>::ERROR))
+    {
+        *err_msg = "XML parser failed: " + xml_parser->getLastErrorMessage();
+        return false;
+    }
+
+    if (unlikely(type != SimpleXmlParser<StringDataSource>::CHARACTERS)) {
+        *err_msg = "expected character data on line #" + std::to_string(xml_parser->getLineNo()) + "!";
+        return false;
+    }
+    *extracted_data = data;
+
+    if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)
+                 or type == SimpleXmlParser<StringDataSource>::ERROR))
+    {
+        *err_msg = "XML parser failed: " + xml_parser->getLastErrorMessage();
+        return false;
+    }
+
+    if (unlikely(type != SimpleXmlParser<StringDataSource>::CLOSING_TAG or data != expected_tag)) {
+        *err_msg = "expected closing <metadataPrefix> tag on line #" + std::to_string(xml_parser->getLineNo()) + "!";
+        return false;
+    }
+
+    return true;
+}
+
+
+static bool ParseMetadataFormat(SimpleXmlParser<StringDataSource> * const xml_parser,
+                                Client::MetadataFormatDescriptor * const metadata_format_descriptor,
+                                std::string * const err_msg)
+{
+    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    std::string data;
+    if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)
+                 or type == SimpleXmlParser<StringDataSource>::ERROR))
+    {
+        *err_msg = "XML parser failed: " + xml_parser->getLastErrorMessage();
+        return false;
+    }
+
+    std::string metadata_prefix;
+    if (unlikely(not LookFor("metadataPrefix", xml_parser, &metadata_prefix, err_msg)))
+        return false;
+
+    std::string schema;
+    if (unlikely(not LookFor("schema", xml_parser, &schema, err_msg)))
+        return false;
+
+    std::string metadata_namespace;
+    if (unlikely(not LookFor("metadataNamespace", xml_parser, &metadata_namespace, err_msg)))
+        return false;
+
+    metadata_format_descriptor->metadata_prefix_    = metadata_prefix;
+    metadata_format_descriptor->schema_             = schema;
+    metadata_format_descriptor->metadata_namespace_ = metadata_namespace;
+
+    return true;
+}
+
+
 bool Client::listMetadataFormats(std::vector<MetadataFormatDescriptor> * const metadata_format_list,
                                  std::string * const error_message, const std::string &identifier)
 {
@@ -426,17 +508,25 @@ bool Client::listMetadataFormats(std::vector<MetadataFormatDescriptor> * const m
 
     StringDataSource string_data_source(xml_response);
     SimpleXmlParser<StringDataSource> xml_parser(&string_data_source);
-//    SimpleXmlParser<StringDataSource>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
 
-    /*
     for (;;) {
-        if (unlikely(not 
+        SimpleXmlParser<StringDataSource>::Type type;
+        std::map<std::string, std::string> attrib_map;
+        std::string data;
+        if (unlikely(not xml_parser.getNext(&type, &attrib_map, &data)
+                     or type == SimpleXmlParser<StringDataSource>::ERROR))
+            Error("in Client::listMetadataFormats: XML parser failed: " + xml_parser.getLastErrorMessage());
+
+        if (unlikely(type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT))
+            return true;
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "metadataFormat") {
+            MetadataFormatDescriptor metadata_format_descriptor;
+            std::string err_msg;
+            if (unlikely(not ParseMetadataFormat(&xml_parser, &metadata_format_descriptor, &err_msg)))
+                Error("in Client::listMetadataFormats: error while parsing \"metadataFormat\"! (" + err_msg + ")");
+            metadata_format_list->push_back(metadata_format_descriptor);
+        }
     }
-    */
-    
-    return true;
 }
 
 
