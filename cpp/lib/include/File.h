@@ -100,7 +100,7 @@ public:
     inline int get() {
         if (unlikely(pushed_back_count_ > 0)) {
             const char pushed_back_char(pushed_back_chars_[0]);
-            ++pushed_back_count_;
+            --pushed_back_count_;
             for (unsigned i(0); i < pushed_back_count_; ++i)
                 pushed_back_chars_[i] = pushed_back_chars_[i + 1];
             return pushed_back_char;
