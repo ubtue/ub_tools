@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2017 Universtitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -167,24 +168,22 @@ bool TimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit
                         std::string * const error_message)
 {
     // Make sure we *never* take more than 20 seconds:
-    if (unlikely(time_limit.getRemainingTime() > 20000))
-        throw std::runtime_error("in DnsUtil::TimedGetHostByName: the time limit must *not* exceed 20s!");
+    const TimeLimit local_time_limit(time_limit.getRemainingTime() < 20000 ? time_limit.getRemainingTime() : 20000);
 
     try {
         static SimpleResolver resolver;
 
         std::set<in_addr_t> ip_addresses;
-        if (resolver.resolve(hostname, time_limit, &ip_addresses)) {
+        if (resolver.resolve(hostname, local_time_limit, &ip_addresses)) {
             *ip_address = *(ip_addresses.begin());
             return true;
         }
 
-        if (time_limit.limitExceeded())
+        if (local_time_limit.limitExceeded())
             *error_message = "timed out";
         else
             *error_message = "unknown resolver error";
-    }
-    catch (const std::exception &x) {
+    } catch (const std::exception &x) {
         *error_message = x.what();
     }
 

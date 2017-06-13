@@ -171,10 +171,11 @@ std::string CreateNonEditableRowEntry(const std::string &value) {
 }
 
 
-std::string CreateNonEditableSynonymEntry(const std::vector<std::string> &values, const std::string &separator) {
-   std::vector<std::string> html_escaped_values(values.size());
-   std::for_each(values.cbegin(), values.cend(), boost::bind(&HtmlUtil::HtmlEscape, _1));
-   return "<td style=\"background-color:lightgrey; font-size:small\">" +  StringUtil::Join(values, separator) + "</td>";
+std::string CreateNonEditableSynonymEntry(std::vector<std::string> values, const std::string &separator) {
+    for (auto &value : values)
+        HtmlUtil::HtmlEscape(&value);
+    return "<td style=\"background-color:lightgrey; font-size:small\">" +  StringUtil::Join(values, separator)
+           + "</td>";
 }
 
 

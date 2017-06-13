@@ -8,6 +8,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -34,6 +35,8 @@
 #include "FileUtil.h"
 #include "HtmlParser.h"
 #include "HttpHeader.h"
+#include "MiscUtil.h"
+#include "SslConnection.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -43,7 +46,8 @@
 namespace WebUtil {
 
 
-std::string WwwFormUrlEncode(const StringMap &post_args, const bool generate_content_type_and_content_length_headers) {
+std::string WwwFormUrlEncode(const StringMap &post_args,
+                             const bool generate_content_type_and_content_length_headers) {
     std::string name_value_pairs;
     for (const auto &name_value_pair : post_args) {
         if (not name_value_pairs.empty())
@@ -104,7 +108,7 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
         // Do we want a username and password to be sent?
         if (not username_password.empty()) { // Yes!
             if (unlikely(username_password.find(':') == std::string::npos))
-                throw std::runtime_error("in WebUtil::ExecCGI: username/password pair is missing a colon!");
+                throw std::runtime_error("in WebUtil::ProcessPOST: username/password pair is missing a colon!");
             data_to_be_sent += "Authorization: Basic " + TextUtil::Base64Encode(username_password) + "\r\n";
         }
 
@@ -134,7 +138,8 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
         // the 2xx codes indicate success:
         if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {
             *error_message = "Web server returned error status code ("
-                + std::to_string(http_header.getStatusCode()) + ")";
+                             + std::to_string(http_header.getStatusCode()) + "), address was "
+                             + address + ", port was " + std::to_string(port) + ", path was \"" + path + "!";
             return false;
         }
 
@@ -164,7 +169,8 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
 
         return true;
     } catch (const std::exception &x) {
-        throw std::runtime_error("in WebUtil::ExecCGI: (address = " + address + ") caught exception: " + std::string(x.what()));
+        throw std::runtime_error("in WebUtil::ProcessPOST: (address = " + address + ") caught exception: "
+                                 + std::string(x.what()));
     }
 }
 
@@ -288,7 +294,9 @@ std::string ConvertToLatin9(const HttpHeader &http_header, const std::string &or
     character_encoding = http_header.getCharset();
 
     // ...if not available from the header, let's try to get it from the HTML:
-    if (character_encoding.empty() and (http_header.getMediaType() == "text/html" or http_header.getMediaType() == "text/xhtml")) {
+    if (character_encoding.empty()
+        and (http_header.getMediaType() == "text/html" or http_header.getMediaType() == "text/xhtml"))
+    {
         std::list< std::pair<std::string, std::string> > extracted_data;
         HttpEquivExtractor http_equiv_extractor(original_document, "Content-Type", &extracted_data);
         http_equiv_extractor.parse();
@@ -625,5 +633,146 @@ void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int
     }
 }
 
+
+enum RequestType { POST, GET };
+
+
+static bool ExecHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
+                            const StringMap &args, enum RequestType request_type,
+                            std::string * const document_source, std::string * const error_message,
+                            const std::string &accept, const bool include_http_header)
+{
+    document_source->clear();
+    error_message->clear();
+
+    try {
+        const std::string address(url.getAuthority());
+        const unsigned short port(url.getPort());
+        std::string tcp_connect_error_message;
+        const FileDescriptor socket_fd(SocketUtil::TcpConnect(address, port, time_limit,
+                                                              &tcp_connect_error_message));
+        if (socket_fd == -1) {
+            *error_message = "Could not open TCP connection to " + address + ", port " + std::to_string(port) + ": "
+                             + tcp_connect_error_message;
+            *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ").";
+            return false;
+        }
+
+        std::string data_to_be_sent(request_type == POST ? "POST " : "GET ");
+        if (request_type == POST)
+            data_to_be_sent += url.getPath().empty() ? "/" : url.getPath();
+        else if (not args.empty()) { // request_type == GET
+            data_to_be_sent += url.getPath();
+            if (not args.empty()) {
+                data_to_be_sent += '?';
+                for (const auto &key_and_value : args) {
+                    if (data_to_be_sent[data_to_be_sent.length() - 1] != '?')
+                        data_to_be_sent += '&';
+                    data_to_be_sent += UrlUtil::UrlEncode(key_and_value.first) + "="
+                                       + UrlUtil::UrlEncode(key_and_value.second);
+                }
+            }
+        }
+        data_to_be_sent += " HTTP/1.0\r\n";
+        data_to_be_sent += "Host: " + address + "\r\n";
+        data_to_be_sent += "User-Agent: ExecHTTPRequest/1.0 TueLib\r\n";
+        data_to_be_sent += "Accept: " + accept + "\r\n";
+        data_to_be_sent += "Accept-Encoding: identity\r\n";
+        data_to_be_sent += "Connection: close\r\n";
+
+        // Do we want a username and password to be sent?
+        if (not username_password.empty()) { // Yes!
+            if (unlikely(username_password.find(':') == std::string::npos))
+                throw std::runtime_error("in WebUtil::ExecHTTPRequest: username/password pair is missing a colon!");
+            data_to_be_sent += "Authorization: Basic " + TextUtil::Base64Encode(username_password) + "\r\n";
+        }
+
+        if (request_type == POST)
+            data_to_be_sent += WwwFormUrlEncode(args);
+        data_to_be_sent += "\r\n";
+
+        std::unique_ptr<SslConnection> ssl_connection(url.getScheme() != "https" ? nullptr
+                                                                                 : new SslConnection(socket_fd));
+std::cerr << "Sending: " << data_to_be_sent<<'\n';
+        if (SocketUtil::TimedWrite(socket_fd, time_limit, data_to_be_sent.c_str(), data_to_be_sent.length(),
+                                   ssl_connection.get()) == -1)
+        {
+            *error_message = "Could not write to socket";
+            *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime()) + ")";
+            *error_message += '!';
+            return false;
+        }
+
+        char http_response_header[10240 + 1];
+        ssize_t no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, http_response_header,
+                                                         sizeof(http_response_header) - 1, ssl_connection.get());
+        if (no_of_bytes_read == -1) {
+            *error_message = "Could not read from socket (1).";
+            *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime()) + ").";
+            return false;
+        }
+        http_response_header[no_of_bytes_read] = '\0';
+        HttpHeader http_header(http_response_header);
+std::cerr << "http_response_header="<<http_response_header<<'\n';
+
+        // the 2xx codes indicate success:
+        if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {
+            *error_message = "Web server returned error status code (" + std::to_string(http_header.getStatusCode())
+                             + "), URL was " + url.toString() + ", args=" + MiscUtil::StringMapToString(args) + "!";
+            return false;
+        }
+
+        // read the returned document source:
+        std::string response(http_response_header, no_of_bytes_read);
+        char buf[10240+1];
+        do {
+            no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf) - 1,
+                                                     ssl_connection.get());
+            if (no_of_bytes_read == -1) {
+                *error_message = "Could not read from socket (2).";
+                *error_message += " (Time remaining: "
+                                  + StringUtil::ToString(time_limit.getRemainingTime()) + ").";
+                return false;
+            }
+            if (no_of_bytes_read > 0)
+                response += std::string(buf, no_of_bytes_read);
+        } while (no_of_bytes_read > 0);
+
+        if (include_http_header)
+            *document_source = response;
+        else {
+            std::string::size_type pos = response.find("\r\n\r\n"); // the header ends with two cr/lf pairs!
+            if (pos != std::string::npos) {
+                pos += 4;
+                *document_source = response.substr(pos);
+            }
+        }
+
+        return true;
+    } catch (const std::exception &x) {
+        throw std::runtime_error("in WebUtil::ExecHTTPRequest: (url = " + url.toString() + ") caught exception: "
+                                 + std::string(x.what()));
+    }
+}
+
+
+bool ExecPostHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
+                         const StringMap &args, std::string * const document_source,
+                         std::string * const error_message, const std::string &accept,
+                         const bool include_http_header)
+{
+    return ExecHTTPRequest(username_password, url, time_limit, args, POST, document_source,
+                           error_message, accept, include_http_header);
+}
+
+
+bool ExecGetHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
+                        const StringMap &args, std::string * const document_source, std::string * const error_message,
+                        const std::string &accept, const bool include_http_header)
+{
+    return ExecHTTPRequest(username_password, url, time_limit, args, GET, document_source,
+                           error_message, accept, include_http_header);
+}
+    
 
 } // namespace WebUtil

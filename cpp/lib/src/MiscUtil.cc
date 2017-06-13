@@ -844,4 +844,13 @@ bool IsPossibleISSN(std::string issn_candidate) {
 }
 
 
+std::string StringMapToString(const std::map<std::string, std::string> &map) {
+    std::string map_as_string;
+    for (const auto &key_and_value : map)
+        map_as_string += key_and_value.first + "=" + key_and_value.second + ", ";
+
+    return map_as_string.empty() ? "[]" : "[" + map_as_string.substr(0, map_as_string.length() - 2) + "]";
+}
+
+
 } // namespace MiscUtil
