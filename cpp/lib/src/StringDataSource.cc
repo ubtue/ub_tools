@@ -54,5 +54,5 @@ int StringDataSource::peek() {
     if (unlikely(ch_ == s_.cend()))
         throw std::runtime_error("in StringDataSource::peek: can't peek past end-of-string!");
 
-    return unlikely(ch_ + 1 == s_.cend()) ? EOF : *(ch_ + 1);
+    return unlikely(ch_ == s_.cend()) ? EOF : *ch_;
 }
