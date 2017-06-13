@@ -26,7 +26,7 @@
 namespace XmlUtil {
 
 
-inline bool DecodeEnity(const std::string &entity_string, std::string * const decoded_char) {
+inline bool DecodeEntity(const std::string &entity_string, std::string * const decoded_char) {
     if (unlikely(entity_string.empty()))
         return false;
 
@@ -77,7 +77,7 @@ bool DecodeEntities(std::string * const data) {
         if (unlikely(in_entity)) {
             if (ch == ';') {
                 std::string decoded_char;
-                if (not DecodeEnity(entity, &decoded_char))
+                if (not DecodeEntity(entity, &decoded_char))
                     return false;
                 for (const auto dch : decoded_char)
                     *next++ = dch;
