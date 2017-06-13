@@ -415,10 +415,10 @@ void ProcessRecords(const bool verbose, File * const input, MarcWriter * const m
 {
     const unsigned REQUIRED_CONDITIONS_COUNT(CountRequiredMatchers(xml_tag_to_matchers_map));
 
-    SimpleXmlParser::Type type;
+    SimpleXmlParser<File>::Type type;
     std::string data;
     std::map<std::string, std::string> attrib_map;
-    SimpleXmlParser xml_parser(input);
+    SimpleXmlParser<File> xml_parser(input);
     MarcRecord record;
     unsigned record_count(0), written_record_count(0);
     bool collect_character_data(false);
@@ -428,12 +428,12 @@ void ProcessRecords(const bool verbose, File * const input, MarcWriter * const m
 xml_parse_loop:
     while (xml_parser.getNext(&type, &attrib_map, &data)) {
         switch (type) {
-        case SimpleXmlParser::END_OF_DOCUMENT:
+        case SimpleXmlParser<File>::END_OF_DOCUMENT:
             if (verbose)
                 std::cout << "Wrote " << written_record_count << " record(s) of " << record_count
                           << " record(s) which were found in the XML input stream.\n";
             return;
-        case SimpleXmlParser::OPENING_TAG:
+        case SimpleXmlParser<File>::OPENING_TAG:
             if (data == "record") {
                 record = MarcRecord();
                 record.insertField("001", GeneratePPN());
@@ -454,7 +454,7 @@ xml_parse_loop:
                     std::cerr << "No matcher found for XML tag \"" << data << "\".\n";
             }
             break;
-        case SimpleXmlParser::CLOSING_TAG:
+        case SimpleXmlParser<File>::CLOSING_TAG:
             if (data == "record") {
                 if (met_required_conditions_count == REQUIRED_CONDITIONS_COUNT) {
                     marc_writer->write(record);
@@ -502,7 +502,7 @@ xml_parse_loop:
                 }
             }
             break;
-        case SimpleXmlParser::CHARACTERS:
+        case SimpleXmlParser<File>::CHARACTERS:
             if (collect_character_data)
                 character_data += data;
             break;

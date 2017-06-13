@@ -509,23 +509,20 @@ bool Client::listMetadataFormats(std::vector<MetadataFormatDescriptor> * const m
     StringDataSource string_data_source(xml_response);
     SimpleXmlParser<StringDataSource> xml_parser(&string_data_source);
 
-    for (;;) {
-        SimpleXmlParser<StringDataSource>::Type type;
-        std::map<std::string, std::string> attrib_map;
-        std::string data;
-        if (unlikely(not xml_parser.getNext(&type, &attrib_map, &data)
-                     or type == SimpleXmlParser<StringDataSource>::ERROR))
-            Error("in Client::listMetadataFormats: XML parser failed: " + xml_parser.getLastErrorMessage());
+    if (unlikely(not xml_parser.skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "ListMetadataFormats"))) {
+        *error_message = "failed to find <ListMetadataFormats>!";
+        return false;
+    }
 
-        if (unlikely(type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT))
+    // Process the "metadataFormat" sections:
+    for (;;) {
+        if (not xml_parser.skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "metadataFormat"))
             return true;
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "metadataFormat") {
-            MetadataFormatDescriptor metadata_format_descriptor;
-            std::string err_msg;
-            if (unlikely(not ParseMetadataFormat(&xml_parser, &metadata_format_descriptor, &err_msg)))
-                Error("in Client::listMetadataFormats: error while parsing \"metadataFormat\"! (" + err_msg + ")");
-            metadata_format_list->push_back(metadata_format_descriptor);
-        }
+        MetadataFormatDescriptor metadata_format_descriptor;
+        std::string err_msg;
+        if (unlikely(not ParseMetadataFormat(&xml_parser, &metadata_format_descriptor, &err_msg)))
+            Error("in Client::listMetadataFormats: error while parsing \"metadataFormat\"! (" + err_msg + ")");
+        metadata_format_list->push_back(metadata_format_descriptor);
     }
 }
 
