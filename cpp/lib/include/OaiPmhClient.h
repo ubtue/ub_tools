@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2005 Project iVia.
  *  Copyright 2003-2005 The Regents of The University of California.
- *  Copyright Universitätsbibliothek Tübingen
+ *  Copyright 2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaOaiPmh package.
  *
@@ -100,11 +100,8 @@ protected:
 
 public:
     struct MetadataFormatDescriptor {
-        const std::string metadata_prefix_, schema_, metadata_namespace_;
+        std::string metadata_prefix_, schema_, metadata_namespace_;
     public:
-        MetadataFormatDescriptor(const std::string &metadataPrefix, const std::string &schema,
-                                 const std::string &metadataNamespace)
-            : metadata_prefix_(metadataPrefix), schema_(schema), metadata_namespace_(metadataNamespace) { }
         std::string toString() const;
     };
 public:
