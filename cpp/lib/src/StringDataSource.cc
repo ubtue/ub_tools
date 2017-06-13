@@ -1,4 +1,4 @@
-/** \file    StringDataSource.h
+/** \file    StringDataSource.cc
  *  \brief   Declaration of class StringDataSource.
  *  \author  Dr. Johannes Ruscheinski
  */
