@@ -673,7 +673,7 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
                 }
             }
         }
-        data_to_be_sent += " HTTP/1.1\r\n";
+        data_to_be_sent += " HTTP/1.0\r\n";
         data_to_be_sent += "Host: " + address + "\r\n";
         data_to_be_sent += "User-Agent: ExecHTTPRequest/1.0 TueLib\r\n";
         data_to_be_sent += "Accept: " + accept + "\r\n";
@@ -693,6 +693,7 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
 
         std::unique_ptr<SslConnection> ssl_connection(url.getScheme() != "https" ? nullptr
                                                                                  : new SslConnection(socket_fd));
+std::cerr << "Sending: " << data_to_be_sent<<'\n';
         if (SocketUtil::TimedWrite(socket_fd, time_limit, data_to_be_sent.c_str(), data_to_be_sent.length(),
                                    ssl_connection.get()) == -1)
         {
@@ -712,6 +713,7 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
         }
         http_response_header[no_of_bytes_read] = '\0';
         HttpHeader http_header(http_response_header);
+std::cerr << "http_response_header="<<http_response_header<<'\n';
 
         // the 2xx codes indicate success:
         if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {

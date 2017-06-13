@@ -8,6 +8,7 @@
 /*
  *  Copyright 2003-2005 Project iVia.
  *  Copyright 2003-2005 The Regents of The University of California.
+ *  Copyright Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaOaiPmh package.
  *
@@ -44,8 +45,12 @@
 #       include <string>
 #       define STRING
 #endif
+#ifndef VECTOR
+#       include <vector>
+#       define VECTOR
+#endif
 #ifndef OAI_PMH_H
-#       include <OaiPmh.h>
+#       include "OaiPmh.h"
 #endif
 
 
@@ -94,6 +99,15 @@ protected:
     std::string first_response_date_;
 
 public:
+    struct MetadataFormatDescriptor {
+        const std::string metadata_prefix_, schema_, metadata_namespace_;
+    public:
+        MetadataFormatDescriptor(const std::string &metadataPrefix, const std::string &schema,
+                                 const std::string &metadataNamespace)
+            : metadata_prefix_(metadataPrefix), schema_(schema), metadata_namespace_(metadataNamespace) { }
+        std::string toString() const;
+    };
+public:
     /** \brief  Construct a Client object based on a configuration file.
      *  \param  ini_file       The IniFile object.
      *  \param  section_name   The name of the section where the harvest is defined.
@@ -104,8 +118,17 @@ public:
     virtual ~Client();
 
     /** \brief Change the harvest mode. */
-    void setHarvestMode(const HarvestMode harvest_mode) 
-    { harvest_mode_ = harvest_mode; }
+    void setHarvestMode(const HarvestMode harvest_mode) { harvest_mode_ = harvest_mode; }
+
+    /** \brief Enumerate the server's supported metadata formats.
+     *  \param metadata_format_list  Where the list of supported formats will be returned.
+     *  \param error_message         If the request fails an explanation will be found here.
+     *  \param identifier            An optional argument that specifies the unique identifier of the item for which
+     *                               available metadata formats are being requested.
+     *  \return True if we successfully retrieved the list, o/w false.
+     */
+    bool listMetadataFormats(std::vector<MetadataFormatDescriptor> * const metadata_format_list,
+                             std::string * const error_message, const std::string &identifier = "");
 
     /** \brief  Harvest a single set.
      *  \param  set_name       The name of the set to harvest.
