@@ -9,7 +9,6 @@ import sys
 import tarfile
 import traceback
 import re
-import urllib2
 import util
 
 

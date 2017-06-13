@@ -119,6 +119,10 @@ std::string GetUserName();
 bool IsPossibleISSN(std::string issn_candidate);
 
 
+// \return a string representation of "map".
+std::string StringMapToString(const std::map<std::string, std::string> &map);
+
+
 } // namespace MiscUtil
 
 

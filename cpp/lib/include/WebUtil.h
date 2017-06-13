@@ -8,6 +8,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -34,6 +35,7 @@
 #include <string>
 #include "FileUtil.h"
 #include "TimeLimit.h"
+#include "Url.h"
 
 
 // Forward declaration:
@@ -147,6 +149,82 @@ void GetArgvArgs(const int argc, char * argv[], std::multimap<std::string, std::
  *  \note   If "argc" and "argv" are set to their default values only HTTP GET and POST arguments will be extracted!
 */
 void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int argc = 1, char *argv[] = NULL);
+
+
+/** \brief  Excutes a CGI script via POST.
+ *  \param  username_password    A colon-separated username/password pair.  Currently we only support "Basic"
+ *                               authorization!
+ *  \param  url                  Nomen est omen.
+ *  \param  time_limit           Up to how long to wait for the Web server to respond (in milliseconds).
+ *  \param  post_args            A list of name/value pairs.
+ *  \param  document_source      The output of the CGI script.
+ *  \param  error_message        If an error occurs, a description of the error will be stored here..
+ *  \param  accept               List of comman separated media types which are acceptable for the response.
+ *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
+ *  \return True if no error occurred, otherwise false.
+ */
+bool ExecPostHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
+                         const StringMap &post_args, std::string * const document_source,
+                         std::string * const error_message,
+                         const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
+                         const bool include_http_header = false);
+
+
+/** \brief  Excutes a CGI script via POST.
+ *  \param  url                  Nomen est omen.
+ *  \param  time_limit           Up to how long to wait for the Web server to respond (in milliseconds).
+ *  \param  post_args            A list of name/value pairs.
+ *  \param  document_source      The output of the CGI script.
+ *  \param  error_message        If an error occurs, a description of the error will be stored here..
+ *  \param  accept               List of comman separated media types which are acceptable for the response.
+ *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
+ *  \return True if no error occurred, otherwise false.
+ */
+inline bool ExecPostHTTPRequest(const Url &url, const TimeLimit &time_limit, const StringMap &post_args,
+                                std::string * const document_source, std::string * const error_message,
+                                const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
+                                const bool include_http_header = false)
+{
+    return ExecPostHTTPRequest("", url, time_limit, post_args, document_source, error_message, accept,
+                               include_http_header);
+}
+
+
+/** \brief  Excutes a CGI script via GET.
+ *  \param  username_password    A colon-separated username/password pair.  Currently we only support "Basic"
+ *                               authorization!
+ *  \param  url                  Nomen est omen.
+ *  \param  time_limit           Up to how long to wait for the Web server to respond (in milliseconds).
+ *  \param  args                 A list of name/value pairs.
+ *  \param  document_source      The output of the CGI script.
+ *  \param  error_message        If an error occurs, a description of the error will be stored here..
+ *  \param  accept               List of comman separated media types which are acceptable for the response.
+ *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
+ *  \return True if no error occurred, otherwise false.
+ */
+bool ExecGetHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
+                        const StringMap &args, std::string * const document_source, std::string * const error_message,
+                        const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
+                        const bool include_http_header = false);
+
+
+/** \brief  Excutes a CGI script via GET.
+ *  \param  url                  Nomen est omen.
+ *  \param  time_limit           Up to how long to wait for the Web server to respond (in milliseconds).
+ *  \param  args                 A list of name/value pairs.
+ *  \param  document_source      The output of the CGI script.
+ *  \param  error_message        If an error occurs, a description of the error will be stored here..
+ *  \param  accept               List of comman separated media types which are acceptable for the response.
+ *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
+ *  \return True if no error occurred, otherwise false.
+ */
+inline bool ExecGetHTTPRequest(const Url &url, const TimeLimit &time_limit, const StringMap &args,
+                               std::string * const document_source, std::string * const error_message,
+                               const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
+                               const bool include_http_header = false)
+{
+    return ExecGetHTTPRequest("", url, time_limit, args, document_source, error_message, accept, include_http_header);
+}
 
 
 } // namespace WebUtil

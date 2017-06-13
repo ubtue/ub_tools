@@ -766,6 +766,11 @@ void CopyOrDie(const std::string &from_path, const std::string &to_path) {
 }
 
 
+bool DeleteFile(const std::string &path) {
+    return ::unlink(path.c_str()) == 0;
+}
+
+
 bool DescriptorIsReadyForReading(const int fd, const TimeLimit &time_limit) {
     return SocketUtil::TimedRead(fd, time_limit, reinterpret_cast<void *>(NULL), 0) == 0;
 }
