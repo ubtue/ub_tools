@@ -27,7 +27,7 @@
 
 // Forward declaration.
 class MarcRecord;
-class SimpleXmlParser;
+template<typename DataSource> class SimpleXmlParser;
 
 
 class MarcReader {
@@ -72,7 +72,7 @@ public:
 
 
 class XmlMarcReader: public MarcReader {
-    SimpleXmlParser *xml_parser_;
+    SimpleXmlParser<File> *xml_parser_;
 public:
     explicit XmlMarcReader(File * const input);
     virtual ~XmlMarcReader() final;
