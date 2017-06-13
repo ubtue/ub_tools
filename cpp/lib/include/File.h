@@ -136,9 +136,7 @@ public:
         if (unlikely(pushed_back_count_ == sizeof(pushed_back_chars_)))
             throw std::runtime_error("in File::putback: can't push back " + std::to_string(sizeof(pushed_back_chars_))
                                      + " characters in a row!");
-        for (unsigned i(pushed_back_count_); i > 0; --i)
-            pushed_back_chars_[i] = pushed_back_chars_[i - 1];
-        pushed_back_chars_[0] = ch;
+        pushed_back_chars_[pushed_back_count_] = ch;
         ++pushed_back_count_;
     }
 
