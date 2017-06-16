@@ -23,6 +23,7 @@
 #include "MarcRecord.h"
 #include "MediaTypeUtil.h"
 #include "SimpleXmlParser.h"
+#include "StringUtil.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -228,6 +229,12 @@ MarcRecord XmlMarcReader::read() {
     std::string data;
     while (xml_parser_->getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<File>::CHARACTERS)
         /* Intentionally empty! */;
+
+    if (unlikely(type == SimpleXmlParser<File>::OPENING_TAG and data == "marc:collection")) {
+        xml_parser_->getNext(&type, &attrib_map, &data);
+        if (unlikely(type == SimpleXmlParser<File>::CHARACTERS and StringUtil::IsWhitespace(data)))
+            xml_parser_->getNext(&type, &attrib_map, &data);
+    }
 
     if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == "marc:collection"))
         return MarcRecord(leader, dir_entries, raw_data);
