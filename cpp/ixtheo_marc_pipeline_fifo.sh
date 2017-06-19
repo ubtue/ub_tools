@@ -231,8 +231,9 @@ wait
 
 
 StartPhase "Tag PDA candidates"
+# Use the most recent GVI PPN list.
 (augment_pda \
-    $(ls -t gvi_ppn_list-??????.txt | head -1) \ # Use the most recent GVI PPN list.
+    $(ls -t gvi_ppn_list-??????.txt | head -1) \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
