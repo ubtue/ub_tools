@@ -1,7 +1,7 @@
 /** \brief Interface declarations for MARC reader classes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -53,7 +53,7 @@ public:
     inline off_t tell() const { return input_->tell(); }
 
     inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
-    
+
     /** \return a BinaryMarcReader or an XmlMarcReader. */
     static std::unique_ptr<MarcReader> Factory(const std::string &input_filename,
                                                ReaderType reader_type = AUTO);
@@ -74,7 +74,12 @@ public:
 class XmlMarcReader: public MarcReader {
     SimpleXmlParser<File> *xml_parser_;
 public:
-    explicit XmlMarcReader(File * const input);
+    /** \brief Initialise a XmlMarcReader instance.
+     *  \param input                        Where to read from.
+     *  \param skip_over_start_of_document  Skips to the first marc:record tag.  Do not set this if you intend
+     *                                      to seek to an offset on \"input\" before calling this constructor.
+     */
+    explicit XmlMarcReader(File * const input, const bool skip_over_start_of_document = true);
     virtual ~XmlMarcReader() final;
 
     virtual ReaderType getReaderType() final { return MarcReader::XML; }

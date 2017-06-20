@@ -93,6 +93,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
             ++line_no_;
         ch = input_->get();
     }
+    skipWhiteSpace();
 }
 
 

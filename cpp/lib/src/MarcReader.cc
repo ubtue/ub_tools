@@ -179,36 +179,19 @@ static DirectoryEntry ParseDatafield(const std::string &input_filename,
 }
 
 
-static void SkipOverStartOfDocument(SimpleXmlParser<File> * const xml_parser) {
-    SimpleXmlParser<File>::Type type;
-    std::map<std::string, std::string> attrib_map;
-    std::string data;
-    if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)
-                 and type != SimpleXmlParser<File>::START_OF_DOCUMENT))
-        throw std::runtime_error("in MarcReader::SkipOverStartOfDocument: error while parsing start of \""
-                                 + xml_parser->getDataSource()->getPath() + "\": " + xml_parser->getLastErrorMessage()
-                                 + " on line " + std::to_string(xml_parser->getLineNo())
-                                 + "! (Expected start-of-document.)");
-    if (unlikely(not xml_parser->getNext(&type, &attrib_map, &data)))
-        throw std::runtime_error("in MarcReader::SkipOverStartOfDocument: error while parsing start of \""
-                                 + xml_parser->getDataSource()->getPath() + "\": " + xml_parser->getLastErrorMessage()
-                                 + " on line " + std::to_string(xml_parser->getLineNo()) + "!");
-    if (unlikely(type != SimpleXmlParser<File>::OPENING_TAG or data != "marc:collection")) {
-        const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                             or type == SimpleXmlParser<File>::CLOSING_TAG);
-        throw std::runtime_error("in MarcReader::SkipOverStartOfDocument: opening <marc:collection> tag expected "
-                                         "while parsing \"" + xml_parser->getDataSource()->getPath() + "\" on line "
-                                 + std::to_string(xml_parser->getLineNo()) + "! (Found: "
-                                 + SimpleXmlParser<File>::TypeToString(type) + (tag_found ? (":" + data) : "") + ")");
-    }
+static inline void SkipOverStartOfDocument(SimpleXmlParser<File> * const xml_parser) {
+    if (unlikely(not xml_parser->skipTo(SimpleXmlParser<File>::OPENING_TAG, "marc:collection")))
+        throw std::runtime_error("in MarcReader::SkipOverStartOfDocument: error while trying to skip to "
+                                 "<marc:collection>:  \"" + xml_parser->getDataSource()->getPath() + "\": "
+                                 + xml_parser->getLastErrorMessage() + " on line "
+                                 + std::to_string(xml_parser->getLineNo()) + "!");
 }
 
 
-XmlMarcReader::XmlMarcReader(File * const input): MarcReader(input), xml_parser_(new SimpleXmlParser<File>(input)) {
-    // If we use FIFO's we may not use tell but have to skip over the start of the XML document anyway:
-    struct stat stat_buf;
-    if ((not fstat(input_->getFileDescriptor(), &stat_buf) and S_ISFIFO(stat_buf.st_mode))
-        or (input_->tell() == 0))
+XmlMarcReader::XmlMarcReader(File * const input, const bool skip_over_start_of_document)
+    : MarcReader(input), xml_parser_(new SimpleXmlParser<File>(input))
+{
+    if (skip_over_start_of_document)
         SkipOverStartOfDocument(xml_parser_);
 }
 
