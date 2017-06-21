@@ -73,7 +73,14 @@ void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::
         ++*match_count;
 
         // Record our findings:
+        std::unordered_set<std::string> already_inserted;
         for (const auto &subject : subjects) {
+            if (already_inserted.find(subject) != already_inserted.cend())
+                {
+                    std::cerr << "Found a duplicate!\n";
+                continue;
+                }
+
             auto subject_and_count(subjects_to_counts_map->find(subject));
             if (subject_and_count == subjects_to_counts_map->end())
                 (*subjects_to_counts_map)[subject] = 1;
