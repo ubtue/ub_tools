@@ -6,7 +6,7 @@ if [ -z "$VUFIND_HOME" ]; then
     VUFIND_HOME=/usr/local/vufind
 fi
 
-if [ $# != 2 ]; then
+if [ $# != 1 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
     exit 1
 fi
