@@ -52,9 +52,11 @@ inline bool Matched(const std::vector<std::string> &subjects,
 
 
 void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::string> &loc_subject_headings,
-                  std::unordered_map<std::string, unsigned> * const subjects_to_counts_map)
+                  std::unordered_map<std::string, unsigned> * const subjects_to_counts_map,
+                  unsigned * const match_count)
 {
-    unsigned total_count(0), matched_count(0);
+    *match_count = 0;
+    unsigned total_count(0);
     while (const MarcRecord record = marc_reader->read()) {
         ++total_count;
 
@@ -68,7 +70,7 @@ void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::
         if (not Matched(subjects, loc_subject_headings))
             continue;
 
-        ++matched_count;
+        ++*match_count;
 
         // Record our findings:
         for (const auto &subject : subjects) {
@@ -81,7 +83,7 @@ void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::
     }
 
     std::cerr << "Processed a total of " << total_count << " record(s).\n";
-    std::cerr << "Matched " << matched_count << " record(s).\n";
+    std::cerr << "Matched " << (*match_count) << " record(s).\n";
 }
 
 
@@ -92,7 +94,9 @@ inline bool CompSubjectsAndSizes(const std::pair<std::string, unsigned> &subject
 }
 
 
-void DisplayStats(const std::unordered_map<std::string, unsigned> &subjects_to_counts_map) {
+void DisplayStats(const std::unordered_map<std::string, unsigned> &subjects_to_counts_map,
+                  const unsigned total_count)
+{
     std::vector<std::pair<std::string, unsigned>> subjects_and_counts(subjects_to_counts_map.size());
     for (const auto &subject_and_count : subjects_to_counts_map)
         subjects_and_counts.emplace_back(subject_and_count);
@@ -101,7 +105,7 @@ void DisplayStats(const std::unordered_map<std::string, unsigned> &subjects_to_c
 
     for (const auto subject_and_count : subjects_and_counts)
         std::cout << subject_and_count.first << ' '
-                  << StringUtil::ToString(subject_and_count.second * 100 / subjects_and_counts.size(), 3) << "%\n";
+                  << StringUtil::ToString(subject_and_count.second * 100 / total_count, 5) << "%\n";
 }
 
 
@@ -121,8 +125,9 @@ int main(int /*argc*/, char **argv) {
             loc_subject_headings.insert(*argv++);
 
         std::unordered_map<std::string, unsigned> subjects_to_counts_map;
-        CollectStats(marc_reader.get(), loc_subject_headings, &subjects_to_counts_map);
-        DisplayStats(subjects_to_counts_map);
+        unsigned match_count;
+        CollectStats(marc_reader.get(), loc_subject_headings, &subjects_to_counts_map, &match_count);
+        DisplayStats(subjects_to_counts_map, match_count);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
