@@ -2,7 +2,7 @@
  *  \brief   Implementation of class MarcXmlWriter.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,8 +25,8 @@ MarcXmlWriter::MarcXmlWriter(File * const output_file, const unsigned indent_amo
                              const TextConversionType text_conversion_type)
     : XmlWriter(output_file, XmlWriter::WriteTheXmlDeclaration, indent_amount, text_conversion_type)
 {
-    openTag("marc:collection",
-            { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+    openTag("collection",
+            { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim"),
               std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
               std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
 }
@@ -36,13 +36,13 @@ MarcXmlWriter::MarcXmlWriter(std::string * const output_string, const unsigned i
                              const TextConversionType text_conversion_type)
     : XmlWriter(output_string, XmlWriter::WriteTheXmlDeclaration, indent_amount, text_conversion_type)
 {
-    openTag("marc:collection",
-            { std::make_pair("xmlns:marc", "http://www.loc.gov/MARC21/slim"),
+    openTag("collection",
+            { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim"),
               std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
               std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
 }
 
 
 MarcXmlWriter::~MarcXmlWriter() {
-    closeTag("marc:collection");
+    closeTag("collection");
 }
