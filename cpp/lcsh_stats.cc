@@ -27,6 +27,7 @@
 #include "FileUtil.h"
 #include "MarcRecord.h"
 #include "MarcReader.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -99,8 +100,8 @@ void DisplayStats(const std::unordered_map<std::string, unsigned> &subjects_to_c
     std::sort(subjects_and_counts.begin(), subjects_and_counts.end(), CompSubjectsAndSizes);
 
     for (const auto subject_and_count : subjects_and_counts)
-        std::cout << subject_and_count.first << ' ' << (subject_and_count.second * 100 / subjects_and_counts.size())
-                  << '\n';
+        std::cout << subject_and_count.first << ' '
+                  << StringUtil::ToString(subject_and_count.second * 100 / subjects_and_counts.size(), 3) << "%\n";
 }
 
 
