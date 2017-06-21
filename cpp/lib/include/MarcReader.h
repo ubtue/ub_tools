@@ -22,7 +22,10 @@
 
 
 #include <memory>
+#include "DirectoryEntry.h"
 #include "File.h"
+#include "Leader.h"
+#include "SimpleXmlParser.h"
 
 
 // Forward declaration.
@@ -73,18 +76,35 @@ public:
 
 class XmlMarcReader: public MarcReader {
     SimpleXmlParser<File> *xml_parser_;
+    std::string namespace_prefix_;
 public:
     /** \brief Initialise a XmlMarcReader instance.
      *  \param input                        Where to read from.
      *  \param skip_over_start_of_document  Skips to the first marc:record tag.  Do not set this if you intend
      *                                      to seek to an offset on \"input\" before calling this constructor.
      */
-    explicit XmlMarcReader(File * const input, const bool skip_over_start_of_document = true);
-    virtual ~XmlMarcReader() final;
+    explicit XmlMarcReader(File * const input, const bool skip_over_start_of_document = true)
+        : MarcReader(input), xml_parser_(new SimpleXmlParser<File>(input))
+    {
+        if (skip_over_start_of_document)
+            skipOverStartOfDocument();
+    }
+
+    virtual ~XmlMarcReader() final { delete xml_parser_; }
 
     virtual ReaderType getReaderType() final { return MarcReader::XML; }
     virtual MarcRecord read() final;
     virtual void rewind() final;
+private:
+    void parseLeader(const std::string &input_filename, Leader * const leader);
+    DirectoryEntry parseControlfield(const std::string &input_filename, const std::string &tag,
+                                     std::string &raw_data);
+    DirectoryEntry parseDatafield(const std::string &input_filename,
+                                  const std::map<std::string, std::string> &datafield_attrib_map,
+                                  std::string tag, std::string &raw_data);
+    void skipOverStartOfDocument();
+    bool getNext(SimpleXmlParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
+                 std::string * const data);
 };
 
 

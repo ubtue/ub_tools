@@ -166,22 +166,22 @@ XmlMarcWriter::XmlMarcWriter(File * const output_file, const unsigned indent_amo
 
 
 void XmlMarcWriter::write(const MarcRecord &record) {
-    xml_writer_->openTag("marc:record");
+    xml_writer_->openTag("record");
 
     record.leader_.setRecordLength(0);
     record.leader_.setBaseAddressOfData(0);
-    xml_writer_->writeTagsWithData("marc:leader", record.leader_.toString(), /* suppress_newline = */ true);
+    xml_writer_->writeTagsWithData("leader", record.leader_.toString(), /* suppress_newline = */ true);
 
     for (unsigned entry_no(0); entry_no < record.directory_entries_.size(); ++entry_no) {
         const DirectoryEntry &dir_entry(record.directory_entries_[entry_no]);
         if (dir_entry.isControlFieldEntry())
-            xml_writer_->writeTagsWithData("marc:controlfield",
+            xml_writer_->writeTagsWithData("controlfield",
                                            { std::make_pair("tag", dir_entry.getTag().to_string()) },
                                            record.getFieldData(entry_no),
                     /* suppress_newline = */ true);
         else { // We have a data field.
             const std::string data(record.getFieldData(entry_no));
-            xml_writer_->openTag("marc:datafield",
+            xml_writer_->openTag("datafield",
                                 { std::make_pair("tag", dir_entry.getTag().to_string()),
                                   std::make_pair("ind1", std::string(1, data[0])),
                                   std::make_pair("ind2", std::string(1, data[1]))
@@ -207,15 +207,15 @@ void XmlMarcWriter::write(const MarcRecord &record) {
                 if (subfield_data.empty())
                     continue;
 
-                xml_writer_->writeTagsWithData("marc:subfield", { std::make_pair("code", subfield_code) },
+                xml_writer_->writeTagsWithData("subfield", { std::make_pair("code", subfield_code) },
                                               subfield_data, /* suppress_newline = */ true);
             }
 
-            xml_writer_->closeTag(); // Close "marc:datafield".
+            xml_writer_->closeTag(); // Close "datafield".
         }
     }
 
-    xml_writer_->closeTag(); // Close "marc:record".
+    xml_writer_->closeTag(); // Close "record".
 }
 
 
