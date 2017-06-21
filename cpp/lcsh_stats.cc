@@ -75,11 +75,11 @@ void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::
         // Record our findings:
         std::unordered_set<std::string> already_inserted;
         for (const auto &subject : subjects) {
-            if (already_inserted.find(subject) != already_inserted.cend())
-                {
-                    std::cerr << "Found a duplicate!\n";
+            if (already_inserted.find(subject) != already_inserted.cend()) {
+                std::cerr << "Found a duplicate!\n";
                 continue;
-                }
+            } else
+                already_inserted.insert(subject);
 
             auto subject_and_count(subjects_to_counts_map->find(subject));
             if (subject_and_count == subjects_to_counts_map->end())
@@ -112,7 +112,7 @@ void DisplayStats(const std::unordered_map<std::string, unsigned> &subjects_to_c
 
     for (const auto subject_and_count : subjects_and_counts)
         std::cout << subject_and_count.first << ' '
-                  << StringUtil::ToString(subject_and_count.second * 100 / total_count, 5) << "%\n";
+                  << StringUtil::ToString(subject_and_count.second * 100.0 / total_count, 5) << "%\n";
 }
 
 
