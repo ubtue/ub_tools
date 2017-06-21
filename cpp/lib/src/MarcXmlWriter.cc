@@ -26,7 +26,7 @@ MarcXmlWriter::MarcXmlWriter(File * const output_file, const unsigned indent_amo
     : XmlWriter(output_file, XmlWriter::WriteTheXmlDeclaration, indent_amount, text_conversion_type)
 {
     openTag("collection",
-            { std::make_pair("xmln:marc", "http://www.loc.gov/MARC21/slim"),
+            { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim"),
               std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
               std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
 }
