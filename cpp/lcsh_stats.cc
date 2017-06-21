@@ -124,7 +124,8 @@ inline bool CompSubjectsAndSizes(const std::pair<std::string, unsigned> &subject
 void DisplayStats(const std::unordered_map<std::string, unsigned> &subjects_to_counts_map,
                   const unsigned total_count)
 {
-    std::vector<std::pair<std::string, unsigned>> subjects_and_counts(subjects_to_counts_map.size());
+    std::vector<std::pair<std::string, unsigned>> subjects_and_counts;
+    subjects_and_counts.reserve(subjects_to_counts_map.size());
     for (const auto &subject_and_count : subjects_to_counts_map)
         subjects_and_counts.emplace_back(subject_and_count);
 
