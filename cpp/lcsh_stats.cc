@@ -56,7 +56,7 @@ void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::
                   unsigned * const match_count)
 {
     *match_count = 0;
-    unsigned total_count(0);
+    unsigned total_count(0), duplicate_count(0);
     while (const MarcRecord record = marc_reader->read()) {
         ++total_count;
 
@@ -76,7 +76,7 @@ void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::
         std::unordered_set<std::string> already_inserted;
         for (const auto &subject : subjects) {
             if (already_inserted.find(subject) != already_inserted.cend()) {
-                std::cerr << "Found a duplicate!\n";
+                ++duplicate_count;
                 continue;
             } else
                 already_inserted.insert(subject);
@@ -91,6 +91,7 @@ void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::
 
     std::cerr << "Processed a total of " << total_count << " record(s).\n";
     std::cerr << "Matched " << (*match_count) << " record(s).\n";
+    std::cerr << "Found " << duplicate_count << " duplicate LCSH entries in some records.\n";
 }
 
 
