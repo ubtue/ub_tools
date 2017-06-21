@@ -51,12 +51,28 @@ inline bool Matched(const std::vector<std::string> &subjects,
 }
 
 
+// \return The number of entries that were removed.
+size_t RemoveEmptyEntries(std::vector<std::string> * const entries) {
+    std::vector<std::string> cleaned_up_entries;
+    cleaned_up_entries.reserve(entries->size());
+
+    for (const auto &entry : *entries) {
+        if (not entry.empty())
+            cleaned_up_entries.emplace_back(entry);
+    }
+
+    const size_t removed_count(entries->size() - cleaned_up_entries.size());
+    entries->swap(cleaned_up_entries);
+    return removed_count;
+}
+
+
 void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::string> &loc_subject_headings,
                   std::unordered_map<std::string, unsigned> * const subjects_to_counts_map,
                   unsigned * const match_count)
 {
     *match_count = 0;
-    unsigned total_count(0), duplicate_count(0);
+    unsigned total_count(0), duplicate_count(0), empty_count(0);
     while (const MarcRecord record = marc_reader->read()) {
         ++total_count;
 
@@ -66,6 +82,8 @@ void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::
 
         for (auto &subject : subjects)
             StringUtil::RightTrim(" .", &subject);
+
+        empty_count += RemoveEmptyEntries(&subjects);
 
         if (not Matched(subjects, loc_subject_headings))
             continue;
@@ -92,6 +110,7 @@ void CollectStats(MarcReader * const marc_reader, const std::unordered_set<std::
     std::cerr << "Processed a total of " << total_count << " record(s).\n";
     std::cerr << "Matched " << (*match_count) << " record(s).\n";
     std::cerr << "Found " << duplicate_count << " duplicate LCSH entries in some records.\n";
+    std::cerr << "Removed " << empty_count << " empty entries.\n";
 }
 
 
