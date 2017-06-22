@@ -134,7 +134,7 @@ public:
      *  \return true if we succeeded, else false.
      */
     inline bool write(const std::string &s)
-        { return write(reinterpret_cast<const void *>(s.data()), s.size()) != s.size(); }
+        { return write(reinterpret_cast<const void *>(s.data()), s.size()) == s.size(); }
 
     /** \brief Write a character. */
     inline int put(const char ch) { return putc(ch, file_); }
