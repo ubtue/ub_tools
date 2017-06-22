@@ -17,6 +17,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iostream>
+#include <cctype>
+#include "Compiler.h"
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "HttpHeader.h"
@@ -53,6 +55,44 @@ std::string ExtractResumptionToken(const std::string &xml_document) {
 }
 
 
+// Helper for ExtractEncapsulatedRecordData.  Removes the trailing whitespace and </metadata>.
+bool StripOffTrailingGarbage(std::string * const extracted_records) {
+    // 1. back skip over the "</metadata>":
+    size_t pos(extracted_records->rfind('<'));
+    if (unlikely(pos == std::string::npos))
+        return false;
+
+    // 2. Now remove any trailing whitespace:
+    while (likely(pos > 0) and isspace((*extracted_records)[--pos]))
+        /* Intentionally empty! */;
+
+    extracted_records->resize(pos + 1);
+    return true;
+}
+
+
+// Returns the number of extracted records.
+unsigned ExtractEncapsulatedRecordData(SimpleXmlParser<StringDataSource> * const xml_parser,
+                                       std::string * const extracted_records)
+{
+    unsigned record_count(0);
+    while (xml_parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "record")) {
+        ++record_count;
+        if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "metadata"))
+            Error("no <metadata> tag found after a <record> tag!");
+        xml_parser->skipWhiteSpace();
+
+        if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "metadata", extracted_records))
+            Error("no </metadata> tag found after a <metadata> tag!");
+
+        StripOffTrailingGarbage(extracted_records);
+        *extracted_records += '\n';
+    }
+
+    return record_count;
+}
+
+
 bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_per_request, File * const output,
                  std::string * const resumption_token)
 {
@@ -67,7 +107,11 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
         Error("server returned a status code of " + std::to_string(status_code) + "!");
 
     const std::string message_body(downloader.getMessageBody());
-    if (not output->write(message_body))
+    std::string extracted_records;
+    StringDataSource data_source(message_body);
+    SimpleXmlParser<StringDataSource> xml_parser(&data_source);
+    ExtractEncapsulatedRecordData(&xml_parser, &extracted_records);
+    if (not output->write(extracted_records))
         Error("failed to write to \"" + output->getPath() + "\"! (Disc full?)");
 
     *resumption_token = ExtractResumptionToken(message_body);
@@ -82,7 +126,7 @@ std::string MakeRequestURL(const std::string &base_url, const std::string &metad
         return base_url + "?" + resumption_token;
     if (harvest_set.empty())
         return base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix;
-    return base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix + "&set" + harvest_set;
+    return base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix + "&set=" + harvest_set;
 }
 
 
@@ -105,10 +149,19 @@ int main(int argc, char **argv) {
     try {
         const std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(output_filename));
 
+        const std::string COLLECTION_OPEN(
+            "<marc:collection xmlns:marc=\"http://www.loc.gov/MARC21/slim\" "
+            "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+            "xsi:schemaLocation=\"http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd\">");
+        output->write(COLLECTION_OPEN + "\n");
+
         std::string resumption_token;
         while (ListRecords(MakeRequestURL(base_url, metadata_prefix, harvest_set, resumption_token),
                            time_limit_per_request_in_seconds, output.get(), &resumption_token))
             std::cerr << "Continuing download, resumption token was: \"" << resumption_token << "\".\n";
+
+        const std::string COLLECTION_CLOSE("</marc:collection>");
+        output->write(COLLECTION_CLOSE + "\n");
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
