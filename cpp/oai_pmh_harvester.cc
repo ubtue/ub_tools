@@ -17,18 +17,66 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iostream>
-#include "Logger.h"
-#include "Marc21OaiPmhClient.h"
+#include "Downloader.h"
+#include "FileUtil.h"
+#include "SimpleXmlParser.h"
+#include "StringDataSource.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
+//https://memory.loc.gov/cgi-bin/oai2_0?verb=ListRecords&metadataPrefix=marc21&set=mussm
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " logfile_path ini_file_path section_name [harvest_set] marc_output\n"
-              << "       The ini file section must contain the entries \"repository_name\" \"base_url\",\n"
-              << "       \"metadata_prefix\", and \"harvest_mode\" where \"harvest_mode\" must nbe either\n"
-              << "       \"FULL\" or \"INCREMENTAL\".\n\n";
-
+    std::cerr << "Usage: " << ::progname
+              << " base_url metadata_prefix [harvest_set] output_filename time_limit_per_request\n"
+              << "       \"time_limit_per_request\" is in seconds. (Some servers are very slow so we\n"
+              << "       recommend at least 20 seconds!)\n\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+std::string ExtractResumptionToken(const std::string &xml_document) {
+    StringDataSource data_source(xml_document);
+    SimpleXmlParser<StringDataSource> xml_parser(&data_source);
+    if (not xml_parser.skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "resumptionToken"))
+        return "";
+
+    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    std::string data;
+    if (not xml_parser.getNext(&type, &attrib_map, &data) || type == SimpleXmlParser<StringDataSource>::CLOSING_TAG)
+        return "";
+    if (type != SimpleXmlParser<StringDataSource>::CHARACTERS)
+        Error("strange requmption token XML structure!");
+    return data;
+}
+
+
+bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_per_request, File * const output,
+                 std::string * const resumption_token)
+{
+    const TimeLimit time_limit(time_limit_in_seconds_per_request * 1000);
+    Downloader downloader(url, Downloader::Params(), time_limit);
+    if (downloader.anErrorOccurred())
+        Error("harvest failed: " + downloader.getLastErrorMessage());
+
+    const std::string message_body(downloader.getMessageBody());
+    if (not output->write(message_body))
+        Error("failed to write to \"" + output->getPath() + "\"! (Disc full?)");
+
+    *resumption_token = ExtractResumptionToken(message_body);
+    return not resumption_token->empty();
+}
+
+
+std::string MakeRequestURL(const std::string &base_url, const std::string &metadata_prefix,
+                           const std::string &harvest_set, const std::string &resumption_token)
+{
+    if (not resumption_token.empty())
+        return base_url + "?" + resumption_token;
+    if (harvest_set.empty())
+        return base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix;
+    return base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix + "&set" + harvest_set;
 }
 
 
@@ -38,28 +86,23 @@ int main(int argc, char **argv) {
     if (argc != 5 and argc != 6)
         Usage();
 
-    const std::string ini_filename(argv[2]);
-    const std::string ini_section_name(argv[3]);
-    const std::string harvest_set(argc == 6 ? argv[4] : "");
-    const std::string marc_output_filename(argc == 6 ? argv[5] : argv[4]);
+    const std::string base_url(argv[1]);
+    const std::string metadata_prefix(argv[2]);
+    const std::string harvest_set(argc == 6 ? argv[3] : "");
+    const std::string output_filename(argc == 6 ? argv[4] : argv[3]);
+    const std::string time_limit_per_request_as_string(argc == 6 ? argv[5] : argv[4]);
+    
+    unsigned time_limit_per_request_in_seconds;
+    if (not StringUtil::ToUnsigned(time_limit_per_request_as_string, &time_limit_per_request_in_seconds))
+        Error("\"" + time_limit_per_request_as_string + "\" is not a valid time limit!");
 
     try {
-        const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
+        const std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(output_filename));
 
-        const IniFile ini_file(ini_filename);
-        Marc21OaiPmhClient oai_pmh_client(ini_file, ini_section_name, marc_writer.get());
-
-        std::string xml_response, err_msg;
-        if (not oai_pmh_client.identify(&xml_response, &err_msg))
-            Error("\"Identify\" failed: " + err_msg);
-        std::cout << xml_response;
-
-        Logger logger(argv[1]);
-        if (harvest_set.empty())
-            oai_pmh_client.harvest(/* verbosity = */ 3, &logger);
-        else
-            oai_pmh_client.harvest(harvest_set, /* verbosity = */ 3, &logger);
-        std::cout << "Harvested " << oai_pmh_client.getRecordCount() << " record(s).\n";
+        std::string resumption_token;
+        while (ListRecords(MakeRequestURL(base_url, metadata_prefix, harvest_set, resumption_token),
+                           time_limit_per_request_in_seconds, output.get(), &resumption_token))
+            std::cerr << "Continuing download, resumption token was: \"" << resumption_token << "\".\n";
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
