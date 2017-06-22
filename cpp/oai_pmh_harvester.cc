@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
         const std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(output_filename));
 
         const std::string COLLECTION_OPEN(
-            "<collection xmlns=\"http://www.loc.gov/MARC21/slim\" "
+            "<marc:collection xmlns:marc=\"http://www.loc.gov/MARC21/slim\" "
             "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
             "xsi:schemaLocation=\"http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd\">");
         output->write(COLLECTION_OPEN + "\n");
@@ -160,10 +160,7 @@ int main(int argc, char **argv) {
                            time_limit_per_request_in_seconds, output.get(), &resumption_token))
             std::cerr << "Continuing download, resumption token was: \"" << resumption_token << "\".\n";
 
-        const std::string COLLECTION_CLOSE(
-            "</collection xmlns=\"http://www.loc.gov/MARC21/slim\" "
-            "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
-            "xsi:schemaLocation=\"http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd\">");
+        const std::string COLLECTION_CLOSE("</marc:collection>");
         output->write(COLLECTION_CLOSE + "\n");
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
