@@ -55,13 +55,16 @@ public:
      *  \param data           If not NULL, the skipped over XML will be returned here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
-    bool skipTo(const Type expected_type, const std::string &expected_tag = "", std::string * const data = nullptr);
+    bool skipTo(const Type expected_type, const std::string &expected_tag = "",
+                std::map<std::string, std::string> * const attrib_map = nullptr, std::string * const data = nullptr);
+
+    void skipWhiteSpace();
+    void rewind();
 
     static std::string TypeToString(const Type type);
 private:
     int get();
     void putback(const char ch);
-    void skipWhiteSpace();
     void parseOptionalPrologue();
     bool extractName(std::string * const name);
     bool extractQuotedString(const int closing_quote, std::string * const s);
@@ -278,9 +281,9 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(const Type expected_type,
-                                                                       const std::string &expected_tag,
-                                                                       std::string * const data)
+template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
+    const Type expected_type, const std::string &expected_tag, std::map<std::string, std::string> * const attrib_map,
+    std::string * const data)
 {
     if (unlikely((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and expected_tag.empty()))
     throw std::runtime_error("in SimpleXmlParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
@@ -290,9 +293,9 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(const Typ
         data_collector_ = data;
     for (;;) {
         Type type;
-        std::map<std::string, std::string> attrib_map;
+        static std::map<std::string, std::string> local_attrib_map;
         std::string data2;
-        if (unlikely(not getNext(&type, &attrib_map, &data2)))
+        if (unlikely(not getNext(&type, attrib_map == nullptr ? &local_attrib_map : attrib_map, &data2)))
             throw std::runtime_error("in SimpleXmlParser::skipTo: " + last_error_message_);
 
         if (expected_type == type) {
@@ -310,6 +313,18 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(const Typ
             return false;
         }
     }
+}
+
+
+template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
+    input_->rewind();
+
+    line_no_                = 1;
+    last_type_              = UNINITIALISED;
+    last_element_was_empty_ = false;
+    data_collector_         = nullptr;
+
+    parseOptionalPrologue();
 }
 
 

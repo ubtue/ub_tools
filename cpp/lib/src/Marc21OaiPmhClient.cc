@@ -17,13 +17,15 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Marc21OaiPmhClient.h"
+#include <iostream>
 
 
-bool Marc21OaiPmhClient::processRecord(const OaiPmh::Record &/*record*/, const unsigned /*verbosity*/,
+bool Marc21OaiPmhClient::processRecord(const OaiPmh::Record &record, const unsigned /*verbosity*/,
                                        Logger * const /*logger*/)
 {
     ++record_count_;
 
     (void)marc_writer_;
+    std::cout << "Got a record w/ identifier \"" << record.getIdentifier() << "\".\n";
     return true;
 }
