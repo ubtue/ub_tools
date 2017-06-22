@@ -41,7 +41,7 @@ public:
     public:
         SingleArgManipulator(File &(*func)(File &file, ArgType arg), ArgType arg): func_(func), arg_(arg) { }
     };
-    
+
     enum ThrowOnOpenBehaviour { THROW_ON_ERROR, DO_NOT_THROW_ON_ERROR };
 private:
     enum OpenMode { READING, WRITING, READING_AND_WRITING };
@@ -74,7 +74,7 @@ public:
      *                "fd."  If not specified the mode for "fd" will be used.
      */
     explicit File(const int fd, const std::string &mode = "");
-    
+
     ~File() { if (file_ != nullptr) std::fclose(file_); }
 
     /** Closes this File.  If this fails you may consult the global "errno" for the reason. */
@@ -96,7 +96,7 @@ public:
      *          of error encountered.
      */
     bool seek(const off_t offset, const int whence = SEEK_SET);
-    
+
     inline int get() {
         if (unlikely(pushed_back_count_ > 0)) {
             const char pushed_back_char(pushed_back_chars_[0]);
@@ -105,7 +105,7 @@ public:
                 pushed_back_chars_[i] = pushed_back_chars_[i + 1];
             return pushed_back_char;
         }
-        
+
         if (unlikely(buffer_ptr_ == buffer_ + read_count_))
             fillBuffer();
         if (unlikely(read_count_ == 0))
@@ -129,9 +129,16 @@ public:
      */
     size_t write(const void * const buf, const size_t buf_size);
 
+    /** \brief Write a string to a file.
+     *  \param s  The string to write.
+     *  \return true if we succeeded, else false.
+     */
+    inline bool write(const std::string &s)
+        { return write(reinterpret_cast<const void *>(s.data()), s.size()) != s.size(); }
+
     /** \brief Write a character. */
     inline int put(const char ch) { return putc(ch, file_); }
-    
+
     inline void putback(const char ch) {
         if (unlikely(pushed_back_count_ == sizeof(pushed_back_chars_)))
             throw std::runtime_error("in File::putback: can't push back " + std::to_string(sizeof(pushed_back_chars_))
@@ -167,7 +174,7 @@ public:
         getline(&line, terminator);
         return line;
     }
-    
+
     const std::string &getPath() const { return filename_; }
 
     /** Returns a File's size in bytes. */
@@ -178,7 +185,7 @@ public:
 
     /** Will the next I/O operation fail? */
     inline bool fail() const { return file_ == nullptr or eof() or std::ferror(file_) != 0; }
-    
+
     inline bool operator!() const { return fail(); }
 
     File &operator<<(const char * const s);
