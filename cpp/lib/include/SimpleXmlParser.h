@@ -59,7 +59,7 @@ public:
                 std::map<std::string, std::string> * const attrib_map = nullptr, std::string * const data = nullptr);
 
     void skipWhiteSpace();
-    void rewind() { input_->rewind(); parseOptionalPrologue(); line_no_ = 1; }
+    void rewind();
 
     static std::string TypeToString(const Type type);
 private:
@@ -313,6 +313,18 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
             return false;
         }
     }
+}
+
+
+template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
+    input_->rewind();
+
+    line_no_                = 1;
+    last_type_              = UNINITIALISED;
+    last_element_was_empty_ = false;
+    data_collector_         = nullptr;
+
+    parseOptionalPrologue();
 }
 
 
