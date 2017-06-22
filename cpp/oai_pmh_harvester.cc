@@ -48,7 +48,7 @@ std::string ExtractResumptionToken(const std::string &xml_document) {
     if (not xml_parser.getNext(&type, &attrib_map, &data) or type == SimpleXmlParser<StringDataSource>::CLOSING_TAG)
         return "";
     if (type != SimpleXmlParser<StringDataSource>::CHARACTERS)
-        Error("strange requmption token XML structure!");
+        Error("strange resumption token XML structure!");
     return data;
 }
 
