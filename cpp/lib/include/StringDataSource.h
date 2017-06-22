@@ -48,6 +48,8 @@ public:
      *  \note must not be called after get returned EOF!
      */
     int peek();
+
+    inline void rewind() { ch_ = s_.cbegin(); pushed_back_ = false; }
 };
 
 
