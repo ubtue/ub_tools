@@ -19,6 +19,7 @@
 #include <iostream>
 #include "Downloader.h"
 #include "FileUtil.h"
+#include "HttpHeader.h"
 #include "SimpleXmlParser.h"
 #include "StringDataSource.h"
 #include "StringUtil.h"
@@ -44,7 +45,7 @@ std::string ExtractResumptionToken(const std::string &xml_document) {
     SimpleXmlParser<StringDataSource>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
-    if (not xml_parser.getNext(&type, &attrib_map, &data) || type == SimpleXmlParser<StringDataSource>::CLOSING_TAG)
+    if (not xml_parser.getNext(&type, &attrib_map, &data) or type == SimpleXmlParser<StringDataSource>::CLOSING_TAG)
         return "";
     if (type != SimpleXmlParser<StringDataSource>::CHARACTERS)
         Error("strange requmption token XML structure!");
@@ -59,6 +60,11 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
     Downloader downloader(url, Downloader::Params(), time_limit);
     if (downloader.anErrorOccurred())
         Error("harvest failed: " + downloader.getLastErrorMessage());
+
+    const HttpHeader http_header(downloader.getMessageHeader());
+    const unsigned status_code(http_header.getStatusCode());
+    if (status_code < 200 or status_code > 299)
+        Error("server returned a status code of " + std::to_string(status_code) + "!");
 
     const std::string message_body(downloader.getMessageBody());
     if (not output->write(message_body))
@@ -91,7 +97,7 @@ int main(int argc, char **argv) {
     const std::string harvest_set(argc == 6 ? argv[3] : "");
     const std::string output_filename(argc == 6 ? argv[4] : argv[3]);
     const std::string time_limit_per_request_as_string(argc == 6 ? argv[5] : argv[4]);
-    
+
     unsigned time_limit_per_request_in_seconds;
     if (not StringUtil::ToUnsigned(time_limit_per_request_as_string, &time_limit_per_request_in_seconds))
         Error("\"" + time_limit_per_request_as_string + "\" is not a valid time limit!");
