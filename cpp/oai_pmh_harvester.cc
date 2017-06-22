@@ -82,7 +82,8 @@ unsigned ExtractEncapsulatedRecordData(SimpleXmlParser<StringDataSource> * const
             Error("no <metadata> tag found after a <record> tag!");
         xml_parser->skipWhiteSpace();
 
-        if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "metadata", extracted_records))
+        if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "metadata",
+                                   /* attrib_map = */ nullptr, extracted_records))
             Error("no </metadata> tag found after a <metadata> tag!");
 
         StripOffTrailingGarbage(extracted_records);
@@ -94,7 +95,7 @@ unsigned ExtractEncapsulatedRecordData(SimpleXmlParser<StringDataSource> * const
 
 
 bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_per_request, File * const output,
-                 std::string * const resumption_token)
+                 std::string * const resumption_token, unsigned * total_record_count)
 {
     const TimeLimit time_limit(time_limit_in_seconds_per_request * 1000);
     Downloader downloader(url, Downloader::Params(), time_limit);
@@ -110,10 +111,27 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
     std::string extracted_records;
     StringDataSource data_source(message_body);
     SimpleXmlParser<StringDataSource> xml_parser(&data_source);
-    ExtractEncapsulatedRecordData(&xml_parser, &extracted_records);
-    if (not output->write(extracted_records))
-        Error("failed to write to \"" + output->getPath() + "\"! (Disc full?)");
-
+    const unsigned record_count(ExtractEncapsulatedRecordData(&xml_parser, &extracted_records));
+    if (record_count == 0) {
+        xml_parser.rewind();
+        std::map<std::string, std::string> attrib_map;
+        if (not xml_parser.skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "error", &attrib_map))
+            return 0;
+        const auto key_and_value(attrib_map.find("code"));
+        std::string error_msg;
+        if (key_and_value != attrib_map.cend())
+            error_msg += key_and_value->second + ": ";
+        SimpleXmlParser<StringDataSource>::Type type;
+        std::string data;
+        if (xml_parser.getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::CHARACTERS)
+            error_msg += data;
+        Error("OAI-PMH server returned an error: " + error_msg);
+    } else { // record_count > 0
+        *total_record_count += record_count;
+        if (not output->write(extracted_records))
+            Error("failed to write to \"" + output->getPath() + "\"! (Disc full?)");
+    }
+    
     *resumption_token = ExtractResumptionToken(message_body);
     return not resumption_token->empty();
 }
@@ -156,12 +174,15 @@ int main(int argc, char **argv) {
         output->write(COLLECTION_OPEN + "\n");
 
         std::string resumption_token;
+        unsigned total_record_count(0);
         while (ListRecords(MakeRequestURL(base_url, metadata_prefix, harvest_set, resumption_token),
-                           time_limit_per_request_in_seconds, output.get(), &resumption_token))
+                           time_limit_per_request_in_seconds, output.get(), &resumption_token,
+                           &total_record_count))
             std::cerr << "Continuing download, resumption token was: \"" << resumption_token << "\".\n";
 
         const std::string COLLECTION_CLOSE("</marc:collection>");
         output->write(COLLECTION_CLOSE + "\n");
+        std::cerr << "Downloaded " << total_record_count << " record(s).\n";
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
