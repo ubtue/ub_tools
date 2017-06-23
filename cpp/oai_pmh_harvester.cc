@@ -25,6 +25,7 @@
 #include "SimpleXmlParser.h"
 #include "StringDataSource.h"
 #include "StringUtil.h"
+#include "UrlUtil.h"
 #include "util.h"
 
 
@@ -125,7 +126,7 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
         std::string data;
         if (xml_parser.getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::CHARACTERS)
             error_msg += data;
-        Error("OAI-PMH server returned an error: " + error_msg);
+        Error("OAI-PMH server returned an error: " + error_msg + " (We sent \"" + url + "\")");
     } else { // record_count > 0
         *total_record_count += record_count;
         if (not output->write(extracted_records))
@@ -141,7 +142,7 @@ std::string MakeRequestURL(const std::string &base_url, const std::string &metad
                            const std::string &harvest_set, const std::string &resumption_token)
 {
     if (not resumption_token.empty())
-        return base_url + "?" + resumption_token;
+        return base_url + "?verb=ListRecords&resumptionToken=" + UrlUtil::UrlEncode(resumption_token);
     if (harvest_set.empty())
         return base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix;
     return base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix + "&set=" + harvest_set;
