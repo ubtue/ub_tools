@@ -21,13 +21,11 @@
 #include <iostream>
 #include <unordered_set>
 #include <vector>
-//#include <cstdio>
 #include <cstdlib>
-#include <cstring>
+//#include <cstring>
 #include "FileUtil.h"
 #include "MarcRecord.h"
 #include "MarcReader.h"
-#include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
 
@@ -85,7 +83,7 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[0]));
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
 
     try {
         std::unordered_set<std::string> local_keywords;
