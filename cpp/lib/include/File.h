@@ -86,7 +86,7 @@ public:
         const off_t file_pos(::ftello(file_));
         if (open_mode_ == WRITING)
             return file_pos;
-        return file_pos - read_count_ + (buffer_ptr_ - buffer_);
+        return file_pos - read_count_ + (buffer_ptr_ - buffer_) - pushed_back_count_;
     }
 
     /** \brief  Set the file pointer for the next I/O operation.
