@@ -137,11 +137,13 @@ bool File::seek(const off_t offset, const int whence) {
     if (unlikely(file_ == nullptr))
         throw std::runtime_error("in File::seek: can't seek on non-open file \"" + filename_ + "\"!");
 
-    if (::fseeko(file_, offset, whence) != 0)
+    const off_t adjusted_offset(whence != SEEK_CUR ? offset : offset - pushed_back_count_);
+    if (::fseeko(file_, adjusted_offset, whence) != 0)
         return false;
 
-    read_count_ = 0;
-    buffer_ptr_ = buffer_;
+    pushed_back_count_ = 0;
+    read_count_        = 0;
+    buffer_ptr_        = buffer_;
 
     return true;
 }

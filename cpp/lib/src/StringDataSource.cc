@@ -60,6 +60,7 @@ int StringDataSource::peek() {
 
 
 bool StringDataSource::seek(const off_t offset, const int whence) {
+    pushed_back_ = false;
     switch (whence) {
     case SEEK_SET:
         if (unlikely(offset < 0 or offset >= static_cast<off_t>(s_.size())))
@@ -72,6 +73,8 @@ bool StringDataSource::seek(const off_t offset, const int whence) {
         ch_ = s_.cend() + offset;
         return true;
     case SEEK_CUR: {
+        if (unlikely(pushed_back_))
+            --ch_;
         const off_t current_offset(ch_ - s_.cbegin());
         if (unlikely(current_offset + offset < 0 or current_offset + offset >= static_cast<off_t>(s_.size())))
             return false;
