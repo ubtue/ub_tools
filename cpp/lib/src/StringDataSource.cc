@@ -69,9 +69,10 @@ bool StringDataSource::seek(const off_t offset, const int whence) {
     case SEEK_END:
         if (unlikely(offset > 0 or -offset >= static_cast<off_t>(s_.size())))
             return false;
+        ch_ = s_.cend() + offset;
         return true;
     case SEEK_CUR: {
-        const off_t current_offset(ch_ - s_.begin());
+        const off_t current_offset(ch_ - s_.cbegin());
         if (unlikely(current_offset + offset < 0 or current_offset + offset >= static_cast<off_t>(s_.size())))
             return false;
         ch_ += offset;
