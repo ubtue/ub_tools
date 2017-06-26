@@ -123,7 +123,7 @@ public:
     size_t extractSubfields(const std::string &subfield_codes, std::vector<std::string> * const subfield_values) const;
     void extractSubfields(const char subfield_code, std::vector<std::string> * const subfield_values) const;
 
-    /** \brief Repaces alll occurrences of "old_code" with "new_code".
+    /** \brief Repaces all occurrences of "old_code" with "new_code".
      *  \return True if at least one code was replaced and false o/w.
      */
     bool replaceSubfieldCode(const char old_code, const char new_code);
