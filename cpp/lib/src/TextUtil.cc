@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015 Universitätsbibliothek Tübingen.
+ *  Copyright 2015,2017 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -28,9 +28,10 @@
 
 #include "TextUtil.h"
 #include <algorithm>
+#include <codecvt>
+#include <locale>
 #include <exception>
 #include <cstdio>
-#include <cwctype>
 #include "Compiler.h"
 #include "Locale.h"
 #include "HtmlParser.h"
@@ -139,29 +140,21 @@ bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string) {
     utf8_string->clear();
 
-    char buf[6];
-    std::mbstate_t state = std::mbstate_t();
-    for (const auto wch : wchar_string) {
-        const size_t retcode(std::wcrtomb(buf, wch, &state));
-        if (retcode == static_cast<size_t>(-1))
-            return false;
-        utf8_string->append(buf, retcode);
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    try {
+        *utf8_string = converter.to_bytes(wchar_string);
+        return true;
+    } catch (const std::range_error &e) {
+        return false;
     }
-
-    return true;
 }
 
 
 bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string) {
     utf8_string->clear();
 
-    char buf[6];
-    std::mbstate_t state = std::mbstate_t();
-    const size_t retcode(std::wcrtomb(buf, wchar, &state));
-    if (retcode == static_cast<size_t>(-1))
-        return false;
-    utf8_string->append(buf, retcode);
-    return true;
+    const std::wstring wchar_string(1, wchar);
+    return WCharToUTF8String(wchar_string, utf8_string);
 }
 
 
