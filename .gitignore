@@ -15,11 +15,13 @@ out
 .deps
 LOEPPN-*
 \#*\#
+add_additional_relbib_entries
 add_author_synonyms
 add_child_refs
 add_isbns_or_issns_to_articles
 add_journal_subscription
 add_publication_year_to_serials
+add_referenceterms
 add_superior_and_alertable_flags
 add_synonyms
 add_title_keywords
@@ -78,6 +80,7 @@ jop_grep
 kcdb_info
 make_marc_xml
 map_ddc_and_rvk_to_ixtheo_notations
+marc_compare
 marc_filter
 marc_grep
 marc_grep_tokenizer_test
@@ -105,6 +108,7 @@ solr_query_test
 stemmer_test
 stemwords
 string_info
+subfield_code_replacer
 test_chop_into_words
 test_find_substring
 test_auto_temp_file
@@ -117,10 +121,7 @@ update_ixtheo_notations
 urlencode
 vufind_db_test
 xml_parser_test
-marc_compare
-add_referenceterms
 extract_referenceterms
-add_additional_relbib_entries
 add_superior_flag
 generate_vufind_translation_files
 delete_unused_local_data
