@@ -97,7 +97,6 @@ protected:
 
     /** The date that the first response was returned in this run of the program. */
     std::string first_response_date_;
-
 public:
     struct MetadataFormatDescriptor {
         std::string metadata_prefix_, schema_, metadata_namespace_;

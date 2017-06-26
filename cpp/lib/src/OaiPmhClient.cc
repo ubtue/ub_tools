@@ -99,19 +99,16 @@ public:
     const std::string &getErrorCode(std::string * error_message = NULL) const;
 
     /** Get the resumptionToken (if any) extracted from the XML file.*/
-    std::string getResumptionToken() const
-    { return resumption_token_; }
+    std::string getResumptionToken() const { return resumption_token_; }
 
     /** Get the responseDate (if any) extracted from the XML file. */
-    std::string getResponseDate() const
-    { return response_date_; }
+    std::string getResponseDate() const { return response_date_; }
 
     /** Get the metadata records extracted from the XML file. */
     const std::list<OaiPmh::Record> &getRecords() const { return records_; }
 
     /** Get the number of records extracted from the XML file.*/
     unsigned getRecordCount() const { return received_record_count_; }
-
 protected:
     /** Update the database with a complete received record. */
     bool importReceivedRecord();
@@ -542,9 +539,9 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
     }
 
     // Import statistics
-    unsigned received_xml_page_count = 0;
-    unsigned received_record_count = 0;
-    unsigned record_processed_count = 0;
+    unsigned received_xml_page_count(0);
+    unsigned received_record_count(0);
+    unsigned record_processed_count(0);
 
     std::string response_date, resumption_token;
     do {
@@ -604,7 +601,6 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
 
         // Grab the new resumption token:
         resumption_token = list_records_parser.getResumptionToken();
-
     } while (not resumption_token.empty());
 
     if (verbosity >= 2) {

@@ -39,6 +39,7 @@ private:
     std::string last_error_message_;
     bool last_element_was_empty_;
     std::string last_tag_name_;
+    std::string *data_collector_;
 public:
     SimpleXmlParser(DataSource * const input);
 
@@ -51,13 +52,19 @@ public:
     /** \brief Skip forward until we encounter a certain element.
      *  \param expected_type  The type of element we're looking for.
      *  \param expected_tag   If "type" is OPENING_TAG or CLOSING_TAG, the name of the tag we're looking for.
+     *  \param data           If not NULL, the skipped over XML will be returned here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
-    bool skipTo(const Type expected_type, const std::string &expected_tag = "");
+    bool skipTo(const Type expected_type, const std::string &expected_tag = "",
+                std::map<std::string, std::string> * const attrib_map = nullptr, std::string * const data = nullptr);
+
+    void skipWhiteSpace();
+    void rewind();
 
     static std::string TypeToString(const Type type);
 private:
-    void skipWhiteSpace();
+    int get();
+    void putback(const char ch);
     void parseOptionalPrologue();
     bool extractName(std::string * const name);
     bool extractQuotedString(const int closing_quote, std::string * const s);
@@ -69,20 +76,37 @@ private:
 
 
 template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input)
-        : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false)
+    : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr)
 {
     parseOptionalPrologue();
 }
 
 
+template<typename DataSource> int SimpleXmlParser<DataSource>::get() {
+    const int ch(input_->get());
+    if (likely(ch != EOF)) {
+        if (data_collector_ != nullptr)
+            *data_collector_ += static_cast<char>(ch);
+    }
+    return ch;
+}
+
+
+template<typename DataSource> void SimpleXmlParser<DataSource>::putback(const char ch) {
+    input_->putback(ch);
+    if (data_collector_ != nullptr)
+        data_collector_->resize(data_collector_->size() - 1);
+}
+
+
 template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPrologue() {
     skipWhiteSpace();
-    int ch(input_->get());
+    int ch(get());
     if (unlikely(ch != '<') or input_->peek() != '?') {
-        input_->putback(ch);
+        putback(ch);
         return;
     }
-    input_->get(); // Skip over '?'.
+    get(); // Skip over '?'.
 
     std::string name;
     if (not extractName(&name) or name != "xml")
@@ -91,18 +115,19 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
     while (ch != EOF and ch != '>') {
         if (unlikely(ch == '\n'))
             ++line_no_;
-        ch = input_->get();
+        ch = get();
     }
+    skipWhiteSpace();
 }
 
 
 template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace() {
     for (;;) {
-        const int ch(input_->get());
+        const int ch(get());
         if (unlikely(ch == EOF))
             return;
         if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
-            input_->putback(ch);
+            putback(ch);
             return;
         } else if (ch == '\n')
             ++line_no_;
@@ -113,21 +138,21 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace()
 template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std::string * const name) {
     name->clear();
 
-    int ch(input_->get());
+    int ch(get());
     if (unlikely(ch == EOF or (not StringUtil::IsAsciiLetter(ch) and ch != '_' and ch != ':'))) {
-        input_->putback(ch);
+        putback(ch);
         return false;
     }
 
     *name += static_cast<char>(ch);
     for (;;) {
-        ch = input_->get();
+        ch = get();
         if (unlikely(ch == EOF))
             return false;
         if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.'
                  or ch == '-'))
         {
-            input_->putback(ch);
+            putback(ch);
             return true;
         }
         *name += static_cast<char>(ch);
@@ -141,7 +166,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractQuotedStr
     s->clear();
 
     for (;;) {
-        const int ch(input_->get());
+        const int ch(get());
         if (unlikely(ch == EOF))
             return false;
         if (unlikely(ch == closing_quote))
@@ -172,7 +197,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
     if (last_type_ == OPENING_TAG) {
         last_type_ = *type = CHARACTERS;
 
-        while ((ch = input_->get()) != '<') {
+        while ((ch = get()) != '<') {
             if (unlikely(ch == EOF)) {
                 last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
                 return false;
@@ -181,7 +206,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
                 ++line_no_;
             *data += static_cast<char>(ch);
         }
-        input_->putback(ch); // Putting back the '<'.
+        putback(ch); // Putting back the '<'.
 
         if (not XmlUtil::DecodeEntities(data)) {
             last_type_ = *type = ERROR;
@@ -191,7 +216,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
     } else { // end-of-document or opening or closing tag
         skipWhiteSpace();
 
-        ch = input_->get();
+        ch = get();
         if (unlikely(ch == EOF)) {
             last_type_ = *type = END_OF_DOCUMENT;
             return true;
@@ -214,7 +239,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
             return true;
         }
 
-        ch = input_->get();
+        ch = get();
         if (ch == '/') { // A closing tag.
             if (unlikely(not parseClosingTag(data))) {
                 last_type_ = *type = ERROR;
@@ -224,7 +249,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
 
             last_type_ = *type = CLOSING_TAG;
         } else { // An opening tag.
-            input_->putback(ch);
+            putback(ch);
 
             std::string error_message;
             if (unlikely(not parseOpeningTag(data, attrib_map, &error_message))) {
@@ -234,11 +259,11 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
                 return false;
             }
 
-            ch = input_->get();
+            ch = get();
             if (ch == '/') {
                 last_element_was_empty_ = true;
                 last_tag_name_ = *data;
-                ch = input_->get();
+                ch = get();
             }
 
             if (unlikely(ch != '>')) {
@@ -256,36 +281,57 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(const Type expected_type,
-                                                                       const std::string &expected_tag)
+template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
+    const Type expected_type, const std::string &expected_tag, std::map<std::string, std::string> * const attrib_map,
+    std::string * const data)
 {
     if (unlikely((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and expected_tag.empty()))
     throw std::runtime_error("in SimpleXmlParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
                              "tag name has been specified!");
 
+    if (data != nullptr)
+        data_collector_ = data;
     for (;;) {
         Type type;
-        std::map<std::string, std::string> attrib_map;
-        std::string data;
-        if (unlikely(not getNext(&type, &attrib_map, &data)))
+        static std::map<std::string, std::string> local_attrib_map;
+        std::string data2;
+        if (unlikely(not getNext(&type, attrib_map == nullptr ? &local_attrib_map : attrib_map, &data2)))
             throw std::runtime_error("in SimpleXmlParser::skipTo: " + last_error_message_);
 
         if (expected_type == type) {
             if (expected_type == OPENING_TAG or expected_type == CLOSING_TAG) {
-                if (data == expected_tag)
+                if (data2 == expected_tag) {
+                    data_collector_ = nullptr;
                     return true;
-            } else
+                }
+            } else {
+                data_collector_ = nullptr;
                 return true;
-        } else if (type == END_OF_DOCUMENT)
+            }
+        } else if (type == END_OF_DOCUMENT) {
+            data_collector_ = nullptr;
             return false;
+        }
     }
+}
+
+
+template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
+    input_->rewind();
+
+    line_no_                = 1;
+    last_type_              = UNINITIALISED;
+    last_element_was_empty_ = false;
+    data_collector_         = nullptr;
+
+    parseOptionalPrologue();
 }
 
 
 template<typename DataSource> bool SimpleXmlParser<DataSource>::parseProlog() {
     if (input_->peek() != '?')
         return true;
-    input_->get();
+    get();
 
     std::string prolog_tag_name;
     std::map<std::string, std::string> prolog_attrib_map;
@@ -295,14 +341,14 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseProlog() {
         return false;
     }
 
-    int ch(input_->get());
+    int ch(get());
     if (unlikely(ch != '?')) {
         last_error_message_ = "Error in prolog, expected '?' but found '" + std::string(1, static_cast<char>(ch))
                               + "'!";
         return false;
     }
 
-    ch = input_->get();
+    ch = get();
     if (unlikely(ch != '>')) {
         last_error_message_ = "Error in prolog, closing angle bracket not found!";
         return false;
@@ -341,14 +387,14 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseOpeningTag(
         }
 
         skipWhiteSpace();
-        const int ch(input_->get());
+        const int ch(get());
         if (unlikely(ch != '=')) {
             *error_message = "Could not find an equal sign as part of an attribute.";
             return false;
         }
 
         skipWhiteSpace();
-        const int quote(input_->get());
+        const int quote(get());
         if (unlikely(quote != '"' and quote != '\'')) {
             *error_message = "Found neither a single- nor a double-quote starting an attribute value.";
             return false;
@@ -375,7 +421,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseClosingTag(
         return false;
 
     skipWhiteSpace();
-    return input_->get() == '>';
+    return get() == '>';
 }
 
 
