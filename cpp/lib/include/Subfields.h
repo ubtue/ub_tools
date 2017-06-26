@@ -123,6 +123,11 @@ public:
     size_t extractSubfields(const std::string &subfield_codes, std::vector<std::string> * const subfield_values) const;
     void extractSubfields(const char subfield_code, std::vector<std::string> * const subfield_values) const;
 
+    /** \brief Replaces all occurrences of "old_code" with "new_code".
+     *  \return True if at least one code was replaced and false o/w.
+     */
+    bool replaceSubfieldCode(const char old_code, const char new_code);
+
     /** Returns true if the two indicators have valid, i.e. non-NUL, data and at least one subfield exists. */
     bool isValid() const
         { return indicator1_ != '\0' and indicator2_ != '\0' and not subfields_.empty(); }
