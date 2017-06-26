@@ -82,8 +82,9 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
     max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0 ;
 
     if (unlikely(max_redirect_count_ < 0 or max_redirect_count_ > MAX_MAX_REDIRECT_COUNT))
-        throw std::runtime_error("in Downloader::Params::Params: max_redirect_count (= " + StringUtil::ToString(max_redirect_count)
-                        + " must be between 1 and " + StringUtil::ToString(MAX_MAX_REDIRECT_COUNT) + "!");
+        throw std::runtime_error("in Downloader::Params::Params: max_redirect_count (= "
+                                 + StringUtil::ToString(max_redirect_count) + " must be between 1 and "
+                                 + StringUtil::ToString(MAX_MAX_REDIRECT_COUNT) + "!");
 }
 
 
@@ -356,7 +357,9 @@ size_t Downloader::WriteFunction(void *data, size_t size, size_t nmemb, void *th
 }
 
 
-void Downloader::LockFunction(CURL */* handle */, curl_lock_data data, curl_lock_access /* access */, void */* unused */) {
+void Downloader::LockFunction(CURL */* handle */, curl_lock_data data, curl_lock_access /* access */,
+                              void */* unused */)
+{
     if (data == CURL_LOCK_DATA_DNS)
         Downloader::dns_mutex_->lock();
     else if (data == CURL_LOCK_DATA_COOKIE)
@@ -485,7 +488,8 @@ const PerlCompatRegExps &Downloader::GetBannedUrlRegExps() {
         initialised = true;
         const IniFile ini_file(ETC_DIR "/BannedUrlRegExps.conf");
         const std::list<std::string> entry_names(ini_file.getSectionEntryNames(""));
-        for (std::list<std::string>::const_iterator entry_name(entry_names.begin()); entry_name != entry_names.end(); ++entry_name)
+        for (std::list<std::string>::const_iterator entry_name(entry_names.begin()); entry_name != entry_names.end();
+             ++entry_name)
             ini_file_reg_exps.addPattern(ini_file.getString("", *entry_name));
     }
 
@@ -541,7 +545,9 @@ bool Downloader::getHttpEquivRedirect(std::string * const redirect_url) const {
 const std::string WGET("/usr/bin/wget");
 
 
-int Download(const std::string &url, const std::string &output_filename, const unsigned timeout, const std::string &cookie_file) {
+int Download(const std::string &url, const std::string &output_filename, const unsigned timeout,
+             const std::string &cookie_file)
+{
     std::vector<std::string> args;
     args.push_back("--quiet");
     args.push_back(url);
@@ -562,7 +568,9 @@ int Download(const std::string &url, const std::string &output_filename, const u
 }
 
 
-int Download(const std::string &url, const unsigned timeout, std::string * const output, const std::string &cookie_file) {
+int Download(const std::string &url, const unsigned timeout, std::string * const output,
+             const std::string &cookie_file)
+{
     const FileUtil::AutoTempFile auto_temp_file;
     const std::string &output_filename(auto_temp_file.getFilePath());
     const int retval = Download(url, output_filename, timeout, cookie_file);
