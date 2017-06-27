@@ -141,29 +141,29 @@ bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 
 
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string) {
-    utf8_string->clear();
-
     const iconv_t iconv_handle(::iconv_open("UTF-8","WCHAR_T"));
     if (unlikely(iconv_handle == (iconv_t)-1))
         Error("in TextUtil::WCharToUTF8String: iconv_open(3) failed!");
 
     const size_t INBYTE_COUNT(wchar_string.length() * sizeof(wchar_t));
     char *in_bytes(new char[INBYTE_COUNT]);
+    const char *in_bytes_start(in_bytes);
     ::memcpy(reinterpret_cast<void *>(in_bytes), wchar_string.data(), INBYTE_COUNT);
     static const size_t UTF8_SEQUENCE_MAXLEN(6);
     const size_t OUTBYTE_COUNT(UTF8_SEQUENCE_MAXLEN * wchar_string.length());
     char *out_bytes(new char[OUTBYTE_COUNT]);
+    const char *out_bytes_start(out_bytes);
 
-    size_t inbytes_left(wchar_string.length() * sizeof(wchar_t)), outbytes_left(OUTBYTE_COUNT);
-    ssize_t converted_count(static_cast<ssize_t>(::iconv(iconv_handle, &in_bytes, &inbytes_left, &out_bytes,
-                                                         &outbytes_left)));
+    size_t inbytes_left(INBYTE_COUNT), outbytes_left(OUTBYTE_COUNT);
+    const ssize_t converted_count(static_cast<ssize_t>(::iconv(iconv_handle, &in_bytes, &inbytes_left, &out_bytes,
+                                                               &outbytes_left)));
     if (unlikely(converted_count == -1))
         Error("in TextUtil::WCharToUTF8String: iconv(3) failed!");
 
     ::iconv_close(iconv_handle);
-    utf8_string->append(out_bytes, OUTBYTE_COUNT - outbytes_left);
-    delete [] in_bytes;
-    delete [] out_bytes;
+    utf8_string->assign(out_bytes_start, OUTBYTE_COUNT - outbytes_left);
+    delete [] in_bytes_start;
+    delete [] out_bytes_start;
 
     return true;
 }
