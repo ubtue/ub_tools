@@ -135,11 +135,16 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace()
 }
 
 
+inline bool IsValidElementFirstCharacter(const char ch) {
+    return StringUtil::IsAsciiLetter(static_cast<char>(ch)) or ch == '_';
+}
+
+
 template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std::string * const name) {
     name->clear();
 
     int ch(get());
-    if (unlikely(ch == EOF or not (StringUtil::IsAsciiLetter(static_cast<char>(ch)) or ch == '_'))) {
+    if (unlikely(ch == EOF or not IsValidElementFirstCharacter(static_cast<char>(ch)))) {
         putback(ch);
         return false;
     }
@@ -207,7 +212,10 @@ collect_next_character:
                 ++line_no_;
             *data += static_cast<char>(ch);
         }
-        if (likely(ch == '<') and unlikely(input_->peek() != '/')) {
+        const int lookahead(input_->peek());
+        if (likely(ch == '<' and lookahead != EOF)
+            and unlikely(lookahead != '/' and not IsValidElementFirstCharacter(static_cast<char>(lookahead))))
+        {
             *data += '<';
             goto collect_next_character;
         }
