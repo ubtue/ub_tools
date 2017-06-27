@@ -1,0 +1,51 @@
+<record>
+  <header>
+    <identifier>ftubbiepub:>oai:pub.uni<0-bielefeld.de:1680979</identifier>
+    <datestamp>2015-09-09T08:38:19Z</datestamp>
+  </header>
+  <metadata>
+    <oai_dc:dc xmlns:dc="…">
+      <dc:title>Bielefeld Academic Search Engine (BASE) An end-user oriented
+      institutional repository search service</dc:title>
+      <dc:creator>Pieper, Dirk</dc:creator>
+      <dc:creator>Summann, Friedrich</dc:creator>
+      <dc:description>Purpose - The purpose of this paper is …</dc:description>
+      <dc:source>
+        Pieper D, Summann F.: Bielefeld Academic Search Engine (BASE).
+        An end-user oriented institutional repository search service.
+        Library Hi Tech. 2006; 24(4):614–619.
+      </dc:source>
+      <dc:source>ftubbiepub</dc:source>
+      <dc:language>eng</dc:language>
+      <dc:date>2006</dc:date>
+      <dc:identifier>
+        http://pub.uni-bielefeld.de/publication/1680979
+      </dc:identifier>
+      <dc:identifier>
+        http://pub.uni-bielefeld.de/download/1680979/2535619
+      </dc:identifier>
+      <dc:relation>
+        info:eu-repo/semantics/altIdentifier/issn/0737-8831
+      </dc:relation>
+      <dc:relation>
+        info:eu-repo/semantics/altIdentifier/doi/10.1108/07378830610715473
+      </dc:relation>
+      <dc:relation>
+        info:eu-repo/semantics/altIdentifier/urn/urn:nbn:de:0070-pub-16809798
+      </dc:relation>
+      <dc:relation>
+        info:eu-repo/semantics/altIdentifier/wos/000242893300014
+      </dc:relation>
+      <dc:subject>Science General</dc:subject>
+      <dc:subject>Bielefeld Academic Search Engine</dc:subject>
+      <dc:subject>DDC:020</dc:subject>
+      <dc:format>application/pdf</dc:format>
+      <dc:type>article</dc:type>
+      <dc:type>info:eu-repo/semantics/article</dc:type>
+      <dc:type>doc-type:article</dc:type>
+      <dc:type>text</dc:type>
+      <dc:type>0001</dc:type>
+      <dc:rights>info:eu-repo/semantics/openAccess</dc:rights>
+    </oai_dc:dc>
+  </metadata>
+</record>
