@@ -135,11 +135,16 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace()
 }
 
 
+inline bool IsValidElementFirstCharacter(const char ch) {
+    return StringUtil::IsAsciiLetter(static_cast<char>(ch)) or ch == '_';
+}
+
+
 template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std::string * const name) {
     name->clear();
 
     int ch(get());
-    if (unlikely(ch == EOF or (not StringUtil::IsAsciiLetter(ch) and ch != '_' and ch != ':'))) {
+    if (unlikely(ch == EOF or not IsValidElementFirstCharacter(static_cast<char>(ch)))) {
         putback(ch);
         return false;
     }
@@ -197,6 +202,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
     if (last_type_ == OPENING_TAG) {
         last_type_ = *type = CHARACTERS;
 
+collect_next_character:
         while ((ch = get()) != '<') {
             if (unlikely(ch == EOF)) {
                 last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
@@ -205,6 +211,13 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
             if (unlikely(ch == '\n'))
                 ++line_no_;
             *data += static_cast<char>(ch);
+        }
+        const int lookahead(input_->peek());
+        if (likely(lookahead != EOF)
+            and unlikely(lookahead != '/' and not IsValidElementFirstCharacter(static_cast<char>(lookahead))))
+        {
+            *data += '<';
+            goto collect_next_character;
         }
         putback(ch); // Putting back the '<'.
 
