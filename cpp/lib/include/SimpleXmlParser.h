@@ -213,7 +213,7 @@ collect_next_character:
             *data += static_cast<char>(ch);
         }
         const int lookahead(input_->peek());
-        if (likely(ch == '<' and lookahead != EOF)
+        if (likely(lookahead != EOF)
             and unlikely(lookahead != '/' and not IsValidElementFirstCharacter(static_cast<char>(lookahead))))
         {
             *data += '<';
