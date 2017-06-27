@@ -26,6 +26,7 @@
 #include <stdexcept>
 #include <cstdio>
 #include "Compiler.h"
+#include "util.h"
 
 
 int StringDataSource::get() {
@@ -56,3 +57,31 @@ int StringDataSource::peek() {
 
     return unlikely(ch_ == s_.cend()) ? EOF : *ch_;
 }
+
+
+bool StringDataSource::seek(const off_t offset, const int whence) {
+    pushed_back_ = false;
+    switch (whence) {
+    case SEEK_SET:
+        if (unlikely(offset < 0 or offset >= static_cast<off_t>(s_.size())))
+            return false;
+        ch_ = s_.cbegin() + offset;
+        return true;
+    case SEEK_END:
+        if (unlikely(offset > 0 or -offset >= static_cast<off_t>(s_.size())))
+            return false;
+        ch_ = s_.cend() + offset;
+        return true;
+    case SEEK_CUR: {
+        if (unlikely(pushed_back_))
+            --ch_;
+        const off_t current_offset(ch_ - s_.cbegin());
+        if (unlikely(current_offset + offset < 0 or current_offset + offset >= static_cast<off_t>(s_.size())))
+            return false;
+        ch_ += offset;
+        return true;
+    } default:
+        Error("in StringDataSource::seek: \"whence\" must be one of SEEK_SET, SEEK_END, and SEEK_CUR!");
+    }
+}
+
