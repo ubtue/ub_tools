@@ -42,6 +42,7 @@
 #include <cctype>
 #include <cerrno>
 #include <cstdarg>
+#include <cstdlib>
 #include <cstring>
 #include <inttypes.h>
 #include "Compiler.h"

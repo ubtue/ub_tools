@@ -29,6 +29,7 @@
 
 
 #include <stdexcept>
+#include <string>
 #include <cstdio>
 #include "Compiler.h"
 
