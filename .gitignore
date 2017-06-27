@@ -120,6 +120,7 @@ update_full_text_db
 update_ixtheo_notations
 urlencode
 vufind_db_test
+WCharToUTF8String_test
 xml_parser_test
 extract_referenceterms
 add_superior_flag
