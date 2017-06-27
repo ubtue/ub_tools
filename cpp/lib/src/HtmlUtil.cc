@@ -28,6 +28,7 @@
  */
 
 #include "HtmlUtil.h"
+#include <cstdlib>
 #include <cstring>
 #include "HtmlParser.h"
 
