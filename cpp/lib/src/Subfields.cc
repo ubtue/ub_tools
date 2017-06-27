@@ -144,6 +144,20 @@ void Subfields::extractSubfields(const char subfield_code, std::vector <std::str
 }
 
 
+bool Subfields::replaceSubfieldCode(const char old_code, const char new_code) {
+    bool replaced_at_least_one(false);
+
+    for (auto &subfield : subfields_) {
+        if (subfield.code_ == old_code) {
+            replaced_at_least_one = true;
+            subfield.code_ = new_code;
+        }
+    }
+
+    return replaced_at_least_one;
+}
+
+
 std::string Subfields::toString() const {
     std::string as_string;
 
