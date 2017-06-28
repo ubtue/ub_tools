@@ -174,7 +174,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-StartPhase "Replace 689$A with 689$q"
+StartPhase "Replace 689\$A with 689\$q"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (subfield_code_replacer \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
