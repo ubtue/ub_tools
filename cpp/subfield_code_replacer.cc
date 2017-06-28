@@ -116,6 +116,7 @@ int main(int argc, char **argv) {
         else
             Error("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
         ++argv;
+        --argc;
     }
 
     try {
