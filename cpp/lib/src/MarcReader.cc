@@ -63,13 +63,15 @@ MarcRecord XmlMarcReader::read() {
         const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
                              or type == SimpleXmlParser<File>::CLOSING_TAG);
         if (type == SimpleXmlParser<File>::ERROR)
-            throw std::runtime_error("in XmlMarcReader::read: opening <record> tag expected while parsing \""
-                                     + input_->getPath() + "\" on line " + std::to_string(xml_parser_->getLineNo())
-                                     + "! (" + xml_parser_->getLastErrorMessage() + ")");
+            throw std::runtime_error("in XmlMarcReader::read: opening <" + namespace_prefix_
+                                     + "record> tag expected while parsing \"" + input_->getPath() + "\" on line "
+                                     + std::to_string(xml_parser_->getLineNo()) + "! ("
+                                     + xml_parser_->getLastErrorMessage() + ")");
         else
-            throw std::runtime_error("in XmlMarcReader::read: opening <record> tag expected while parsing \""
-                                     + input_->getPath() + "\" on line " + std::to_string(xml_parser_->getLineNo())
-                                     + "! (Found: " + SimpleXmlParser<File>::TypeToString(type)
+            throw std::runtime_error("in XmlMarcReader::read: opening <" + namespace_prefix_
+                                     + "record> tag expected while parsing \"" + input_->getPath() + "\" on line "
+                                     + std::to_string(xml_parser_->getLineNo()) + "! (Found: "
+                                     + SimpleXmlParser<File>::TypeToString(type)
                                      + (tag_found ? (":" + data + ")") : ")"));
     }
 
