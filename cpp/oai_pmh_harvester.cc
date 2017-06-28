@@ -189,8 +189,8 @@ int main(int argc, char **argv) {
         Error("\"" + time_limit_per_request_as_string + "\" is not a valid time limit!");
 
     try {
-        const std::unique_ptr<File> temp_output(
-            FileUtil::OpenInputOutputFileOrDie("/tmp/oai_pmh_harvester.temp.xml"));
+        const std::string TEMP_FILENAME("/tmp/oai_pmh_harvester.temp.xml");
+        std::unique_ptr<File> temp_output(FileUtil::OpenOutputFileOrDie(TEMP_FILENAME));
 
         const std::string COLLECTION_OPEN(
             "<collection xmlns=\"http://www.loc.gov/MARC21/slim\" "
@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
         temp_output->write(COLLECTION_CLOSE + "\n");
         std::cerr << "Downloaded " << total_record_count << " record(s).\n";
 
-        temp_output->rewind();
+        temp_output = FileUtil::OpenInputFileOrDie(TEMP_FILENAME);
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(output_filename));
         GenerateValidatedOutput(temp_output.get(), control_number_prefix, marc_writer.get());
         temp_output->close();
