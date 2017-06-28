@@ -31,7 +31,8 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output pattern1 [pattern2 .. patternN]\n";
+    std::cerr << "Usage: " << ::progname << " [--input-format=(marc-xml|marc-21)] marc_input marc_output pattern1 ";
+    std::cerr << "[pattern2 .. patternN]\n";
     std::cerr << "  where each pattern must look like TTTa=b where TTT is a tag and \"a\" and \"b\"\n";
     std::cerr << "  are subfield codes.\n\n";
     std::exit(EXIT_FAILURE);
@@ -104,8 +105,20 @@ int main(int argc, char **argv) {
     if (argc < 4)
         Usage();
 
+    MarcReader::ReaderType reader_type(MarcReader::AUTO);
+    if (StringUtil::StartsWith(argv[1], "--input-format=marc-")) {
+        if (argc < 5)
+            Usage();
+        if (std::strcmp(argv[1], "--input-format=marc-21") == 0)
+            reader_type = MarcReader::BINARY;
+        else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
+            reader_type = MarcReader::XML;
+        else
+            Error("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
+    }
+
     try {
-        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
+        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], reader_type));
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
 
         std::vector<Replacement> replacements;
