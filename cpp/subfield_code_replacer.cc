@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
             reader_type = MarcReader::XML;
         else
             Error("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
+        ++argv;
     }
 
     try {
