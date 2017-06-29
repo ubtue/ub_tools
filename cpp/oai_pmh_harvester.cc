@@ -154,12 +154,11 @@ std::string MakeRequestURL(const std::string &base_url, const std::string &metad
 }
 
 
-void GenerateValidatedOutput(File * const temp_output, const std::string &control_number_prefix,
+void GenerateValidatedOutput(MarcReader * const marc_reader, const std::string &control_number_prefix,
                              MarcWriter * const marc_writer)
 {
-    XmlMarcReader xml_reader(temp_output);
     unsigned counter(0);
-    while (MarcRecord record = xml_reader.read()) {
+    while (MarcRecord record = marc_reader->read()) {
         std::string control_number(record.getFieldData("001"));
         if (control_number.empty()) {
             control_number = control_number_prefix + StringUtil::ToString(++counter, 10, 10);
@@ -207,13 +206,13 @@ int main(int argc, char **argv) {
 
         const std::string COLLECTION_CLOSE("</collection>");
         temp_output->write(COLLECTION_CLOSE + "\n");
+        temp_output->close();
         std::cerr << "Downloaded " << total_record_count << " record(s).\n";
 
-        temp_output = FileUtil::OpenInputFileOrDie(TEMP_FILENAME);
+        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(TEMP_FILENAME, MarcReader::XML));
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(output_filename));
-        GenerateValidatedOutput(temp_output.get(), control_number_prefix, marc_writer.get());
-        temp_output->close();
-        ::unlink(temp_output->getPath().c_str());
+        GenerateValidatedOutput(marc_reader.get(), control_number_prefix, marc_writer.get());
+        ::unlink(TEMP_FILENAME.c_str());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
