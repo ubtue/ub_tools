@@ -150,9 +150,23 @@ void XmlMarcReader::parseLeader(const std::string &input_filename, Leader * cons
         throw std::runtime_error("in MarcReader::ParseLeader: error while parsing \"" + input_filename + "\": "
                                  + xml_parser_->getLastErrorMessage() + " on line "
                                  + std::to_string(xml_parser_->getLineNo()) + ".");
-    if (unlikely(type != SimpleXmlParser<File>::CHARACTERS or data.length() != Leader::LEADER_LENGTH))
-        throw std::runtime_error("in MarcReader::ParseLeader: leader data expected while parsing \"" + input_filename
-                                 + "\" on line " + std::to_string(xml_parser_->getLineNo()) + ".");
+    if (unlikely(type != SimpleXmlParser<File>::CHARACTERS or data.length() != Leader::LEADER_LENGTH)) {
+        Warning("in MarcReader::ParseLeader: leader data expected while parsing \"" + input_filename + "\" on line "
+                + std::to_string(xml_parser_->getLineNo()) + ".");
+        if (unlikely(not getNext(&type, &attrib_map, &data)))
+            throw std::runtime_error("in MarcReader::ParseLeader: error while skipping to </" + namespace_prefix_
+                                     + "leader>!");
+        if (unlikely(type != SimpleXmlParser<File>::CLOSING_TAG or data != namespace_prefix_ + "leader")) {
+            const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
+                                 or type == SimpleXmlParser<File>::CLOSING_TAG);
+            throw std::runtime_error("in MarcReader::ParseLeader: closing </" + namespace_prefix_
+                                     + "leader> tag expected while parsing \"" + input_filename + "\" on line "
+                                     + std::to_string(xml_parser_->getLineNo())
+                                     + ". (Found: " + SimpleXmlParser<File>::TypeToString(type)
+                                     + (tag_found ? (":" + data) : ""));
+        }
+        return;
+    }
 
     if (data.substr(0, 5) == "     ") // record length
         data = "00000" + data.substr(5);
@@ -169,8 +183,9 @@ void XmlMarcReader::parseLeader(const std::string &input_filename, Leader * cons
     if (unlikely(type != SimpleXmlParser<File>::CLOSING_TAG or data != namespace_prefix_ + "leader")) {
         const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
                              or type == SimpleXmlParser<File>::CLOSING_TAG);
-        throw std::runtime_error("in MarcReader::ParseLeader: closing </leader> tag expected while parsing \""
-                                 + input_filename + "\" on line " + std::to_string(xml_parser_->getLineNo())
+        throw std::runtime_error("in MarcReader::ParseLeader: closing </" + namespace_prefix_
+                                 + "leader> tag expected while parsing \"" + input_filename + "\" on line "
+                                 + std::to_string(xml_parser_->getLineNo())
                                  + ". (Found: " + SimpleXmlParser<File>::TypeToString(type)
                                  + (tag_found ? (":" + data) : ""));
     }
