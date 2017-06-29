@@ -67,6 +67,7 @@ private:
     void putback(const char ch);
     bool extractAttribute(std::string * const name, std::string * const value, std::string * const error_message);
     void parseOptionalPrologue();
+    void skipOptionalProcessingInstruction();
     bool extractName(std::string * const name);
     bool extractQuotedString(const int closing_quote, std::string * const s);
     bool parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
@@ -120,7 +121,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractAttribute
                                                                                  std::string * const error_message)
 {
     error_message->clear();
-    
+
     skipWhiteSpace();
     if (not extractName(name))
         return false;
@@ -165,7 +166,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
         skipWhiteSpace();
     if (not error_message.empty())
         throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: " + error_message);
-    
+
     if (attrib_name == "encoding") {
         if (::strcasecmp(attrib_value.c_str(), "utf-8") != 0
             and ::strcasecmp(attrib_value.c_str(), "utf8") != 0)
@@ -212,6 +213,26 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std:
 }
 
 
+template<typename DataSource> void SimpleXmlParser<DataSource>::skipOptionalProcessingInstruction() {
+    skipWhiteSpace();
+    int ch(get());
+    if (ch != '<' or input_->peek() != '?') {
+        putback(ch);
+        return;
+    }
+    get(); // Skip over the '?'.
+
+    while ((ch = get()) != '?') {
+        if (unlikely(ch == EOF))
+            throw std::runtime_error("in SimpleXmlParser::skipProcessingInstruction: unexpected end-of-input "
+                                     "while parsing a processing instruction!");
+    }
+    if (unlikely((ch = get()) != '>'))
+        throw std::runtime_error("in SimpleXmlParser::skipProcessingInstruction: expected '>' at end of "
+                                 "a processing instruction!");
+}
+
+
 template<typename DataSource> bool SimpleXmlParser<DataSource>::extractQuotedString(const int closing_quote,
                                                                                     std::string * const s)
 {
@@ -244,6 +265,8 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
         last_type_ = CLOSING_TAG;
         return true;
     }
+
+    skipOptionalProcessingInstruction();
 
     int ch;
     if (last_type_ == OPENING_TAG) {
