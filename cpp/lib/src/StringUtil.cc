@@ -11,6 +11,7 @@
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
  *  Copyright 2002-2005 Dr. Johannes Ruscheinski.
+ *  Copyright 2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -2901,6 +2902,35 @@ std::string &ReplaceSection(std::string * const s, const size_t start_index, con
 
     return *s = s->substr(0, start_index) + replacement + s->substr(start_index + section_length);
 }
+
+
+std::string ISO8859_15ToUTF8(const char &latin9_char) {
+    if (unlikely(latin9_char == '\xA4')) // Euro sign.
+        return "\xE2\x82\xAC";
+    else if (unlikely(latin9_char == '\xA6')) // Latin capital letter S with caron.
+        return "\xC5\xA0";
+    else if (unlikely(latin9_char == '\xA8')) // Latin small letter S with caron.
+        return "\xC5\xA1";
+    else if (unlikely(latin9_char == '\xB4')) // Latin capital letter Z with caron.
+        return "\xC5\xBD";
+    else if (unlikely(latin9_char == '\xB8')) // Latin small letter Z with caron.
+        return "\xC5\xBE";
+    else if (unlikely(latin9_char == '\xBC')) // Latin capital ligature OE.
+        return "\xC5\x92";
+    else if (unlikely(latin9_char == '\xBD')) // Latin small ligature OE.
+        return "\xC5\x93";
+    else if (unlikely(latin9_char == '\xBE')) // Latin capital letter Y with diaeresis.
+        return "\xC5\xB8";
+    else if (unlikely((latin9_char & 0x80u) == 0x80u)) { // Here we handle characters that have their high bit set.
+        std::string result;
+        result += static_cast<char>(0xC0u | (static_cast<unsigned char>(latin9_char) >> 6u));
+        result += static_cast<char>(0x80u | (static_cast<unsigned char>(latin9_char) & 0x3Fu));
+        return result;
+    }
+
+    return std::string(1, latin9_char);
+}
+
 
 
 } // namespace StringUtil
