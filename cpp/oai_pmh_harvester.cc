@@ -161,7 +161,8 @@ void GenerateValidatedOutput(MarcReader * const marc_reader, const std::string &
     while (MarcRecord record = marc_reader->read()) {
         std::string control_number(record.getFieldData("001"));
         if (control_number.empty()) {
-            control_number = control_number_prefix + StringUtil::ToString(++counter, 10, 10);
+            control_number = control_number_prefix + StringUtil::Map(StringUtil::ToString(++counter, 10, 10),
+                                                                     ' ', '0');
             record.insertField("001", control_number);
         }
 
@@ -173,13 +174,13 @@ void GenerateValidatedOutput(MarcReader * const marc_reader, const std::string &
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 5 and argc != 6)
+    if (argc != 6 and argc != 7)
         Usage();
 
     const std::string base_url(argv[1]);
     const std::string metadata_prefix(argv[2]);
     const std::string harvest_set(argc == 6 ? argv[3] : "");
-    const std::string control_number_prefix(argc == 6 ? argv[4] : argv[3]);
+    const std::string control_number_prefix(argc == 7 ? argv[3] : argv[2]);
     const std::string output_filename(argc == 7 ? argv[5] : argv[4]);
     const std::string time_limit_per_request_as_string(argc == 7 ? argv[6] : argv[5]);
 
