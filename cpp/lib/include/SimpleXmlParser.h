@@ -65,10 +65,10 @@ public:
 private:
     int get();
     void putback(const char ch);
+    bool extractAttribute(std::string * const name, std::string * const value, std::string * const error_message);
     void parseOptionalPrologue();
     bool extractName(std::string * const name);
     bool extractQuotedString(const int closing_quote, std::string * const s);
-    bool parseProlog();
     bool parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
                          std::string * const error_message);
     bool parseClosingTag(std::string * const tag_name);
@@ -99,6 +99,54 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::putback(const ch
 }
 
 
+template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace() {
+    for (;;) {
+        const int ch(get());
+        if (unlikely(ch == EOF))
+            return;
+        if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
+            putback(ch);
+            return;
+        } else if (ch == '\n')
+            ++line_no_;
+    }
+}
+
+
+// \return If true, we have a valid "name" and "value".  If false we haven't found a name/value-pair if
+//         *error_message is empty or we have a real problem if *error_message is not empty.
+template<typename DataSource> bool SimpleXmlParser<DataSource>::extractAttribute(std::string * const name,
+                                                                                 std::string * const value,
+                                                                                 std::string * const error_message)
+{
+    error_message->clear();
+    
+    skipWhiteSpace();
+    if (not extractName(name))
+        return false;
+
+    skipWhiteSpace();
+    const int ch(get());
+    if (unlikely(ch != '=')) {
+        *error_message = "Could not find an equal sign as part of an attribute.";
+        return false;
+    }
+
+    skipWhiteSpace();
+    const int quote(get());
+    if (unlikely(quote != '"' and quote != '\'')) {
+        *error_message = "Found neither a single- nor a double-quote starting an attribute value.";
+        return false;
+    }
+    if (unlikely(not extractQuotedString(quote, value))) {
+        *error_message = "Failed to extract the attribute value.";
+        return false;
+    }
+
+    return true;
+}
+
+
 template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPrologue() {
     skipWhiteSpace();
     int ch(get());
@@ -112,26 +160,25 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
     if (not extractName(&name) or name != "xml")
         throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: failed to parse a prologue!");
 
+    std::string attrib_name, attrib_value, error_message;
+    while (extractAttribute(&attrib_name, &attrib_value, &error_message) and attrib_name != "encoding")
+        skipWhiteSpace();
+    if (not error_message.empty())
+        throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: " + error_message);
+    
+    if (attrib_name == "encoding") {
+        if (::strcasecmp(attrib_value.c_str(), "utf-8") != 0
+            and ::strcasecmp(attrib_value.c_str(), "utf8") != 0)
+            throw std::runtime_error("in SimpleXmlParser::parseOptionalPrologue: Error in prolog: We only support "
+                                     "the UTF-8 encoding!");
+    }
+
     while (ch != EOF and ch != '>') {
         if (unlikely(ch == '\n'))
             ++line_no_;
         ch = get();
     }
     skipWhiteSpace();
-}
-
-
-template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace() {
-    for (;;) {
-        const int ch(get());
-        if (unlikely(ch == EOF))
-            return;
-        if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
-            putback(ch);
-            return;
-        } else if (ch == '\n')
-            ++line_no_;
-    }
 }
 
 
@@ -244,10 +291,8 @@ collect_next_character:
 
         // If we're at the beginning, we may have an XML prolog:
         if (unlikely(last_type_ == UNINITIALISED) and input_->peek() == '?') {
-            if (not parseProlog()) {
-                last_type_ = *type = ERROR;
-                return false;
-            }
+            putback(ch);
+            parseOptionalPrologue();
             last_type_ = *type = START_OF_DOCUMENT;
             return true;
         }
@@ -341,44 +386,6 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
 }
 
 
-template<typename DataSource> bool SimpleXmlParser<DataSource>::parseProlog() {
-    if (input_->peek() != '?')
-        return true;
-    get();
-
-    std::string prolog_tag_name;
-    std::map<std::string, std::string> prolog_attrib_map;
-    std::string error_message;
-    if (not parseOpeningTag(&prolog_tag_name, &prolog_attrib_map, &error_message)) {
-        last_error_message_ = "Error in prolog! (" + error_message + ")";
-        return false;
-    }
-
-    int ch(get());
-    if (unlikely(ch != '?')) {
-        last_error_message_ = "Error in prolog, expected '?' but found '" + std::string(1, static_cast<char>(ch))
-                              + "'!";
-        return false;
-    }
-
-    ch = get();
-    if (unlikely(ch != '>')) {
-        last_error_message_ = "Error in prolog, closing angle bracket not found!";
-        return false;
-    }
-
-    const auto encoding(prolog_attrib_map.find("encoding"));
-    if (encoding != prolog_attrib_map.cend()) {
-        if (::strcasecmp(encoding->second.c_str(), "utf-8") != 0) {
-            last_error_message_ = "Error in prolog: We only support the UTF-8 encoding!";
-            return false;
-        }
-    }
-
-    return true;
-}
-
-
 template<typename DataSource> bool SimpleXmlParser<DataSource>::parseOpeningTag(
     std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
     std::string * const error_message)
@@ -392,29 +399,10 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseOpeningTag(
     }
     skipWhiteSpace();
 
-    std::string attrib_name;
-    while (extractName(&attrib_name)) {
+    std::string attrib_name, attrib_value;
+    while (extractAttribute(&attrib_name, &attrib_value, error_message)) {
         if (unlikely(attrib_map->find(attrib_name) != attrib_map->cend())) { // Duplicate attribute name?
-            *error_message = "Found a duplicate tag name.";
-            return false;
-        }
-
-        skipWhiteSpace();
-        const int ch(get());
-        if (unlikely(ch != '=')) {
-            *error_message = "Could not find an equal sign as part of an attribute.";
-            return false;
-        }
-
-        skipWhiteSpace();
-        const int quote(get());
-        if (unlikely(quote != '"' and quote != '\'')) {
-            *error_message = "Found neither a single- nor a double-quote starting an attribute value.";
-            return false;
-        }
-        std::string attrib_value;
-        if (unlikely(not extractQuotedString(quote, &attrib_value))) {
-            *error_message = "Failed to extract the attribute value.";
+            *error_message = "Found a duplicate attribute name.";
             return false;
         }
 
@@ -422,6 +410,8 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseOpeningTag(
 
         skipWhiteSpace();
     }
+    if (not error_message->empty())
+        return false;
 
     return true;
 }
