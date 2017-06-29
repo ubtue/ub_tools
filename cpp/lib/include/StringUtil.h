@@ -2501,6 +2501,14 @@ std::string &ReplaceSection(std::string * const s, const size_t start_index, con
                             const std::string &replacement);
 
 
+
+/** \brief   Converts ISO8859-15 (a.k.a. Latin-9) characters to Unicode (UTF-8) strings.
+ *  \param   text  The ISO8859-15 string to convert.
+ *  \return  The converted string (in UTF-8).
+ */
+std::string ISO8859_15ToUTF8(const char &latin9_char);
+
+
 } // Namespace StringUtil
 
 
