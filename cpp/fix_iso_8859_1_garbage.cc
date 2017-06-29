@@ -32,8 +32,8 @@ void Usage() {
 }
 
 
-inline bool IsLowercaseConsonant(const char ch) {
-    return std::strchr("bcdfghjklmnpqrstvwxyz", ch) != nullptr;
+inline bool IsConsonant(const char ch) {
+    return std::strchr("bcdfghjklmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ", ch) != nullptr;
 }
 
 
@@ -43,14 +43,22 @@ inline bool IsLowercaseISO889_15Vowel(const char ch) {
 
 
 void Convert(File * const input, File * const output) {
-    bool last_char_was_lowercase_consonant(false), last_char_was_lowercase_vowel(false);
+    bool last_char_was_consonant(false), last_char_was_lowercase_vowel(false), last_character_was_space(false);
     int ch;
     while ((ch = input->get()) != EOF) {
         switch (ch) {
         case '\344': // LATIN SMALL LETTER A WITH DIAERESIS
         case '\366': // LATIN SMALL LETTER O WITH DIAERESIS
         case '\374': // LATIN SMALL LETTER U WITH DIAERESIS
-            if (last_char_was_lowercase_consonant)
+            if (last_char_was_consonant or last_character_was_space)
+                output->write(StringUtil::ISO8859_15ToUTF8(static_cast<char>(ch)));
+            else
+                output->put(static_cast<char>(ch));
+            break;
+        case '\304': // LATIN LARGE LETTER A WITH DIAERESIS
+        case '\326': // LATIN LARGE LETTER O WITH DIAERESIS
+        case '\334': // LATIN LARGE LETTER U WITH DIAERESIS
+            if (last_character_was_space)
                 output->write(StringUtil::ISO8859_15ToUTF8(static_cast<char>(ch)));
             else
                 output->put(static_cast<char>(ch));
@@ -65,8 +73,9 @@ void Convert(File * const input, File * const output) {
             output->put(static_cast<char>(ch));
         }
 
-        last_char_was_lowercase_consonant = IsLowercaseConsonant(static_cast<char>(ch));
-        last_char_was_lowercase_vowel     = IsLowercaseISO889_15Vowel(static_cast<char>(ch));
+        last_char_was_consonant       = IsConsonant(static_cast<char>(ch));
+        last_char_was_lowercase_vowel = IsLowercaseISO889_15Vowel(static_cast<char>(ch));
+        last_character_was_space      = (ch == ' ');
     }
 }
 
