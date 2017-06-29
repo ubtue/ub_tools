@@ -71,6 +71,7 @@ fifo_pipe_file_test
 files_differ_test
 find_substring_test
 fix_article_biblio_levels
+fix_iso_8859_1_garbage
 full_text_cache_cleaner
 full_text_cache_expirer
 full_text_lookup
