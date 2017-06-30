@@ -25,6 +25,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "File.h"
+#include <cerrno>
 #include <cstring>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -137,11 +138,13 @@ bool File::seek(const off_t offset, const int whence) {
     if (unlikely(file_ == nullptr))
         throw std::runtime_error("in File::seek: can't seek on non-open file \"" + filename_ + "\"!");
 
-    if (::fseeko(file_, offset, whence) != 0)
+    const off_t adjusted_offset(whence != SEEK_CUR ? offset : offset - pushed_back_count_);
+    if (::fseeko(file_, adjusted_offset, whence) != 0)
         return false;
 
-    read_count_ = 0;
-    buffer_ptr_ = buffer_;
+    pushed_back_count_ = 0;
+    read_count_        = 0;
+    buffer_ptr_        = buffer_;
 
     return true;
 }

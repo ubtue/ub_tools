@@ -174,6 +174,15 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
+StartPhase "Replace 689\$A with 689\$q"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(subfield_code_replacer --input-format=marc-21\
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+    "689A=q" >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Map DDC and RVK to IxTheo Notations" 
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (map_ddc_and_rvk_to_ixtheo_notations \
