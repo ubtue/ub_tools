@@ -27,6 +27,7 @@
 
 
 #include <string>
+#include <fcntl.h> // For SEEK_SET etc.
 
 
 class StringDataSource {
@@ -48,6 +49,16 @@ public:
      *  \note must not be called after get returned EOF!
      */
     int peek();
+
+    inline off_t tell() const { return ch_ - s_.cbegin() - (pushed_back_ ? 1 : 0); }
+
+    /** \brief  Set the location for the next read operation.
+     *  \param  offset  Signed offset relative to the reference point specified by "whence".
+     *  \param  whence  SEEK_SET, SEEK_END, or SEEK_CUR.
+     *  \return True upon success, else false.  If false, you can consult the global "errno" variable for the type
+     *          of error encountered.
+     */
+    bool seek(const off_t offset, const int whence = SEEK_SET);
 
     inline void rewind() { ch_ = s_.cbegin(); pushed_back_ = false; }
 };

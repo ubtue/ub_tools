@@ -21,6 +21,7 @@
 #include "Compiler.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "util.h"
 
 
 namespace XmlUtil {
@@ -65,7 +66,7 @@ inline bool DecodeEntity(const std::string &entity_string, std::string * const d
     return true;
 }
 
-    
+
 bool DecodeEntities(std::string * const data) {
     if (unlikely(data->empty()))
         return true;
@@ -77,8 +78,10 @@ bool DecodeEntities(std::string * const data) {
         if (unlikely(in_entity)) {
             if (ch == ';') {
                 std::string decoded_char;
-                if (not DecodeEntity(entity, &decoded_char))
+                if (not DecodeEntity(entity, &decoded_char)) {
+                    Warning("in XmlUtil::DecodeEntities: can't decode \"" + entity + "\"!");
                     return false;
+                }
                 for (const auto dch : decoded_char)
                     *next++ = dch;
                 in_entity = false;

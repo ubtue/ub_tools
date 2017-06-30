@@ -22,7 +22,6 @@
 #include <unordered_set>
 #include <vector>
 #include <cstdlib>
-//#include <cstring>
 #include "FileUtil.h"
 #include "MarcRecord.h"
 #include "MarcReader.h"
@@ -37,23 +36,25 @@ void Usage() {
 
 
 void ExtractLocalKeywords(MarcReader * const marc_reader, std::unordered_set<std::string> * const local_keywords) {
-    unsigned total_count(0), matched_count(0);
+    unsigned total_count(0), matched_count(0), records_with_local_data_count(0);
     while (const MarcRecord record = marc_reader->read()) {
         ++total_count;
 
         std::vector<size_t> field_indices;
         if (not record.getFieldIndices("LOK", &field_indices))
             continue;
+        ++records_with_local_data_count;
 
         bool matched(false);
         for (size_t field_index : field_indices) {
             const Subfields subfields(record.getFieldData(field_index));
             const std::string subfield0(subfields.getFirstSubfieldValue('0'));
-            if (subfield0.empty() or subfield0 != "689")
+            if (subfield0.empty() or subfield0 != "689  ")
                 continue;
-            const std::string subfield_a(subfields.getFirstSubfieldValue('a'));
-            if (not subfield_a.empty()) {
-                local_keywords->insert(subfield_a);
+            std::vector<std::string> subfield_a_values;
+            subfields.extractSubfields('a', &subfield_a_values);
+            for (const auto &subfield_a_value : subfield_a_values) {
+                local_keywords->insert(subfield_a_value);
                 matched = true;
             }
         }
@@ -61,7 +62,8 @@ void ExtractLocalKeywords(MarcReader * const marc_reader, std::unordered_set<std
             ++matched_count;
     }
 
-    std::cerr << "Processed a total of " << total_count << " record(s).\n";
+    std::cerr << "Processed a total of " << total_count << " record(s) of which " << records_with_local_data_count
+              << " had local data.\n";
     std::cerr << "Found " << matched_count << " record(s) w/ local keywords.\n";
 }
 

@@ -565,6 +565,12 @@ std::string TokenTypeToString(const TokenType token) {
     case ERROR:
         return "error";
     }
+
+    #ifdef __GNUC__
+        #if __GNUC__ > 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 5)
+            __builtin_unreachable();
+        #endif
+    #endif
 }
 
 
@@ -669,6 +675,12 @@ std::string LookupString(const std::string &path, const JSONNode * const tree,
     case JSONNode::ARRAY_NODE:
         throw std::runtime_error("in JSON::LookupString: can't get a unique value from an array node!");
     }
+
+    #ifdef __GNUC__
+        #if __GNUC__ > 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 5)
+            __builtin_unreachable();
+        #endif
+    #endif
 }
 
 
@@ -693,6 +705,12 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
     case JSONNode::ARRAY_NODE:
         throw std::runtime_error("in JSON::LookupInteger: can't get a unique value from an array node!");
     }
+
+    #ifdef __GNUC__
+        #if __GNUC__ > 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 5)
+            __builtin_unreachable();
+        #endif
+    #endif
 }
 
 

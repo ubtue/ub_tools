@@ -19,6 +19,7 @@
  */
 #include "Semaphore.h"
 #include <stdexcept>
+#include <cerrno>
 #include <cstring>
 #include "Compiler.h"
 #include <fcntl.h>
