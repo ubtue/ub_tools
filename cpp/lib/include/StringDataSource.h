@@ -50,7 +50,7 @@ public:
      */
     int peek();
 
-    inline off_t tell() const { return ch_ - s_.cbegin(); }
+    inline off_t tell() const { return ch_ - s_.cbegin() - (pushed_back_ ? 1 : 0); }
 
     /** \brief  Set the location for the next read operation.
      *  \param  offset  Signed offset relative to the reference point specified by "whence".

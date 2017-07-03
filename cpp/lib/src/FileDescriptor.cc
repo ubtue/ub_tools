@@ -26,6 +26,7 @@
 
 #include "FileDescriptor.h"
 #include <stdexcept>
+#include <string>
 #include <cstring>
 #include <cerrno>
 #include <unistd.h>

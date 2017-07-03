@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015 Universitätsbibliothek Tübingen.
+ *  Copyright 2015,2017 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -96,7 +96,7 @@ inline bool IsSecondHalfOfSurrogatePair(const uint16_t u2) {
 
 /** \return True if "u" is might be a valid single UTF-16 character, i.e. not part of a surrogate pair. */
 inline bool IsValidSingleUTF16Char(const uint16_t u) {
-    return (u <= 0xD7FFu) or (0xE000u <= u and u <= 0xFFFF);
+    return (u <= 0xD7FFu) or (0xE000u <= u);
 }
 
 

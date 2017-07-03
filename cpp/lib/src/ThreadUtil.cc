@@ -28,6 +28,7 @@
 #include <stdexcept>
 #include <cerrno>
 #include <cstdarg>
+#include <cstdlib>
 #include <sys/syscall.h>
 #include <unistd.h>
 #include "File.h"

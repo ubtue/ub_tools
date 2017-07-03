@@ -2,7 +2,7 @@
  *  \brief Appends one MARC-XML file to another.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -96,7 +96,10 @@ int main(int argc, char *argv[]) {
         Usage();
 
     const std::unique_ptr<File> source(FileUtil::OpenInputFileOrDie(argv[1]));
-    const std::unique_ptr<File> target(FileUtil::OpenInputOutputFileOrDie(argv[2]));
+    std::unique_ptr<File> target(new File(argv[2], "r+"));
+    if (not target->fail())
+        Error("can't open \"" + std::string(argv[2]) + "\" for reading and writing!");
+
     try {
         Append(source.get(), target.get());
     } catch (const std::exception &x) {
