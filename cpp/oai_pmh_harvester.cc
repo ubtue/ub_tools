@@ -22,6 +22,9 @@
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "HttpHeader.h"
+#include "MarcRecord.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "SimpleXmlParser.h"
 #include "StringDataSource.h"
 #include "StringUtil.h"
@@ -32,9 +35,11 @@
 //https://memory.loc.gov/cgi-bin/oai2_0?verb=ListRecords&metadataPrefix=marc21&set=mussm
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " base_url metadata_prefix [harvest_set] output_filename time_limit_per_request\n"
-              << "       \"time_limit_per_request\" is in seconds. (Some servers are very slow so we\n"
-              << "       recommend at least 20 seconds!)\n\n";
+              << " base_url metadata_prefix [harvest_set] control_number_prefix output_filename"
+              << " time_limit_per_request\n"
+              << "       \"control_number_prefix\" will be used if the received records have no control numbers\n"
+              << "       to autogenerate our own control numbers.  \"time_limit_per_request\" is in seconds. (Some\n"
+              << "       servers are very slow so we recommend at least 20 seconds!)\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -149,41 +154,66 @@ std::string MakeRequestURL(const std::string &base_url, const std::string &metad
 }
 
 
+void GenerateValidatedOutput(MarcReader * const marc_reader, const std::string &control_number_prefix,
+                             MarcWriter * const marc_writer)
+{
+    unsigned counter(0);
+    while (MarcRecord record = marc_reader->read()) {
+        std::string control_number(record.getFieldData("001"));
+        if (control_number.empty()) {
+            control_number = control_number_prefix + StringUtil::Map(StringUtil::ToString(++counter, 10, 10),
+                                                                     ' ', '0');
+            record.insertField("001", control_number);
+        }
+
+        marc_writer->write(record);
+    }
+}
+
+
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 5 and argc != 6)
+    if (argc != 6 and argc != 7)
         Usage();
 
     const std::string base_url(argv[1]);
     const std::string metadata_prefix(argv[2]);
     const std::string harvest_set(argc == 6 ? argv[3] : "");
-    const std::string output_filename(argc == 6 ? argv[4] : argv[3]);
-    const std::string time_limit_per_request_as_string(argc == 6 ? argv[5] : argv[4]);
+    const std::string control_number_prefix(argc == 7 ? argv[3] : argv[2]);
+    const std::string output_filename(argc == 7 ? argv[5] : argv[4]);
+    const std::string time_limit_per_request_as_string(argc == 7 ? argv[6] : argv[5]);
 
     unsigned time_limit_per_request_in_seconds;
     if (not StringUtil::ToUnsigned(time_limit_per_request_as_string, &time_limit_per_request_in_seconds))
         Error("\"" + time_limit_per_request_as_string + "\" is not a valid time limit!");
 
     try {
-        const std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(output_filename));
+        const std::string TEMP_FILENAME("/tmp/oai_pmh_harvester.temp.xml");
+        std::unique_ptr<File> temp_output(FileUtil::OpenOutputFileOrDie(TEMP_FILENAME));
 
         const std::string COLLECTION_OPEN(
-            "<marc:collection xmlns:marc=\"http://www.loc.gov/MARC21/slim\" "
+            "<collection xmlns=\"http://www.loc.gov/MARC21/slim\" "
             "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
             "xsi:schemaLocation=\"http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd\">");
-        output->write(COLLECTION_OPEN + "\n");
+        temp_output->write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + COLLECTION_OPEN + "\n");
 
         std::string resumption_token;
         unsigned total_record_count(0);
         while (ListRecords(MakeRequestURL(base_url, metadata_prefix, harvest_set, resumption_token),
-                           time_limit_per_request_in_seconds, output.get(), &resumption_token,
+                           time_limit_per_request_in_seconds, temp_output.get(), &resumption_token,
                            &total_record_count))
             std::cerr << "Continuing download, resumption token was: \"" << resumption_token << "\".\n";
 
-        const std::string COLLECTION_CLOSE("</marc:collection>");
-        output->write(COLLECTION_CLOSE + "\n");
+        const std::string COLLECTION_CLOSE("</collection>");
+        temp_output->write(COLLECTION_CLOSE + "\n");
+        temp_output->close();
         std::cerr << "Downloaded " << total_record_count << " record(s).\n";
+
+        std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(TEMP_FILENAME, MarcReader::XML));
+        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(output_filename));
+        GenerateValidatedOutput(marc_reader.get(), control_number_prefix, marc_writer.get());
+        ::unlink(TEMP_FILENAME.c_str());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }

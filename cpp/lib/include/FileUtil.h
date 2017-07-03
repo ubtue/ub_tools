@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015-2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  Copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -247,10 +247,6 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
 
 /** \brief Opens a file for reading or aborts. */
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename);
-
-
-/** \brief Opens a file for reading and writing or aborts. */
-std::unique_ptr<File> OpenInputOutputFileOrDie(const std::string &filename);
 
 
 /** \brief Opens a file for writing or aborts. */

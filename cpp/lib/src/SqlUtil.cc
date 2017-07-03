@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <cstdio>
+#include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"

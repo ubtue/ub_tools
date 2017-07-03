@@ -30,6 +30,7 @@
 #include <list>
 #include <map>
 #include <stdexcept>
+#include <string>
 #include <set>
 
 

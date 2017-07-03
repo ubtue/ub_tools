@@ -30,6 +30,7 @@
 
 
 #include <stdexcept>
+#include <string>
 #include <zlib.h>
 
 

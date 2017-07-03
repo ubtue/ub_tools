@@ -30,6 +30,7 @@
 
 #include <map>
 #include <stdexcept>
+#include <string>
 #include <libxml2/libxml/parser.h>
 
 

@@ -2,7 +2,7 @@
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -695,15 +695,6 @@ std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "r"));
     if (file->fail())
         Error("can't open \"" + filename + "\" for reading!");
-
-    return file;
-}
-
-
-std::unique_ptr<File> OpenInputOutputFileOrDie(const std::string &filename) {
-    std::unique_ptr<File> file(new File(filename, "r+"));
-    if (file->fail())
-        Error("can't open \"" + filename + "\" for reading and writing!");
 
     return file;
 }
