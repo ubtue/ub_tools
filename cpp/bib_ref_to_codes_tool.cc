@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2016, Library of the University of Tübingen
+    Copyright (C) 2015-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -79,7 +79,8 @@ std::string CanoniseLeadingNumber(const std::string &bible_reference_candidate) 
 }
 
 
-void SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candidate, std::string * const book_candidate,
+void SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candidate,
+                                       std::string * const book_candidate,
                                        std::string * const chapters_and_verses_candidate)
 {
     book_candidate->clear();
@@ -111,8 +112,10 @@ std::string CanoniseBibleBook(const bool verbose,
                               const std::string &bible_book_candidate)
 {
     std::unordered_map<std::string, std::string> books_of_the_bible_to_canonical_form_map;
-    MapIO::DeserialiseMap(books_of_the_bible_to_canonical_form_map_filename, &books_of_the_bible_to_canonical_form_map);
-    const auto non_canonical_form_and_canonical_form(books_of_the_bible_to_canonical_form_map.find(bible_book_candidate));
+    MapIO::DeserialiseMap(books_of_the_bible_to_canonical_form_map_filename,
+                          &books_of_the_bible_to_canonical_form_map);
+    const auto non_canonical_form_and_canonical_form(
+        books_of_the_bible_to_canonical_form_map.find(bible_book_candidate));
     if (non_canonical_form_and_canonical_form != books_of_the_bible_to_canonical_form_map.end()) {
         if (verbose)
             std::cerr << "Replacing \"" << bible_book_candidate << "\" with \""
@@ -203,13 +206,12 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
     const std::string second_book_code(MapBibleBookToCode(verbose, ending_bible_book_candidate,
                                                           books_of_the_bible_to_code_map_filename));
 
-    if (generate_solr_query)
-        std::cout << (first_book_code
-                      + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '0'))
-                  << '_'
-                  << (second_book_code
-                      + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '9'))
-                  << '\n';
+    std::cout << (first_book_code + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH
+                                                + BibleReferenceParser::MAX_VERSE_LENGTH, '0'))
+              << (generate_solr_query ? '_' : ':')
+              << (second_book_code + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH
+                                                 + BibleReferenceParser::MAX_VERSE_LENGTH, '9'))
+              << '\n';
 
     std::exit(EXIT_SUCCESS);
 }
@@ -234,19 +236,13 @@ void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query
     if (verbose)
         std::cerr << "book code = \"" << book_code << "\"\n";
     if (chapters_and_verses_candidate.empty()) {
-        if (generate_solr_query)
-            std::cout << book_code
-                      << std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '0')
-                      << '_'
-                      << book_code
-                      << std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '9')
-                      << '\n';
-        else
-            std::cout << book_code
-                      << std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '0')
-                      << ':' << book_code
-                      << std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH, '9')
-                      << '\n';
+        std::cout << book_code
+                  << std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH
+                                 + BibleReferenceParser::MAX_VERSE_LENGTH, '0')
+                  << (generate_solr_query ? '_' : ':') << book_code
+                  << std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH
+                                 + BibleReferenceParser::MAX_VERSE_LENGTH, '9')
+                  << '\n';
 
         std::exit(EXIT_SUCCESS);
     }
@@ -288,7 +284,7 @@ static void Usage() {
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     bool verbose(false), generate_solr_query(false);
 
