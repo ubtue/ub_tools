@@ -44,6 +44,23 @@ public class BibleRangeParser extends QParser {
         return qstr.split(QUERY_SEPARATOR);
     }
 
+    // @return true if "queryString" is of the form 0700000_0899999 o/w we return false.
+    private boolean isBookRange(final String queryString) {
+        if (queryString.length() != 7 + 1 + 7 || queryString.charAt(7) != '_')
+            return false;
+        if (!queryString.substring(2, 7).equals("00000") || queryString.substring(10, 15).equals("99999"))
+            return false;
+        int firstBookCode, secondBookCode;
+        try {
+            firstBookCode  = Integer.parseInt(queryString.substring(2, 4));
+            secondBookCode = Integer.parseInt(queryString.substring(8, 10));
+        } catch (NumberFormatException e) {
+            return false;
+        }
+
+        return secondBookCode - firstBookCode >= 1;
+    }
+
     /**
      * Tries to extract the book index of a search query.
      * Then creates a query string only matching bible references starting with the book index.
@@ -59,6 +76,9 @@ public class BibleRangeParser extends QParser {
     private String getBookPrefixQueryString(final String queryString) {
         if (queryString == null || queryString.length() < 2) {
             return "*";
+        }
+        if (isBookRange(queryString)) {
+            return "/.*" + queryString + ".*/";
         }
         final String[] ranges = getFieldsFromQuery();
         final Set<String> alreadySeenBookCodes = new TreeSet<String>();
