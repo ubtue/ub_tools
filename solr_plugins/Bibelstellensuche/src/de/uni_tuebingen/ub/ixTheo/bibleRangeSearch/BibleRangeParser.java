@@ -1,6 +1,7 @@
 package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
 
 
+import java.util.Set;
 import java.util.TreeSet;
 import org.apache.lucene.search.Query;
 import org.apache.solr.common.params.SolrParams;
