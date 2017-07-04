@@ -52,7 +52,7 @@ public class BibleRangeParser extends QParser {
             return false;
         int firstBookCode, secondBookCode;
         try {
-            firstBookCode  = Integer.parseInt(queryString.substring(2, 4));
+            firstBookCode  = Integer.parseInt(queryString.substring(0, 2));
             secondBookCode = Integer.parseInt(queryString.substring(8, 10));
         } catch (NumberFormatException e) {
             return false;
