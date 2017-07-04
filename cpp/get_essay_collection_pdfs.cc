@@ -26,7 +26,9 @@
 #include "Compiler.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
+#include "PerlCompatRegExp.h"
 #include "Subfields.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -40,8 +42,9 @@ static void Usage() {
 
 
 void ProcessRecords(MarcReader * const marc_reader) {
-    unsigned record_count(0);//, until1999_count(0), from2000_to_2009_count(0), after2009_count(0);
-
+    unsigned record_count(0), until1999_count(0), from2000_to_2009_count(0), after2009_count(0),
+             unhandled_url_count(0), good_count(0);
+    PerlCompatRegExp year_reg_exp(PerlCompatRegExp("(\\d\\d\\d\\d)"));
     while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
 
@@ -53,7 +56,17 @@ void ProcessRecords(MarcReader * const marc_reader) {
             continue;
         if (not _655_subfields.hasSubfieldWithValue('a', "Aufsatzsammlung"))
             continue;
-        
+
+        const std::string _264_contents(record.getFieldData("264"));
+        if (_264_contents.empty())
+            continue;
+        const Subfields _264_subfields(_264_contents);
+        if (not _264_subfields.hasSubfield('c'))
+            continue;
+        if (not year_reg_exp.match(_264_subfields.getFirstSubfieldValue('c')))
+            continue;
+        const std::string year(year_reg_exp.getMatchedSubstring(1));
+
         const std::string _856_contents(record.getFieldData("856"));
         if (_856_contents.empty())
             continue;
@@ -62,11 +75,34 @@ void ProcessRecords(MarcReader * const marc_reader) {
             or not _856_subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis"))
             continue;
         const std::string url(_856_subfields.getFirstSubfieldValue('u'));
-        const std::string &control_number(record.getControlNumber());
-        std::cout << control_number << ": " << url << '\n';
+        std::string pdf_url;
+        if (StringUtil::StartsWith(url, "http://swbplus.bsz-bw.de/bsz") and StringUtil::EndsWith(url, ".htm"))
+            pdf_url = url.substr(0, url.length() - 3) + "pdf";
+        else if (StringUtil::StartsWith(url, "http://d-nb.info/"))
+            pdf_url = url;
+        if (pdf_url.empty()) {
+            std::cout << "Bad URL: " << url << '\n';
+            ++unhandled_url_count;
+            continue;
+        }
+
+        // Classify the hits by year:
+        if (year < "2000")
+            ++until1999_count;
+        else if (year > "2009")
+            ++after2009_count;
+        else
+            ++from2000_to_2009_count;
+
+//        const std::string &control_number(record.getControlNumber());
+        ++good_count;
     }
 
     std::cout << "Data set contains " << record_count << " MARC record(s).\n";
+    std::cout << good_count << " records survived all conditions.\n";
+    std::cout << "Didn't know how to handle " << unhandled_url_count << " URLs.\n";
+    std::cout << until1999_count << " came before 2000, " << after2009_count << " after 2009, and "
+              << from2000_to_2009_count << " inbetween.\n";
 }
 
 
