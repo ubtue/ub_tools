@@ -184,16 +184,25 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
 {
     if (trace_)
         std::cerr << "in DiglitSmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
-    if (Download(url, ToNearestSecond(time_limit.getRemainingTime()), document) != 0)
+    if (Download(url, ToNearestSecond(time_limit.getRemainingTime()), document) != 0) {
+        if (trace_)
+            std::cerr << "in DiglitSmartDownloader::downloadDocImpl: original download failed!\n";
         return false;
+    }
     const std::string start_string("<input type=\"hidden\" name=\"projectname\" value=\"");
     size_t start_pos(document->find(start_string));
-    if  (start_pos == std::string::npos)
+    if  (start_pos == std::string::npos) {
+        if (trace_)
+            std::cerr << "in DiglitSmartDownloader::downloadDocImpl: start position not found!\n";
         return false;
+    }
     start_pos += start_string.length();
     const size_t end_pos(document->find('"', start_pos));
-    if  (end_pos == std::string::npos)
+    if  (end_pos == std::string::npos) {
+        if (trace_)
+            std::cerr << "in DiglitSmartDownloader::downloadDocImpl: end position not found!\n";
         return false;
+    }
     const std::string projectname(document->substr(start_pos, end_pos - start_pos));
     document->clear();
     std::string page;
@@ -201,16 +210,22 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
     RomanPageNumberGenerator roman_page_number_generator;
     IdbPager roman_pager(projectname, &roman_page_number_generator);
     while (roman_pager.getNextPage(time_limit, &page)) {
-        if (time_limit.limitExceeded())
+        if (time_limit.limitExceeded()) {
+            if (trace_)
+                std::cerr << "in DiglitSmartDownloader::downloadDocImpl: time out while paging! (roman numbers)\n";
             return false;
+        }
         document->append(page);
     }
 
     ArabicPageNumberGenerator arabic_page_number_generator;
     IdbPager arabic_pager(projectname, &arabic_page_number_generator);
     while (arabic_pager.getNextPage(time_limit, &page)) {
-        if (time_limit.limitExceeded())
+        if (time_limit.limitExceeded()) {
+            if (trace_)
+                std::cerr << "in DiglitSmartDownloader::downloadDocImpl: time out while paging! (arabic numbers)\n";
             return false;
+        }
         document->append(page);
     }
 
