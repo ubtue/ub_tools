@@ -41,6 +41,36 @@ static void Usage() {
 }
 
 
+bool IsEssayCollection(const std::string &tag, const MarcRecord &record) {
+    std::vector<size_t> field_indices;
+    record.getFieldIndices(tag, &field_indices);
+    for (const size_t index : field_indices) {
+        const std::string field_contents(record.getFieldData(index));
+        if (field_contents.empty())
+            continue;
+        const Subfields subfields(field_contents);
+        const auto begin_end(subfields.getIterators('a'));
+        for (auto a_iter(begin_end.first); a_iter != begin_end.second; ++a_iter) {
+            if (a_iter->value_.find("Aufsatzsammlung") != std::string::npos)
+                return true;
+        }
+    }
+
+    return false;
+}
+
+
+bool IsEssayCollection(const MarcRecord &record) {
+    if (IsEssayCollection("650", record))
+        return true;
+    if (IsEssayCollection("655", record))
+        return true;
+    if (IsEssayCollection("689", record))
+        return true;
+    return false;
+}
+
+
 void ProcessRecords(MarcReader * const marc_reader) {
     unsigned record_count(0), until1999_count(0), from2000_to_2009_count(0), after2009_count(0),
              unhandled_url_count(0), good_count(0);
@@ -48,13 +78,7 @@ void ProcessRecords(MarcReader * const marc_reader) {
     while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
 
-        const std::string _655_contents(record.getFieldData("655"));
-        if (_655_contents.empty())
-            continue;
-        const Subfields _655_subfields(_655_contents);
-        if (_655_subfields.getIndicator1() != ' ' or _655_subfields.getIndicator2() != '7')
-            continue;
-        if (not _655_subfields.hasSubfieldWithValue('a', "Aufsatzsammlung"))
+        if (not IsEssayCollection(record))
             continue;
 
         const std::string _264_contents(record.getFieldData("264"));
