@@ -48,7 +48,7 @@ public class BibleRangeParser extends QParser {
     private boolean isBookRange(final String queryString) {
         if (queryString.length() != 8 + 1 + 8 || queryString.charAt(8) != '_')
             return false;
-        if (!queryString.substring(2, 8).equals("000000") || queryString.substring(11, 17).equals("999999"))
+        if (!queryString.substring(2, 8).equals("000000") || !queryString.substring(11, 17).equals("999999"))
             return false;
         int firstBookCode, secondBookCode;
         try {
