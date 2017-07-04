@@ -44,16 +44,16 @@ public class BibleRangeParser extends QParser {
         return qstr.split(QUERY_SEPARATOR);
     }
 
-    // @return true if "queryString" is of the form 0700000_0899999 o/w we return false.
+    // @return true if "queryString" is of the form 07000000_08999999 o/w we return false.
     private boolean isBookRange(final String queryString) {
-        if (queryString.length() != 7 + 1 + 7 || queryString.charAt(7) != '_')
+        if (queryString.length() != 8 + 1 + 8 || queryString.charAt(8) != '_')
             return false;
-        if (!queryString.substring(2, 7).equals("00000") || queryString.substring(10, 15).equals("99999"))
+        if (!queryString.substring(2, 8).equals("000000") || queryString.substring(11, 17).equals("999999"))
             return false;
         int firstBookCode, secondBookCode;
         try {
             firstBookCode  = Integer.parseInt(queryString.substring(0, 2));
-            secondBookCode = Integer.parseInt(queryString.substring(8, 10));
+            secondBookCode = Integer.parseInt(queryString.substring(9, 11));
         } catch (NumberFormatException e) {
             return false;
         }
@@ -70,7 +70,7 @@ public class BibleRangeParser extends QParser {
      * See /var/lib/tuelib/books_of_the_bible_to_code.map
      *
      * @param queryString The search string from user
-     * @return e.g.  ".*(11|12|03)[0-9]{5}.*" (NB. the Solr query parser anchors regular expressions at the
+     * @return e.g.  ".*(11|12|03)[0-9]{6}.*" (NB. the Solr query parser anchors regular expressions at the
      * beginning and at the end) or "*"
      */
     private String getBookPrefixQueryString(final String queryString) {
@@ -96,7 +96,7 @@ public class BibleRangeParser extends QParser {
                 alreadySeenBookCodes.add(secondBookCode);
             }
         }
-        return "/.*(" + buffer.toString().substring(1) + ")[0-9]{5}.*/";
+        return "/.*(" + buffer.toString().substring(1) + ")[0-9]{6}.*/";
     }
 
     @Override
