@@ -832,11 +832,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return matcher.matches() ? matcher.group(1) : null;
     }
 
-    /**
-     * @param record
-     *            the record
-     */
-    public Set<String> getPhysicalType(final Record record) {
+    public Set<String> map935b(final Record record, final Map<String, String> map) {
         final Set<String> results = new TreeSet<>();
         for (final DataField data_field : record.getDataFields()) {
             if (!data_field.getTag().equals("935"))
@@ -845,14 +841,22 @@ public class TuelibMixin extends SolrIndexerMixin {
             final List<Subfield> physical_code_subfields = data_field.getSubfields('b');
             for (final Subfield physical_code_subfield : physical_code_subfields) {
                 final String physical_code = physical_code_subfield.getData();
-                if (phys_code_to_full_name_map.containsKey(physical_code))
-                    results.add(phys_code_to_full_name_map.get(physical_code));
+                if (map.containsKey(physical_code))
+                    results.add(map.get(physical_code));
                 else
                     System.err.println("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
             }
         }
 
         return results;
+    }
+    
+    /**
+     * @param record
+     *            the record
+     */
+    public Set<String> getPhysicalType(final Record record) {
+        return map935b(record, TuelibMixin.phys_code_to_full_name_map);
     }
 
     // Removes any non-letters from "original_role".
@@ -1126,6 +1130,40 @@ public class TuelibMixin extends SolrIndexerMixin {
         return genres;
     }
 
+    // Map used by getPhysicalType().
+    private static final Map<String, String> phys_code_to_format_map;
+
+    static {
+        Map<String, String> tempMap = new HashMap<>();
+        tempMap.put("arbtrans", "Transparency");
+        tempMap.put("blindendr", "Braille");
+        tempMap.put("bray", "BRDisc");
+        tempMap.put("cdda", "SoundDisc");
+        tempMap.put("ckop", "Microfiche");
+        tempMap.put("cofz", "Online Resource");
+        tempMap.put("crom", "CDROM");
+        tempMap.put("dias", "Slide");
+        tempMap.put("disk", "Diskette");
+        tempMap.put("druck", "Printed Material");
+        tempMap.put("dvda", "Audio DVD");
+        tempMap.put("dvdr", "DVD-ROM");
+        tempMap.put("dvdv", "Video DVD");
+        tempMap.put("gegenst", "Physical Object");
+        tempMap.put("handschr", "Longhand Text");
+        tempMap.put("kunstbl", "Artistic Works on Paper");
+        tempMap.put("lkop", "Mircofilm");
+        tempMap.put("medi", "Multiple Media Types");
+        tempMap.put("scha", "Record");
+        tempMap.put("skop", "Microform");
+        tempMap.put("sobildtt", "Audiovisual Carriers");
+        tempMap.put("soerd", "Carriers of Other Electronic Data");
+        tempMap.put("sott", "Carriers of Other Audiodata");
+        tempMap.put("tonbd", "Audiotape");
+        tempMap.put("tonks", "Audiocasette");
+        tempMap.put("vika", "VideoCasette");
+        phys_code_to_format_map = Collections.unmodifiableMap(tempMap);
+    }
+
     /**
      * Determine Record Formats
      *
@@ -1139,10 +1177,10 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return set of record format
      */
     public Set<String> getMultipleFormats(final Record record) {
-        Set<String> result = new LinkedHashSet<String>();
-        String leader = record.getLeader().toString();
-        ControlField fixedField = (ControlField) record.getVariableField("008");
-        DataField title = (DataField) record.getVariableField("245");
+        final Set<String> result = map935b(record, TuelibMixin.phys_code_to_format_map);
+        final String leader = record.getLeader().toString();
+        final ControlField fixedField = (ControlField) record.getVariableField("008");
+        final DataField title = (DataField) record.getVariableField("245");
         String formatString;
         char formatCode = ' ';
         char formatCode2 = ' ';
