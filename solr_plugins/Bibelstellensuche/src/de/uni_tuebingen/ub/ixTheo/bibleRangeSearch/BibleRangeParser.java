@@ -1,6 +1,8 @@
 package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
 
 
+import java.util.Set;
+import java.util.TreeSet;
 import org.apache.lucene.search.Query;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.request.SolrQueryRequest;
@@ -19,11 +21,14 @@ public class BibleRangeParser extends QParser {
      * Constructor for the QParser
      *
      * @param qstr        The part of the query string specific to this parser
-     * @param localParams The set of parameters that are specific to this QParser.  See http://wiki.apache.org/solr/LocalParams
+     * @param localParams The set of parameters that are specific to this QParser.
+     *                    See http://wiki.apache.org/solr/LocalParams
      * @param params      The rest of the {@link SolrParams}
      * @param req         The original {@link SolrQueryRequest}.
      */
-    public BibleRangeParser(final String qstr, final SolrParams localParams, final SolrParams params, final SolrQueryRequest req) {
+    public BibleRangeParser(final String qstr, final SolrParams localParams, final SolrParams params,
+                            final SolrQueryRequest req)
+    {
         super(qstr, localParams, params, req);
     }
 
@@ -39,6 +44,23 @@ public class BibleRangeParser extends QParser {
         return qstr.split(QUERY_SEPARATOR);
     }
 
+    // @return true if "queryString" is of the form 07000000_08999999 o/w we return false.
+    private boolean isBookRange(final String queryString) {
+        if (queryString.length() != 8 + 1 + 8 || queryString.charAt(8) != '_')
+            return false;
+        if (!queryString.substring(2, 8).equals("000000") || !queryString.substring(11, 17).equals("999999"))
+            return false;
+        int firstBookCode, secondBookCode;
+        try {
+            firstBookCode  = Integer.parseInt(queryString.substring(0, 2));
+            secondBookCode = Integer.parseInt(queryString.substring(9, 11));
+        } catch (NumberFormatException e) {
+            return false;
+        }
+
+        return secondBookCode - firstBookCode >= 1;
+    }
+
     /**
      * Tries to extract the book index of a search query.
      * Then creates a query string only matching bible references starting with the book index.
@@ -48,27 +70,33 @@ public class BibleRangeParser extends QParser {
      * See /var/lib/tuelib/books_of_the_bible_to_code.map
      *
      * @param queryString The search string from user
-     * @return e.g.  ".*(11|12|12|03)[0-9]{5}.*" (NB. the SOLR query parser anchors regular expressions at the
+     * @return e.g.  ".*(11|12|03)[0-9]{6}.*" (NB. the Solr query parser anchors regular expressions at the
      * beginning and at the end) or "*"
      */
     private String getBookPrefixQueryString(final String queryString) {
         if (queryString == null || queryString.length() < 2) {
             return "*";
         }
+        if (isBookRange(queryString)) {
+            return "/.*" + queryString + ".*/";
+        }
         final String[] ranges = getFieldsFromQuery();
+        final Set<String> alreadySeenBookCodes = new TreeSet<String>();
         // Capacity of buffer: (number of ranges) times (two digits of book and one delimiter)
         StringBuilder buffer = new StringBuilder(ranges.length * 3);
         for (String range : ranges) {
-            final String firstBook = range.substring(0, 2);
-            final String secondBook = range.substring(8, 10);
-            buffer.append('|');
-            buffer.append(firstBook);
-            if (!firstBook.equals(secondBook)) {
-                buffer.append('|');
-                buffer.append(secondBook);
+            final String firstBookCode = range.substring(0, 2);
+            if (!alreadySeenBookCodes.contains(firstBookCode)) {
+                buffer.append("|" + firstBookCode);
+                alreadySeenBookCodes.add(firstBookCode);
+            }
+            final String secondBookCode = range.substring(8, 10);
+            if (!alreadySeenBookCodes.contains(secondBookCode)) {
+                buffer.append("|" + secondBookCode);
+                alreadySeenBookCodes.add(secondBookCode);
             }
         }
-        return "/.*(" + buffer.toString().substring(1) + ")[0-9]{5}.*/";
+        return "/.*(" + buffer.toString().substring(1) + ")[0-9]{6}.*/";
     }
 
     @Override
