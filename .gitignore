@@ -77,6 +77,7 @@ full_text_cache_expirer
 full_text_lookup
 full_text_stats
 generate_vufind_translation_files
+get_essay_collection_pdfs
 get_file_media_type_test
 getfilename_test
 getusername_test
