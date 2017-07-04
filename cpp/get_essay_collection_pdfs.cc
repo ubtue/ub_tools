@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
+#include "Downloader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "PerlCompatRegExp.h"
@@ -36,7 +37,7 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_data\n";
+    std::cerr << "Usage: " << ::progname << " [--download-pdfs] marc_data\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -71,9 +72,9 @@ bool IsEssayCollection(const MarcRecord &record) {
 }
 
 
-void ProcessRecords(MarcReader * const marc_reader) {
+void ProcessRecords(MarcReader * const marc_reader, const bool download_pdfs) {
     unsigned record_count(0), until1999_count(0), from2000_to_2009_count(0), after2009_count(0),
-             unhandled_url_count(0), good_count(0);
+        unhandled_url_count(0), good_count(0), download_failure_count(0);
     PerlCompatRegExp year_reg_exp(PerlCompatRegExp("(\\d\\d\\d\\d)"));
     while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
@@ -118,8 +119,13 @@ void ProcessRecords(MarcReader * const marc_reader) {
         else
             ++from2000_to_2009_count;
 
-//        const std::string &control_number(record.getControlNumber());
         ++good_count;
+
+        if (download_pdfs) {
+            const std::string &control_number(record.getControlNumber());
+            if (Download(pdf_url, control_number + ".pdf", 10 /* seconds */) != 0)
+                ++download_failure_count;
+        }
     }
 
     std::cout << "Data set contains " << record_count << " MARC record(s).\n";
@@ -133,13 +139,21 @@ void ProcessRecords(MarcReader * const marc_reader) {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 2)
+    if (argc != 2 and argc != 3)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
+    bool download_pdfs;
+    if (argc == 3) {
+        if (std::strcmp(argv[1], "--download-pdfs") != 0)
+            Usage();
+        download_pdfs = true;
+    } else
+        download_pdfs = false;
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[argc == 2 ? 1 : 2]));
 
     try {
-        ProcessRecords(marc_reader.get());
+        ProcessRecords(marc_reader.get(), download_pdfs);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
