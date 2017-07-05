@@ -29,10 +29,12 @@ class Range {
     }
 
     public static boolean canBeMerged(final Range[] ranges) {
+        int maxUpper = ranges[0].upper;
         for (int i = 1; i < ranges.length; ++i) {
-            if (ranges[i - 1].upper >= ranges[i].lower) {
+            if (ranges[i].lower <= maxUpper) {
                 return true;
             }
+            maxUpper = Math.max(maxUpper, ranges[i].upper);
         }
         
         return false;
@@ -49,7 +51,7 @@ class Range {
         int targetIndex = 0;
         do {
             mergedRange = ranges[sourceIndex];
-            while (++sourceIndex < ranges.length && ranges[sourceIndex].intersects(mergedRange)) {
+            while (++sourceIndex < ranges.length && ranges[sourceIndex].lower <= mergedRange.upper) {
                 mergedRange.upper = Math.max(mergedRange.upper, ranges[sourceIndex].upper);
             }
             mergedRanges[targetIndex] = mergedRange;
