@@ -10,9 +10,10 @@ class Range {
     private int upper;
 
     public static float getMatchingScore(final Range[] fieldRanges, final Range[] queryRanges) {
+        final Range[] mergedFieldRanges = Range.merge(fieldRanges);
         float distance = 0;
-        for (final Range fieldRange : fieldRanges) {
-            distance += Math.max(0, fieldRange.getBestMatchingScore(queryRanges));
+        for (final Range mergedFieldRange : mergedFieldRanges) {
+            distance += Math.max(0, mergedFieldRange.getBestMatchingScore(queryRanges));
         }
         return distance;
     }
@@ -40,7 +41,7 @@ class Range {
         return false;
     }
     
-    public static Range[] Intersect(final Range[] ranges) {
+    public static Range[] merge(final Range[] ranges) {
         if (!Range.canBeMerged(ranges)) {
             return ranges;
         }
