@@ -165,3 +165,5 @@ solrmarc_mixin/bin/
 go/bin/*
 
 cronjobs/README
+
+*nbproject*
