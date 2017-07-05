@@ -43,7 +43,7 @@ class Range {
             return ranges;
         }
 
-        final Range[] mergedRanges = new Range[ranges.length];
+        final Range[] mergedRanges = new Range[ranges.length - 1];
         Range mergedRange;
         int sourceIndex = 0;
         int targetIndex = 0;
@@ -56,10 +56,10 @@ class Range {
             ++targetIndex;
         } while (sourceIndex < ranges.length);
         
-        if (targetIndex == mergedRanges.length - 1) {
+        if (targetIndex == mergedRanges.length) {
             return mergedRanges;
         }
-        return Arrays.copyOf(mergedRanges, targetIndex + 1);
+        return Arrays.copyOf(mergedRanges, targetIndex);
     }
 
     public Range(int lower, int upper) {
