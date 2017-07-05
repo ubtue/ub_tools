@@ -49,7 +49,7 @@ def DownloadCrossrefData(output_marc_filename):
                    "/proc/self/fd/1")
     process = subprocess.Popen(["marc_size", output_marc_filename], stdout=subprocess.PIPE)
     size = process.stdout.readline()
-    return int(size)
+    return int(size) if len(size) > 0 else 0
 
 
 def GenerateRemoteFilename():
