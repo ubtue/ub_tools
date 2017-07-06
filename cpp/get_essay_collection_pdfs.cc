@@ -37,7 +37,7 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--download-pdfs] marc_data\n";
+    std::cerr << "Usage: " << ::progname << " [--download-pdfs limit_count] marc_data\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -72,9 +72,9 @@ bool IsEssayCollection(const MarcRecord &record) {
 }
 
 
-void ProcessRecords(MarcReader * const marc_reader, const bool download_pdfs) {
+void ProcessRecords(MarcReader * const marc_reader, const unsigned pdf_limit_count) {
     unsigned record_count(0), until1999_count(0), from2000_to_2009_count(0), after2009_count(0),
-        unhandled_url_count(0), good_count(0), download_failure_count(0);
+        unhandled_url_count(0), good_count(0), download_failure_count(0), pdf_success_count(0);
     PerlCompatRegExp year_reg_exp(PerlCompatRegExp("(\\d\\d\\d\\d)"));
     while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
@@ -121,15 +121,18 @@ void ProcessRecords(MarcReader * const marc_reader, const bool download_pdfs) {
 
         ++good_count;
 
-        if (download_pdfs) {
+        if (pdf_success_count < pdf_limit_count) {
             const std::string &control_number(record.getControlNumber());
             if (Download(pdf_url, control_number + ".pdf", 10 /* seconds */) != 0)
                 ++download_failure_count;
+            else
+                ++pdf_success_count;
         }
     }
 
     std::cout << "Data set contains " << record_count << " MARC record(s).\n";
-    std::cout << good_count << " records survived all conditions.\n";
+    std::cout << good_count << " records survived all conditions and " << pdf_success_count
+              << " PDFs were sucessfully downloaded.\n";
     std::cout << "Didn't know how to handle " << unhandled_url_count << " URLs.\n";
     std::cout << until1999_count << " came before 2000, " << after2009_count << " after 2009, and "
               << from2000_to_2009_count << " inbetween.\n";
@@ -139,21 +142,22 @@ void ProcessRecords(MarcReader * const marc_reader, const bool download_pdfs) {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 2 and argc != 3)
+    if (argc != 2 and argc != 4)
         Usage();
 
-    bool download_pdfs;
-    if (argc == 3) {
+    unsigned pdf_limit_count;
+    if (argc == 4) {
         if (std::strcmp(argv[1], "--download-pdfs") != 0)
             Usage();
-        download_pdfs = true;
+        if (not StringUtil::ToUnsigned(argv[2], &pdf_limit_count))
+            Error(std::string(argv[2]) + " is not a valid PDF limit count!");
     } else
-        download_pdfs = false;
+        pdf_limit_count = 0;
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[argc == 2 ? 1 : 2]));
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[argc == 2 ? 1 : 3]));
 
     try {
-        ProcessRecords(marc_reader.get(), download_pdfs);
+        ProcessRecords(marc_reader.get(), pdf_limit_count);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
