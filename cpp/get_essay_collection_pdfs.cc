@@ -72,39 +72,73 @@ bool IsEssayCollection(const MarcRecord &record) {
 }
 
 
+std::string GetTOC_URL(const MarcRecord &record) {
+    std::vector<size_t> field_indices;
+    record.getFieldIndices("856", &field_indices);
+    for (const size_t index : field_indices) {
+        const std::string field_contents(record.getFieldData(index));
+        if (field_contents.empty())
+            continue;
+        const Subfields _856_subfields(field_contents);
+        if (likely(_856_subfields.hasSubfield('u'))
+            and _856_subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis"))
+            return _856_subfields.getFirstSubfieldValue('u');
+    }
+
+    return ""; // Found no TOC URL.
+}
+
+
+std::string GetYear(const std::string &tag, const MarcRecord &record) {
+    static PerlCompatRegExp year_reg_exp(PerlCompatRegExp("(\\d\\d\\d\\d)"));
+    const std::string field_contents(record.getFieldData(tag));
+    if (field_contents.empty())
+        return "";
+    const Subfields subfields(field_contents);
+    if (not subfields.hasSubfield('c'))
+        return "";
+    if (not year_reg_exp.match(subfields.getFirstSubfieldValue('c')))
+        return "";
+    return year_reg_exp.getMatchedSubstring(1);
+}
+
+
+std::string GetYear(const MarcRecord &record) {
+    std::string year(GetYear("264", record));
+    if (year.empty())
+        return GetYear("260", record);
+    return year;
+}
+
+
 void ProcessRecords(MarcReader * const marc_reader, const unsigned pdf_limit_count) {
     unsigned record_count(0), until1999_count(0), from2000_to_2009_count(0), after2009_count(0),
         unhandled_url_count(0), good_count(0), download_failure_count(0), pdf_success_count(0);
-    PerlCompatRegExp year_reg_exp(PerlCompatRegExp("(\\d\\d\\d\\d)"));
     while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
 
         if (not IsEssayCollection(record))
             continue;
 
-        const std::string _264_contents(record.getFieldData("264"));
-        if (_264_contents.empty())
+        const std::string year(GetYear(record));
+        if (year.empty())
             continue;
-        const Subfields _264_subfields(_264_contents);
-        if (not _264_subfields.hasSubfield('c'))
-            continue;
-        if (not year_reg_exp.match(_264_subfields.getFirstSubfieldValue('c')))
-            continue;
-        const std::string year(year_reg_exp.getMatchedSubstring(1));
 
-        const std::string _856_contents(record.getFieldData("856"));
-        if (_856_contents.empty())
+        const std::string url(GetTOC_URL(record));
+        if (url.empty())
             continue;
-        const Subfields _856_subfields(_856_contents);
-        if (unlikely(not _856_subfields.hasSubfield('u'))
-            or not _856_subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis"))
-            continue;
-        const std::string url(_856_subfields.getFirstSubfieldValue('u'));
+
         std::string pdf_url;
         if (StringUtil::StartsWith(url, "http://swbplus.bsz-bw.de/bsz") and StringUtil::EndsWith(url, ".htm"))
             pdf_url = url.substr(0, url.length() - 3) + "pdf";
         else if (StringUtil::StartsWith(url, "http://d-nb.info/"))
             pdf_url = url;
+        else if (StringUtil::StartsWith(url, "http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager?pid=")) {
+            pdf_url = url;
+            const size_t first_ampersand_pos(pdf_url.find('&'));
+            if (first_ampersand_pos != std::string::npos)
+                pdf_url.resize(first_ampersand_pos);
+        }
         if (pdf_url.empty()) {
             std::cout << "Bad URL: " << url << '\n';
             ++unhandled_url_count;
