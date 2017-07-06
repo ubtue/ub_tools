@@ -138,7 +138,8 @@ void ProcessRecords(MarcReader * const marc_reader, const unsigned pdf_limit_cou
             const size_t first_ampersand_pos(pdf_url.find('&'));
             if (first_ampersand_pos != std::string::npos)
                 pdf_url.resize(first_ampersand_pos);
-        }
+        } else if (StringUtil::EndsWith(url, ".pdf") or StringUtil::EndsWith(url, ".PDF"))
+            pdf_url = url;
         if (pdf_url.empty()) {
             std::cout << "Bad URL: " << url << '\n';
             ++unhandled_url_count;
