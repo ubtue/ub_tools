@@ -7,7 +7,6 @@ VUFIND_SOLRMARC_HOME=$VUFIND_HOME/import/
 UB_TOOLS_HOME=/usr/local/ub_tools/
 CONFIG_FILE_DIR=$UB_TOOLS_HOME/cpp/data/refterm_solr_conf
 LOGDIR=/mnt/zram/log/ 
-ZRAM_DISK_SIZE=2147483648 # Has to be in bytes in oder to compare the set value.
 
 
 export SOLR_BIN="$VUFIND_HOME"/solr/vendor/bin/
@@ -46,18 +45,8 @@ SetupRamdisk() {
         ErrorExit 'Failed to load ZRAM module!'
     fi
 
-    # Set the RAM disk size:
-    if [[ $(cat /sys/block/zram0/disksize) != "$ZRAM_DISK_SIZE" ]]; then
-        echo "$ZRAM_DISK_SIZE" > /sys/block/zram0/disksize
-        if [[ $(cat /sys/block/zram0/disksize) != "$ZRAM_DISK_SIZE" ]]; then
-            ErrorExit "Failed to set ZRAM disk size to $ZRAM_DISK_SIZE"'!'
-        fi
-    fi
-
-    # Make sure the partition table is not garbled from a previous read
-    if ! partprobe /dev/zram0; then
-        ErrorExit 'Failed to reread partition table'
-    fi
+    /usr/local/sbin/zramctl --reset /dev/zram0
+    /usr/local/sbin/zramctl --size 2GiB /dev/zram0
 
     # Create a file system in RAM...
     if ! mkfs.ext4 -q -m 0 -b 4096 -O sparse_super -L zram /dev/zram0; then
