@@ -47,6 +47,7 @@ def StartPipeline(pipeline_script_name, marc_title, conf):
         delete_solr_ids_args = [ util.default_email_recipient, most_recent_deletion_list ]
         util.ExecOrDie("/usr/local/bin/delete_solr_ids.sh", delete_solr_ids_args, log_file_name)
 
+    log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
     ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), log_file_name)
 
 
