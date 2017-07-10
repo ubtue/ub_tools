@@ -45,7 +45,6 @@ SetupRamdisk() {
         ErrorExit 'Failed to load ZRAM module!'
     fi
 
-    /usr/local/sbin/zramctl --reset /dev/zram0
     /usr/local/sbin/zramctl --size 2GiB /dev/zram0
 
     # Create a file system in RAM...
