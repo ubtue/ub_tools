@@ -41,7 +41,7 @@ SetupRamdisk() {
     # Nothing to do?
     test -e /mnt/zram && mountpoint --quiet /mnt/zram && return
 
-    if ! modprobe zram num_devices=1; then
+    if ! modprobe zram; then
         ErrorExit 'Failed to load ZRAM module!'
     fi
 
