@@ -74,6 +74,9 @@ void ProcessRecord(const bool verbose, MarcRecord * const record, const std::uno
      
      if (not record->getLeader().isMonograph())
          return;
+
+     if (record->isElectronicResource())
+         return;
      
      const size_t _008_index(record->getFieldIndex("008"));
      if (unlikely(_008_index == MarcRecord::FIELD_NOT_FOUND))
