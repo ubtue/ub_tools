@@ -19,8 +19,6 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
 #include <boost/lexical_cast.hpp>
 #include <iostream>
 #include <unordered_map>
@@ -44,19 +42,19 @@ const int PDA_CUTOFF_YEAR(2014);
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] ill_list marc_input marc_output\n"
               << "       Insert an additional field for monographs published after " << PDA_CUTOFF_YEAR << "\n"
-              << "       that are not available in SWB interlibrary loan (show up in the ill_list)\n"
+              << "       that are not available as an SWB interlibrary loan (show up in the ill_list)\n"
               << "       thus providing a set of candidates for Patron Driven Acquisition (PDA)\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File>& ill_list, std::unordered_set<std::string> * const ill_set) {
+void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File> &ill_list, std::unordered_set<std::string> * const ill_set) {
     std::string line;
     int retval;
-    while (retval = ill_list->getline(&line, '\n')) {
+    while (retval = ill_list->getline(&line)) {
         if (not retval) {
             if (unlikely(ill_list->anErrorOccurred()))
-                Error("Error on relaind ill list " + ill_list->getPath());
+                Error("Error while reading ILL list " + ill_list->getPath());
             if (unlikely(ill_list->eof()))
                 return;
         }
@@ -67,8 +65,7 @@ void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File>& ill_list, s
 }
 
 
-void ProcessRecord(const bool verbose, MarcRecord * const record, const std::unordered_set<std::string> * ill_set) {
-
+void ProcessRecord(const bool verbose, MarcRecord * const record, const std::unordered_set<std::string> &ill_set) {
      // We tag a record as potentially PDA if it is 
      // a) a monograph b) published after a given cutoff date c) not in the list of known SWB-ILLs
      
@@ -85,17 +82,17 @@ void ProcessRecord(const bool verbose, MarcRecord * const record, const std::uno
      // Determine publication sort year given in Bytes 7-10 of field 008
      const std::string &_008_contents(record->getFieldData(_008_index));
      try {
-         int publication_year(boost::lexical_cast<int>(_008_contents.substr(7,4)));
+         const int publication_year(boost::lexical_cast<int>(_008_contents.substr(7, 4)));
          if (publication_year < PDA_CUTOFF_YEAR)
              return;
      } catch (boost::bad_lexical_cast const&) {
          if (verbose) 
              std::cerr << "Could not determine publication year for record " << record->getControlNumber()
-                   << " [ " <<  _008_contents.substr(7,4) << " given ]\n";
+                   << " [ " <<  _008_contents.substr(7, 4) << " given ]\n";
          return;
      }
      
-     if (ill_set->find(record->getControlNumber()) == ill_set->end()) {
+     if (ill_set.find(record->getControlNumber()) == ill_set.cend()) {
          if (record->getFieldIndex(POTENTIALLY_PDA_TAG) != MarcRecord::FIELD_NOT_FOUND)
              Error("Field " + POTENTIALLY_PDA_TAG + " already populated for PPN " + record->getControlNumber());
          record->insertSubfield(POTENTIALLY_PDA_TAG, POTENTIALLY_PDA_SUBFIELD, "1");
@@ -108,7 +105,7 @@ void TagRelevantRecords(const bool verbose, MarcReader * const marc_reader, Marc
                         const std::unordered_set<std::string> * ill_set)
 {
     while (MarcRecord record = marc_reader->read()) {
-        ProcessRecord(verbose, &record, ill_set);
+        ProcessRecord(verbose, &record, *ill_set);
         marc_writer->write(record);
         ++record_count;
     }
@@ -138,10 +135,10 @@ int main(int argc, char **argv) {
     const std::string marc_output_filename(argv[3]);
 
     if (unlikely(marc_input_filename == marc_output_filename))
-        Error("Input file equals output file");
+        Error("Input file equals output file!");
 
     if (unlikely(marc_input_filename == ill_list_filename || marc_output_filename == ill_list_filename))
-        Error("ILL File equals marc input or output file");
+        Error("ILL list file equals marc input or output file!");
 
     try {
         std::unordered_set<std::string> ill_set;
@@ -156,7 +153,3 @@ int main(int argc, char **argv) {
         Error("caught exception: " + std::string(x.what()));
     }
 }
-
-
-
-
