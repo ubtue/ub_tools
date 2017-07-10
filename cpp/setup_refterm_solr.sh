@@ -45,8 +45,8 @@ SetupRamdisk() {
         ErrorExit 'Failed to load ZRAM module!'
     fi
 
-    LD_LIBRARY_PATH=/usr/local/lib /usr/local/sbin/zramctl --reset /dev/zram0
-    LD_LIBRARY_PATH=/usr/local/lib /usr/local/sbin/zramctl --size 2GiB /dev/zram0
+    /usr/local/sbin/zramctl --reset /dev/zram0
+    /usr/local/sbin/zramctl --size 2GiB /dev/zram0
 
     # Create a file system in RAM...
     if ! mkfs.ext4 -q -m 0 -b 4096 -O sparse_super -L zram /dev/zram0; then
