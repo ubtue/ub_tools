@@ -264,7 +264,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
 
 
 inline bool IsValidElementFirstCharacter(const int ch) {
-    return TextUtil::UTF32CharIsAsciiLetter(static_cast<char>(ch)) or ch == '_';
+    return TextUtil::UTF32CharIsAsciiLetter(ch) or ch == '_';
 }
 
 
