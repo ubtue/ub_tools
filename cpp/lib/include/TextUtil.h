@@ -150,6 +150,10 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
 bool TrimLastCharFromUTF8Sequence(std::string * const s);
 
 
+bool UTF32CharIsAsciiLetter(const uint32_t ch);
+bool UTF32CharIsAsciiDigit(const uint32_t ch);
+
+
 } // namespace TextUtil
 
 
