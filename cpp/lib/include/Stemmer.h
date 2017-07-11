@@ -4,7 +4,7 @@
 
 #include <string>
 #ifndef LIBSTEMMER_H
-#       include <libstemmer.h>
+#       include "libstemmer.h"
 #       define LIBSTEMMER_H
 #endif
 
