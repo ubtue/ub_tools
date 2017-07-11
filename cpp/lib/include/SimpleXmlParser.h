@@ -26,7 +26,13 @@
 #include <string>
 #include "Compiler.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "XmlUtil.h"
+
+
+#ifndef ARRAY_SIZE
+#    define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+#endif // ifndef ARRAY_SIZE
 
 
 template<typename DataSource> class SimpleXmlParser {
@@ -34,6 +40,8 @@ public:
     enum Type { UNINITIALISED, START_OF_DOCUMENT, END_OF_DOCUMENT, ERROR, OPENING_TAG, CLOSING_TAG, CHARACTERS };
 private:
     DataSource * const input_;
+    unsigned pushed_back_count_;
+    int pushed_back_chars_[2];
     unsigned line_no_;
     Type last_type_;
     std::string last_error_message_;
@@ -63,8 +71,10 @@ public:
 
     static std::string TypeToString(const Type type);
 private:
+    int getUnicodeCodePoint();
     int get();
-    void putback(const char ch);
+    int peek();
+    void unget(const int ch);
     bool extractAttribute(std::string * const name, std::string * const value, std::string * const error_message);
     void parseOptionalPrologue();
     void skipOptionalProcessingInstruction();
@@ -77,26 +87,96 @@ private:
 
 
 template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input)
-    : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr)
+    : input_(input), pushed_back_count_(0), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr)
 {
     parseOptionalPrologue();
 }
 
 
+// See, for example https://en.wikipedia.org/wiki/UTF-8, to understand the implementation.
+template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoint() {
+    int ch(input_->get());
+    if (unlikely(ch == EOF) or likely((ch & 0b10000000) == 0))
+        return ch;
+    int code_point;
+    if ((ch & 0b11100000) == 0b11000000) {
+        code_point = (ch & 0b11111) << 6;
+        ch = input_->get();
+        if (unlikely((ch & 0b11000000) != 0b10000000))
+            throw std::runtime_error("in SimpleXmlParser::::getUnicodeCodePoint: bad UTF-8 sequence! (1)");
+        code_point |= ch & 0b111111;
+    }
+    if ((ch & 0b11110000) == 0b11100000) {
+        code_point = (ch & 0b11111) << 12;
+        ch = input_->get();
+        if (unlikely((ch & 0b11000000) != 0b10000000))
+            throw std::runtime_error("in SimpleXmlParser::::getUnicodeCodePoint: bad UTF-8 sequence! (2)");
+        code_point |= (ch & 0b11111) << 6;
+        ch = input_->get();
+        if (unlikely((ch & 0b11000000) != 0b10000000))
+            throw std::runtime_error("in SimpleXmlParser::::getUnicodeCodePoint: bad UTF-8 sequence! (3)");
+        code_point |= ch & 0b111111;
+    }
+    if ((ch & 0b11111000) == 0b11110000) {
+        code_point = (ch & 0b11111) << 18;
+        ch = input_->get();
+        if (unlikely((ch & 0b11000000) != 0b10000000))
+            throw std::runtime_error("in SimpleXmlParser::::getUnicodeCodePoint: bad UTF-8 sequence! (4)");
+        code_point |= (ch & 0b11111) << 12;
+        ch = input_->get();
+        if (unlikely((ch & 0b11000000) != 0b10000000))
+            throw std::runtime_error("in SimpleXmlParser::::getUnicodeCodePoint: bad UTF-8 sequence! (5)");
+        code_point |= (ch & 0b11111) << 6;
+        ch = input_->get();
+        if (unlikely((ch & 0b11000000) != 0b10000000))
+            throw std::runtime_error("in SimpleXmlParser::::getUnicodeCodePoint: bad UTF-8 sequence! (6)");
+        code_point |= ch & 0b111111;
+    }
+    
+    return code_point;
+}
+
+
 template<typename DataSource> int SimpleXmlParser<DataSource>::get() {
-    const int ch(input_->get());
+    if (unlikely(pushed_back_count_ > 0)) {
+        const int pushed_back_char(pushed_back_chars_[0]);
+        --pushed_back_count_;
+        for (unsigned i(0); i < pushed_back_count_; ++i)
+            pushed_back_chars_[i] = pushed_back_chars_[i + 1];
+        return pushed_back_char;
+    }
+
+    const int ch(getUnicodeCodePoint());
     if (likely(ch != EOF)) {
         if (data_collector_ != nullptr)
-            *data_collector_ += static_cast<char>(ch);
+            *data_collector_ += TextUtil::UTF32ToUTF8(static_cast<uint32_t>(ch));
     }
     return ch;
 }
 
 
-template<typename DataSource> void SimpleXmlParser<DataSource>::putback(const char ch) {
-    input_->putback(ch);
-    if (data_collector_ != nullptr)
-        data_collector_->resize(data_collector_->size() - 1);
+template<typename DataSource> int SimpleXmlParser<DataSource>::peek() {
+    if (unlikely(pushed_back_count_ > 0))
+        return pushed_back_chars_[0];
+    const int ch(get());
+    if (likely(ch != EOF))
+        unget(ch);
+    return ch;
+}
+
+
+template<typename DataSource> void SimpleXmlParser<DataSource>::unget(const int ch) {
+    if (unlikely(pushed_back_count_ == ARRAY_SIZE(pushed_back_chars_)))
+        throw std::runtime_error("in SimpleXmlParser::unget: can't push back "
+                                 + std::to_string(ARRAY_SIZE(pushed_back_chars_)) + " characters in a row!");
+    pushed_back_chars_[pushed_back_count_] = ch;
+    ++pushed_back_count_;
+
+    if (data_collector_ != nullptr) {
+        if (unlikely(not TextUtil::TrimLastCharFromUTF8Sequence(data_collector_)))
+            throw std::runtime_error("in SimpleXmlParser<DataSource>::unget: \"data_collector_\" is an invalid UTF-8"
+                                     " sequence!");
+    }
 }
 
 
@@ -106,7 +186,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::skipWhiteSpace()
         if (unlikely(ch == EOF))
             return;
         if (ch != ' ' and ch != '\t' and ch != '\n' and ch != '\r') {
-            putback(ch);
+            unget(ch);
             return;
         } else if (ch == '\n')
             ++line_no_;
@@ -151,8 +231,8 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractAttribute
 template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPrologue() {
     skipWhiteSpace();
     int ch(get());
-    if (unlikely(ch != '<') or input_->peek() != '?') {
-        putback(ch);
+    if (unlikely(ch != '<') or peek() != '?') {
+        unget(ch);
         return;
     }
     get(); // Skip over '?'.
@@ -183,8 +263,8 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::parseOptionalPro
 }
 
 
-inline bool IsValidElementFirstCharacter(const char ch) {
-    return StringUtil::IsAsciiLetter(static_cast<char>(ch)) or ch == '_';
+inline bool IsValidElementFirstCharacter(const int ch) {
+    return TextUtil::UTF32CharIsAsciiLetter(static_cast<char>(ch)) or ch == '_';
 }
 
 
@@ -192,8 +272,8 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std:
     name->clear();
 
     int ch(get());
-    if (unlikely(ch == EOF or not IsValidElementFirstCharacter(static_cast<char>(ch)))) {
-        putback(ch);
+    if (unlikely(ch == EOF or not IsValidElementFirstCharacter(ch))) {
+        unget(ch);
         return false;
     }
 
@@ -202,10 +282,10 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std:
         ch = get();
         if (unlikely(ch == EOF))
             return false;
-        if (not (StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '_' or ch == ':' or ch == '.'
-                 or ch == '-'))
+        if (not (TextUtil::UTF32CharIsAsciiLetter(ch) or TextUtil::UTF32CharIsAsciiDigit(ch) or ch == '_'
+                 or ch == ':' or ch == '.' or ch == '-'))
         {
-            putback(ch);
+            unget(ch);
             return true;
         }
         *name += static_cast<char>(ch);
@@ -216,8 +296,8 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std:
 template<typename DataSource> void SimpleXmlParser<DataSource>::skipOptionalProcessingInstruction() {
     skipWhiteSpace();
     int ch(get());
-    if (ch != '<' or input_->peek() != '?') {
-        putback(ch);
+    if (ch != '<' or peek() != '?') {
+        unget(ch);
         return;
     }
     get(); // Skip over the '?'.
@@ -280,16 +360,16 @@ collect_next_character:
             }
             if (unlikely(ch == '\n'))
                 ++line_no_;
-            *data += static_cast<char>(ch);
+            *data += TextUtil::UTF32ToUTF8(ch);
         }
-        const int lookahead(input_->peek());
+        const int lookahead(peek());
         if (likely(lookahead != EOF)
-            and unlikely(lookahead != '/' and not IsValidElementFirstCharacter(static_cast<char>(lookahead))))
+            and unlikely(lookahead != '/' and not IsValidElementFirstCharacter(lookahead)))
         {
             *data += '<';
             goto collect_next_character;
         }
-        putback(ch); // Putting back the '<'.
+        unget(ch); // Putting back the '<'.
 
         if (not XmlUtil::DecodeEntities(data)) {
             last_type_ = *type = ERROR;
@@ -308,13 +388,13 @@ collect_next_character:
         if (ch != '<') {
             last_type_ = *type = ERROR;
             last_error_message_ = "Expected '<' on line " + std::to_string(line_no_) + ", found '"
-                                  + std::string(1, static_cast<char>(ch)) + "' instead!";
+                                  + TextUtil::UTF32ToUTF8(ch)) + "' instead!";
             return false;
         }
 
         // If we're at the beginning, we may have an XML prolog:
-        if (unlikely(last_type_ == UNINITIALISED) and input_->peek() == '?') {
-            putback(ch);
+        if (unlikely(last_type_ == UNINITIALISED) and peek() == '?') {
+            unget(ch);
             parseOptionalPrologue();
             last_type_ = *type = START_OF_DOCUMENT;
             return true;
@@ -330,7 +410,7 @@ collect_next_character:
 
             last_type_ = *type = CLOSING_TAG;
         } else { // An opening tag.
-            putback(ch);
+            unget(ch);
 
             std::string error_message;
             if (unlikely(not parseOpeningTag(data, attrib_map, &error_message))) {
