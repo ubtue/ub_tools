@@ -48,11 +48,13 @@ void Usage() {
 }
 
 
-void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File> &ill_list, std::unordered_set<std::string> * const ill_set) {
+void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File>& ill_list,
+                    std::unordered_set<std::string> * const ill_set)
+{
     std::string line;
-    int retval;
-    while (retval = ill_list->getline(&line)) {
-        if (not retval) {
+    int line_size;
+    while ((line_size = ill_list->getline(&line))) {
+        if (line_size == 0) {
             if (unlikely(ill_list->anErrorOccurred()))
                 Error("Error while reading ILL list " + ill_list->getPath());
             if (unlikely(ill_list->eof()))
