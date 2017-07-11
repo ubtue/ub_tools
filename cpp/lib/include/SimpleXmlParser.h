@@ -104,7 +104,7 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
         ch = input_->get();
         if (unlikely((ch & 0b11000000) != 0b10000000))
             throw std::runtime_error("in SimpleXmlParser::::getUnicodeCodePoint: bad UTF-8 sequence! (1)");
-        code_point |= ch & 0b111111;
+        return code_point |= ch & 0b111111;
     }
     if ((ch & 0b11110000) == 0b11100000) {
         code_point = (ch & 0b1111) << 12;
@@ -115,7 +115,7 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
         ch = input_->get();
         if (unlikely((ch & 0b11000000) != 0b10000000))
             throw std::runtime_error("in SimpleXmlParser::::getUnicodeCodePoint: bad UTF-8 sequence! (3)");
-        code_point |= ch & 0b111111;
+        return code_point |= ch & 0b111111;
     }
     if ((ch & 0b11111000) == 0b11110000) {
         code_point = (ch & 0b111) << 18;
@@ -130,10 +130,10 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
         ch = input_->get();
         if (unlikely((ch & 0b11000000) != 0b10000000))
             throw std::runtime_error("in SimpleXmlParser::::getUnicodeCodePoint: bad UTF-8 sequence! (6)");
-        code_point |= ch & 0b111111;
+        return code_point |= ch & 0b111111;
     }
     
-    return code_point;
+    throw std::runtime_error("in SimpleXmlParser::::getUnicodeCodePoint: bad UTF-8 sequence! (7)");
 }
 
 
