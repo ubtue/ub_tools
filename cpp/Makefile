@@ -2,7 +2,7 @@ INC            = lib/include
 LIB_SRCS       = lib/src
 CCC            ?= clang++
 CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
-                 -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
+                 -Ilib/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
                  -DETC_DIR='"/var/lib/tuelib"'
 ifeq ($(CCC),clang++)
   CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
