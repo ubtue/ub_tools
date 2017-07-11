@@ -483,4 +483,14 @@ bool TrimLastCharFromUTF8Sequence(std::string * const s) {
 }
 
 
+bool UTF32CharIsAsciiLetter(const uint32_t ch) {
+    return ('A' <= ch and ch <= 'Z') or ('a' <= ch and ch <= 'z');
+}
+
+
+bool UTF32CharIsAsciiDigit(const uint32_t ch) {
+    return '0' <= ch and ch <= '9';
+}
+
+
 } // namespace TextUtil
