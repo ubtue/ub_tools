@@ -461,19 +461,19 @@ bool TrimLastCharFromUTF8Sequence(std::string * const s) {
     switch (s->length() - i) {
     case 2:
         if (((*s)[i] & 0b11100000) == 0b11000000) {
-            s->resize(s->length() - 2));
+            s->resize(s->length() - 2);
             return true;
         }
         return false;
     case 3:
         if (((*s)[i] & 0b11110000) == 0b11100000) {
-            s->resize(s->length() - 3));
+            s->resize(s->length() - 3);
             return true;
         }
         return false;
     case 4:
         if (((*s)[i] & 0b11111000) == 0b11110000) {
-            s->resize(s->length() - 4));
+            s->resize(s->length() - 4);
             return true;
         }
         return false;
