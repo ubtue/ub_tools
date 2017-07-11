@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
             std::cout << "The number of rows in the result set is " << result_set.size() << ".\n";
 
         DbRow row;
-        while (row = result_set.getNextRow()) {
+        while ((row = result_set.getNextRow())) {
             const size_t field_count(row.size());
             if (not raw)
                 std::cout << "The current row has " << field_count << " fields.\n";
