@@ -37,7 +37,7 @@ void GetLanguageCodes(DbConnection * const db_connection, std::vector<std::strin
     db_connection->queryOrDie("SELECT DISTINCT language_code FROM vufind_translations;");
     DbResultSet result_set(db_connection->getLastResultSet());
     DbRow row;
-    while (row = result_set.getNextRow())
+    while ((row = result_set.getNextRow()))
         language_codes->emplace_back(row["language_code"]);
 }
 
