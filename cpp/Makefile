@@ -1,11 +1,13 @@
 INC            = lib/include
 LIB_SRCS       = lib/src
 CCC            ?= clang++
-CCCFLAGS       = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Wno-c++14-binary-literal \
-                 -march=native -O3 -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 \
-                 -I$(INC) -ftrapv -DETC_DIR='"/var/lib/tuelib"'
+CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
+                 -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
+                 -DETC_DIR='"/var/lib/tuelib"'
 ifeq ($(CCC),clang++)
-  CCCFLAGS += -Wno-vla-extension
+  CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
+else
+  CCCFLAGS += -std=gnu++14
 endif
 CCCFLAGS_AMD64 = $(subst -march=native,,$(CCCFLAGS))
 OBJ            = .
