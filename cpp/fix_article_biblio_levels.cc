@@ -7,7 +7,7 @@
  */
 
 /*
-    Copyright (C) 2015,2016, Library of the University of Tübingen
+    Copyright (C) 2015-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
 
     const bool verbose(std::strcmp(argv[1], "--verbose") == 0);
 
-    if (verbose and argc < 4 or not verbose and argc < 3)
+    if ((verbose and argc < 4) or (not verbose and argc < 3))
         Usage();
 
     std::vector<std::unique_ptr<MarcReader>> marc_readers;
