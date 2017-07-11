@@ -388,7 +388,7 @@ collect_next_character:
         if (ch != '<') {
             last_type_ = *type = ERROR;
             last_error_message_ = "Expected '<' on line " + std::to_string(line_no_) + ", found '"
-                                  + TextUtil::UTF32ToUTF8(ch)) + "' instead!";
+                                  + TextUtil::UTF32ToUTF8(ch) + "' instead!";
             return false;
         }
 
