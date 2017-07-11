@@ -6,9 +6,9 @@ TEMP       = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
 OBJS       = $(TEMP:.cc=.o)
 AMD64_OBJS = $(TEMP:.cc=_amd64.o)
 CCC        ?= clang++
-CCCFLAGS   = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include \
-             -O3 -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) -ftrapv \
-             -DETC_DIR='"/var/lib/tuelib"'
+CCCFLAGS   = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Wno-c++14-binary-literal \
+             -march=native -O3 -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 \
+             -I$(INC) -ftrapv -DETC_DIR='"/var/lib/tuelib"'
 ifeq ($(CCC),clang++)
   CCCFLAGS += -Wno-vla-extension
 endif
