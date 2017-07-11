@@ -444,4 +444,31 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
 }
 
 
+// See https://en.wikipedia.org/wiki/UTF-8 in order to understand this implementation.
+bool TrimLastCharFromUTF8Sequence(std::string * const s) {
+    if (unlikely(s->empty()))
+        return false;
+    if (likely((s->back() & 0b10000000) == 0b00000000)) {
+        s->resize(s->length() - 1);
+        return true;
+    }
+
+    int i(s->length() - 1);
+    while (i > 0 and ((*s)[i] & 0b11000000) == 0b10000000)
+        --i;
+    if (unlikely(i == 0))
+        return false;
+    switch (s->length() - i) {
+    case 2:
+        return ((*s)[i] & 0b11100000) == 0b11000000;
+    case 3:
+        return ((*s)[i] & 0b11110000) == 0b11100000;
+    case 4:
+        return ((*s)[i] & 0b11111000) == 0b11110000;
+    default:
+        return false;
+    }
+}
+
+
 } // namespace TextUtil

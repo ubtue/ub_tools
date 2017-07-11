@@ -144,6 +144,12 @@ std::string Base64Encode(const std::string &s, const char symbol63 = '+', const 
 std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace = false);
 
 
+/** \brief Removes the final UTF-8 logical character from "*s".
+ *  \return True if we succeeded and false if "*s" is empty or malformed UTF-8.
+ */
+bool TrimLastCharFromUTF8Sequence(std::string * const s);
+
+
 } // namespace TextUtil
 
 
