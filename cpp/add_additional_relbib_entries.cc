@@ -76,7 +76,7 @@ void SetupRelBibRelevantSet(std::unordered_set<std::string> * const relbib_relev
     std::unique_ptr<File> relbib_relevant(FileUtil::OpenInputFileOrDie(RELBIB_RELEVANT_IDS_FILENAME));
     std::string line;
     int retval;
-    while (retval = relbib_relevant->getline(&line, '\n')) {
+    while ((retval = relbib_relevant->getline(&line, '\n'))) {
         if (not retval) {
             if (unlikely(relbib_relevant->anErrorOccurred()))
                 Error("Error on reading in relbib relevant file " + relbib_relevant->getPath());
