@@ -176,7 +176,7 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
                       const std::string &books_of_the_bible_to_code_map_filename,
                       const std::string &bible_reference_candidate)
 {
-    const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory("^([12])-([23])\\s*([A-Za-z]+)\\s*$"));
+    const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory("^([12])-([23])\\s*([A-ZÖa-zö]+)\\s*$"));
     if (not matcher->matched(bible_reference_candidate))
         return;
 
