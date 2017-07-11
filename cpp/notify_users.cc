@@ -398,7 +398,7 @@ int main(int argc, char *argv[]) {
         connection.queryOrDie("SELECT id,email FROM user");
         DbResultSet result_set(connection.getLastResultSet());
         DbRow row;
-        while (row = result_set.getNextRow()) {
+        while ((row = result_set.getNextRow())) {
             const std::string id(row[0]);
             const std::string email_address(row[1]);
             if (not ProcessUser(id, email_address, &connection))
