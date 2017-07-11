@@ -541,7 +541,7 @@ void GetAsciiTableForQuery(DbConnection &db_connection,
             continue;
         row_values[index] = "<td>" + db_row["translation"] + "</td>";
 
-    } while (db_row = result_set.getNextRow());
+    } while ((db_row = result_set.getNextRow()));
     rows->emplace_back(StringUtil::Join(row_values, ""));
 }
 
