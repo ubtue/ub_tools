@@ -24,7 +24,7 @@
   Config files for this program look like this:
 
 [Files]
-deletion_list          = LOEPPN-\d{6}
+deletion_list          = LOEPPN(?:_m)?-\d{6}
 complete_dump          = SA-MARC-ixtheo-\d{6}.tar.gz
 incremental_dump       = (:?TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-\d{6}.tar.gz
 complete_dump_linkname = SA-MARC-ixtheo-current.tar.gz
