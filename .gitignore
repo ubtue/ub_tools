@@ -45,6 +45,7 @@ compress_test
 control_number_filter
 convert_bible_references
 convert_oai_pmh_dc_to_marc21
+convert_utf8_to_utf32_and_back_test
 convert_xml_to_marc21
 count_gnd_refs
 create_author_synonym_map
