@@ -218,27 +218,27 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 std::string UTF32ToUTF8(const uint32_t code_point) {
     std::string utf8;
 
-    if (code_point <= 0x80u)
+    if (code_point <= 0x7Fu)
         utf8 += static_cast<char>(code_point);
-    else if (code_point <= 0x800u) {
+    else if (code_point <= 0x7FFu) {
         utf8 += static_cast<char>(0xC0u | (code_point >> 6u));
         utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
-    } else if (code_point <= 0x10000) {
+    } else if (code_point <= 0xFFFF) {
         utf8 += static_cast<char>(0xE0u | (code_point >> 12u));
         utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
         utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
-    } else if (code_point <= 0x200000) {
+    } else if (code_point <= 0x1FFFFF) {
         utf8 += static_cast<char>(0xF0u | (code_point >> 18u));
         utf8 += static_cast<char>(0x80u | ((code_point >> 12u) & 0x3Fu));
         utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
         utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
-    } else if (code_point <= 0x4000000) {
+    } else if (code_point <= 0x3FFFFFF) {
         utf8 += static_cast<char>(0xF8u | (code_point >> 24u));
         utf8 += static_cast<char>(0x80u | ((code_point >> 18u) & 0x3Fu));
         utf8 += static_cast<char>(0x80u | ((code_point >> 12u) & 0x3Fu));
         utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
         utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
-    } else if (code_point <= 0x80000000) {
+    } else if (code_point <= 0x7FFFFFFF) {
         utf8 += static_cast<char>(0xFCu | (code_point >> 30u));
         utf8 += static_cast<char>(0x80u | ((code_point >> 24u) & 0x3Fu));
         utf8 += static_cast<char>(0x80u | ((code_point >> 18u) & 0x3Fu));
