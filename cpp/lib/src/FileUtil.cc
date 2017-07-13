@@ -85,6 +85,16 @@ bool ReadString(const std::string &path, std::string * const data) {
 }
 
 
+bool AppendString(const std::string &path, const std::string &data) {
+    std::ofstream output(path, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+    if (output.fail())
+        return false;
+
+    output.write(data.data(), data.size());
+    return not output.bad();
+}
+
+
 // AccessErrnoToString -- Converts an errno set by access(2) to a string.
 //                        The string values were copied and pasted from a Linux man page.
 //
@@ -96,7 +106,7 @@ std::string AccessErrnoToString(int errno_to_convert, const std::string &pathnam
         return "The requested access would be denied to the file or search"
             " permission is denied to one of the directories in '" + pathname + "'";
     case EROFS:
-        return "Write  permission  was  requested  for  a  file  on  a read-only filesystem.";
+        return "Write permission was requested for a file on a read-only filesystem.";
     case EFAULT:
         return "'" + pathname + "' points outside your accessible address space.";
     case EINVAL:
@@ -105,7 +115,7 @@ std::string AccessErrnoToString(int errno_to_convert, const std::string &pathnam
         return "'" + pathname + "' is too long.";
     case ENOENT:
         return "A directory component in '" + pathname + "' would have been accessible but"
-            " does not exist or was a dangling symbolic link.";
+               " does not exist or was a dangling symbolic link.";
     case ENOTDIR:
         return "A component used as a directory in '" + pathname + "' is not, in fact, a directory.";
     case ENOMEM:
@@ -365,7 +375,7 @@ bool MakeDirectory(const std::string &path, const bool recursive, const mode_t m
 
     return true;
 }
-    
+
 
 static void CloseDirWhilePreservingErrno(DIR * const dir_handle) {
     const int old_errno(errno);
@@ -385,7 +395,7 @@ bool RemoveDirectory(const std::string &dir_name) {
             continue;
 
         const std::string path(dir_name + "/" + std::string(entry->d_name));
- 
+
         if (entry->d_type == DT_DIR) {
             if (unlikely(not RemoveDirectory(path))) {
                 CloseDirWhilePreservingErrno(dir_handle);
@@ -816,7 +826,7 @@ bool FilesDiffer(const std::string &path1, const std::string &path2) {
     File input1(path1, "r");
     if (not input1)
         throw std::runtime_error("in FileUtil::FilesDiffer: failed to open \"" + path1 + "\" for reading!");
-    
+
     File input2(path2, "r");
     if (not input2)
         throw std::runtime_error("in FileUtil::FilesDiffer: failed to open \"" + path2 + "\" for reading!");
@@ -827,7 +837,7 @@ bool FilesDiffer(const std::string &path1, const std::string &path2) {
         if (unlikely(read_count1 < BUFSIZ) and input1.anErrorOccurred())
             throw std::runtime_error("in FileUtil::FilesDiffer: an error occurred while trying to read \"" + path1
                                      + "\"!");
-        
+
         char buf2[BUFSIZ];
         const size_t read_count2(input2.read(reinterpret_cast<void *>(buf2), BUFSIZ));
         if (unlikely(read_count2 < BUFSIZ) and input2.anErrorOccurred())
@@ -836,7 +846,7 @@ bool FilesDiffer(const std::string &path1, const std::string &path2) {
 
         if (read_count1 != read_count2 or std::memcmp(buf1, buf2, BUFSIZ) != 0)
             return true;
-    
+
         if (read_count1 < BUFSIZ)
             return false;
     }
@@ -848,6 +858,6 @@ void AppendStringToFile(const std::string &path, const std::string &text) {
     if (unlikely(file->write(text.data(), text.size()) != text.size()))
         Error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
 }
-    
+
 
 } // namespace FileUtil

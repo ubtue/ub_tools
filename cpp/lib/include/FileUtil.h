@@ -77,6 +77,10 @@ bool WriteString(const std::string &path, const std::string &data);
 bool ReadString(const std::string &path, std::string * const data);
 
 
+/** \brief Append "data" to "path".  If "path" does not exist, it will be created. */
+bool AppendString(const std::string &path, const std::string &data);
+
+
 /** \brief  Does the named file (or directory) exist?.
  *  \param  path           The path of the file.
  *  \param  error_message  Where to store an error message if an error occurred.
