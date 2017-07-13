@@ -117,6 +117,8 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::get() {
         --pushed_back_count_;
         for (unsigned i(0); i < pushed_back_count_; ++i)
             pushed_back_chars_[i] = pushed_back_chars_[i + 1];
+        if (data_collector_ != nullptr)
+            *data_collector_ += TextUtil::UTF32ToUTF8(pushed_back_char);
         return pushed_back_char;
     }
 
@@ -148,8 +150,8 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::unget(const int 
 
     if (data_collector_ != nullptr) {
         if (unlikely(not TextUtil::TrimLastCharFromUTF8Sequence(data_collector_)))
-            throw std::runtime_error("in SimpleXmlParser<DataSource>::unget: \"data_collector_\" is an invalid UTF-8"
-                                     " sequence!");
+            throw std::runtime_error("in SimpleXmlParser<DataSource>::unget: \"" + *data_collector_
+                                     + "\" is an invalid UTF-8 sequence!");
     }
 }
 
