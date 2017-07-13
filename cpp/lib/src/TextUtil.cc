@@ -448,7 +448,7 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
 bool TrimLastCharFromUTF8Sequence(std::string * const s) {
     if (unlikely(s->empty()))
         return false;
-    
+
     int i(s->length() - 1);
     while (i >=0 and ((*s)[i] & 0b11000000) == 0b10000000)
         --i;
@@ -457,8 +457,8 @@ bool TrimLastCharFromUTF8Sequence(std::string * const s) {
 
     switch (s->length() - i) {
     case 1:
-        if (((*s)[i] & 0b11000000) == 0b10000000) {
-            s->resize(s->length() - 2);
+        if (((*s)[i] & 0b10000000) == 0b00000000) {
+            s->resize(s->length() - 1);
             return true;
         }
         return false;
