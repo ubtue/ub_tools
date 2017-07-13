@@ -516,7 +516,7 @@ bool UTF8ToUTF32Decoder::addByte(const char ch) {
         utf32_char_ |= (static_cast<unsigned char>(ch) & 0b00111111);
     }
 
-    return required_count_ == 0;
+    return required_count_ != 0;
 }
 
 
