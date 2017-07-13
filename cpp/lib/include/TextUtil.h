@@ -162,6 +162,9 @@ public:
 
     /** Feed bytes into this until it returns false.  Then call getCodePoint() to get the translated UTF32 code
      *  point.  Then you can call this function again.
+     *
+     * \return True if we need more bytes to complete a UTF-8 single-code-point sequence, false if a sequence has
+     *         been decoded, signalling that getUTF32Char() should be called now.
      */
     bool addByte(const char ch);
 
