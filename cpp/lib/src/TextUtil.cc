@@ -246,8 +246,8 @@ std::string UTF32ToUTF8(const uint32_t code_point) {
         utf8 += static_cast<char>(0b10000000u | ((code_point >> 6u) & 0b00111111u));
         utf8 += static_cast<char>(0b10000000u | (code_point & 0b00111111u));
     } else
-        throw std::runtime_error("in TextUtil::UnicodeToUTF8: invalid Unicode code point 0x"
-                                 + StringUtil::ToString(code_point, 16) + "!");
+        throw std::runtime_error("in TextUtil::UTF32ToUTF8: invalid Unicode code point 0x"
+                                 + StringUtil::ToHexString(code_point) + "!");
 
     return utf8;
 }
@@ -511,7 +511,7 @@ bool UTF8ToUTF32Decoder::addByte(const char ch) {
             utf32_char_ = static_cast<unsigned char>(ch) & 0b111;
             required_count_ = 3;
         } else
-            throw std::runtime_error("in TextUtil::UTF8ToUnicodeCodePointStreamDecoder::addByte: bad UTF-8 byte "
+            throw std::runtime_error("in TextUtil::UTF8ToUTF32Decoder::addByte: bad UTF-8 byte "
                                      "sequence! (partial utf32_char: 0x" + StringUtil::ToHexString(utf32_char_)
                                      + ", current char 0x" + StringUtil::ToHexString(ch) + ")");
     } else if (required_count_ > 0) {
