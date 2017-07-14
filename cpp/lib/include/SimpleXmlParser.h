@@ -123,10 +123,8 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::get() {
     }
 
     const int ch(getUnicodeCodePoint());
-    if (likely(ch != EOF)) {
-        if (data_collector_ != nullptr)
-            *data_collector_ += TextUtil::UTF32ToUTF8(static_cast<uint32_t>(ch));
-    }
+    if (likely(ch != EOF) and data_collector_ != nullptr)
+        *data_collector_ += TextUtil::UTF32ToUTF8(ch );
     return ch;
 }
 
@@ -143,9 +141,11 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::peek() {
 
 template<typename DataSource> void SimpleXmlParser<DataSource>::unget(const int ch) {
     if (unlikely(pushed_back_count_ == ARRAY_SIZE(pushed_back_chars_)))
-        throw std::runtime_error("in SimpleXmlParser::unget: can't push back "
+        throw std::runtime_error("in SimpleXmlParser::unget: can't push back more than "
                                  + std::to_string(ARRAY_SIZE(pushed_back_chars_)) + " characters in a row!");
-    pushed_back_chars_[pushed_back_count_] = ch;
+    for (unsigned i(pushed_back_count_); i > 0; --i)
+        pushed_back_chars_[i] = pushed_back_chars_[i - i];
+    pushed_back_chars_[0] = ch;
     ++pushed_back_count_;
 
     if (data_collector_ != nullptr) {
