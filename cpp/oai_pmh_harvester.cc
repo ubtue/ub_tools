@@ -114,6 +114,7 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
         Error("server returned a status code of " + std::to_string(status_code) + "!");
 
     const std::string message_body(downloader.getMessageBody());
+if (not FileUtil::AppendString("/tmp/message_body", message_body))Error("FileUtil::AppendString failed!");
     std::string extracted_records;
     StringDataSource data_source(message_body);
     SimpleXmlParser<StringDataSource> xml_parser(&data_source);

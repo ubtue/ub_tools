@@ -91,7 +91,7 @@ public:
                         const long max_redirect_count = DEFAULT_MAX_REDIRECTS,
                         const long dns_cache_timeout = DEFAULT_DNS_CACHE_TIMEOUT,
                         const bool honour_robots_dot_txt = false,
-                        const TextTranslationMode text_translation_mode = MAP_TO_LATIN9,
+                        const TextTranslationMode text_translation_mode = TRANSPARENT,
                         const PerlCompatRegExps &banned_reg_exps = PerlCompatRegExps(), const bool debugging = false,
                         const bool follow_redirects = true);
     } params_;
