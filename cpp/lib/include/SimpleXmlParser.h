@@ -489,7 +489,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseOpeningTag(
 
         skipWhiteSpace();
     }
-    if (not error_message->empty())
+    if (unlikely(not error_message->empty()))
         return false;
 
     return true;
