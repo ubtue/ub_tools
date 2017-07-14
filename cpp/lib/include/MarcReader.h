@@ -97,8 +97,8 @@ public:
     virtual void rewind() final;
 private:
     void parseLeader(const std::string &input_filename, Leader * const leader);
-    DirectoryEntry parseControlfield(const std::string &input_filename, const std::string &tag,
-                                     std::string &raw_data);
+    bool parseControlfield(const std::string &input_filename, const std::string &tag,
+                           DirectoryEntry *dir_entry, std::string * const raw_data);
     DirectoryEntry parseDatafield(const std::string &input_filename,
                                   const std::map<std::string, std::string> &datafield_attrib_map,
                                   std::string tag, std::string &raw_data);
