@@ -459,6 +459,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
     last_type_              = UNINITIALISED;
     last_element_was_empty_ = false;
     data_collector_         = nullptr;
+    pushed_back_count_      = 0;
 
     parseOptionalPrologue();
 }
