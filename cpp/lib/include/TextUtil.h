@@ -154,6 +154,24 @@ bool UTF32CharIsAsciiLetter(const uint32_t ch);
 bool UTF32CharIsAsciiDigit(const uint32_t ch);
 
 
+class UTF8ToUTF32Decoder {
+    int required_count_;
+    uint32_t utf32_char_;
+public:
+    UTF8ToUTF32Decoder(): required_count_(-1) { }
+
+    /** Feed bytes into this until it returns false.  Then call getCodePoint() to get the translated UTF32 code
+     *  point.  Then you can call this function again.
+     *
+     * \return True if we need more bytes to complete a UTF-8 single-code-point sequence, false if a sequence has
+     *         been decoded, signalling that getUTF32Char() should be called now.
+     */
+    bool addByte(const char ch);
+
+    uint32_t getUTF32Char() { required_count_ = -1; return utf32_char_; }
+};
+
+
 } // namespace TextUtil
 
 
