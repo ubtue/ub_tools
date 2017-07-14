@@ -95,7 +95,6 @@ template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataS
 }
 
 
-// See, for example https://en.wikipedia.org/wiki/UTF-8, to understand the implementation.
 template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoint() {
     int ch(input_->get());
     if (unlikely(ch == EOF))
