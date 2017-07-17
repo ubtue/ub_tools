@@ -233,7 +233,7 @@ SSL_CTX *SslConnection::InitClient(const Method method) {
                                      "DTLSv1_client_method from libssl.so!");
     }
 
-    return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? stream_client_method() : DTLS_client_method());
+    return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? stream_client_method() : datagram_client_method());
 }
 
 
@@ -260,7 +260,7 @@ SSL_CTX *SslConnection::InitServer(const Method method) {
                                      "DTLSv1_server_method from libssl.so!");
     }
 
-    return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? SSLv23_server_method() : DTLS_server_method());
+    return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? stream_server_method() : datagram_server_method());
 }
 
 
@@ -287,5 +287,5 @@ SSL_CTX *SslConnection::InitClientAndServer(const Method method) {
                                      "DTLSv1_method from libssl.so!");
     }
 
-    return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? SSLv23_method() : DTLS_method());
+    return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? stream_method() : datagram_method());
 }
