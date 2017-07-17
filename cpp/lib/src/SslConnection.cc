@@ -256,7 +256,7 @@ SSL_CTX *SslConnection::InitServer(const Method method) {
         ssl_method = ::TLSv1_2_server_method();
         break;
     case ALL_STREAM_METHODS:
-        ssl_method = ::SSLv23_server_method();
+        ssl_method = ::TLS_server_method();
         break;
     case DTLS_V1:
         ssl_method = ::DTLSv1_server_method();
