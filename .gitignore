@@ -45,6 +45,7 @@ compress_test
 control_number_filter
 convert_bible_references
 convert_oai_pmh_dc_to_marc21
+convert_utf8_to_utf32_and_back_test
 convert_xml_to_marc21
 count_gnd_refs
 create_author_synonym_map
@@ -77,6 +78,7 @@ full_text_cache_expirer
 full_text_lookup
 full_text_stats
 generate_vufind_translation_files
+get_essay_collection_pdfs
 get_file_media_type_test
 getfilename_test
 getusername_test
@@ -164,3 +166,5 @@ solrmarc_mixin/bin/
 go/bin/*
 
 cronjobs/README
+
+*nbproject*

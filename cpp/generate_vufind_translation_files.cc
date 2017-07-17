@@ -39,15 +39,18 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " output_directory_path\n";
+    std::cerr << "Usage: " << ::progname << " [--verbose] output_directory_path\n";
     std::exit(EXIT_FAILURE);
 }
 
 
 // Generates a XX.ini output file with entries like the original file.  The XX is a 2-letter language code.
-void ProcessLanguage(const std::string &output_file_path, const std::string &_3letter_code,
+void ProcessLanguage(const bool verbose, const std::string &output_file_path, const std::string &_3letter_code,
                      DbConnection * const db_connection)
 {
+    if (verbose)
+        std::cerr << "Processing language code: " << _3letter_code << '\n';
+
     std::unordered_map<std::string, std::pair<unsigned, std::string>> token_to_line_no_and_other_map;
     TranslationUtil::ReadIniFile(output_file_path, &token_to_line_no_and_other_map);
 
@@ -64,6 +67,8 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
     DbResultSet result_set(db_connection->getLastResultSet());
     if (unlikely(result_set.empty()))
         Error("found no translations for language code \"" + _3letter_code + "\"!");
+    if (verbose)
+        std::cerr << "\tFound " << result_set.size() << " (token,translation) pairs.\n";
 
     std::vector<std::tuple<unsigned, std::string, std::string>> line_nos_tokens_and_translations;
     while (const DbRow row = result_set.getNextRow()) {
@@ -86,12 +91,15 @@ void ProcessLanguage(const std::string &output_file_path, const std::string &_3l
             output << token << " = \"" << translation << "\"\n";
     }
 
-    std::cout << "Wrote " << line_nos_tokens_and_translations.size() << " language mappings to \""
-              << output_file_path << "\"\n";
+    if (verbose)
+        std::cerr << "Wrote " << line_nos_tokens_and_translations.size() << " language mappings to \""
+                  << output_file_path << "\"\n";
 }
 
 
-void GetLanguageCodes(DbConnection * const db_connection, std::map<std::string, std::string> * language_codes) {
+void GetLanguageCodes(const bool verbose, DbConnection * const db_connection,
+                      std::map<std::string, std::string> * language_codes)
+{
     db_connection->queryOrDie("SELECT DISTINCT language_code FROM vufind_translations");
     DbResultSet language_codes_result_set(db_connection->getLastResultSet());
     if (unlikely(language_codes_result_set.empty()))
@@ -106,6 +114,9 @@ void GetLanguageCodes(DbConnection * const db_connection, std::map<std::string, 
             TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode(german_language_code));
         language_codes->emplace(international_language_code, row[0]);
     }
+    if (verbose)
+        std::cerr << "Found " << language_codes->size()
+                  << " distinct language code in the \"vufind_translations\" table.\n";
 }
 
 
@@ -115,6 +126,13 @@ const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
+    if (argc < 2)
+        Usage();
+    bool verbose(false);
+    if (std::strcmp(argv[1], "--verbose") == 0) {
+        verbose = true;
+        --argc, ++argv;
+    }
     if (argc != 2)
         Usage();
 
@@ -130,9 +148,10 @@ int main(int argc, char **argv) {
         DbConnection db_connection(sql_database, sql_username, sql_password);
 
         std::map<std::string, std::string> _2letter_and_3letter_codes;
-        GetLanguageCodes(&db_connection, &_2letter_and_3letter_codes);
+        GetLanguageCodes(verbose, &db_connection, &_2letter_and_3letter_codes);
         for (const auto &_2letter_intl_code_and_fake_3letter_english_code : _2letter_and_3letter_codes)
-            ProcessLanguage(output_directory + "/" + _2letter_intl_code_and_fake_3letter_english_code.first + ".ini",
+            ProcessLanguage(verbose,
+                            output_directory + "/" + _2letter_intl_code_and_fake_3letter_english_code.first + ".ini",
                             _2letter_intl_code_and_fake_3letter_english_code.second, &db_connection);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));

@@ -218,36 +218,36 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 std::string UTF32ToUTF8(const uint32_t code_point) {
     std::string utf8;
 
-    if (code_point <= 0x80u)
+    if (code_point <= 0x7Fu)
         utf8 += static_cast<char>(code_point);
-    else if (code_point <= 0x800u) {
-        utf8 += static_cast<char>(0xC0u | (code_point >> 6u));
-        utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
-    } else if (code_point <= 0x10000) {
-        utf8 += static_cast<char>(0xE0u | (code_point >> 12u));
-        utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
-        utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
-    } else if (code_point <= 0x200000) {
-        utf8 += static_cast<char>(0xF0u | (code_point >> 18u));
-        utf8 += static_cast<char>(0x80u | ((code_point >> 12u) & 0x3Fu));
-        utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
-        utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
-    } else if (code_point <= 0x4000000) {
-        utf8 += static_cast<char>(0xF8u | (code_point >> 24u));
-        utf8 += static_cast<char>(0x80u | ((code_point >> 18u) & 0x3Fu));
-        utf8 += static_cast<char>(0x80u | ((code_point >> 12u) & 0x3Fu));
-        utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
-        utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
-    } else if (code_point <= 0x80000000) {
-        utf8 += static_cast<char>(0xFCu | (code_point >> 30u));
-        utf8 += static_cast<char>(0x80u | ((code_point >> 24u) & 0x3Fu));
-        utf8 += static_cast<char>(0x80u | ((code_point >> 18u) & 0x3Fu));
-        utf8 += static_cast<char>(0x80u | ((code_point >> 12u) & 0x3Fu));
-        utf8 += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
-        utf8 += static_cast<char>(0x80u | (code_point & 0x3Fu));
+    else if (code_point <= 0x7FFu) {
+        utf8 += static_cast<char>(0b11000000u | (code_point >> 6u));
+        utf8 += static_cast<char>(0b10000000u | (code_point & 0b00111111u));
+    } else if (code_point <= 0xFFFF) {
+        utf8 += static_cast<char>(0b11100000u | (code_point >> 12u));
+        utf8 += static_cast<char>(0b10000000u | ((code_point >> 6u) & 0b00111111u));
+        utf8 += static_cast<char>(0b10000000u | (code_point & 0b00111111u));
+    } else if (code_point <= 0x1FFFFF) {
+        utf8 += static_cast<char>(0b11110000u | (code_point >> 18u));
+        utf8 += static_cast<char>(0b10000000u | ((code_point >> 12u) & 0b00111111u));
+        utf8 += static_cast<char>(0b10000000u | ((code_point >> 6u) & 0b00111111u));
+        utf8 += static_cast<char>(0b10000000u | (code_point & 0b00111111u));
+    } else if (code_point <= 0x3FFFFFF) {
+        utf8 += static_cast<char>(0b11111000u | (code_point >> 24u));
+        utf8 += static_cast<char>(0b10000000u | ((code_point >> 18u) & 0b00111111u));
+        utf8 += static_cast<char>(0b10000000u | ((code_point >> 12u) & 0b00111111u));
+        utf8 += static_cast<char>(0b10000000u | ((code_point >> 6u) & 0b00111111u));
+        utf8 += static_cast<char>(0b10000000u | (code_point & 0b00111111u));
+    } else if (code_point <= 0x7FFFFFFF) {
+        utf8 += static_cast<char>(0b11111100u | (code_point >> 30u));
+        utf8 += static_cast<char>(0b10000000u | ((code_point >> 24u) & 0b00111111u));
+        utf8 += static_cast<char>(0b10000000u | ((code_point >> 18u) & 0b00111111u));
+        utf8 += static_cast<char>(0b10000000u | ((code_point >> 12u) & 0b00111111u));
+        utf8 += static_cast<char>(0b10000000u | ((code_point >> 6u) & 0b00111111u));
+        utf8 += static_cast<char>(0b10000000u | (code_point & 0b00111111u));
     } else
-        throw std::runtime_error("in TextUtil::UnicodeToUTF8: invalid Unicode code point 0x"
-                                 + StringUtil::ToString(code_point, 16) + "!");
+        throw std::runtime_error("in TextUtil::UTF32ToUTF8: invalid Unicode code point 0x"
+                                 + StringUtil::ToHexString(code_point) + "!");
 
     return utf8;
 }
@@ -441,6 +441,86 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
     }
 
     return escaped_string;
+}
+
+
+// See https://en.wikipedia.org/wiki/UTF-8 in order to understand this implementation.
+bool TrimLastCharFromUTF8Sequence(std::string * const s) {
+    if (unlikely(s->empty()))
+        return false;
+
+    int i(s->length() - 1);
+    while (i >=0 and ((*s)[i] & 0b11000000) == 0b10000000)
+        --i;
+    if (unlikely(i == -1))
+        return false;
+
+    switch (s->length() - i) {
+    case 1:
+        if (((*s)[i] & 0b10000000) == 0b00000000) {
+            s->resize(s->length() - 1);
+            return true;
+        }
+        return false;
+    case 2:
+        if (((*s)[i] & 0b11100000) == 0b11000000) {
+            s->resize(s->length() - 2);
+            return true;
+        }
+        return false;
+    case 3:
+        if (((*s)[i] & 0b11110000) == 0b11100000) {
+            s->resize(s->length() - 3);
+            return true;
+        }
+        return false;
+    case 4:
+        if (((*s)[i] & 0b11111000) == 0b11110000) {
+            s->resize(s->length() - 4);
+            return true;
+        }
+        return false;
+    default:
+        return false;
+    }
+}
+
+
+bool UTF32CharIsAsciiLetter(const uint32_t ch) {
+    return ('A' <= ch and ch <= 'Z') or ('a' <= ch and ch <= 'z');
+}
+
+
+bool UTF32CharIsAsciiDigit(const uint32_t ch) {
+    return '0' <= ch and ch <= '9';
+}
+
+
+bool UTF8ToUTF32Decoder::addByte(const char ch) {
+    if (required_count_ == -1) {
+        if ((static_cast<unsigned char>(ch) & 0b10000000) == 0b00000000) {
+            utf32_char_ = static_cast<unsigned char>(ch);
+            required_count_ = 0;
+        } else if ((static_cast<unsigned char>(ch) & 0b11100000) == 0b11000000) {
+            utf32_char_ = static_cast<unsigned char>(ch) & 0b11111;
+            required_count_ = 1;
+        } else if ((static_cast<unsigned char>(ch) & 0b11110000) == 0b11100000) {
+            utf32_char_ = static_cast<unsigned char>(ch) & 0b1111;
+            required_count_ = 2;
+        } else if ((static_cast<unsigned char>(ch) & 0b11111000) == 0b11110000) {
+            utf32_char_ = static_cast<unsigned char>(ch) & 0b111;
+            required_count_ = 3;
+        } else
+            throw std::runtime_error("in TextUtil::UTF8ToUTF32Decoder::addByte: bad UTF-8 byte "
+                                     "sequence! (partial utf32_char: 0x" + StringUtil::ToHexString(utf32_char_)
+                                     + ", current char 0x" + StringUtil::ToHexString(ch) + ")");
+    } else if (required_count_ > 0) {
+        --required_count_;
+        utf32_char_ <<= 6u;
+        utf32_char_ |= (static_cast<unsigned char>(ch) & 0b00111111);
+    }
+
+    return required_count_ != 0;
 }
 
 

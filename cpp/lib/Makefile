@@ -6,11 +6,13 @@ TEMP       = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
 OBJS       = $(TEMP:.cc=.o)
 AMD64_OBJS = $(TEMP:.cc=_amd64.o)
 CCC        ?= clang++
-CCCFLAGS   = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -Ilibstemmer/include \
-             -O3 -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) -ftrapv \
+CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
+             -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
              -DETC_DIR='"/var/lib/tuelib"'
 ifeq ($(CCC),clang++)
-  CCCFLAGS += -Wno-vla-extension
+  CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
+else
+  CCCFLAGS += -std=gnu++14
 endif
 AMD64_CCCFLAGS = $(subst -march=native,,$(CCCFLAGS))
 MAKE_DEPS=iViaCore-mkdep

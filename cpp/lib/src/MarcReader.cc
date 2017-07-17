@@ -111,7 +111,9 @@ MarcRecord XmlMarcReader::read() {
                                          + "controlfield> found after <" + namespace_prefix_ + "datafield> on "
                                          "line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
                                          + input_->getPath() + "\"!");
-            dir_entries.emplace_back(parseControlfield(input_->getPath(), attrib_map["tag"], raw_data));
+            DirectoryEntry dir_entry("000", 0, 0);
+            if (parseControlfield(input_->getPath(), attrib_map["tag"], &dir_entry, &raw_data))
+                dir_entries.emplace_back(dir_entry);
         } else {
             datafield_seen = true;
             dir_entries.emplace_back(parseDatafield(input_->getPath(), attrib_map, attrib_map["tag"], raw_data));
@@ -192,25 +194,37 @@ void XmlMarcReader::parseLeader(const std::string &input_filename, Leader * cons
 }
 
 
-DirectoryEntry XmlMarcReader::parseControlfield(const std::string &input_filename, const std::string &tag,
-                                                std::string &raw_data)
+// Returns true if we found a normal control field and false if we found an empty control field.
+bool XmlMarcReader::parseControlfield(const std::string &input_filename, const std::string &tag,
+                                      DirectoryEntry *dir_entry, std::string * const raw_data)
 {
-    const size_t offset = raw_data.size();
+    const size_t offset(raw_data->size());
 
     SimpleXmlParser<File>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
-    if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CHARACTERS))
-        throw std::runtime_error("in MarcReader::ParseControlfield: character data expected on line "
-                                 + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
-    raw_data += data + '\x1E';
+    if (unlikely(not getNext(&type, &attrib_map, &data)))
+        throw std::runtime_error("in MarcReader::ParseControlfield: failed to get next XML element!");
+
+    // Do we have an empty control field?
+    if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "controlfield")) {
+        Warning("in MarcReader::ParseControlfield: empty \"" + tag + "\" control field on line "
+                + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
+        return false;
+    }
+    
+    if (type != SimpleXmlParser<File>::CHARACTERS)
+        std::runtime_error("in MarcReader::ParseControlfield: character data expected on line "
+                           + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
+    *raw_data += data + '\x1E';
 
     if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CLOSING_TAG
                  or data != namespace_prefix_ + "controlfield"))
         throw std::runtime_error("in MarcReader::ParseControlfield: </controlfield> expected on line "
                                  + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
 
-    return DirectoryEntry(tag, raw_data.size() - offset, offset);
+    dir_entry = new (reinterpret_cast<void *>(dir_entry)) DirectoryEntry(tag, raw_data->size() - offset, offset);
+    return true;
 }
 
 

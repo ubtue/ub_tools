@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2016, Library of the University of Tübingen
+    Copyright (C) 2015-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -276,20 +276,23 @@ bool GetBibleRanges(const std::string &field_tag, const MarcRecord &record,
         return false;
 
     bool found_at_least_one(false);
-    for (/* Intentionally empty! */; index < record.getNumberOfFields() and record.getTag(index) == field_tag; ++index)
+    for (/* Intentionally empty! */; index < record.getNumberOfFields() and record.getTag(index) == field_tag;
+         ++index)
     {
         const Subfields subfields(record.getSubfields(index));
-        if (subfields.getFirstSubfieldValue('a') != "Bibel")
-            continue;
-        if (not subfields.hasSubfield('p'))
+        const bool esra_special_case(subfields.getFirstSubfieldValue('a') == "Esra");
+        if (not (subfields.getFirstSubfieldValue('a') == "Bibel" and subfields.hasSubfield('p'))
+            and not esra_special_case)
             continue;
 
-        std::string book_name_candidate(StringUtil::ToLower(subfields.getFirstSubfieldValue('p')));
+        std::string book_name_candidate(
+            esra_special_case ? "esra" : StringUtil::ToLower(subfields.getFirstSubfieldValue('p')));
         const auto pair(book_alias_map.find(book_name_candidate));
         if (pair != book_alias_map.cend())
             book_name_candidate = pair->second;
         if (books_of_the_bible.find(book_name_candidate) == books_of_the_bible.cend()) {
-            std::cerr << record.getControlNumber() << ": unknown bible book: " << subfields.getFirstSubfieldValue('p') << '\n';
+            std::cerr << record.getControlNumber() << ": unknown bible book: "
+                      << (esra_special_case ? "esra" : subfields.getFirstSubfieldValue('p')) << '\n';
             ++unknown_book_count;
             continue;
         }
@@ -480,7 +483,7 @@ void AugmentBibleRefs(const bool verbose, MarcReader * const marc_reader, MarcWr
 
 
 int main(int argc, char **argv) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     if (argc != 4 and argc != 5)
         Usage();

@@ -4,7 +4,7 @@
  *
  *  \copyright 2005-2008 Project iVia.
  *  \copyright 2005-2008 The Regents of The University of California.
- *  \copyright 2015-2017 Universitätsbiblothek Tübingen.
+ *  \copyright 2015-2017 Universitätsbibliothek Tübingen.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -91,7 +91,7 @@ public:
                         const long max_redirect_count = DEFAULT_MAX_REDIRECTS,
                         const long dns_cache_timeout = DEFAULT_DNS_CACHE_TIMEOUT,
                         const bool honour_robots_dot_txt = false,
-                        const TextTranslationMode text_translation_mode = MAP_TO_LATIN9,
+                        const TextTranslationMode text_translation_mode = TRANSPARENT,
                         const PerlCompatRegExps &banned_reg_exps = PerlCompatRegExps(), const bool debugging = false,
                         const bool follow_redirects = true);
     } params_;
@@ -102,15 +102,17 @@ public:
     typedef size_t (*HeaderFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
     typedef int (*DebugFunc)(CURL *handle, curl_infotype infotype, char *data, size_t size, void *this_pointer);
 public:
-    explicit Downloader(const Params &params = Params()): multi_mode_(false), additional_http_headers_(nullptr), params_(params)
-        { init(); }
-    explicit Downloader(const Url &url, const Params &params = Params(), const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
-    explicit Downloader(const std::string &url, const Params &params = Params(), const TimeLimit &time_limit = DEFAULT_TIME_LIMIT,
-                        bool multimode = false);
+    explicit Downloader(const Params &params = Params()): multi_mode_(false), additional_http_headers_(nullptr),
+                                                          params_(params) { init(); }
+    explicit Downloader(const Url &url, const Params &params = Params(),
+                        const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
+    explicit Downloader(const std::string &url, const Params &params = Params(),
+                        const TimeLimit &time_limit = DEFAULT_TIME_LIMIT, bool multimode = false);
     virtual ~Downloader();
 
     bool newUrl(const Url &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
-    bool newUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT) { return newUrl(Url(url), time_limit); }
+    bool newUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
+        { return newUrl(Url(url), time_limit); }
 
     std::string getMessageHeader() const;
     const std::string &getMessageBody() const { return body_; }
@@ -152,8 +154,9 @@ protected:
     CURL *getEasyHandle() const { return easy_handle_; }
 
 private:
-    static void InitCurlEasyHandle(const long dns_cache_timeout, const char * const error_buffer, const bool debugging,
-                                   WriteFunc write_func, LockFunc lock_func, UnlockFunc unlock_func, HeaderFunc header_func,
+    static void InitCurlEasyHandle(const long dns_cache_timeout, const char * const error_buffer,
+                                   const bool debugging, WriteFunc write_func, LockFunc lock_func,
+                                   UnlockFunc unlock_func, HeaderFunc header_func,
                                    DebugFunc debug_func, CURL ** const easy_handle, std::string * const user_agent,
                                    const bool follow_redirect);
     void init();
@@ -168,14 +171,15 @@ private:
     static int DebugFunction(CURL *handle, curl_infotype infotype, char *data, size_t size, void *this_pointer);
     bool allowedByRobotsDotTxt(const Url &url, const TimeLimit &time_limit);
     bool getHttpEquivRedirect(std::string * const redirect_url) const;
-    long getRemainingNoOfRedirects() const { return params_.max_redirect_count_ - static_cast<long>(redirect_urls_.size()); }
+    long getRemainingNoOfRedirects() const
+        { return params_.max_redirect_count_ - static_cast<long>(redirect_urls_.size()); }
 };
 
 
 /** \brief Downloads a Web document.
  *  \param url              The address.
  *  \param output_filename  Where to store the downloaded document.
- *  \param timeout          Max. amount of time to try to download a document.
+ *  \param timeout          Max. amount of time to try to download a document in seconds.
  *  \param cookie_file      Cookies will be read before the attempted download and later stored here.
  *  \return Exit code of the child process.  0 upon success.
  */
@@ -185,7 +189,7 @@ int Download(const std::string &url, const std::string &output_filename, const u
 
 /** \brief Downloads a Web document.
  *  \param url      The address.
- *  \param timeout  Max. amount of time to try to download a document.
+ *  \param timeout  Max. amount of time to try to download a document in seconds.
  *  \param output   Where to store the downloaded document.
  *  \param cookie_file      Cookies will be read before the attempted download and later stored here.
  *  \return Exit code of the child process.  0 upon success.
