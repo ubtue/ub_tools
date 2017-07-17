@@ -212,8 +212,8 @@ typedef SSL_METHOD *(*SslMethod)(void);
 
 SSL_CTX *SslConnection::InitClient(const Method method) {
     static bool initialised(false);
-    SslMethod stream_client_method(nullptr);
-    SslMethod datagram_client_method(nullptr);
+    static SslMethod stream_client_method(nullptr);
+    static SslMethod datagram_client_method(nullptr);
     if (not initialised) {
         initialised = true;
         DynamicLoader dynamic_loader("libssl.so");
@@ -239,8 +239,8 @@ SSL_CTX *SslConnection::InitClient(const Method method) {
 
 SSL_CTX *SslConnection::InitServer(const Method method) {
     static bool initialised(false);
-    SslMethod stream_server_method(nullptr);
-    SslMethod datagram_server_method(nullptr);
+    static SslMethod stream_server_method(nullptr);
+    static SslMethod datagram_server_method(nullptr);
     if (not initialised) {
         initialised = true;
         DynamicLoader dynamic_loader("libssl.so");
@@ -266,8 +266,8 @@ SSL_CTX *SslConnection::InitServer(const Method method) {
 
 SSL_CTX *SslConnection::InitClientAndServer(const Method method) {
     static bool initialised(false);
-    SslMethod stream_method(nullptr);
-    SslMethod datagram_method(nullptr);
+    static SslMethod stream_method(nullptr);
+    static SslMethod datagram_method(nullptr);
     if (not initialised) {
         initialised = true;
         DynamicLoader dynamic_loader("libssl.so");
