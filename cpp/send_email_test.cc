@@ -77,8 +77,10 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
 }
 
 
-int main(int /*argc*/, char *argv[]) {
+int main(int argc, char *argv[]) {
     ::progname = argv[0];
+    if (argc == 0)
+        Usage();
 
     EmailSender::Priority priority(EmailSender::DO_NOT_SET_PRIORITY);
     EmailSender::Format format(EmailSender::PLAIN_TEXT);

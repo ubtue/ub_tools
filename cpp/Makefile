@@ -1,11 +1,13 @@
 INC            = lib/include
 LIB_SRCS       = lib/src
 CCC            ?= clang++
-CCCFLAGS       = -g -std=gnu++11 -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Ilib/include \
-                 -ftrapv -Ilib/libstemmer/include -I/opt/shibboleth/include -pedantic -Wno-parentheses \
-                 -march=native -O3 -I/usr/include/libxml2
+CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
+                 -Ilib/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
+                 -DETC_DIR='"/var/lib/tuelib"'
 ifeq ($(CCC),clang++)
-  CCCFLAGS += -Wno-vla-extension
+  CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
+else
+  CCCFLAGS += -std=gnu++14
 endif
 CCCFLAGS_AMD64 = $(subst -march=native,,$(CCCFLAGS))
 OBJ            = .
@@ -58,7 +60,7 @@ regular_install: $(INSTALL_PROGS)
 	@echo "Installing programs and data..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
 	mkdir --parents /var/lib/tuelib/bibleRef/
-	cp data/books_of_the_bible_to_canonical_form.map /var/lib/tuelib/bibleRef/
+	cp data/books_of_the_bible_to_canonical_form.map data/books_of_the_bible_to_code.map /var/lib/tuelib/bibleRef/
 	mkdir --parents /var/lib/tuelib/translate_chainer
 	cp data/done_translating.html  data/translate.html data/translation_front_page.html \
             data/mytranslations_template.msg /var/lib/tuelib/translate_chainer/

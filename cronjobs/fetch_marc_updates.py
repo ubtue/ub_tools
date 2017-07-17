@@ -34,6 +34,10 @@ directory_on_ftp_server = /sekkor
 filename_pattern = ^LOEPPN-(\d\d\d\d\d\d)$
 directory_on_ftp_server = /sekkor
 
+[Loeschlisten2]
+filename_pattern = ^LOEPPN_m-(\d\d\d\d\d\d)$
+directory_on_ftp_server = /ixtheo
+
 [Errors]
 filename_pattern = ^Errors_ixtheo_(\d\d\d\d\d\d)$
 directory_on_ftp_server = /ixtheo
@@ -294,6 +298,8 @@ def Main():
         download_cutoff_date = ExtractDateFromFilename(complete_data_filename)
     DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
     DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
+    if config.has_section("Loeschlisten2"):
+        DownloadData(config, "Loeschlisten2", ftp, download_cutoff_date, msg)
     if config.has_section("Hinweisabzug"):
         DownloadData(config, "Hinweisabzug", ftp, "000000", msg)
     if config.has_section("Errors"):

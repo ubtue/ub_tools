@@ -85,7 +85,7 @@ unsigned GetMissing(DbConnection * const connection, const std::string &table_na
     const std::set<std::string> column_names(SqlUtil::GetColumnNames(connection, table_name));
     const bool has_gnd_code(column_names.find("gnd_code") != column_names.cend());
 
-    while (row = result_set.getNextRow())
+    while ((row = result_set.getNextRow()))
         std::cout << EscapeCommasAndBackslashes(row[table_key_name]) << ',' << keys_result_set.size() << ','
                   << row["language_code"] << ',' << EscapeCommasAndBackslashes(row["translation"]) << ',' << category
                   << (has_gnd_code ? "," + row["gnd_code"] : "") << '\n';
