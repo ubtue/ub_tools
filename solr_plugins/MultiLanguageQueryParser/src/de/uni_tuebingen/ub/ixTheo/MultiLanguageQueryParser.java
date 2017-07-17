@@ -58,12 +58,14 @@ public class MultiLanguageQueryParser extends QParser {
             newParams.add("qf", sb.toString());
         }
 
-        for (String param : facetFields) {
-            // Replace field used if it exists
-            String newFieldName = param + "_" + lang;
-            if (schema.getFieldOrNull(newFieldName) != null) {
-                newParams.remove("facet.field", param);
-                newParams.add("facet.field", newFieldName);
+        if (facetFields != null && facetFields.length > 0) {
+            for (String param : facetFields) {
+                // Replace field used if it exists
+                String newFieldName = param + "_" + lang;
+                if (schema.getFieldOrNull(newFieldName) != null) {
+                    newParams.remove("facet.field", param);
+                    newParams.add("facet.field", newFieldName);
+                }
             }
         }
     }
