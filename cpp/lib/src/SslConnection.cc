@@ -210,6 +210,22 @@ void SslConnection::ReleaseContext(const SSL_CTX * const ssl_context) {
 typedef SSL_METHOD *(*SslMethod)(void);
 
 
+// Tries to load "preferred_function", if that fails, tries to load "fallback_function".  If we can load neither
+// we return abort.
+SslMethod LoadSslMethodFunction(DynamicLoader * const dynamic_loader, const std::string &preferred_function,
+                                const std::string &fallback_function)
+{
+    SslMethod ssl_method_function = (SslMethod)(dynamic_loader->loadSymbol(preferred_function));
+    if (ssl_method_function == nullptr)
+        ssl_method_function = (SslMethod)dynamic_loader->loadSymbol(fallback_function);
+    if (ssl_method_function != nullptr)
+        return ssl_method_function;
+    throw std::runtime_error("in SslConnection::InitClient: can't load " + preferred_function + " nor "
+                             + fallback_function + " from libssl.so!");
+}
+
+
+
 SSL_CTX *SslConnection::InitClient(const Method method) {
     static bool initialised(false);
     static SslMethod stream_client_method(nullptr);
@@ -218,19 +234,8 @@ SSL_CTX *SslConnection::InitClient(const Method method) {
         initialised = true;
         DynamicLoader dynamic_loader("libssl.so");
 
-        stream_client_method = (SslMethod)(dynamic_loader.loadSymbol("TLS_client_method"));
-        if (stream_client_method == nullptr)
-            stream_client_method = (SslMethod)dynamic_loader.loadSymbol("SSLv23_client_method");
-        if (stream_client_method == nullptr)
-            throw std::runtime_error("in SslConnection::InitClient: can't load TLS_client_method nor "
-                                     "SSLv23_client_method from libssl.so!");
-
-        datagram_client_method = (SslMethod)(dynamic_loader.loadSymbol("DTLS_client_method"));
-        if (datagram_client_method == nullptr)
-            datagram_client_method = (SslMethod)dynamic_loader.loadSymbol("DTLSv1_client_method");
-        if (datagram_client_method == nullptr)
-            throw std::runtime_error("in SslConnection::InitClient: can't load DTLS_client_method nor "
-                                     "DTLSv1_client_method from libssl.so!");
+        stream_client_method = LoadSslMethodFunction(&dynamic_loader, "TLS_client_method", "SSLv23_client_method");
+        datagram_client_method = LoadSslMethodFunction(&dynamic_loader, "DTLS_client_method", "DTLSv1_client_method");
     }
 
     return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? stream_client_method() : datagram_client_method());
@@ -245,19 +250,8 @@ SSL_CTX *SslConnection::InitServer(const Method method) {
         initialised = true;
         DynamicLoader dynamic_loader("libssl.so");
 
-        stream_server_method = (SslMethod)(dynamic_loader.loadSymbol("TLS_server_method"));
-        if (stream_server_method == nullptr)
-            stream_server_method = (SslMethod)dynamic_loader.loadSymbol("SSLv23_server_method");
-        if (stream_server_method == nullptr)
-            throw std::runtime_error("in SslConnection::InitClient: can't load TLS_server_method nor "
-                                     "SSLv23_server_method from libssl.so!");
-
-        datagram_server_method = (SslMethod)(dynamic_loader.loadSymbol("DTLS_server_method"));
-        if (datagram_server_method == nullptr)
-            datagram_server_method = (SslMethod)dynamic_loader.loadSymbol("DTLSv1_server_method");
-        if (datagram_server_method == nullptr)
-            throw std::runtime_error("in SslConnection::InitClient: can't load DTLS_server_method nor "
-                                     "DTLSv1_server_method from libssl.so!");
+        stream_server_method = LoadSslMethodFunction(&dynamic_loader, "TLS_server_method", "SSLv23_server_method");
+        datagram_server_method = LoadSslMethodFunction(&dynamic_loader, "DTLS_server_method", "DTLSv1_server_method");
     }
 
     return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? stream_server_method() : datagram_server_method());
@@ -272,19 +266,8 @@ SSL_CTX *SslConnection::InitClientAndServer(const Method method) {
         initialised = true;
         DynamicLoader dynamic_loader("libssl.so");
 
-        stream_method = (SslMethod)(dynamic_loader.loadSymbol("TLS_method"));
-        if (stream_method == nullptr)
-            stream_method = (SslMethod)dynamic_loader.loadSymbol("SSLv23_method");
-        if (stream_method == nullptr)
-            throw std::runtime_error("in SslConnection::InitClient: can't load TLS_method nor "
-                                     "SSLv23_method from libssl.so!");
-
-        datagram_method = (SslMethod)(dynamic_loader.loadSymbol("DTLS_method"));
-        if (datagram_method == nullptr)
-            datagram_method = (SslMethod)dynamic_loader.loadSymbol("DTLSv1_method");
-        if (datagram_method == nullptr)
-            throw std::runtime_error("in SslConnection::InitClient: can't load DTLS_method nor "
-                                     "DTLSv1_method from libssl.so!");
+        stream_method = LoadSslMethodFunction(&dynamic_loader, "TLS_method", "SSLv23_method");
+        datagram_method = LoadSslMethodFunction(&dynamic_loader, "DTLS_method", "DTLSv1_method");
     }
 
     return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? stream_method() : datagram_method());
