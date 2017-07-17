@@ -14,7 +14,7 @@ OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
 LIBS           = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
                  -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
-                 -lssl -lcrypto -lpthread
+                 -lssl -lcrypto -lpthread -ldl
 LIBS_AMD64     = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
 
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
