@@ -6,6 +6,7 @@
 /*
  *  Copyright 2007 Project iVia.
  *  Copyright 2007 The Regents of The University of California.
+ *  Copyright 2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -39,7 +40,15 @@
  */
 class SslConnection {
 public:
-    enum Method { SSL_V2, SSL_V3, TLS_V1, ALL_METHODS /* Meaning SSLv2, SSLv3 and TLSv1. */ };
+    enum Method {
+        TLS_V1,
+        TLS_V1_1,
+        TLS_V1_2,
+        ALL_STREAM_METHODS, /* Meaning SSLv2, SSLv3, TLSv1, TLSv1.1, and TLSv1.2. */
+        DTLS_V1,
+        DTLS_V1_2,
+        ALL_DATAGRAM_METHODS /* Meaning DTLSv1, and DTLSv1.2. */
+    };
     enum ClientServerMode { CLIENT, SERVER, CLIENT_AND_SERVER };
     enum ThreadingSupportMode { SUPPORT_MULTITHREADING, DO_NOT_SUPPORT_MULTITHREADING };
 private:
@@ -63,7 +72,8 @@ public:
 private:
     static std::list<ContextInfo> context_infos_;
 public:
-    explicit SslConnection(const int fd, const Method method = ALL_METHODS, const ClientServerMode client_server_mode = CLIENT,
+    explicit SslConnection(const int fd, const Method method = ALL_STREAM_METHODS,
+                           const ClientServerMode client_server_mode = CLIENT,
                            const ThreadingSupportMode threading_support_mode = DO_NOT_SUPPORT_MULTITHREADING );
     ~SslConnection();
     ssize_t read(void * const data, size_t data_size);
