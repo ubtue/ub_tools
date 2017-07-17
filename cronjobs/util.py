@@ -36,7 +36,7 @@ def SendEmail(subject, msg, sender=None, recipient=None, priority=None):
         if priority < 1 or priority > 5:
             Error("util.Sendmail called with a prioity that is not in [1..5]!")
     try:
-        config = LoadConfigFile(no_error=True)
+        config = LoadConfigFile("/var/lib/tuelib/cronjobs/smtp_server.config", no_error=True)
         server_address  = config.get("SMTPServer", "server_address")
         server_user     = config.get("SMTPServer", "server_user")
         if sender is None:
