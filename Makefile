@@ -1,4 +1,4 @@
-.PHONY: all install clean
+.PHONY: all install clean test install_configs
 
 all: 
 	$(MAKE) -C cpp/lib/mkdep;
@@ -8,7 +8,7 @@ all:
 	$(MAKE) -C solrmarc_mixin;
 	$(MAKE) -C cronjobs
 
-install:
+install: install_configs
 	$(MAKE) -C cpp/lib/mkdep install;
 	$(MAKE) -C cpp install;
 	$(MAKE) -C go install;
@@ -26,4 +26,15 @@ clean:
 
 test:
 	$(MAKE) -C cpp/tests test;
+
+install_configs:
+ifneq "$(wildcard /var/log/ixtheo/)" ""
+	@echo "We have an IxTheo installation..."
+	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/IxTheo/ install
+else ifneq "$(wildcard /var/log/krimdok/)" ""
+	@echo "We have a KrimDok installation..."
+	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/KrimDok/ install
+else
+	$(error Did not find /var/log/ixtheo/ nor /var/log/krimdok/.)
+endif
 # DO NOT DELETE
