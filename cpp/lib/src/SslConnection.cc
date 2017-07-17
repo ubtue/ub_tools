@@ -215,9 +215,9 @@ typedef SSL_METHOD *(*SslMethod)(void);
 SslMethod LoadSslMethodFunction(DynamicLoader * const dynamic_loader, const std::string &preferred_function,
                                 const std::string &fallback_function)
 {
-    SslMethod ssl_method_function = (SslMethod)(dynamic_loader->loadSymbol("TLS_client_method"));
+    SslMethod ssl_method_function = (SslMethod)(dynamic_loader->loadSymbol(preferred_function));
     if (ssl_method_function == nullptr)
-        ssl_method_function = (SslMethod)dynamic_loader->loadSymbol("SSLv23_client_method");
+        ssl_method_function = (SslMethod)dynamic_loader->loadSymbol(fallback_function);
     if (ssl_method_function != nullptr)
         return ssl_method_function;
     throw std::runtime_error("in SslConnection::InitClient: can't load " + preferred_function + " nor "
