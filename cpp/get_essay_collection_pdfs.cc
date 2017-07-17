@@ -25,8 +25,10 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "Downloader.h"
+#include "FileUtil.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
+#include "MediaTypeUtil.h"
 #include "PerlCompatRegExp.h"
 #include "Subfields.h"
 #include "StringUtil.h"
@@ -157,11 +159,22 @@ void ProcessRecords(MarcReader * const marc_reader, const unsigned pdf_limit_cou
         ++good_count;
 
         if (pdf_success_count < pdf_limit_count) {
-            const std::string &control_number(record.getControlNumber());
-            if (Download(pdf_url, control_number + ".pdf", 10 /* seconds */) != 0)
+            std::string document;
+            if (Download(pdf_url, 10 /* seconds */, &document) != 0)
                 ++download_failure_count;
-            else
+            else {
+                const std::string media_type(MediaTypeUtil::GetMediaType(document));
+                if (media_type != "application/pdf") {
+                    std::cout << url << " has wrong media type: " << media_type << '\n';
+                    continue;
+                }
+                
+                const std::string &control_number(record.getControlNumber());
+                const std::string output_filename(control_number + ".pdf");
+                if (not FileUtil::WriteString(output_filename, document))
+                    Error("failed to write \"" + output_filename + "\"!");
                 ++pdf_success_count;
+            }
         }
     }
 
