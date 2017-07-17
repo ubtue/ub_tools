@@ -207,108 +207,15 @@ void SslConnection::ReleaseContext(const SSL_CTX * const ssl_context) {
 
 
 SSL_CTX *SslConnection::InitClient(const Method method) {
-    const SSL_METHOD *ssl_method;
-
-    switch (method) {
-    case TLS_V1:
-        ssl_method = ::TLSv1_client_method();
-        break;
-    case TLS_V1_1:
-        ssl_method = ::TLSv1_1_client_method();
-        break;
-    case TLS_V1_2:
-        ssl_method = ::TLSv1_2_client_method();
-        break;
-    case ALL_STREAM_METHODS:
-        ssl_method = ::SSLv23_client_method();
-        break;
-    case DTLS_V1:
-        ssl_method = ::DTLSv1_client_method();
-        break;
-    case DTLS_V1_2:
-        ssl_method = ::DTLSv1_2_client_method();
-        break;
-    case ALL_DATAGRAM_METHODS:
-        ssl_method = ::DTLS_client_method();
-        break;
-    default:
-        throw std::runtime_error("in SslConnection::InitClient: unknown method!");
-    }
-
-    if (unlikely(ssl_method == nullptr))
-        throw std::runtime_error("in SslConnection::InitClient: unexpected nullptr SSL method!");
-
-    return ::SSL_CTX_new(ssl_method);
+    return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? SSLv23_client_method() : DTLS_client_method());
 }
 
 
 SSL_CTX *SslConnection::InitServer(const Method method) {
-    const SSL_METHOD *ssl_method;
-
-    switch (method) {
-    case TLS_V1:
-        ssl_method = ::TLSv1_server_method();
-        break;
-    case TLS_V1_1:
-        ssl_method = ::TLSv1_1_server_method();
-        break;
-    case TLS_V1_2:
-        ssl_method = ::TLSv1_2_server_method();
-        break;
-    case ALL_STREAM_METHODS:
-        ssl_method = ::SSLv23_server_method();
-        break;
-    case DTLS_V1:
-        ssl_method = ::DTLSv1_server_method();
-        break;
-    case DTLS_V1_2:
-        ssl_method = ::DTLSv1_2_server_method();
-        break;
-    case ALL_DATAGRAM_METHODS:
-        ssl_method = ::DTLS_server_method();
-        break;
-    default:
-        throw std::runtime_error("in SslConnection::InitServer: unknown method!");
-    }
-
-    if (unlikely(ssl_method == nullptr))
-        throw std::runtime_error("in SslConnection::InitServer: unexpected nullptr SSL method!");
-
-    return ::SSL_CTX_new(ssl_method);
+    return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? SSLv23_server_method() : DTLS_server_method());
 }
 
 
 SSL_CTX *SslConnection::InitClientAndServer(const Method method) {
-    const SSL_METHOD *ssl_method;
-
-    switch (method) {
-    case TLS_V1:
-        ssl_method = ::TLSv1_method();
-        break;
-    case TLS_V1_1:
-        ssl_method = ::TLSv1_1_method();
-        break;
-    case TLS_V1_2:
-        ssl_method = ::TLSv1_2_method();
-        break;
-    case ALL_STREAM_METHODS:
-        ssl_method = ::SSLv23_method();
-        break;
-    case DTLS_V1:
-        ssl_method = ::DTLSv1_method();
-        break;
-    case DTLS_V1_2:
-        ssl_method = ::DTLSv1_2_method();
-        break;
-    case ALL_DATAGRAM_METHODS:
-        ssl_method = ::DTLS_method();
-        break;
-    default:
-        throw std::runtime_error("in SslConnection::InitClientAndServer: unknown method!");
-    }
-
-    if (unlikely(ssl_method == nullptr))
-        throw std::runtime_error("in SslConnection::InitClientAndServer: unexpected nullptr SSL method!");
-
-    return ::SSL_CTX_new(ssl_method);
+    return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? SSLv23_method() : DTLS_method());
 }
