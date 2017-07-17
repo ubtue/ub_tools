@@ -59,15 +59,16 @@ SslConnection::SslConnection(const int fd, const Method method, const ClientServ
     for (unsigned try_no(0); try_no < NO_OF_TRIES; ++try_no) {
         const int ret_val(::SSL_connect(ssl_connection_));
         if (unlikely(ret_val == 0))
-            throw std::runtime_error("in SslConnection::SslConnection: ::SSL_connect() failed with return value (0)!");
+            throw std::runtime_error("in SslConnection::SslConnection: ::SSL_connect() failed with return "
+                                     "value (0)!");
         if (ret_val == 1) // We succeeded.
             return;
 
         TimeUtil::Millisleep(300);
     }
 
-    throw std::runtime_error("in SslConnection::SslConnection: ::SSL_connect() failed after " + std::to_string(NO_OF_TRIES)
-                             + " tries!");
+    throw std::runtime_error("in SslConnection::SslConnection: ::SSL_connect() failed after "
+                             + std::to_string(NO_OF_TRIES) + " tries!");
 }
 
 
@@ -150,7 +151,8 @@ SSL_CTX *SslConnection::InitContext(const Method method, const ClientServerMode 
 
     // First check to see if we already have a context with the correct options:
     std::list<ContextInfo>::iterator matching_context_info(std::find_if(context_infos_.begin(), context_infos_.end(),
-                                                                        ContextInfoMatch(method, client_server_mode)));
+                                                                        ContextInfoMatch(method,
+                                                                                         client_server_mode)));
     if (matching_context_info != context_infos_.end()) {
         ++matching_context_info->usage_count_;
         return matching_context_info->ssl_context_;
@@ -208,16 +210,26 @@ SSL_CTX *SslConnection::InitClient(const Method method) {
     const SSL_METHOD *ssl_method;
 
     switch (method) {
-#ifndef OPENSSL_NO_SSL2
-    case SSL_V2:
-        ssl_method = ::SSLv2_client_method();
-        break;
-#endif
     case TLS_V1:
         ssl_method = ::TLSv1_client_method();
         break;
-    case ALL_METHODS:
-        ssl_method = ::SSLv23_client_method();
+    case TLS_V1_1:
+        ssl_method = ::TLSv1_1_client_method();
+        break;
+    case TLS_V1_2:
+        ssl_method = ::TLSv1_2_client_method();
+        break;
+    case ALL_STREAM_METHODS:
+        ssl_method = ::TLS_client_method();
+        break;
+    case DTLS_V1:
+        ssl_method = ::DTLSv1_client_method();
+        break;
+    case DTLS_V1_2:
+        ssl_method = ::DTLSv1_2_client_method();
+        break;
+    case ALL_DATAGRAM_METHODS:
+        ssl_method = ::DTLS_client_method();
         break;
     default:
         throw std::runtime_error("in SslConnection::InitClient: unknown method!");
@@ -234,16 +246,26 @@ SSL_CTX *SslConnection::InitServer(const Method method) {
     const SSL_METHOD *ssl_method;
 
     switch (method) {
-#ifndef OPENSSL_NO_SSL2
-    case SSL_V2:
-        ssl_method = ::SSLv2_server_method();
-        break;
-#endif
     case TLS_V1:
         ssl_method = ::TLSv1_server_method();
         break;
-    case ALL_METHODS:
-        ssl_method = ::SSLv23_server_method();
+    case TLS_V1_1:
+        ssl_method = ::TLSv1_1_server_method();
+        break;
+    case TLS_V1_2:
+        ssl_method = ::TLSv1_2_server_method();
+        break;
+    case ALL_STREAM_METHODS:
+        ssl_method = ::TLS_server_method();
+        break;
+    case DTLS_V1:
+        ssl_method = ::DTLSv1_server_method();
+        break;
+    case DTLS_V1_2:
+        ssl_method = ::DTLSv1_2_server_method();
+        break;
+    case ALL_DATAGRAM_METHODS:
+        ssl_method = ::DTLS_server_method();
         break;
     default:
         throw std::runtime_error("in SslConnection::InitServer: unknown method!");
@@ -260,16 +282,26 @@ SSL_CTX *SslConnection::InitClientAndServer(const Method method) {
     const SSL_METHOD *ssl_method;
 
     switch (method) {
-#ifndef OPENSSL_NO_SSL2
-    case SSL_V2:
-        ssl_method = ::SSLv2_method();
-        break;
-#endif
     case TLS_V1:
         ssl_method = ::TLSv1_method();
         break;
-    case ALL_METHODS:
-        ssl_method = ::SSLv23_method();
+    case TLS_V1_1:
+        ssl_method = ::TLSv1_1_method();
+        break;
+    case TLS_V1_2:
+        ssl_method = ::TLSv1_2_method();
+        break;
+    case ALL_STREAM_METHODS:
+        ssl_method = ::TLS_method();
+        break;
+    case DTLS_V1:
+        ssl_method = ::DTLSv1_method();
+        break;
+    case DTLS_V1_2:
+        ssl_method = ::DTLSv1_2_method();
+        break;
+    case ALL_DATAGRAM_METHODS:
+        ssl_method = ::DTLS_method();
         break;
     default:
         throw std::runtime_error("in SslConnection::InitClientAndServer: unknown method!");
