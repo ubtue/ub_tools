@@ -44,7 +44,7 @@ public:
         TLS_V1,
         TLS_V1_1,
         TLS_V1_2,
-        ALL_STREAM_METHODS, /* Meaning SSLv2, SSLv3, TLSv1, TLSv1.1, and TLSv1.2. */
+        ALL_STREAM_METHODS, /* Meaning SSLv3, TLSv1, TLSv1.1, and TLSv1.2. */
         DTLS_V1,
         DTLS_V1_2,
         ALL_DATAGRAM_METHODS /* Meaning DTLSv1, and DTLSv1.2. */
