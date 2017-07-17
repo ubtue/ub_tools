@@ -196,7 +196,7 @@ void XmlMarcReader::parseLeader(const std::string &input_filename, Leader * cons
 
 // Returns true if we found a normal control field and false if we found an empty control field.
 bool XmlMarcReader::parseControlfield(const std::string &input_filename, const std::string &tag,
-                                      DirectoryEntry *dir_entry, std::string * const raw_data)
+                                      DirectoryEntry * const dir_entry, std::string * const raw_data)
 {
     const size_t offset(raw_data->size());
 
@@ -223,7 +223,8 @@ bool XmlMarcReader::parseControlfield(const std::string &input_filename, const s
         throw std::runtime_error("in MarcReader::ParseControlfield: </controlfield> expected on line "
                                  + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
 
-    dir_entry = new (reinterpret_cast<void *>(dir_entry)) DirectoryEntry(tag, raw_data->size() - offset, offset);
+    DirectoryEntry new_dir_entry(tag, raw_data->size() - offset, offset);
+    dir_entry->swap(new_dir_entry);
     return true;
 }
 
