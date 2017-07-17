@@ -229,8 +229,8 @@ SSL_CTX *SslConnection::InitClient(const Method method) {
         if (datagram_client_method == nullptr)
             datagram_client_method = (SslMethod)dynamic_loader.loadSymbol("DTLSv1_client_method");
         if (datagram_client_method == nullptr)
-            throw std::runtime_error("in SslConnection::InitClient: can't load TLS_client_method nor "
-                                     "SSLv23_client_method from libssl.so!");
+            throw std::runtime_error("in SslConnection::InitClient: can't load DTLS_client_method nor "
+                                     "DTLSv1_client_method from libssl.so!");
     }
 
     return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? stream_client_method() : DTLS_client_method());
@@ -256,8 +256,8 @@ SSL_CTX *SslConnection::InitServer(const Method method) {
         if (datagram_server_method == nullptr)
             datagram_server_method = (SslMethod)dynamic_loader.loadSymbol("DTLSv1_server_method");
         if (datagram_server_method == nullptr)
-            throw std::runtime_error("in SslConnection::InitClient: can't load TLS_server_method nor "
-                                     "SSLv23_server_method from libssl.so!");
+            throw std::runtime_error("in SslConnection::InitClient: can't load DTLS_server_method nor "
+                                     "DTLSv1_server_method from libssl.so!");
     }
 
     return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? SSLv23_server_method() : DTLS_server_method());
@@ -283,8 +283,8 @@ SSL_CTX *SslConnection::InitClientAndServer(const Method method) {
         if (datagram_method == nullptr)
             datagram_method = (SslMethod)dynamic_loader.loadSymbol("DTLSv1_method");
         if (datagram_method == nullptr)
-            throw std::runtime_error("in SslConnection::InitClient: can't load TLS_method nor "
-                                     "SSLv23_method from libssl.so!");
+            throw std::runtime_error("in SslConnection::InitClient: can't load DTLS_method nor "
+                                     "DTLSv1_method from libssl.so!");
     }
 
     return ::SSL_CTX_new(method == ALL_STREAM_METHODS ? SSLv23_method() : DTLS_method());
