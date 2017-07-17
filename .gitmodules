@@ -1,6 +1,0 @@
-[submodule "configs/ixtheo"]
-	path = configs/ixtheo
-	url = /mnt/ZE020150/FID-Entwicklung/IxTheo
-[submodule "configs/krimdok"]
-	path = configs/krimdok
-	url = /mnt/ZE020150/FID-Entwicklung/KrimDok
