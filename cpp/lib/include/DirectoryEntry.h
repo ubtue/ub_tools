@@ -70,6 +70,12 @@ public:
     /** Copy-assignment operator. */
     DirectoryEntry &operator=(const DirectoryEntry &rhs);
 
+    inline void swap(DirectoryEntry &other) {
+        std::swap(tag_, other.tag_);
+        std::swap(field_length_, other.field_length_);
+        std::swap(field_offset_, other.field_offset_);
+    }
+    
     const MarcTag &getTag() const { return tag_; }
 
     /** Includes the field terminator. */
