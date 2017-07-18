@@ -220,7 +220,7 @@ SslMethod LoadSslMethodFunction(DynamicLoader * const dynamic_loader, const std:
         ssl_method_function = (SslMethod)dynamic_loader->loadSymbol(fallback_function);
     if (ssl_method_function != nullptr)
         return ssl_method_function;
-    throw std::runtime_error("in SslConnection::InitClient: can't load " + preferred_function + " nor "
+    throw std::runtime_error("in SslConnection::LoadSslMethodFunction: can't load " + preferred_function + " nor "
                              + fallback_function + " from libssl.so!");
 }
 
