@@ -84,6 +84,12 @@ public:
     /** \return True, if a subfield with subfield code "subfield_code" matching "regex" exists, else false. */
     bool hasSubfieldWithPattern(const char subfield_code, const RegexMatcher &regex) const;
 
+    /** \param value  Where to store the extracted data, if we have a match.
+     *  \return True, if a subfield with subfield code "subfield_code" matching "regex" exists, else false.
+     */
+    bool extractSubfieldWithPattern(const char subfield_code, const RegexMatcher &regex,
+                                    std::string * const value) const;
+
     /** \return The bounds of the range of entries that have a subfield code of "subfield_code". */
     std::pair<const_iterator, const_iterator> getIterators(const char subfield_code) const
         { return std::equal_range(begin(), end(), subfield_code, SubfieldCodeLessThan()); }
