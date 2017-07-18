@@ -2,7 +2,7 @@
  *  \brief  Interface for the Subfields class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,6 +25,10 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+
+// Forward declaration:
+class RegexMatcher;
 
 
 struct Subfield {
@@ -76,6 +80,9 @@ public:
 
     /** \return True, if a subfield with subfield code "subfield_code" and contents "value" exists, else false. */
     bool hasSubfieldWithValue(const char subfield_code, const std::string &value) const;
+
+    /** \return True, if a subfield with subfield code "subfield_code" matching "regex" exists, else false. */
+    bool hasSubfieldWithPattern(const char subfield_code, const RegexMatcher &regex) const;
 
     /** \return The bounds of the range of entries that have a subfield code of "subfield_code". */
     std::pair<const_iterator, const_iterator> getIterators(const char subfield_code) const
