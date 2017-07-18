@@ -107,7 +107,7 @@ class Range {
         return "[" + lower + " - " + upper + "]";
     }
 
-    public String toString(final Range[] ranges) {
+    static public String toString(final Range[] ranges) {
         StringBuilder builder = new StringBuilder();
         builder.append('[');
         for (final Range range : ranges) {
