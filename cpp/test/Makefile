@@ -34,7 +34,7 @@ $(PROGS): % : %.o ../lib/libubtue.a
 	$(MAKE_DEPS) -I $(INC) *.cc
 
 ../lib/libubtue.a: $(wildcard lib/src/*.cc) $(wildcard ../lib/include/*.h)
-	$(MAKE) -C lib
+	$(MAKE) -C ../lib
 
 clean:
 	rm -f *.o *~ $(PROGS) .deps
