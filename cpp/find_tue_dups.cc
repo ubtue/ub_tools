@@ -26,15 +26,16 @@
 
 #include <algorithm>
 #include <iostream>
+#include <cstring>
 #include "Compiler.h"
-#include "MarcReader.h"
+#include "TextUtil.h"
 #include "MarcRecord.h"
 #include "RegexMatcher.h"
 #include "util.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input\n";
+    std::cerr << "Usage: " << ::progname << " --input-format=(BSZ|UB_FREIBURG) marc_input\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -58,18 +59,54 @@ bool FindTueSigil(const MarcRecord * const record, const std::pair<size_t, size_
 }
 
 
-bool FindTueDups(const MarcRecord * const record) {
+std::string CSVEscape(const std::string &value) {
+    std::string escaped_value;
+    escaped_value.reserve(value.length());
+
+    std::vector<uint32_t> utf32_chars;
+    if (unlikely(not TextUtil::UTF8ToUTF32(value, &utf32_chars)))
+        return "";
+
+    for (const uint32_t ch : utf32_chars) {
+        if (unlikely(ch == '"'))
+            escaped_value += '"';
+        escaped_value += TextUtil::UTF32ToUTF8(ch);
+    }
+
+    return escaped_value;
+}
+
+
+enum InputFormat { BSZ, UB_FREIBURG };
+
+
+bool FindTueDups(const InputFormat input_format, const MarcRecord * const record) {
     std::vector<std::pair<size_t, size_t>> local_block_boundaries;
     ssize_t local_data_count = record->findAllLocalDataBlocks(&local_block_boundaries);
     if (local_data_count == 0)
         return false;
 
     std::vector<std::string> sigils;
-    for (const auto &block_start_and_end : local_block_boundaries) {
-        std::string sigil;
-        if (FindTueSigil(record, block_start_and_end, &sigil))
-            sigils.emplace_back(sigil);
+    if (input_format == BSZ) {
+        for (const auto &block_start_and_end : local_block_boundaries) {
+            std::string sigil;
+            if (FindTueSigil(record, block_start_and_end, &sigil))
+                sigils.emplace_back(sigil);
+        }
+    } else { // input_format == UB_FREIBURG
+        std::vector<size_t> _910_indices;
+        record->getFieldIndices("910", &_910_indices);
+        for (const size_t _910_index : _910_indices) {
+            const std::string _910_field_contents(record->getFieldData(_910_index));
+            if (_910_field_contents.empty())
+                continue;
+            const Subfields subfields(_910_field_contents);
+            const std::string sigil(subfields.getFirstSubfieldValue('c'));
+            if (not sigil.empty())
+                sigils.emplace_back(sigil);
+        }
     }
+
     if (sigils.size() < 2)
         return false;
 
@@ -85,34 +122,62 @@ bool FindTueDups(const MarcRecord * const record) {
         area = subfields.getFirstSubfieldValue('f');
     }
 
+    const std::string _245_contents(record->getFieldData("245"));
+    std::string main_title;
+    if (not _245_contents.empty()) {
+        const Subfields subfields(_245_contents);
+        main_title = subfields.getFirstSubfieldValue('a');
+    }
+
     std::sort(sigils.begin(), sigils.end());
-    std::cout << record->getControlNumber() << "(" << publication_year << ',' << area <<"): " << StringUtil::Join(sigils, ',') << '\n';
+    std::cout << '"' << record->getControlNumber() << "\",\"" << publication_year << "\",\"" << area <<"\",\""
+              << CSVEscape(main_title) << "\",\"" << StringUtil::Join(sigils, ',') << "\"\n";
 
     return true;
 }
 
 
-void FindTueDups(MarcReader * const marc_reader) {
-    unsigned count(0), dups_count(0);
+void FindTueDups(const InputFormat input_format, MarcReader * const marc_reader) {
+    unsigned count(0), dups_count(0), monograph_count(0), serial_count(0);
     while (MarcRecord record = marc_reader->read()) {
         ++count;
-        if (FindTueDups(&record))
+
+        // Only consider monographs and serials:
+        const Leader &leader(record.getLeader());
+        if (not (leader.isMonograph() or leader.isSerial()))
+            continue;
+
+        if (FindTueDups(input_format, &record)) {
             ++dups_count;
+            if (leader.isMonograph())
+                ++monograph_count;
+            else
+                ++serial_count;
+        }
     }
-    std::cerr << "Processed " << count << " records and found " << dups_count << " dups.\n";
+    std::cerr << "Processed " << count << " records and found " << dups_count << " dups (" << monograph_count
+              << " monographs and " << serial_count << " serials).\n";
 }
 
 
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 2)
+    if (argc != 3)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
+    InputFormat input_format;
+    if (std::strcmp(argv[1], "--input-format=BSZ") == 0)
+        input_format = BSZ;
+    else if (std::strcmp(argv[1], "--input-format=UB_FREIBURG") == 0)
+        input_format = UB_FREIBURG;
+    else
+        Error("invalid input format \"" + std::string(argv[1]) + "\"!  (Must be either BSZ or UB_FREIBURG)");
+
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
 
     try {
-        FindTueDups(marc_reader.get());
+        FindTueDups(input_format, marc_reader.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
