@@ -29,11 +29,6 @@ complete_dump          = SA-MARC-ixtheo-\d{6}.tar.gz
 incremental_dump       = (:?TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-\d{6}.tar.gz
 complete_dump_linkname = SA-MARC-ixtheo-current.tar.gz
 errors_list            = Errors_ixtheo_\d{6}
-
-[SMTPServer]
-server_address  = smtpserv.uni-tuebingen.de
-server_user     = qubob16@uni-tuebingen.de
-server_password = vv:*i%Nk
 */
 
 #include <algorithm>
