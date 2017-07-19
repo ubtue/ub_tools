@@ -73,6 +73,12 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 std::string UTF32ToUTF8(const uint32_t code_point);
 
 
+/** \brief Attempts to convert "utf8_string" to a sequence of UTF32 code points.
+ *  \return True if the conversion succeeded and false if "utf8_string" was an invalid UTF8 sequence.
+ */
+bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> * utf32_chars);
+
+
 /** Converts single UTF-16 characters and surrogate pairs to UTF-32 a.k.a. UCS-4. */
 inline uint32_t UTF16ToUTF32(const uint16_t u1, const uint16_t u2 = 0) {
     if (u2 == 0)
@@ -165,6 +171,7 @@ public:
      *
      * \return True if we need more bytes to complete a UTF-8 single-code-point sequence, false if a sequence has
      *         been decoded, signalling that getUTF32Char() should be called now.
+     * \throw std::runtime_error if we're being fed an invalid UTF-8 sequence of characters.
      */
     bool addByte(const char ch);
 
