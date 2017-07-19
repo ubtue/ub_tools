@@ -9,41 +9,28 @@ ifeq ($(CCC),clang++)
 else
   CCCFLAGS += -std=gnu++14
 endif
-CCCFLAGS_AMD64 = $(subst -march=native,,$(CCCFLAGS))
 OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
 LIBS           = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
                  -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
                  -lssl -lcrypto -lpthread -ldl
-LIBS_AMD64     = $(subst -lstemmer,-lstemmer_amd64,$(subst -lubtue,-lubtue_amd64,$(LIBS)))
-
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
-AMD64_PROGS    = $(patsubst %.cc,%_amd64,$(wildcard *.cc))
 CGI_PROGS      = full_text_lookup translate_chainer translator_ajax translator display_translate_stats
-INSTALL_PROGS  = $(filter-out %_test,$(PROGS)) *.sh
+INSTALL_PROGS  = $(PROGS) *.sh
 
-.PHONY: all amd64 install clean
+.PHONY: all .deps tests install regular_install cgi_install local_clean clean
 
 all: .deps $(PROGS)
 	$(MAKE) -C tests
-
-amd64: .deps $(AMD64_PROGS)
+	$(MAKE) -C test
 
 %.o: %.cc
 	@echo "Compiling $<..."
 	@$(CCC) $(CCCFLAGS) $< -c
 
-%_amd64.o: %.cc
-	@echo "Compiling (AMD64) $<..."
-	@$(CCC) --static $(CCCFLAGS_AMD64) $< -c -o $@
-
 $(PROGS): % : %.o lib/libubtue.a
 	@echo "Linking $@..."
 	@$(CCC) $< -o $@ $(LIBS)
-
-$(AMD64_PROGS): % : %.o lib/libubtue.a
-	@echo "Linking $@..."
-	@$(CCC) -static-libgcc -static-libstdc++ $< -o $@ $(LIBS)
 
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile
@@ -52,7 +39,8 @@ $(AMD64_PROGS): % : %.o lib/libubtue.a
 lib/libubtue.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
 	$(MAKE) -C lib
 
-tests: $(patsubst %.cc,%,$(wildcard *test.cc))
+tests:
+	$(MAKE) -C test
 
 install: regular_install cgi_install
 
@@ -79,3 +67,5 @@ local_clean:
 
 clean: local_clean
 	make -C lib clean
+	make -C tests clean
+	make -C test clean

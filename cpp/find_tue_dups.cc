@@ -81,13 +81,13 @@ enum InputFormat { BSZ, UB_FREIBURG };
 
 
 bool FindTueDups(const InputFormat input_format, const MarcRecord * const record) {
-    std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-    ssize_t local_data_count = record->findAllLocalDataBlocks(&local_block_boundaries);
-    if (local_data_count == 0)
-        return false;
-
     std::vector<std::string> sigils;
     if (input_format == BSZ) {
+        std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+        ssize_t local_data_count = record->findAllLocalDataBlocks(&local_block_boundaries);
+        if (local_data_count == 0)
+            return false;
+
         for (const auto &block_start_and_end : local_block_boundaries) {
             std::string sigil;
             if (FindTueSigil(record, block_start_and_end, &sigil))
