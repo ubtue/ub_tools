@@ -746,6 +746,7 @@ void RemoveDirectoryOrDie(const std::string &directory_name) {\
                            + std::string(::strerror(errno)) + ")");
 }
 
+
 const std::string EMAIL_CONF_FILE_PATH("/var/lib/tuelib/cronjobs/smtp_server.conf");
 const std::string CONF_FILE_PATH("/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
 
