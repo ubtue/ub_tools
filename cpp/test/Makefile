@@ -15,7 +15,6 @@ LIBS           = -L../lib -lubtue -L../lib/libstemmer -lstemmer -lxml2 -lpcre -l
                  -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
                  -lssl -lcrypto -lpthread -ldl
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
-CGI_PROGS      = full_text_lookup translate_chainer translator_ajax translator display_translate_stats
 INSTALL_PROGS  = $(PROGS) *.sh
 
 .PHONY: all clean
