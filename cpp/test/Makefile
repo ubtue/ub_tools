@@ -17,7 +17,7 @@ LIBS           = -L../lib -lubtue -L../lib/libstemmer -lstemmer -lxml2 -lpcre -l
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
 INSTALL_PROGS  = $(PROGS) *.sh
 
-.PHONY: all clean
+.PHONY: all clean .deps
 
 all: .deps $(PROGS)
 
