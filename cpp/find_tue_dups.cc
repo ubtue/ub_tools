@@ -1,10 +1,5 @@
 /** \file    find_tue_dups.cc
  *  \author  Dr. Johannes Ruscheinski
- *
- *  Local data blocks are embedded marc records inside of a record using LOK-Fields.
- *  Each local data block belongs to an institution and is marked by the institution's sigil.
- *  This tool filters for local data blocks of some institutions of the University of Tübingen
- *  and deletes all other local blocks.
  */
 
 /*
@@ -80,7 +75,7 @@ std::string CSVEscape(const std::string &value) {
 enum InputFormat { BSZ, UB_FREIBURG };
 
 
-bool FindTueDups(const InputFormat input_format, const MarcRecord * const record) {
+bool FindTueDups(const InputFormat input_format, const char bibliographic_level, const MarcRecord * const record) {
     std::vector<std::string> sigils;
     if (input_format == BSZ) {
         std::vector<std::pair<size_t, size_t>> local_block_boundaries;
@@ -115,11 +110,15 @@ bool FindTueDups(const InputFormat input_format, const MarcRecord * const record
     if (likely(_008_contents.length() >= 11))
         publication_year = _008_contents.substr(7, 4);
 
-    const std::string _079_contents(record->getFieldData("008"));
     std::string area;
-    if (not _079_contents.empty()) {
-        const Subfields subfields(_079_contents);
-        area = subfields.getFirstSubfieldValue('f');
+
+    // Only determine the area if we're have the sigil of the university main library:
+    if (std::find(sigils.cbegin(), sigils.cend(), "21") != sigils.cend()) {
+        const std::string _910_contents(record->getFieldData("910"));
+        if (not _910_contents.empty()) {
+            const Subfields subfields(_910_contents);
+            area = subfields.getFirstSubfieldValue('j');
+        }
     }
 
     const std::string _245_contents(record->getFieldData("245"));
@@ -130,8 +129,9 @@ bool FindTueDups(const InputFormat input_format, const MarcRecord * const record
     }
 
     std::sort(sigils.begin(), sigils.end());
-    std::cout << '"' << record->getControlNumber() << "\",\"" << publication_year << "\",\"" << area <<"\",\""
-              << CSVEscape(main_title) << "\",\"" << StringUtil::Join(sigils, ',') << "\"\n";
+    std::cout << '"' << record->getControlNumber() << "\",\"" << bibliographic_level << "\",\"" << publication_year
+              << "\",\"" << area <<"\",\"" << CSVEscape(main_title) << "\",\"" << StringUtil::Join(sigils, ',')
+              << "\"\n";
 
     return true;
 }
@@ -147,7 +147,7 @@ void FindTueDups(const InputFormat input_format, MarcReader * const marc_reader)
         if (not (leader.isMonograph() or leader.isSerial()))
             continue;
 
-        if (FindTueDups(input_format, &record)) {
+        if (FindTueDups(input_format, leader.getBibliographicLevel(), &record)) {
             ++dups_count;
             if (leader.isMonograph())
                 ++monograph_count;
