@@ -171,6 +171,7 @@ public:
      *
      * \return True if we need more bytes to complete a UTF-8 single-code-point sequence, false if a sequence has
      *         been decoded, signalling that getUTF32Char() should be called now.
+     * \throw std::runtime_error if we're being fed an invalid UTF-8 sequence of characters.
      */
     bool addByte(const char ch);
 
