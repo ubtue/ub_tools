@@ -260,7 +260,7 @@ bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> * utf32_c
     try {
         bool last_addByte_retval(false);
         for (const char ch : utf8_string) {
-            if (not decoder.addByte(ch))
+            if (not (last_addByte_retval = decoder.addByte(ch)))
                 utf32_chars->emplace_back(decoder.getUTF32Char());
         }
 
