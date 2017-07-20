@@ -150,6 +150,14 @@ std::string Base64Encode(const std::string &s, const char symbol63 = '+', const 
 std::string EscapeString(const std::string &original_string, const bool also_escape_whitespace = false);
 
 
+/** \brief Escapes "value" as a comma-separated value.
+ *  \param value The UTF-8 character sequence to be encoded.
+ *  \return The converted (double quotes being replaced by two consecutive double quotes) value.
+ *  \note Enclosing double are not included in the returned escaped value.
+ */
+std::string CSVEscape(const std::string &value);
+
+
 /** \brief Removes the final UTF-8 logical character from "*s".
  *  \return True if we succeeded and false if "*s" is empty or malformed UTF-8.
  */
