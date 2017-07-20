@@ -54,24 +54,6 @@ bool FindTueSigil(const MarcRecord * const record, const std::pair<size_t, size_
 }
 
 
-std::string CSVEscape(const std::string &value) {
-    std::string escaped_value;
-    escaped_value.reserve(value.length());
-
-    std::vector<uint32_t> utf32_chars;
-    if (unlikely(not TextUtil::UTF8ToUTF32(value, &utf32_chars)))
-        return "";
-
-    for (const uint32_t ch : utf32_chars) {
-        if (unlikely(ch == '"'))
-            escaped_value += '"';
-        escaped_value += TextUtil::UTF32ToUTF8(ch);
-    }
-
-    return escaped_value;
-}
-
-
 enum InputFormat { BSZ, UB_FREIBURG };
 
 
@@ -130,8 +112,8 @@ bool FindTueDups(const InputFormat input_format, const char bibliographic_level,
 
     std::sort(sigils.begin(), sigils.end());
     std::cout << '"' << record->getControlNumber() << "\",\"" << bibliographic_level << "\",\"" << publication_year
-              << "\",\"" << area <<"\",\"" << CSVEscape(main_title) << "\",\"" << StringUtil::Join(sigils, ',')
-              << "\"\n";
+              << "\",\"" << area <<"\",\"" << TextUtil::CSVEscape(main_title) << "\",\""
+              << StringUtil::Join(sigils, ',') << "\"\n";
 
     return true;
 }
