@@ -462,6 +462,24 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
 }
 
 
+std::string CSVEscape(const std::string &value) {
+    std::string escaped_value;
+    escaped_value.reserve(value.length());
+
+    std::vector<uint32_t> utf32_chars;
+    if (unlikely(not TextUtil::UTF8ToUTF32(value, &utf32_chars)))
+        return "";
+
+    for (const uint32_t ch : utf32_chars) {
+        if (unlikely(ch == '"'))
+            escaped_value += '"';
+        escaped_value += TextUtil::UTF32ToUTF8(ch);
+    }
+
+    return escaped_value;
+}
+
+
 // See https://en.wikipedia.org/wiki/UTF-8 in order to understand this implementation.
 bool TrimLastCharFromUTF8Sequence(std::string * const s) {
     if (unlikely(s->empty()))
