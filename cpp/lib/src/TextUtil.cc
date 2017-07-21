@@ -466,14 +466,10 @@ std::string CSVEscape(const std::string &value) {
     std::string escaped_value;
     escaped_value.reserve(value.length());
 
-    std::vector<uint32_t> utf32_chars;
-    if (unlikely(not TextUtil::UTF8ToUTF32(value, &utf32_chars)))
-        return "";
-
-    for (const uint32_t ch : utf32_chars) {
+    for (const char ch : value) {
         if (unlikely(ch == '"'))
             escaped_value += '"';
-        escaped_value += TextUtil::UTF32ToUTF8(ch);
+        escaped_value += ch;
     }
 
     return escaped_value;
