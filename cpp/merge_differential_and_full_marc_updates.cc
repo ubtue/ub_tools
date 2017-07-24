@@ -29,11 +29,6 @@ complete_dump          = SA-MARC-ixtheo-\d{6}.tar.gz
 incremental_dump       = (:?TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-\d{6}.tar.gz
 complete_dump_linkname = SA-MARC-ixtheo-current.tar.gz
 errors_list            = Errors_ixtheo_\d{6}
-
-[SMTPServer]
-server_address  = smtpserv.uni-tuebingen.de
-server_user     = qubob16@uni-tuebingen.de
-server_password = vv:*i%Nk
 */
 
 #include <algorithm>
@@ -752,6 +747,7 @@ void RemoveDirectoryOrDie(const std::string &directory_name) {\
 }
 
 
+const std::string EMAIL_CONF_FILE_PATH("/var/lib/tuelib/cronjobs/smtp_server.conf");
 const std::string CONF_FILE_PATH("/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
 
 
@@ -770,11 +766,12 @@ int main(int argc, char *argv[]) {
     ::default_email_recipient = argv[1];
 
     try {
-        const IniFile ini_file(CONF_FILE_PATH);
-        ::email_server_address  = ini_file.getString("SMTPServer", "server_address");
-        ::email_server_user     = ini_file.getString("SMTPServer", "server_user");
-        ::email_server_password = ini_file.getString("SMTPServer", "server_password");
+        const IniFile email_ini_file(EMAIL_CONF_FILE_PATH);
+        ::email_server_address  = email_ini_file.getString("SMTPServer", "server_address");
+        ::email_server_user     = email_ini_file.getString("SMTPServer", "server_user");
+        ::email_server_password = email_ini_file.getString("SMTPServer", "server_password");
 
+        const IniFile ini_file(CONF_FILE_PATH);
         const std::string deletion_list_pattern(ini_file.getString("Files", "deletion_list"));
         const std::string complete_dump_pattern(ini_file.getString("Files", "complete_dump"));
         const std::string incremental_dump_pattern(ini_file.getString("Files", "incremental_dump"));

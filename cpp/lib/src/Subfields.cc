@@ -2,7 +2,7 @@
  *  \brief  Implementation of the Subfields class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014,2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,7 @@
 #include "Subfields.h"
 #include <stdexcept>
 #include "Compiler.h"
+#include "RegexMatcher.h"
 #include "util.h"
 
 
@@ -63,6 +64,30 @@ bool Subfields::hasSubfieldWithValue(const char subfield_code, const std::string
     for (/* empty */; code_and_value != end() && code_and_value->code_ == subfield_code; ++code_and_value) {
         if (code_and_value->value_ == value)
             return true;
+    }
+    return false;
+}
+
+
+bool Subfields::hasSubfieldWithPattern(const char subfield_code, const RegexMatcher &regex) const {
+    auto code_and_value(std::find_if(begin(), end(), CompareSubfieldCode(subfield_code)));
+    for (/* empty */; code_and_value != end() && code_and_value->code_ == subfield_code; ++code_and_value) {
+        if (regex.matched(code_and_value->value_))
+            return true;
+    }
+    return false;
+}
+
+
+bool Subfields::extractSubfieldWithPattern(const char subfield_code, const RegexMatcher &regex,
+                                           std::string * const value) const
+{
+    auto code_and_value(std::find_if(begin(), end(), CompareSubfieldCode(subfield_code)));
+    for (/* empty */; code_and_value != end() && code_and_value->code_ == subfield_code; ++code_and_value) {
+        if (regex.matched(code_and_value->value_)) {
+            *value = code_and_value->value_;
+            return true;
+        }
     }
     return false;
 }
