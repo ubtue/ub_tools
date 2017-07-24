@@ -190,10 +190,10 @@ int main(int argc, char **argv) {
         output_set = ALL;
     else if (std::strcmp(argv[2], "--output-set=MONOGRAPHS") == 0)
         output_set = MONOGRAPHS;
-    else if (std::strcmp(argv[2], "--output-set=SERIALS_FREIBURG") == 0)
+    else if (std::strcmp(argv[2], "--output-set=SERIALS") == 0)
         output_set = SERIALS;
     else
-        Error("invalid input format \"" + std::string(argv[1]) + "\"!  (Must be either BSZ or UB_FREIBURG)");
+        Error("invalid input format \"" + std::string(argv[2]) + "\"!  (Must be ALL, MONOGRAPHS or SERIALS)");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[3], MarcReader::BINARY));
 
