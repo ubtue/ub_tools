@@ -71,12 +71,15 @@ extract_vufind_translations_for_translation
 fifo_pipe_file_test
 files_differ_test
 find_substring_test
+find_tue_dups
+test_chop_into_words
 fix_article_biblio_levels
 fix_iso_8859_1_garbage
 full_text_cache_cleaner
 full_text_cache_expirer
 full_text_lookup
 full_text_stats
+generate_title_and_author_list
 generate_vufind_translation_files
 get_essay_collection_pdfs
 get_file_media_type_test

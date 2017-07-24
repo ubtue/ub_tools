@@ -253,6 +253,24 @@ std::string UTF32ToUTF8(const uint32_t code_point) {
 }
 
 
+bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> * utf32_chars) {
+    utf32_chars->clear();
+
+    UTF8ToUTF32Decoder decoder;
+    try {
+        bool last_addByte_retval(false);
+        for (const char ch : utf8_string) {
+            if (not (last_addByte_retval = decoder.addByte(ch)))
+                utf32_chars->emplace_back(decoder.getUTF32Char());
+        }
+
+        return not last_addByte_retval;
+    } catch (...) {
+        return false;
+    }
+}
+
+
 namespace {
 
 
@@ -441,6 +459,20 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
     }
 
     return escaped_string;
+}
+
+
+std::string CSVEscape(const std::string &value) {
+    std::string escaped_value;
+    escaped_value.reserve(value.length());
+
+    for (const char ch : value) {
+        if (unlikely(ch == '"'))
+            escaped_value += '"';
+        escaped_value += ch;
+    }
+
+    return escaped_value;
 }
 
 

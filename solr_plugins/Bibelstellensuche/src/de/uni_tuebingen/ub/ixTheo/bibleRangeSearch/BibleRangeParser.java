@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 
 
 public class BibleRangeParser extends QParser {
-    private final static String QUERY_SEPARATOR = ",";
+    private final static String QUERY_SEPARATOR = " ";
     private final static String DB_FIELD_SEPARATOR = ",";
     private static Logger logger = LoggerFactory.getLogger(BibleRangeParser.class);
 
@@ -90,7 +90,7 @@ public class BibleRangeParser extends QParser {
                 buffer.append("|" + firstBookCode);
                 alreadySeenBookCodes.add(firstBookCode);
             }
-            final String secondBookCode = range.substring(8, 10);
+            final String secondBookCode = range.substring(9, 11);
             if (!alreadySeenBookCodes.contains(secondBookCode)) {
                 buffer.append("|" + secondBookCode);
                 alreadySeenBookCodes.add(secondBookCode);

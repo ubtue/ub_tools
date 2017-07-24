@@ -28,8 +28,13 @@ class BibleRangeQuery extends Query {
     }
 
     @Override
-    public String toString(final String s) {
-        return "BibleRangeQuery(" + s + ")";
+    public String toString(String default_field) {
+        return query.toString(default_field);
+    }
+
+    // The standard toString() in the parent class is final so we needed to give this a different name.
+    public String asString() {
+        return "BibleRangeQuery(Query:" + query.toString() + ", Ranges:" + Range.toString(ranges) + ")";
     }
 
     /**
