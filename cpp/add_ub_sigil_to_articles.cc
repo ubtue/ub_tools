@@ -1,4 +1,4 @@
-/** \file
+/** \file add_ub_sigil_to_articles.cc
  *  \author Johannes Riedl
  *
  *  New implementation to derive information for articles about being available in Tübingen
@@ -57,8 +57,6 @@ void ProcessSuperiorRecord(const MarcRecord &record) {
 
     std::vector<std::pair<size_t, size_t>> local_block_boundaries;
     ssize_t local_data_count = record.findAllLocalDataBlocks(&local_block_boundaries);
-    if (local_data_count == 0)
-        return;
 
     for (const auto &block_start_and_end : local_block_boundaries) {
         std::vector<size_t> field_indices;
