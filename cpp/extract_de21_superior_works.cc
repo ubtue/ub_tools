@@ -33,15 +33,21 @@
 #include "util.h"
 
 static unsigned extracted_count(0);
-static std::set<std::string> de21_ppns;
+static unsigned modified_count(0);
+static std::set<std::string> de21_superior_ppns;
 static const RegexMatcher * const tue_sigil_matcher(RegexMatcher::RegexMatcherFactory("^DE-21.*"));
+static const RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatcherFactory(".DE-576.(.*)"));
+
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input de21_output_ppns\n";
+    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
+    std::cerr << "       " << "Notice that this program requires \"add_superior_and_alertable_flags\"\n";
+    std::cerr << "       " << "to be run on the input data\n";
     std::exit(EXIT_FAILURE);
 }
 
-void ProcessRecord(const MarcRecord &record) {
+
+void ProcessSuperiorRecord(const MarcRecord &record) {
     // We are done if this is not a superior work
     if (record.getFieldData("SPR").empty())
         return;
@@ -60,7 +66,7 @@ void ProcessRecord(const MarcRecord &record) {
             const Subfields subfields(field_data);
             std::string sigil;
             if (subfields.extractSubfieldWithPattern('a', *tue_sigil_matcher, &sigil)) {
-                de21_ppns.insert(record.getControlNumber());
+                de21_superior_ppns.insert(record.getControlNumber());
                 ++extracted_count;
             }
         }
@@ -68,15 +74,91 @@ void ProcessRecord(const MarcRecord &record) {
 }
 
 
-void WriteDE21Output(const std::unique_ptr<File> &output) {
-    for (const auto ppn : de21_ppns) {
-         output->write(ppn + '\n');
+void LoadDE21PPNs(MarcReader * const marc_reader) {
+    while (MarcRecord record = marc_reader->read())
+         ProcessSuperiorRecord(record);
+}
+
+
+void CollectSuperiorPPNs(const MarcRecord &record, std::set<std::string> * const superior_ppn_bag) {
+    // Determine superior PPNs from 800w:810w:830w:773w:776w
+    std::vector<std::string> superior_ppn_vector;
+    const std::vector<std::string> tags({ "800", "810", "830", "773", "776" });
+    for (const auto &tag : tags) {
+        superior_ppn_vector.clear();
+        record.extractSubfields(tag , "w", &superior_ppn_vector);
+
+        // Remove superfluous prefices
+        for (auto &superior_ppn : superior_ppn_vector) {
+             std::string err_msg;
+             if (not superior_ppn_matcher->matched(superior_ppn, &err_msg)) {
+                 if (not err_msg.empty())
+                     Error("Error with regex für superior works " + err_msg);
+                 continue;
+             }
+             superior_ppn = (*superior_ppn_matcher)[1];
+        }
+        std::copy(superior_ppn_vector.begin(), superior_ppn_vector.end(), std::inserter(*superior_ppn_bag, superior_ppn_bag->end()));
     }
 }
 
-void LoadDE21PPNs(MarcReader * const marc_reader) {
+
+void InsertDE21ToLOK852(MarcRecord * const record) {
+     record->insertField("LOK", "  ""\x1F""0852""\x1F""aDE-21");
+     ++modified_count;
+}
+
+
+bool AlreadyHasLOK852DE21(const MarcRecord &record) {
+    std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+    ssize_t local_data_count = record.findAllLocalDataBlocks(&local_block_boundaries);
+    if (local_data_count == 0)
+        return false;
+
+    for (const auto &block_start_and_end : local_block_boundaries) {
+        std::vector<size_t> field_indices;
+        record.findFieldsInLocalBlock("852", "??", block_start_and_end, &field_indices);
+        for (size_t field_index : field_indices) {
+            const std::string field_data(record.getFieldData(field_index));
+            const Subfields subfields(field_data);
+            std::string sigil;
+            if (subfields.extractSubfieldWithPattern('a', *tue_sigil_matcher, &sigil)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
+void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
+    const Leader &leader(record->getLeader());
+    if (not leader.isArticle()) {
+        marc_writer->write(*record);
+        return;
+    }
+
+    if (not AlreadyHasLOK852DE21(*record)) {
+        marc_writer->write(*record);
+        return;
+    }
+    std::set<std::string> superior_ppn_bag;
+    CollectSuperiorPPNs(*record, &superior_ppn_bag);
+    // Do we have superior PPN that has DE-21
+    for (const auto &superior_ppn : superior_ppn_bag) {
+        if (de21_superior_ppns.find(superior_ppn) != de21_superior_ppns.end()) {
+            InsertDE21ToLOK852(record);
+            marc_writer->write(*record);
+            return;
+        }
+    }
+}
+
+
+void AugmentRecords(MarcReader * const marc_reader, MarcWriter * const marc_writer) {
+    marc_reader->rewind();
     while (MarcRecord record = marc_reader->read())
-         ProcessRecord(record);
+        ProcessRecord(&record, marc_writer);
 }
 
 
@@ -87,12 +169,12 @@ int main(int argc, char **argv) {
         Usage();
 
     const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
-    const std::unique_ptr<File> de21_output(FileUtil::OpenOutputFileOrDie(argv[2]));
+    const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
 
     try {
         LoadDE21PPNs(marc_reader.get());
-        WriteDE21Output(de21_output);
-        std::cerr << "Extracted " << extracted_count << " PPNs\n"; 
+        AugmentRecords(marc_reader.get(), marc_writer.get());
+        std::cerr << "Extracted " << extracted_count << " superior PPNs with DE21 and modified " << modified_count << " records\n"; 
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
