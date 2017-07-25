@@ -158,6 +158,22 @@ enum OutputSet { ALL, MONOGRAPHS, SERIALS };
 
 
 void FindTueDups(const InputFormat input_format, const OutputSet output_set, MarcReader * const marc_reader) {
+    // Write a header:
+    std::string issn_and_isbn_header;
+    switch (output_set) {
+    case ALL:
+        issn_and_isbn_header = ",\"ISBN's/ISSN\'s\"";
+        break;
+    case MONOGRAPHS:
+        issn_and_isbn_header = ",\"ISBN\'s\"";
+        break;
+    case SERIALS:
+        issn_and_isbn_header = ",\"ISSN\'s\"";
+        break;
+    }
+    std::cout << "\"PPN\"" << (output_set == ALL ? ",\"monograph/serial\"" : "") << ",\"pub. year\""
+              << issn_and_isbn_header << ",\"area\"" << ",\"main title\"" << ",\"sigils\"" << '\n';
+
     unsigned count(0), dups_count(0), monograph_count(0), serial_count(0);
     while (MarcRecord record = marc_reader->read()) {
         ++count;
