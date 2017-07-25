@@ -37,13 +37,13 @@ void Usage() {
 }
 
 
-void ExtractSubfieldA(const MarcRecord &record, const std::string &tag,
-                      std::set<std::string> * const extracted_values)
+void ExtractSubfield(const MarcRecord &record, const std::string &tag, const char subfield_code,
+                     std::set<std::string> * const extracted_values)
 {
     std::vector<size_t> field_indices;
     record.getFieldIndices(tag, &field_indices);
     for (const size_t field_index : field_indices) {
-        const std::string subfield_a(record.extractFirstSubfield(field_index, 'a'));
+        const std::string subfield_a(record.extractFirstSubfield(field_index, subfield_code));
         if (likely(not subfield_a.empty()))
             extracted_values->emplace(subfield_a);
     }
@@ -51,8 +51,19 @@ void ExtractSubfieldA(const MarcRecord &record, const std::string &tag,
 
 
 void ExtractISSNsAndISBNs(const MarcRecord &record, std::set<std::string> * const issns_and_isbns) {
-    ExtractSubfieldA(record, "022", issns_and_isbns);
-    ExtractSubfieldA(record, "020", issns_and_isbns);
+    // ISSN's:
+    ExtractSubfield(record, "022", 'a', issns_and_isbns);
+    ExtractSubfield(record, "440", 'x', issns_and_isbns);
+    ExtractSubfield(record, "490", 'x', issns_and_isbns);
+    ExtractSubfield(record, "730", 'x', issns_and_isbns);
+    ExtractSubfield(record, "773", 'x', issns_and_isbns);
+    ExtractSubfield(record, "776", 'x', issns_and_isbns);
+    ExtractSubfield(record, "780", 'x', issns_and_isbns);
+    ExtractSubfield(record, "785", 'x', issns_and_isbns);
+
+    // ISBN's:
+    ExtractSubfield(record, "020", 'a', issns_and_isbns);
+    ExtractSubfield(record, "773", 'a', issns_and_isbns);
 }
 
 
