@@ -56,13 +56,13 @@ void ProcessSuperiorRecord(const MarcRecord &record) {
         return;
 
     std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-    ssize_t local_data_count = record.findAllLocalDataBlocks(&local_block_boundaries);
+    record.findAllLocalDataBlocks(&local_block_boundaries);
 
     for (const auto &block_start_and_end : local_block_boundaries) {
         std::vector<size_t> field_indices;
         record.findFieldsInLocalBlock("852", "??", block_start_and_end, &field_indices);
     
-        for (size_t field_index : field_indices) {
+        for (const size_t field_index : field_indices) {
             const std::string field_data(record.getFieldData(field_index));
             const Subfields subfields(field_data);
             std::string sigil;
