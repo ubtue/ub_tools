@@ -21,7 +21,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #include <algorithm>
 #include <iostream>
 #include <cstring>
@@ -32,6 +31,7 @@
 #include "RegexMatcher.h"
 #include "util.h"
 
+
 static unsigned extracted_count(0);
 static unsigned modified_count(0);
 static std::set<std::string> de21_superior_ppns;
@@ -41,8 +41,10 @@ static const RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatche
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
-    std::cerr << "       " << "Notice that this program requires \"add_superior_and_alertable_flags\"\n";
-    std::cerr << "       " << "to be run on the input data\n";
+    std::cerr << "  Adds DE-21 sigils, as appropriate, to article entries found in the\n";
+    std::cerr << "  master_marc_input and writes this augmented file as marc_output.\n\n";
+    std::cerr << "  Notice that this program requires \"add_superior_and_alertable_flags\"\n";
+    std::cerr << "  to be run on the input data beforehand\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -138,7 +140,7 @@ void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
         return;
     }
 
-    if (not AlreadyHasLOK852DE21(*record)) {
+    if (AlreadyHasLOK852DE21(*record)) {
         marc_writer->write(*record);
         return;
     }
@@ -174,7 +176,7 @@ int main(int argc, char **argv) {
     try {
         LoadDE21PPNs(marc_reader.get());
         AugmentRecords(marc_reader.get(), marc_writer.get());
-        std::cerr << "Extracted " << extracted_count << " superior PPNs with DE21 and modified " << modified_count << " records\n"; 
+        std::cerr << "Extracted " << extracted_count << " superior PPNs with DE-21 and modified " << modified_count << " records\n"; 
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
