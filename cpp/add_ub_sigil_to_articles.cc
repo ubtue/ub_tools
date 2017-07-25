@@ -35,17 +35,17 @@
 
 static unsigned extracted_count(0);
 static unsigned modified_count(0);
-static std::set<std::string> de21_superior_ppns;
+static std::unordered_set<std::string> de21_superior_ppns;
 static const RegexMatcher * const tue_sigil_matcher(RegexMatcher::RegexMatcherFactory("^DE-21.*"));
 static const RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatcherFactory(".DE-576.(.*)"));
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " spr_augmented_marc_input marc_output\n";
     std::cerr << "  Adds DE-21 sigils, as appropriate, to article entries found in the\n";
     std::cerr << "  master_marc_input and writes this augmented file as marc_output.\n\n";
-    std::cerr << "  Notice that this program requires \"add_superior_and_alertable_flags\"\n";
-    std::cerr << "  to be run on the input data beforehand\n";
+    std::cerr << "  Notice that this program requires the SPR tag for superior works\n";
+    std::cerr << "  to be set for appropriate results";
     std::exit(EXIT_FAILURE);
 }
 
@@ -78,20 +78,19 @@ void ProcessSuperiorRecord(const MarcRecord &record) {
 
 
 void LoadDE21PPNs(MarcReader * const marc_reader) {
-    while (MarcRecord record = marc_reader->read())
+    while (const MarcRecord record = marc_reader->read())
          ProcessSuperiorRecord(record);
 }
 
 
-void CollectSuperiorPPNs(const MarcRecord &record, std::set<std::string> * const superior_ppn_bag) {
+void CollectSuperiorPPNs(const MarcRecord &record, std::unordered_set<std::string> * const superior_ppn_set) {
     // Determine superior PPNs from 800w:810w:830w:773w:776w
-    std::vector<std::string> superior_ppn_vector;
     const std::vector<std::string> tags({ "800", "810", "830", "773", "776" });
     for (const auto &tag : tags) {
-        superior_ppn_vector.clear();
+        std::vector<std::string> superior_ppn_vector;
         record.extractSubfields(tag , "w", &superior_ppn_vector);
 
-        // Remove superfluous prefices
+        // Remove superfluous prefixes
         for (auto &superior_ppn : superior_ppn_vector) {
              std::string err_msg;
              if (not superior_ppn_matcher->matched(superior_ppn, &err_msg)) {
@@ -101,7 +100,7 @@ void CollectSuperiorPPNs(const MarcRecord &record, std::set<std::string> * const
              }
              superior_ppn = (*superior_ppn_matcher)[1];
         }
-        std::copy(superior_ppn_vector.begin(), superior_ppn_vector.end(), std::inserter(*superior_ppn_bag, superior_ppn_bag->end()));
+        std::copy(superior_ppn_vector.begin(), superior_ppn_vector.end(), std::inserter(*superior_ppn_set, superior_ppn_set->end()));
     }
 }
 
@@ -145,10 +144,10 @@ void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
         marc_writer->write(*record);
         return;
     }
-    std::set<std::string> superior_ppn_bag;
-    CollectSuperiorPPNs(*record, &superior_ppn_bag);
+    std::unordered_set<std::string> superior_ppn_set;
+    CollectSuperiorPPNs(*record, &superior_ppn_set);
     // Do we have superior PPN that has DE-21
-    for (const auto &superior_ppn : superior_ppn_bag) {
+    for (const auto &superior_ppn : superior_ppn_set) {
         if (de21_superior_ppns.find(superior_ppn) != de21_superior_ppns.end()) {
             InsertDE21ToLOK852(record);
             marc_writer->write(*record);
@@ -162,6 +161,7 @@ void AugmentRecords(MarcReader * const marc_reader, MarcWriter * const marc_writ
     marc_reader->rewind();
     while (MarcRecord record = marc_reader->read())
         ProcessRecord(&record, marc_writer);
+    std::cerr << "Extracted " << extracted_count << " superior PPNs with DE-21 and modified " << modified_count << " records\n"; 
 }
 
 
@@ -171,16 +171,13 @@ int main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
-    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
-    const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], MarcWriter::BINARY));
+    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
+    const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
 
     try {
         LoadDE21PPNs(marc_reader.get());
         AugmentRecords(marc_reader.get(), marc_writer.get());
-        std::cerr << "Extracted " << extracted_count << " superior PPNs with DE-21 and modified " << modified_count << " records\n"; 
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
 }
-
-
