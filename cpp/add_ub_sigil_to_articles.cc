@@ -41,7 +41,7 @@ static const RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatche
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " spr_augmented_marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " [-v|--verbose] spr_augmented_marc_input marc_output\n";
     std::cerr << "  Adds DE-21 sigils, as appropriate, to article entries found in the\n";
     std::cerr << "  master_marc_input and writes this augmented file as marc_output.\n\n";
     std::cerr << "  Notice that this program requires the SPR tag for superior works\n";
@@ -72,12 +72,15 @@ void ProcessSuperiorRecord(const MarcRecord &record) {
             }
         }
     }
+
 }
 
 
-void LoadDE21PPNs(MarcReader * const marc_reader) {
+void LoadDE21PPNs(const bool verbose, MarcReader * const marc_reader) {
     while (const MarcRecord record = marc_reader->read())
          ProcessSuperiorRecord(record);
+    if (verbose)
+       std::cerr << "Finished extracting " << extracted_count << " superior records\n";
 }
 
 
@@ -166,14 +169,19 @@ void AugmentRecords(MarcReader * const marc_reader, MarcWriter * const marc_writ
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 3)
-        Usage();
+    if ((argc != 3 and argc != 4)
+        or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
+            Usage();
 
-    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
-    const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
+    const bool verbose(argc == 4);
+    const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
+    const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
+
+    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename));
+    const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
 
     try {
-        LoadDE21PPNs(marc_reader.get());
+        LoadDE21PPNs(verbose, marc_reader.get());
         AugmentRecords(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
