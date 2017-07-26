@@ -50,7 +50,7 @@ void Usage() {
 }
 
 
-void ProcessSuperiorRecord(const MarcRecord &record) {
+void ProcessSuperiorRecord(const bool verbose, const MarcRecord &record) {
     // We are done if this is not a superior work
     if (record.getFieldData("SPR").empty())
         return;
@@ -72,12 +72,15 @@ void ProcessSuperiorRecord(const MarcRecord &record) {
             }
         }
     }
+
+    if (verbose)
+       std::cerr << "Finished extracting " << extracted_count << " records\n";
 }
 
 
-void LoadDE21PPNs(MarcReader * const marc_reader) {
+void LoadDE21PPNs(const bool verbose, MarcReader * const marc_reader) {
     while (const MarcRecord record = marc_reader->read())
-         ProcessSuperiorRecord(record);
+         ProcessSuperiorRecord(verbose, record);
 }
 
 
@@ -166,14 +169,19 @@ void AugmentRecords(MarcReader * const marc_reader, MarcWriter * const marc_writ
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 3)
-        Usage();
+    if ((argc != 3 or argc != 4)
+        or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
+            Usage();
 
-    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
-    const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
+    const bool verbose(argc == 4);
+    const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
+    const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
+
+    const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename));
+    const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename));
 
     try {
-        LoadDE21PPNs(marc_reader.get());
+        LoadDE21PPNs(verbose, marc_reader.get());
         AugmentRecords(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
