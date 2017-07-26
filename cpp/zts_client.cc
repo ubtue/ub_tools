@@ -71,7 +71,6 @@ bool Download(const std::string &server_address, const unsigned short server_por
     char http_response_header[10240 + 1];
     ssize_t no_of_bytes_read(SocketUtil::TimedRead(socket_fd, time_limit, http_response_header,
                                                    sizeof(http_response_header) - 1));
-    
     if (no_of_bytes_read == -1) {
         *error_message = "Could not read from socket (1).";
         *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime())
@@ -164,6 +163,57 @@ void CreateSubfieldFromStringNode(const std::pair<std::string, JSON::JSONNode *>
 }
 
 
+const JSON::StringNode *CastToStringNodeOrDie(const std::string &node_name, const JSON::JSONNode *  const node) {
+    if (unlikely(node->getType() != JSON::JSONNode::STRING_NODE))
+        Error("in CastToStringNodeOrDie: expected \"" + node_name + "\" to be a string node!");
+    return reinterpret_cast<const JSON::StringNode * const>(node);
+}
+
+
+void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MarcRecord * const marc_record) {
+    if (creators_node->getType() != JSON::JSONNode::ARRAY_NODE)
+        Error("in CreateCreatorFields: expected \"creators\" to have a array node!");
+    const JSON::ArrayNode * const array(reinterpret_cast<const JSON::ArrayNode * const>(creators_node));
+    for (auto creator_node(array->cbegin()); creator_node != array->cend(); ++creator_node) {
+        if ((*creator_node)->getType() != JSON::JSONNode::OBJECT_NODE)
+            Error("in CreateCreatorFields: expected creator node to be an object node!");
+        const JSON::ObjectNode * const creator_object(
+            reinterpret_cast<const JSON::ObjectNode * const>(*creator_node));
+
+        const JSON::JSONNode * const last_name_node(creator_object->getValue("lastName"));
+        if (last_name_node == nullptr)
+            Error("in CreateCreatorFields: creator is missing a last name!");
+        const JSON::StringNode * const last_name(CastToStringNodeOrDie("lastName", last_name_node));
+        std::string name(last_name->getValue());
+
+        const JSON::JSONNode * const first_name_node(creator_object->getValue("firstName"));
+        if (first_name_node != nullptr) {
+            const JSON::StringNode * const first_name(CastToStringNodeOrDie("firstName", first_name_node));
+            name += ", " + first_name->getValue();
+        }
+
+        const JSON::JSONNode * const creator_type(creator_object->getValue("creatorType"));
+        std::string creator_role;
+        if (creator_type != nullptr) {
+            const JSON::StringNode * const creator_role_node(CastToStringNodeOrDie("creatorType", creator_type));
+            creator_role = creator_role_node->getValue();
+        }
+
+        if (creator_node == array->cbegin()) {
+            if (creator_role.empty())
+                marc_record->insertSubfield("100", 'a', name);
+            else
+                marc_record->insertSubfields("100", { { 'a', name }, { 'e', creator_role } });
+        } else { // Not the first creator!
+            if (creator_role.empty())
+                marc_record->insertSubfield("700", 'a', name);
+            else
+                marc_record->insertSubfields("700", { { 'a', name }, { 'e', creator_role } });
+        }
+    }
+}
+
+
 void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_writer) {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
         Error("in GenerateMARC: expected top-level JSON to be an array!");
@@ -182,10 +232,7 @@ void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_wri
         const JSON::ObjectNode * const object_node(reinterpret_cast<const JSON::ObjectNode * const>(*entry));
         for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
             if (key_and_node->first == "itemKey") {
-                if (key_and_node->second->getType() != JSON::JSONNode::STRING_NODE)
-                    Error("in GenerateMARC: expected \"itemKey\" to have a string node!");
-                const JSON::StringNode * const item_key(
-                    reinterpret_cast<const JSON::StringNode * const>(key_and_node->second));
+                const JSON::StringNode * const item_key(CastToStringNodeOrDie("itemKey", key_and_node->second));
                 new_record.insertField("001", item_key->getValue());
             } else if (key_and_node->first == "url")
                 CreateSubfieldFromStringNode(*key_and_node, "856", 'u', &new_record);
@@ -193,6 +240,8 @@ void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_wri
                 CreateSubfieldFromStringNode(*key_and_node, "245", 'a', &new_record);
             else if (key_and_node->first == "shortTitle")
                 CreateSubfieldFromStringNode(*key_and_node, "246", 'a', &new_record);
+            else if (key_and_node->first == "creators")
+                CreateCreatorFields(key_and_node->second, &new_record);
             else
                 Warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
                         + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "!");
