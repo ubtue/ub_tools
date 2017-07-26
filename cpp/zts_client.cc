@@ -24,6 +24,8 @@
 #include "FileDescriptor.h"
 #include "HttpHeader.h"
 #include "JSON.h"
+#include "MarcRecord.h"
+#include "MarcWriter.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -152,16 +154,38 @@ inline bool Download(const Url &url, const TimeLimit &time_limit, const std::str
 }
 
 
-void Harvest(const std::string &zts_server_url, const std::string &harvest_url) {
+void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_writer) {
+    if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
+        Error("expected top-level JSON to be an array!");
+    const JSON::ArrayNode * const top_level_array(reinterpret_cast<const JSON::ArrayNode * const>(tree));
+    if (top_level_array->size() != 1)
+        Error("expected a single element in the top-level JSON array!");
+    if (top_level_array->getValue(0)->getType() != JSON::JSONNode::ARRAY_NODE)
+        Error("expected the 0th element of the top-level JSON array to also be a JSON array!");
+    const JSON::ArrayNode * const nested_array(
+        reinterpret_cast<const JSON::ArrayNode * const>(top_level_array->getValue(0)));
+
+    MarcRecord new_record;
+    for (auto node(nested_array->cbegin()); node != nested_array->cend(); ++node) {
+        std::cout << "Node type: " << JSON::JSONNode::TypeToString((*node)->getType()) << '\n';
+    }
+
+    marc_writer->write(new_record);
+}
+
+
+void Harvest(const std::string &zts_server_url, const std::string &harvest_url, MarcWriter * const marc_writer) {
     std::string json_document, error_message;
     if (not Download(Url(zts_server_url), /* time_limit = */ 10000, harvest_url, &json_document, &error_message))
         Error("Download for harvest URL \"" + harvest_url + "\" failed: " + error_message);
-    
+
     JSON::JSONNode *tree_root(nullptr);
     try {
         JSON::Parser json_parser(json_document);
         if (not (json_parser.parse(&tree_root)))
             Error("failed to parse returned JSON: " + json_parser.getErrorMessage());
+
+        GenerateMARC(tree_root, marc_writer);
         delete tree_root;
     } catch (...) {
         delete tree_root;
@@ -178,8 +202,9 @@ int main(int argc, char *argv[]) {
     const std::string ZTS_SERVER_URL(argv[1]);
 
     try {
+        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
         for (int arg_no(3); arg_no < argc; ++arg_no)
-            Harvest(ZTS_SERVER_URL, argv[arg_no]);
+            Harvest(ZTS_SERVER_URL, argv[arg_no], marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
