@@ -148,7 +148,7 @@ public:
     size_t extractAllSubfields(const std::string &tags, std::vector<std::string> * const values,
                                const std::string &ignore_subfield_codes = "") const;
 
-    /** \brief Extract values from a, possibly repeated, subfield from a, possibly repeated, field.
+    /** \brief Extract values from a possibly repeated subfield from a possibly repeated, field.
      *  \param tag            A field tag.
      *  \param subfield_code  The subfield from which we'd like the values.
      *  \param values         Here the extracted subfield values will be returned.
