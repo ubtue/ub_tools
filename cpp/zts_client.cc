@@ -23,6 +23,7 @@
 #include "Compiler.h"
 #include "FileDescriptor.h"
 #include "HttpHeader.h"
+#include "JSON.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -155,7 +156,17 @@ void Harvest(const std::string &zts_server_url, const std::string &harvest_url) 
     std::string json_document, error_message;
     if (not Download(Url(zts_server_url), /* time_limit = */ 10000, harvest_url, &json_document, &error_message))
         Error("Download for harvest URL \"" + harvest_url + "\" failed: " + error_message);
-    std::cout << "Server sent: \n" << json_document << '\n';
+    
+    JSON::JSONNode *tree_root(nullptr);
+    try {
+        JSON::Parser json_parser(json_document);
+        if (not (json_parser.parse(&tree_root)))
+            Error("failed tp parse returned JSON: " + json_parser.getErrorMessage());
+        delete tree_root;
+    } catch (...) {
+        delete tree_root;
+        throw;
+    }
 }
 
 
