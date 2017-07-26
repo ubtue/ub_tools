@@ -152,9 +152,8 @@ inline bool Download(const Url &url, const TimeLimit &time_limit, const std::str
 
 
 void Harvest(const std::string &zts_server_url, const std::string &harvest_url) {
-    const Url server_url(zts_server_url);
     std::string json_document, error_message;
-    if (not Download(server_url, /* time_limit = */ 10000, harvest_url, &json_document, &error_message))
+    if (not Download(Url(zts_server_url), /* time_limit = */ 10000, harvest_url, &json_document, &error_message))
         Error("Download for harvest URL \"" + harvest_url + "\" failed: " + error_message);
     std::cout << "Server sent: \n" << json_document << '\n';
 }
