@@ -170,9 +170,17 @@ void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_wri
         if ((*entry)->getType() != JSON::JSONNode::OBJECT_NODE)
             Error("in GenerateMARC: expected an object node!");
         const JSON::ObjectNode * const object_node(reinterpret_cast<const JSON::ObjectNode * const>(*entry));
-        for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node)
-            std::cout << key_and_node->first << ": " << JSON::JSONNode::TypeToString(key_and_node->second->getType())
-                      << '\n';
+        for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
+            if (key_and_node->first == "itemKey") {
+                if (key_and_node->second->getType() != JSON::JSONNode::STRING_NODE)
+                    Error("in GenerateMARC: expected \"itemKey\" to have a string node!");
+                const JSON::StringNode * const item_key(
+                    reinterpret_cast<const JSON::StringNode * const>(key_and_node->second));
+                new_record.insertField("001", item_key->getValue());
+            } else
+                Warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
+                        + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "!");
+        }
     }
 
     marc_writer->write(new_record);
