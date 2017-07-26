@@ -25,6 +25,7 @@ web_server_path = "/usr/local/vufind/public"
 compressed_extension = ".7z"
 encrypted_extension = ".enc"
 
+
 def ClearOutFile(outfile_name):
     outfile = open(outfile_name, 'w')
     outfile.truncate()
@@ -51,6 +52,7 @@ def MoveToDownloadPosition(file, web_server_path):
 
 def CleanUp(tmp_file_name):
     os.remove(tmp_file_name)
+
     
 def NotifyUser(user, server, filename):
     util.sendEmail("New translations file provided", 
