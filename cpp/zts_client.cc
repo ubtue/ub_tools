@@ -161,7 +161,7 @@ void Harvest(const std::string &zts_server_url, const std::string &harvest_url) 
     try {
         JSON::Parser json_parser(json_document);
         if (not (json_parser.parse(&tree_root)))
-            Error("failed tp parse returned JSON: " + json_parser.getErrorMessage());
+            Error("failed to parse returned JSON: " + json_parser.getErrorMessage());
         delete tree_root;
     } catch (...) {
         delete tree_root;
