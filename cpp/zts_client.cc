@@ -71,7 +71,7 @@ bool Download(const std::string &server_address, const unsigned short server_por
     char http_response_header[10240 + 1];
     ssize_t no_of_bytes_read(SocketUtil::TimedRead(socket_fd, time_limit, http_response_header,
                                                    sizeof(http_response_header) - 1));
-        /* Intentionally empty! */;
+    
     if (no_of_bytes_read == -1) {
         *error_message = "Could not read from socket (1).";
         *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime())
