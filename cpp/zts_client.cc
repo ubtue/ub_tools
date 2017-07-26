@@ -156,18 +156,23 @@ inline bool Download(const Url &url, const TimeLimit &time_limit, const std::str
 
 void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_writer) {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
-        Error("expected top-level JSON to be an array!");
+        Error("in GenerateMARC: expected top-level JSON to be an array!");
     const JSON::ArrayNode * const top_level_array(reinterpret_cast<const JSON::ArrayNode * const>(tree));
     if (top_level_array->size() != 1)
-        Error("expected a single element in the top-level JSON array!");
+        Error("in GenerateMARC: expected a single element in the top-level JSON array!");
     if (top_level_array->getValue(0)->getType() != JSON::JSONNode::ARRAY_NODE)
-        Error("expected the 0th element of the top-level JSON array to also be a JSON array!");
+        Error("in GenerateMARC: expected the 0th element of the top-level JSON array to also be a JSON array!");
     const JSON::ArrayNode * const nested_array(
         reinterpret_cast<const JSON::ArrayNode * const>(top_level_array->getValue(0)));
 
     MarcRecord new_record;
-    for (auto node(nested_array->cbegin()); node != nested_array->cend(); ++node) {
-        std::cout << "Node type: " << JSON::JSONNode::TypeToString((*node)->getType()) << '\n';
+    for (auto entry(nested_array->cbegin()); entry != nested_array->cend(); ++entry) {
+        if ((*entry)->getType() != JSON::JSONNode::OBJECT_NODE)
+            Error("in GenerateMARC: expected an object node!");
+        const JSON::ObjectNode * const object_node(reinterpret_cast<const JSON::ObjectNode * const>(*entry));
+        for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node)
+            std::cout << key_and_node->first << ": " << JSON::JSONNode::TypeToString(key_and_node->second->getType())
+                      << '\n';
     }
 
     marc_writer->write(new_record);
