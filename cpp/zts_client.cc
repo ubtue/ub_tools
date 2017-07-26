@@ -36,18 +36,6 @@ void Usage() {
 }
 
 
-// We try to be unique for the machine we're on.  Beyond that we may have a problem.
-std::string GetNextSessionId() {
-    static unsigned counter;
-    static uint32_t uuid[4];
-    if (unlikely(counter == 0))
-        ::uuid_generate(reinterpret_cast<unsigned char *>(uuid));
-    ++counter;
-    return "ub_tools_zts_client_" + StringUtil::ToString(uuid[0]) + StringUtil::ToString(uuid[1])
-           + StringUtil::ToString(uuid[2]) + StringUtil::ToString(uuid[3]) + "_" + StringUtil::ToString(counter);
-}
-
-
 bool Download(const std::string &server_address, const unsigned short server_port, const std::string &server_path,
               const TimeLimit &time_limit, const std::string &request_headers, const std::string &request_body,
               std::string * const returned_data, std::string * const error_message)
@@ -120,6 +108,18 @@ bool Download(const std::string &server_address, const unsigned short server_por
     }
 
     return true;
+}
+
+
+// We try to be unique for the machine we're on.  Beyond that we may have a problem.
+std::string GetNextSessionId() {
+    static unsigned counter;
+    static uint32_t uuid[4];
+    if (unlikely(counter == 0))
+        ::uuid_generate(reinterpret_cast<unsigned char *>(uuid));
+    ++counter;
+    return "ub_tools_zts_client_" + StringUtil::ToString(uuid[0]) + StringUtil::ToString(uuid[1])
+           + StringUtil::ToString(uuid[2]) + StringUtil::ToString(uuid[3]) + "_" + StringUtil::ToString(counter);
 }
 
 
