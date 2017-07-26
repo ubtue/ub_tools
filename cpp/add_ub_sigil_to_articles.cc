@@ -41,7 +41,7 @@ static const RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatche
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " spr_augmented_marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " [-v|--verbose] spr_augmented_marc_input marc_output\n";
     std::cerr << "  Adds DE-21 sigils, as appropriate, to article entries found in the\n";
     std::cerr << "  master_marc_input and writes this augmented file as marc_output.\n\n";
     std::cerr << "  Notice that this program requires the SPR tag for superior works\n";
@@ -50,7 +50,7 @@ void Usage() {
 }
 
 
-void ProcessSuperiorRecord(const bool verbose, const MarcRecord &record) {
+void ProcessSuperiorRecord(const MarcRecord &record) {
     // We are done if this is not a superior work
     if (record.getFieldData("SPR").empty())
         return;
@@ -73,14 +73,14 @@ void ProcessSuperiorRecord(const bool verbose, const MarcRecord &record) {
         }
     }
 
-    if (verbose)
-       std::cerr << "Finished extracting " << extracted_count << " records\n";
 }
 
 
 void LoadDE21PPNs(const bool verbose, MarcReader * const marc_reader) {
     while (const MarcRecord record = marc_reader->read())
-         ProcessSuperiorRecord(verbose, record);
+         ProcessSuperiorRecord(record);
+    if (verbose)
+       std::cerr << "Finished extracting " << extracted_count << " superior records\n";
 }
 
 
@@ -169,7 +169,7 @@ void AugmentRecords(MarcReader * const marc_reader, MarcWriter * const marc_writ
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if ((argc != 3 or argc != 4)
+    if ((argc != 3 and argc != 4)
         or (argc == 4 and std::strcmp(argv[1], "-v") != 0 and std::strcmp(argv[1], "--verbose") != 0))
             Usage();
 
