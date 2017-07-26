@@ -80,6 +80,7 @@ public:
 
     virtual Type getType() const = 0;
     virtual std::string toString() const = 0;
+    static std::string TypeToString(const Type type);
 };
 
 
