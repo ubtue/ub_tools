@@ -154,6 +154,16 @@ inline bool Download(const Url &url, const TimeLimit &time_limit, const std::str
 }
 
 
+void CreateSubfieldFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node,
+                                  const std::string &tag, const char subfield_code, MarcRecord * const marc_record)
+{
+    if (key_and_node.second->getType() != JSON::JSONNode::STRING_NODE)
+        Error("in CreateSubfieldFromStringNode: expected \"" + key_and_node.first + "\" to have a string node!");
+    const JSON::StringNode * const node(reinterpret_cast<const JSON::StringNode * const>(key_and_node.second));
+    marc_record->insertSubfield(tag, subfield_code, node->getValue());
+}
+
+
 void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_writer) {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
         Error("in GenerateMARC: expected top-level JSON to be an array!");
@@ -177,7 +187,13 @@ void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_wri
                 const JSON::StringNode * const item_key(
                     reinterpret_cast<const JSON::StringNode * const>(key_and_node->second));
                 new_record.insertField("001", item_key->getValue());
-            } else
+            } else if (key_and_node->first == "url")
+                CreateSubfieldFromStringNode(*key_and_node, "856", 'u', &new_record);
+            else if (key_and_node->first == "title")
+                CreateSubfieldFromStringNode(*key_and_node, "245", 'a', &new_record);
+            else if (key_and_node->first == "shortTitle")
+                CreateSubfieldFromStringNode(*key_and_node, "246", 'a', &new_record);
+            else
                 Warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
                         + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "!");
         }
