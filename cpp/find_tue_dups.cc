@@ -35,7 +35,7 @@
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " --output-set=(MONOGRAPHS|SERIALS) marc_input\n";
-    std::cerr << "       Please not that this program requires an input MARC format as provided by\n";
+    std::cerr << "       Please note that this program requires an input MARC format as provided by\n";
     std::cerr << "       the team at the University of Freiburg!\n\n";
     std::exit(EXIT_FAILURE);
 }
