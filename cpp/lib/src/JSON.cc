@@ -324,6 +324,28 @@ static std::string EscapeDoubleQuotes(const std::string &unescaped) {
 }
 
 
+std::string JSONNode::TypeToString(const Type type) {
+    switch (type) {
+    case BOOLEAN_NODE:
+        return "BOOLEAN_NODE";
+    case NULL_NODE:
+        return "NULL_NODE";
+    case STRING_NODE:
+        return "STRING_NODE";
+    case INT64_NODE:
+        return "INT64_NODE";
+    case DOUBLE_NODE:
+        return "DOUBLE_NODE";
+    case OBJECT_NODE:
+        return "OBJECT_NODE";
+    case ARRAY_NODE:
+        return "ARRAY_NODE";
+    default:
+        throw std::runtime_error("in JSON::JSONNode::TypeToString: we should never get here!");
+    };
+}
+
+    
 std::string StringNode::toString() const {
     return "\"" + EscapeDoubleQuotes(value_) + "\"";
 }

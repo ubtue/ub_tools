@@ -80,6 +80,7 @@ public:
 
     virtual Type getType() const = 0;
     virtual std::string toString() const = 0;
+    static std::string TypeToString(const Type type);
 };
 
 
@@ -137,6 +138,8 @@ public:
 class ObjectNode final : public JSONNode {
     std::unordered_map<std::string, JSONNode *> entries_;
 public:
+    typedef std::unordered_map<std::string, JSONNode *>::const_iterator const_iterator;
+public:
     ObjectNode() { }
     virtual ~ObjectNode();
     virtual Type getType() const { return OBJECT_NODE; }
@@ -152,6 +155,9 @@ public:
     // Member accessors, they return NULL if there is no entry for the provided label o/w they return the entry.
     const JSONNode *getValue(const std::string &label) const;
     JSONNode *getValue(const std::string &label);
+
+    const_iterator cbegin() const { return entries_.cbegin(); }
+    const_iterator cend() const { return entries_.cend(); }
 };
 
 
