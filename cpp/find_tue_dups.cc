@@ -53,8 +53,19 @@ void ExtractSubfield(const MarcRecord &record, const std::string &tag, const cha
     }
 }
 
+
 std::string ExtractZDBNumber(const MarcRecord &record) {
+    // First we try our luck w/ 016...
     std::vector<size_t> field_indices;
+    record.getFieldIndices("016", &field_indices);
+    for (const size_t field_index : field_indices) {
+        const std::string field_contents(record.getFieldData(field_index));
+        const Subfields subfields(field_contents);
+        if (subfields.getFirstSubfieldValue('2') == "DE-600")
+            return subfields.getFirstSubfieldValue('a');
+    }
+
+    // ...and then we try our luck w/ 035:
     record.getFieldIndices("035", &field_indices);
     for (const size_t field_index : field_indices) {
         const std::string field_contents(record.getFieldData(field_index));
