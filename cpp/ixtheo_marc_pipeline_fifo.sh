@@ -231,8 +231,8 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Adding the Library Sigil to Articles Where Appropriate"
-(add_ub_sigil_to_articles --verbose \
+StartPhase "Tag Records that are Available in Tübingen with an ITA Field"
+(flag_records_as_available_in_tuebingen --verbose \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
