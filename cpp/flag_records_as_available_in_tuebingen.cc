@@ -1,8 +1,9 @@
-/** \file add_ub_sigil_to_articles.cc
+/** \file flag_records_as_available_in_tuebingen.cc
  *  \author Johannes Riedl
+ *  \author Dr. Johannes Ruscheinski
  *
- *  New implementation to derive information for articles about being available in Tübingen
- *  from superior works and augment LOK data appropriately
+ *  Adds an ITA field with a $a subfield set to "1", if a record represents an object that is
+ *  available in Tübingen.
  */
 
 /*
@@ -42,10 +43,8 @@ static const RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatche
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [-v|--verbose] spr_augmented_marc_input marc_output\n";
-    std::cerr << "  Adds DE-21 sigils, as appropriate, to article entries found in the\n";
-    std::cerr << "  master_marc_input and writes this augmented file as marc_output.\n\n";
     std::cerr << "  Notice that this program requires the SPR tag for superior works\n";
-    std::cerr << "  to be set for appropriate results";
+    std::cerr << "  to be set for appropriate results\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -61,7 +60,7 @@ void ProcessSuperiorRecord(const MarcRecord &record) {
     for (const auto &block_start_and_end : local_block_boundaries) {
         std::vector<size_t> field_indices;
         record.findFieldsInLocalBlock("852", "??", block_start_and_end, &field_indices);
-    
+
         for (const size_t field_index : field_indices) {
             const std::string field_data(record.getFieldData(field_index));
             const Subfields subfields(field_data);
@@ -72,7 +71,6 @@ void ProcessSuperiorRecord(const MarcRecord &record) {
             }
         }
     }
-
 }
 
 
@@ -101,13 +99,14 @@ void CollectSuperiorPPNs(const MarcRecord &record, std::unordered_set<std::strin
              }
              superior_ppn = (*superior_ppn_matcher)[1];
         }
-        std::copy(superior_ppn_vector.begin(), superior_ppn_vector.end(), std::inserter(*superior_ppn_set, superior_ppn_set->end()));
+        std::copy(superior_ppn_vector.begin(), superior_ppn_vector.end(), std::inserter(*superior_ppn_set,
+                                                                                        superior_ppn_set->end()));
     }
 }
 
 
-void InsertDE21ToLOK852(MarcRecord * const record) {
-     record->insertField("LOK", "  ""\x1F""0852""\x1F""aDE-21");
+void FlagRecordAsInTuebingenAvailable(MarcRecord * const record) {
+    record->insertSubfield("ITA", 'a', "1");
      ++modified_count;
 }
 
@@ -135,26 +134,29 @@ bool AlreadyHasLOK852DE21(const MarcRecord &record) {
 
 
 void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
+    if (AlreadyHasLOK852DE21(*record)) {
+        FlagRecordAsInTuebingenAvailable(record);
+        marc_writer->write(*record);
+        return;
+    }
+
     const Leader &leader(record->getLeader());
     if (not leader.isArticle()) {
         marc_writer->write(*record);
         return;
     }
 
-    if (AlreadyHasLOK852DE21(*record)) {
-        marc_writer->write(*record);
-        return;
-    }
     std::unordered_set<std::string> superior_ppn_set;
     CollectSuperiorPPNs(*record, &superior_ppn_set);
     // Do we have superior PPN that has DE-21
     for (const auto &superior_ppn : superior_ppn_set) {
         if (de21_superior_ppns.find(superior_ppn) != de21_superior_ppns.end()) {
-            InsertDE21ToLOK852(record);
+            FlagRecordAsInTuebingenAvailable(record);
             marc_writer->write(*record);
             return;
         }
     }
+    marc_writer->write(*record);
 }
 
 
@@ -162,7 +164,7 @@ void AugmentRecords(MarcReader * const marc_reader, MarcWriter * const marc_writ
     marc_reader->rewind();
     while (MarcRecord record = marc_reader->read())
         ProcessRecord(&record, marc_writer);
-    std::cerr << "Extracted " << extracted_count << " superior PPNs with DE-21 and modified " << modified_count << " records\n"; 
+    std::cerr << "Extracted " << extracted_count << " superior PPNs with DE-21 and modified " << modified_count << " records\n";
 }
 
 
