@@ -101,4 +101,11 @@ bool DecodeEntities(std::string * const data) {
 }
 
 
+std::string DecodeEntities(std::string data) {
+    if (unlikely(not DecodeEntities(&data)))
+        throw std::runtime_error("in XmlUtil::DecodeEntities: failed to decode one or more XML entities!");
+    return data;
+}
+
+
 } // namespace XmlUtil
