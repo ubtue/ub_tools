@@ -214,7 +214,7 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
     std::cout << '"' << record.getControlNumber() << "\",\"" << TextUtil::CSVEscape(main_title) << "\",\""
               << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
               << TextUtil::CSVEscape(publication_year) <<"\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
-              <<"\",\"" << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) <<  "\",\""
+              <<"\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) <<  "\",\""
               << TextUtil::CSVEscape(non_ub_sigils_and_signatures_or_inventory) << "\"\n";
 
     return true;
