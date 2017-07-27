@@ -72,7 +72,6 @@ void ProcessSuperiorRecord(const MarcRecord &record) {
             }
         }
     }
-
 }
 
 
@@ -101,13 +100,14 @@ void CollectSuperiorPPNs(const MarcRecord &record, std::unordered_set<std::strin
              }
              superior_ppn = (*superior_ppn_matcher)[1];
         }
-        std::copy(superior_ppn_vector.begin(), superior_ppn_vector.end(), std::inserter(*superior_ppn_set, superior_ppn_set->end()));
+        std::copy(superior_ppn_vector.begin(), superior_ppn_vector.end(), std::inserter(*superior_ppn_set,
+                                                                                        superior_ppn_set->end()));
     }
 }
 
 
-void InsertDE21ToLOK852(MarcRecord * const record) {
-     record->insertField("LOK", "  ""\x1F""0852  ""\x1F""aDE-21");
+void FlagRecordAsInTuebingenAvailable(MarcRecord * const record) {
+    record->insertSubfield("ITA", 'a', "1");
      ++modified_count;
 }
 
@@ -135,22 +135,24 @@ bool AlreadyHasLOK852DE21(const MarcRecord &record) {
 
 
 void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
+    if (AlreadyHasLOK852DE21(*record)) {
+        FlagRecordAsInTuebingenAvailable(record);
+        marc_writer->write(*record);
+        return;
+    }
+
     const Leader &leader(record->getLeader());
     if (not leader.isArticle()) {
         marc_writer->write(*record);
         return;
     }
 
-    if (AlreadyHasLOK852DE21(*record)) {
-        marc_writer->write(*record);
-        return;
-    }
     std::unordered_set<std::string> superior_ppn_set;
     CollectSuperiorPPNs(*record, &superior_ppn_set);
     // Do we have superior PPN that has DE-21
     for (const auto &superior_ppn : superior_ppn_set) {
         if (de21_superior_ppns.find(superior_ppn) != de21_superior_ppns.end()) {
-            InsertDE21ToLOK852(record);
+            FlagRecordAsInTuebingenAvailable(record);
             marc_writer->write(*record);
             return;
         }
