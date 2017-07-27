@@ -72,7 +72,6 @@ void ProcessSuperiorRecord(const MarcRecord &record) {
             }
         }
     }
-
 }
 
 
@@ -166,7 +165,7 @@ void AugmentRecords(MarcReader * const marc_reader, MarcWriter * const marc_writ
     marc_reader->rewind();
     while (MarcRecord record = marc_reader->read())
         ProcessRecord(&record, marc_writer);
-    std::cerr << "Extracted " << extracted_count << " superior PPNs with DE-21 and modified " << modified_count << " records\n"; 
+    std::cerr << "Extracted " << extracted_count << " superior PPNs with DE-21 and modified " << modified_count << " records\n";
 }
 
 
