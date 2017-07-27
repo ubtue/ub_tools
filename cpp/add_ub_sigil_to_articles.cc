@@ -107,7 +107,7 @@ void CollectSuperiorPPNs(const MarcRecord &record, std::unordered_set<std::strin
 
 
 void InsertDE21ToLOK852(MarcRecord * const record) {
-     record->insertField("LOK", "  ""\x1F""0852""\x1F""aDE-21");
+     record->insertField("LOK", "  ""\x1F""0852  ""\x1F""aDE-21");
      ++modified_count;
 }
 
@@ -155,6 +155,7 @@ void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
             return;
         }
     }
+    marc_writer->write(*record);
 }
 
 
@@ -162,7 +163,7 @@ void AugmentRecords(MarcReader * const marc_reader, MarcWriter * const marc_writ
     marc_reader->rewind();
     while (MarcRecord record = marc_reader->read())
         ProcessRecord(&record, marc_writer);
-    std::cerr << "Extracted " << extracted_count << " superior PPNs with DE-21 and modified " << modified_count << " records\n"; 
+    std::cerr << "Extracted " << extracted_count << " superior PPNs with DE-21 and modified " << modified_count << " records\n";
 }
 
 
