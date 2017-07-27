@@ -31,6 +31,14 @@ namespace XmlUtil {
 bool DecodeEntities(std::string * const data);
 
 
+/** \brief  Replaces entities in "data".
+ *  \param  data A string containing zero or more XML entities.
+ *  \return The decoded string.
+ *  \throws std::runtime_error if there was a decoding error.
+ */
+std::string DecodeEntities(std::string data);
+
+
 } // namespace XmlUtil
 
 
