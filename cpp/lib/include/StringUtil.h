@@ -2281,28 +2281,27 @@ std::string Context(const std::string &text, const std::string::size_type offset
  *  returned.  The logic here is that a phrase shorter than "minimum" is the complete text, and thus likely to be a complete thought. If no breakpoint
  *  is found (highly unlikely if ' ' is one of the characters in "delimiters") the entire source_text up to "maximum" is returned.
 */
-std::string ExtractSensibleSubphrase(const std::string &source_text, const std::string &delimiters = "!?.;,|\n\r\t ", const unsigned minimum = 20,
-                                     const unsigned maximum = 200);
+std::string ExtractSensibleSubphrase(const std::string &source_text, const std::string &delimiters = "!?.;,|\n\r\t ",
+                                     const unsigned minimum = 20, const unsigned maximum = 200);
 
 
 /** A predicate for comparing the relative ordering of two C-style strings lexicographically.  Returns true if "s1" preceeds "s2", otherwise false. */
-inline bool strless(const char * const s1, const char * s2)
-{
+inline bool strless(const char * const s1, const char * s2) {
         return std::strcmp(s1, s2) < 0;
 }
 
 
 /** Combines the isspace() test with comparison against the non-break space character code. */
-inline bool IsSpace(char ch)
-{
+inline bool IsSpace(char ch) {
         const char NO_BREAK_SPACE('\xA0');
         return isspace(ch) or ch == NO_BREAK_SPACE;
 }
 
 
-/** Creates a C-style escape sequance, e.g. turns a newline into "\n" (that's a literal backslash followed by an "n") etc. and other
-    non-printable characters that have no standard C backslash escape into octal sequences starting with "\0".  Backslashes get turned into
-    double backslashes. */
+/** Creates a C-style escape sequence, e.g. turns a newline into "\n" (that's a literal backslash followed by an "n")
+ *  etc. and other non-printable characters that have no standard C backslash escape into octal sequences starting
+ *  with "\0".  Backslashes get turned into double backslashes.
+*/
 std::string CStyleEscape(const char ch);
 
 
