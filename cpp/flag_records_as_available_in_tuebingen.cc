@@ -2,7 +2,7 @@
  *  \author Johannes Riedl
  *  \author Dr. Johannes Ruscheinski
  *
- *  Adds an ITA field with a $a subfield set to "1", if a records represents an object that is
+ *  Adds an ITA field with a $a subfield set to "1", if a record represents an object that is
  *  available in Tübingen.
  */
 
@@ -44,7 +44,7 @@ static const RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatche
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [-v|--verbose] spr_augmented_marc_input marc_output\n";
     std::cerr << "  Notice that this program requires the SPR tag for superior works\n";
-    std::cerr << "  to be set for appropriate results";
+    std::cerr << "  to be set for appropriate results\n\n";
     std::exit(EXIT_FAILURE);
 }
 
