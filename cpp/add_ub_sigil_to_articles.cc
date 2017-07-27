@@ -136,17 +136,18 @@ bool AlreadyHasLOK852DE21(const MarcRecord &record) {
 
 
 void ProcessRecord(MarcRecord * const record, MarcWriter * const marc_writer) {
+    if (AlreadyHasLOK852DE21(*record)) {
+        FlagRecordAsInTuebingenAvailable(record);
+        marc_writer->write(*record);
+        return;
+    }
+
     const Leader &leader(record->getLeader());
     if (not leader.isArticle()) {
         marc_writer->write(*record);
         return;
     }
 
-    if (AlreadyHasLOK852DE21(*record)) {
-        FlagRecordAsInTuebingenAvailable(record);
-        marc_writer->write(*record);
-        return;
-    }
     std::unordered_set<std::string> superior_ppn_set;
     CollectSuperiorPPNs(*record, &superior_ppn_set);
     // Do we have superior PPN that has DE-21
