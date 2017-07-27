@@ -7,8 +7,10 @@ import sys
 import time
 import traceback
 import util
+import socket
 import shutil
 import string
+
 
 """
 [Database]
@@ -16,6 +18,7 @@ sql_database = "ixtheo"
 sql_username = "ixtheo"
 sql_password = "XXXXX"
 """
+
 
 util.default_email_recipient = "johannes.riedl@uni-tuebingen.de"
 tmp_file_path = "/tmp"
@@ -42,12 +45,12 @@ def DumpTranslationsDB(database, user, password, outfile_name):
         
     
 def CompressAndEncryptFile(infile, outfile, archive_password):
-    util.ExecOrDie("/usr/bin/7z", ['a', "-p" + archive_password, outfile, infile])
+    util.ExecOrDie("/usr/bin/7za", ['a', "-p" + archive_password, outfile, infile])
 
 
 def MoveToDownloadPosition(file, web_server_path):
     basename = os.path.basename(file)
-    os.rename(file, web_server_path + "/" + basename)
+    shutil.move(file, web_server_path + "/" + basename)
 
 
 def CleanUp(tmp_file_name):
@@ -55,9 +58,13 @@ def CleanUp(tmp_file_name):
 
     
 def NotifyUser(user, server, filename):
-    util.sendEmail("New translations file provided", 
-                   "A new translation file has been provided to you at http://" + server + "/" + 
+    util.SendEmail("New translations database dump provided",
+                   "A new translation database dump has been provided for you at https://" + server + "/" + 
                     filename + "\n\n" + "Kind regards")
+
+    
+def DetermineServerName():
+    return socket.gethostname()
                     
     
 def Main():
@@ -67,6 +74,7 @@ def Main():
                       recipient=util.default_email_recipient)
         sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
+    user = sys.argv[1]
     try:
         sql_config = util.LoadConfigFile("/var/lib/tuelib/translations.conf")
         sql_database = sql_config.get("Database", "sql_database")
@@ -78,7 +86,6 @@ def Main():
     try:
         config = util.LoadConfigFile()
         archive_password = config.get("Passwords", "archive_password")
-        user = config.get("Users", "user")
     except Exception as e:
         util.Error("Failed to read config file (" + str(e) + ")")
 
@@ -90,7 +97,8 @@ def Main():
 
     MoveToDownloadPosition(compressed_and_encrypted_dump_file, web_server_path)
     CleanUp(raw_dump_file)
-    NotifyUser(user, "localhost", os.path.basename(compressed_and_encrpyted_dump_file))
+    servername = DetermineServerName()
+    NotifyUser(user, servername, os.path.basename(compressed_and_encrypted_dump_file))
 
 
 try:
