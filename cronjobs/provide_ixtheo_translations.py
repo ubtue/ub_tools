@@ -59,9 +59,10 @@ def CleanUp(tmp_file_name):
     
 def NotifyUser(user, server, filename):
     util.SendEmail("New translations database dump provided",
-                   "A new translation database dump has been provided to you at https://" + server + "/" + 
+                   "A new translation database dump has been provided for you at https://" + server + "/" + 
                     filename + "\n\n" + "Kind regards")
 
+    
 def DetermineServerName():
     return socket.gethostname()
                     
