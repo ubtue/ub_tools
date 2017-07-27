@@ -26,7 +26,6 @@ add_superior_and_alertable_flags
 add_superior_flag
 add_synonyms
 add_title_keywords
-add_ub_sigil_to_articles
 append_marc_xml
 archive_reader_test
 archive_writer_test
@@ -72,6 +71,7 @@ fifo_pipe_file_test
 files_differ_test
 find_substring_test
 find_tue_dups
+flag_records_as_available_in_tuebingen
 test_chop_into_words
 fix_article_biblio_levels
 fix_iso_8859_1_garbage
