@@ -1,4 +1,5 @@
 /** \file    find_tue_dups.cc
+ *  \brief   Find duplicates amongst the libraries of institutions associated w/ the University of Tübingen.
  *  \author  Dr. Johannes Ruscheinski
  */
 
@@ -24,15 +25,18 @@
 #include <set>
 #include <cstring>
 #include "Compiler.h"
+#include "JSON.h"
 #include "TextUtil.h"
 #include "MarcRecord.h"
 #include "RegexMatcher.h"
 #include "util.h"
+#include "XmlUtil.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " --input-format=(BSZ|UB_FREIBURG) --output-set=(ALL|MONOGRAPHS|SERIALS) marc_input\n";
+    std::cerr << "Usage: " << ::progname << " --output-set=(MONOGRAPHS|SERIALS) marc_input\n";
+    std::cerr << "       Please not that this program requires an input MARC format as provided by\n";
+    std::cerr << "       the team at the University of Freiburg!\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -49,9 +53,22 @@ void ExtractSubfield(const MarcRecord &record, const std::string &tag, const cha
     }
 }
 
+std::string ExtractZDBNumber(const MarcRecord &record) {
+    std::vector<size_t> field_indices;
+    record.getFieldIndices("035", &field_indices);
+    for (const size_t field_index : field_indices) {
+        const std::string field_contents(record.getFieldData(field_index));
+        const Subfields subfields(field_contents);
+        const std::string subfield_a(subfields.getFirstSubfieldValue('a'));
+        if (StringUtil::StartsWith(subfield_a, "(DE-599)ZDB"))
+            return subfield_a.substr(11);
+    }
 
-void ExtractISSNsAndISBNs(const MarcRecord &record, std::set<std::string> * const issns_and_isbns) {
-    // ISSN's:
+    return "";
+}
+
+
+void ExtractISSNs(const MarcRecord &record, std::set<std::string> * const issns_and_isbns) {
     ExtractSubfield(record, "022", 'a', issns_and_isbns);
     ExtractSubfield(record, "440", 'x', issns_and_isbns);
     ExtractSubfield(record, "490", 'x', issns_and_isbns);
@@ -60,79 +77,126 @@ void ExtractISSNsAndISBNs(const MarcRecord &record, std::set<std::string> * cons
     ExtractSubfield(record, "776", 'x', issns_and_isbns);
     ExtractSubfield(record, "780", 'x', issns_and_isbns);
     ExtractSubfield(record, "785", 'x', issns_and_isbns);
+}
 
-    // ISBN's:
+
+void ExtractISBNs(const MarcRecord &record, std::set<std::string> * const issns_and_isbns) {
     ExtractSubfield(record, "020", 'a', issns_and_isbns);
     ExtractSubfield(record, "773", 'a', issns_and_isbns);
 }
 
 
-static const RegexMatcher * const tue_sigil_matcher(RegexMatcher::RegexMatcherFactory("^DE-21.*"));
+std::string ExtractInventory(const std::string &_910_subfield_a) {
+    if (_910_subfield_a.empty())
+        return "";
 
+    JSON::JSONNode *tree_root(nullptr);
+    try {
+        JSON::Parser json_parser(XmlUtil::DecodeEntities(_910_subfield_a));
+        if (not (json_parser.parse(&tree_root)))
+            Error("in ExtractInventory: failed to parse returned JSON: " + json_parser.getErrorMessage());
 
-bool FindTueSigil(const MarcRecord &record, const std::pair<size_t, size_t> &block_start_and_end,
-                  std::string * const sigil)
-{
-    std::vector<size_t> field_indices;
-    record.findFieldsInLocalBlock("852", "??", block_start_and_end, &field_indices);
+        if (tree_root->getType() != JSON::JSONNode::OBJECT_NODE)
+            Error("in ExtractInventory: expected an object node!");
+        const JSON::ObjectNode * const object(reinterpret_cast<const JSON::ObjectNode * const>(tree_root));
 
-    for (size_t field_index : field_indices) {
-        const std::string field_data(record.getFieldData(field_index));
-        const Subfields subfields(field_data);
-        if (subfields.extractSubfieldWithPattern('a', *tue_sigil_matcher, sigil))
-            return true;
+        const JSON::JSONNode * const inventory_node(object->getValue("bestand8032"));
+        if (inventory_node == nullptr)
+            return "";
+        if (inventory_node->getType() != JSON::JSONNode::STRING_NODE)
+            Error("in ExtractInventory: expected a string node!");
+        return reinterpret_cast<const JSON::StringNode * const>(inventory_node)->getValue();
+
+        delete tree_root;
+    } catch (...) {
+        delete tree_root;
+        throw;
     }
-    return false;
 }
 
 
-enum InputFormat { BSZ, UB_FREIBURG };
+enum SupplementaryInfoType { SIGNATURE, INVENTORY };
 
 
-bool FindTueDups(const InputFormat input_format, const char bibliographic_level, const MarcRecord &record) {
-    std::vector<std::string> sigils;
-    if (input_format == BSZ) {
-        std::vector<std::pair<size_t, size_t>> local_block_boundaries;
-        ssize_t local_data_count = record.findAllLocalDataBlocks(&local_block_boundaries);
-        if (local_data_count == 0)
-            return false;
+// \return The number of occurrences of an object in Tübingen.
+unsigned FindTueSigilsAndSignaturesOrInventory(const MarcRecord &record,
+                                               const SupplementaryInfoType supplementary_info_type,
+                                               std::string * const ub_signatures_or_inventory,
+                                               std::string * const non_ub_sigils_and_signatures_or_inventory)
+{
+    unsigned occurrence_count(0);
+    std::vector<size_t> _910_indices;
+    record.getFieldIndices("910", &_910_indices);
+    for (const size_t _910_index : _910_indices) {
+        const std::string _910_field_contents(record.getFieldData(_910_index));
+        if (_910_field_contents.empty())
+            continue;
+        const Subfields subfields(_910_field_contents);
+        const std::string sigil(subfields.getFirstSubfieldValue('c'));
 
-        for (const auto &block_start_and_end : local_block_boundaries) {
-            std::string sigil;
-            if (FindTueSigil(record, block_start_and_end, &sigil))
-                sigils.emplace_back(sigil);
-        }
-    } else { // input_format == UB_FREIBURG
-        std::vector<size_t> _910_indices;
-        record.getFieldIndices("910", &_910_indices);
-        for (const size_t _910_index : _910_indices) {
-            const std::string _910_field_contents(record.getFieldData(_910_index));
-            if (_910_field_contents.empty())
-                continue;
-            const Subfields subfields(_910_field_contents);
-            const std::string sigil(subfields.getFirstSubfieldValue('c'));
-            if (not sigil.empty())
-                sigils.emplace_back(sigil);
+        std::vector<std::string> signatures;
+        std::string inventory;
+        if (supplementary_info_type == SIGNATURE)
+            subfields.extractSubfields('d', &signatures);
+        else
+            inventory = ExtractInventory(subfields.getFirstSubfieldValue('a'));
+
+        if (not sigil.empty()) {
+            ++occurrence_count;
+            if (sigil == "21") { // UB
+                if (supplementary_info_type == SIGNATURE) {
+                    if (not ub_signatures_or_inventory->empty())
+                        ub_signatures_or_inventory->append(",");
+                    ub_signatures_or_inventory->append(StringUtil::Join(signatures, ','));
+                } else if (not inventory.empty()) { // Assume supplementary_info_type == INVENTORY.
+                    if (not ub_signatures_or_inventory->empty())
+                        ub_signatures_or_inventory->append(",");
+                    ub_signatures_or_inventory->append(inventory);
+                }
+            } else if (supplementary_info_type == SIGNATURE) {
+                if (not non_ub_sigils_and_signatures_or_inventory->empty())
+                    non_ub_sigils_and_signatures_or_inventory->append(",");
+                non_ub_sigils_and_signatures_or_inventory->append(sigil + ':' + StringUtil::Join(signatures, ','));
+            } else if (not inventory.empty()) { // Assume supplementary_info_type == INVENTORY.
+                if (not non_ub_sigils_and_signatures_or_inventory->empty())
+                    non_ub_sigils_and_signatures_or_inventory->append(",");
+                non_ub_sigils_and_signatures_or_inventory->append(sigil + ':' + inventory);
+            }
         }
     }
 
-    // We only keep dups and only those that occur in the Tübingen University's main library:
-    if (sigils.size() < 2 or std::find(sigils.cbegin(), sigils.cend(), "21") == sigils.cend())
-        return false;
+    return occurrence_count;
+}
 
-    std::sort(sigils.begin(), sigils.end());
+
+enum OutputSet { MONOGRAPHS, SERIALS };
+
+
+bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
+    std::string ub_signatures_or_inventory, non_ub_sigils_and_signatures_or_inventory;
+    const unsigned occurrence_count(
+        FindTueSigilsAndSignaturesOrInventory(record, (output_set == MONOGRAPHS ? SIGNATURE : INVENTORY),
+                                              &ub_signatures_or_inventory,
+                                              &non_ub_sigils_and_signatures_or_inventory));
+
+    // We only keep dups and only those that occur at least once in the Tübingen University's main library:
+    if (occurrence_count < 2 or ub_signatures_or_inventory.empty())
+        return false;
 
     const std::string _008_contents(record.getFieldData("008"));
     std::string publication_year;
     if (likely(_008_contents.length() >= 11))
         publication_year = _008_contents.substr(7, 4);
 
-    std::string area;
-    const std::string _910_contents(record.getFieldData("910"));
-    if (not _910_contents.empty()) {
-        const Subfields subfields(_910_contents);
-        area = subfields.getFirstSubfieldValue('j');
-    }
+    std::string area_or_zdb_number;
+    if (output_set == MONOGRAPHS) {
+        const std::string _910_contents(record.getFieldData("910"));
+        if (not _910_contents.empty()) {
+            const Subfields subfields(_910_contents);
+            area_or_zdb_number = subfields.getFirstSubfieldValue('j');
+        }
+    } else // SERIALS
+        area_or_zdb_number = ExtractZDBNumber(record);
 
     const std::string _245_contents(record.getFieldData("245"));
     std::string main_title;
@@ -142,37 +206,27 @@ bool FindTueDups(const InputFormat input_format, const char bibliographic_level,
     }
 
     std::set<std::string> issns_and_isbns;
-    ExtractISSNsAndISBNs(record, &issns_and_isbns);
+    if (output_set == MONOGRAPHS)
+        ExtractISBNs(record, &issns_and_isbns);
+    else
+        ExtractISSNs(record, &issns_and_isbns);
 
-    const std::string bibliographic_level_output(
-        bibliographic_level == ' ' ? "" : "\",\"" + std::string(1, bibliographic_level));
-    std::cout << '"' << record.getControlNumber() << bibliographic_level_output << "\",\"" << publication_year
-              << "\",\"" << StringUtil::Join(issns_and_isbns, ',') <<"\",\"" << area <<"\",\""
-              << TextUtil::CSVEscape(main_title) << "\",\"" << StringUtil::Join(sigils, ',') << "\"\n";
+    std::cout << '"' << record.getControlNumber() << "\",\"" << TextUtil::CSVEscape(main_title) << "\",\""
+              << StringUtil::Join(issns_and_isbns, ',') << publication_year <<"\",\"" << area_or_zdb_number
+              <<"\",\"" << "\",\"" << ub_signatures_or_inventory <<  "\",\""
+              << non_ub_sigils_and_signatures_or_inventory << "\"\n";
 
     return true;
 }
 
 
-enum OutputSet { ALL, MONOGRAPHS, SERIALS };
-
-
-void FindTueDups(const InputFormat input_format, const OutputSet output_set, MarcReader * const marc_reader) {
+void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
     // Write a header:
-    std::string issn_and_isbn_header;
-    switch (output_set) {
-    case ALL:
-        issn_and_isbn_header = ",\"ISBN's/ISSN\'s\"";
-        break;
-    case MONOGRAPHS:
-        issn_and_isbn_header = ",\"ISBN\'s\"";
-        break;
-    case SERIALS:
-        issn_and_isbn_header = ",\"ISSN\'s\"";
-        break;
-    }
-    std::cout << "\"PPN\"" << (output_set == ALL ? ",\"monograph/serial\"" : "") << ",\"pub. year\""
-              << issn_and_isbn_header << ",\"area\"" << ",\"main title\"" << ",\"sigils\"" << '\n';
+    std::cout << "\"PPN\"" << ",\"Titel\"" << (output_set == MONOGRAPHS ? ",\"ISBN\"" : ",\"ISSN\"")
+              << ",\"Erscheinungsjahr\"" << (output_set == MONOGRAPHS ?",\"Fachgebiet\"" : "ZDB-ID-Nummer")
+              << (output_set == MONOGRAPHS ? ",\"UB - Signatur\"" : ",\"UB - Bestandsangabe\"")
+              << ",\"Sigel der anderen besitzenden Bibliotheken"
+              << (output_set == SERIALS ? " mit Bestandsangaben\"" : "\"") << '\n';
 
     unsigned count(0), dups_count(0), monograph_count(0), serial_count(0);
     while (MarcRecord record = marc_reader->read()) {
@@ -185,7 +239,7 @@ void FindTueDups(const InputFormat input_format, const OutputSet output_set, Mar
             or (leader.isSerial() and output_set == MONOGRAPHS))
             continue;
 
-        if (FindTueDups(input_format, output_set == ALL ? leader.getBibliographicLevel() : ' ', record)) {
+        if (FindTueDups(output_set, record)) {
             ++dups_count;
             if (leader.isMonograph())
                 ++monograph_count;
@@ -201,31 +255,21 @@ void FindTueDups(const InputFormat input_format, const OutputSet output_set, Mar
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 4)
+    if (argc != 3)
         Usage();
 
-    InputFormat input_format;
-    if (std::strcmp(argv[1], "--input-format=BSZ") == 0)
-        input_format = BSZ;
-    else if (std::strcmp(argv[1], "--input-format=UB_FREIBURG") == 0)
-        input_format = UB_FREIBURG;
-    else
-        Error("invalid input format \"" + std::string(argv[1]) + "\"!  (Must be either BSZ or UB_FREIBURG)");
-
     OutputSet output_set;
-    if (std::strcmp(argv[2], "--output-set=ALL") == 0)
-        output_set = ALL;
-    else if (std::strcmp(argv[2], "--output-set=MONOGRAPHS") == 0)
+    if (std::strcmp(argv[1], "--output-set=MONOGRAPHS") == 0)
         output_set = MONOGRAPHS;
-    else if (std::strcmp(argv[2], "--output-set=SERIALS") == 0)
+    else if (std::strcmp(argv[1], "--output-set=SERIALS") == 0)
         output_set = SERIALS;
     else
-        Error("invalid input format \"" + std::string(argv[2]) + "\"!  (Must be ALL, MONOGRAPHS or SERIALS)");
+        Error("invalid input format \"" + std::string(argv[1]) + "\"!  (Must be MONOGRAPHS or SERIALS)");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[3], MarcReader::BINARY));
 
     try {
-        FindTueDups(input_format, output_set, marc_reader.get());
+        FindTueDups(output_set, marc_reader.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
