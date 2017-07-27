@@ -136,6 +136,18 @@ bool MarcRecord::insertSubfield(const MarcTag &new_field_tag, const char subfiel
 }
 
 
+bool MarcRecord::insertSubfields(const MarcTag &new_field_tag,
+                                 const std::vector<std::pair<char, std::string>> &subfield_codes_and_values,
+                                 const char indicator1, const char indicator2)
+{
+    std::string field_contents(std::string(1, indicator1) + std::string(1, indicator2));
+    for (const auto &code_and_value : subfield_codes_and_values)
+        field_contents += "\x1F" + std::string(1, code_and_value.first) + code_and_value.second;
+
+    return insertField(new_field_tag, field_contents);
+}
+
+
 bool MarcRecord::addSubfield(const MarcTag &field_tag, const char subfield_code, const std::string &subfield_value) {
     const size_t field_index(getFieldIndex(field_tag));
     if (unlikely(field_index == MarcRecord::FIELD_NOT_FOUND))

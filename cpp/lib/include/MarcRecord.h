@@ -109,6 +109,10 @@ public:
     bool insertSubfield(const MarcTag &new_field_tag, const char subfield_code, const std::string &new_subfield_value,
                         const char indicator1 = ' ', const char indicator2 = ' ');
 
+    bool insertSubfields(const MarcTag &new_field_tag,
+                         const std::vector<std::pair<char, std::string>> &subfield_codes_and_values,
+                        const char indicator1 = ' ', const char indicator2 = ' ');
+
     /** \brief  Adds a subfield to the first existing field with tag "field_tag".
      *  \return True if a field with field tag "field_tag" existed and false if no such field was found.
      */
