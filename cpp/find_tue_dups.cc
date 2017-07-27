@@ -212,9 +212,10 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
         ExtractISSNs(record, &issns_and_isbns);
 
     std::cout << '"' << record.getControlNumber() << "\",\"" << TextUtil::CSVEscape(main_title) << "\",\""
-              << StringUtil::Join(issns_and_isbns, ',') << publication_year <<"\",\"" << area_or_zdb_number
-              <<"\",\"" << "\",\"" << ub_signatures_or_inventory <<  "\",\""
-              << non_ub_sigils_and_signatures_or_inventory << "\"\n";
+              << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
+              << TextUtil::CSVEscape(publication_year) <<"\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
+              <<"\",\"" << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) <<  "\",\""
+              << TextUtil::CSVEscape(non_ub_sigils_and_signatures_or_inventory) << "\"\n";
 
     return true;
 }
@@ -266,7 +267,7 @@ int main(int argc, char **argv) {
     else
         Error("invalid input format \"" + std::string(argv[1]) + "\"!  (Must be MONOGRAPHS or SERIALS)");
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[3], MarcReader::BINARY));
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
 
     try {
         FindTueDups(output_set, marc_reader.get());
