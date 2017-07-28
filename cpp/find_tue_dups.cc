@@ -30,7 +30,6 @@
 #include "MarcRecord.h"
 #include "RegexMatcher.h"
 #include "util.h"
-#include "XmlUtil.h"
 
 
 void Usage() {
@@ -103,9 +102,10 @@ std::string ExtractInventory(const std::string &_910_subfield_a) {
 
     JSON::JSONNode *tree_root(nullptr);
     try {
-        JSON::Parser json_parser(XmlUtil::DecodeEntities(_910_subfield_a));
+        JSON::Parser json_parser(_910_subfield_a);
         if (not (json_parser.parse(&tree_root)))
-            Error("in ExtractInventory: failed to parse returned JSON: " + json_parser.getErrorMessage());
+            Error("in ExtractInventory: failed to parse returned JSON: " + json_parser.getErrorMessage()
+                  + "(input was: " + StringUtil::CStyleEscape(_910_subfield_a) + ")");
 
         if (tree_root->getType() != JSON::JSONNode::OBJECT_NODE)
             Error("in ExtractInventory: expected an object node!");
@@ -133,7 +133,7 @@ enum SupplementaryInfoType { SIGNATURE, INVENTORY };
 unsigned FindTueSigilsAndSignaturesOrInventory(const MarcRecord &record,
                                                const SupplementaryInfoType supplementary_info_type,
                                                std::string * const ub_signatures_or_inventory,
-                                               std::string * const non_ub_sigils_and_signatures_or_inventory)
+                                               std::string * const non_ub_sigils_and_inventory)
 {
     unsigned occurrence_count(0);
     std::vector<size_t> _910_indices;
@@ -152,26 +152,26 @@ unsigned FindTueSigilsAndSignaturesOrInventory(const MarcRecord &record,
         else
             inventory = ExtractInventory(subfields.getFirstSubfieldValue('a'));
 
-        if (not sigil.empty()) {
+        if (not sigil.empty() and sigil != "LFER") {
             ++occurrence_count;
             if (sigil == "21") { // UB
                 if (supplementary_info_type == SIGNATURE) {
                     if (not ub_signatures_or_inventory->empty())
                         ub_signatures_or_inventory->append(",");
-                    ub_signatures_or_inventory->append(StringUtil::Join(signatures, ','));
+                    ub_signatures_or_inventory->append(StringUtil::Join(signatures, ", "));
                 } else if (not inventory.empty()) { // Assume supplementary_info_type == INVENTORY.
                     if (not ub_signatures_or_inventory->empty())
                         ub_signatures_or_inventory->append(",");
                     ub_signatures_or_inventory->append(inventory);
                 }
-            } else if (supplementary_info_type == SIGNATURE) {
-                if (not non_ub_sigils_and_signatures_or_inventory->empty())
-                    non_ub_sigils_and_signatures_or_inventory->append(",");
-                non_ub_sigils_and_signatures_or_inventory->append(sigil + ':' + StringUtil::Join(signatures, ','));
             } else if (not inventory.empty()) { // Assume supplementary_info_type == INVENTORY.
-                if (not non_ub_sigils_and_signatures_or_inventory->empty())
-                    non_ub_sigils_and_signatures_or_inventory->append(",");
-                non_ub_sigils_and_signatures_or_inventory->append(sigil + ':' + inventory);
+                if (not non_ub_sigils_and_inventory->empty())
+                    non_ub_sigils_and_inventory->append(", ");
+                non_ub_sigils_and_inventory->append(sigil + ':' + inventory);
+            } else { // Non-UB and we don't have inventory information.
+                if (not non_ub_sigils_and_inventory->empty())
+                    non_ub_sigils_and_inventory->append(", ");
+                non_ub_sigils_and_inventory->append(sigil);
             }
         }
     }
@@ -180,15 +180,24 @@ unsigned FindTueSigilsAndSignaturesOrInventory(const MarcRecord &record,
 }
 
 
+// Apperently we have "PPN's" that look like "103571965_256955174", which are actually two PPN's.  In this case
+// we only want the first one.  (The second one is presumably the PPN of the superior work.)
+std::string NormalisePPN(const std::string &ppn_or_double_ppn) {
+    const size_t first_underscore_pos(ppn_or_double_ppn.find('_'));
+    return first_underscore_pos == std::string::npos ? ppn_or_double_ppn
+                                                     : ppn_or_double_ppn.substr(0, first_underscore_pos);
+}
+
+
 enum OutputSet { MONOGRAPHS, SERIALS };
 
 
 bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
-    std::string ub_signatures_or_inventory, non_ub_sigils_and_signatures_or_inventory;
+    std::string ub_signatures_or_inventory, non_ub_sigils_and_inventory;
     const unsigned occurrence_count(
         FindTueSigilsAndSignaturesOrInventory(record, (output_set == MONOGRAPHS ? SIGNATURE : INVENTORY),
                                               &ub_signatures_or_inventory,
-                                              &non_ub_sigils_and_signatures_or_inventory));
+                                              &non_ub_sigils_and_inventory));
 
     // We only keep dups and only those that occur at least once in the Tübingen University's main library:
     if (occurrence_count < 2 or ub_signatures_or_inventory.empty())
@@ -222,11 +231,12 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
     else
         ExtractISSNs(record, &issns_and_isbns);
 
-    std::cout << '"' << record.getControlNumber() << "\",\"" << TextUtil::CSVEscape(main_title) << "\",\""
-              << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
-              << TextUtil::CSVEscape(publication_year) <<"\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
-              <<"\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) <<  "\",\""
-              << TextUtil::CSVEscape(non_ub_sigils_and_signatures_or_inventory) << "\"\n";
+    std::cout << '"' << NormalisePPN(record.getControlNumber()) << "\",\"" << TextUtil::CSVEscape(main_title)
+              << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
+              << (output_set == MONOGRAPHS ? "\",\"" + TextUtil::CSVEscape(publication_year) : "")
+              << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
+              << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) <<  "\",\""
+              << TextUtil::CSVEscape(non_ub_sigils_and_inventory) << "\"\n";
 
     return true;
 }
@@ -235,7 +245,8 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
 void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
     // Write a header:
     std::cout << "\"PPN\"" << ",\"Titel\"" << (output_set == MONOGRAPHS ? ",\"ISBN\"" : ",\"ISSN\"")
-              << ",\"Erscheinungsjahr\"" << (output_set == MONOGRAPHS ?",\"Fachgebiet\"" : "ZDB-ID-Nummer")
+              << (output_set == MONOGRAPHS ? ",\"Erscheinungsjahr\"" : "")
+              << (output_set == MONOGRAPHS ? ",\"Fachgebiet\"" : ",\"ZDB-ID-Nummer\"")
               << (output_set == MONOGRAPHS ? ",\"UB - Signatur\"" : ",\"UB - Bestandsangabe\"")
               << ",\"Sigel der anderen besitzenden Bibliotheken"
               << (output_set == SERIALS ? " mit Bestandsangaben\"" : "\"") << '\n';

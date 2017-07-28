@@ -2046,9 +2046,8 @@ inline bool IsAlphanumeric(const char ch)
  *  \param  ch  The character to test.
  *  \return True if "ch" is an alphanumeric character in the "C" locale, else false.
  */
-inline bool IsAlphanumeric(const int ch)
-{
-        return IsAsciiLetter(ch) or IsDigit(ch);
+inline bool IsAlphanumeric(const int ch) {
+    return IsAsciiLetter(ch) or IsDigit(ch);
 }
 
 
@@ -2066,12 +2065,10 @@ bool IsAlphanumeric(const std::string &s);
  *  \param   ignore_case  If true, the match will be case-insensitive.
  *  \return  True if the string "s" equals or starts with the prefix "prefix."
  */
-inline bool StartsWith(const std::string &s, const std::string &prefix, const bool ignore_case = false)
-{
-        return prefix.empty()
-                or (s.length() >= prefix.length()
-                    and (ignore_case ? (::strncasecmp(s.c_str(), prefix.c_str(), prefix.length()) == 0)
-                         : (std::strncmp(s.c_str(), prefix.c_str(), prefix.length()) == 0)));
+inline bool StartsWith(const std::string &s, const std::string &prefix, const bool ignore_case = false) {
+    return prefix.empty() or (s.length() >= prefix.length()
+           and (ignore_case ? (::strncasecmp(s.c_str(), prefix.c_str(), prefix.length()) == 0)
+                            : (std::strncmp(s.c_str(), prefix.c_str(), prefix.length()) == 0)));
 }
 
 
@@ -2081,19 +2078,18 @@ inline bool StartsWith(const std::string &s, const std::string &prefix, const bo
  *  \param   ignore_case  If true, the match will be case-insensitive.
  *  \return  True if the string "s" equals or ends with the suffix "suffix."
  */
-inline bool EndsWith(const std::string &s, const std::string &suffix, const bool ignore_case = false)
-{
-        return suffix.empty() or (s.length() >= suffix.length()
-               and (ignore_case
-                    ? (::strncasecmp(s.c_str() + (s.length() - suffix.length()), suffix.c_str(), suffix.length()) == 0)
-                    : (std::strncmp(s.c_str() + (s.length() - suffix.length()), suffix.c_str(), suffix.length()) == 0)));
+inline bool EndsWith(const std::string &s, const std::string &suffix, const bool ignore_case = false) {
+    return suffix.empty() or (s.length() >= suffix.length()
+           and (ignore_case ? (::strncasecmp(s.c_str() + (s.length() - suffix.length()), suffix.c_str(),
+                                             suffix.length()) == 0)
+                            : (std::strncmp(s.c_str() + (s.length() - suffix.length()), suffix.c_str(),
+                                            suffix.length()) == 0)));
 }
 
 
 /** Returns true if "s" ends with "possible_last_char", else returns false. */
-inline bool EndsWith(const std::string &s, const char possible_last_char)
-{
-        return not s.empty() and s[s.length() - 1] == possible_last_char;
+inline bool EndsWith(const std::string &s, const char possible_last_char) {
+    return not s.empty() and s[s.length() - 1] == possible_last_char;
 }
 
 
@@ -2161,9 +2157,8 @@ inline size_t SuperFastHash(const std::string &s)
 uint32_t Adler32(const char * const s, const size_t s_length);
 
 
-inline uint32_t Adler32(const std::string &s)
-{
-        return Adler32(s.c_str(), s.size());
+inline uint32_t Adler32(const std::string &s) {
+    return Adler32(s.c_str(), s.size());
 }
 
 
