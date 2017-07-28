@@ -375,8 +375,7 @@ std::string Trim(const std::string &trim_set, std::string * const s) {
 }
 
 
-std::string Trim(const std::string &s, const std::string &trim_set)
-{
+std::string Trim(const std::string &s, const std::string &trim_set) {
         std::string temp_s(s);
         return Trim(trim_set, &temp_s);
 }
@@ -536,6 +535,15 @@ std::string ToHexString(uint32_t u32) {
         u32 >>= 4u;
     }
     std::reverse(hex_string.begin(), hex_string.end());
+
+    return hex_string;
+}
+
+
+std::string ToHexString(const uint8_t u8) {
+    std::string hex_string;
+    hex_string += ToHex(u8 >> 4u);  // upper nybble
+    hex_string += ToHex(u8 & 0xFu); // lower nybble
 
     return hex_string;
 }
