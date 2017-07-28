@@ -763,7 +763,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return null;
     }
-    
+
     /**
      * Returns a Set<String> of Persistent Identifiers, e.g. DOIs and URNs
      * e.g.
@@ -787,7 +787,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
         }
-        
+
         // Handle URNs
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
@@ -850,7 +850,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return results;
     }
-    
+
     /**
      * @param record
      *            the record
@@ -945,7 +945,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
         return Integer.toString(yearTwoDigit < (currentYear - 2000) ? (2000 + yearTwoDigit) : (1900 + yearTwoDigit));
     }
-    
+
     /**
      * Get all available dates from the record.
      *
@@ -983,7 +983,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 return dates;
             }
         }
-        
+
         // Case 3 [Article or Review]
         // Match also the case of publication date transgressing one year
         // (Format YYYY/YY for older and Format YYYY/YYYY) for
@@ -1717,7 +1717,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (subfield_0 == null || !subfield_0.getData().equals("935  ")) {
                 continue;
             }
-            
+
             for (final Subfield subfield_a : lokfield.getSubfields('a')) {
                 if (!subfield_a.getData().isEmpty()) {
                     result.add(subfield_a.getData());
@@ -1729,15 +1729,16 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public String getZDBNumber(final Record record) {
-        final DataField _035Field = (DataField)record.getVariableField("035");
-        if (_035Field == null)
-            return null;
+        final List<VariableField> _035Fields = record.getVariableFields("035");
 
-        final Subfield subfieldA = _035Field.getSubfield('a');
-        if (subfieldA == null || !subfieldA.getData().startsWith("(DE-599)ZDB"))
-            return null;
+        for (final VariableField _035Field : _035Fields) {
+            DataField field = (DataField)_035Field;
+            final Subfield subfieldA = field.getSubfield('a');
+            if (subfieldA != null && subfieldA.getData().startsWith("(DE-599)ZDB"))
+                return subfieldA.getData().substring(11);
+        }
 
-        return subfieldA.getData().substring(11);
+        return null;
     }
 
     public String getStartPage(final Record record) {
