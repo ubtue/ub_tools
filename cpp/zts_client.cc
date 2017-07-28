@@ -338,7 +338,7 @@ unsigned GenerateMARC(const JSON::JSONNode * const tree,
                 if (item_type == "journalArticle") {
                     const std::string publication_title(GetOptionalStringValue(*object_node, "publicationTitle"));
                     if (not publication_title.empty())
-                        new_record.insertSubfield('a', publication_title);
+                        new_record.insertSubfield("773", 'a', publication_title);
                     
                     std::vector<std::pair<char, std::string>> subfield_codes_and_values;
                     const std::string issue(GetOptionalStringValue(*object_node, "issue"));
