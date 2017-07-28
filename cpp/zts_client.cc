@@ -336,11 +336,22 @@ unsigned GenerateMARC(const JSON::JSONNode * const tree,
             } else if (key_and_node->first == "itemType") {
                 const std::string item_type(GetValueFromStringNode(*key_and_node));
                 if (item_type == "journalArticle") {
-                    const std::string issue(GetOptionalStringValue(*object_node, "issue"));
-                    const std::string pages(GetOptionalStringValue(*object_node, "pages"));
                     const std::string publication_title(GetOptionalStringValue(*object_node, "publicationTitle"));
+                    if (not publication_title.empty())
+                        new_record.insertSubfield('a', publication_title);
+                    
+                    std::vector<std::pair<char, std::string>> subfield_codes_and_values;
+                    const std::string issue(GetOptionalStringValue(*object_node, "issue"));
+                    if (not issue.empty())
+                        subfield_codes_and_values.emplace_back(std::make_pair('e', issue));
+                    const std::string pages(GetOptionalStringValue(*object_node, "pages"));
+                    if (not pages.empty())
+                        subfield_codes_and_values.emplace_back(std::make_pair('h', pages));
                     const std::string volume(GetOptionalStringValue(*object_node, "volume"));
-std::cerr << "issue="<<issue<<", pages="<<pages<<", publication_title="<<publication_title<<", volume="<<volume<<'\n';
+                    if (not volume.empty())
+                        subfield_codes_and_values.emplace_back(std::make_pair('d', pages));
+                    if (not subfield_codes_and_values.empty())
+                        new_record.insertSubfields(subfield_codes_and_values);
                 }
             } else
                 Warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
