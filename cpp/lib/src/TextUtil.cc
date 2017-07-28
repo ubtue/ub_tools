@@ -545,7 +545,8 @@ bool UTF8ToUTF32Decoder::addByte(const char ch) {
         } else
             throw std::runtime_error("in TextUtil::UTF8ToUTF32Decoder::addByte: bad UTF-8 byte "
                                      "sequence! (partial utf32_char: 0x" + StringUtil::ToHexString(utf32_char_)
-                                     + ", current char 0x" + StringUtil::ToHexString(ch) + ")");
+                                     + ", current char 0x" + StringUtil::ToHexString(static_cast<unsigned char>(ch))
+                                     + ")");
     } else if (required_count_ > 0) {
         --required_count_;
         utf32_char_ <<= 6u;
