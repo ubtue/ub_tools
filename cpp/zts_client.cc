@@ -37,7 +37,7 @@
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " zts_server_url map_directorymarc_output harvest_url1 [harvest_url2 .. harvest_urlN]\n"
+              << " zts_server_url map_directory marc_output harvest_url1 [harvest_url2 .. harvest_urlN]\n"
               << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
               << "        files.\n\n";
     std::exit(EXIT_FAILURE);
