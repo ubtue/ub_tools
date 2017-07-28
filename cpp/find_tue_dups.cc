@@ -30,7 +30,6 @@
 #include "MarcRecord.h"
 #include "RegexMatcher.h"
 #include "util.h"
-#include "XmlUtil.h"
 
 
 void Usage() {
@@ -103,9 +102,10 @@ std::string ExtractInventory(const std::string &_910_subfield_a) {
 
     JSON::JSONNode *tree_root(nullptr);
     try {
-        JSON::Parser json_parser(XmlUtil::DecodeEntities(_910_subfield_a));
+        JSON::Parser json_parser(_910_subfield_a);
         if (not (json_parser.parse(&tree_root)))
-            Error("in ExtractInventory: failed to parse returned JSON: " + json_parser.getErrorMessage());
+            Error("in ExtractInventory: failed to parse returned JSON: " + json_parser.getErrorMessage()
+                  + "(input was: " + StringUtil::CStyleEscape(_910_subfield_a) + ")");
 
         if (tree_root->getType() != JSON::JSONNode::OBJECT_NODE)
             Error("in ExtractInventory: expected an object node!");
@@ -235,7 +235,7 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
 void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
     // Write a header:
     std::cout << "\"PPN\"" << ",\"Titel\"" << (output_set == MONOGRAPHS ? ",\"ISBN\"" : ",\"ISSN\"")
-              << ",\"Erscheinungsjahr\"" << (output_set == MONOGRAPHS ?",\"Fachgebiet\"" : "ZDB-ID-Nummer")
+              << ",\"Erscheinungsjahr\"" << (output_set == MONOGRAPHS ?",\"Fachgebiet\"" : ",\"ZDB-ID-Nummer")
               << (output_set == MONOGRAPHS ? ",\"UB - Signatur\"" : ",\"UB - Bestandsangabe\"")
               << ",\"Sigel der anderen besitzenden Bibliotheken"
               << (output_set == SERIALS ? " mit Bestandsangaben\"" : "\"") << '\n';
