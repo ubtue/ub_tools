@@ -28,6 +28,7 @@
 #include "JSON.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
+#include "RegexMatcher.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -207,13 +208,34 @@ inline bool Download(const Url &url, const TimeLimit &time_limit, const std::str
 }
 
 
-void CreateSubfieldFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node,
-                                  const std::string &tag, const char subfield_code, MarcRecord * const marc_record)
-{
+inline std::string GetValueFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node) {
     if (key_and_node.second->getType() != JSON::JSONNode::STRING_NODE)
-        Error("in CreateSubfieldFromStringNode: expected \"" + key_and_node.first + "\" to have a string node!");
+        Error("in GetValueFromStringNode: expected \"" + key_and_node.first + "\" to have a string node!");
     const JSON::StringNode * const node(reinterpret_cast<const JSON::StringNode * const>(key_and_node.second));
-    marc_record->insertSubfield(tag, subfield_code, node->getValue());
+    return node->getValue();
+}
+
+
+inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node,
+                                                const std::string &tag, const char subfield_code,
+                                                MarcRecord * const marc_record)
+{
+    const std::string value(GetValueFromStringNode(key_and_node));
+    marc_record->insertSubfield(tag, subfield_code, value);
+    return value;
+}
+
+
+// Returns the value for "key", if key exists in "object", o/w returns the empty string.
+inline std::string GetOptionalStringValue(const JSON::ObjectNode &object, const std::string &key) {
+    const JSON::JSONNode * const value_node(object.getValue(key));
+    if (value_node == nullptr)
+        return "";
+    
+    if (value_node->getType() != JSON::JSONNode::STRING_NODE)
+        Error("in GetOptionalStringValue: expected \"" + key + "\" to have a string node!");
+    const JSON::StringNode * const string_node(reinterpret_cast<const JSON::StringNode * const>(value_node));
+    return string_node->getValue();
 }
 
 
@@ -268,7 +290,11 @@ void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MarcRecord
 }
 
 
-void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_writer) {
+
+unsigned GenerateMARC(const JSON::JSONNode * const tree,
+                      const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
+                      MarcWriter * const marc_writer)
+{
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
         Error("in GenerateMARC: expected top-level JSON to be an array!");
     const JSON::ArrayNode * const top_level_array(reinterpret_cast<const JSON::ArrayNode * const>(tree));
@@ -279,12 +305,18 @@ void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_wri
     const JSON::ArrayNode * const nested_array(
         reinterpret_cast<const JSON::ArrayNode * const>(top_level_array->getValue(0)));
 
-    MarcRecord new_record;
+    static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
+        "issue|pages|publicationTitle|volume"));
+    unsigned record_count(0);
     for (auto entry(nested_array->cbegin()); entry != nested_array->cend(); ++entry) {
+        MarcRecord new_record;
         if ((*entry)->getType() != JSON::JSONNode::OBJECT_NODE)
             Error("in GenerateMARC: expected an object node!");
         const JSON::ObjectNode * const object_node(reinterpret_cast<const JSON::ObjectNode * const>(*entry));
         for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
+            if (ignore_fields->matched(key_and_node->first))
+                continue;
+            
             if (key_and_node->first == "itemKey") {
                 const JSON::StringNode * const item_key(CastToStringNodeOrDie("itemKey", key_and_node->second));
                 new_record.insertField("001", item_key->getValue());
@@ -296,33 +328,57 @@ void GenerateMARC(const JSON::JSONNode * const tree, MarcWriter * const marc_wri
                 CreateSubfieldFromStringNode(*key_and_node, "246", 'a', &new_record);
             else if (key_and_node->first == "creators")
                 CreateCreatorFields(key_and_node->second, &new_record);
-            else
+            else if (key_and_node->first == "ISSN") {
+                const std::string ISSN(CreateSubfieldFromStringNode(*key_and_node, "022", 'a', &new_record));
+                const auto ISSN_and_physical_form(ISSN_to_physical_form_map.find(ISSN));
+                if (ISSN_and_physical_form != ISSN_to_physical_form_map.cend()) {
+                }
+            } else if (key_and_node->first == "itemType") {
+                const std::string item_type(GetValueFromStringNode(*key_and_node));
+                if (item_type == "journalArticle") {
+                    const std::string issue(GetOptionalStringValue(*object_node, "issue"));
+                    const std::string pages(GetOptionalStringValue(*object_node, "pages"));
+                    const std::string publication_title(GetOptionalStringValue(*object_node, "publicationTitle"));
+                    const std::string volume(GetOptionalStringValue(*object_node, "volume"));
+std::cerr << "issue="<<issue<<", pages="<<pages<<", publication_title="<<publication_title<<", volume="<<volume<<'\n';
+                }
+            } else
                 Warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
                         + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "!");
         }
+
+        marc_writer->write(new_record);
+        ++record_count;
     }
 
-    marc_writer->write(new_record);
+    return record_count;
 }
 
 
-void Harvest(const std::string &zts_server_url, const std::string &harvest_url, MarcWriter * const marc_writer) {
+unsigned Harvest(const std::string &zts_server_url, const std::string &harvest_url,
+                 const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
+                 MarcWriter * const marc_writer)
+{
     std::string json_document, error_message;
     if (not Download(Url(zts_server_url), /* time_limit = */ 10000, harvest_url, &json_document, &error_message))
         Error("Download for harvest URL \"" + harvest_url + "\" failed: " + error_message);
 
     JSON::JSONNode *tree_root(nullptr);
+    unsigned record_count;
     try {
         JSON::Parser json_parser(json_document);
         if (not (json_parser.parse(&tree_root)))
             Error("failed to parse returned JSON: " + json_parser.getErrorMessage());
 
-        GenerateMARC(tree_root, marc_writer);
+        record_count = GenerateMARC(tree_root, ISSN_to_physical_form_map, marc_writer);
         delete tree_root;
     } catch (...) {
         delete tree_root;
         throw;
     }
+
+    std::cerr << "Harvested " << record_count << " record(s) from " << harvest_url << ".\n";
+    return record_count;
 }
 
 
@@ -339,10 +395,13 @@ int main(int argc, char *argv[]) {
     try {
         std::unordered_map<std::string, std::string> ISSN_to_physical_form_map;
         LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map);
-        
+
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
+        unsigned total_record_count(0);
         for (int arg_no(4); arg_no < argc; ++arg_no)
-            Harvest(ZTS_SERVER_URL, argv[arg_no], marc_writer.get());
+            total_record_count += Harvest(ZTS_SERVER_URL, argv[arg_no], ISSN_to_physical_form_map, marc_writer.get());
+
+        std::cout << "Harvested a total of " << total_record_count << " records.\n";
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
