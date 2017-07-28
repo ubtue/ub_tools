@@ -1,9 +1,0 @@
-<?php
-    require_once('Marc/AbstractBase.php');
-    require_once('Marc/AbstractField.php');
-    require_once('Marc/ControlField.php');
-    require_once('Marc/DataField.php');
-    require_once('Marc/Leader.php');
-    require_once('Marc/SubField.php');
-    require_once('Marc/Record.php');
-?>
