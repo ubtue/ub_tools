@@ -306,7 +306,7 @@ unsigned GenerateMARC(const JSON::JSONNode * const tree,
         reinterpret_cast<const JSON::ArrayNode * const>(top_level_array->getValue(0)));
 
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "issue|pages|publicationTitle|volume"));
+        "^issue|pages|publicationTitle|volume$"));
     unsigned record_count(0);
     for (auto entry(nested_array->cbegin()); entry != nested_array->cend(); ++entry) {
         MarcRecord new_record;
