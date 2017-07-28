@@ -351,7 +351,7 @@ unsigned GenerateMARC(const JSON::JSONNode * const tree,
                     if (not volume.empty())
                         subfield_codes_and_values.emplace_back(std::make_pair('d', pages));
                     if (not subfield_codes_and_values.empty())
-                        new_record.insertSubfields(subfield_codes_and_values);
+                        new_record.insertSubfields("936", subfield_codes_and_values);
                 }
             } else
                 Warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
