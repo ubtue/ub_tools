@@ -235,7 +235,7 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
               << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
               << (output_set == MONOGRAPHS ? "\",\"" + TextUtil::CSVEscape(publication_year) : "")
               << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
-              <<"\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) <<  "\",\""
+              << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) <<  "\",\""
               << TextUtil::CSVEscape(non_ub_sigils_and_inventory) << "\"\n";
 
     return true;
