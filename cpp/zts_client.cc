@@ -18,10 +18,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <iostream>
+#include <unordered_map>
 #include <cinttypes>
 #include <uuid/uuid.h>
 #include "Compiler.h"
 #include "FileDescriptor.h"
+#include "FileUtil.h"
 #include "HttpHeader.h"
 #include "JSON.h"
 #include "MarcRecord.h"
@@ -34,8 +36,60 @@
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " zts_server_url marc_output harvest_url1 [harvest_url2 .. harvest_urlN]\n";
+              << " zts_server_url map_directorymarc_output harvest_url1 [harvest_url2 .. harvest_urlN]\n"
+              << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
+              << "        files.\n\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+bool ParseLine(const std::string &line, std::string * const key, std::string * const value) {
+    key->clear(), value->clear();
+
+    // Extract the key:
+    auto ch(line.cbegin());
+    while (ch != line.cend() and *ch != '=') {
+        if (unlikely(*ch == '\\')) {
+            ++ch;
+            if (unlikely(ch == line.cend()))
+                return false;
+        }
+        *key += *ch++;
+    }
+    if (unlikely(ch == line.cend()))
+        return false;
+    ++ch; // Skip over the equal-sign.
+
+    // Extract value:
+    while (ch != line.cend() and *ch != '#' /* Comment start. */) {
+        if (unlikely(*ch == '\\')) {
+            ++ch;
+            if (unlikely(ch == line.cend()))
+                return false;
+        }
+        *value += *ch++;
+    }
+    StringUtil::RightTrim(value);
+
+    return not key->empty() and not value->empty();
+}
+
+
+void LoadMapFile(const std::string &filename, std::unordered_map<std::string, std::string> * const from_to_map) {
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(filename));
+
+    unsigned line_no(0);
+    while (not input->eof()) {
+        std::string line(input->getline());
+        ++line_no;
+
+        StringUtil::Trim(&line);
+        std::string key, value;
+        if (not ParseLine(line, &key, &value))
+            Error("in LoadMapFile: invalid input on line \"" + std::to_string(line_no) + "\" in \""
+                  + input->getPath() + "\"!");
+        from_to_map->emplace(key, value);
+    }
 }
 
 
@@ -274,14 +328,20 @@ void Harvest(const std::string &zts_server_url, const std::string &harvest_url, 
 
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
-    if (argc < 4)
+    if (argc < 5)
         Usage();
 
     const std::string ZTS_SERVER_URL(argv[1]);
+    std::string map_directory_path(argv[2]);
+    if (not StringUtil::EndsWith(map_directory_path, '/'))
+        map_directory_path += '/';
 
     try {
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
-        for (int arg_no(3); arg_no < argc; ++arg_no)
+        std::unordered_map<std::string, std::string> ISSN_to_physical_form_map;
+        LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map);
+        
+        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
+        for (int arg_no(4); arg_no < argc; ++arg_no)
             Harvest(ZTS_SERVER_URL, argv[arg_no], marc_writer.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
