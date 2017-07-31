@@ -211,9 +211,11 @@ public:
     bool isProbablyCorrect(std::string * const flaw_description) const;
 
     /** \brief Generates a reproducible SHA-1 hash over our internal data.
+     *  \param exclude_001  If true, do not include the contents of the 001 control field in the generation of the
+     *                      hash.
      *  \return the hash
      */
-    std::string calcChecksum() const;
+    std::string calcChecksum(const bool exclude_001 = false) const;
 
     std::string getDebugRepresentation() const;
 
