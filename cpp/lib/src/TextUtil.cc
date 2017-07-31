@@ -460,7 +460,7 @@ std::string Base64Decode(const std::string &s, const char symbol63, const char s
             state = 2;
             break;
         case 2:
-            decoded_ch |= (ch & 0b110000u) >> 4u;
+            decoded_ch |= ch >> 4u;
             decoded_chars += static_cast<char>(decoded_ch);
             decoded_ch = (ch & 0b001111u) << 4u;
             state = 3;
