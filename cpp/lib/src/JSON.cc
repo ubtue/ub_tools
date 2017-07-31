@@ -80,7 +80,9 @@ TokenType Scanner::getToken() {
     case '9':
         return parseNumber();
     default:
-        last_error_message_ = "unexpected character '" + std::string(1, *ch_) + "'!";
+        const std::string bad_char(::isprint(*ch_) ? std::string(1, *ch_)
+                                   : "\\x" + StringUtil::ToHexString(static_cast<unsigned char>(*ch_)));
+        last_error_message_ = "unexpected character '" + bad_char + "'!";
         return ERROR;
     }
 }

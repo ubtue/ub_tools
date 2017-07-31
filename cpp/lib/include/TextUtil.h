@@ -143,6 +143,15 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 std::string Base64Encode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/');
 
 
+/** \brief  Base64 decodes a string.
+ *  \param  s         The string that will be decoded.
+ *  \param  symbol63  The character that was used for symbol 63.
+ *  \param  symbol64  The character that was used for symbol 64.
+ *  \return The decoded string.
+ */
+std::string Base64Decode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/');
+
+
 /** \brief Replaces non-printable characters with octal C-style escapes.
  *  \param also_escape_whitespace  if true, whitespace characters tab, vertical tab, newline, space and
  *         hard space will also be escaped.
