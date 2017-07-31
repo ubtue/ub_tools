@@ -36,6 +36,7 @@ augment_bible_references
 auto_temp_file_test
 backtrace_test
 base_tar_unpacker
+base64_coder
 bib_ref_parser_test
 bib_ref_to_codes_tool
 categorise_marc_xml
