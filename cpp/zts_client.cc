@@ -31,6 +31,7 @@
 #include "RegexMatcher.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "UrlUtil.h"
 #include "util.h"
 
@@ -101,7 +102,7 @@ void LoadPreviouslyDownloadedHashes(File * const input,
         std::string line(input->getline());
         StringUtil::Trim(&line);
         if (likely(not line.empty()))
-            previously_downloaded->emplace(line);
+            previously_downloaded->emplace(TextUtil::Base64Decode(line));
     }
 
     std::cerr << "Loaded " << previously_downloaded->size() << " hashes of previously generated records.\n";
@@ -245,7 +246,7 @@ inline std::string GetOptionalStringValue(const JSON::ObjectNode &object, const 
     const JSON::JSONNode * const value_node(object.getValue(key));
     if (value_node == nullptr)
         return "";
-    
+
     if (value_node->getType() != JSON::JSONNode::STRING_NODE)
         Error("in GetOptionalStringValue: expected \"" + key + "\" to have a string node!");
     const JSON::StringNode * const string_node(reinterpret_cast<const JSON::StringNode * const>(value_node));
@@ -304,9 +305,9 @@ void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MarcRecord
 }
 
 
-unsigned GenerateMARC(const JSON::JSONNode * const tree,
-                      const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
-                      std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
+std::pair<unsigned, unsigned> GenerateMARC(
+    const JSON::JSONNode * const tree, const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
+    std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
         Error("in GenerateMARC: expected top-level JSON to be an array!");
@@ -323,7 +324,7 @@ unsigned GenerateMARC(const JSON::JSONNode * const tree,
         for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
             if (ignore_fields->matched(key_and_node->first))
                 continue;
-            
+
             if (key_and_node->first == "itemKey") {
                 const JSON::StringNode * const item_key(CastToStringNodeOrDie("itemKey", key_and_node->second));
                 new_record.insertField("001", item_key->getValue());
@@ -351,7 +352,7 @@ unsigned GenerateMARC(const JSON::JSONNode * const tree,
                     const std::string publication_title(GetOptionalStringValue(*object_node, "publicationTitle"));
                     if (not publication_title.empty())
                         new_record.insertSubfield("773", 'a', publication_title);
-                    
+
                     std::vector<std::pair<char, std::string>> subfield_codes_and_values;
                     const std::string issue(GetOptionalStringValue(*object_node, "issue"));
                     if (not issue.empty())
@@ -370,7 +371,7 @@ unsigned GenerateMARC(const JSON::JSONNode * const tree,
                         + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "!");
         }
 
-        const std::string checksum(new_record.calcChecksum());
+        const std::string checksum(new_record.calcChecksum(/* exclude_001 = */ true));
         if (previously_downloaded->find(checksum) == previously_downloaded->cend()) {
             previously_downloaded->emplace(checksum);
             marc_writer->write(new_record);
@@ -379,34 +380,40 @@ unsigned GenerateMARC(const JSON::JSONNode * const tree,
         ++record_count;
     }
 
-    return record_count;
+    return std::make_pair(record_count, previously_downloaded_count);
 }
 
 
-unsigned Harvest(const std::string &zts_server_url, const std::string &harvest_url,
-                 const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
-                 std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
+std::pair<unsigned, unsigned> Harvest(const std::string &zts_server_url, const std::string &harvest_url,
+                                      const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
+                                      std::unordered_set<std::string> * const previously_downloaded,
+                                      MarcWriter * const marc_writer)
 {
     std::string json_document, error_message;
     if (not Download(Url(zts_server_url), /* time_limit = */ 10000, harvest_url, &json_document, &error_message))
         Error("Download for harvest URL \"" + harvest_url + "\" failed: " + error_message);
 
     JSON::JSONNode *tree_root(nullptr);
-    unsigned record_count;
+    std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     try {
         JSON::Parser json_parser(json_document);
         if (not (json_parser.parse(&tree_root)))
             Error("failed to parse returned JSON: " + json_parser.getErrorMessage());
 
-        record_count = GenerateMARC(tree_root, ISSN_to_physical_form_map, previously_downloaded, marc_writer);
+        record_count_and_previously_downloaded_count =
+            GenerateMARC(tree_root, ISSN_to_physical_form_map, previously_downloaded, marc_writer);
         delete tree_root;
     } catch (...) {
         delete tree_root;
         throw;
     }
 
-    std::cerr << "Harvested " << record_count << " record(s) from " << harvest_url << ".\n";
-    return record_count;
+    std::cerr << "Harvested " << record_count_and_previously_downloaded_count.first << " record(s) from "
+              << harvest_url << '\n' << "of which "
+              << (record_count_and_previously_downloaded_count.first
+                  - record_count_and_previously_downloaded_count.second)
+              << " records were new records.\n";
+    return record_count_and_previously_downloaded_count;
 }
 
 
@@ -414,7 +421,7 @@ void StorePreviouslyDownloadedHashes(File * const output,
                                      const std::unordered_set<std::string> &previously_downloaded)
 {
     for (const auto &hash : previously_downloaded)
-        output->write(hash + '\n');
+        output->write(TextUtil::Base64Encode(hash) + '\n');
 
     std::cerr << "Stored " << previously_downloaded.size() << " hashes of previously generated records.\n";
 }
@@ -439,14 +446,19 @@ int main(int argc, char *argv[]) {
         std::unordered_set<std::string> previously_downloaded;
         LoadPreviouslyDownloadedHashes(previously_downloaded_input.get(), &previously_downloaded);
         previously_downloaded_input->close();
-        
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
-        unsigned total_record_count(0);
-        for (int arg_no(4); arg_no < argc; ++arg_no)
-            total_record_count += Harvest(ZTS_SERVER_URL, argv[arg_no], ISSN_to_physical_form_map,
-                                          &previously_downloaded, marc_writer.get());
 
-        std::cout << "Harvested a total of " << total_record_count << " records.\n";
+        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
+        unsigned total_record_count(0), total_previously_downloaded_count(0);
+        for (int arg_no(4); arg_no < argc; ++arg_no) {
+            const auto record_count_and_previously_downloaded_count(
+                Harvest(ZTS_SERVER_URL, argv[arg_no], ISSN_to_physical_form_map, &previously_downloaded,
+                        marc_writer.get()));
+                total_record_count                += record_count_and_previously_downloaded_count.first;
+                total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
+        }
+
+        std::cout << "Harvested a total of " << total_record_count << " records of which "
+                  << total_previously_downloaded_count << " were already previously downloaded.\n";
 
         std::unique_ptr<File> previously_downloaded_output(
             FileUtil::OpenOutputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
