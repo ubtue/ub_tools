@@ -553,14 +553,19 @@ bool MarcRecord::isProbablyCorrect(std::string * const flaw_description) const {
 }
 
 
-std::string MarcRecord::calcChecksum() const {
+std::string MarcRecord::calcChecksum(const bool exclude_001) const {
     std::string blob;
     blob.reserve(200000); // Roughly twice the maximum size of a single MARC-21 record.
 
     blob += leader_.toString();
-    for (const auto &dir_entry : directory_entries_)
-        blob += dir_entry.toString();
-    blob += field_data_;
+    for (const auto &dir_entry : directory_entries_) {
+        if (likely(dir_entry.getTag() != "001" or not exclude_001))
+            blob += dir_entry.toString();
+    }
+    if (exclude_001 and directory_entries_[0].getTag() == "001")
+        blob += field_data_.substr(directory_entries_[0].getFieldLength());
+    else
+        blob += field_data_;
 
     return StringUtil::Sha1(blob);
 }

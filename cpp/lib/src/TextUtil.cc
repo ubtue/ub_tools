@@ -394,10 +394,12 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 }
 
 
+static char base64_symbols[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\0\0";
+
+
 std::string Base64Encode(const std::string &s, const char symbol63, const char symbol64) {
-    static char symbols[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\0\0";
-    symbols[62] = symbol63;
-    symbols[63] = symbol64;
+    base64_symbols[62] = symbol63;
+    base64_symbols[63] = symbol64;
 
     std::string encoded_chars;
     std::string::const_iterator ch(s.begin());
@@ -423,7 +425,7 @@ std::string Base64Encode(const std::string &s, const char symbol63, const char s
         // Now grab 6 bits at a time and encode them starting with the 4th character:
         char next4[4];
         for (unsigned char_no(0); char_no < 4; ++char_no) {
-            next4[4 - 1 - char_no] = symbols[buf & 0x3Fu];
+            next4[4 - 1 - char_no] = base64_symbols[buf & 0x3Fu];
             buf >>= 6u;
         }
 
@@ -432,6 +434,52 @@ std::string Base64Encode(const std::string &s, const char symbol63, const char s
     }
 
     return encoded_chars;
+}
+
+
+std::string Base64Decode(const std::string &s, const char symbol63, const char symbol64) {
+    static unsigned char char_to_bits_map[128];
+    static bool initialised(false);
+    if (not initialised) {
+        unsigned char mask(0);
+        for (const char *cp(base64_symbols); *cp != '\0'; ++cp)
+            char_to_bits_map[static_cast<unsigned char>(*cp)] = mask++;
+        initialised = true;
+    }
+    char_to_bits_map[static_cast<unsigned char>(symbol63)] = 62;
+    char_to_bits_map[static_cast<unsigned char>(symbol64)] = 63;
+
+    std::string decoded_chars;
+    unsigned state(1);
+    unsigned char decoded_ch;
+    for (const char encoded_ch : s) {
+        const unsigned char ch(char_to_bits_map[static_cast<unsigned char>(encoded_ch)]);
+        switch (state) {
+        case 1:
+            decoded_ch = ch << 2u;
+            state = 2;
+            break;
+        case 2:
+            decoded_ch |= ch >> 4u;
+            decoded_chars += static_cast<char>(decoded_ch);
+            decoded_ch = (ch & 0b001111u) << 4u;
+            state = 3;
+            break;
+        case 3:
+            decoded_ch |= ch >> 2u;
+            decoded_chars += static_cast<char>(decoded_ch);
+            decoded_ch = ch << 6u;
+            state = 4;
+            break;
+        case 4:
+            decoded_ch |= ch;
+            decoded_chars += static_cast<char>(decoded_ch);
+            state = 1;
+            break;
+        }
+    }
+
+    return decoded_chars;
 }
 
 
