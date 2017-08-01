@@ -362,7 +362,8 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 CreateCreatorFields(key_and_node->second, &new_record);
             else if (key_and_node->first == "ISSN") {
                 parent_isdn = GetValueFromStringNode(*key_and_node);
-                const std::string ISSN(CreateSubfieldFromStringNode(*key_and_node, "022", 'a', &new_record));
+                const std::string ISSN(MiscUtil::NormaliseISSN(
+                    CreateSubfieldFromStringNode(*key_and_node, "022", 'a', &new_record)));
                 const auto ISSN_and_physical_form(ISSN_to_physical_form_map.find(ISSN));
                 if (ISSN_and_physical_form != ISSN_to_physical_form_map.cend()) {
                     if (ISSN_and_physical_form->second == "A")
