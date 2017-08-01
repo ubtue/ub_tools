@@ -231,13 +231,26 @@ inline std::string GetValueFromStringNode(const std::pair<std::string, JSON::JSO
 }
 
 
+inline std::string CreateSubfieldFromStringNode(const std::string &key, const JSON::JSONNode * const node,
+                                                const std::string &tag, const char subfield_code,
+                                                MarcRecord * const marc_record, const char indicator1 = ' ',
+                                                const char indicator2 = ' ')
+{
+    if (node->getType() != JSON::JSONNode::STRING_NODE)
+        Error("in CreateSubfieldFromStringNode: \"" + key + "\" is not a string node!");
+    const std::string value(reinterpret_cast<const JSON::StringNode * const>(node)->getValue());
+    marc_record->insertSubfield(tag, subfield_code, value, indicator1, indicator2);
+    return value;
+}
+
+
 inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node,
                                                 const std::string &tag, const char subfield_code,
-                                                MarcRecord * const marc_record)
+                                                MarcRecord * const marc_record, const char indicator1 = ' ',
+                                                const char indicator2 = ' ')
 {
-    const std::string value(GetValueFromStringNode(key_and_node));
-    marc_record->insertSubfield(tag, subfield_code, value);
-    return value;
+    return CreateSubfieldFromStringNode(key_and_node.first, key_and_node.second, tag, subfield_code, marc_record,
+                                        indicator1, indicator2);
 }
 
 
@@ -307,6 +320,8 @@ void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MarcRecord
 
 std::pair<unsigned, unsigned> GenerateMARC(
     const JSON::JSONNode * const tree, const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
@@ -314,10 +329,12 @@ std::pair<unsigned, unsigned> GenerateMARC(
     const JSON::ArrayNode * const top_level_array(reinterpret_cast<const JSON::ArrayNode * const>(tree));
 
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^issue|pages|publicationTitle|volume$"));
+        "^issue|pages|publicationTitle|volume|libraryCatalog|itemVersion$"));
     unsigned record_count(0), previously_downloaded_count(0);
     for (auto entry(top_level_array->cbegin()); entry != top_level_array->cend(); ++entry) {
         MarcRecord new_record;
+        bool is_journal_article(false);
+        std::string publication_title, parent_ppn, parent_isdn;
         if ((*entry)->getType() != JSON::JSONNode::OBJECT_NODE)
             Error("in GenerateMARC: expected an object node!");
         const JSON::ObjectNode * const object_node(reinterpret_cast<const JSON::ObjectNode * const>(*entry));
@@ -332,6 +349,8 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 CreateSubfieldFromStringNode(*key_and_node, "856", 'u', &new_record);
             else if (key_and_node->first == "title")
                 CreateSubfieldFromStringNode(*key_and_node, "245", 'a', &new_record);
+            else if (key_and_node->first == "date")
+                CreateSubfieldFromStringNode(*key_and_node, "362", 'a', &new_record, /* indicator1 = */ '0');
             else if (key_and_node->first == "DOI") {
                 if (unlikely(key_and_node->second->getType() != JSON::JSONNode::STRING_NODE))
                     Error("in GenerateMARC: expected DOI node to be a string node!");
@@ -342,16 +361,24 @@ std::pair<unsigned, unsigned> GenerateMARC(
             else if (key_and_node->first == "creators")
                 CreateCreatorFields(key_and_node->second, &new_record);
             else if (key_and_node->first == "ISSN") {
+                parent_isdn = GetValueFromStringNode(*key_and_node);
                 const std::string ISSN(CreateSubfieldFromStringNode(*key_and_node, "022", 'a', &new_record));
                 const auto ISSN_and_physical_form(ISSN_to_physical_form_map.find(ISSN));
                 if (ISSN_and_physical_form != ISSN_to_physical_form_map.cend()) {
                 }
+
+                const auto ISSN_and_language(ISSN_to_language_code_map.find(ISSN));
+                if (ISSN_and_language != ISSN_to_language_code_map.cend())
+                    new_record.insertSubfield("041", 'a', ISSN_and_language->second);
+
+                const auto ISSN_and_parent_ppn(ISSN_to_superior_ppn_map.find(ISSN));
+                if (ISSN_and_parent_ppn != ISSN_to_superior_ppn_map.cend())
+                    parent_ppn = ISSN_and_parent_ppn->second;
             } else if (key_and_node->first == "itemType") {
                 const std::string item_type(GetValueFromStringNode(*key_and_node));
                 if (item_type == "journalArticle") {
-                    const std::string publication_title(GetOptionalStringValue(*object_node, "publicationTitle"));
-                    if (not publication_title.empty())
-                        new_record.insertSubfield("773", 'a', publication_title);
+                    is_journal_article = true;
+                    publication_title = GetOptionalStringValue(*object_node, "publicationTitle");
 
                     std::vector<std::pair<char, std::string>> subfield_codes_and_values;
                     const std::string issue(GetOptionalStringValue(*object_node, "issue"));
@@ -365,10 +392,44 @@ std::pair<unsigned, unsigned> GenerateMARC(
                         subfield_codes_and_values.emplace_back(std::make_pair('d', pages));
                     if (not subfield_codes_and_values.empty())
                         new_record.insertSubfields("936", subfield_codes_and_values);
+                } else
+                    Warning("in GenerateMARC: unknown item type: \"" + item_type + "\"!");
+            } else if (key_and_node->first == "tags") {
+                if (unlikely(key_and_node->second->getType() != JSON::JSONNode::ARRAY_NODE))
+                    Error("in GenerateMARC: expected the tags node to be an array node!");
+                const JSON::ArrayNode * const tags(
+                    reinterpret_cast<const JSON::ArrayNode * const>(key_and_node->second));
+                for (auto tag(tags->cbegin()); tag != tags->cend(); ++tag) {
+                    if ((*tag)->getType() != JSON::JSONNode::OBJECT_NODE)
+                        Error("in GenerateMARC: expected tag node to be an object node but found a(n) "
+                              + JSON::JSONNode::TypeToString((*tag)->getType()) + " node instead!");
+                    const JSON::ObjectNode * const tag_object(
+                        reinterpret_cast<const JSON::ObjectNode * const>(*tag));
+                    const JSON::JSONNode * const tag_node(tag_object->getValue("tag"));
+                    if (tag_node == nullptr)
+                        Warning("in GenerateMARC: unexpected: tag object does not contain a \"tag\" entry!");
+                    else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
+                        Error("in GenerateMARC: unexpected: tag object's \"tag\" entry is not a string node!");
+                    else
+                        CreateSubfieldFromStringNode("tag", tag_node, "653", 'a', &new_record);
                 }
             } else
                 Warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
-                        + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "!");
+                        + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "! ("
+                        + key_and_node->second->toString() + ")");
+        }
+
+        // Populate 773:
+        if (is_journal_article) {
+            std::vector<std::pair<char, std::string>> subfield_codes_and_values;
+            if (not publication_title.empty())
+                subfield_codes_and_values.emplace_back('a', publication_title);
+            if (not parent_isdn.empty())
+                subfield_codes_and_values.emplace_back('x', parent_isdn);
+            if (not parent_ppn.empty())
+                subfield_codes_and_values.emplace_back('w', "(DE-576))" + parent_ppn);
+            if (not subfield_codes_and_values.empty())
+                new_record.insertSubfields("773", subfield_codes_and_values);
         }
 
         const std::string checksum(new_record.calcChecksum(/* exclude_001 = */ true));
@@ -386,6 +447,8 @@ std::pair<unsigned, unsigned> GenerateMARC(
 
 std::pair<unsigned, unsigned> Harvest(const std::string &zts_server_url, const std::string &harvest_url,
                                       const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
+                                      const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
+                                      const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
                                       std::unordered_set<std::string> * const previously_downloaded,
                                       MarcWriter * const marc_writer)
 {
@@ -401,7 +464,8 @@ std::pair<unsigned, unsigned> Harvest(const std::string &zts_server_url, const s
             Error("failed to parse returned JSON: " + json_parser.getErrorMessage());
 
         record_count_and_previously_downloaded_count =
-            GenerateMARC(tree_root, ISSN_to_physical_form_map, previously_downloaded, marc_writer);
+            GenerateMARC(tree_root, ISSN_to_physical_form_map, ISSN_to_language_code_map, ISSN_to_superior_ppn_map,
+                         previously_downloaded, marc_writer);
         delete tree_root;
     } catch (...) {
         delete tree_root;
@@ -441,6 +505,12 @@ int main(int argc, char *argv[]) {
         std::unordered_map<std::string, std::string> ISSN_to_physical_form_map;
         LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map);
 
+        std::unordered_map<std::string, std::string> ISSN_to_language_code_map;
+        LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &ISSN_to_language_code_map);
+
+        std::unordered_map<std::string, std::string> ISSN_to_superior_ppn_map;
+        LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &ISSN_to_superior_ppn_map);
+
         std::unique_ptr<File> previously_downloaded_input(
             FileUtil::OpenInputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
         std::unordered_set<std::string> previously_downloaded;
@@ -451,8 +521,8 @@ int main(int argc, char *argv[]) {
         unsigned total_record_count(0), total_previously_downloaded_count(0);
         for (int arg_no(4); arg_no < argc; ++arg_no) {
             const auto record_count_and_previously_downloaded_count(
-                Harvest(ZTS_SERVER_URL, argv[arg_no], ISSN_to_physical_form_map, &previously_downloaded,
-                        marc_writer.get()));
+                Harvest(ZTS_SERVER_URL, argv[arg_no], ISSN_to_physical_form_map, ISSN_to_language_code_map,
+                        ISSN_to_superior_ppn_map, &previously_downloaded, marc_writer.get()));
                 total_record_count                += record_count_and_previously_downloaded_count.first;
                 total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
         }
