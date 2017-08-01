@@ -119,6 +119,12 @@ std::string GetUserName();
 bool IsPossibleISSN(std::string issn_candidate);
 
 
+/** \brief Converts an ISSN to the XXXX-YYYY format.
+ *  \return True if the input had a length of 8 or 9 and false o/w.
+ */
+bool NormaliseISSN(const std::string &issn_candidate, std::string * const normalised_issn);
+
+
 // \return a string representation of "map".
 std::string StringMapToString(const std::map<std::string, std::string> &map);
 

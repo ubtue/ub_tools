@@ -815,7 +815,7 @@ bool IsPossibleISSN(std::string issn_candidate) {
     }
 
     //
-    // For an explanation of how to determine the chcksum digit, have a look at
+    // For an explanation of how to determine the checksum digit, have a look at
     // https://en.wikipedia.org/wiki/International_Standard_Serial_Number#Code_format&oldid=767018094
     //
 
@@ -841,6 +841,21 @@ bool IsPossibleISSN(std::string issn_candidate) {
     }
 
     return std::toupper(issn_candidate[7]) == check_digit;
+}
+
+
+bool NormaliseISSN(const std::string &issn_candidate, std::string * const normalised_issn) {
+    if (issn_candidate.length() == 9) {
+        normalised_issn = issn_candidate;
+        return true;
+    }
+
+    if (issn_candidate.length() == 8) {
+        normalised_issn = issn_candidate.substr(0, 4) + '-' + issn_candidate.substr(4, 4);
+        return true;
+    }
+
+    return false;
 }
 
 
