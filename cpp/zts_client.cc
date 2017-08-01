@@ -365,6 +365,13 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 const std::string ISSN(CreateSubfieldFromStringNode(*key_and_node, "022", 'a', &new_record));
                 const auto ISSN_and_physical_form(ISSN_to_physical_form_map.find(ISSN));
                 if (ISSN_and_physical_form != ISSN_to_physical_form_map.cend()) {
+                    if (ISSN_and_physical_form->second == "A")
+                        new_record.insertField("007", "tu");
+                    else if (ISSN_and_physical_form->second == "O")
+                        new_record.insertField("007", "cr uuu---uuuuu");
+                    else
+                        Error("in GenerateMARC: unhandled entry in physical form map: \""
+                              + ISSN_and_physical_form->second + "\"!");
                 }
 
                 const auto ISSN_and_language(ISSN_to_language_code_map.find(ISSN));
