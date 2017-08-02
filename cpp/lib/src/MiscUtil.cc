@@ -846,12 +846,12 @@ bool IsPossibleISSN(std::string issn_candidate) {
 
 bool NormaliseISSN(const std::string &issn_candidate, std::string * const normalised_issn) {
     if (issn_candidate.length() == 9) {
-        normalised_issn = issn_candidate;
+        *normalised_issn = issn_candidate;
         return true;
     }
 
     if (issn_candidate.length() == 8) {
-        normalised_issn = issn_candidate.substr(0, 4) + '-' + issn_candidate.substr(4, 4);
+        *normalised_issn = issn_candidate.substr(0, 4) + '-' + issn_candidate.substr(4, 4);
         return true;
     }
 
