@@ -28,6 +28,7 @@
 #include "JSON.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
@@ -95,6 +96,29 @@ void LoadMapFile(const std::string &filename, std::unordered_map<std::string, st
 }
 
 
+RegexMatcher *LoadSupportedURLsRegex(const std::string &map_directory_path) {
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(map_directory_path + "targets.regex"));
+
+    std::string combined_regex;
+    while (not input->eof()) {
+        std::string line(input->getline());
+        StringUtil::Trim(&line);
+        if (likely(not line.empty())) {
+            if (likely(not combined_regex.empty()))
+                combined_regex += '|';
+            combined_regex += "(?:" + line + ")";
+        }
+    }
+
+    std::string err_msg;
+    RegexMatcher * const supported_urls_regex(RegexMatcher::RegexMatcherFactory(combined_regex, &err_msg));
+    if (supported_urls_regex == nullptr)
+        Error("in LoadSupportedURLsRegex: compilation of the combined regex failed: " + err_msg);
+
+    return supported_urls_regex;
+}
+
+
 void LoadPreviouslyDownloadedHashes(File * const input,
                                     std::unordered_set<std::string> * const previously_downloaded)
 {
@@ -109,6 +133,21 @@ void LoadPreviouslyDownloadedHashes(File * const input,
 }
 
 
+// Returns the socket file descriptor on success or aborts if it was not possible to establish a connection.
+int TcpConnectOrDie(const std::string &server_address, const unsigned short server_port, const TimeLimit &time_limit)
+{
+   std::string tcp_connect_error_message;
+   const int socket_fd(SocketUtil::TcpConnect(server_address, server_port, time_limit, &tcp_connect_error_message,
+                                              SocketUtil::DISABLE_NAGLE));
+   if (socket_fd == -1)
+       Error("in TcpConnectOrDie: Could not open TCP connection to " + server_address + ", port "
+             + std::to_string(server_port) + ": " + tcp_connect_error_message + " (Time remaining: "
+             + std::to_string(time_limit.getRemainingTime()) + ").");
+
+   return socket_fd;
+}
+
+
 bool Download(const std::string &server_address, const unsigned short server_port, const std::string &server_path,
               const TimeLimit &time_limit, const std::string &request_headers, const std::string &request_body,
               std::string * const returned_data, std::string * const error_message)
@@ -116,15 +155,7 @@ bool Download(const std::string &server_address, const unsigned short server_por
     returned_data->clear();
     error_message->clear();
 
-    std::string tcp_connect_error_message;
-    const FileDescriptor socket_fd(SocketUtil::TcpConnect(server_address, server_port, time_limit,
-                                                          &tcp_connect_error_message, SocketUtil::DISABLE_NAGLE));
-    if (socket_fd == -1) {
-        *error_message = "Could not open TCP connection to " + server_address + ", port "
-            + std::to_string(server_port) + ": " + tcp_connect_error_message;
-        *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ").";
-        return false;
-    }
+    const FileDescriptor socket_fd(TcpConnectOrDie(server_address, server_port, time_limit));
 
     std::string request;
     request += request_headers;
@@ -143,8 +174,7 @@ bool Download(const std::string &server_address, const unsigned short server_por
                                                    sizeof(http_response_header) - 1));
     if (no_of_bytes_read == -1) {
         *error_message = "Could not read from socket (1).";
-        *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime())
-            + ").";
+        *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ").";
         return false;
     }
     http_response_header[no_of_bytes_read] = '\0';
@@ -153,9 +183,9 @@ bool Download(const std::string &server_address, const unsigned short server_por
     // the 2xx codes indicate success:
     if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {
         *error_message = "Web server returned error status code ("
-            + std::to_string(http_header.getStatusCode()) + "), address was "
-            + server_address + ", port was " + std::to_string(server_port) + ", path was \""
-            + server_path +"\"!";
+                         + std::to_string(http_header.getStatusCode()) + "), address was "
+                         + server_address + ", port was " + std::to_string(server_port) + ", path was \""
+                         + server_path +"\"!";
         return false;
     }
 
@@ -173,7 +203,7 @@ bool Download(const std::string &server_address, const unsigned short server_por
             response.append(buf, no_of_bytes_read);
     } while (no_of_bytes_read > 0);
 
-    std::string::size_type pos = response.find("\r\n\r\n"); // the header ends with two cr/lf pairs!
+    std::string::size_type pos(response.find("\r\n\r\n")); // the header ends with two cr/lf pairs!
     if (pos != std::string::npos) {
         pos += 4;
         *returned_data = response.substr(pos);
@@ -329,7 +359,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
     const JSON::ArrayNode * const top_level_array(reinterpret_cast<const JSON::ArrayNode * const>(tree));
 
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^issue|pages|publicationTitle|volume|libraryCatalog|itemVersion$"));
+        "^issue|pages|publicationTitle|volume|libraryCatalog|itemVersion|accessDate$"));
     unsigned record_count(0), previously_downloaded_count(0);
     for (auto entry(top_level_array->cbegin()); entry != top_level_array->cend(); ++entry) {
         MarcRecord new_record;
@@ -349,6 +379,8 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 CreateSubfieldFromStringNode(*key_and_node, "856", 'u', &new_record);
             else if (key_and_node->first == "title")
                 CreateSubfieldFromStringNode(*key_and_node, "245", 'a', &new_record);
+            else if (key_and_node->first == "abstractNote")
+                CreateSubfieldFromStringNode(*key_and_node, "520", 'a', &new_record, /* indicator1 = */ '3');
             else if (key_and_node->first == "date")
                 CreateSubfieldFromStringNode(*key_and_node, "362", 'a', &new_record, /* indicator1 = */ '0');
             else if (key_and_node->first == "DOI") {
@@ -362,9 +394,13 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 CreateCreatorFields(key_and_node->second, &new_record);
             else if (key_and_node->first == "ISSN") {
                 parent_isdn = GetValueFromStringNode(*key_and_node);
-                const std::string ISSN(MiscUtil::NormaliseISSN(
-                    CreateSubfieldFromStringNode(*key_and_node, "022", 'a', &new_record)));
-                const auto ISSN_and_physical_form(ISSN_to_physical_form_map.find(ISSN));
+                const std::string issn_candidate(
+                    CreateSubfieldFromStringNode(*key_and_node, "022", 'a', &new_record));
+                std::string issn;
+                if (unlikely(not MiscUtil::NormaliseISSN(issn_candidate, &issn)))
+                    Error("in GenerateMARC: \"" + issn_candidate + "\" is not a valid ISSN!");
+
+                const auto ISSN_and_physical_form(ISSN_to_physical_form_map.find(issn));
                 if (ISSN_and_physical_form != ISSN_to_physical_form_map.cend()) {
                     if (ISSN_and_physical_form->second == "A")
                         new_record.insertField("007", "tu");
@@ -375,11 +411,11 @@ std::pair<unsigned, unsigned> GenerateMARC(
                               + ISSN_and_physical_form->second + "\"!");
                 }
 
-                const auto ISSN_and_language(ISSN_to_language_code_map.find(ISSN));
+                const auto ISSN_and_language(ISSN_to_language_code_map.find(issn));
                 if (ISSN_and_language != ISSN_to_language_code_map.cend())
                     new_record.insertSubfield("041", 'a', ISSN_and_language->second);
 
-                const auto ISSN_and_parent_ppn(ISSN_to_superior_ppn_map.find(ISSN));
+                const auto ISSN_and_parent_ppn(ISSN_to_superior_ppn_map.find(issn));
                 if (ISSN_and_parent_ppn != ISSN_to_superior_ppn_map.cend())
                     parent_ppn = ISSN_and_parent_ppn->second;
             } else if (key_and_node->first == "itemType") {
@@ -397,7 +433,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
                         subfield_codes_and_values.emplace_back(std::make_pair('h', pages));
                     const std::string volume(GetOptionalStringValue(*object_node, "volume"));
                     if (not volume.empty())
-                        subfield_codes_and_values.emplace_back(std::make_pair('d', pages));
+                        subfield_codes_and_values.emplace_back(std::make_pair('d', volume));
                     if (not subfield_codes_and_values.empty())
                         new_record.insertSubfields("936", subfield_codes_and_values);
                 } else
@@ -461,7 +497,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &zts_server_url, const s
                                       MarcWriter * const marc_writer)
 {
     std::string json_document, error_message;
-    if (not Download(Url(zts_server_url), /* time_limit = */ 10000, harvest_url, &json_document, &error_message))
+    if (not Download(Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &json_document, &error_message))
         Error("Download for harvest URL \"" + harvest_url + "\" failed: " + error_message);
 
     JSON::JSONNode *tree_root(nullptr);
@@ -518,6 +554,9 @@ int main(int argc, char *argv[]) {
 
         std::unordered_map<std::string, std::string> ISSN_to_superior_ppn_map;
         LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &ISSN_to_superior_ppn_map);
+
+        const RegexMatcher * const supported_urls_regex(LoadSupportedURLsRegex(map_directory_path));
+        (void)supported_urls_regex;
 
         std::unique_ptr<File> previously_downloaded_input(
             FileUtil::OpenInputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
