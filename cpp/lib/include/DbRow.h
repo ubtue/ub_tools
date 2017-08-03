@@ -47,6 +47,9 @@ public:
     /** \return The number of fields in the row. */
     size_t size() const { return field_count_; }
 
+    /** \return True if the row contains no columns, else false. */
+    bool empty() const { return field_count_ == 0; }
+
     /** \brief Tests a DbRow for being non-nullptr. */
     explicit operator bool() const { return row_ != nullptr; }
 
