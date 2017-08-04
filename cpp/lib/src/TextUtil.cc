@@ -591,10 +591,16 @@ bool UTF8ToUTF32Decoder::addByte(const char ch) {
             utf32_char_ = static_cast<unsigned char>(ch) & 0b111;
             required_count_ = 3;
         } else
+            #ifndef __clang__
+            #    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+            #endif
             throw std::runtime_error("in TextUtil::UTF8ToUTF32Decoder::addByte: bad UTF-8 byte "
                                      "sequence! (partial utf32_char: 0x" + StringUtil::ToHexString(utf32_char_)
                                      + ", current char 0x" + StringUtil::ToHexString(static_cast<unsigned char>(ch))
                                      + ")");
+            #ifndef __clang__
+            #    pragma GCC diagnostic warning "-Wmaybe-uninitialized"
+            #endif
     } else if (required_count_ > 0) {
         --required_count_;
         utf32_char_ <<= 6u;

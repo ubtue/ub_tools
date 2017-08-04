@@ -170,7 +170,7 @@ struct Options {
     real function_decrease_tol_;
     real slope_decrease_tol_;
     real zero_division_tol_;
-    std::auto_ptr<std::ostream> dump_stream_;
+    std::unique_ptr<std::ostream> dump_stream_;
     OutputVerbosity stream_dump_verbosity_;
     int stream_dump_precision_;
 public:
@@ -939,7 +939,7 @@ template<typename NumberType, class ContainerType> class DataSetStatistics
 	NumberType median_;
 	NumberType standard_deviation_;
         NumberType variance_;
-	std::auto_ptr< NormalDistribution<NumberType> > normal_dist_;
+	std::unique_ptr< NormalDistribution<NumberType> > normal_dist_;
 public:
 	/** \brief Create a new dataset representing the container provided. The DataSetStatistics instance will NOT
 	 *         contain a copy of the data used to create it.

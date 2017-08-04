@@ -6,8 +6,9 @@
  */
 
 /*
- *  Copyright 2002-2009 Project iVia.
- *  Copyright 2002-2009 The Regents of The University of California.
+ *  \copyright 2002-2009 Project iVia.
+ *  \copyright 2002-2009 The Regents of The University of California.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -35,9 +36,48 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
+#include "util.h"
 
 
 namespace SqlUtil {
+
+// reference count of open transactions
+std::map<DbConnection *, TransactionGuard::Status> TransactionGuard::connection_status_;
+
+    
+TransactionGuard::TransactionGuard(DbConnection * const db_connection, const IsolationLevel level)
+    : db_connection_(db_connection)
+{
+    std::string begin("START TRANSACTION");
+
+    if (connection_status_.find(db_connection) == connection_status_.end()) {
+        if (level == READ_COMMITTED)
+            begin += " WITH CONSISTENT SNAPSHOT";
+        db_connection_->queryOrDie(begin);
+        Status status(level);
+        connection_status_[db_connection] = status;
+    } else {
+        connection_status_[db_connection].reference_count_++;
+        if (connection_status_[db_connection].level_ != level)
+            Warning("in TransactionGuard::TransactionGuard: Inconsistent isolation level requested!");
+    }
+}
+
+
+void TransactionGuard::rollback() { 
+    connection_status_[db_connection_].rolled_back_ = true;
+}
+
+
+TransactionGuard::~TransactionGuard() {
+    if (connection_status_[db_connection_].reference_count_ == 1) {
+        if (connection_status_[db_connection_].rolled_back_)
+            db_connection_->queryOrDie("ROLLBACK");
+        else
+            db_connection_->queryOrDie("COMMIT");
+    } else
+        --connection_status_[db_connection_].reference_count_;
+}
 
 
 // EscapeBlob -- Escape charcters in a binary string so it can be used as a MySQL BLOB.
@@ -69,6 +109,49 @@ std::string &EscapeBlob(std::string * const s) {
 
     std::swap(*s, encoded_string);
     return *s;
+}
+
+
+std::string Unescape(std::string * const s) {
+    std::string decoded_string;
+    decoded_string.reserve(s->size());
+    for (auto ch(s->cbegin()); ch != s->cend(); ++ch) {
+        if (likely(*ch != '\\'))
+            decoded_string += *ch;
+        else {
+            ++ch;
+            if (unlikely(ch == s->cend()))
+                throw std::runtime_error("SqlUtil::Unescape: unexpected end of encoded string!");
+
+            switch (*ch) {
+            case '\'':
+                decoded_string += '\'';
+                break;
+            case '"':
+                decoded_string += '"';
+                break;
+            case 'b':
+                decoded_string += '\b';
+                break;
+            case 'n':
+                decoded_string += '\n';
+                break;
+            case 'r':
+                decoded_string += '\r';
+                break;
+            case 't':
+                decoded_string += '\t';
+                break;
+            case '\\':
+                decoded_string += '\\';
+                break;
+            default:
+                throw std::runtime_error("SqlUtil::Unescape: improperly encoded string!");
+            }
+        }
+    }
+
+    return (*s = decoded_string);
 }
 
 
@@ -133,6 +216,15 @@ bool IsValidDatetime(const std::string &datetime) {
             (day >= 1 and day <= 365) and hour <= 23 and minute <= 59 and second <= 61;
     } else
         return false;
+}
+
+
+std::string GetDatetime(const long offset) {
+    time_t now(std::time(NULL) + offset);
+    char buf[20 + 1];
+    std::strftime(buf, sizeof(buf), "%F %T", std::localtime(&now));
+
+    return buf;
 }
 
 

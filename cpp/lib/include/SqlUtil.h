@@ -6,9 +6,9 @@
  */
 
 /*
- *  Copyright 2002-2009 Project iVia.
- *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2016 Universitätsbibliothek Tübingen.
+ *  \copyright 2002-2009 Project iVia.
+ *  \copyright 2002-2009 The Regents of The University of California.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -31,6 +31,7 @@
 #define SQL_UTIL_H
 
 
+#include <map>
 #include <set>
 #include <string>
 #include <ctime>
@@ -41,6 +42,33 @@ class DbConnection;
 
 
 namespace SqlUtil {
+
+
+/** \class TransactionGuard
+ *  \brief Creates a BEGIN/COMMIT guard between the time the first instance of this class is created and the same
+ *         instance is destroyed.
+ *
+ *         This is based on the DbConnection used and is reference counted.
+ */
+class TransactionGuard {
+public:
+    enum IsolationLevel { READ_COMMITTED, SERIALIZABLE };
+private:
+    struct Status {
+        IsolationLevel level_;
+        bool rolled_back_;
+        unsigned reference_count_;
+        Status(const IsolationLevel &level = READ_COMMITTED)
+            : level_(level), rolled_back_(false), reference_count_(1) {}
+    };		
+    static std::map<DbConnection *, Status> connection_status_;
+
+    DbConnection * const db_connection_;
+public:
+    explicit TransactionGuard(DbConnection * const db_connection, const IsolationLevel level = READ_COMMITTED);
+    void rollback();
+    ~TransactionGuard();
+};
 
 
 /** \brief   Escape special characters in a MySQL BLOB
@@ -54,6 +82,13 @@ namespace SqlUtil {
  * \note Use the standard Unescape to unescape a BLOB.
  */
 std::string &EscapeBlob(std::string * const s);
+
+
+/** \brief  Unescape characters in a MySQL string or BLOB.
+ *  \param  s  The string to unescape
+ *  \return The new, unescaped s.
+ */
+std::string Unescape(std::string * const s);
 
 
 /** Converts an SQL datetime to a struct tm type. */
@@ -74,6 +109,13 @@ std::string TmToDatetime(const struct tm &time_struct);
 
 /** Checks if "datetime" is in format that an SQL database can use ("YYYY-MM-DD" or "YYYY-MM-DD hh:mm:ss"). */
 bool IsValidDatetime(const std::string &datetime);
+
+
+/** \brief   Get the current date and time in SQL datetime format.
+ *  \param   offset  An offset in seconds to be added the current date/time.
+ *  \return  Returns the current date/time in the "YYYY-MM-DD hh:mm:ss" format.
+ */
+std::string GetDatetime(const long offset=0);
 
 
 /** \return A set that contains the names of the columns in "table_name". */
