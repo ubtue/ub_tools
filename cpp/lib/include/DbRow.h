@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbRow class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -46,6 +46,9 @@ public:
 
     /** \return The number of fields in the row. */
     size_t size() const { return field_count_; }
+
+    /** \return True if the row contains no columns, else false. */
+    bool empty() const { return field_count_ == 0; }
 
     /** \brief Tests a DbRow for being non-nullptr. */
     explicit operator bool() const { return row_ != nullptr; }
