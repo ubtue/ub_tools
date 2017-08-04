@@ -146,7 +146,7 @@ public:
 /** Don't do anything really. Used where a placeholder of some kind of Converter is needed. */
 class AutoConvertNull {
 public:
-    template <typename Type> Type& operator()(Type &item) { return item; };
+    template <typename Type> Type& operator()(Type &item) { return item; }
 };
 
 
