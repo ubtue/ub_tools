@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2015,2016, Library of the University of Tübingen
+    Copyright (C) 2015-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -65,7 +65,7 @@ public:
         : start_volume_(start_volume), start_year_(start_year), end_volume_(end_volume), end_year_(end_year) { }
 
     inline bool inRange(const unsigned volume, const unsigned year) const {
-        return start_volume_ < volume < end_volume_ and start_year_ < year < end_year_;
+        return (start_volume_ < volume) and (volume < end_volume_) and (start_year_ < year) and (year < end_year_);
     }
 
     inline void setStartAndEndIssues(const unsigned start_issue, const unsigned end_issue) {
