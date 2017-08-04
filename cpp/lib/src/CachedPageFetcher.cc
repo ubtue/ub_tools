@@ -57,6 +57,7 @@ CachedPageFetcher::TimeoutOverrides CachedPageFetcher::timeout_overrides_;
 std::string CachedPageFetcher::server_host_name_;
 uint16_t CachedPageFetcher::server_port_(5432);
 std::string CachedPageFetcher::server_user_name_;
+std::string CachedPageFetcher::server_password_;
 std::string CachedPageFetcher::page_cache_database_name_("iVia");
 std::string CachedPageFetcher::page_cache_schema_name_("page_cache");
 unsigned CachedPageFetcher::default_expiration_time_(720 * 3600); //30 days, in seconds
