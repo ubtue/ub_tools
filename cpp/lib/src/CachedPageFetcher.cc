@@ -149,6 +149,7 @@ void CachedPageFetcher::ReadIniFile() {
     server_host_name_ = ini_file.getString("Database", "server_host_name");
     server_port_ = ini_file.getUnsigned("Database", "server_port");
     server_user_name_ = ini_file.getString("Database", "server_user_name");
+    server_password_ = ini_file.getString("Database", "server_password");
     page_cache_database_name_ = ini_file.getString("Database", "page_cache_database_name");
     default_expiration_time_ = ini_file.getUnsigned("Page cache", "default_expiration_time_in_hours");
     if (default_expiration_time_ > UINT_MAX / 3600)
@@ -257,9 +258,9 @@ std::string CachedPageFetcher::RobotsDotTxtOptionToString(const RobotsDotTxtOpti
 std::string CachedPageFetcher::RobotsDotTxtOptionToBool(const RobotsDotTxtOption robots_dot_txt_option) {
     switch (robots_dot_txt_option) {
     case CONSULT_ROBOTS_DOT_TXT:
-        return "t";
+        return "TRUE";
     case IGNORE_ROBOTS_DOT_TXT:
-        return "f";
+        return "FALSE";
     default:
         throw std::runtime_error("in CachedPageFetcher::RobotsDotTxtOptionToBool: unknown option: "
                                  + StringUtil::ToString(robots_dot_txt_option) + "!");
@@ -283,10 +284,10 @@ CachedPageFetcher::RobotsDotTxtOption CachedPageFetcher::StringToRobotsDotTxtOpt
 CachedPageFetcher::RobotsDotTxtOption CachedPageFetcher::BoolToRobotsDotTxtOption(
     const std::string &robots_dot_txt_option_as_bool)
 {
-    if (::strcasecmp(robots_dot_txt_option_as_bool.c_str(), "t") == 0
+    if (::strcasecmp(robots_dot_txt_option_as_bool.c_str(), "1") == 0
         or ::strcasecmp(robots_dot_txt_option_as_bool.c_str(), "true") == 0)
         return CONSULT_ROBOTS_DOT_TXT;
-    if (::strcasecmp(robots_dot_txt_option_as_bool.c_str(), "f") == 0
+    if (::strcasecmp(robots_dot_txt_option_as_bool.c_str(), "0") == 0
         or ::strcasecmp(robots_dot_txt_option_as_bool.c_str(), "false") == 0)
         return IGNORE_ROBOTS_DOT_TXT;
 
@@ -384,7 +385,7 @@ unsigned CachedPageFetcher::getMessageBodyHash() const {
     requireDbConnection();
     std::string select_stmt("SELECT status, LENGTH(compressed_document_source) AS compressed_document_source_size "
                             "FROM ");
-    select_stmt += CreateCacheTableName(page_cache_schema_name_) + " WHERE url=E'" + escaped_url + "'";
+    select_stmt += CreateCacheTableName(page_cache_schema_name_) + " WHERE url='" + escaped_url + "'";
 
     db_connection_->queryOrDie(select_stmt);
     DbResultSet result_set(db_connection_->getLastResultSet());
@@ -415,7 +416,7 @@ unsigned CachedPageFetcher::getRedirectCount() const {
     requireDbConnection();
     std::string select_stmt("SELECT count(*) FROM " + CreateRedirectTableName(page_cache_schema_name_) +
                             " WHERE cache_id = (SELECT url_id FROM "
-                            + CreateCacheTableName(page_cache_schema_name_) + "WHERE url = E'" + escaped_url
+                            + CreateCacheTableName(page_cache_schema_name_) + "WHERE url = '" + escaped_url
                             + "')");
     db_connection_->queryOrDie(select_stmt);
     DbResultSet result_set(db_connection_->getLastResultSet());
@@ -436,7 +437,7 @@ std::string CachedPageFetcher::getRedirectedUrl() const {
     std::string escaped_url(UrlToCacheKey(last_url_));
 
     requireDbConnection();
-    const std::string SELECT_STMT("SELECT status,redirected_url FROM " + getCacheTableName() + " WHERE url=E'"
+    const std::string SELECT_STMT("SELECT status,redirected_url FROM " + getCacheTableName() + " WHERE url='"
                                   + escaped_url + "'");
     db_connection_->queryOrDie(SELECT_STMT);
     ++CachedPageFetcher::no_of_queries_;
@@ -1085,23 +1086,14 @@ void CachedPageFetcher::StoreInCache(const std::string &url, const std::string &
     const std::string sql_retrieval_datetime(SqlUtil::TimeTToDatetime(retrieval_datetime));
     const HttpHeader header(http_header);
 
-    // Get the header's expire time if possible:
-    std::string sql_expiration_datetime;
-    time_t expiration_time(-1);
-    if (header.expiresIsValid()) {
-        const time_t now(std::time(nullptr));
-        if (now < header.getExpires())
-            expiration_time = header.getExpires() - now;
-
-        // Make sure we keep the page for at least the specified minimum time:
-        if (expiration_time < static_cast<time_t>(minimum_expiration_time_))
-            expiration_time = minimum_expiration_time_;
-
-        sql_expiration_datetime = SqlUtil::TimeTToDatetime(header.getExpires());
-    }
-
-    const std::string status("ok");
-    const std::string etag(header.getETag());
+    // Use the header's expiration time, if possible:
+    const time_t now(std::time(nullptr));
+    time_t expiration_time;
+    if (not header.expiresIsValid() or (header.getExpires() < now + minimum_expiration_time_))
+        expiration_time = now + minimum_expiration_time_;
+    else
+        expiration_time = header.getExpires();
+    const std::string sql_expiration_datetime(SqlUtil::TimeTToDatetime(expiration_time));
 
     if (connection_option == KEEP_DB_CONNECTION_OPEN) {
         static DbConnection *static_db_connection = nullptr;
@@ -1112,16 +1104,16 @@ void CachedPageFetcher::StoreInCache(const std::string &url, const std::string &
         }
 
         CachedPageFetcher::ActualStoreInCache(UrlToCacheKey(url), sql_retrieval_datetime, sql_expiration_datetime,
-                                              status, robots_dot_txt_option, static_db_connection, 0, "", http_body,
-                                              http_header, etag);
+                                              "ok", robots_dot_txt_option, static_db_connection, 0, "", http_body,
+                                              http_header, header.getETag());
     } else {
         // Create an independent DbConnection because this is a static member function.
         ++CachedPageFetcher::no_of_new_connections_;
         DbConnection stack_db_connection(page_cache_database_name_, server_user_name_, server_password_,
                                          server_host_name_, server_port_);
         CachedPageFetcher::ActualStoreInCache(UrlToCacheKey(url), sql_retrieval_datetime, sql_expiration_datetime,
-                                              status, robots_dot_txt_option, &stack_db_connection, 0, "", http_body,
-                                              http_header, etag);
+                                              "ok", robots_dot_txt_option, &stack_db_connection, 0, "", http_body,
+                                              http_header, header.getETag());
     }
 }
 
@@ -1158,7 +1150,7 @@ void CachedPageFetcher::actualStoreInCache(const std::string &escaped_url, const
 
 
 std::string CachedPageFetcher::getCacheIdByUrl(const std::string &url) {
-    std::string escaped_url("E'" + url + "'");
+    std::string escaped_url("'" + url + "'");
     db_connection_->queryOrDie("SELECT url_id FROM " + getCacheTableName() + " WHERE url="+ escaped_url);
     DbResultSet result_set(db_connection_->getLastResultSet());
     if (result_set.empty())
@@ -1194,62 +1186,60 @@ void CachedPageFetcher::ActualStoreInCache(const std::string &escaped_url, const
         compressed_document_source = GzStream::CompressString(document_source);
     }
 
-
     const std::string cache_table_name(CreateCacheTableName(page_cache_schema_name_));
     const std::string redirect_table_name(CreateRedirectTableName(page_cache_schema_name_));
-    const std::string query_by_url("SELECT cache_id FROM " + redirect_table_name + " WHERE url=E'" + escaped_url
+    const std::string query_by_url("SELECT cache_id FROM " + redirect_table_name + " WHERE url='" + escaped_url
                                    + "'");
-
-    std::string insert_stmt("INSERT INTO " + cache_table_name
-                            + "(url, retrieval_datetime, expiration_datetime, honor_robots_dot_txt, etag, "
-                            "http_header, status, compressed_document_source, uncompressed_document_source_size) "
-                            "VALUES (");
-    insert_stmt += "E'" + (escaped_redirected_url.empty() ? escaped_url : escaped_redirected_url) + "', ";
-    insert_stmt += " '" + retrieval_datetime + "', ";
-    insert_stmt += " '" + expiration_datetime + "', ";
-    insert_stmt += " '" + RobotsDotTxtOptionToBool(robots_dot_txt_option) + "', ";
-    insert_stmt += " '" + db_connection->escapeString(etag) + "', ";
-    insert_stmt += " '" + db_connection->escapeString(http_header) + ", ";
-
-    // Insert the status message (max length = 255 chars):
-    insert_stmt += " '" + db_connection->escapeString(status.length() < 255 ? status : status.substr(0, 250) + "...")
-                   + "', ";
-
-    insert_stmt += " " + SqlUtil::EscapeBlob(&compressed_document_source) + ", "
-                   + std::to_string(document_source.size()) +")";
-    insert_stmt += " RETURNING url_id";
-
-    std::string update_stmt("UPDATE " + cache_table_name + " SET ");
-    update_stmt += "retrieval_datetime='" + retrieval_datetime + "', ";
-    update_stmt += "expiration_datetime='" + expiration_datetime + "', ";
-    update_stmt += "honor_robots_dot_txt='" + RobotsDotTxtOptionToBool(robots_dot_txt_option) +"', ";
-    update_stmt += "etag='" + db_connection->escapeString(etag) + "', ";
-    update_stmt += "http_header='" + db_connection->escapeString(http_header) + "', ";
-
-    // Update the status message (max length = 255 chars):
-    update_stmt += "status='"
-                   + db_connection->escapeString(status.length() < 255 ? status : status.substr(0, 250) + "...")
-                   + "', ";
-
-    update_stmt += "compressed_document_source='" + compressed_document_source + "', ";
-    update_stmt += "uncompressed_document_source_size=" + std::to_string(document_source.size());
 
     SqlUtil::TransactionGuard transaction_guard(db_connection);
     db_connection->queryOrDie(query_by_url);
     DbResultSet result_set(db_connection->getLastResultSet());
     std::string url_id;
     if (result_set.empty()) {
+        std::string insert_stmt("INSERT INTO " + cache_table_name + " SET ");
+        insert_stmt += "url='" + (escaped_redirected_url.empty() ? escaped_url : escaped_redirected_url) + "',";
+        insert_stmt += "retrieval_datetime='" + retrieval_datetime + "',";
+        insert_stmt += "expiration_datetime='" + expiration_datetime + "',";
+        insert_stmt += "honor_robots_dot_txt=" + RobotsDotTxtOptionToBool(robots_dot_txt_option) + ",";
+        insert_stmt += "etag='" + db_connection->escapeString(etag) + "',";
+        insert_stmt += "http_header='" + db_connection->escapeString(http_header) + "',";
+
+        // Insert the status message (max length = 255 chars):
+        insert_stmt += "status='" + db_connection->escapeString(status.length() < 255 ? status : status.substr(0, 250)
+                                                          + "...") + "',";
+
+        insert_stmt += "compressed_document_source='" + db_connection->escapeString(compressed_document_source)
+                       + "',";
+        insert_stmt += "uncompressed_document_source_size=" + std::to_string(document_source.size());
+
         if (logger_ != nullptr)
             logger_->log(insert_stmt);
 
         db_connection->queryOrDie(insert_stmt);
+        db_connection->queryOrDie("SELECT LAST_INSERT_ID()");
+
         DbResultSet result_set2(db_connection->getLastResultSet());
-        DbRow current_index(result_set2.getNextRow());
-        url_id = current_index[0];
+        DbRow last_insert_id(result_set2.getNextRow());
+        url_id = last_insert_id[0];
         AddUrlToRedirectTable(db_connection, escaped_url, url_id);
     } else { // Need to replace the database row.
         DbRow row(result_set.getNextRow());
         url_id = row[0];
+        std::string update_stmt("UPDATE " + cache_table_name + " SET ");
+        update_stmt += "retrieval_datetime='" + retrieval_datetime + "', ";
+        update_stmt += "expiration_datetime='" + expiration_datetime + "', ";
+        update_stmt += "honor_robots_dot_txt=" + RobotsDotTxtOptionToBool(robots_dot_txt_option) +", ";
+        update_stmt += "etag='" + db_connection->escapeString(etag) + "', ";
+        update_stmt += "http_header='" + db_connection->escapeString(http_header) + "', ";
+
+        // Update the status message (max length = 255 chars):
+        update_stmt += "status='"
+                    + db_connection->escapeString(status.length() < 255 ? status : status.substr(0, 250) + "...")
+                    + "', ";
+
+        update_stmt += "compressed_document_source='" + db_connection->escapeString(compressed_document_source)
+                       + "', ";
+        update_stmt += "uncompressed_document_source_size=" + std::to_string(document_source.size());
         update_stmt += " WHERE url_id=" + url_id;
         if (logger_ != nullptr)
             logger_->log(update_stmt);
@@ -1264,7 +1254,7 @@ void CachedPageFetcher::ActualStoreInCache(const std::string &escaped_url, const
 void CachedPageFetcher::AddUrlToRedirectTable(DbConnection * const db_connection, const std::string &escaped_url,
                                               const std::string &url_id)
 {
-    const std::string escaped_and_quoted_url("E'" + escaped_url + "'");
+    const std::string escaped_and_quoted_url("'" + escaped_url + "'");
     const std::string redirect_table_name(CreateRedirectTableName(page_cache_schema_name_));
     const std::string cache_id_query("SELECT cache_id FROM " + redirect_table_name + " WHERE url="
                                      + escaped_and_quoted_url);
@@ -1299,7 +1289,7 @@ void CachedPageFetcher::AddUrlToRedirectTable(DbConnection * const db_connection
 
             // Now add the new (url,url_id) pair to the redirect table:
             const std::string redirect_stmt("INSERT INTO "+ CreateRedirectTableName(page_cache_schema_name_)
-                                            + " (url, cache_id) VALUES(E'" + escaped_url + "', " + url_id + ")");
+                                            + " (url, cache_id) VALUES('" + escaped_url + "', " + url_id + ")");
             if (logger_ != nullptr)
                 logger_->log(redirect_stmt);
             db_connection->queryOrDie(redirect_stmt);
