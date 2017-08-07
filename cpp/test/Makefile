@@ -33,7 +33,7 @@ $(PROGS): % : %.o ../lib/libubtue.a
 .deps: *.cc $(INC)/*.h Makefile
 	$(MAKE_DEPS) -I $(INC) *.cc
 
-../lib/libubtue.a: $(wildcard lib/src/*.cc) $(wildcard ../lib/include/*.h)
+../lib/libubtue.a: $(wildcard ../lib/src/*.cc) $(wildcard ../lib/include/*.h)
 	$(MAKE) -C ../lib
 
 clean:
