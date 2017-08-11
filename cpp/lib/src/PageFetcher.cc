@@ -80,7 +80,6 @@ void PageFetcher::fetchPage(const std::string &url, const std::string &proxy_hos
                             const bool ignore_redirect_errors, const std::string &additional_http_headers,
 			    const bool consult_robots_dot_txt)
 {
-    error_message_.clear();
     unsigned redirect_count(0);
     Url old_url, new_url(url);
 
@@ -93,6 +92,7 @@ void PageFetcher::fetchPage(const std::string &url, const std::string &proxy_hos
             last_error_code_ = UINT_MAX;
             return;
         }
+        error_message_.clear();
 
         std::string new_data;
         if (not getPage(new_url, old_url, proxy_host, proxy_port, time_limit, additional_http_headers, &new_data))
@@ -128,8 +128,7 @@ void PageFetcher::fetchPage(const std::string &url, const std::string &proxy_hos
             new_url = Url(http_header.getLocation().empty() ? http_header.getUri() : http_header.getLocation(),
                           old_url);
             data_ += new_data;
-        }
-        else { // last_error_code_ < 300.
+        } else { // last_error_code_ < 300.
             if (http_header.getContentEncoding() == "gzip" or
                 (transparently_unzip_content_ and http_header.getContentType() == "application/x-gzip"))
             {
@@ -150,8 +149,7 @@ void PageFetcher::fetchPage(const std::string &url, const std::string &proxy_hos
                 old_url = new_url;
                 new_url = Url(redirect_url, old_url);
                 last_error_code_ = 306; // Need a 3xx code for the bottom of the do-loop.
-            }
-            else
+            } else
                 return;
         }
 

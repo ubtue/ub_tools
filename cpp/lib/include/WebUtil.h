@@ -32,6 +32,7 @@
 
 
 #include <map>
+#include <set>
 #include <string>
 #include "FileUtil.h"
 #include "TimeLimit.h"
@@ -46,6 +47,10 @@ using StringMap = std::map<std::string, std::string>;
 
 
 namespace WebUtil {
+
+
+/** The default timeout (in milliseconds) for WebUtil functions that perform Internet operations. */
+const unsigned DEFAULT_DOWNLOAD_TIMEOUT(20000);
 
 
 /** \brief  www-form-urlencodes a list of name/value pairs.
@@ -225,6 +230,106 @@ inline bool ExecGetHTTPRequest(const Url &url, const TimeLimit &time_limit, cons
 {
     return ExecGetHTTPRequest("", url, time_limit, args, document_source, error_message, accept, include_http_header);
 }
+
+
+/** \brief   Identify the "top" site that this page is part of
+ *  \param   url  The URL whose site we want.
+ *  \return  A string identifying the "major site" relevant to this URL.
+ *
+ *  This function takes a URL and returns an identifier for its "major" site; that is based on the topmost registered
+ *  domain in its path.  For example, "http://www.somewhere.com" would return "somewhere.com" and
+ *  "http://news.fred.co.nz" would return "fred.co.nz".
+ */
+std::string GetMajorSite(const Url &url);
+
+
+/** \enum   ExtractedUrlForm
+ *  \brief  The form of the URLs to be extracted with ExtractURLs
+ */
+enum ExtractedUrlForm {
+    RAW_URLS,        //< The URL's as they appear in the document.
+    ABSOLUTE_URLS,   //< The raw URL's converted to absolute form.
+    CLEAN_URLS,      //< The absolute URL's "cleaned up".
+    CANONIZED_URLS   //< The absolute URL's in Canonical form (will cause all URL's to be pre-cached).
+};
+
+
+/** ExtractURLs flag: Do no report blacklisted URL's. */
+const unsigned IGNORE_BLACKLISTED_URLS                  = 1u << 1u;
+/** ExtractURLs flag: Do no report any URL more than once. */
+const unsigned IGNORE_DUPLICATE_URLS                    = 1u << 2u;
+/** ExtractURLs flag: Do no report URL's that are anchored by IMG tags. */
+const unsigned IGNORE_LINKS_IN_IMG_TAGS                 = 1u << 3u;
+/** ExtractURLs flag: Do no report URL's on the same conceptual site, as reported by Url::getSite(). */
+const unsigned IGNORE_LINKS_TO_SAME_SITE                = 1u << 4u;
+/** ExtractURLs flag: Do no report URL's on the same conceptual site, as reported by WebUtil::getMajorSite(). */
+const unsigned IGNORE_LINKS_TO_SAME_MAJOR_SITE          = 1u << 5u;
+/** ExtractURLs flag: Remove page anchors froom URL's (i.e. anything after the final '#' character). */
+const unsigned REMOVE_DOCUMENT_RELATIVE_ANCHORS         = 1u << 6u;
+/** ExtractURLs flag: Ignore robots.txt files when downloading pages for the purpose of canonization (this is usually very impolite).*/
+const unsigned IGNORE_ROBOTS_DOT_TXT                    = 1u << 7u;
+/** ExtractURLs flag: Only return URL's whose pages can actually be downloaded (requires CANONIZED_URLS form).*/
+const unsigned REQUIRE_URLS_FOR_DOWNLOADABLE_PAGES_ONLY = 1u << 8u;
+/** ExtractURLs flag: Clean up the anchor text. */
+const unsigned CLEAN_UP_ANCHOR_TEXT                     = 1u << 9u;
+/** ExtractURLs flag: Ignore https. */
+const unsigned IGNORE_PROTOCOL_HTTPS                    = 1u << 10u;
+/** ExtractURLs flag: Only return onsite links. */
+const unsigned KEEP_LINKS_TO_SAME_SITE_ONLY             = 1u << 11u;
+/** ExtractURLs flag: Only return links pointing to the same major site. */
+const unsigned KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY       = 1u << 12u;
+/** ExtractURLs flag: Do our best to get URL's hidden in JavaScript code. */
+const unsigned ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS       = 1u << 13u;
+
+/** The default flags for the ExtractUrls function. */
+const unsigned DEFAULT_EXTRACT_URL_FLAGS(IGNORE_DUPLICATE_URLS | IGNORE_LINKS_IN_IMG_TAGS
+                                         | REMOVE_DOCUMENT_RELATIVE_ANCHORS | CLEAN_UP_ANCHOR_TEXT
+                                         | IGNORE_PROTOCOL_HTTPS | ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
+
+class UrlAndAnchorTexts {
+    std::string url_;
+    std::set<std::string> anchor_texts_;
+public:
+    typedef std::set<std::string>::const_iterator const_iterator;
+public:
+    explicit UrlAndAnchorTexts(const std::string &url): url_(url) { }
+    UrlAndAnchorTexts(const std::string &url, const std::string &anchor_text)
+        : url_(url) { anchor_texts_.insert(anchor_text); }
+    const std::string &getUrl() const { return url_; }
+    void setUrl(const std::string &new_url) { url_ = new_url; }
+    void addAnchorText(const std::string &new_anchor_text) { anchor_texts_.insert(new_anchor_text); }
+    const std::set<std::string> &getAnchorTexts() const { return anchor_texts_; }
+    const_iterator begin() const { return anchor_texts_.begin(); }
+    const_iterator end() const { return anchor_texts_.end(); }
+};
+
+
+/** \brief  Extracts all links from an HTML document.
+ *  \param  document_source         The string containing the HTMl source.
+ *  \param  default_base_url        Used to turn relative URL's into absolute URL's if requested unless a
+ *                                  \<base href=...\> tag is found in "document_source".
+ *  \param  extracted_url_form      The form of the extracted URL's.
+ *  \param  urls                    The list of extracted URL's and their associated anchor text.
+ *  \param  flags                   Behaviour modifying flags.
+ *  \param  user_agent_string       The user agent string to use when downloading (CANONIZED_URLS only).
+ *  \param  page_cacher_max_fanout  The number of pages to fetch in parallel CANONIZED_URLS only).
+ *  \param  page_cacher_timeout     The per Web page retrieval timeout (in milliseconds, CANONIZED_URLS only)).
+ *  \param  overall_timeout         Don't spend more than this amount of milliseconds time in this routine.  NULL
+ *                                  means don't ever time out.
+ *
+ *  It is very important to pass in the correct base URL.  A common error is to pass in a URL like
+ *  "http://example.org/about" which would normally be redirected to "http://example.org/about/" (w/ trailing slash).
+ *  Although both URLs appear to represent the same page, they are functionally different.
+ *  The version with the trailing slash is correct: if you use the version without a trailing slash, then all
+ *  relative URLs will resolve incorrectly.
+ *
+ *  \note  If the requested URL form is CLEAN_URLS or CANONIZED_URLS and an extracted URL cannot be converted to this
+ *         format, the URL will be ignored.
+ */
+void ExtractURLs(const std::string &document_source, std::string default_base_url,
+                 const ExtractedUrlForm extracted_url_form,
+                 std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts,
+                 const unsigned flags = DEFAULT_EXTRACT_URL_FLAGS, unsigned long * const overall_timeout = nullptr);
 
 
 } // namespace WebUtil

@@ -119,6 +119,7 @@ update_authority_data
 update_full_text_db
 update_ixtheo_notations
 urlencode
+zotero_crawler
 
 bsz_daten
 bsz_daten_cumulated

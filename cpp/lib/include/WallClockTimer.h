@@ -4,8 +4,9 @@
  */
 
 /*
- *  Copyright 2003-2008 Project iVia.
- *  Copyright 2003-2008 The Regents of The University of California.
+ *  \copyright 2003-2008 Project iVia.
+ *  \copyright 2003-2008 The Regents of The University of California.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -33,14 +34,15 @@
 #include "TimerUtil.h"
 
 
-#define USE_CLOCK_GETTIME       1 // Set this to 0 to use gettimeofday(2).
+#define USE_CLOCK_GETTIME 1 // Set this to 0 to use gettimeofday(2).
 
 
 /** \class  WallClockTimer
  *  \brief  Measure wall clock time.
  *
  *  To use a WallClockTimer, create it, call start() to begin timing, perform the action(s) you wish to time,
- *  then call stop().  The getTime() member function will return the time elapsed between the calls to start() and stop().
+ *  then call stop().  The getTime() member function will return the time elapsed between the calls to start() and
+ *  stop().
  */
 class WallClockTimer {
     bool is_running_;
@@ -69,7 +71,8 @@ public:
         CUMULATIVE_WITH_AUTO_STOP                    = CUMULATIVE_FLAG | AUTO_STOP_FLAG,
         /** Like "NON_CUMULATIVE" and destructor automatically calls stop() if neccessary. */
         NON_CUMULATIVE_WITH_AUTO_STOP                = AUTO_STOP_FLAG,
-        /** Like "CUMULATIVE", constructor automatically calls start() and destructor automatically calls stop() if neccessary. */
+        /** Like "CUMULATIVE", constructor automatically calls start() and destructor automatically calls stop()
+            if neccessary. */
         CUMULATIVE_WITH_AUTO_START_AND_AUTO_STOP     = CUMULATIVE_FLAG | AUTO_START_FLAG | AUTO_STOP_FLAG,
         /** Like "NON_CUMULATIVE", constructor automatically calls start() and destructor automatically calls stop()
             if neccessary. */
@@ -80,8 +83,8 @@ private:
 public:
     /** \brief  Constructs and initialises an object of type WallClockTimer.
      *  \param  timer_type  Specifies the desired behaviour of the timer.
-     *  \param  name        Allows assignment of an optional name to a timer.  This is particularly useful for debugging.
-     *                      The name, if provided, will also be used in error reporting,
+     *  \param  name        Allows assignment of an optional name to a timer.  This is particularly useful for
+     *                      debugging.  The name, if provided, will also be used in error reporting,
      */
     explicit WallClockTimer(const WallClockTimerType timer_type = NON_CUMULATIVE, const std::string &name = "");
 
