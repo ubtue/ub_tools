@@ -324,12 +324,12 @@ public:
      *  \return  True if the URL is invalid or has been locally blacklisted, otherwise false.
      *
      *  This function is used to see if a valid HTTP URL has been blacklisted by the local configuration.  Note that if the
-     *  URL is not valid, or is not an "http" or "https" URL, then this function returns true (i.e. invalid URLs are
+     *  URL is not valid, or is not an "http" or "https" URL, then this function returns true (i.e. invalid URL's are
      *  blacklisted by default).
      *
      *  \note  URL blacklisting is controlled by the UrlBlacklist.conf configuration file in the iViaCore etc
-     *         directory.  These contain regular expressions for identifying blacklisted (and non-blacklisted) URLs and are
-     *         compared against the current URL.
+     *         directory.  These contain regular expressions for identifying blacklisted (and non-blacklisted) URL's
+     *         and are compared against the current URL.
      */
     bool isBlacklisted() const;
 
@@ -365,8 +365,7 @@ public:
 
 
     /** Get the URL's scheme component as a string. */
-    std::string getScheme() const
-    {
+    std::string getScheme() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
         if (not (state_ & HAS_BEEN_PARSED))
@@ -376,8 +375,7 @@ public:
     }
 
     /** Get the URL's username/password component as a string. */
-    std::string getUsernamePassword() const
-    {
+    std::string getUsernamePassword() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
         if (not (state_ & HAS_BEEN_PARSED))
@@ -392,8 +390,7 @@ public:
      *  That definition includes the optional username/password
      *  component as well.
      */
-    std::string getAuthority() const
-    {
+    std::string getAuthority() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
         if (not (state_ & HAS_BEEN_PARSED))
@@ -411,14 +408,14 @@ public:
     unsigned short getPort() const;
 
     /** \brief   Get the URL's port component as a string.
-     *  \param   get_default_when_port_not_set  If the port was not specified, use the default port for this scheme (if known).
+     *  \param   get_default_when_port_not_set  If the port was not specified, use the default port for this scheme
+     *           (if known).
      *  \return  The port number
      */
     std::string getPortAsString(const bool get_default_when_port_not_set = false) const;
 
     /** Get the URL's path component as a string. */
-    std::string getPath() const
-    {
+    std::string getPath() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
         if (not (state_ & HAS_BEEN_PARSED))
@@ -428,8 +425,7 @@ public:
     }
 
     /** Get the URL's pamaters component as a string. */
-    std::string getParams() const
-    {
+    std::string getParams() const {
         if (not (state_ & HAS_BEEN_PARSED))
             parseUrl(url_);
 
@@ -437,8 +433,7 @@ public:
     }
 
     /** Get the URL's query component as a string. */
-    std::string getQuery() const
-    {
+    std::string getQuery() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
         if (not (state_ & HAS_BEEN_PARSED))
@@ -448,8 +443,7 @@ public:
     }
 
     /** Get the URL's fragment component as a string. */
-    std::string getFragment() const
-    {
+    std::string getFragment() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
         if (not (state_ & HAS_BEEN_PARSED))

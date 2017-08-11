@@ -75,7 +75,8 @@ Url::Url(const std::string &url, const std::string &default_base_url, const unsi
 }
 
 
-Url::Url(): robots_dot_txt_option_(IGNORE_ROBOTS_DOT_TXT), timeout_(0), state_(UNINITIALISED), throw_exceptions_(false)
+Url::Url()
+    : robots_dot_txt_option_(IGNORE_ROBOTS_DOT_TXT), timeout_(0), state_(UNINITIALISED), throw_exceptions_(false)
 {
 }
 
@@ -1301,12 +1302,10 @@ bool Url::makeValid() {
                 return false;
             if (not query_.empty() and not FixQuery(&query_))
                 return false;
-        }
-        else if (scheme_ == "ftp") {
+        } else if (scheme_ == "ftp") {
             if (not FixFpath(&path_))
                 return false;
-        }
-        else if (scheme_ == "file")
+        } else if (scheme_ == "file")
             return true;
         else if (scheme_.empty() and default_base_url_.empty() and not path_.empty()) {
             std::list<std::string> segments;
@@ -1381,9 +1380,10 @@ bool IsCentralNicUrl(const std::string &url, Downloader * const downloader, cons
 #endif
 
 
-// IsIdenticalDocument -- a helper function for Url::makeCanonical.  Called with the headers of two documents that are presumed to be the same document.
-//                        Compares the two and headers using etags if they are available, if not, we try last modified dates and if those aren't available
-//                        or don't match we give up.
+// IsIdenticalDocument -- a helper function for Url::makeCanonical.  Called with the headers of two documents that
+//                        are presumed to be the same document.  Compares the two and headers using etags if they are
+//                        available, if not, we try last modified dates and if those aren't available or don't match
+//                        we give up.
 //
 bool IsIdenticalDocument(const std::string &url1, const HttpHeader &http_header1, const std::string &url2,
                          const HttpHeader &http_header2)
@@ -1469,9 +1469,10 @@ bool Url::makeCanonical(const unsigned override_timeout) {
             throw std::runtime_error("in Url::makeCanonical: need a non-empty user agent string!");
 
         // Set up Web page fetcher and its parameters:
-        Downloader::Params downloader_params(user_agent_string, Downloader::DEFAULT_ACCEPTABLE_LANGUAGES, Downloader::DEFAULT_MAX_REDIRECTS,
-                                             /* dns_cache_timeout = */ 600,
-                                             /* honour_robots_dot_txt = */ robots_dot_txt_option_ == Url::CONSULT_ROBOTS_DOT_TXT);
+        Downloader::Params downloader_params(
+            user_agent_string, Downloader::DEFAULT_ACCEPTABLE_LANGUAGES, Downloader::DEFAULT_MAX_REDIRECTS,
+            /* dns_cache_timeout = */ 600,
+            /* honour_robots_dot_txt = */ robots_dot_txt_option_ == Url::CONSULT_ROBOTS_DOT_TXT);
         const TimeLimit time_limit(override_timeout != 0 ? override_timeout : timeout_);
 
         // Retrieve the "original" URL

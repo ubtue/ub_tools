@@ -29,6 +29,7 @@
  */
 
 #include "CachedPageFetcher.h"
+#include <iostream>//XXX
 #include <stdexcept>
 #include <string>
 #include <cerrno>
@@ -568,7 +569,6 @@ void CachedPageFetcher::retrieveDocument(const std::string &url, const TimeLimit
 
 void CachedPageFetcher::readDocumentFromFileSystem(const std::string &url) {
     message_headers_.clear();
-    std::string escaped_url(UrlToCacheKey(url));
     std::string retrieval_datetime(SqlUtil::GetDatetime());
 
     const std::string filename(url.substr(5)); // Strip off a leading "file:".
@@ -577,7 +577,7 @@ void CachedPageFetcher::readDocumentFromFileSystem(const std::string &url) {
         last_error_code_    = UINT_MAX;
         last_error_message_ = "can't read file";
         if (useCache())
-            actualStoreInCache(escaped_url, retrieval_datetime, retrieval_datetime, last_error_message_);
+            actualStoreInCache(UrlToCacheKey(url), retrieval_datetime, retrieval_datetime, last_error_message_);
     } else {
         // Make sure the page fits in the cache:
         if (document.size() > maximum_document_size_) {
@@ -590,21 +590,83 @@ void CachedPageFetcher::readDocumentFromFileSystem(const std::string &url) {
                 last_error_message_ = "document too large to cache (" + StringUtil::ToString(document.size())
                     + " bytes, max. is " + StringUtil::ToString(maximum_document_size_) + ", "
                     + (media_type_.empty() ? "unknown type" : media_type_) + ")";
-                last_error_code_    = UINT_MAX;
+                last_error_code_ = UINT_MAX;
                 if (useCache())
-                    actualStoreInCache(escaped_url, retrieval_datetime, retrieval_datetime, last_error_message_);
+                    actualStoreInCache(UrlToCacheKey(url), retrieval_datetime, retrieval_datetime, last_error_message_);
                 return;
             }
         }
 
         // Store the document in the cache if requested:
         if (useCache())
-            actualStoreInCache(escaped_url, retrieval_datetime, retrieval_datetime, "ok", 0 /* redirect_count */, "",
+            actualStoreInCache(UrlToCacheKey(url), retrieval_datetime, retrieval_datetime, "ok", 0 /* redirect_count */, "",
                                document);
         message_body_ = document;
         last_error_code_ = 0;
         last_error_message_.clear();
     }
+}
+
+
+inline time_t CalculateExpirationTime(const HttpHeader &http_header, const unsigned minimum_expiration_time) {
+    // Use the header's expiration time, if possible:
+    const time_t now(std::time(nullptr));
+    if (not http_header.expiresIsValid() or (http_header.getExpires() < now + minimum_expiration_time))
+        return now + minimum_expiration_time;
+    else
+        return http_header.getExpires();
+}
+
+
+void CachedPageFetcher::processProxy(std::string * const proxy_host, unsigned short * const proxy_port) {
+    if (http_proxy_.empty()) {
+        proxy_host->clear();
+        *proxy_port = 0;
+    } else {
+        std::string::size_type colon_pos(http_proxy_.find(':'));
+        if (colon_pos == std::string::npos)
+            throw std::runtime_error("in CachedPageFetcher::processProxy: missing colon in hostname:port in "
+                                     "configuration file (section \"Connection\", variable \"http_proxy\".");
+        *proxy_host = http_proxy_.substr(0, colon_pos);
+        if (not DnsUtil::IsValidHostName(*proxy_host)
+            and not DnsUtil::IsDottedQuad(*proxy_host))
+            throw std::runtime_error("in CachedPageFetcher::processProxy: invalid hostname in configuration file"
+                                     " (section \"Connection\", variable \"http_proxy\".");
+        char *endptr;
+        errno = 0;
+        const unsigned long port(std::strtoul(http_proxy_.c_str() + colon_pos + 1, &endptr, 10));
+        if (errno != 0 or *endptr != '\0' or port > 65535)
+            throw std::runtime_error("in CachedPageFetcher::processProxy: invalid port in configuration file"
+                                     " (section \"Connection\", variable \"http_proxy\".");
+        *proxy_port = static_cast<unsigned short>(port);
+    }
+}
+
+
+// Helper function for CachedPageFetcher::downloadPage().
+bool CachedPageFetcher::httpHeaderChecksOut(const HttpHeader &http_header, const std::string &original_url,
+                                            const Url &redirected_url, const std::string &retrieval_datetime,
+                                            const unsigned redirect_count, const bool found_in_cache)
+{
+    if (not http_header.isValid())
+        last_error_message_ = "invalid HTTP Header downloading \"" + redirected_url.toString() + "\"!";
+    else if (not http_header.hasAcceptableLanguage(params_.acceptable_languages_))
+        last_error_message_ = "HTTP header content language(s) (\"" + http_header.getContentLanguages()
+                              + "\") did not match at least one of the the requested languages (\""
+                              + params_.acceptable_languages_ + "\")!";
+    else
+        last_error_message_.clear();
+
+    if (not last_error_message_.empty()) {
+        if (not found_in_cache and useCache())
+            actualStoreInCache(UrlToCacheKey(original_url), retrieval_datetime,
+                               timeout_overrides_.getTimeoutForError(last_error_message_), last_error_message_,
+                               redirect_count, (redirect_count > 0 ? redirected_url.toString() : ""));
+        return false;
+    }
+    cookie_jar_.addCookies(http_header, Url(redirected_url).getAuthority());
+
+    return true;
 }
 
 
@@ -617,7 +679,6 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
     if (verbosity_ >= 5 and logger_ != nullptr)
         logger_->log("%sStoring: '%s', %u ms", useCache() ? "":"Not ", url.c_str(),  time_limit.getRemainingTime());
 
-    std::string escaped_url(UrlToCacheKey(url));
     std::string retrieval_datetime(SqlUtil::GetDatetime());
     timeout_overrides_.setDefaultTimeout(default_expiration_time_);
 
@@ -625,7 +686,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
     if (not accessAllowed(url, time_limit, max_redirects)) {
         last_error_message_ = CachedPageFetcher::DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG;
         if (useCache())
-            actualStoreInCache(escaped_url, retrieval_datetime,
+            actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                timeout_overrides_.getTimeoutForError(last_error_message_),
                                last_error_message_);
         return false;
@@ -636,25 +697,8 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
 
     // If the user has specified an HTTP Proxy, parse it:
     std::string proxy_host;
-    unsigned short proxy_port(0);
-    if (not http_proxy_.empty()) {
-        std::string::size_type colon_pos = http_proxy_.find(':');
-        if (colon_pos == std::string::npos)
-            throw std::runtime_error("in CachedPageFetcher::downloadPage: missing colon in hostname:port in "
-                                     "configuration file (section \"Connection\", variable \"http_proxy\".");
-        proxy_host = http_proxy_.substr(0, colon_pos);
-        if (not DnsUtil::IsValidHostName(proxy_host)
-            and not DnsUtil::IsDottedQuad(proxy_host))
-            throw std::runtime_error("in CachedPageFetcher::downloadPage: invalid hostname in configuration file"
-                                     " (section \"Connection\", variable \"http_proxy\".");
-        char *endptr;
-        errno = 0;
-        unsigned long port = std::strtoul(http_proxy_.c_str() + colon_pos + 1, &endptr, 10);
-        if (errno != 0 or *endptr != '\0' or port > 65535)
-            throw std::runtime_error("in CachedPageFetcher::downloadPage: invalid port in configuration file"
-                                     " (section \"Connection\", variable \"http_proxy\".");
-        proxy_port = static_cast<unsigned short>(port);
-    }
+    unsigned short proxy_port;
+    processProxy(&proxy_host, &proxy_port);
 
     if (useCache())
         requireDbConnection();
@@ -663,7 +707,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
     if (time_limit.limitExceeded()) {
         last_error_message_ = "timeout: timed out before actually attempting a page download";
         if (useCache())
-            actualStoreInCache(escaped_url, retrieval_datetime,
+            actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                timeout_overrides_.getTimeoutForError(last_error_message_),
                                last_error_message_);
         return false;
@@ -678,6 +722,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
     int redirect_count = 0;
 
     while (redirect_count <= max_redirects) {
+std::cerr << "redirected_url = " << redirected_url.toString() << '\n';
         if (verbosity_ >= 4 and logger_ != nullptr)
             logger_->log("Fetch no. %u, URL: '%s', remaining time: %u ms", redirect_count,
                          redirected_url.toString().c_str(), time_limit.getRemainingTime());
@@ -686,11 +731,15 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
         bool found_in_cache(foundInCache(redirected_url, time_limit, &timeout));
         if (found_in_cache) {
             if (timeout > 0) // Found a timed out entry in the cache.
+                {std::cerr << "Found a timed out entry in the cache.\n";
                 return false;
+                }
 
+std::cerr << "Attempting to retrieve from cache...\n";
             if (not retrieveFromCache(redirected_url, &current_header, &message_body_))
                 return false;
         } else { // Attempt to actually download the requested page.
+std::cerr << "Not found in cache!\n";
             // Get any cookies we might have for the following request:
             std::string additional_headers;
             cookie_jar_.getCookieHeaders(redirected_url.getAuthority(), redirected_url.getPath(),
@@ -705,7 +754,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
                                      time_limit.getRemainingTime(), 0 /* max_redirects */,
                                      /* ignore_redirect_errors = */ true, /* transparently_unzip = */ true ,
                                      params_.user_agent_, params_.acceptable_languages_);
-            previous_url = redirected_url;
+std::cerr <<"ignorging robots.txt is " << (page_fetcher.ignoringRobotsDotTxt() ? "TRUE" : "FALSE") << "\n";                       previous_url = redirected_url;
 
             // Handle page fetcher errors:
             if (page_fetcher.anErrorOccurred()) {
@@ -725,7 +774,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
                     last_error_message_ = page_fetcher.getErrorMsg();
 
                 if (useCache())
-                    actualStoreInCache(escaped_url, retrieval_datetime,
+                    actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                        timeout_overrides_.getTimeoutForError(last_error_message_),
                                        last_error_message_, redirect_count,
                                        (redirect_count > 0 ? redirected_url.toString() : ""));
@@ -736,37 +785,23 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
             last_error_code_ = page_fetcher.getLastErrorCode();
         }
 
-        StringUtil::Trim(" \t\r\n", &current_header);
+std::cerr << "Cleaning up the HTTP header...\n";
+        StringUtil::TrimWhite(&current_header);
         current_header += "\r\n\r\n";
         message_headers_.push_back(current_header);
 
         // Ensure the HTTP Header is usable:
         const HttpHeader http_header(current_header);
-        if (not http_header.isValid()) {
-            last_error_message_ = "invalid HTTP Header downloading \"" + redirected_url.toString() + "\"!";
-            if (not found_in_cache and useCache())
-                actualStoreInCache(escaped_url, retrieval_datetime,
-                                   timeout_overrides_.getTimeoutForError(last_error_message_),
-                                   last_error_message_, redirect_count,
-                                   (redirect_count > 0 ? redirected_url.toString() : ""));
+        if (not httpHeaderChecksOut(http_header, url, redirected_url, retrieval_datetime, redirect_count,
+                                    found_in_cache))
             return false;
-        } else if (not http_header.hasAcceptableLanguage(params_.acceptable_languages_)) {
-            last_error_message_ = "HTTP header content language(s) (\"" + http_header.getContentLanguages()
-                + "\") did not match at least one of the the requested languages (\"" + params_.acceptable_languages_
-                + "\")!";
-            if (not found_in_cache and useCache())
-                actualStoreInCache(escaped_url, retrieval_datetime,
-                                   timeout_overrides_.getTimeoutForError(last_error_message_), last_error_message_,
-                                   redirect_count, (redirect_count > 0 ? redirected_url.toString() : ""));
-            return false;
-        }
-        cookie_jar_.addCookies(http_header, Url(redirected_url).getAuthority());
 
         // Update the combined header data:
         all_headers += current_header;
 
         // If we have finished following redirections, break the loop and continue processing:
         last_error_code_ = http_header.getStatusCode();
+std::cerr << "HTTP status code is "<<last_error_code_<<'\n';
         if (last_error_code_ < 300 or last_error_code_ > 399)
             break; // No more redirections!
 
@@ -776,7 +811,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
             last_error_message_ = "too many redirects (> " + StringUtil::ToString(max_redirects) + ")!";
             last_error_code_    = 0;
             if (not found_in_cache and useCache())
-                actualStoreInCache(escaped_url, retrieval_datetime,
+                actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                    timeout_overrides_.getTimeoutForError(last_error_message_), last_error_message_,
                                    redirect_count, redirected_url, message_body_, current_header,
                                    http_header.getETag());
@@ -787,7 +822,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
         if (http_header.getLocation().empty() and http_header.getUri().empty()) {
             last_error_message_ = "can't extract redirection URI for URL \"" + redirected_url.toString() + "\"!";
             if (not found_in_cache and useCache())
-                actualStoreInCache(escaped_url, retrieval_datetime,
+                actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                    timeout_overrides_.getTimeoutForError(last_error_message_), last_error_message_,
                                    redirect_count, (redirect_count > 0 ? redirected_url.toString() : ""),
                                    message_body_, current_header, http_header.getETag());
@@ -809,7 +844,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
             last_error_message_ = url_error_message;
             last_error_code_    = UINT_MAX;
             if (not found_in_cache and useCache())
-                actualStoreInCache(escaped_url, retrieval_datetime,
+                actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                    timeout_overrides_.getTimeoutForError(last_error_message_), last_error_message_,
                                    redirect_count, (redirect_count > 0 ? redirected_url.toString() : ""),
                                    message_body_, current_header);
@@ -824,7 +859,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
             last_error_message_ = "timeout: timed out while following redirects!";
             last_error_code_    = UINT_MAX;
             if (not found_in_cache and useCache())
-                actualStoreInCache(escaped_url, retrieval_datetime,
+                actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                    timeout_overrides_.getTimeoutForError(last_error_message_), last_error_message_,
                                    redirect_count, (redirect_count > 0 ? redirected_url.toString() : ""),
                                    message_body_, current_header);
@@ -836,7 +871,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
             last_error_message_ = CachedPageFetcher::DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG;
             last_error_code_    = UINT_MAX;
             if (not found_in_cache and useCache())
-                actualStoreInCache(escaped_url, retrieval_datetime,
+                actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                    timeout_overrides_.getTimeoutForError(last_error_message_), last_error_message_,
                                    redirect_count, (redirect_count > 0 ? redirected_url.toString() : ""),
                                    message_body_, current_header);
@@ -845,33 +880,21 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
 
         // Finally: store the page in the cache if requested:
         if (not found_in_cache and useCache())
-            actualStoreInCache(escaped_url, retrieval_datetime,
+            actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                timeout_overrides_.getTimeoutForError(last_error_message_), "ok",
                                redirect_count, (redirect_count > 0 ? redirected_url.toString() : ""), message_body_,
                                current_header);
     }
 
-    long expiration_time(-1);
-
-    // Get the header's expire time if possible:
-    HttpHeader http_header(current_header);
-    if (http_header.expiresIsValid()) {
-        const time_t now(std::time(nullptr));
-        if (now < http_header.getExpires())
-            expiration_time = http_header.getExpires() - now;
-
-        // Make sure we keep the page for at least the specified minimum time
-        int minimum_expiration(minimum_expiration_time_);
-        if (expiration_time < minimum_expiration)
-            expiration_time = minimum_expiration;
-    }
+    const HttpHeader http_header(current_header);
+    const time_t expiration_time(CalculateExpirationTime(http_header, minimum_expiration_time_));
 
     // If the final header resulted in a 404 error, cache that result.
     if (http_header.getStatusCode() == 404) {
         last_error_message_ = "page not found";
         last_error_code_    = 404;
         if (useCache())
-            actualStoreInCache(escaped_url, retrieval_datetime,
+            actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                timeout_overrides_.getTimeoutForError(last_error_message_, expiration_time),
                                last_error_message_, redirect_count,
                                (redirect_count > 0 ? redirected_url.toString() : ""),
@@ -895,7 +918,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
                 + (media_type_.empty() ? "unknown type" : media_type_) + ")";
             last_error_code_    = UINT_MAX;
             if (useCache())
-                actualStoreInCache(escaped_url, retrieval_datetime,
+                actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                                    timeout_overrides_.getTimeoutForError(last_error_message_, expiration_time),
                                    last_error_message_, redirect_count,
                                    (redirect_count > 0 ? redirected_url.toString() : ""), message_body_,
@@ -906,7 +929,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
 
     // Finally: store the page in the cache if requested:
     if (useCache())
-        actualStoreInCache(escaped_url, retrieval_datetime,
+        actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
                            timeout_overrides_.getTimeoutForError("ok", expiration_time), "ok", redirect_count,
                            (redirect_count > 0 ? redirected_url.toString() : ""), message_body_, current_header,
                            http_header.getETag());
@@ -995,7 +1018,7 @@ bool CachedPageFetcher::retrieveFromCache(const std::string &url, std::string * 
         const long compressed_document_source_size(StringUtil::ToNumber(row[3]));
         if (compressed_document_source_size > 1) {
             std::string compressed_document_source(row[2]);
-            *message_body = GzStream::DecompressString(SqlUtil::Unescape(&compressed_document_source));
+            *message_body = GzStream::DecompressString(compressed_document_source);
         }
     }
 
@@ -1083,17 +1106,10 @@ void CachedPageFetcher::StoreInCache(const std::string &url, const std::string &
     if (unlikely(server_host_name_.empty()))
         CachedPageFetcher::ReadIniFile();
 
-    const std::string sql_retrieval_datetime(SqlUtil::TimeTToDatetime(retrieval_datetime));
     const HttpHeader header(http_header);
-
-    // Use the header's expiration time, if possible:
-    const time_t now(std::time(nullptr));
-    time_t expiration_time;
-    if (not header.expiresIsValid() or (header.getExpires() < now + minimum_expiration_time_))
-        expiration_time = now + minimum_expiration_time_;
-    else
-        expiration_time = header.getExpires();
-    const std::string sql_expiration_datetime(SqlUtil::TimeTToDatetime(expiration_time));
+    const std::string sql_retrieval_datetime(SqlUtil::TimeTToDatetime(retrieval_datetime));
+    const std::string sql_expiration_datetime(
+        SqlUtil::TimeTToDatetime(CalculateExpirationTime(header, minimum_expiration_time_)));
 
     if (connection_option == KEEP_DB_CONNECTION_OPEN) {
         static DbConnection *static_db_connection = nullptr;

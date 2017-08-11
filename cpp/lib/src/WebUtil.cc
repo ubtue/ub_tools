@@ -30,17 +30,21 @@
 #include "WebUtil.h"
 #include <iostream>
 #include <sstream>
+#include <unordered_map>
 #include "Compiler.h"
 #include "FileDescriptor.h"
 #include "FileUtil.h"
 #include "HtmlParser.h"
 #include "HttpHeader.h"
 #include "MiscUtil.h"
+#include "PageFetcher.h"
 #include "SslConnection.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "UrlUtil.h"
+#include "util.h"
+#include "WallClockTimer.h"
 
 
 namespace WebUtil {
@@ -233,17 +237,20 @@ time_t ParseWebDateAndTime(const std::string &possible_web_date_and_time) {
             return TimeUtil::BAD_TIME_T;
         if ((month = MonthToInt(possible_web_date_and_time.substr(4, 3))) == BAD_MONTH)
             return TimeUtil::BAD_TIME_T;
-        if (std::sscanf(possible_web_date_and_time.substr(8).c_str(), "%d %2d:%2d:%2d %4d", &day, &hour, &min, &sec, &year) != 5)
+        if (std::sscanf(possible_web_date_and_time.substr(8).c_str(), "%d %2d:%2d:%2d %4d", &day, &hour, &min, &sec,
+                        &year) != 5)
             return TimeUtil::BAD_TIME_T;
     } else if (comma_pos == 3) {
-        // We should have the following formats: "Mon, 06 Aug 1999 19:01:42" or "Mon, 06-Aug-1999 19:01:42 GMT" or "Mon, 06-Aug-99 19:01:42 GMT":
+        // We should have the following formats: "Mon, 06 Aug 1999 19:01:42" or "Mon, 06-Aug-1999 19:01:42 GMT" or
+        // "Mon, 06-Aug-99 19:01:42 GMT":
         if (possible_web_date_and_time.length() < 20)
             return TimeUtil::BAD_TIME_T;
         if (std::sscanf(possible_web_date_and_time.substr(5, 2).c_str(), "%2d", &day) != 1)
             return TimeUtil::BAD_TIME_T;
         if ((month = MonthToInt(possible_web_date_and_time.substr(8, 3))) == BAD_MONTH)
             return TimeUtil::BAD_TIME_T;
-        if (std::sscanf(possible_web_date_and_time.substr(12).c_str(), "%4d %2d:%2d:%2d", &year, &hour, &min, &sec) != 4)
+        if (std::sscanf(possible_web_date_and_time.substr(12).c_str(), "%4d %2d:%2d:%2d", &year, &hour, &min, &sec)
+            != 4)
             return TimeUtil::BAD_TIME_T;
 
         // Normalise "year" to include the century:
@@ -259,7 +266,8 @@ time_t ParseWebDateAndTime(const std::string &possible_web_date_and_time) {
             return TimeUtil::BAD_TIME_T;
         if ((month = MonthToInt(possible_web_date_and_time.substr(comma_pos + 5, 3))) == BAD_MONTH)
             return TimeUtil::BAD_TIME_T;
-        if (std::sscanf(possible_web_date_and_time.substr(comma_pos+9).c_str(), "%d %2d:%2d:%2d", &year, &hour, &min, &sec) != 4)
+        if (std::sscanf(possible_web_date_and_time.substr(comma_pos+9).c_str(), "%d %2d:%2d:%2d", &year, &hour, &min,
+                        &sec) != 4)
             return TimeUtil::BAD_TIME_T;
 
         // Normalise "year" to include the century:
@@ -771,6 +779,426 @@ bool ExecGetHTTPRequest(const std::string &username_password, const Url &url, co
     return ExecHTTPRequest(username_password, url, time_limit, args, GET, document_source,
                            error_message, accept, include_http_header);
 }
-    
+
+
+// GetMajorSite -- Get the highest-level registerable domain for a URL.
+//
+std::string GetMajorSite(const Url &url) {
+    // Sanity checks:
+    if (not url.isValidWebUrl() or not url.isAbsolute())
+        return "";
+    const std::string authority(url.getAuthority());
+    if (authority.empty())
+        return "";
+
+    // Parse the URL:
+    std::vector<std::string> parts;
+    StringUtil::Split(authority, ".", &parts);
+    const unsigned size(parts.size());
+    if (size < 2)
+        return "";
+
+    // Construct the simplest identifier:
+    const std::string top_level(parts[size - 1]);
+    const std::string second_level(parts[size - 2]);
+    std::string result(second_level + "." + top_level);
+
+    // We may need to extend the identifier to the third level
+    // because some countries limit second-level domains, while
+    // others allow them to be registered by anyone, and the US
+    // and Canada use a mix of the two approaches:
+    const bool is_country_domain(top_level.length() == 2);
+    if (is_country_domain and size >= 3) {
+        unsigned no_of_parts = 2;
+
+        // Handle the USA and Canada:
+        if (top_level == "us" or top_level == "ca") {
+            if (second_level.length() == 2) {
+                no_of_parts = 3;
+                if (top_level == "us" and size >= 4)
+                    no_of_parts = 4;
+            }
+            else if (second_level == "biz")
+                no_of_parts = 3;
+        }
+
+        // Handle the rest of the world:
+        else if (top_level == "uk" or top_level == "au"
+                 or second_level == "ac" or second_level == "biz" or second_level == "co"
+                 or second_level == "com" or second_level == "edu" or second_level == "gen"
+                 or second_level == "gov" or second_level == "govt"
+                 or second_level == "net" or second_level == "org" or second_level == "school"
+                 or top_level == "il" or top_level == "jp" or top_level == "kr" or top_level == "nz")
+            no_of_parts = 3;
+
+        // Construct the new identifier:
+        if (no_of_parts == 3)
+            result = parts[size - 3] + "." + result;
+        else if (no_of_parts == 4)
+            result = parts[size - 4] + "." + parts[size - 3] + "." + result;
+    }
+
+    return result;
+}
+
+
+namespace {
+
+
+// ExtractLinksFollowingString -- helper function for ExtractSomeJavaScriptLinks().
+//
+void ExtractLinksFollowingString(const std::string &document_source, const std::string &string_to_look_for,
+				 std::vector<std::string> * const extracted_urls)
+{
+    std::string::size_type next_match(document_source.find(string_to_look_for));
+    while (next_match != std::string::npos) {
+        // Skip over optional whitespace:
+        std::string::const_iterator ch(document_source.begin() + next_match + string_to_look_for.size());
+        while (ch != document_source.end() and isspace(*ch))
+            ++ch;
+        if (unlikely(ch == document_source.end())) // Gone too far?
+            return;
+
+        // Now we need to match an equal sign:
+        if (*ch != '=')
+            return;
+        ++ch;
+        if (unlikely(ch == document_source.end())) // Gone too far?
+            return;
+
+        // Skip over optional whitespace:
+        while (ch != document_source.end() and isspace(*ch))
+            ++ch;
+        if (unlikely(ch == document_source.end())) // Gone too far?
+            return;
+
+        // Determine which string delimiter we're dealing with (single- or double-quote):
+        const char delimiter(*ch);
+        if (unlikely(delimiter != '\'' and delimiter != '"'))
+            return; // Garbage!
+        ++ch;
+        if (unlikely(ch == document_source.end())) // Gone too far?
+            return;
+
+        // Extract the URL between the delimiters:
+        std::string url_candidate;
+        for (/* Empty! */; *ch != delimiter and ch != string_to_look_for.end(); ++ch)
+            url_candidate += *ch;
+        if (unlikely(ch == document_source.end())) // Gone too far?
+            return;
+        extracted_urls->push_back(url_candidate);
+
+        next_match = document_source.find(string_to_look_for, ch - document_source.begin());
+    }
+}
+
+
+// ExtractSomeJavaScriptLinks -- helper function for ExtractURLs().
+//
+void ExtractSomeJavaScriptLinks(const std::string &document_source, std::vector<std::string> * const extracted_urls) {
+    extracted_urls->clear();
+    ExtractLinksFollowingString(document_source, "location.href", extracted_urls);
+    ExtractLinksFollowingString(document_source, "window.open", extracted_urls);
+}
+
+
+// Helper function for ExtractURLs().
+void CheckFlags(const unsigned flags) {
+    if (MiscUtil::HammingWeight(flags & (IGNORE_LINKS_TO_SAME_SITE | IGNORE_LINKS_TO_SAME_MAJOR_SITE
+                                         | KEEP_LINKS_TO_SAME_SITE_ONLY | KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY)) > 1)
+        Error("in CheckFlags(WebUtil.cc): incompatible flags: you must not specify at most one of "
+              "IGNORE_LINKS_TO_SAME_SITE, IGNORE_LINKS_TO_SAME_MAJOR_SITE, KEEP_LINKS_TO_SAME_SITE_ONLY "
+              " or KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY!");
+}
+
+
+// Remove all non-Web-URL's from "urls_and_anchor_texts".
+void FilterOutNonWebUrls(std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts) {
+    std::vector<UrlAndAnchorTexts> web_urls_and_anchor_texts;
+    web_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
+    for (const auto &url_and_anchor_texts : *urls_and_anchor_texts) {
+        if (Url(url_and_anchor_texts.getUrl()).isValidWebUrl())
+            web_urls_and_anchor_texts.push_back(url_and_anchor_texts);
+    }
+    urls_and_anchor_texts->swap(web_urls_and_anchor_texts);
+}
+
+
+// Helper function for ExtractURLs().
+inline bool OutOfTime(WallClockTimer &wall_clock_timer, unsigned long * const overall_timeout,
+                      const bool perform_bookkeeping)
+{
+    if (overall_timeout == nullptr)
+        return false;
+
+    wall_clock_timer.stop();
+    const unsigned long time_used_so_far(wall_clock_timer.getTimeInMilliseconds());
+    wall_clock_timer.start();
+    if (time_used_so_far >= *overall_timeout) {
+        *overall_timeout = 0;
+        return true;
+    }
+
+    if (perform_bookkeeping)
+        *overall_timeout -= time_used_so_far;
+    return false;
+}
+
+
+// Helper function for ExtractURLs().
+void FilterOutBlackListedUrls(std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts) {
+    std::vector<UrlAndAnchorTexts> filtered_urls_and_anchor_texts;
+    filtered_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
+    for (const auto &url_and_anchor_texts : *urls_and_anchor_texts) {
+        const Url url(url_and_anchor_texts.getUrl(), Url::NO_AUTO_OPERATIONS);
+        if (not url.isBlacklisted())
+            filtered_urls_and_anchor_texts.push_back(url_and_anchor_texts);
+    }
+    urls_and_anchor_texts->swap(filtered_urls_and_anchor_texts);
+}
+
+
+// Helper function for ExtractURLs().
+void FilterOutHttpsUrls(std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts) {
+    std::vector<UrlAndAnchorTexts> filtered_urls_and_anchor_texts;
+    filtered_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
+    for (const auto &url_and_anchor_texts : *urls_and_anchor_texts) {
+        const Url url(url_and_anchor_texts.getUrl(), Url::NO_AUTO_OPERATIONS);
+        if (url.getScheme() != "https:")
+            filtered_urls_and_anchor_texts.push_back(url_and_anchor_texts);
+    }
+    urls_and_anchor_texts->swap(filtered_urls_and_anchor_texts);
+}
+
+
+// Helper function for ExtractURLs().
+void FilterOutDuplicateUrls(std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts) {
+    std::vector<UrlAndAnchorTexts> filtered_urls_and_anchor_texts;
+    filtered_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
+    std::unordered_map<std::string, size_t> already_seen;
+    for (std::vector<UrlAndAnchorTexts>::const_iterator url_and_anchor_texts(urls_and_anchor_texts->cbegin());
+         url_and_anchor_texts != urls_and_anchor_texts->cend(); ++url_and_anchor_texts)
+    {
+        std::unordered_map<std::string, size_t>::iterator
+            url_and_index(already_seen.find(url_and_anchor_texts->getUrl()));
+        if (url_and_index == already_seen.end()) {
+            filtered_urls_and_anchor_texts.push_back(*url_and_anchor_texts);
+            already_seen[url_and_anchor_texts->getUrl()] = &filtered_urls_and_anchor_texts.back()
+                - &filtered_urls_and_anchor_texts.front();
+        } else
+            filtered_urls_and_anchor_texts[url_and_index->second].addAnchorText(*url_and_anchor_texts->begin());
+    }
+    urls_and_anchor_texts->swap(filtered_urls_and_anchor_texts);
+}
+
+
+void KeepOnlySameSiteUrls(const Url &base_url, std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts) {
+    std::vector<UrlAndAnchorTexts> filtered_urls_and_anchor_texts;
+    filtered_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
+    const std::string SITE(base_url.getSite());
+    for (const auto &url_and_anchor_texts : *urls_and_anchor_texts) {
+        const Url url(url_and_anchor_texts.getUrl(), Url::NO_AUTO_OPERATIONS);
+        if (SITE == url.getSite())
+            filtered_urls_and_anchor_texts.push_back(url_and_anchor_texts);
+    }
+    urls_and_anchor_texts->swap(filtered_urls_and_anchor_texts);
+}
+
+
+void FilterOutSameSiteUrls(const Url &base_url, std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts)
+{
+    std::vector<UrlAndAnchorTexts> filtered_urls_and_anchor_texts;
+    filtered_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
+    const std::string SITE(base_url.getSite());
+    for (const auto &url_and_anchor_texts : *urls_and_anchor_texts) {
+        const Url url(url_and_anchor_texts.getUrl(), Url::NO_AUTO_OPERATIONS);
+        if (SITE != url.getSite())
+            filtered_urls_and_anchor_texts.push_back(url_and_anchor_texts);
+    }
+    urls_and_anchor_texts->swap(filtered_urls_and_anchor_texts);
+}
+
+
+void KeepOnlySameMajorSiteUrls(const Url &base_url, std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts) {
+    std::vector<UrlAndAnchorTexts> filtered_urls_and_anchor_texts;
+    filtered_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
+    const std::string MAJOR_SITE(GetMajorSite(base_url));
+    for (const auto &url_and_anchor_texts : *urls_and_anchor_texts) {
+        const Url url(url_and_anchor_texts.getUrl(), Url::NO_AUTO_OPERATIONS);
+        if (MAJOR_SITE == GetMajorSite(url))
+            filtered_urls_and_anchor_texts.push_back(url_and_anchor_texts);
+    }
+    urls_and_anchor_texts->swap(filtered_urls_and_anchor_texts);
+}
+
+
+void FilterOutSameMajorSiteUrls(const Url &base_url, std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts) {
+    std::vector<UrlAndAnchorTexts> filtered_urls_and_anchor_texts;
+    filtered_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
+    const std::string MAJOR_SITE(GetMajorSite(Url(base_url)));
+    for (const auto &url_and_anchor_texts : *urls_and_anchor_texts) {
+        const Url url(url_and_anchor_texts.getUrl(), Url::NO_AUTO_OPERATIONS);
+        if (MAJOR_SITE != GetMajorSite(url))
+            filtered_urls_and_anchor_texts.push_back(url_and_anchor_texts);
+    }
+    urls_and_anchor_texts->swap(filtered_urls_and_anchor_texts);
+}
+
+
+} // unnamed namespace
+
+
+// ExtractURLs -- extracts all links from "document_source" and returns them in "urls".  "root_url" is used to turn
+// relative URLs into absolute URLs if requested.
+//
+void ExtractURLs(const std::string &document_source, std::string default_base_url,
+                 const ExtractedUrlForm extracted_url_form,
+                 std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts, const unsigned flags,
+                 unsigned long * const overall_timeout)
+{
+    CheckFlags(flags);
+
+    try {
+        WallClockTimer wall_clock_timer(WallClockTimer::CUMULATIVE_WITH_AUTO_STOP);
+        wall_clock_timer.start();
+
+        urls_and_anchor_texts->clear();
+
+        // Extract the raw URLs:
+        std::list<UrlExtractorParser::UrlAndAnchorText> raw_urls;
+        UrlExtractorParser url_extractor_parser(document_source, true /* accept links in FRAME tags */,
+                                                ((flags & IGNORE_LINKS_IN_IMG_TAGS) != 0),
+                                                ((flags & CLEAN_UP_ANCHOR_TEXT) != 0), &raw_urls, &default_base_url);
+        url_extractor_parser.parse();
+        const Url base_url(default_base_url, Url::NO_AUTO_OPERATIONS);
+
+        // Convert the URLs to the correct form:
+        const bool do_clean_up_urls(extracted_url_form == CLEAN_URLS or extracted_url_form == CANONIZED_URLS);
+        const bool do_make_absolute(do_clean_up_urls or extracted_url_form == ABSOLUTE_URLS);
+        const bool do_trim_fragment((flags & REMOVE_DOCUMENT_RELATIVE_ANCHORS) != 0);
+
+        for (const auto &raw_url : raw_urls) {
+            Url url(raw_url.url_, Url::NO_AUTO_OPERATIONS);
+            bool success(not url.anErrorOccurred());
+
+            // Make the URL absolute:
+            if (success and do_make_absolute)
+                success = url.makeAbsolute(base_url);
+
+            // Make the URL clean:
+            if (success and do_clean_up_urls) {
+                url.makeValid();
+                url.cleanUp();
+            }
+
+            // Remove document-relative anchors:
+            if (success and do_trim_fragment and url.isAbsolute())
+                success = url.setFragment("");
+            // Keep the URLs that pass all these tests:
+            if (success)
+                urls_and_anchor_texts->push_back(UrlAndAnchorTexts(url, raw_url.anchor_text_));
+        }
+
+        wall_clock_timer.stop();
+        unsigned long time_used_so_far = wall_clock_timer.getTimeInMilliseconds();
+        wall_clock_timer.start();
+
+        // Ran out of time?
+        if (overall_timeout != nullptr and time_used_so_far >= *overall_timeout) {
+            *overall_timeout = 0;
+            return;
+        }
+
+        if ((flags & ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS) == ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS) {
+            std::vector<std::string> extracted_urls;
+            ExtractSomeJavaScriptLinks(document_source, &extracted_urls);
+            for (const auto &extracted_url : extracted_urls)
+                urls_and_anchor_texts->push_back(UrlAndAnchorTexts(extracted_url, ""));
+        }
+
+        if (extracted_url_form == CANONIZED_URLS) {
+            FilterOutNonWebUrls(urls_and_anchor_texts);
+
+            unsigned create_canonical_url_timeout(Url::DEFAULT_TIMEOUT);
+            for (std::vector<UrlAndAnchorTexts>::iterator url_and_anchor_texts(urls_and_anchor_texts->begin());
+                 url_and_anchor_texts != urls_and_anchor_texts->end(); ++url_and_anchor_texts)
+            {
+                if (overall_timeout != nullptr)
+                    create_canonical_url_timeout =
+                        std::min(static_cast<unsigned long>(Url::DEFAULT_TIMEOUT),
+                                 *overall_timeout - time_used_so_far);
+                url_and_anchor_texts->setUrl(Url::CreateCanonicalUrl(url_and_anchor_texts->getUrl(), "",
+                                                                     Url::CONSULT_ROBOTS_DOT_TXT,
+                                                                     create_canonical_url_timeout));
+
+                if (OutOfTime(wall_clock_timer, overall_timeout, /* perform_bookkeeping = */ false)) {
+                    urls_and_anchor_texts->clear();
+                    return;
+                }
+            }
+        }
+
+        // Remove blacklisted URL's (if requested):
+        if ((flags & IGNORE_BLACKLISTED_URLS) == IGNORE_BLACKLISTED_URLS)
+            FilterOutBlackListedUrls(urls_and_anchor_texts);
+
+        // Remove HTTPS URL's (if requested):
+        if ((flags & IGNORE_PROTOCOL_HTTPS) == IGNORE_PROTOCOL_HTTPS)
+            FilterOutHttpsUrls(urls_and_anchor_texts);
+
+        // Remove duplicates (if requested):
+        if ((flags & IGNORE_DUPLICATE_URLS) == IGNORE_DUPLICATE_URLS)
+            FilterOutDuplicateUrls(urls_and_anchor_texts);
+
+        // Ignore URL's on the same site, as per Url::getSite(), (if requested):
+        if ((flags & IGNORE_LINKS_TO_SAME_SITE) == IGNORE_LINKS_TO_SAME_SITE)
+            FilterOutSameSiteUrls(base_url, urls_and_anchor_texts);
+
+        // Ignore URL's on the same major site, as per GetMajorSite(), (if requested):
+        if ((flags & IGNORE_LINKS_TO_SAME_MAJOR_SITE) == IGNORE_LINKS_TO_SAME_MAJOR_SITE)
+            FilterOutSameMajorSiteUrls(base_url, urls_and_anchor_texts);
+
+        // Keep only URL's on the same site, as per Url::getSite(), (if requested):
+        if ((flags & KEEP_LINKS_TO_SAME_SITE_ONLY) == KEEP_LINKS_TO_SAME_SITE_ONLY)
+            KeepOnlySameSiteUrls(base_url, urls_and_anchor_texts);
+
+        // Keep only URL's on the same major site, as per GetMajorSite() (if requested):
+        if ((flags & KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY) == KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY)
+            KeepOnlySameMajorSiteUrls(base_url, urls_and_anchor_texts);
+
+        // Check for existence of the Web site (if requested):
+        if ((flags & REQUIRE_URLS_FOR_DOWNLOADABLE_PAGES_ONLY) == REQUIRE_URLS_FOR_DOWNLOADABLE_PAGES_ONLY) {
+            if (unlikely(extracted_url_form != CANONIZED_URLS))
+                Error("in WebUtil::ExtractURLs: extracted_url_form must equal CANONIZED_URLS here!");
+            std::vector<UrlAndAnchorTexts> filtered_urls_and_anchor_texts;
+            filtered_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
+            for (std::vector<UrlAndAnchorTexts>::iterator url_and_anchor_texts(urls_and_anchor_texts->begin());
+                 url_and_anchor_texts != urls_and_anchor_texts->end(); ++url_and_anchor_texts)
+            {
+                const Url the_url(url_and_anchor_texts->getUrl(), Url::NO_AUTO_OPERATIONS);
+                if (not the_url.isValidWebUrl())
+                    continue;
+
+                PageFetcher page_fetcher(url_and_anchor_texts->getUrl());
+                if (not page_fetcher.anErrorOccurred()) {
+                    std::string message_headers;
+                    if (PageFetcher::SplitHttpHeadersFromBody(page_fetcher.getData(), &message_headers)) {
+                        const HttpHeader http_header(message_headers);
+                        if (http_header.isValid() and http_header.getStatusCode() == 200)
+                            filtered_urls_and_anchor_texts.push_back(*url_and_anchor_texts);
+                    }
+                }
+            }
+            urls_and_anchor_texts->swap(filtered_urls_and_anchor_texts);
+        }
+
+        OutOfTime(wall_clock_timer, overall_timeout, /* perform_bookkeeping = */ true);
+    } catch (const std::exception &x) {
+        std::string err_msg("in WebUtil::ExtractURLs: (base URL = " + default_base_url + ") caught exception: "
+                            + std::string(x.what()));
+        throw std::runtime_error(err_msg);
+    }
+}
+
 
 } // namespace WebUtil
