@@ -22,6 +22,7 @@
 #include <cinttypes>
 #include <uuid/uuid.h>
 #include "Compiler.h"
+#include "ExecUtil.h"
 #include "FileDescriptor.h"
 #include "FileUtil.h"
 #include "HttpHeader.h"
@@ -39,7 +40,7 @@
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " zts_server_url map_directory marc_output harvest_url1 [harvest_url2 .. harvest_urlN]\n"
+              << " zts_server_url map_directory [--ignore-robots-dot-txt] marc_output\n"
               << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
               << "        files and the file containing hashes of previously generated records.\n\n";
     std::exit(EXIT_FAILURE);
@@ -535,10 +536,35 @@ void StorePreviouslyDownloadedHashes(File * const output,
 }
 
 
+void LoadHarvestURLs(const bool ignore_robots_dot_txt, std::vector<std::string> * const harvest_urls) {
+    harvest_urls->clear();
+
+    std::cerr << "Starting loading of harvest URL's.\n";
+
+    const std::string COMMAND("/usr/local/bin/zotero_crawler "
+                              + std::string(ignore_robots_dot_txt ? "--ignore-robots-dot-txt" : "")
+                              + "/var/lib/tuelib/zotero_crawler.conf");
+
+    std::string stdout_output;
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &stdout_output))
+        Error("in LoadHarvestURLs: failed to execute \"" + COMMAND + "\"!");
+    if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0)
+        Error("in LoadHarvestURLs: no harvest URL's were read after executing \"" + COMMAND + "\"!");
+    std::cerr << "Loaded " << harvest_urls->size() << " harvest URL's.\n";
+}
+
+
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
-    if (argc < 5)
+    if (argc != 4 and argc != 5)
         Usage();
+
+    bool ignore_robots_dot_txt(false);
+    if (argc == 5) {
+        if (std::strcmp(argv[2], "--ignore-robots-dot-txt") != 0)
+            Usage();
+        ignore_robots_dot_txt = true;
+    }
 
     const std::string ZTS_SERVER_URL(argv[1]);
     std::string map_directory_path(argv[2]);
@@ -564,11 +590,14 @@ int main(int argc, char *argv[]) {
         LoadPreviouslyDownloadedHashes(previously_downloaded_input.get(), &previously_downloaded);
         previously_downloaded_input->close();
 
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
+        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[ignore_robots_dot_txt ? 4 : 3]));
         unsigned total_record_count(0), total_previously_downloaded_count(0);
-        for (int arg_no(4); arg_no < argc; ++arg_no) {
+
+        std::vector<std::string> harvest_urls;
+        LoadHarvestURLs(ignore_robots_dot_txt, &harvest_urls);
+        for (const auto &harvest_url : harvest_urls) {
             const auto record_count_and_previously_downloaded_count(
-                Harvest(ZTS_SERVER_URL, argv[arg_no], ISSN_to_physical_form_map, ISSN_to_language_code_map,
+                Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
                         ISSN_to_superior_ppn_map, &previously_downloaded, marc_writer.get()));
                 total_record_count                += record_count_and_previously_downloaded_count.first;
                 total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
