@@ -498,8 +498,10 @@ std::pair<unsigned, unsigned> Harvest(const std::string &zts_server_url, const s
                                       MarcWriter * const marc_writer)
 {
     std::string json_document, error_message;
-    if (not Download(Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &json_document, &error_message))
-        Error("Download for harvest URL \"" + harvest_url + "\" failed: " + error_message);
+    if (not Download(Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &json_document, &error_message)) {
+        std::cerr << "Download for harvest URL \"" + harvest_url + "\" failed: " + error_message << '\n';
+        return std::make_pair(0, 0);
+    }
 
     JSON::JSONNode *tree_root(nullptr);
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
