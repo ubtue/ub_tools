@@ -112,10 +112,10 @@ public:
      *                                       that all language codes will be accepted.
      *  \param  robots_dot_txt_option        Option to consult or ignore robots.txt files.
      */
-    PageFetcher(const std::string &url, const std::string &additional_http_headers, const std::string &proxy_host,
-                const unsigned short proxy_port, const TimeLimit &time_limit = TimeLimit(20000),
-                const unsigned max_redirects = 7, const bool ignore_redirect_errors = false,
-                const bool transparently_unzip_content = true,
+    PageFetcher(const std::string &url, const std::string &additional_http_headers = "",
+                const std::string &proxy_host = "", const unsigned short proxy_port = 0,
+                const TimeLimit &time_limit = TimeLimit(20000), const unsigned max_redirects = 7,
+                const bool ignore_redirect_errors = false, const bool transparently_unzip_content = true,
                 const std::string &user_agent = "UB Tools Page Fetcher (http://ivia.ucr.edu/useragents.shtml)",
                 const std::string &acceptable_languages = "",
                 const RobotsDotTxtOption robots_dot_txt_option = IGNORE_ROBOTS_DOT_TXT);
@@ -123,6 +123,7 @@ public:
     const std::string &getData() const throw(std::exception);
     bool anErrorOccurred() const { return not error_message_.empty(); }
     unsigned getLastErrorCode() const { return last_error_code_; }
+    bool ignoringRobotsDotTxt() const { return robots_dot_txt_option_ == IGNORE_ROBOTS_DOT_TXT; }
 
     /** Returns a meaningful textual message describing an error if anErrorOccurred returned true. */
     const std::string &getErrorMsg() const { return error_message_; }

@@ -116,6 +116,7 @@ void SetEnv(const std::string &name, const std::string &value, const bool overwr
 // \return The POSIX login name. */
 std::string GetUserName();
 
+
 bool IsPossibleISSN(std::string issn_candidate);
 
 
@@ -127,6 +128,12 @@ bool NormaliseISSN(const std::string &issn_candidate, std::string * const normal
 
 // \return a string representation of "map".
 std::string StringMapToString(const std::map<std::string, std::string> &map);
+
+
+// \return The number of bits that are set in "mask".
+inline unsigned HammingWeight(unsigned mask) { return static_cast<unsigned>(__builtin_popcount(mask)); }
+inline unsigned HammingWeight(unsigned long mask) { return static_cast<unsigned>(__builtin_popcountl(mask)); }
+inline unsigned HammingWeight(unsigned long long mask) { return static_cast<unsigned>(__builtin_popcountll(mask)); }
 
 
 } // namespace MiscUtil

@@ -71,6 +71,8 @@ def Main():
     os.unlink(timestamp_filename)
     os.unlink(gnd_counts_filename)
 
+    util.SendEmail("Beacon File Generator", "Successfully created a Beacon file.", priority=5)
+
 
 try:
     Main()
