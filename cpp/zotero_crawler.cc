@@ -41,7 +41,6 @@ void Usage() {
     std::cerr << "Usage: " << ::progname << "[options] config_file\n"
               << "\t[ (--last-header | -l) ]\n"
               << "\t[ (--all-headers | -a) ]\n"
-              << "\t[ (--quiet | -q) ]\n"
               << "\t[ (--ignore-robots-dot-txt | -i) ]                        Nomen est omen.\n"
               << "\t[ (--acceptable-languages | -A) ] language_code_or_codes  Please note that if you specify more\n"
               << "                                                            than a single 2-letter language code,\n"
@@ -77,7 +76,7 @@ void ExtractLocationUrls(const std::string &header_blob, std::list<std::string> 
 }
 
 
-void ProcessURL(const std::string &url, const bool all_headers, const bool last_header, const bool quiet,
+void ProcessURL(const std::string &url, const bool all_headers, const bool last_header,
                 const bool ignore_robots_dot_txt, const bool print_redirects, const unsigned timeout,
                 const std::string &acceptable_languages, unsigned remaining_crawl_depth,
                 const RegexMatcher &url_regex_matcher, std::unordered_set<std::string> * const extracted_urls)
@@ -103,7 +102,7 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
     }
 
     if (all_headers or last_header) {
-        if (not quiet and (all_headers or last_header))
+        if (all_headers or last_header)
             std::cout << StringUtil::ReplaceString("\r\n", "\n", message_headers) << '\n';
     }
 
@@ -124,7 +123,7 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
     --remaining_crawl_depth;
     if (remaining_crawl_depth > 0) {
         for (const auto &url_and_anchor_texts : urls_and_anchor_texts)
-            ProcessURL(url_and_anchor_texts.getUrl(), all_headers, last_header, quiet, ignore_robots_dot_txt,
+            ProcessURL(url_and_anchor_texts.getUrl(), all_headers, last_header, ignore_robots_dot_txt,
                        print_redirects, timeout, acceptable_languages, remaining_crawl_depth, url_regex_matcher,
                        extracted_urls);
     }
@@ -135,7 +134,6 @@ static struct option options[] = {
     { "help",                  no_argument,        nullptr, 'h'  },
     { "all-headers",           no_argument,        nullptr, 'a'  },
     { "last-header",           no_argument,        nullptr, 'l'  },
-    { "quiet",                 no_argument,        nullptr, 'q'  },
     { "timeout",               required_argument,  nullptr, 't'  },
     { "ignore-robots-dot-txt", no_argument,        nullptr, 'i'  },
     { "print-redirects",       no_argument,        nullptr, 'p'  },
@@ -147,14 +145,13 @@ static struct option options[] = {
 const unsigned DEFAULT_TIMEOUT(5000); // milliseconds
 
 
-void ProcessArgs(int argc, char *argv[], bool * const all_headers, bool * const last_header, bool * const quiet,
+void ProcessArgs(int argc, char *argv[], bool * const all_headers, bool * const last_header,
                  unsigned * const timeout, bool * const ignore_robots_dot_txt, bool * const print_redirects,
                  std::string * const acceptable_languages, std::string * const config_filename)
 {
     // Defaults:
     *all_headers           = false;
     *last_header           = false;
-    *quiet                 = false;
     *timeout               = DEFAULT_TIMEOUT;
     *ignore_robots_dot_txt = false;
     *print_redirects       = false;
@@ -171,9 +168,6 @@ void ProcessArgs(int argc, char *argv[], bool * const all_headers, bool * const 
             break;
         case 'l':
             *last_header = true;
-            break;
-        case 'q':
-            *quiet = true;
             break;
         case 't':
             errno = 0;
@@ -251,11 +245,11 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     try {
-        bool all_headers, last_header, quiet, ignore_robots_dot_txt, print_redirects;
+        bool all_headers, last_header, ignore_robots_dot_txt, print_redirects;
         unsigned timeout;
         std::string acceptable_languages, config_filename;
-        ProcessArgs(argc, argv, &all_headers, &last_header, &quiet, &timeout, &ignore_robots_dot_txt,
-                    &print_redirects, &acceptable_languages, &config_filename);
+        ProcessArgs(argc, argv, &all_headers, &last_header, &timeout, &ignore_robots_dot_txt, &print_redirects,
+                    &acceptable_languages, &config_filename);
 
         std::unique_ptr<File> config_file(FileUtil::OpenInputFileOrDie(config_filename));
         std::vector<SiteDesc> site_descs;
@@ -263,15 +257,12 @@ int main(int argc, char *argv[]) {
 
         for (const auto &site_desc : site_descs) {
             std::unordered_set<std::string> extracted_urls;
-            ProcessURL(site_desc.start_url_, all_headers, last_header, quiet, ignore_robots_dot_txt, print_redirects,
+            ProcessURL(site_desc.start_url_, all_headers, last_header, ignore_robots_dot_txt, print_redirects,
                        timeout, acceptable_languages, site_desc.max_crawl_depth_, *site_desc.url_regex_matcher_,
                        &extracted_urls);
 
-            if (not quiet) {
-                std::cout << "For " << site_desc.start_url_ << ", extracted:\n";
-                for (const auto &extracted_url : extracted_urls)
-                    std::cout << '\t' << extracted_url << '\n';
-            }
+            for (const auto &extracted_url : extracted_urls)
+                std::cout << extracted_url << '\n';
         }
 
         return EXIT_SUCCESS;
