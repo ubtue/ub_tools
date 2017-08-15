@@ -1762,8 +1762,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField dataField = (DataField) variableField;
             final Subfield subfieldZ = dataField.getSubfield('z');
-            if (subfieldZ != null && subfieldZ.getData().toLowerCase().startsWith("kostenfrei"))
-                return "open-access";
+            if (subfieldZ != null && subfieldZ.getData().toLowerCase().startsWith("kostenfrei")) {
+                final Subfield subfield3 = dataField.getSubfield('3');
+                if (subfield3 == null || subfield3.getData().toLowerCase().equals("volltext"))
+                    return "open-access";
+            }
         }
 
         return "non-open-access";
