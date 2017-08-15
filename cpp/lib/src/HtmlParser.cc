@@ -1068,8 +1068,7 @@ void HttpEquivExtractor::notify(const Chunk &chunk)
 }
 
 
-std::string HtmlParser::ChunkTypeToString(const unsigned chunk_type)
-{
+std::string HtmlParser::ChunkTypeToString(const unsigned chunk_type) {
     switch (chunk_type) {
     case OPENING_TAG:
         return "OPENING_TAG";
@@ -1101,8 +1100,7 @@ std::string HtmlParser::ChunkTypeToString(const unsigned chunk_type)
 
 // UrlExtractorParser::notify -- act on the notification that a chunk of HTML has been parsed.
 //
-void UrlExtractorParser::notify(const Chunk &chunk)
-{
+void UrlExtractorParser::notify(const Chunk &chunk) {
     // Handle opening/closing "a" tags:
     if (chunk.text_ == "a") {
         if (chunk.type_ == HtmlParser::OPENING_TAG) {

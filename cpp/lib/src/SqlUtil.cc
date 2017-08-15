@@ -36,6 +36,7 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -87,24 +88,9 @@ std::string &EscapeBlob(std::string * const s) {
     encoded_string.reserve(s->size() * 2);
 
     for (const char ch : *s) {
-        if (unlikely(ch == '\'')) {
+        if (unlikely(ch == '\'' or ch == '"' or ch == '\\'))
             encoded_string += '\\';
-            encoded_string += '\'';
-        }
-        else if (unlikely(ch == '"')) {
-            encoded_string += '\\';
-            encoded_string += '"';
-        }
-        else if (unlikely(ch == '\\')) {
-            encoded_string += '\\';
-            encoded_string += '\\';
-        }
-        else if (unlikely(ch == '\0')) {
-            encoded_string += '\\';
-            encoded_string += '\0';
-        }
-        else
-            encoded_string += ch;
+        encoded_string += ch;
     }
 
     std::swap(*s, encoded_string);
@@ -146,7 +132,8 @@ std::string Unescape(std::string * const s) {
                 decoded_string += '\\';
                 break;
             default:
-                throw std::runtime_error("SqlUtil::Unescape: improperly encoded string!");
+                throw std::runtime_error("SqlUtil::Unescape: improperly encoded string! (ch == "
+                                         + StringUtil::CStyleEscape(*ch) + ")");
             }
         }
     }

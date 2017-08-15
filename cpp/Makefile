@@ -42,28 +42,33 @@ lib/libubtue.a: $(wildcard lib/src/*.cc) $(wildcard lib/include/*.h)
 tests:
 	$(MAKE) -C test
 
-install: regular_install cgi_install
+install: regular_install cgi_install data_install
 
 regular_install: $(INSTALL_PROGS)
-	@echo "Installing programs and data..."
+	@echo "Installing programs..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
-	mkdir --parents /var/lib/tuelib/bibleRef/
-	cp data/books_of_the_bible_to_canonical_form.map data/books_of_the_bible_to_code.map /var/lib/tuelib/bibleRef/
-	mkdir --parents /var/lib/tuelib/translate_chainer
-	cp data/done_translating.html  data/translate.html data/translation_front_page.html \
-            data/mytranslations_template.msg /var/lib/tuelib/translate_chainer/
-	cp data/subscriptions_email.ixtheo.template /var/lib/tuelib/
-	cp data/subscriptions_email.relbib.template /var/lib/tuelib/
-	mkdir --parents /var/lib/tuelib/crossref_downloader/
-	cp data/crossref_journal_list /var/lib/tuelib/crossref_downloader/
 
 cgi_install: $(CGI_PROGS)
 	@echo "Installing CGI programs..."
 	mkdir --parents /var/www/cgi-bin
 	cp $(CGI_PROGS) /var/www/cgi-bin/
 
+data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.template data/*.conf \
+              data/crossref_journal_list
+	@echo "Installing data..."
+	mkdir --parents /var/lib/tuelib/bibleRef/
+	cp data/books_of_the_bible_to_canonical_form.map data/books_of_the_bible_to_code.map /var/lib/tuelib/bibleRef/
+	mkdir --parents /var/lib/tuelib/translate_chainer
+	cp data/done_translating.html data/translate.html data/translation_front_page.html \
+           data/mytranslations_template.msg /var/lib/tuelib/translate_chainer/
+	cp data/subscriptions_email.ixtheo.template /var/lib/tuelib/
+	cp data/subscriptions_email.relbib.template /var/lib/tuelib/
+	cp data/zotero_crawler.conf /var/lib/tuelib/
+	mkdir --parents /var/lib/tuelib/crossref_downloader/
+	cp data/crossref_journal_list /var/lib/tuelib/crossref_downloader/
+
 local_clean:
-	rm -f *.o *~ $(PROGS) .deps
+	rm -f *.o *~ $(PROGS) .deps data/*~
 
 clean: local_clean
 	make -C lib clean

@@ -85,8 +85,8 @@ public:
     /** \enum   ConnectionOption
      *  \brief  Controls whether a PostgreSQL database connection may be reserved for this fetcher.
      *
-     *  This option cntrols whether the instance maintains a PostgreSQL connection to the page_cache for its entire
-     *  lifetime (KEEP_DB_CONNECTION_OPEN) or whether it only opens a PostgreSQL when it needs one
+     *  This option cntrols whether the instance maintains a connection to the page_cache for its entire
+     *  lifetime (KEEP_DB_CONNECTION_OPEN) or whether it only opens a connection to the database when it needs one
      *  (CLOSE_DB_CONNECTION_WHILE_FETCHING).  In most cases KEEP_DB_CONNECTION_OPEN is correct, but
      *  CLOSE_DB_CONNECTION_WHILE_FETCHING should be used by highly parallelised applications.
      *
@@ -480,6 +480,10 @@ private:
     bool accessAllowed(const std::string &url, const TimeLimit &time_limit, const long max_redirects);
     void retrieveDocument(const std::string &url, const TimeLimit &time_limit, const long max_redirects);
     void readDocumentFromFileSystem(const std::string &url);
+    void processProxy(std::string * const proxy_host, unsigned short * const proxy_port);
+    bool httpHeaderChecksOut(const HttpHeader &http_header, const std::string &original_url,
+                             const Url &redirected_url, const std::string &retrieval_datetime,
+                             const unsigned redirect_count, const bool found_in_cache);
     bool downloadPage(const std::string &url, const TimeLimit &time_limit, const long max_redirects);
 
     /** \brief  Check whether the message body and header for a given URL are in the cache.
