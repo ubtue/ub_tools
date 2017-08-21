@@ -36,6 +36,7 @@
 #include "TextUtil.h"
 #include "UrlUtil.h"
 #include "util.h"
+#include "WebUtil.h"
 
 
 void Usage() {
@@ -356,6 +357,61 @@ inline std::string OptionalMap(const std::string &key, const std::unordered_map<
 }
 
 
+struct Date {
+    static const unsigned INVALID = 0;
+    unsigned day_;
+    unsigned month_;
+    unsigned year_;
+public:
+    Date(): day_(INVALID), month_(INVALID), year_(INVALID) { }
+};
+
+
+Date StringToDate(const std::string &date_str) {
+    Date date;
+
+    time_t unix_time(WebUtil::ParseWebDateAndTime(date_str));
+    if (unix_time != TimeUtil::BAD_TIME_T) {
+        tm *tm(::gmtime(&unix_time));
+        if (tm != nullptr) {
+            date.day_   = tm->tm_mday;
+            date.month_ = tm->tm_mon;
+            date.year_  = tm->tm_year;
+        }
+    } else
+        Warning("don't know how to convert \"" + date_str + "\" to a Date instance!");
+
+    return date;
+}
+
+
+void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MarcRecord * const new_record) {
+    std::vector<std::pair<char, std::string>> subfield_codes_and_values;
+
+    const std::string date_str(GetOptionalStringValue(object_node, "date"));
+    if (not date_str.empty()) {
+        const Date date(StringToDate(date_str));
+        if (date.year_ != Date::INVALID)
+            subfield_codes_and_values.emplace_back(std::make_pair('j', std::to_string(date.year_)));
+    }
+
+    const std::string issue(GetOptionalStringValue(object_node, "issue"));
+    if (not issue.empty())
+        subfield_codes_and_values.emplace_back(std::make_pair('e', issue));
+
+    const std::string pages(GetOptionalStringValue(object_node, "pages"));
+    if (not pages.empty())
+        subfield_codes_and_values.emplace_back(std::make_pair('h', pages));
+
+    const std::string volume(GetOptionalStringValue(object_node, "volume"));
+    if (not volume.empty())
+        subfield_codes_and_values.emplace_back(std::make_pair('d', volume));
+
+    if (not subfield_codes_and_values.empty())
+        new_record->insertSubfields("936", subfield_codes_and_values);
+}
+
+
 const std::string DEFAULT_SUBFIELD_CODE("eng");
 
 
@@ -439,20 +495,10 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 if (item_type == "journalArticle") {
                     is_journal_article = true;
                     publication_title = GetOptionalStringValue(*object_node, "publicationTitle");
-
-                    std::vector<std::pair<char, std::string>> subfield_codes_and_values;
-                    const std::string issue(GetOptionalStringValue(*object_node, "issue"));
-                    if (not issue.empty())
-                        subfield_codes_and_values.emplace_back(std::make_pair('e', issue));
-                    const std::string pages(GetOptionalStringValue(*object_node, "pages"));
-                    if (not pages.empty())
-                        subfield_codes_and_values.emplace_back(std::make_pair('h', pages));
-                    const std::string volume(GetOptionalStringValue(*object_node, "volume"));
-                    if (not volume.empty())
-                        subfield_codes_and_values.emplace_back(std::make_pair('d', volume));
-                    if (not subfield_codes_and_values.empty())
-                        new_record.insertSubfields("936", subfield_codes_and_values);
-                } else
+                    ExtractVolumeYearIssueAndPages(*object_node, &new_record);
+                } else if (item_type == "magazineArticle")
+                    ExtractVolumeYearIssueAndPages(*object_node, &new_record);
+                else
                     Warning("in GenerateMARC: unknown item type: \"" + item_type + "\"!");
             } else if (key_and_node->first == "tags") {
                 if (unlikely(key_and_node->second->getType() != JSON::JSONNode::ARRAY_NODE))
