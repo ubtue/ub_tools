@@ -373,11 +373,11 @@ Date StringToDate(const std::string &date_str) {
     time_t unix_time(WebUtil::ParseWebDateAndTime(date_str));
     if (unix_time != TimeUtil::BAD_TIME_T) {
         tm *tm(::gmtime(&unix_time));
-        if (tm != nullptr) {
-            date.day_   = tm->tm_mday;
-            date.month_ = tm->tm_mon;
-            date.year_  = tm->tm_year;
-        }
+        if (unlikely(tm == nullptr))
+            Error("in StringToDate: gmtime(3) failed to convert a time_t! (" + date_str + ")");
+        date.day_   = tm->tm_mday;
+        date.month_ = tm->tm_mon;
+        date.year_  = tm->tm_year;
     } else
         Warning("don't know how to convert \"" + date_str + "\" to a Date instance!");
 
