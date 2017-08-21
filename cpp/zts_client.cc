@@ -420,6 +420,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
     const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
     const std::unordered_map<std::string, std::string> &language_to_language_code_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_volume_map,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
@@ -432,7 +433,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
     for (auto entry(top_level_array->cbegin()); entry != top_level_array->cend(); ++entry) {
         MarcRecord new_record;
         bool is_journal_article(false);
-        std::string publication_title, parent_ppn, parent_isdn;
+        std::string publication_title, parent_ppn, parent_isdn, issn;
         if ((*entry)->getType() != JSON::JSONNode::OBJECT_NODE)
             Error("in GenerateMARC: expected an object node!");
         const JSON::ObjectNode * const object_node(reinterpret_cast<const JSON::ObjectNode * const>(*entry));
@@ -468,7 +469,6 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 parent_isdn = GetValueFromStringNode(*key_and_node);
                 const std::string issn_candidate(
                     CreateSubfieldFromStringNode(*key_and_node, "022", 'a', &new_record));
-                std::string issn;
                 if (unlikely(not MiscUtil::NormaliseISSN(issn_candidate, &issn)))
                     Error("in GenerateMARC: \"" + issn_candidate + "\" is not a valid ISSN!");
 
@@ -542,6 +542,22 @@ std::pair<unsigned, unsigned> GenerateMARC(
         if (new_record.getFieldIndex("041") == MarcRecord::FIELD_NOT_FOUND)
             new_record.insertSubfield("041", 'a', DEFAULT_SUBFIELD_CODE);
 
+        // If we don't have a volume, check to see if we can infer one from an ISSN:
+        if (not issn.empty()) {
+            const auto ISSN_and_volume(ISSN_to_volume_map.find(issn));
+            if (ISSN_and_volume != ISSN_to_volume_map.cend()) {
+                const std::string volume(ISSN_and_volume->second);
+                const size_t index(new_record.getFieldIndex("936"));
+                if (index == MarcRecord::FIELD_NOT_FOUND)
+                    new_record.insertSubfield("936", 'v', volume);
+                else {
+                    const Subfields subfields(new_record.getFieldData(index));
+                    if (not subfields.hasSubfield('v'))
+                        new_record.addSubfield("936", 'v', volume);
+                }
+            }
+        }
+
         const std::string checksum(new_record.calcChecksum(/* exclude_001 = */ true));
         if (previously_downloaded->find(checksum) == previously_downloaded->cend()) {
             previously_downloaded->emplace(checksum);
@@ -561,6 +577,7 @@ std::pair<unsigned, unsigned> Harvest(
     const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
     const std::unordered_map<std::string, std::string> &language_to_language_code_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_volume_map,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     std::string json_document, error_message;
@@ -578,7 +595,7 @@ std::pair<unsigned, unsigned> Harvest(
 
         record_count_and_previously_downloaded_count =
             GenerateMARC(tree_root, ISSN_to_physical_form_map, ISSN_to_language_code_map, ISSN_to_superior_ppn_map,
-                         language_to_language_code_map, previously_downloaded, marc_writer);
+                         language_to_language_code_map, ISSN_to_volume_map, previously_downloaded, marc_writer);
         delete tree_root;
     } catch (...) {
         delete tree_root;
@@ -652,6 +669,9 @@ int main(int argc, char *argv[]) {
         std::unordered_map<std::string, std::string> language_to_language_code_map;
         LoadMapFile(map_directory_path + "language_to_language_code.map", &language_to_language_code_map);
 
+        std::unordered_map<std::string, std::string> ISSN_to_volume_map;
+        LoadMapFile(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map);
+
         const RegexMatcher * const supported_urls_regex(LoadSupportedURLsRegex(map_directory_path));
         (void)supported_urls_regex;
 
@@ -669,8 +689,8 @@ int main(int argc, char *argv[]) {
         for (const auto &harvest_url : harvest_urls) {
             const auto record_count_and_previously_downloaded_count(
                 Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
-                        ISSN_to_superior_ppn_map, language_to_language_code_map, &previously_downloaded,
-                        marc_writer.get()));
+                        ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
+                        &previously_downloaded, marc_writer.get()));
                 total_record_count                += record_count_and_previously_downloaded_count.first;
                 total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
         }
