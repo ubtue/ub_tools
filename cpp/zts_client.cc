@@ -349,10 +349,21 @@ void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MarcRecord
 }
 
 
+// If "key" is in "map", then return the mapped value, o/w return "key".
+inline std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map) {
+    const auto &key_and_value(map.find(key));
+    return (key_and_value == map.cend()) ? key : key_and_value->second;
+}
+
+
+const std::string DEFAULT_SUBFIELD_CODE("eng");
+
+
 std::pair<unsigned, unsigned> GenerateMARC(
     const JSON::JSONNode * const tree, const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
+    const std::unordered_map<std::string, std::string> &language_to_language_code_map,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
@@ -376,7 +387,11 @@ std::pair<unsigned, unsigned> GenerateMARC(
             if (key_and_node->first == "itemKey") {
                 const JSON::StringNode * const item_key(CastToStringNodeOrDie("itemKey", key_and_node->second));
                 new_record.insertField("001", item_key->getValue());
-            } else if (key_and_node->first == "url")
+            } else if (key_and_node->first == "language")
+                new_record.insertSubfield("045", 'a',
+                    OptionalMap(CastToStringNodeOrDie("language", key_and_node->second)->getValue(),
+                                language_to_language_code_map));
+            else if (key_and_node->first == "url")
                 CreateSubfieldFromStringNode(*key_and_node, "856", 'u', &new_record);
             else if (key_and_node->first == "title")
                 CreateSubfieldFromStringNode(*key_and_node, "245", 'a', &new_record);
@@ -477,6 +492,10 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 new_record.insertSubfields("773", subfield_codes_and_values);
         }
 
+        // Make sure we always have a language code:
+        if (new_record.getFieldIndex("041") == MarcRecord::FIELD_NOT_FOUND)
+            new_record.insertSubfield("041", 'a', DEFAULT_SUBFIELD_CODE);
+
         const std::string checksum(new_record.calcChecksum(/* exclude_001 = */ true));
         if (previously_downloaded->find(checksum) == previously_downloaded->cend()) {
             previously_downloaded->emplace(checksum);
@@ -490,12 +509,13 @@ std::pair<unsigned, unsigned> GenerateMARC(
 }
 
 
-std::pair<unsigned, unsigned> Harvest(const std::string &zts_server_url, const std::string &harvest_url,
-                                      const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
-                                      const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
-                                      const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
-                                      std::unordered_set<std::string> * const previously_downloaded,
-                                      MarcWriter * const marc_writer)
+std::pair<unsigned, unsigned> Harvest(
+    const std::string &zts_server_url, const std::string &harvest_url,
+    const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
+    const std::unordered_map<std::string, std::string> &language_to_language_code_map,
+    std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     std::string json_document, error_message;
     if (not Download(Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &json_document, &error_message)) {
@@ -512,7 +532,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &zts_server_url, const s
 
         record_count_and_previously_downloaded_count =
             GenerateMARC(tree_root, ISSN_to_physical_form_map, ISSN_to_language_code_map, ISSN_to_superior_ppn_map,
-                         previously_downloaded, marc_writer);
+                         language_to_language_code_map, previously_downloaded, marc_writer);
         delete tree_root;
     } catch (...) {
         delete tree_root;
@@ -583,6 +603,9 @@ int main(int argc, char *argv[]) {
         std::unordered_map<std::string, std::string> ISSN_to_superior_ppn_map;
         LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &ISSN_to_superior_ppn_map);
 
+        std::unordered_map<std::string, std::string> language_to_language_code_map;
+        LoadMapFile(map_directory_path + "language_to_language_code.map", &language_to_language_code_map);
+
         const RegexMatcher * const supported_urls_regex(LoadSupportedURLsRegex(map_directory_path));
         (void)supported_urls_regex;
 
@@ -600,7 +623,8 @@ int main(int argc, char *argv[]) {
         for (const auto &harvest_url : harvest_urls) {
             const auto record_count_and_previously_downloaded_count(
                 Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
-                        ISSN_to_superior_ppn_map, &previously_downloaded, marc_writer.get()));
+                        ISSN_to_superior_ppn_map, language_to_language_code_map, &previously_downloaded,
+                        marc_writer.get()));
                 total_record_count                += record_count_and_previously_downloaded_count.first;
                 total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
         }
