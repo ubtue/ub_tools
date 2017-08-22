@@ -693,14 +693,19 @@ int main(int argc, char *argv[]) {
         std::unordered_map<std::string, std::string> ISSN_to_licence_map;
         LoadMapFile(map_directory_path + "ISSN_to_licence.map", &ISSN_to_licence_map);
 
+        std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map;
+        LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &ISSN_to_keyword_field_map);
+
         const RegexMatcher * const supported_urls_regex(LoadSupportedURLsRegex(map_directory_path));
         (void)supported_urls_regex;
 
-        std::unique_ptr<File> previously_downloaded_input(
-            FileUtil::OpenInputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
         std::unordered_set<std::string> previously_downloaded;
-        LoadPreviouslyDownloadedHashes(previously_downloaded_input.get(), &previously_downloaded);
-        previously_downloaded_input->close();
+        const std::string PREVIOUSLY_DOWNLOADED_HASHES_PATH(map_directory_path + "previously_downloaded.hashes");
+        if (FileUtil::Exists(PREVIOUSLY_DOWNLOADED_HASHES_PATH)) {
+            std::unique_ptr<File> previously_downloaded_input(
+                FileUtil::OpenInputFileOrDie(PREVIOUSLY_DOWNLOADED_HASHES_PATH));
+            LoadPreviouslyDownloadedHashes(previously_downloaded_input.get(), &previously_downloaded);
+        }
 
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
         unsigned total_record_count(0), total_previously_downloaded_count(0);
