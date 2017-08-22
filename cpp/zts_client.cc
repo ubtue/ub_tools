@@ -44,7 +44,7 @@ const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/var/lib/tuelib/zotero_cr
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " zts_server_url map_directory [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] marc_output]\n"
+              << " zts_server_url [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] map_directory marc_output\n"
               << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
               << "        files and the file containing hashes of previously generated records.\n"
               << "        The optional \"--zotero-crawler-config-file\" flag specifies where to look for the\n"
@@ -635,7 +635,7 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
     std::cerr << "Starting loading of harvest URL's.\n";
 
     const std::string COMMAND("/usr/local/bin/zotero_crawler"
-                              + std::string(ignore_robots_dot_txt ? " --ignore-robots-dot-txt" : "")
+                              + std::string(ignore_robots_dot_txt ? " --ignore-robots-dot-txt " : " ")
                               + zotero_crawler_config_path);
 
     std::string stdout_output;
@@ -653,15 +653,15 @@ int main(int argc, char *argv[]) {
         Usage();
 
     bool ignore_robots_dot_txt(false);
-    if (std::strcmp(argv[2], "--ignore-robots-dot-txt") == 0) {
+    if (std::strcmp(argv[1], "--ignore-robots-dot-txt") == 0) {
         ignore_robots_dot_txt = true;
         --argc, ++argv;
     }
 
     std::string zotero_crawler_config_path;
     const std::string CONFIG_FLAG_PREFIX("--zotero-crawler-config-file=");
-    if (StringUtil::StartsWith(argv[2], CONFIG_FLAG_PREFIX)) {
-        zotero_crawler_config_path = argv[2] + CONFIG_FLAG_PREFIX.length();
+    if (StringUtil::StartsWith(argv[1], CONFIG_FLAG_PREFIX)) {
+        zotero_crawler_config_path = argv[1] + CONFIG_FLAG_PREFIX.length();
         --argc, ++argv;
     } else
         zotero_crawler_config_path = DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH;
@@ -689,6 +689,9 @@ int main(int argc, char *argv[]) {
 
         std::unordered_map<std::string, std::string> ISSN_to_volume_map;
         LoadMapFile(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map);
+
+        std::unordered_map<std::string, std::string> ISSN_to_licence_map;
+        LoadMapFile(map_directory_path + "ISSN_to_licence.map", &ISSN_to_licence_map);
 
         const RegexMatcher * const supported_urls_regex(LoadSupportedURLsRegex(map_directory_path));
         (void)supported_urls_regex;
