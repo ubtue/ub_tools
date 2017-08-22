@@ -39,11 +39,17 @@
 #include "WebUtil.h"
 
 
+const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/var/lib/tuelib/zotero_crawler.conf");
+
+
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " zts_server_url map_directory [--ignore-robots-dot-txt] marc_output\n"
+              << " zts_server_url map_directory [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] marc_output]\n"
               << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
-              << "        files and the file containing hashes of previously generated records.\n\n";
+              << "        files and the file containing hashes of previously generated records.\n"
+              << "        The optional \"--zotero-crawler-config-file\" flag specifies where to look for the\n"
+              << "        config file for the \"zotero_crawler\", the default being\n\""
+              << "        " << DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH << ".\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -621,14 +627,16 @@ void StorePreviouslyDownloadedHashes(File * const output,
 }
 
 
-void LoadHarvestURLs(const bool ignore_robots_dot_txt, std::vector<std::string> * const harvest_urls) {
+void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero_crawler_config_path,
+                     std::vector<std::string> * const harvest_urls)
+{
     harvest_urls->clear();
 
     std::cerr << "Starting loading of harvest URL's.\n";
 
-    const std::string COMMAND("/usr/local/bin/zotero_crawler "
-                              + std::string(ignore_robots_dot_txt ? "--ignore-robots-dot-txt" : "")
-                              + "/var/lib/tuelib/zotero_crawler.conf");
+    const std::string COMMAND("/usr/local/bin/zotero_crawler"
+                              + std::string(ignore_robots_dot_txt ? " --ignore-robots-dot-txt" : "")
+                              + zotero_crawler_config_path);
 
     std::string stdout_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &stdout_output))
@@ -641,16 +649,26 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, std::vector<std::string> 
 
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
-    if (argc != 4 and argc != 5)
+    if (argc < 4 or argc > 6)
         Usage();
 
     bool ignore_robots_dot_txt(false);
-    if (argc == 5) {
-        if (std::strcmp(argv[2], "--ignore-robots-dot-txt") != 0)
-            Usage();
+    if (std::strcmp(argv[2], "--ignore-robots-dot-txt") == 0) {
         ignore_robots_dot_txt = true;
+        --argc, ++argv;
     }
 
+    std::string zotero_crawler_config_path;
+    const std::string CONFIG_FLAG_PREFIX("--zotero-crawler-config-file=");
+    if (StringUtil::StartsWith(argv[2], CONFIG_FLAG_PREFIX)) {
+        zotero_crawler_config_path = argv[2] + CONFIG_FLAG_PREFIX.length();
+        --argc, ++argv;
+    } else
+        zotero_crawler_config_path = DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH;
+
+    if (argc != 4)
+        Usage();
+    
     const std::string ZTS_SERVER_URL(argv[1]);
     std::string map_directory_path(argv[2]);
     if (not StringUtil::EndsWith(map_directory_path, '/'))
@@ -681,11 +699,11 @@ int main(int argc, char *argv[]) {
         LoadPreviouslyDownloadedHashes(previously_downloaded_input.get(), &previously_downloaded);
         previously_downloaded_input->close();
 
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[ignore_robots_dot_txt ? 4 : 3]));
+        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
         std::vector<std::string> harvest_urls;
-        LoadHarvestURLs(ignore_robots_dot_txt, &harvest_urls);
+        LoadHarvestURLs(ignore_robots_dot_txt, zotero_crawler_config_path, &harvest_urls);
         for (const auto &harvest_url : harvest_urls) {
             const auto record_count_and_previously_downloaded_count(
                 Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
