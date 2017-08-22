@@ -86,8 +86,10 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
     PageFetcher page_fetcher(url, /* additional_http_headers = */ "", timeout, /* max_redirects = */ 7,
                              /* ignore_redirect_errors = */ false, /* transparently_unzip_content = */true,
                              USER_AGENT, acceptable_languages, robots_dot_txt_option);
-    if (page_fetcher.anErrorOccurred())
-        Error("in ProcessURL: Failed to retrieve a Web page (" + url + "): " + page_fetcher.getErrorMsg());
+    if (page_fetcher.anErrorOccurred()) {
+        Warning("in ProcessURL: Failed to retrieve a Web page (" + url + "): " + page_fetcher.getErrorMsg());
+        return;
+    }
 
     std::string message_headers, message_body;
     if (not PageFetcher::SplitHttpHeadersFromBody(page_fetcher.getData(), &message_headers, &message_body))
