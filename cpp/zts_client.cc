@@ -418,6 +418,45 @@ void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MarcRec
 }
 
 
+void ExtractKeywords(const JSON::JSONNode &tags_node, const std::string &issn,
+                     const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
+                     MarcRecord * const new_record)
+{
+    if (unlikely(tags_node.getType() != JSON::JSONNode::ARRAY_NODE))
+        Error("in ExtractKeywords: expected the tags node to be an array node!");
+    const JSON::ArrayNode &tags(reinterpret_cast<const JSON::ArrayNode &>(tags_node));
+
+    // Where to stuff the data:
+    std::string marc_field("653");
+    char marc_subfield('a');
+    if (not issn.empty()) {
+        const auto issn_and_field_tag_and_subfield_code(ISSN_to_keyword_field_map.find(issn));
+        if (issn_and_field_tag_and_subfield_code != ISSN_to_keyword_field_map.end()) {
+            if (unlikely(issn_and_field_tag_and_subfield_code->second.length() != 3 + 1))
+                Error("in ExtractKeywords: \"" + issn_and_field_tag_and_subfield_code->second
+                      + "\" is not a valid MARC tag + subfield code! (Error in \"ISSN_to_keyword_field.map\"!)");
+            marc_field    = issn_and_field_tag_and_subfield_code->second.substr(0, 3);
+            marc_subfield =  issn_and_field_tag_and_subfield_code->second[3];
+        }
+    }
+
+    for (auto tag(tags.cbegin()); tag != tags.cend(); ++tag) {
+        if ((*tag)->getType() != JSON::JSONNode::OBJECT_NODE)
+            Error("in ExtractKeywords: expected tag node to be an object node but found a(n) "
+                  + JSON::JSONNode::TypeToString((*tag)->getType()) + " node instead!");
+        const JSON::ObjectNode * const tag_object(
+                                                  reinterpret_cast<const JSON::ObjectNode * const>(*tag));
+        const JSON::JSONNode * const tag_node(tag_object->getValue("tag"));
+        if (tag_node == nullptr)
+            Warning("in ExtractKeywords: unexpected: tag object does not contain a \"tag\" entry!");
+        else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
+            Error("in ExtractKeywords: unexpected: tag object's \"tag\" entry is not a string node!");
+        else
+            CreateSubfieldFromStringNode("tag", tag_node, marc_field, marc_subfield, new_record);
+    }
+}
+
+
 const std::string DEFAULT_SUBFIELD_CODE("eng");
 
 
@@ -427,6 +466,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
     const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
     const std::unordered_map<std::string, std::string> &language_to_language_code_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_volume_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
@@ -434,7 +474,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
     const JSON::ArrayNode * const top_level_array(reinterpret_cast<const JSON::ArrayNode * const>(tree));
 
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
-        "^issue|pages|publicationTitle|volume|libraryCatalog|itemVersion|accessDate$"));
+        "^issue|pages|publicationTitle|volume|date|tags|libraryCatalog|itemVersion|accessDate$"));
     unsigned record_count(0), previously_downloaded_count(0);
     for (auto entry(top_level_array->cbegin()); entry != top_level_array->cend(); ++entry) {
         MarcRecord new_record;
@@ -506,30 +546,16 @@ std::pair<unsigned, unsigned> GenerateMARC(
                     ExtractVolumeYearIssueAndPages(*object_node, &new_record);
                 else
                     Warning("in GenerateMARC: unknown item type: \"" + item_type + "\"!");
-            } else if (key_and_node->first == "tags") {
-                if (unlikely(key_and_node->second->getType() != JSON::JSONNode::ARRAY_NODE))
-                    Error("in GenerateMARC: expected the tags node to be an array node!");
-                const JSON::ArrayNode * const tags(
-                    reinterpret_cast<const JSON::ArrayNode * const>(key_and_node->second));
-                for (auto tag(tags->cbegin()); tag != tags->cend(); ++tag) {
-                    if ((*tag)->getType() != JSON::JSONNode::OBJECT_NODE)
-                        Error("in GenerateMARC: expected tag node to be an object node but found a(n) "
-                              + JSON::JSONNode::TypeToString((*tag)->getType()) + " node instead!");
-                    const JSON::ObjectNode * const tag_object(
-                        reinterpret_cast<const JSON::ObjectNode * const>(*tag));
-                    const JSON::JSONNode * const tag_node(tag_object->getValue("tag"));
-                    if (tag_node == nullptr)
-                        Warning("in GenerateMARC: unexpected: tag object does not contain a \"tag\" entry!");
-                    else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
-                        Error("in GenerateMARC: unexpected: tag object's \"tag\" entry is not a string node!");
-                    else
-                        CreateSubfieldFromStringNode("tag", tag_node, "653", 'a', &new_record);
-                }
             } else
                 Warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
                         + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "! ("
                         + key_and_node->second->toString() + ")");
         }
+
+        // Handle keywords:
+        const JSON::JSONNode * const tags_node(object_node->getValue("tags"));
+        if (tags_node != nullptr)
+            ExtractKeywords(*tags_node, issn, ISSN_to_keyword_field_map, &new_record);
 
         // Populate 773:
         if (is_journal_article) {
@@ -584,6 +610,7 @@ std::pair<unsigned, unsigned> Harvest(
     const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
     const std::unordered_map<std::string, std::string> &language_to_language_code_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_volume_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     std::string json_document, error_message;
@@ -601,7 +628,8 @@ std::pair<unsigned, unsigned> Harvest(
 
         record_count_and_previously_downloaded_count =
             GenerateMARC(tree_root, ISSN_to_physical_form_map, ISSN_to_language_code_map, ISSN_to_superior_ppn_map,
-                         language_to_language_code_map, ISSN_to_volume_map, previously_downloaded, marc_writer);
+                         language_to_language_code_map, ISSN_to_volume_map, ISSN_to_keyword_field_map,
+                         previously_downloaded, marc_writer);
         delete tree_root;
     } catch (...) {
         delete tree_root;
@@ -668,7 +696,7 @@ int main(int argc, char *argv[]) {
 
     if (argc != 4)
         Usage();
-    
+
     const std::string ZTS_SERVER_URL(argv[1]);
     std::string map_directory_path(argv[2]);
     if (not StringUtil::EndsWith(map_directory_path, '/'))
@@ -696,6 +724,9 @@ int main(int argc, char *argv[]) {
         std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map;
         LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &ISSN_to_keyword_field_map);
 
+        std::unordered_map<std::string, std::string> ISSN_to_SSG_map;
+        LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map);
+
         const RegexMatcher * const supported_urls_regex(LoadSupportedURLsRegex(map_directory_path));
         (void)supported_urls_regex;
 
@@ -716,7 +747,7 @@ int main(int argc, char *argv[]) {
             const auto record_count_and_previously_downloaded_count(
                 Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
                         ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
-                        &previously_downloaded, marc_writer.get()));
+                        ISSN_to_keyword_field_map, &previously_downloaded, marc_writer.get()));
                 total_record_count                += record_count_and_previously_downloaded_count.first;
                 total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
         }
