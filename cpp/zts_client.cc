@@ -44,7 +44,7 @@ const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/var/lib/tuelib/zotero_cr
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " zts_server_url [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] map_directory marc_output\n"
+              << " [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] zts_server_url map_directory marc_output\n"
               << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
               << "        files and the file containing hashes of previously generated records.\n"
               << "        The optional \"--zotero-crawler-config-file\" flag specifies where to look for the\n"
@@ -467,6 +467,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
     const std::unordered_map<std::string, std::string> &language_to_language_code_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_volume_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_SSG_map,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
@@ -590,6 +591,13 @@ std::pair<unsigned, unsigned> GenerateMARC(
             }
         }
 
+        // Add SSG numbers:
+        if (not issn.empty()) {
+            const auto ISSN_and_SSGN_numbers(ISSN_to_SSG_map.find(issn));
+            if (ISSN_and_SSGN_numbers != ISSN_to_SSG_map.end())
+                new_record.addSubfield("084", 'a', ISSN_and_SSGN_numbers->second);
+        }
+        
         const std::string checksum(new_record.calcChecksum(/* exclude_001 = */ true));
         if (previously_downloaded->find(checksum) == previously_downloaded->cend()) {
             previously_downloaded->emplace(checksum);
@@ -611,6 +619,7 @@ std::pair<unsigned, unsigned> Harvest(
     const std::unordered_map<std::string, std::string> &language_to_language_code_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_volume_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_SSG_map,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     std::string json_document, error_message;
@@ -629,7 +638,7 @@ std::pair<unsigned, unsigned> Harvest(
         record_count_and_previously_downloaded_count =
             GenerateMARC(tree_root, ISSN_to_physical_form_map, ISSN_to_language_code_map, ISSN_to_superior_ppn_map,
                          language_to_language_code_map, ISSN_to_volume_map, ISSN_to_keyword_field_map,
-                         previously_downloaded, marc_writer);
+                         ISSN_to_SSG_map, previously_downloaded, marc_writer);
         delete tree_root;
     } catch (...) {
         delete tree_root;
@@ -747,7 +756,7 @@ int main(int argc, char *argv[]) {
             const auto record_count_and_previously_downloaded_count(
                 Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
                         ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
-                        ISSN_to_keyword_field_map, &previously_downloaded, marc_writer.get()));
+                        ISSN_to_keyword_field_map, ISSN_to_SSG_map, &previously_downloaded, marc_writer.get()));
                 total_record_count                += record_count_and_previously_downloaded_count.first;
                 total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
         }
