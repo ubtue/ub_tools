@@ -52,7 +52,7 @@ public:
     int get();
 
     void rewind();
-;
+};
 
 
 #endif // ifndef STRING_DATA_SOURCE_H
