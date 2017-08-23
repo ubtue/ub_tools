@@ -26,7 +26,7 @@
                     <?php
                         $default = 2;
                         if (isset($_POST['Depth'])) $default = $_POST['Depth'];
-                        for($i=1;$i<=5;$i++) {
+                        for ($i=1;$i<=5;$i++) {
                             if ($i == $default) {
                                 print '<option selected="selected">'.$i.'</option>';
                             } else {
@@ -55,8 +55,7 @@
 
 
 <?php
-if(count($_POST) > 0) {
-
+if (count($_POST) > 0) {
     $IgnoreRobots = true;
     $zotero = new Zotero\Server(ZOTERO_SERVER_URL);
     $result = $zotero->Start($_POST['UrlBase'], $_POST['UrlRegex'], $_POST['Depth'], $IgnoreRobots, $_POST['FileExtension']);
