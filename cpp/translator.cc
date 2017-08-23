@@ -179,8 +179,14 @@ std::string CreateNonEditableSynonymEntry(std::vector<std::string> values, const
 }
 
 
+std::string ReplaceAngleBracketsByOrdinaryBrackets(const std::string &value) {
+    return StringUtil::Map(value, "<>", "()");
+}
+
+
 std::string CreateNonEditableHintEntry(const std::string &value, const std::string gnd_code) {
-  return "<td style=\"background-color:lightgrey\"><a href = \"/Keywordchainsearch/Results?lookfor=" + HtmlUtil::HtmlEscape(value) +
+  return "<td style=\"background-color:lightgrey\"><a href = \"/Keywordchainsearch/Results?lookfor=" + 
+                                                   HtmlUtil::HtmlEscape(ReplaceAngleBracketsByOrdinaryBrackets(value)) +
                                                    "\" target=\"_blank\">" + HtmlUtil::HtmlEscape(value) + "</a>"
                                                    "<a href=\"http://d-nb.info/gnd/" + HtmlUtil::HtmlEscape(gnd_code) + "\""
                                                    " style=\"float:right\" target=\"_blank\">GND</a></td>";
