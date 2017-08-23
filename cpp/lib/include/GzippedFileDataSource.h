@@ -44,15 +44,15 @@ class GzippedFileDataSource {
     char *next_ch_;
     unsigned total_processed_; // The number of bytes of the last input that we have processed so far.
     size_t last_read_count_;
-    bool more_;
+    bool more_decompressed_data_available_;
 public:
-    explicit GzippedFileDataSource(const std::string &path);
+    explicit GzippedFileDataSource(File * const input);
 
     /** \return the next character or EOF if we have reached the end of our string. */
     int get();
 
     void rewind();
-};
+;
 
 
 #endif // ifndef STRING_DATA_SOURCE_H
