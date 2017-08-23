@@ -29,6 +29,7 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "TextUtil.h"
+#include "MarcReader.h"
 #include "MarcRecord.h"
 #include "RegexMatcher.h"
 #include "util.h"
