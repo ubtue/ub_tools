@@ -38,7 +38,7 @@ class MarcReader;
 
 class MarcRecord {
     friend class BinaryMarcReader;
-    template<typename DataSource> friend class XmlMarcReader;
+    friend class XmlMarcReader;
     friend class BinaryMarcWriter;
     friend class XmlMarcWriter;
 public:
