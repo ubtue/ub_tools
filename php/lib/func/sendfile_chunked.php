@@ -4,11 +4,10 @@
  * Read a file and display its content chunk by chunk (useful for browser)
  *
  * @param string $path
- * @param bool $retbytes        return num. bytes delivered like readfile() does.
  * @param int $chunk_size
- * @return mixed
+ * @return int Number of bytes read
  */
-function sendfile_chunked($path, $retbytes=true, $chunk_size=1024*1024) {
+function sendfile_chunked($path, $chunk_size=1024*1024) {
     $buffer = '';
     $cnt    = 0;
     $handle = fopen($path, 'rb');
@@ -27,12 +26,6 @@ function sendfile_chunked($path, $retbytes=true, $chunk_size=1024*1024) {
             $cnt += strlen($buffer);
         }
     }
-
-    $status = fclose($handle);
-
-    if ($retbytes && $status) {
-        return $cnt;
-    }
-
-    return $status;
+    fclose($handle);
+    return $cnt;
 }
