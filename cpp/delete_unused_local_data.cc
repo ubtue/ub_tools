@@ -49,13 +49,7 @@ bool IsUnusedLocalBlock(const MarcRecord * const record, const std::pair<size_t,
         if (field_data.find("aTü 135") != std::string::npos)
             return false;
         const size_t index = field_data.find("aDE-21");
-        if (index == std::string::npos)
-            continue;
-        if (field_data.find("-", index + 6) == std::string::npos)
-            return false;
-        if (field_data.find("24", index + 7) != std::string::npos)
-            return false;
-        if (field_data.find("110", index + 7) != std::string::npos)
+        if (index != std::string::npos)
             return false;
     }
     return true;
