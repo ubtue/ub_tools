@@ -2,7 +2,7 @@
  *  \brief A tool for adding a PDA field to KrimDok records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include "MarcReader.h"
 #include "MarcRecord.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"

@@ -28,14 +28,17 @@
 #include <vector>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcReader.h"
 #include "MarcWriter.h"
 #include "Subfields.h"
 
 
+// Forward declaration:
+class MarcReader;
+
+
 class MarcRecord {
     friend class BinaryMarcReader;
-    friend class XmlMarcReader;
+    template<typename DataSource> friend class XmlMarcReader;
     friend class BinaryMarcWriter;
     friend class XmlMarcWriter;
 public:
