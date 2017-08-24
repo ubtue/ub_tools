@@ -52,7 +52,7 @@ public class RelBib extends IxTheo {
     String RELSTUDIES_EXCLUDE_DDC_RANGE_PATTERN = "2[2-8][0-9]\\.?[^.]*";
     Pattern relStudiesExcludeDDCPattern = Pattern.compile(RELSTUDIES_EXCLUDE_DDC_RANGE_PATTERN);
 
-    public String getIsNotReligiousStudiesDDC(final Record record) {
+    public String getHasReligiousStudiesExcludeDDC(final Record record) {
         final List<VariableField> _082Fields = record.getVariableFields("082");
         for (final VariableField _082Field : _082Fields) {
             final DataField dataField = (DataField) _082Field;
@@ -69,7 +69,7 @@ public class RelBib extends IxTheo {
 
 
     public String getIsReligiousStudiesDDC(final Record record) {
-        return getIsNotReligiousStudiesDDC(record) == TRUE ? FALSE : TRUE;
+        return getHasReligiousStudiesExcludeDDC(record) == TRUE ? FALSE : TRUE;
     }
 
 
