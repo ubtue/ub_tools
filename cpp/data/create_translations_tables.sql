@@ -20,7 +20,10 @@ CREATE TABLE keyword_translations (
   gnd_system VARCHAR(30),
   translator VARCHAR(50),
   KEY keyword_translations_idx_ppn (ppn),
-  KEY keyword_translations_idx_language_code (language_code)
+  KEY keyword_translations_idx_language_code (language_code),
+  KEY keyword_translations_idx_translation (translation(30)),
+  KEY keyword_translations_idx_gnd_code (gnd_code),
+  KEY keyword_translations_idx_status (status)
 ) DEFAULT CHARSET=utf8;
 
 CREATE TABLE translators (
