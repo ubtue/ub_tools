@@ -54,6 +54,9 @@ public class RelBib extends IxTheo {
 
     public String getHasReligiousStudiesExcludeDDC(final Record record) {
         final List<VariableField> _082Fields = record.getVariableFields("082");
+        // Items with no DDC should be excluded
+        if (_082Fields.isEmpty())
+            return TRUE;
         for (final VariableField _082Field : _082Fields) {
             final DataField dataField = (DataField) _082Field;
             for (final Subfield subfieldA : dataField.getSubfields('a')) {
