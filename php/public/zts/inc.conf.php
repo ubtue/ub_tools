@@ -12,7 +12,7 @@ define('DIR_TMP', '/tmp/Zts/');
 define('ZOTERO_FILE_CRAWLER', '/usr/local/ub_tools/cpp/data/zotero_crawler.conf');
 
 // URL to Zotero server for zts_client
-define('ZOTERO_SERVER_URL', 'http://sobek.ub.uni-tuebingen.de:1969/web');
+define('ZOTERO_SERVER_URL', 'http://ub28.uni-tuebingen.de:1969/web');
 
 // Create own tempdir if not exists
 if (!is_dir(DIR_TMP)) mkdir(DIR_TMP);
