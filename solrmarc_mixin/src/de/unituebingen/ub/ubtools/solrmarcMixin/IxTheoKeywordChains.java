@@ -86,12 +86,25 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                             keyword.append(", ");
                         }
                     }
-                    // keyword.append(subfield.getData());
                     keyword.append(ixTheoObject.translateTopic(subfield.getData(), lang));
                 } else if (subfield.getCode() == '9' && keyword.length() > 0 && subfield.getData().startsWith("g:")) {
-                    keyword.append(" (");
-                    keyword.append(ixTheoObject.translateTopic(subfield.getData().substring(2), lang));
-                    keyword.append(')');
+                    // For Ixtheo-translations the specification in the g:-Subfield is appended in angle
+                    // brackets, so this is a special case where we have to begin from scratch
+                    final String specification = subfield.getData().substring(2);
+                    final Subfield germanASubfield = dataField.getSubfield('a');
+                    if (germanASubfield != null) {
+                        final String translationCandidate = germanASubfield.getData() + " <" + specification + ">";
+                        final String translation = ixTheoObject.translateTopic(translationCandidate, lang);
+                        if (translation != translationCandidate) {
+                            keyword.setLength(0);
+                            keyword.append(translation.replaceAll("<", "(").replaceAll(">", ")"));
+                        }
+                    }
+                    else {
+                        keyword.append(" (");
+                        keyword.append(ixTheoObject.translateTopic(specification, lang));
+                        keyword.append(')');
+                    }
                 }
             } else if (subfield.getCode() == '2' && subfield.getData().equals("gnd"))
                 gnd_seen = true;
