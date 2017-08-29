@@ -164,10 +164,20 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
             for (/* empty */; german_subfield_code_iterator != german_subfields.cend();
                              ++german_subfield_code_iterator, ++translation_subfield_code_iterator)
             {
-                 std::vector<std::string> german_terms;
-                 record.extractSubfield(german_tag, *german_subfield_code_iterator, &german_terms);
-                 if (german_terms.empty())
-                     continue;
+                std::vector<std::string> german_terms;
+                record.extractSubfield(german_tag, *german_subfield_code_iterator, &german_terms);
+                if (german_terms.empty())
+                    continue;
+
+                // Add additional specification in angle bracket if we can uniquely attribute it
+                if (german_terms.size() == 1) {
+                    std::vector<std::string> _9_subfields;
+                    record.extractSubfield(german_tag, '9', &_9_subfields);
+                    for (auto _9_subfield : _9_subfields)
+                        if (StringUtil::StartsWith(_9_subfield, "g:")) {
+                            german_terms[0] = german_terms[0] + " <" + _9_subfield.substr(2) + ">";
+                        }
+                }
 
                 std::vector<std::string> translations;
                 std::vector<size_t> translation_field_indices;
