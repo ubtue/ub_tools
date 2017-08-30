@@ -112,7 +112,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?(-\\d+)?");
-    private final static Pattern FIELD_SPEC_PATTERN = Pattern.compile("(\\d{3})(.*)");
     private final static String UNASSIGNED = "[Unassigned]";
 
     // Map used by getPhysicalType().
