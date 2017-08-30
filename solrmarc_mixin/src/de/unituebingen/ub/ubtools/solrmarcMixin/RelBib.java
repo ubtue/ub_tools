@@ -48,15 +48,19 @@ public class RelBib extends IxTheo {
     final static String TRUE = "true";
     final static String FALSE = "false";
 
-    // Exclude DDC 220-289, i.e. do not include if a DDC code of this range occurs anywhere in the DDC code
-    String RELSTUDIES_EXCLUDE_DDC_RANGE_PATTERN = "2[2-8][0-9]\\.?[^.]*";
+    // Match DDC 220-289
+    final static String RELSTUDIES_EXCLUDE_DDC_RANGE_PATTERN = "2[2-8][0-9]\\.?[^.]*";
     Pattern relStudiesExcludeDDCPattern = Pattern.compile(RELSTUDIES_EXCLUDE_DDC_RANGE_PATTERN);
+    // Match DCC 400 and 800 category
+    final static String RELSTUDIES_EXCLUDE_DDC_CATEGORIES_PATTERN = "[48][0-9][0-9]\\.?[^.]*";
+    Pattern relStudiesExcludeDDCCategories = Pattern.compile(RELSTUDIES_EXCLUDE_DDC_CATEGORIES_PATTERN);
 
     public String getHasReligiousStudiesExcludeDDC(final Record record) {
         final List<VariableField> _082Fields = record.getVariableFields("082");
         // Items with no DDC should be excluded
         if (_082Fields.isEmpty())
             return TRUE;
+        // Exclude DDC 220-289, i.e. do not include if a DDC code of this range occurs anywhere in the DDC code
         for (final VariableField _082Field : _082Fields) {
             final DataField dataField = (DataField) _082Field;
             for (final Subfield subfieldA : dataField.getSubfields('a')) {
@@ -67,7 +71,18 @@ public class RelBib extends IxTheo {
                     return TRUE;
             }
         }
-        return FALSE;
+        // Exclude item if it has only DDC a 400 or 800 DDC notation
+        for (final VariableField _082Field : _082Fields) {
+            final DataField dataField = (DataField) _082Field;
+            for (final Subfield subfieldA : dataField.getSubfields('a')) {
+                if (subfieldA == null)
+                    continue;
+                 Matcher matcher = relStudiesExcludeDDCCategories.matcher(subfieldA.getData());  
+                 if (!matcher.matches())
+                     return FALSE;
+            }
+        }
+        return TRUE;
     }
 
 
