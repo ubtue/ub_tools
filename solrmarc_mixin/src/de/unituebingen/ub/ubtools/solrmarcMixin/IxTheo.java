@@ -14,6 +14,7 @@ import org.marc4j.marc.*;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.DataUtil;
 import org.solrmarc.tools.Utils;
+import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheo extends SolrIndexerMixin {
     private Set<String> ixTheoNotations = null;
@@ -56,7 +57,7 @@ public class IxTheo extends SolrIndexerMixin {
         final Subfield aSubfield = _773Field.getSubfield('a');
         if (aSubfield == null)
             return null;
-        
+
         final Set<String> subfields = new LinkedHashSet<String>();
         subfields.add(aSubfield.getData());
 
@@ -74,70 +75,6 @@ public class IxTheo extends SolrIndexerMixin {
         return subfields;
     }
 
-
-    /*
-     * Get the appropriate translation map
-     */
-
-    Map<String, String> translation_map_en = new HashMap<String, String>();
-    Map<String, String> translation_map_fr = new HashMap<String, String>();
-    Map<String, String> translation_map_it = new HashMap<String, String>();
-    Map<String, String> translation_map_es = new HashMap<String, String>();
-    Map<String, String> translation_map_hant = new HashMap<String, String>();
-    Map<String, String> translation_map_hans = new HashMap<String, String>();
-
-    public Map<String, String> getTranslationMap(String langShortcut) throws IllegalArgumentException {
-        Map<String, String> translation_map;
-
-        switch (langShortcut) {
-        case "en":
-            translation_map = translation_map_en;
-            break;
-        case "fr":
-            translation_map = translation_map_fr;
-            break;
-        case "it":
-            translation_map = translation_map_it;
-            break;
-        case "es":
-            translation_map = translation_map_es;
-            break;
-        case "hant":
-            translation_map = translation_map_hant;
-            break;
-        case "hans":
-            translation_map = translation_map_hans;
-            break;
-        default:
-            throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
-        }
-
-        final String dir = "/usr/local/ub_tools/bsz_daten/";
-        final String ext = "txt";
-        final String basename = "normdata_translations";
-        String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
-
-        // Only read the data from file if necessary
-        if (translation_map.isEmpty() && (new File(translationsFilename).length() != 0))  {
-
-            try {
-                BufferedReader in = new BufferedReader(new FileReader(translationsFilename));
-                String line;
-
-                while ((line = in.readLine()) != null) {
-                    String[] translations = line.split("\\|");
-                    if (!translations[0].equals("") && !translations[1].equals(""))
-                        translation_map.put(translations[0], translations[1]);
-                }
-            } catch (IOException e) {
-                System.err.println("Could not open file" + e.toString());
-                System.exit(1);
-            }
-        }
-
-        return translation_map;
-    }
-
     /**
      * Translate set of terms to given language if a translation is found
      */
@@ -146,7 +83,7 @@ public class IxTheo extends SolrIndexerMixin {
         if (langShortcut.equals("de"))
             return topics;
         Set<String> translated_topics = new HashSet<String>();
-        Map<String, String> translation_map = getTranslationMap(langShortcut);
+        Map<String, String> translation_map = TuelibMixin.getTranslationMap(langShortcut);
 
         for (String topic : topics) {
             // Some ordinary topics contain words with an escaped slash as a
@@ -178,7 +115,7 @@ public class IxTheo extends SolrIndexerMixin {
         if (langShortcut.equals("de"))
             return topic;
 
-        Map<String, String> translation_map = getTranslationMap(langShortcut);
+        Map<String, String> translation_map = TuelibMixin.getTranslationMap(langShortcut);
         String NUMBER_END_PATTERN = "([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)";
         Matcher numberEndMatcher = Pattern.compile(NUMBER_END_PATTERN).matcher(topic);
 

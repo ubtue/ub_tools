@@ -1,5 +1,9 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
@@ -108,6 +112,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?(-\\d+)?");
+    private final static Pattern FIELD_SPEC_PATTERN = Pattern.compile("(\\d{3})(.*)");
     private final static String UNASSIGNED = "[Unassigned]";
 
     // Map used by getPhysicalType().
@@ -724,6 +729,100 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
+    /*
+     * translation map cache
+     */
+    static private Map<String, String> translation_map_en = new HashMap<String, String>();
+    static private Map<String, String> translation_map_fr = new HashMap<String, String>();
+    static private Map<String, String> translation_map_it = new HashMap<String, String>();
+    static private Map<String, String> translation_map_es = new HashMap<String, String>();
+    static private Map<String, String> translation_map_hant = new HashMap<String, String>();
+    static private Map<String, String> translation_map_hans = new HashMap<String, String>();
+
+    /**
+     * get translation map for normdata translations
+     *
+     * either get from cache or load from file, if cache empty
+     *
+     * @param langShortcut
+     *
+     * @return Map<String, String>
+     * @throws IllegalArgumentException
+     */
+    static public Map<String, String> getTranslationMap(final String langShortcut) throws IllegalArgumentException {
+        Map<String, String> translation_map;
+
+        switch (langShortcut) {
+        case "en":
+            translation_map = translation_map_en;
+            break;
+        case "fr":
+            translation_map = translation_map_fr;
+            break;
+        case "it":
+            translation_map = translation_map_it;
+            break;
+        case "es":
+            translation_map = translation_map_es;
+            break;
+        case "hant":
+            translation_map = translation_map_hant;
+            break;
+        case "hans":
+            translation_map = translation_map_hans;
+            break;
+        default:
+            throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
+        }
+
+        final String dir = "/usr/local/ub_tools/bsz_daten/";
+        final String ext = "txt";
+        final String basename = "normdata_translations";
+        String translationsFilename = dir + basename + "_" + langShortcut + "." + ext;
+
+        // Only read the data from file if necessary
+        if (translation_map.isEmpty() && (new File(translationsFilename).length() != 0))  {
+
+            try {
+                BufferedReader in = new BufferedReader(new FileReader(translationsFilename));
+                String line;
+
+                while ((line = in.readLine()) != null) {
+                    String[] translations = line.split("\\|");
+                    if (!translations[0].equals("") && !translations[1].equals(""))
+                        translation_map.put(translations[0], translations[1]);
+                }
+            } catch (IOException e) {
+                System.err.println("Could not open file" + e.toString());
+                System.exit(1);
+            }
+        }
+
+        return translation_map;
+    }
+
+    /**
+     * translate a string
+     *
+     * @param string        string to translate
+     * @param langShortcut  language code
+     *
+     * @return              translated string if available, else input string
+     */
+    static public String getTranslation(final String string, final String langShortcut) {
+        if (langShortcut.equals("de")) {
+            return string;
+        }
+
+        Map<String, String> translationMap = getTranslationMap(langShortcut);
+        final String translatedString = translationMap.get(string);
+        if (translatedString != null) {
+            return translatedString;
+        } else {
+            return string;
+        }
+    }
+
     // Returns the contents of the first data field with tag "tag" and subfield code "subfield_code" or null if no
     // such field and subfield were found.
     static private String getFirstSubfieldValue(final Record record, final String tag, final char subfieldCode) {
@@ -912,6 +1011,16 @@ public class TuelibMixin extends SolrIndexerMixin {
             values.add(UNASSIGNED);
         }
         return values;
+    }
+
+    public Set<String> getValuesOrUnassignedTranslated(final Record record, final String fieldSpecs, final String langShortcut) {
+        Set<String> valuesTranslated = new TreeSet<String>();
+        Set<String> values = getValuesOrUnassigned(record, fieldSpecs);
+        for (final String value : values) {
+            final String translatedValue = getTranslation(value, langShortcut);
+            valuesTranslated.add(translatedValue);
+        }
+        return valuesTranslated;
     }
 
     public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
