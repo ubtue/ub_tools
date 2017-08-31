@@ -466,6 +466,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
     const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
     const std::unordered_map<std::string, std::string> &language_to_language_code_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_volume_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_licence_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_SSG_map,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
@@ -589,6 +590,11 @@ std::pair<unsigned, unsigned> GenerateMARC(
                         new_record.addSubfield("936", 'v', volume);
                 }
             }
+
+            const auto ISSN_and_license_code(ISSN_to_licence_map.find(issn));
+            if (ISSN_and_license_code != ISSN_to_licence_map.end()) {
+                //TODO(ruschein): Do whatever Mrs. Kellmeyer says after she returns from her vacation.
+            }
         }
 
         // Add SSG numbers:
@@ -618,6 +624,7 @@ std::pair<unsigned, unsigned> Harvest(
     const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
     const std::unordered_map<std::string, std::string> &language_to_language_code_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_volume_map,
+    const std::unordered_map<std::string, std::string> &ISSN_to_licence_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_SSG_map,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
@@ -637,8 +644,8 @@ std::pair<unsigned, unsigned> Harvest(
 
         record_count_and_previously_downloaded_count =
             GenerateMARC(tree_root, ISSN_to_physical_form_map, ISSN_to_language_code_map, ISSN_to_superior_ppn_map,
-                         language_to_language_code_map, ISSN_to_volume_map, ISSN_to_keyword_field_map,
-                         ISSN_to_SSG_map, previously_downloaded, marc_writer);
+                         language_to_language_code_map, ISSN_to_volume_map, ISSN_to_licence_map,
+                         ISSN_to_keyword_field_map, ISSN_to_SSG_map, previously_downloaded, marc_writer);
         delete tree_root;
     } catch (...) {
         delete tree_root;
@@ -756,7 +763,8 @@ int main(int argc, char *argv[]) {
             const auto record_count_and_previously_downloaded_count(
                 Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
                         ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
-                        ISSN_to_keyword_field_map, ISSN_to_SSG_map, &previously_downloaded, marc_writer.get()));
+                        ISSN_to_licence_map, ISSN_to_keyword_field_map, ISSN_to_SSG_map, &previously_downloaded,
+                        marc_writer.get()));
                 total_record_count                += record_count_and_previously_downloaded_count.first;
                 total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
         }
