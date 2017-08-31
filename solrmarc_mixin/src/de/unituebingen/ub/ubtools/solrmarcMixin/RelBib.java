@@ -1,12 +1,12 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.*;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.Reader.*;
 import java.io.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.*;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.VariableField;
@@ -77,7 +77,7 @@ public class RelBib extends IxTheo {
             for (final Subfield subfieldA : dataField.getSubfields('a')) {
                 if (subfieldA == null)
                     continue;
-                 Matcher matcher = relStudiesExcludeDDCCategories.matcher(subfieldA.getData());  
+                 Matcher matcher = relStudiesExcludeDDCCategories.matcher(subfieldA.getData());
                  if (!matcher.matches())
                      return FALSE;
             }
@@ -117,7 +117,7 @@ public class RelBib extends IxTheo {
             for (final Subfield subfield2 : dataField.getSubfields('2')) {
                 if (subfield2 == null || !subfield2.getData().equals("ssgn"))
                     continue;
-                
+
                 for (final Subfield subfieldA : dataField.getSubfields('a')) {
                     if (subfieldA != null && subfieldA.getData().equals("0"))
                         return TRUE;
@@ -161,7 +161,7 @@ public class RelBib extends IxTheo {
             }
         }
         return temporaryReligiousStudiesSuperior;
-    }   
+    }
 
     public String getTemporaryIsReligiousStudiesSuperior(final Record record) {
         return getTemporaryReligiousStudiesSuperiorList().contains(record.getControlNumber()) ? TRUE : FALSE;
