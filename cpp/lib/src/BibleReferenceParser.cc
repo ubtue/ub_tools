@@ -2,7 +2,7 @@
  *  \brief  Implementation of a bible reference parser that generates numeric code ranges.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014-2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -94,15 +94,18 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
 {
     std::set<std::pair<std::string, std::string>> new_start_end;
 
-    const size_t comma_pos(bib_ref_candidate.find(','));
-    if (comma_pos == std::string::npos) // We must have a comma!
+    size_t comma_or_colon_pos(bib_ref_candidate.find(','));
+    if (comma_or_colon_pos == std::string::npos)
+        comma_or_colon_pos = bib_ref_candidate.find(':');
+    if (comma_or_colon_pos == std::string::npos) // We must have a comma or a colon!
         return false;
 
-    const std::string chapter(StringUtil::PadLeading(bib_ref_candidate.substr(0, comma_pos), MAX_CHAPTER_LENGTH, '0'));
+    const std::string chapter(StringUtil::PadLeading(bib_ref_candidate.substr(0, comma_or_colon_pos),
+                                                     MAX_CHAPTER_LENGTH, '0'));
     if (chapter.length() != MAX_CHAPTER_LENGTH or not IsNumericString(chapter))
         return false;
 
-    const std::string rest(bib_ref_candidate.substr(comma_pos + 1));
+    const std::string rest(bib_ref_candidate.substr(comma_or_colon_pos + 1));
     bool in_verse1(true);
     std::string verse1, verse2;
     for (const char ch : rest) {
@@ -233,7 +236,7 @@ bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_
                 chapter1 = StringUtil::PadLeading(accumulator, MAX_CHAPTER_LENGTH, '0');
                 accumulator.clear();
                 state = CHAPTER2;
-            } else if (*ch == ',') {
+            } else if (*ch == ',' or *ch == ':') {
                 chapter1 = StringUtil::PadLeading(accumulator, MAX_CHAPTER_LENGTH, '0');
                 accumulator.clear();
                 state = VERSE1;
@@ -258,7 +261,7 @@ bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_
 
                 // We need to differentiate between a verse vs. a chapter-hyphen:
                 const std::string remainder(bib_ref_candidate.substr(ch - bib_ref_candidate.cbegin()));
-                if (remainder.find(',') == std::string::npos) // => We have a verse hyphen!
+                if (remainder.find(',') == std::string::npos and remainder.find(':') == std::string::npos) // => We have a verse hyphen!
                     state = VERSE2;
                 else
                     state = CHAPTER2;
@@ -270,7 +273,7 @@ bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_
                 accumulator += *ch;
                 if (accumulator.length() > MAX_CHAPTER_LENGTH)
                     return false;
-            } else if (*ch == ',') {
+            } else if (*ch == ',' or *ch == ':') {
                 if (accumulator.empty())
                     return false;
                 chapter2 = StringUtil::PadLeading(accumulator, MAX_CHAPTER_LENGTH, '0');
