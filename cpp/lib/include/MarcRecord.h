@@ -28,9 +28,12 @@
 #include <vector>
 #include "DirectoryEntry.h"
 #include "Leader.h"
-#include "MarcReader.h"
 #include "MarcWriter.h"
 #include "Subfields.h"
+
+
+// Forward declaration:
+class MarcReader;
 
 
 class MarcRecord {

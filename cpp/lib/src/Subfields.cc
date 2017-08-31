@@ -36,16 +36,15 @@ Subfields::Subfields(const std::string &field_data) {
 
     while (ch != field_data.end()) {
         if (*ch != '\x1F')
-            std::runtime_error(
-                "in Subfields::Subfields(const std::string &): expected subfield code delimiter not found! "
-                "Found " + std::string(1, *ch) + " in " + field_data + " indicators: "
-                + std::string(1, indicator1_) + ", " + std::string(1, indicator2_) + "! " + field_data);
+            throw std::runtime_error("in Subfields::Subfields(const std::string &): expected subfield code delimiter"
+                                     " not found! Found " + std::string(1, *ch) + " in " + field_data
+                                     + " indicators: " + std::string(1, indicator1_) + ", "
+                                     + std::string(1, indicator2_) + "! " + field_data);
 
         ++ch;
         if (ch == field_data.end())
-            std::runtime_error(
-                "in Subfields::Subfields(const std::string &): unexpected subfield data end while expecting "
-                "a subfield code! " + field_data);
+            throw std::runtime_error("in Subfields::Subfields(const std::string &): unexpected subfield data end "
+                                     "while expecting a subfield code! " + field_data);
         const char subfield_code(*ch++);
 
         std::string subfield_data;

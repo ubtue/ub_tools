@@ -27,6 +27,7 @@
 #include "Compiler.h"
 #include "JSON.h"
 #include "TextUtil.h"
+#include "MarcReader.h"
 #include "MarcRecord.h"
 #include "RegexMatcher.h"
 #include "util.h"
@@ -194,13 +195,11 @@ enum OutputSet { MONOGRAPHS, SERIALS };
 
 bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
     std::string ub_signatures_or_inventory, non_ub_sigils_and_inventory;
-    const unsigned occurrence_count(
-        FindTueSigilsAndSignaturesOrInventory(record, (output_set == MONOGRAPHS ? SIGNATURE : INVENTORY),
-                                              &ub_signatures_or_inventory,
-                                              &non_ub_sigils_and_inventory));
+    FindTueSigilsAndSignaturesOrInventory(record, (output_set == MONOGRAPHS ? SIGNATURE : INVENTORY),
+                                          &ub_signatures_or_inventory, &non_ub_sigils_and_inventory);
 
     // We only keep dups and only those that occur at least once in the Tübingen University's main library:
-    if (occurrence_count < 2 or ub_signatures_or_inventory.empty())
+    if (ub_signatures_or_inventory.empty() or non_ub_sigils_and_inventory.empty())
         return false;
 
     const std::string _008_contents(record.getFieldData("008"));
