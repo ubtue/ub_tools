@@ -20,6 +20,8 @@ public class IxTheo extends SolrIndexerMixin {
     private Set<String> ixTheoNotations = null;
     private static Set<String> unassigned = Collections.singleton("[Unassigned]");
 
+    private final static Pattern NUMBER_END_PATTERN = Pattern.compile("([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)");
+
 
     /**
      * Split the colon-separated ixTheo notation codes into individual codes and
@@ -116,8 +118,7 @@ public class IxTheo extends SolrIndexerMixin {
             return topic;
 
         Map<String, String> translation_map = TuelibMixin.getTranslationMap(langShortcut);
-        String NUMBER_END_PATTERN = "([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)";
-        Matcher numberEndMatcher = Pattern.compile(NUMBER_END_PATTERN).matcher(topic);
+        Matcher numberEndMatcher = NUMBER_END_PATTERN.matcher(topic);
 
         // Some terms contain slash separated subterms, see whether we can
         // translate them
@@ -189,12 +190,15 @@ public class IxTheo extends SolrIndexerMixin {
         final String subfieldDelim = "$";
         final String esc = "\\";
         final String regexColon = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(fieldDelim);
+        final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim) + "([a-zA-Z])(.*)";
+        final Pattern SUBFIELD_PATTERN = Pattern.compile(regexSubfield);
+
         String[] subfieldSeparatorList = separatorSpec.split(regexColon);
         for (String s : subfieldSeparatorList) {
             // System.out.println("separator Spec: " + s);
             // Create map of subfields and separators
-            final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim) + "([a-zA-Z])(.*)";
-            Matcher subfieldMatcher = Pattern.compile(regexSubfield).matcher(s);
+
+            Matcher subfieldMatcher = SUBFIELD_PATTERN.matcher(s);
 
             // Extract the subfield
             if (subfieldMatcher.find()) {
