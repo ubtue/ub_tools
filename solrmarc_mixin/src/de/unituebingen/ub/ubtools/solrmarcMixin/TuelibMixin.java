@@ -876,7 +876,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @param record
      *            the record
      */
-    public Set<String> getAuthor2AndRoles(final Record record) {
+    public Set<String> getAuthors2AndRoles(final Record record) {
         final Set<String> results = new TreeSet<>();
         for (final VariableField variableField : record.getVariableFields("700")) {
             final DataField dataField = (DataField) variableField;
