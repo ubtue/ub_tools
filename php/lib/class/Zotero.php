@@ -6,7 +6,7 @@ namespace Zotero;
 /**
  * Class for the Zotero Translation Server (using c++ zts_client and zotero_crawler)
  */
-class Server {
+class MetadataHarvester {
 
     /**
      * Main directory for zts client maps
