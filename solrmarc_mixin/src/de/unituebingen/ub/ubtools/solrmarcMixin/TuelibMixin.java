@@ -26,8 +26,18 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
     private final static String VALID_FOUR_DIGIT_YEAR = "\\d{4}";
 
-    private final static Pattern VALID_FOUR_DIGIT_PATTERN = Pattern.compile(VALID_FOUR_DIGIT_YEAR);
+    private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
+    private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
+    private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
+    private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?(-\\d+)?");
+    private final static Pattern VALID_FOUR_DIGIT_PATTERN = Pattern.compile(VALID_FOUR_DIGIT_YEAR);
+    private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
+    private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
+
+    private final static String UNASSIGNED = "[Unassigned]";
+
+
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
         {
@@ -105,14 +115,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             this.put("DE-Frei85", "Freiburg MPI Ausl\u00E4nd.Recht, Max-Planck-Institut f\u00FCr ausl\u00E4ndisches und internationales Strafrecht");
         }
     };
-
-    private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
-    private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
-    private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
-    private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
-    private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
-    private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?(-\\d+)?");
-    private final static String UNASSIGNED = "[Unassigned]";
 
     // Map used by getPhysicalType().
     private static final Map<String, String> phys_code_to_full_name_map;
@@ -788,11 +790,11 @@ public class TuelibMixin extends SolrIndexerMixin {
 
                 while ((line = in.readLine()) != null) {
                     String[] translations = line.split("\\|");
-                    if (!translations[0].equals("") && !translations[1].equals(""))
+                    if (!translations[0].isEmpty() && !translations[1].isEmpty())
                         translation_map.put(translations[0], translations[1]);
                 }
             } catch (IOException e) {
-                System.err.println("Could not open file" + e.toString());
+                System.err.println("Could not open file: " + e.toString());
                 System.exit(1);
             }
         }
