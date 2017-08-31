@@ -976,31 +976,33 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @param record
      *            the record
      */
-    public Set<String> getAuthor2AndRole(final Record record) {
+    public Set<String> getAuthors2AndRoles(final Record record) {
         final Set<String> results = new TreeSet<>();
-        for (final DataField data_field : record.getDataFields()) {
-            if (!data_field.getTag().equals("700"))
-                continue;
+        for (final VariableField variableField : record.getVariableFields("700")) {
+            final DataField dataField = (DataField) variableField;
 
             String author2 = null;
             for (char subfieldCode : author2SubfieldCodes) {
-                final Subfield subfieldField = data_field.getSubfield(subfieldCode);
+                final Subfield subfieldField = dataField.getSubfield(subfieldCode);
                 if (subfieldField != null) {
                     author2 = subfieldField.getData();
                     break;
                 }
             }
+            if (author2 == null)
+                continue;
+            
+            final List<Subfield> eSubfields = dataField.getSubfields('e');
+            if (eSubfields == null || eSubfields.isEmpty())
+                continue;
 
-            final Subfield eSubfield = data_field.getSubfield('e');
-            final String author2role = (eSubfield != null) ? cleanRole(eSubfield.getData()) : null;
-
-            if (author2 != null && author2role != null) {
-                final StringBuilder author2AndRole = new StringBuilder();
-                author2AndRole.append(author2);
-                author2AndRole.append("$");
-                author2AndRole.append(author2role);
-                results.add(author2AndRole.toString());
+            final StringBuilder author2AndRoles = new StringBuilder();
+            author2AndRoles.append(author2);
+            for (final Subfield eSubfield : eSubfields) {
+                author2AndRoles.append('$');
+                author2AndRoles.append(cleanRole(eSubfield.getData()));
             }
+            results.add(author2AndRoles.toString());
         }
 
         return results;
