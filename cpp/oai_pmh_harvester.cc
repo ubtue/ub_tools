@@ -44,7 +44,12 @@ void Usage() {
 }
 
 
-std::string ExtractResumptionToken(const std::string &xml_document) {
+std::string ExtractResumptionToken(const std::string &xml_document, std::string * const cursor,
+                                   std::string * const complete_list_size)
+{
+    cursor->clear();
+    complete_list_size->clear();
+
     StringDataSource data_source(xml_document);
     SimpleXmlParser<StringDataSource> xml_parser(&data_source);
     if (not xml_parser.skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "resumptionToken"))
@@ -57,6 +62,17 @@ std::string ExtractResumptionToken(const std::string &xml_document) {
         return "";
     if (type != SimpleXmlParser<StringDataSource>::CHARACTERS)
         Error("strange resumption token XML structure!");
+
+    // Extract the "cursor" attribute:
+    auto name_and_value(attrib_map.find("cursor"));
+    if (name_and_value != attrib_map.end())
+        *cursor = name_and_value->second;
+
+    // Extract the "completeListSize" attribute:
+    name_and_value = attrib_map.find("completeListSize");
+    if (name_and_value != attrib_map.end())
+        *complete_list_size = name_and_value->second;
+
     return data;
 }
 
@@ -101,7 +117,8 @@ unsigned ExtractEncapsulatedRecordData(SimpleXmlParser<StringDataSource> * const
 
 
 bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_per_request, File * const output,
-                 std::string * const resumption_token, unsigned * total_record_count)
+                 std::string * const resumption_token, std::string * const cursor,
+                 std::string * const complete_list_size, unsigned * total_record_count)
 {
     const TimeLimit time_limit(time_limit_in_seconds_per_request * 1000);
     Downloader downloader(url, Downloader::Params(), time_limit);
@@ -137,8 +154,8 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
         if (not output->write(extracted_records))
             Error("failed to write to \"" + output->getPath() + "\"! (Disc full?)");
     }
-    
-    *resumption_token = ExtractResumptionToken(message_body);
+
+    *resumption_token = ExtractResumptionToken(message_body, cursor, complete_list_size);
     return not resumption_token->empty();
 }
 
@@ -146,11 +163,16 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
 std::string MakeRequestURL(const std::string &base_url, const std::string &metadata_prefix,
                            const std::string &harvest_set, const std::string &resumption_token)
 {
+    std::string request_url;
     if (not resumption_token.empty())
-        return base_url + "?verb=ListRecords&resumptionToken=" + UrlUtil::UrlEncode(resumption_token);
-    if (harvest_set.empty())
-        return base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix;
-    return base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix + "&set=" + harvest_set;
+        request_url = base_url + "?verb=ListRecords&resumptionToken=" + UrlUtil::UrlEncode(resumption_token);
+    else if (harvest_set.empty())
+        request_url = base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix;
+    else
+        request_url = base_url + "?verb=ListRecords&metadataPrefix=" + metadata_prefix + "&set=" + harvest_set;
+    std::cerr << "Request URL = " << request_url << '\n';
+
+    return request_url;
 }
 
 
@@ -179,7 +201,7 @@ int main(int argc, char **argv) {
 
     const std::string base_url(argv[1]);
     const std::string metadata_prefix(argv[2]);
-    const std::string harvest_set(argc == 6 ? argv[3] : "");
+    const std::string harvest_set(argc == 7 ? argv[3] : "");
     const std::string control_number_prefix(argc == 7 ? argv[3] : argv[2]);
     const std::string output_filename(argc == 7 ? argv[5] : argv[4]);
     const std::string time_limit_per_request_as_string(argc == 7 ? argv[6] : argv[5]);
@@ -198,12 +220,13 @@ int main(int argc, char **argv) {
             "xsi:schemaLocation=\"http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd\">");
         temp_output->write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + COLLECTION_OPEN + "\n");
 
-        std::string resumption_token;
+        std::string resumption_token, cursor, complete_list_size;
         unsigned total_record_count(0);
         while (ListRecords(MakeRequestURL(base_url, metadata_prefix, harvest_set, resumption_token),
                            time_limit_per_request_in_seconds, temp_output.get(), &resumption_token,
-                           &total_record_count))
-            std::cerr << "Continuing download, resumption token was: \"" << resumption_token << "\".\n";
+                           &cursor, &complete_list_size, &total_record_count))
+            std::cerr << "Continuing download, resumption token was: \"" << resumption_token << "\" (cursor="
+                      << cursor << ", completeListSize=" << complete_list_size << ").\n";
 
         const std::string COLLECTION_CLOSE("</collection>");
         temp_output->write(COLLECTION_CLOSE + "\n");

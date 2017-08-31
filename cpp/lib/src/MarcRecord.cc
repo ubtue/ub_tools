@@ -19,6 +19,7 @@
  */
 
 #include "MarcRecord.h"
+#include "MarcReader.h"
 #include "MarcTag.h"
 #include "util.h"
 
