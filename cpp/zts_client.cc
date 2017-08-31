@@ -48,7 +48,7 @@ void Usage() {
               << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
               << "        files and the file containing hashes of previously generated records.\n"
               << "        The optional \"--zotero-crawler-config-file\" flag specifies where to look for the\n"
-              << "        config file for the \"zotero_crawler\", the default being\n\""
+              << "        config file for the \"zotero_crawler\", the default being\n"
               << "        " << DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH << ".\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -603,7 +603,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
             if (ISSN_and_SSGN_numbers != ISSN_to_SSG_map.end())
                 new_record.addSubfield("084", 'a', ISSN_and_SSGN_numbers->second);
         }
-        
+
         const std::string checksum(new_record.calcChecksum(/* exclude_001 = */ true));
         if (previously_downloaded->find(checksum) == previously_downloaded->cend()) {
             previously_downloaded->emplace(checksum);

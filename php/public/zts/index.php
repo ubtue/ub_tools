@@ -14,11 +14,11 @@
 <h1>ZTS Test</h1>
 <p><i>Zotero Translation Server</i></p>
 
-<h2>Params</h2>
+<h2>Parameters</h2>
 <form method="post" action="index.php">
     <table>
-        <tr><td>Base Url</td><td><input name="UrlBase" type="text" value="<?= isset($_POST['UrlBase']) ? $_POST['UrlBase'] : 'http://allafrica.com/books/' ?>"></input></td><td>e.g. https://ixtheo.de</td></tr>
-        <tr><td>Regex</td><td><input name="UrlRegex" type="text" value="<?= isset($_POST['UrlRegex']) ? $_POST['UrlRegex'] : '.*/books/.*' ?>"></input></td><td>e.g. https://(.*\.)?ixtheo.de(/.*)</td></tr>
+        <tr><td>Base Url</td><td><input name="UrlBase" type="text" value="<?= isset($_POST['UrlBase']) ? $_POST['UrlBase'] : 'http://allafrica.com/books/' ?>"></input></td><td>e.g. http://allafrica.com/books/</td></tr>
+        <tr><td>Regex</td><td><input name="UrlRegex" type="text" value="<?= isset($_POST['UrlRegex']) ? $_POST['UrlRegex'] : '.*/books/.*' ?>"></input></td><td>e.g. .*/books/.*</td></tr>
         <tr>
             <td>Depth</td>
             <td>
@@ -57,13 +57,13 @@
 <?php
 if (count($_POST) > 0) {
     $IgnoreRobots = true;
-    $zotero = new Zotero\Server(ZOTERO_SERVER_URL);
+    $zotero = new Zotero\MetadataHarvester(ZOTERO_SERVER_URL);
     $result = $zotero->Start($_POST['UrlBase'], $_POST['UrlRegex'], $_POST['Depth'], $IgnoreRobots, $_POST['FileExtension']);
     ?>
     <h2>Result</h2>
     <table>
         <tr><td>CMD</td><td><?= $result->Cmd ?></td></tr>
-        <tr><td>CMD Exit Code</td><td><?= $result->CmdStatus ?></td></tr>
+        <tr><td>CMD Exit Code</td><td style="color: <?= ($result->CmdStatus == 0) ? 'green' : 'red'?>;"><?= $result->CmdStatus ?></td></tr>
         <tr><td>CMD Duration</td><td><?= $result->Duration . 's' ?></td></tr>
         <tr><td>CMD Output</td><td><textarea rows="20" readonly="readonly"><?= implode("&#10;", $result->CmdOutput) ?></textarea></td></tr>
         <?php
