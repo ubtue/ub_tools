@@ -17,7 +17,6 @@ import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
-import org.solrmarc.index.SolrIndexerShim;
 import org.solrmarc.tools.DataUtil;
 
 public class TuelibMixin extends SolrIndexerMixin {
@@ -990,7 +989,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
             if (author2 == null)
                 continue;
-            
+
             final List<Subfield> eSubfields = dataField.getSubfields('e');
             if (eSubfields == null || eSubfields.isEmpty())
                 continue;
@@ -1008,7 +1007,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public Set<String> getValuesOrUnassigned(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexerShim.instance().getFieldList(record, fieldSpecs);
+        final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
             values.add(UNASSIGNED_STRING);
         }
@@ -1026,7 +1025,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexerShim.instance().getFieldList(record, fieldSpecs);
+        final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
             values.add(UNASSIGNED_STRING);
         }
