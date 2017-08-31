@@ -18,7 +18,6 @@ import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheo extends SolrIndexerMixin {
     private Set<String> ixTheoNotations = null;
-    private static Set<String> unassigned = Collections.singleton("[Unassigned]");
 
     private final static Pattern NUMBER_END_PATTERN = Pattern.compile("([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)");
 
@@ -45,7 +44,7 @@ public class IxTheo extends SolrIndexerMixin {
     public Set<String> getIxTheoNotationFacets(final Record record) {
         final Set<String> ixTheoNotations = getIxTheoNotations(record);
         if (ixTheoNotations.isEmpty()) {
-            return unassigned;
+            return TuelibMixin.UNASSIGNED_SET;
         }
         return ixTheoNotations;
     }

@@ -5,14 +5,13 @@ import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexerMixin;
-
-import javax.xml.crypto.Data;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.xml.crypto.Data;
 
 public class FidSystematikMixin extends SolrIndexerMixin {
     private final static Pattern FID_SYSTEMATIK_PATTERN = Pattern.compile("k\\d+(\\.\\d+)+");

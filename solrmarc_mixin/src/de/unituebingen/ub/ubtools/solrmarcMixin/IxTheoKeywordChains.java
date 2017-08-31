@@ -1,12 +1,12 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
+import java.util.*;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexerMixin;
 import de.unituebingen.ub.ubtools.solrmarcMixin.*;
-import java.util.*;
 
 public class IxTheoKeywordChains extends SolrIndexerMixin {
 
@@ -78,7 +78,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                     if (keyword.length() > 0) {
                         if (subfield.getCode() == 'n') {
                             keyword.append(" ");
-                        } 
+                        }
                         else if (subfield.getCode() == 'p') {
                             keyword.append(". ");
                         }
