@@ -1,14 +1,12 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
-
+import java.util.*;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexerMixin;
-
-import java.util.*;
-
+import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheoPublisher extends SolrIndexerMixin {
     private final static Map<String, String> replacements = new LinkedHashMap<>(128);
@@ -134,7 +132,7 @@ public class IxTheoPublisher extends SolrIndexerMixin {
     public Set<String> getPublishersOrUnassigned(final Record record) {
         final Set<String> publishers = getPublishers(record);
         if (publishers == null || publishers.isEmpty()) {
-            return Collections.singleton("[Unassigned]");
+            return TuelibMixin.UNASSIGNED_SET;
         }
         return publishers;
     }
