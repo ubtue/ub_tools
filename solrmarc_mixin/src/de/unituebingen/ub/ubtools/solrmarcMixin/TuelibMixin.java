@@ -4,6 +4,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
@@ -11,17 +17,12 @@ import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
-import org.solrmarc.index.SolrIndexerShim;
 import org.solrmarc.tools.DataUtil;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 public class TuelibMixin extends SolrIndexerMixin {
+    public final static String UNASSIGNED_STRING = "[Unassigned]";
+    public final static Set<String> UNASSIGNED_SET = Collections.singleton(UNASSIGNED_STRING);
+
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
     private final static String VALID_FOUR_DIGIT_YEAR = "\\d{4}";
@@ -34,9 +35,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VALID_FOUR_DIGIT_PATTERN = Pattern.compile(VALID_FOUR_DIGIT_YEAR);
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
-
-    private final static String UNASSIGNED = "[Unassigned]";
-
 
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
@@ -991,7 +989,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
             if (author2 == null)
                 continue;
-            
+
             final List<Subfield> eSubfields = dataField.getSubfields('e');
             if (eSubfields == null || eSubfields.isEmpty())
                 continue;
@@ -1009,9 +1007,9 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public Set<String> getValuesOrUnassigned(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexerShim.instance().getFieldList(record, fieldSpecs);
+        final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
-            values.add(UNASSIGNED);
+            values.add(UNASSIGNED_STRING);
         }
         return values;
     }
@@ -1027,9 +1025,9 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexerShim.instance().getFieldList(record, fieldSpecs);
+        final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
-            values.add(UNASSIGNED);
+            values.add(UNASSIGNED_STRING);
         }
         return values.iterator().next();
     }
@@ -1233,7 +1231,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             final List<Subfield> cSubfields = _935Field.getSubfields('c');
             for (final Subfield cSubfield : cSubfields) {
                 if (cSubfield.toString().equals("fe")) {
-                    genres.remove(UNASSIGNED);
+                    genres.remove(UNASSIGNED_STRING);
                     genres.add("Festschrift");
                 }
             }

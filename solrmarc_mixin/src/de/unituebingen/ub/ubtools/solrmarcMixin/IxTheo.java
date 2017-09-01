@@ -1,12 +1,12 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.*;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.Reader.*;
 import java.io.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.*;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.VariableField;
@@ -18,7 +18,6 @@ import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheo extends SolrIndexerMixin {
     private Set<String> ixTheoNotations = null;
-    private static Set<String> unassigned = Collections.singleton("[Unassigned]");
 
     private final static Pattern NUMBER_END_PATTERN = Pattern.compile("([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)");
 
@@ -45,7 +44,7 @@ public class IxTheo extends SolrIndexerMixin {
     public Set<String> getIxTheoNotationFacets(final Record record) {
         final Set<String> ixTheoNotations = getIxTheoNotations(record);
         if (ixTheoNotations.isEmpty()) {
-            return unassigned;
+            return TuelibMixin.UNASSIGNED_SET;
         }
         return ixTheoNotations;
     }
