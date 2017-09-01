@@ -990,15 +990,15 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (author2 == null)
                 continue;
 
-            final List<Subfield> eSubfields = dataField.getSubfields('e');
-            if (eSubfields == null || eSubfields.isEmpty())
+            final List<Subfield> _4Subfields = dataField.getSubfields('4');
+            if (_4Subfields == null || _4Subfields.isEmpty())
                 continue;
 
             final StringBuilder author2AndRoles = new StringBuilder();
             author2AndRoles.append(author2);
-            for (final Subfield eSubfield : eSubfields) {
+            for (final Subfield _4Subfield : _4Subfields) {
                 author2AndRoles.append('$');
-                author2AndRoles.append(cleanRole(eSubfield.getData()));
+                author2AndRoles.append(cleanRole(_4Subfield.getData()));
             }
             results.add(author2AndRoles.toString());
         }
