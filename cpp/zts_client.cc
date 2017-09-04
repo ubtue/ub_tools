@@ -693,7 +693,7 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
 
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
-    if (argc < 4 or argc > 6)
+    if (argc < 4 or argc > 7)
         Usage();
 
     bool ignore_robots_dot_txt(false);
