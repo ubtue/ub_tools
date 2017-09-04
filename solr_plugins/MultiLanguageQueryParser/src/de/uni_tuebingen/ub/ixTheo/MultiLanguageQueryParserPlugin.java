@@ -6,7 +6,7 @@ import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.QParserPlugin;
 
-public class MultiLanguageQueryParserPlugin extends QParserPlugin {
+public class MultiLanguageQueryParserPlugin extends QParserPlugin{
 
     @Override
     @SuppressWarnings("rawtypes")
@@ -15,7 +15,12 @@ public class MultiLanguageQueryParserPlugin extends QParserPlugin {
 
     @Override
     public QParser createParser(String queryString, SolrParams localParams, SolrParams params, SolrQueryRequest req) {
-        return new MultiLanguageQueryParser(queryString, localParams, params, req);
+        try {
+            return new MultiLanguageQueryParser(queryString, localParams, params, req);
+       }
+       catch (MultiLanguageQueryParserException e) {
+           e.printStackTrace(System.out);
+           return null;
+       }
     }
-
 }
