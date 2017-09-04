@@ -44,7 +44,7 @@ const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/var/lib/tuelib/zotero_cr
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] zts_server_url map_directory marc_output\n"
+              << " [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] [--progress-file=progress_filename] zts_server_url map_directory marc_output\n"
               << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
               << "        files and the file containing hashes of previously generated records.\n"
               << "        The optional \"--zotero-crawler-config-file\" flag specifies where to look for the\n"
@@ -710,6 +710,13 @@ int main(int argc, char *argv[]) {
     } else
         zotero_crawler_config_path = DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH;
 
+    std::string progress_filename;
+    const std::string PROGRESS_FILE_FLAG_PREFIX("--progress-file=");
+    if (StringUtil::StartsWith(argv[1], PROGRESS_FILE_FLAG_PREFIX)) {
+        progress_filename = argv[1] + PROGRESS_FILE_FLAG_PREFIX.length();
+        --argc, ++argv;
+    }
+
     if (argc != 4)
         Usage();
 
@@ -757,16 +764,28 @@ int main(int argc, char *argv[]) {
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
+        std::unique_ptr<File> progress_file;
+        if (not progress_filename.empty())
+            progress_file = FileUtil::OpenOutputFileOrDie(progress_filename);
+
         std::vector<std::string> harvest_urls;
         LoadHarvestURLs(ignore_robots_dot_txt, zotero_crawler_config_path, &harvest_urls);
+        unsigned i(0);
         for (const auto &harvest_url : harvest_urls) {
             const auto record_count_and_previously_downloaded_count(
                 Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
                         ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
                         ISSN_to_licence_map, ISSN_to_keyword_field_map, ISSN_to_SSG_map, &previously_downloaded,
                         marc_writer.get()));
-                total_record_count                += record_count_and_previously_downloaded_count.first;
-                total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
+            total_record_count                += record_count_and_previously_downloaded_count.first;
+            total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
+            if (progress_file != nullptr) {
+                progress_file->rewind();
+                ++i;
+                if (unlikely(not progress_file->write(
+                        StringUtil::Format("%06f", static_cast<double>(i) / harvest_urls.size()))))
+                    Error("failed to write progress to \"" + progress_file->getPath());
+            }
         }
 
         std::cout << "Harvested a total of " << total_record_count << " records of which "
