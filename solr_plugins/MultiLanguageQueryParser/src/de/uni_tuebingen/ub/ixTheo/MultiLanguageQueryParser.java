@@ -95,7 +95,11 @@ public class MultiLanguageQueryParser extends QParser {
                 String newFieldName = param + "_" + lang;
                 if (schema.getFieldOrNull(newFieldName) != null) {
                     newParams.remove("facet.field", param);
-                    newParams.add("facet.field", newFieldName);
+                    if (useDismax)
+                        newParams.add("facet.field", newFieldName);
+                    else {
+                        newParams.add("facet.field", "{!key=" + param + "}" + newFieldName);
+                    }
                 }
             }
         }
