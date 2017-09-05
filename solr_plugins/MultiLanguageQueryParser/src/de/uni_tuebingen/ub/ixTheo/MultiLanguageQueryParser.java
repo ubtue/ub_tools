@@ -15,7 +15,6 @@ import org.apache.commons.lang.ArrayUtils;
 
 
 public class MultiLanguageQueryParser extends QParser {
-
     protected Query query;
     protected String searchString;
     protected static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
@@ -24,8 +23,8 @@ public class MultiLanguageQueryParser extends QParser {
     protected ModifiableSolrParams newParams;
 
     public MultiLanguageQueryParser(final String searchString, final SolrParams localParams, final SolrParams params,
-            final SolrQueryRequest request) throws MultiLanguageQueryParserException {
-
+            final SolrQueryRequest request) throws MultiLanguageQueryParserException
+    {
         super(searchString, localParams, params, request);
         this.searchString = searchString;
         newRequest = request;
@@ -47,10 +46,10 @@ public class MultiLanguageQueryParser extends QParser {
                throw new MultiLanguageQueryParserException("Only one q-parameter is supported");
             final String[] separatedFields = query[0].split(":");
             if (separatedFields.length == 2)
-               queryFields = new String[]{separatedFields[0]};
+               queryFields = new String[]{ separatedFields[0] };
             else
                throw new MultiLanguageQueryParserException(
-                         "Currently only a single query field is supported with lucene parser");
+                         "Currently only a single query field is supported by the Lucene parser");
         }
 
         String[] facetFields = newParams.getParams("facet.field");
@@ -63,13 +62,13 @@ public class MultiLanguageQueryParser extends QParser {
         // language
         lang = ArrayUtils.contains(SUPPORTED_LANGUAGES, lang) ? lang : "de";
 
-        for (String param : queryFields) {
+        for (final String param : queryFields) {
             if (useDismax) {
                newParams.remove("qf", param);
                  String[] singleParams = param.split(" ");
                  StringBuilder sb = new StringBuilder();
                  int i = 0;
-                 for (String singleParam : singleParams) {
+                 for (final String singleParam : singleParams) {
                      String newFieldName = singleParam + "_" + lang;
                      newFieldName = (schema.getFieldOrNull(newFieldName) != null) ? newFieldName : singleParam;
                      sb.append(newFieldName);
@@ -78,7 +77,7 @@ public class MultiLanguageQueryParser extends QParser {
                  }
                  newParams.add("qf", sb.toString());
             }
-            // Restricted support for lucene parser
+            // Restricted support for Lucene parser
             else {
                 final String queryField = queryFields[0];
                 String newFieldName = queryField + "_" + lang;
