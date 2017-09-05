@@ -40,10 +40,12 @@ class MetadataHarvester {
      * @param int $Depth
      * @param bool $IgnoreRobots
      * @param string $FileExtension     supported extension, e.g. "xml" for MARCXML or "mrc" for MARC21
-     * @return \Zotero\Result
+     * @return \Zotero\Operation
      */
     public function Start($UrlBase, $UrlRegex, $Depth, $IgnoreRobots, $FileExtension) {
-        $CfgPath = DIR_TMP . uniqid('Zts_') . '.conf';
+        $uniqid = uniqid('Zts_' . date('Y-m-d_H-i-s_'));
+
+        $CfgPath = DIR_TMP . $uniqid . '.conf';
 
         // generate local copy of zts_client_maps
         $DirMap = self::DIR_ZTS_CLIENT_MAPS;
@@ -58,42 +60,86 @@ class MetadataHarvester {
         }
 
         // only .mrc or .xml (type will be auto detected)
-        $OutPath = DIR_TMP . uniqid('Zts_' . date('Y-m-d H-i-s')) . '.' . $FileExtension;
+        $OutPath = DIR_TMP . $uniqid . '.' . $FileExtension;
+        $ProgressPath = DIR_TMP . $uniqid . '.progress';
 
         self::_writeConfigFile($CfgPath, $UrlBase, $UrlRegex, $Depth);
-        $result = $this->_executeCommand($CfgPath, $DirMapLocal, $OutPath, $IgnoreRobots);
-
-        // cleanup
-        unlink($CfgPath);
-
-        return $result;
+        return $this->_executeCommand($uniqid, $CfgPath, $DirMapLocal, $OutPath, $IgnoreRobots);
     }
 
     /**
-     * Call zts_client
+     * Get progress of the operation
      *
+     * @param string $OperationId
+     * @return boolean
+     */
+    static public function GetProgress($OperationId) {
+        $path = self::_getProgressPath($OperationId);
+        //print 'progress ' . $path;
+        if (is_file($path)) {
+            $progress_raw = file_get_contents($path);
+            if ($progress_raw !== false && $progress_raw !== '') {
+                $progress_percent = intval($progress_raw * 100);
+                return $progress_percent;
+            } else {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Call zts_client (start operation, dont wait for result)
+     *
+     * @param string $Id
      * @param string $CfgPath
      * @param string $DirMap
      * @param string $OutPath
      * @param bool $IgnoreRobots
-     * @return \Zotero\Result
+     * @return \Zotero\Operation
      */
-    protected function _executeCommand($CfgPath, $DirMap, $OutPath, $IgnoreRobots=false) {
+    protected function _executeCommand($Id, $CfgPath, $DirMap, $OutPath, $IgnoreRobots=false) {
         $starttime = time();
+        $ProgressPath = self::_getProgressPath($Id);
+
         $cmd = 'zts_client';
         if ($IgnoreRobots) {
             $cmd .= ' --ignore-robots-dot-txt';
         }
-        $cmd .= ' --zotero-crawler-config-file=' . $CfgPath . ' ' . $this->Url . ' ' . $DirMap . ' "' . $OutPath . '"';
+        $cmd .= ' --zotero-crawler-config-file="' . $CfgPath . '"';
+        if ($ProgressPath != null) {
+            $cmd .= ' --progress-file="' . $ProgressPath . '"';
+        }
+        $cmd .= ' ' . $this->Url . ' ' . $DirMap . ' "' . $OutPath . '"';
         $cmd .= ' 2>&1';
 
-        $result = new Result();
-        $result->Cmd = $cmd;
-        exec($cmd, $result->CmdOutput, $result->CmdStatus);
-        $result->MarcPath = $OutPath;
-        $result->Duration = time() - $starttime;
+        $operation = new Operation();
+        $operation->Cmd = $cmd;
+        $operation->MarcPath = $OutPath;
+        $operation->OperationId = $Id;
 
-        return $result;
+        $descriptorspec = array(0 => array("pipe", "r"),  // stdin is a pipe that the child will read from
+                                1 => array("pipe", "w"),  // stdout is a pipe that the child will write to
+                                2 => array("pipe", "w"),  // stderr is a file to write to);
+                                );
+
+        $pipes = array();
+        $proc_resource = proc_open($cmd, $descriptorspec, $pipes);
+        $proc_status = proc_get_status($proc_resource);
+        $operation->Resource = $proc_resource;
+
+        return $operation;
+    }
+
+    /**
+     * Get path to progress file (tmp) for this operation
+     *
+     * @param type $OperationId
+     * @return string
+     */
+    static protected function _getProgressPath($OperationId) {
+        return DIR_TMP . $OperationId . '.progress';
     }
 
     /**
@@ -114,7 +160,7 @@ class MetadataHarvester {
 /**
  * Result class for zts_client
  */
-class Result {
+class Operation {
     /**
      * contains the full CLI call (for debug output)
      * @var string
@@ -122,26 +168,20 @@ class Result {
     public $Cmd;
 
     /**
-     * Contains the exit code
-     * @var int
-     */
-    public $CmdStatus;
-
-    /**
-     * Contains the full command line output as array of string
-     * @var array
-     */
-    public $CmdOutput;
-
-    /**
-     * Duration in seconds that the script needed to run
-     * @var int
-     */
-    public $Duration;
-
-    /**
      * Path to output file
      * @var string
      */
     public $MarcPath;
+
+    /**
+     * Operation Id. Unique string, can be used for status requests
+     * @var string
+     */
+    public $OperationId;
+
+    /**
+     * Resource (e.g. for proc_get_status)
+     * @var type
+     */
+    public $Resource;
 }
