@@ -50,7 +50,7 @@ public class MultiLanguageQueryParser extends QParser {
                queryFields = new String[]{separatedFields[0]};
             else
                throw new MultiLanguageQueryParserException(
-                         "Currently only a single query field is supported with lucene parser");
+                         "Currently only a single query field is supported by the Lucene parser");
         }
 
         String[] facetFields = newParams.getParams("facet.field");
