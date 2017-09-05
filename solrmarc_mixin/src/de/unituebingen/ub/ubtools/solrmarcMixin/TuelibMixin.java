@@ -995,7 +995,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
 
             final StringBuilder author2AndRoles = new StringBuilder();
-            author2AndRoles.append(author2);
+            author2AndRoles.append(author2.replace("$", ""));
             for (final Subfield _4Subfield : _4Subfields) {
                 author2AndRoles.append('$');
                 author2AndRoles.append(cleanRole(_4Subfield.getData()));
