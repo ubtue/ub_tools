@@ -24,8 +24,8 @@ public class MultiLanguageQueryParser extends QParser {
     protected ModifiableSolrParams newParams;
 
     public MultiLanguageQueryParser(final String searchString, final SolrParams localParams, final SolrParams params,
-            final SolrQueryRequest request) throws MultiLanguageQueryParserException {
-
+            final SolrQueryRequest request) throws MultiLanguageQueryParserException
+    {
         super(searchString, localParams, params, request);
         this.searchString = searchString;
         newRequest = request;
@@ -47,7 +47,7 @@ public class MultiLanguageQueryParser extends QParser {
                throw new MultiLanguageQueryParserException("Only one q-parameter is supported");
             final String[] separatedFields = query[0].split(":");
             if (separatedFields.length == 2)
-               queryFields = new String[]{separatedFields[0]};
+               queryFields = new String[]{ separatedFields[0] };
             else
                throw new MultiLanguageQueryParserException(
                          "Currently only a single query field is supported by the Lucene parser");
