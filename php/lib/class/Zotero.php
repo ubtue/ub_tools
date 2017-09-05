@@ -44,7 +44,6 @@ class MetadataHarvester {
      */
     public function Start($UrlBase, $UrlRegex, $Depth, $IgnoreRobots, $FileExtension) {
         $uniqid = uniqid('Zts_' . date('Y-m-d_H-i-s_'));
-
         $CfgPath = DIR_TMP . $uniqid . '.conf';
 
         // generate local copy of zts_client_maps
@@ -75,7 +74,6 @@ class MetadataHarvester {
      */
     static public function GetProgress($OperationId) {
         $path = self::_getProgressPath($OperationId);
-        //print 'progress ' . $path;
         if (is_file($path)) {
             $progress_raw = file_get_contents($path);
             if ($progress_raw !== false && $progress_raw !== '') {
@@ -100,7 +98,6 @@ class MetadataHarvester {
      * @return \Zotero\Operation
      */
     protected function _executeCommand($Id, $CfgPath, $DirMap, $OutPath, $IgnoreRobots=false) {
-        $starttime = time();
         $ProgressPath = self::_getProgressPath($Id);
 
         $cmd = 'zts_client';
@@ -118,16 +115,11 @@ class MetadataHarvester {
         $operation->Cmd = $cmd;
         $operation->MarcPath = $OutPath;
         $operation->OperationId = $Id;
-
         $descriptorspec = array(0 => array("pipe", "r"),  // stdin is a pipe that the child will read from
                                 1 => array("pipe", "w"),  // stdout is a pipe that the child will write to
-                                2 => array("pipe", "w"),  // stderr is a file to write to);
+                                2 => array("pipe", "w"),  // stderr is a pipe that the child will write to);
                                 );
-
-        $pipes = array();
-        $proc_resource = proc_open($cmd, $descriptorspec, $pipes);
-        $proc_status = proc_get_status($proc_resource);
-        $operation->Resource = $proc_resource;
+        $operation->Resource = proc_open($cmd, $descriptorspec, $operation->Pipes);
 
         return $operation;
     }
@@ -158,7 +150,8 @@ class MetadataHarvester {
 }
 
 /**
- * Result class for zts_client
+ * Operation class, generated as soon as the shell command is executed.
+ * Can be used to monitor the status of the running cli subprocess.
  */
 class Operation {
     /**
@@ -180,8 +173,48 @@ class Operation {
     public $OperationId;
 
     /**
+     * array of pipes opened to the process. see www.php.net/proc_open
+     * @var array
+     */
+    public $Pipes;
+
+    /**
      * Resource (e.g. for proc_get_status)
      * @var type
      */
     public $Resource;
+
+    /**
+     * destructor: close pipes if still open
+     */
+    function __destruct() {
+        @fclose($this->Pipes[0]);
+        @fclose($this->Pipes[1]);
+        @fclose($this->Pipes[2]);
+    }
+
+    /**
+     * Get CLI output
+     * we only read stdout, because stderr was redirected to stdout in _executeCommand
+     *
+     * @return string
+     */
+    public function GetOutput() {
+        return stream_get_contents($this->Pipes[1]);
+    }
+
+    /**
+     * Get progress (in percent)
+     * @return int
+     */
+    public function GetProgress() {
+        return MetadataHarvester::GetProgress($this->OperationId);
+    }
+
+    /**
+     * Get status (see www.php.net/proc_get_status)
+     */
+    public function GetStatus() {
+        return proc_get_status($this->Resource);
+    }
 }
