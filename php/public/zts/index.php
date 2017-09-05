@@ -93,7 +93,7 @@ if (count($_POST) > 0) {
 
     <?php
 
-    // send current state to client
+    // send already generated output to browser
     ob_flush_real();
 
     // start status monitoring
@@ -105,14 +105,12 @@ if (count($_POST) > 0) {
     do {
         sleep(1);
         updateRuntime(time() - $starttime);
-
-        $progress = Zotero\MetadataHarvester::GetProgress($operation->OperationId);
+        $progress = $operation->GetProgress();
         if ($progress !== false && $progress !== $progress_old) {
             updateProgressBar($progress);
             $progress_old = $progress;
         }
-
-        $status = proc_get_status($operation->Resource);
+        $status = $operation->GetStatus();
     } while ($status['running']);
 
     if ($status['exitcode'] == 0) {
@@ -120,6 +118,8 @@ if (count($_POST) > 0) {
     } else {
         print '<tr><td>ERROR</td><td>Exitcode: '.$status['exitcode'].'</td></tr>';
     }
+
+    print '<tr><td>CLI output:</td><td>'.nl2br($operation->GetOutput()).'</td></tr>';
 
     ?>
     </table>
