@@ -48,23 +48,28 @@ void LoadGNDNumbers(File * const input, std::unordered_map<std::string, unsigned
 }
 
 
+const std::vector<std::string> GND_REFERENCE_FIELDS{ "100", "689", "700" };
+
+
 void ProcessRecords(MarcReader * const marc_reader,
                     std::unordered_map<std::string, unsigned> * const gnd_numbers_and_counts)
 {
     while (const MarcRecord record = marc_reader->read()) {
-        const std::string _100_contents(record.getFieldData("100"));
-        if (_100_contents.empty())
-            continue;
-
-        const Subfields subfields(_100_contents);
-        const auto begin_end(subfields.getIterators('0'));
-        for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
-            if (not StringUtil::StartsWith(subfield0->value_, "(DE-588)"))
+        for (const auto &gnd_reference_field : GND_REFERENCE_FIELDS) {
+            const std::string field_contents(record.getFieldData(gnd_reference_field));
+            if (field_contents.empty())
                 continue;
 
-            const auto gnd_number_and_count(gnd_numbers_and_counts->find(subfield0->value_));
-            if (gnd_number_and_count != gnd_numbers_and_counts->end())
-                ++gnd_number_and_count->second;
+            const Subfields subfields(field_contents);
+            const auto begin_end(subfields.getIterators('0'));
+            for (auto subfield0(begin_end.first); subfield0 != begin_end.second; ++subfield0) {
+                if (not StringUtil::StartsWith(subfield0->value_, "(DE-588)"))
+                    continue;
+
+                const auto gnd_number_and_count(gnd_numbers_and_counts->find(subfield0->value_));
+                if (gnd_number_and_count != gnd_numbers_and_counts->end())
+                    ++gnd_number_and_count->second;
+            }
         }
     }
 }
