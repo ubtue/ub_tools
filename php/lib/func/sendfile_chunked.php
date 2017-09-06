@@ -19,12 +19,7 @@ function sendfile_chunked($path, $chunk_size=1048576) {
     while (!feof($handle)) {
         $buffer = fread($handle, $chunk_size);
         echo $buffer;
-        ob_flush();
-        flush();
-
-        if ($retbytes) {
-            $cnt += strlen($buffer);
-        }
+        ob_flush_real();
     }
     fclose($handle);
     return $cnt;
