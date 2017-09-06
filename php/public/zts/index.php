@@ -43,12 +43,12 @@
 <h2>Parameters</h2>
 <form method="post" action="index.php">
     <table>
-        <tr><td>Base Url</td><td><input name="UrlBase" type="text" value="<?= isset($_POST['UrlBase']) ? $_POST['UrlBase'] : 'https://www.nationalarchives.gov.uk/first-world-war' ?>"></input></td><td>e.g. http://allafrica.com/books/</td></tr>
-        <tr><td>Regex</td><td><input name="UrlRegex" type="text" value="<?= isset($_POST['UrlRegex']) ? $_POST['UrlRegex'] : '.*/first-world-war/.*' ?>"></input></td><td>e.g. .*/books/.*</td></tr>
+        <tr><td>Base Url</td><td><input name="urlBase" type="text" value="<?= isset($_POST['urlBase']) ? $_POST['urlBase'] : 'https://www.nationalarchives.gov.uk/first-world-war' ?>"></input></td><td>e.g. http://allafrica.com/books/</td></tr>
+        <tr><td>Regex</td><td><input name="urlRegex" type="text" value="<?= isset($_POST['urlRegex']) ? $_POST['urlRegex'] : '.*/first-world-war/.*' ?>"></input></td><td>e.g. .*/books/.*</td></tr>
         <tr>
             <td>Depth</td>
             <td>
-                <select name="Depth">
+                <select name="depth">
                     <?php
                         $default = 2;
                         if (isset($_POST['Depth'])) $default = $_POST['Depth'];
@@ -67,9 +67,9 @@
         <tr>
             <td>Format</td>
             <td>
-                <select name="FileExtension">
+                <select name="fileExtension">
                     <option value="xml">MARCXML</option>
-                    <!--<option value="mrc" <?= (isset($_POST['FileExtension']) && $_POST['FileExtension'] == 'mrc') ? 'selected' : '' ?>>MARC21</option>-->
+                    <!--<option value="mrc" <?= (isset($_POST['fileExtension']) && $_POST['fileExtension'] == 'mrc') ? 'selected' : '' ?>>MARC21</option>-->
                 </select>
             </td>
             <td>MARC21 currently disabled due to problems with zts_client</td>
@@ -81,13 +81,13 @@
 
 <?php
 if (count($_POST) > 0) {
-    $IgnoreRobots = true;
+    $ignoreRobots = true;
     $zotero = new Zotero\MetadataHarvester(ZOTERO_SERVER_URL);
-    $task = $zotero->start($_POST['UrlBase'], $_POST['UrlRegex'], $_POST['Depth'], $IgnoreRobots, $_POST['FileExtension']);
+    $task = $zotero->start($_POST['urlBase'], $_POST['urlRegex'], $_POST['depth'], $ignoreRobots, $_POST['fileExtension']);
     ?>
     <h2>Result</h2>
     <table>
-        <tr><td>Command</td><td><?= $task->Cmd ?></td></tr>
+        <tr><td>Command</td><td><?= $task->cmd ?></td></tr>
         <tr><td>Runtime</td><td id="runtime"></td></tr>
         <tr><td>Progress</td><td><div class="progress"><div id="progress-bar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%">0% Complete</div></div></td></tr>
 
@@ -98,7 +98,7 @@ if (count($_POST) > 0) {
 
     // start status monitoring
     $progress = 0;
-    $progress_old = false;
+    $progressOld = false;
     $starttime = time();
     $status = null;
 
@@ -106,15 +106,15 @@ if (count($_POST) > 0) {
         sleep(1);
         updateRuntime(time() - $starttime);
         $progress = $task->getProgress();
-        if ($progress !== false && $progress !== $progress_old) {
+        if ($progress !== false && $progress !== $progressOld) {
             updateProgressBar($progress);
-            $progress_old = $progress;
+            $progressOld = $progress;
         }
         $status = $task->getStatus();
     } while ($status['running']);
 
     if ($status['exitcode'] == 0) {
-        print '<tr><td>Download</td><td><a target="_blank" href="getresult.php?id=' . basename($task->MarcPath) . '">Result file</a></td></tr>';
+        print '<tr><td>Download</td><td><a target="_blank" href="getresult.php?id=' . basename($task->marcPath) . '">Result file</a></td></tr>';
     } else {
         print '<tr><td>ERROR</td><td>Exitcode: '.$status['exitcode'].'</td></tr>';
     }
