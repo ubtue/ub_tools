@@ -51,7 +51,7 @@
                 <select name="depth">
                     <?php
                         $default = 2;
-                        if (isset($_POST['Depth'])) $default = $_POST['Depth'];
+                        if (isset($_POST['depth'])) $default = $_POST['depth'];
                         for ($i=1;$i<=5;$i++) {
                             if ($i == $default) {
                                 print '<option selected="selected">'.$i.'</option>';
