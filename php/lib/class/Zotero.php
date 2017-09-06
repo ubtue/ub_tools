@@ -22,83 +22,82 @@ class MetadataHarvester {
      * URL of Server
      * @var string
      */
-    protected $Url;
+    protected $url;
 
     /**
      * Initialize new Server
-     * @param string $Url
+     * @param string $url
      */
-    public function __construct($Url) {
-        $this->Url = $Url;
+    public function __construct($url) {
+        $this->url = $url;
     }
 
     /**
      * Start crawling, using zts_client
      *
-     * @param string $UrlBase
-     * @param string $UrlRegex
-     * @param int $Depth
-     * @param bool $IgnoreRobots
-     * @param string $FileExtension     supported extension, e.g. "xml" for MARCXML or "mrc" for MARC21
+     * @param string $urlBase
+     * @param string $urlRegex
+     * @param int $depth
+     * @param bool $ignoreRobots
+     * @param string $fileExtension     supported extension, e.g. "xml" for MARCXML or "mrc" for MARC21
      * @return \Zotero\BackgroundTask
      */
-    public function start($UrlBase, $UrlRegex, $Depth, $IgnoreRobots, $FileExtension) {
+    public function start($urlBase, $urlRegex, $depth, $ignoreRobots, $fileExtension) {
         $uniqid = uniqid('Zts_' . date('Y-m-d_H-i-s_'));
-        $CfgPath = DIR_TMP . $uniqid . '.conf';
+        $cfgPath = DIR_TMP . $uniqid . '.conf';
 
         // generate local copy of zts_client_maps
-        $DirMap = self::DIR_ZTS_CLIENT_MAPS;
-        $DirMapLocal = DIR_TMP . 'ZtsMap/';
-        if (!is_dir($DirMapLocal)) {
-            copy_recursive($DirMap, $DirMapLocal);
+        $dirMap = self::DIR_ZTS_CLIENT_MAPS;
+        $dirMapLocal = DIR_TMP . 'ZtsMap/';
+        if (!is_dir($dirMapLocal)) {
+            copy_recursive($dirMap, $dirMapLocal);
 
             // reset previously_downloaded.hashes
-            $FilePrevDownloaded = $DirMapLocal . 'previously_downloaded.hashes';
-            unlink($FilePrevDownloaded);
-            symlink('/dev/null', $FilePrevDownloaded);
+            $filePrevDownloaded = $dirMapLocal . 'previously_downloaded.hashes';
+            unlink($filePrevDownloaded);
+            symlink('/dev/null', $filePrevDownloaded);
         }
 
         // only .mrc or .xml (type will be auto detected)
-        $OutPath = DIR_TMP . $uniqid . '.' . $FileExtension;
-        $ProgressPath = DIR_TMP . $uniqid . '.progress';
+        $outPath = DIR_TMP . $uniqid . '.' . $fileExtension;
 
-        self::_writeConfigFile($CfgPath, $UrlBase, $UrlRegex, $Depth);
-        return $this->_executeCommand($uniqid, $CfgPath, $DirMapLocal, $OutPath, $IgnoreRobots);
+        self::_writeConfigFile($cfgPath, $urlBase, $urlRegex, $depth);
+        return $this->_executeCommand($uniqid, $cfgPath, $dirMapLocal, $outPath, $ignoreRobots);
     }
 
     /**
      * Call zts_client (start background task, dont wait for result)
      *
-     * @param string $Id
-     * @param string $CfgPath
-     * @param string $DirMap
-     * @param string $OutPath
-     * @param bool $IgnoreRobots
+     * @param string $taskId
+     * @param string $cfgPath
+     * @param string $dirMap
+     * @param string $outPath
+     * @param bool $ignoreRobots
      * @return \Zotero\BackgroundTask
      */
-    protected function _executeCommand($Id, $CfgPath, $DirMap, $OutPath, $IgnoreRobots=false) {
-        $ProgressPath = BackgroundTask::getProgressPath($Id);
+    protected function _executeCommand($taskId, $cfgPath, $dirMap, $outPath, $ignoreRobots=false) {
+        $progressPath = BackgroundTask::getProgressPath($taskId);
 
         $cmd = 'zts_client';
-        if ($IgnoreRobots) {
+        if ($ignoreRobots) {
             $cmd .= ' --ignore-robots-dot-txt';
         }
-        $cmd .= ' --zotero-crawler-config-file="' . $CfgPath . '"';
-        if ($ProgressPath != null) {
-            $cmd .= ' --progress-file="' . $ProgressPath . '"';
+        $cmd .= ' --zotero-crawler-config-file="' . $cfgPath . '"';
+        if ($progressPath != null) {
+            $cmd .= ' --progress-file="' . $progressPath . '"';
         }
-        $cmd .= ' ' . $this->Url . ' ' . $DirMap . ' "' . $OutPath . '"';
+        $cmd .= ' ' . $this->url . ' ' . $dirMap . ' "' . $outPath . '"';
         $cmd .= ' 2>&1';
 
         $task = new BackgroundTask();
-        $task->Cmd = $cmd;
-        $task->MarcPath = $OutPath;
-        $task->TaskId = $Id;
+        $task->cmd = $cmd;
+        $task->marcPath = $outPath;
+        $task->taskId = $taskId;
         $descriptorspec = array(0 => array("pipe", "r"),  // stdin is a pipe that the child will read from
                                 1 => array("pipe", "w"),  // stdout is a pipe that the child will write to
                                 2 => array("pipe", "w"),  // stderr is a pipe that the child will write to);
                                 );
-        $task->Resource = proc_open($cmd, $descriptorspec, $task->Pipes);
+        $task->resource = proc_open($cmd, $descriptorspec, $task->pipes);
 
         return $task;
     }
@@ -106,15 +105,15 @@ class MetadataHarvester {
     /**
      * Prepare config file for zts_client
      *
-     * @param string $CfgPath
-     * @param string $UrlBase
-     * @param string $UrlRegex
-     * @param int $Depth
+     * @param string $cfgPath
+     * @param string $urlBase
+     * @param string $urlRegex
+     * @param int $depth
      */
-    static protected function _writeConfigFile($CfgPath, $UrlBase, $UrlRegex, $Depth) {
+    static protected function _writeConfigFile($cfgPath, $urlBase, $urlRegex, $depth) {
         $CfgContents = '# start_URL max_crawl_depth URL_regex' . PHP_EOL;
-        $CfgContents .= implode(' ', array($UrlBase, $Depth, $UrlRegex));
-        file_put_contents($CfgPath, $CfgContents);
+        $CfgContents .= implode(' ', array($urlBase, $depth, $urlRegex));
+        file_put_contents($cfgPath, $CfgContents);
     }
 }
 
@@ -127,39 +126,39 @@ class BackgroundTask {
      * contains the full CLI call (for debug output)
      * @var string
      */
-    public $Cmd;
+    public $cmd;
 
     /**
      * Path to output file
      * @var string
      */
-    public $MarcPath;
+    public $marcPath;
 
     /**
      * Task Id. Unique string, can be used for status requests
      * @var string
      */
-    public $TaskId;
+    public $taskId;
 
     /**
      * array of pipes opened to the process. see www.php.net/proc_open
      * @var array
      */
-    public $Pipes;
+    public $pipes;
 
     /**
      * Resource (e.g. for proc_get_status)
      * @var type
      */
-    public $Resource;
+    public $resource;
 
     /**
      * destructor: close pipes if still open
      */
     function __destruct() {
-        @fclose($this->Pipes[0]);
-        @fclose($this->Pipes[1]);
-        @fclose($this->Pipes[2]);
+        @fclose($this->pipes[0]);
+        @fclose($this->pipes[1]);
+        @fclose($this->pipes[2]);
     }
 
     /**
@@ -169,20 +168,23 @@ class BackgroundTask {
      * @return string
      */
     public function getOutput() {
-        return stream_get_contents($this->Pipes[1]);
+        return stream_get_contents($this->pipes[1]);
     }
 
     /**
      * Get progress (in percent)
-     * @return int
+     * Might also be false, if the subprocess didnt write the progress file yet.
+     * So it is recommended to treat false as 0 percent, and not as error.
+     *
+     * @return mixed        int (percentage) or false (error)
      */
     public function getProgress() {
-        $path = self::getProgressPath($this->TaskId);
+        $path = self::getProgressPath($this->taskId);
         if (is_file($path)) {
-            $progress_raw = file_get_contents($path);
-            if ($progress_raw !== false && $progress_raw !== '') {
-                $progress_percent = intval($progress_raw * 100);
-                return $progress_percent;
+            $progressRaw = file_get_contents($path);
+            if ($progressRaw !== false && $progressRaw !== '') {
+                $progressPercent = intval($progressRaw * 100);
+                return $progressPercent;
             } else {
                 return false;
             }
@@ -192,17 +194,17 @@ class BackgroundTask {
     /**
      * Get path to progress file (tmp) for a background task
      *
-     * @param string $TaskId
+     * @param string $taskId
      * @return string
      */
-    static public function getProgressPath($TaskId) {
-        return DIR_TMP . $TaskId . '.progress';
+    static public function getProgressPath($taskId) {
+        return DIR_TMP . $taskId . '.progress';
     }
 
     /**
      * Get status (see www.php.net/proc_get_status)
      */
     public function getStatus() {
-        return proc_get_status($this->Resource);
+        return proc_get_status($this->resource);
     }
 }
