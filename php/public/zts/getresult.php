@@ -6,7 +6,7 @@ if (isset($_GET['id'])) {
     $path = DIR_TMP . $_GET['id'];
     if (is_file($path)) {
         if (preg_match('"\.xml$"i', $path)) {
-            header('Content-type: application/xml');
+            header('Content-Type: application/xml');
         }
         sendfile_chunked($path);
     }
