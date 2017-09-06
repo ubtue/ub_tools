@@ -83,11 +83,11 @@
 if (count($_POST) > 0) {
     $IgnoreRobots = true;
     $zotero = new Zotero\MetadataHarvester(ZOTERO_SERVER_URL);
-    $operation = $zotero->Start($_POST['UrlBase'], $_POST['UrlRegex'], $_POST['Depth'], $IgnoreRobots, $_POST['FileExtension']);
+    $task = $zotero->start($_POST['UrlBase'], $_POST['UrlRegex'], $_POST['Depth'], $IgnoreRobots, $_POST['FileExtension']);
     ?>
     <h2>Result</h2>
     <table>
-        <tr><td>Command</td><td><?= $operation->Cmd ?></td></tr>
+        <tr><td>Command</td><td><?= $task->Cmd ?></td></tr>
         <tr><td>Runtime</td><td id="runtime"></td></tr>
         <tr><td>Progress</td><td><div class="progress"><div id="progress-bar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%">0% Complete</div></div></td></tr>
 
@@ -105,21 +105,21 @@ if (count($_POST) > 0) {
     do {
         sleep(1);
         updateRuntime(time() - $starttime);
-        $progress = $operation->GetProgress();
+        $progress = $task->getProgress();
         if ($progress !== false && $progress !== $progress_old) {
             updateProgressBar($progress);
             $progress_old = $progress;
         }
-        $status = $operation->GetStatus();
+        $status = $task->getStatus();
     } while ($status['running']);
 
     if ($status['exitcode'] == 0) {
-        print '<tr><td>Download</td><td><a target="_blank" href="getresult.php?id=' . basename($operation->MarcPath) . '">Result file</a></td></tr>';
+        print '<tr><td>Download</td><td><a target="_blank" href="getresult.php?id=' . basename($task->MarcPath) . '">Result file</a></td></tr>';
     } else {
         print '<tr><td>ERROR</td><td>Exitcode: '.$status['exitcode'].'</td></tr>';
     }
 
-    print '<tr><td>CLI output:</td><td>'.nl2br($operation->GetOutput()).'</td></tr>';
+    print '<tr><td>CLI output:</td><td>'.nl2br($task->getOutput()).'</td></tr>';
 
     ?>
     </table>
