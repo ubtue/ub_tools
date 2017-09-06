@@ -40,9 +40,9 @@ class MetadataHarvester {
      * @param int $Depth
      * @param bool $IgnoreRobots
      * @param string $FileExtension     supported extension, e.g. "xml" for MARCXML or "mrc" for MARC21
-     * @return \Zotero\Operation
+     * @return \Zotero\BackgroundTask
      */
-    public function Start($UrlBase, $UrlRegex, $Depth, $IgnoreRobots, $FileExtension) {
+    public function start($UrlBase, $UrlRegex, $Depth, $IgnoreRobots, $FileExtension) {
         $uniqid = uniqid('Zts_' . date('Y-m-d_H-i-s_'));
         $CfgPath = DIR_TMP . $uniqid . '.conf';
 
@@ -67,13 +67,13 @@ class MetadataHarvester {
     }
 
     /**
-     * Get progress of the operation
+     * Get progress of a background task
      *
-     * @param string $OperationId
+     * @param string $TaskId
      * @return boolean
      */
-    static public function GetProgress($OperationId) {
-        $path = self::_getProgressPath($OperationId);
+    static public function getProgress($TaskId) {
+        $path = self::_getProgressPath($TaskId);
         if (is_file($path)) {
             $progress_raw = file_get_contents($path);
             if ($progress_raw !== false && $progress_raw !== '') {
@@ -88,14 +88,14 @@ class MetadataHarvester {
     }
 
     /**
-     * Call zts_client (start operation, dont wait for result)
+     * Call zts_client (start background task, dont wait for result)
      *
      * @param string $Id
      * @param string $CfgPath
      * @param string $DirMap
      * @param string $OutPath
      * @param bool $IgnoreRobots
-     * @return \Zotero\Operation
+     * @return \Zotero\BackgroundTask
      */
     protected function _executeCommand($Id, $CfgPath, $DirMap, $OutPath, $IgnoreRobots=false) {
         $ProgressPath = self::_getProgressPath($Id);
@@ -111,27 +111,27 @@ class MetadataHarvester {
         $cmd .= ' ' . $this->Url . ' ' . $DirMap . ' "' . $OutPath . '"';
         $cmd .= ' 2>&1';
 
-        $operation = new Operation();
-        $operation->Cmd = $cmd;
-        $operation->MarcPath = $OutPath;
-        $operation->OperationId = $Id;
+        $task = new BackgroundTask();
+        $task->Cmd = $cmd;
+        $task->MarcPath = $OutPath;
+        $task->TaskId = $Id;
         $descriptorspec = array(0 => array("pipe", "r"),  // stdin is a pipe that the child will read from
                                 1 => array("pipe", "w"),  // stdout is a pipe that the child will write to
                                 2 => array("pipe", "w"),  // stderr is a pipe that the child will write to);
                                 );
-        $operation->Resource = proc_open($cmd, $descriptorspec, $operation->Pipes);
+        $task->Resource = proc_open($cmd, $descriptorspec, $task->Pipes);
 
-        return $operation;
+        return $task;
     }
 
     /**
-     * Get path to progress file (tmp) for this operation
+     * Get path to progress file (tmp) for a background task
      *
-     * @param type $OperationId
+     * @param string $TaskId
      * @return string
      */
-    static protected function _getProgressPath($OperationId) {
-        return DIR_TMP . $OperationId . '.progress';
+    static protected function _getProgressPath($TaskId) {
+        return DIR_TMP . $TaskId . '.progress';
     }
 
     /**
@@ -150,10 +150,10 @@ class MetadataHarvester {
 }
 
 /**
- * Operation class, generated as soon as the shell command is executed.
+ * Class for background tasks, generated as soon as the shell command is executed.
  * Can be used to monitor the status of the running cli subprocess.
  */
-class Operation {
+class BackgroundTask {
     /**
      * contains the full CLI call (for debug output)
      * @var string
@@ -167,10 +167,10 @@ class Operation {
     public $MarcPath;
 
     /**
-     * Operation Id. Unique string, can be used for status requests
+     * Task Id. Unique string, can be used for status requests
      * @var string
      */
-    public $OperationId;
+    public $TaskId;
 
     /**
      * array of pipes opened to the process. see www.php.net/proc_open
@@ -199,7 +199,7 @@ class Operation {
      *
      * @return string
      */
-    public function GetOutput() {
+    public function getOutput() {
         return stream_get_contents($this->Pipes[1]);
     }
 
@@ -207,14 +207,14 @@ class Operation {
      * Get progress (in percent)
      * @return int
      */
-    public function GetProgress() {
-        return MetadataHarvester::GetProgress($this->OperationId);
+    public function getProgress() {
+        return MetadataHarvester::GetProgress($this->TaskId);
     }
 
     /**
      * Get status (see www.php.net/proc_get_status)
      */
-    public function GetStatus() {
+    public function getStatus() {
         return proc_get_status($this->Resource);
     }
 }
