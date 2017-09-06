@@ -67,27 +67,6 @@ class MetadataHarvester {
     }
 
     /**
-     * Get progress of a background task
-     *
-     * @param string $TaskId
-     * @return boolean
-     */
-    static public function getProgress($TaskId) {
-        $path = self::_getProgressPath($TaskId);
-        if (is_file($path)) {
-            $progress_raw = file_get_contents($path);
-            if ($progress_raw !== false && $progress_raw !== '') {
-                $progress_percent = intval($progress_raw * 100);
-                return $progress_percent;
-            } else {
-                return false;
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * Call zts_client (start background task, dont wait for result)
      *
      * @param string $Id
@@ -98,7 +77,7 @@ class MetadataHarvester {
      * @return \Zotero\BackgroundTask
      */
     protected function _executeCommand($Id, $CfgPath, $DirMap, $OutPath, $IgnoreRobots=false) {
-        $ProgressPath = self::_getProgressPath($Id);
+        $ProgressPath = BackgroundTask::getProgressPath($Id);
 
         $cmd = 'zts_client';
         if ($IgnoreRobots) {
@@ -122,16 +101,6 @@ class MetadataHarvester {
         $task->Resource = proc_open($cmd, $descriptorspec, $task->Pipes);
 
         return $task;
-    }
-
-    /**
-     * Get path to progress file (tmp) for a background task
-     *
-     * @param string $TaskId
-     * @return string
-     */
-    static protected function _getProgressPath($TaskId) {
-        return DIR_TMP . $TaskId . '.progress';
     }
 
     /**
@@ -208,7 +177,26 @@ class BackgroundTask {
      * @return int
      */
     public function getProgress() {
-        return MetadataHarvester::GetProgress($this->TaskId);
+        $path = self::getProgressPath($this->TaskId);
+        if (is_file($path)) {
+            $progress_raw = file_get_contents($path);
+            if ($progress_raw !== false && $progress_raw !== '') {
+                $progress_percent = intval($progress_raw * 100);
+                return $progress_percent;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Get path to progress file (tmp) for a background task
+     *
+     * @param string $TaskId
+     * @return string
+     */
+    static public function getProgressPath($TaskId) {
+        return DIR_TMP . $TaskId . '.progress';
     }
 
     /**
