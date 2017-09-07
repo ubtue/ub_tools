@@ -26,7 +26,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--timeout milli_seconds] [--honour-robots-dot-txt] url\n";
+    std::cerr << "Usage: " << progname << " [--timeout milli_seconds] [--honour-robots-dot-txt] [--ignore-ssl-certificates] url\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -47,7 +47,6 @@ int main(int argc, char *argv[]) {
         --argc, ++argv;
         time_limit = timeout;
     }
-
     if (argc < 2)
         Usage();
 
@@ -55,7 +54,13 @@ int main(int argc, char *argv[]) {
         params.honour_robots_dot_txt_ = true;
         --argc, ++argv;
     }
+    if (argc < 2)
+        Usage();
 
+    if (std::strcmp(argv[1], "--ignore-ssl-certificates") == 0) {
+        params.ignore_ssl_certificates_ = true;
+        --argc, ++argv;
+    }
     if (argc != 2)
         Usage();
 

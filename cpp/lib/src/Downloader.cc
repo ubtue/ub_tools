@@ -73,11 +73,11 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
                            const long max_redirect_count, const long dns_cache_timeout,
                            const bool honour_robots_dot_txt, const TextTranslationMode text_translation_mode,
                            const PerlCompatRegExps &banned_reg_exps, const bool debugging,
-                           const bool follow_redirects)
+                           const bool follow_redirects, bool ignore_ssl_certificates)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
       dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt),
       text_translation_mode_(text_translation_mode), banned_reg_exps_(banned_reg_exps), debugging_(debugging),
-      follow_redirects_(follow_redirects)
+      follow_redirects_(follow_redirects), ignore_ssl_certificates_(ignore_ssl_certificates)
 {
     max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0 ;
 
@@ -230,11 +230,18 @@ void Downloader::init() {
         throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (1)!");
 
     if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_WRITEHEADER, reinterpret_cast<void *>(this)) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (2)!");
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (2)!");
 
     if (params_.debugging_) {
         if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_DEBUGDATA, reinterpret_cast<void *>(this)) != CURLE_OK))
-            throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (3)!");
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (3)!");
+    }
+
+    if (params_.ignore_ssl_certificates_) {
+        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_SSL_VERIFYPEER, 0L) != CURLE_OK))
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (4)!");
+        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_SSL_VERIFYHOST, 0L) != CURLE_OK))
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (5)!");
     }
 }
 
