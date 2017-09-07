@@ -32,12 +32,12 @@
 #include <sstream>
 #include <unordered_map>
 #include "Compiler.h"
+#include "Downloader.h"
 #include "FileDescriptor.h"
 #include "FileUtil.h"
 #include "HtmlParser.h"
 #include "HttpHeader.h"
 #include "MiscUtil.h"
-#include "PageFetcher.h"
 #include "SslConnection.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
@@ -1179,14 +1179,11 @@ void ExtractURLs(const std::string &document_source, std::string default_base_ur
                 if (not the_url.isValidWebUrl())
                     continue;
 
-                PageFetcher page_fetcher(url_and_anchor_texts->getUrl());
-                if (not page_fetcher.anErrorOccurred()) {
-                    std::string message_headers;
-                    if (PageFetcher::SplitHttpHeadersFromBody(page_fetcher.getData(), &message_headers)) {
-                        const HttpHeader http_header(message_headers);
-                        if (http_header.isValid() and http_header.getStatusCode() == 200)
-                            filtered_urls_and_anchor_texts.push_back(*url_and_anchor_texts);
-                    }
+                Downloader downloader(url_and_anchor_texts->getUrl());
+                if (not downloader.anErrorOccurred()) {
+                    const HttpHeader http_header(downloader.getMessageHeader());
+                    if (http_header.isValid() and http_header.getStatusCode() == 200)
+                        filtered_urls_and_anchor_texts.push_back(*url_and_anchor_texts);
                 }
             }
             urls_and_anchor_texts->swap(filtered_urls_and_anchor_texts);
