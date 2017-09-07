@@ -133,8 +133,7 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
         // Enable rapid reuse of ports:
         const int reuse_addr_flag = 1;
         if (::setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr_flag, sizeof(reuse_addr_flag)) != 0) {
-            *error_message = "setsockopt(2) failed for SO_REUSEADDR (" + std::to_string(errno)
-                + ")!";
+            *error_message = "setsockopt(2) failed for SO_REUSEADDR (" + std::to_string(errno) + ")!";
             return -1;
         }
     }
@@ -247,7 +246,7 @@ ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data,
                 goto read_again;
             if (errno == EWOULDBLOCK or errno == EAGAIN)
                 goto select_again;
-            ret_val = -1;
+            return -1;
         }
     } else { // We have an SSL connection.
         ret_val = ssl_connection->read(data, data_size);
@@ -260,11 +259,10 @@ ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data,
             case SSL_ERROR_SYSCALL: // SSL has already set errno for us.
                 if (errno == EWOULDBLOCK or errno == EAGAIN)
                     goto select_again;
-                ret_val = -1;
-                break;
+                return -1;
             default: // A real SSL error.
                 errno = EPROTO;
-                ret_val = -1;
+                return -1;
             }
         }
     }
@@ -273,7 +271,9 @@ ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data,
 }
 
 
-bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s, SslConnection * const ssl_connection) {
+bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s,
+               SslConnection * const ssl_connection)
+{
     s->clear();
 
     ssize_t retval;
