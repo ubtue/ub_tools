@@ -5,8 +5,9 @@
  */
 
 /*
- *  Copyright 2005-2009 Project iVia.
- *  Copyright 2005-2009 The Regents of The University of California.
+ *  \copyright 2005-2009 Project iVia.
+ *  \copyright 2005-2009 The Regents of The University of California.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -42,33 +43,38 @@
  *  limit has been reached.
  */
 class TimeLimit {
-        timeval expire_time_;
+    timeval expire_time_;
 public:
-        /** \brief  Construct a TimeLimit by specifying the limit.
-         *  \param  time_limit  The time until expiration, in milliseconds.
-         *  \note   This constructor is deliberately not explicit, so that unsigned values can be used in place of
-         *          TimeLimit objects in function calls.
-         */
-        TimeLimit(const unsigned time_limit);
+ /** \brief  Construct a TimeLimit by specifying the limit.
+  *  \param  time_limit  The time until expiration, in milliseconds.
+  *  \note   This constructor is deliberately not explicit, so that unsigned values can be used in place of
+  *          TimeLimit objects in function calls.
+  */
+    TimeLimit(const unsigned time_limit);
 
-        /** TimeLimit Copy Constructor. */
-        TimeLimit(const TimeLimit &rhs): expire_time_(rhs.expire_time_) { }
+    /** TimeLimit Copy Constructor. */
+    TimeLimit(const TimeLimit &rhs): expire_time_(rhs.expire_time_) { }
 
-        /** TimeLimit equality operator. */
-        const TimeLimit operator=(const TimeLimit &rhs) { expire_time_ = rhs.expire_time_; return *this; }
+    /** TimeLimit assignment operator. */
+    const TimeLimit operator=(const TimeLimit &rhs) { expire_time_ = rhs.expire_time_; return *this; }
 
-        /** \brief  Test whether the time limit has been exceeded.
-         *  \return  True if the time limit has been exceeded, otherwise false.
-         */
-        bool limitExceeded() const;
+    /** TimeLimit assignment operator. */
+    const TimeLimit operator=(const unsigned new_time_limit);
 
-        /** \brief   Get the time remaining before the limit is exceeded.
-         *  \return  The time remaining until the limit is exceeded (in milliseconds) or 0 if the limit is already
-         *           exceeded.
-         */
-        unsigned getRemainingTime() const;
+    /** \brief   Test whether the time limit has been exceeded.
+     *  \return  True if the time limit has been exceeded, otherwise false.
+     */
+    bool limitExceeded() const;
 
-        bool operator!=(const TimeLimit &rhs);
+    /** \brief   Get the time remaining before the limit is exceeded.
+     *  \return  The time remaining until the limit is exceeded (in milliseconds) or 0 if the limit is already
+     *           exceeded.
+     */
+    unsigned getRemainingTime() const;
+
+    /** Equality and inequality operators. */
+    bool operator==(const TimeLimit &rhs);
+    bool operator!=(const TimeLimit &rhs);
 };
 
 
