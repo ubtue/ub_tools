@@ -27,8 +27,8 @@
 #include <cerrno>
 #include <cstring>
 #include <getopt.h>
+#include "Downloader.h"
 #include "FileUtil.h"
-#include "PageFetcher.h"
 #include "RegexMatcher.h"
 #include "HttpHeader.h"
 #include "StringUtil.h"
@@ -81,20 +81,17 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
                 const std::string &acceptable_languages, unsigned remaining_crawl_depth,
                 const RegexMatcher &url_regex_matcher, std::unordered_set<std::string> * const extracted_urls)
 {
-    const PageFetcher::RobotsDotTxtOption robots_dot_txt_option(
-        ignore_robots_dot_txt ? PageFetcher::IGNORE_ROBOTS_DOT_TXT : PageFetcher::CONSULT_ROBOTS_DOT_TXT);
-    PageFetcher page_fetcher(url, /* additional_http_headers = */ "", timeout, /* max_redirects = */ 7,
-                             /* ignore_redirect_errors = */ false, /* transparently_unzip_content = */true,
-                             USER_AGENT, acceptable_languages, robots_dot_txt_option);
-    if (page_fetcher.anErrorOccurred()) {
-        Warning("in ProcessURL: Failed to retrieve a Web page (" + url + "): " + page_fetcher.getErrorMsg());
+    Downloader::Params params;
+    params.user_agent_            = USER_AGENT;
+    params.acceptable_languages_  = acceptable_languages;
+    params.honour_robots_dot_txt_ = not ignore_robots_dot_txt;
+    Downloader downloader(url, params, timeout);
+    if (downloader.anErrorOccurred()) {
+        Warning("in ProcessURL: Failed to retrieve a Web page (" + url + "): " + downloader.getLastErrorMessage());
         return;
     }
 
-    std::string message_headers, message_body;
-    if (not PageFetcher::SplitHttpHeadersFromBody(page_fetcher.getData(), &message_headers, &message_body))
-        Error("in ProcessURL: Failed to separate message headers and message body!");
-
+    const std::string message_headers(downloader.getMessageHeader()), message_body(downloader.getMessageBody());
     if (print_redirects) {
         std::list<std::string> location_urls;
         ExtractLocationUrls(message_headers, &location_urls);
