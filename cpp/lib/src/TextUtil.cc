@@ -195,6 +195,24 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 }
 
 
+bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_utf8_string) {
+    std::wstring wchar_string;
+    if (not UTF8toWCharString(utf8_string, &wchar_string))
+        return false;
+
+    // Uppercase the wide character string:
+    std::wstring uppercase_wide_string;
+    for (const auto wide_ch : wchar_string) {
+        if (std::iswlower(static_cast<wint_t>(wide_ch)))
+            uppercase_wide_string += std::towupper(static_cast<wint_t>(wide_ch));
+        else
+            uppercase_wide_string += wide_ch;
+    }
+
+    return WCharToUTF8String(uppercase_wide_string, uppercase_utf8_string);
+}
+
+
 /** The following conversions are implemented here:
 
     Unicode range 0x00000000 - 0x0000007F:
