@@ -629,12 +629,13 @@ unsigned TestAndConvertCount(char ***argvp) {
 }
 
 
-void ExtractSubfieldSpecs(const std::string &command, char **argv, std::vector<std::string> * const subfield_specs) {
-    ++argv;
-    StringUtil::Split(*argv, ':', subfield_specs);
+void ExtractSubfieldSpecs(const std::string &command, char ***argvp, std::vector<std::string> * const subfield_specs)
+{
+    ++*argvp;
+    StringUtil::Split(**argvp, ':', subfield_specs);
     if (not ArePlausibleSubfieldSpecs(*subfield_specs))
-        Error("bad subfield specifications \"" + std::string(*argv) + "\" for " + command + "!");
-    ++argv;
+        Error("bad subfield specifications \"" + std::string(**argvp) + "\" for " + command + "!");
+    ++*argvp;
 }
 
 
@@ -657,7 +658,7 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             filters->emplace_back(FilterDescriptor::MakeRemoveSubfieldsFilter(CollectAndCompilePatterns(&argv)));
         else if (std::strcmp(*argv, "--translate") == 0) {
             std::vector<std::string> subfield_specs;
-            ExtractSubfieldSpecs("--translate", argv, &subfield_specs);
+            ExtractSubfieldSpecs("--translate", &argv, &subfield_specs);
             if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
                 Error("missing or bad \"set1\" argument to \"--translate\"!");
             if (argv + 1 == nullptr or StringUtil::StartsWith(*(argv + 1), "--"))
@@ -681,7 +682,7 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             argv += 2;
         } else if (std::strcmp(*argv, "--filter-chars") == 0) {
             std::vector<std::string> subfield_specs;
-            ExtractSubfieldSpecs("--filter-chars", argv, &subfield_specs);
+            ExtractSubfieldSpecs("--filter-chars", &argv, &subfield_specs);
             if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
                 Error("missing or bad \"characters_to_delete\" argument to \"--filter-chars\"!");
             filters->emplace_back(FilterDescriptor::MakeFilterCharsFilter(subfield_specs, *argv++));
