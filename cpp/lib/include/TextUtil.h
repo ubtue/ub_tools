@@ -65,8 +65,14 @@ bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string);
 
 /** \brief Converts a UTF8 string to lowercase.
  *  \return True if no character set conversion error occurred, o/w false.
-  */
+ */
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string);
+
+
+/** \brief Converts a UTF8 string to uppercase.
+ *  \return True if no character set conversion error occurred, o/w false.
+ */
+bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_utf8_string);
 
 
 /** Converts UTF-32 a.k.a. UCS-4 to UTF-8. */
