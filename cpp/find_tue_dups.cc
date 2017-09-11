@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <iostream>
 #include <set>
+#include <unordered_set>
 #include <cstring>
 #include "Compiler.h"
 #include "JSON.h"
@@ -250,9 +251,17 @@ void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
               << ",\"Sigel der anderen besitzenden Bibliotheken"
               << (output_set == SERIALS ? " mit Bestandsangaben\"" : "\"") << '\n';
 
-    unsigned count(0), dups_count(0), monograph_count(0), serial_count(0);
-    while (MarcRecord record = marc_reader->read()) {
+    unsigned count(0), control_number_dups_count(0), dups_count(0), monograph_count(0), serial_count(0);
+    std::unordered_set<std::string> previously_seen_ppns;
+    while (const MarcRecord record = marc_reader->read()) {
         ++count;
+
+        if (previously_seen_ppns.find(record.getControlNumber()) != previously_seen_ppns.cend()) {
+            ++control_number_dups_count;
+            Warning("found a duplicate control number: " + record.getControlNumber());
+            continue;
+        } else
+            previously_seen_ppns.insert(record.getControlNumber());
 
         // Only consider monographs and serials:
         const Leader &leader(record.getLeader());
@@ -271,6 +280,7 @@ void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
     }
     std::cerr << "Processed " << count << " records and found " << dups_count << " dups (" << monograph_count
               << " monographs and " << serial_count << " serials).\n";
+    std::cerr << "Found " << control_number_dups_count << " records w/ duplicate control numbers!\n";
 }
 
 
