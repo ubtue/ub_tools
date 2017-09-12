@@ -41,8 +41,7 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << ::progname
-              << "       marc_input marc_output [[--input-format=(marc-xml|marc-21)]\n"
+    std::cerr << "usage: " << ::progname << " marc_input marc_output [[--input-format=(marc-xml|marc-21)]\n"
               << "       [--output-format=(marc-xml|marc-21)] op1 [op2 .. opN]\n"
               << "       where each operation must start with the operation type. Operation-type flags are\n"
               << "           --drop field_or_subfield_specs\n"
