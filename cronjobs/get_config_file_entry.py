@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Given an absolut path for the config file, that will be used.  If it is a relative path, the first location
-searched will be /var/lib/tuelib/$hostname/$config_file.  If that is not readable, next
-/var/lib/tuelib/$config_file will be tried.  If none of those work, the program will exit with an
+searched will be /usr/local/var/lib/tuelib/$hostname/$config_file.  If that is not readable, next
+/usr/local/var/lib/tuelib/$config_file will be tried.  If none of those work, the program will exit with an
 error message.
 """
 
@@ -15,7 +15,7 @@ import sys
 import util
 
 
-DEFAULT_CONFIG_FILE_LOCATION = "/var/lib/tuelib/cronjobs/"
+DEFAULT_CONFIG_FILE_LOCATION = "/usr/local/var/lib/tuelib/cronjobs/"
 
 
 def Main():

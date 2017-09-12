@@ -45,7 +45,7 @@ def UploadFile(ftp, local_filename, remote_filename):
 # @return The number of records that were written.
 def DownloadCrossrefData(output_marc_filename):
     util.ExecOrDie("/usr/local/bin/crossref_downloader",
-                   [ "/var/lib/tuelib/crossref_downloader/crossref_journal_list", output_marc_filename ],
+                   [ "/usr/local/var/lib/tuelib/crossref_downloader/crossref_journal_list", output_marc_filename ],
                    "/proc/self/fd/1")
     process = subprocess.Popen(["marc_size", output_marc_filename], stdout=subprocess.PIPE)
     size = process.stdout.readline()
