@@ -228,8 +228,8 @@ void Downloader::init() {
         additional_http_headers_ = curl_slist_append(additional_http_headers_,
                                                      ("Accept-Language: " + params_.acceptable_languages_).c_str());
 
-    for (const auto &additional_http_headers : additional_http_headers_)
-        additional_http_headers_ = url_slist_append(additional_http_headers_, additional_http_headers.c_str());
+    for (const auto &additional_header : params_.additional_headers_)
+        additional_http_headers_ = curl_slist_append(additional_http_headers_, additional_header.c_str());
 
     if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_WRITEDATA, reinterpret_cast<void *>(this)) != CURLE_OK))
         throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (1)!");
