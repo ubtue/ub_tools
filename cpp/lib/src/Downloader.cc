@@ -74,12 +74,12 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
                            const bool honour_robots_dot_txt, const TextTranslationMode text_translation_mode,
                            const PerlCompatRegExps &banned_reg_exps, const bool debugging,
                            const bool follow_redirects, bool ignore_ssl_certificates,
-                           const std::string &proxy_host_and_port)
+                           const std::string &proxy_host_and_port, const std::vector<std::string> &additional_headers)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
       dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt),
       text_translation_mode_(text_translation_mode), banned_reg_exps_(banned_reg_exps), debugging_(debugging),
       follow_redirects_(follow_redirects), ignore_ssl_certificates_(ignore_ssl_certificates),
-      proxy_host_and_port_(proxy_host_and_port)
+      proxy_host_and_port_(proxy_host_and_port), additional_headers_(additional_headers)
 {
     max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0 ;
 
@@ -227,6 +227,9 @@ void Downloader::init() {
     if (not params_.acceptable_languages_.empty())
         additional_http_headers_ = curl_slist_append(additional_http_headers_,
                                                      ("Accept-Language: " + params_.acceptable_languages_).c_str());
+
+    for (const auto &additional_http_headers : additional_http_headers_)
+        additional_http_headers_ = url_slist_append(additional_http_headers_, additional_http_headers.c_str());
 
     if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_WRITEDATA, reinterpret_cast<void *>(this)) != CURLE_OK))
         throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (1)!");

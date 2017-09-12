@@ -29,12 +29,13 @@
  */
 
 #include "CachedPageFetcher.h"
-#include <iostream>//XXX
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <cerrno>
 #include "DbRow.h"
 #include "DnsUtil.h"
+#include "Downloader.h"
 #include "FileUtil.h"
 #include "GzStream.h"
 #include "HttpHeader.h"
@@ -42,7 +43,6 @@
 #include "Logger.h"
 #include "MediaTypeUtil.h"
 #include "MiscUtil.h"
-#include "PageFetcher.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "SystemAndUserTimer.h"
@@ -722,7 +722,6 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
     int redirect_count = 0;
 
     while (redirect_count <= max_redirects) {
-std::cerr << "redirected_url = " << redirected_url.toString() << '\n';
         if (verbosity_ >= 4 and logger_ != nullptr)
             logger_->log("Fetch no. %u, URL: '%s', remaining time: %u ms", redirect_count,
                          redirected_url.toString().c_str(), time_limit.getRemainingTime());
@@ -731,15 +730,11 @@ std::cerr << "redirected_url = " << redirected_url.toString() << '\n';
         bool found_in_cache(foundInCache(redirected_url, time_limit, &timeout));
         if (found_in_cache) {
             if (timeout > 0) // Found a timed out entry in the cache.
-                {std::cerr << "Found a timed out entry in the cache.\n";
                 return false;
-                }
 
-std::cerr << "Attempting to retrieve from cache...\n";
             if (not retrieveFromCache(redirected_url, &current_header, &message_body_))
                 return false;
         } else { // Attempt to actually download the requested page.
-std::cerr << "Not found in cache!\n";
             // Get any cookies we might have for the following request:
             std::string additional_headers;
             cookie_jar_.getCookieHeaders(redirected_url.getAuthority(), redirected_url.getPath(),
@@ -749,29 +744,37 @@ std::cerr << "Not found in cache!\n";
             if (not previous_url.empty())
                 additional_headers += "Referer: " + previous_url + "\r\n";
 
-            // Download the page with the PageFetcher:
-            PageFetcher page_fetcher(redirected_url, additional_headers, proxy_host, proxy_port,
-                                     time_limit.getRemainingTime(), 0 /* max_redirects */,
-                                     /* ignore_redirect_errors = */ true, /* transparently_unzip = */ true ,
-                                     params_.user_agent_, params_.acceptable_languages_);
-std::cerr <<"ignorging robots.txt is " << (page_fetcher.ignoringRobotsDotTxt() ? "TRUE" : "FALSE") << "\n";                       previous_url = redirected_url;
+            // Download the page with the Downloader:
+            Downloader::Params params;
+            if (not proxy_host.empty()) {
+                if (proxy_port == 0) 
+                    params.proxy_host_and_port_ = proxy_host;
+                else
+                    params.proxy_host_and_port_ = proxy_host+ ":" + std::to_string(proxy_port);
+            }
+            params.user_agent_ = params_.user_agent_;
+            StringUtil::SplitThenTrim(additional_headers, "\r\n", "\r\n", &params.additional_headers_);
+            params.max_redirect_count_ = 0;
+            params.follow_redirects_ = false;
+            params.acceptable_languages_ = params_.acceptable_languages_;
+            
+            Downloader downloader(redirected_url, params, time_limit);
 
-            // Handle page fetcher errors:
-            if (page_fetcher.anErrorOccurred()) {
-                last_error_code_ = page_fetcher.getLastErrorCode();
-                if (page_fetcher.getErrorMsg() == page_fetcher.getTimeoutErrorMsg())
-                    last_error_message_ = "timeout: PageFetcher timed out.";
-                else if (page_fetcher.getErrorMsg() == page_fetcher.getNoSuchDomainErrorMsg()) {
+            // Handle downloader errors:
+            if (downloader.anErrorOccurred()) {
+                last_error_code_ = downloader.getLastErrorCode();
+                if (downloader.getLastErrorCode() == CURLE_OPERATION_TIMEDOUT)
+                    last_error_message_ = "timeout: Downloader timed out.";
+                else if (downloader.getLastErrorCode() == CURLE_COULDNT_RESOLVE_HOST) {
                     // Evil hack: try again with a prepended "www." if we don't already have that:
                     if (not StringUtil::IsPrefixOf("www.", redirected_url.getAuthority())) {
                         redirected_url.setAuthority("www." + redirected_url.getAuthority());
                         continue;
                     }
-                }
-                else if (page_fetcher.getErrorMsg().empty())
+                } else if (downloader.getLastErrorMessage().empty())
                     last_error_message_ = "unspecified error.";
                 else
-                    last_error_message_ = page_fetcher.getErrorMsg();
+                    last_error_message_ = downloader.getLastErrorMessage();
 
                 if (useCache())
                     actualStoreInCache(UrlToCacheKey(url), retrieval_datetime,
@@ -781,11 +784,11 @@ std::cerr <<"ignorging robots.txt is " << (page_fetcher.ignoringRobotsDotTxt() ?
                 return false;
             }
 
-            PageFetcher::SplitHttpHeadersFromBody(page_fetcher.getData(), &current_header, &message_body_);
-            last_error_code_ = page_fetcher.getLastErrorCode();
+            current_header   = downloader.getMessageHeader();
+            message_body_    = downloader.getMessageBody();
+            last_error_code_ = downloader.getLastErrorCode();
         }
 
-std::cerr << "Cleaning up the HTTP header...\n";
         StringUtil::TrimWhite(&current_header);
         current_header += "\r\n\r\n";
         message_headers_.push_back(current_header);
@@ -801,7 +804,6 @@ std::cerr << "Cleaning up the HTTP header...\n";
 
         // If we have finished following redirections, break the loop and continue processing:
         last_error_code_ = http_header.getStatusCode();
-std::cerr << "HTTP status code is "<<last_error_code_<<'\n';
         if (last_error_code_ < 300 or last_error_code_ > 399)
             break; // No more redirections!
 
