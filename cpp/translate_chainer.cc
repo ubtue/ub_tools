@@ -150,7 +150,8 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
     std::vector<Translation> translations;
     ParseTranslationsDbToolOutput(output, &translations);
     if (translations.empty()) {
-        std::ifstream done_html("/var/lib/tuelib/translate_chainer/done_translating.html", std::ios::binary);
+        std::ifstream done_html("/usr/local/var/lib/tuelib/translate_chainer/done_translating.html",
+                                std::ios::binary);
         std::cout << done_html.rdbuf();
     } else {
         std::string existing_translation("");
@@ -160,7 +161,8 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
         }
         std::map<std::string, std::vector<std::string>> names_to_values_map;
         names_to_values_map.emplace("index", std::vector<std::string>{ translations.front().index_ });
-        names_to_values_map.emplace("remaining_count", std::vector<std::string>{ translations.front().remaining_count_ });
+        names_to_values_map.emplace("remaining_count",
+                                    std::vector<std::string>{ translations.front().remaining_count_ });
         names_to_values_map.emplace("target_language_code", std::vector<std::string>{ language_code });
         names_to_values_map.emplace("action", std::vector<std::string>{ action });
         names_to_values_map.emplace("translation_value", std::vector<std::string>{ existing_translation });
@@ -186,7 +188,7 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &outpu
 
         names_to_values_map.emplace("translator", std::vector<std::string>{ getTranslatorOrEmptyString()});
 
-        std::ifstream translate_html("/var/lib/tuelib/translate_chainer/translate.html", std::ios::binary);
+        std::ifstream translate_html("/usr/local/var/lib/tuelib/translate_chainer/translate.html", std::ios::binary);
         MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
     }
 }
