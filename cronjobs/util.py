@@ -22,7 +22,7 @@ import time
 
 
 default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
-default_config_file_dir = "/var/lib/tuelib/cronjobs/"
+default_config_file_dir = "/usr/local/var/lib/tuelib/cronjobs/"
 
 
 # @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the highest priority.
@@ -36,7 +36,7 @@ def SendEmail(subject, msg, sender=None, recipient=None, priority=None):
         if priority < 1 or priority > 5:
             Error("util.Sendmail called with a prioity that is not in [1..5]!")
     try:
-        config = LoadConfigFile("/var/lib/tuelib/cronjobs/smtp_server.conf", no_error=True)
+        config = LoadConfigFile("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf", no_error=True)
         server_address  = config.get("SMTPServer", "server_address")
         server_user     = config.get("SMTPServer", "server_user")
         if sender is None:

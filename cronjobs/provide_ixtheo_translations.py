@@ -76,7 +76,7 @@ def Main():
     util.default_email_recipient = sys.argv[1]
     user = sys.argv[1]
     try:
-        sql_config = util.LoadConfigFile("/var/lib/tuelib/translations.conf")
+        sql_config = util.LoadConfigFile("/usr/local/var/lib/tuelib/translations.conf")
         sql_database = sql_config.get("Database", "sql_database")
         sql_username = sql_config.get("Database", "sql_username")
         sql_password = sql_config.get("Database", "sql_password")
