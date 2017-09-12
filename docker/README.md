@@ -19,9 +19,10 @@ und sollte nicht verändert werden.
 ## Image erstellen (Beispiel: "dummy")
 Ins Verzeichnis mit Dockerfile wechseln, z.B. docker/dummy
 
-`docker build -t dummy .`
+Bei Abhängigkeiten sollte immer `make` verwendet werden! (Grund siehe weiter oben / Makefile).
+Falls es keine gibt, kann zum erstellen und lokalen registrieren folgender Befehl verwendet werden!
 
-Das Image wird nun erstellt und lokal registriert
+`docker build -t dummy .`
 
 ## Images anzeigen lassen
 `docker images`
