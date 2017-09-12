@@ -73,11 +73,13 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
                            const long max_redirect_count, const long dns_cache_timeout,
                            const bool honour_robots_dot_txt, const TextTranslationMode text_translation_mode,
                            const PerlCompatRegExps &banned_reg_exps, const bool debugging,
-                           const bool follow_redirects, bool ignore_ssl_certificates)
+                           const bool follow_redirects, bool ignore_ssl_certificates,
+                           const std::string &proxy_host_and_port)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
       dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt),
       text_translation_mode_(text_translation_mode), banned_reg_exps_(banned_reg_exps), debugging_(debugging),
-      follow_redirects_(follow_redirects), ignore_ssl_certificates_(ignore_ssl_certificates)
+      follow_redirects_(follow_redirects), ignore_ssl_certificates_(ignore_ssl_certificates),
+      proxy_host_and_port_(proxy_host_and_port)
 {
     max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0 ;
 
@@ -242,6 +244,12 @@ void Downloader::init() {
             throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (4)!");
         if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_SSL_VERIFYHOST, 0L) != CURLE_OK))
             throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (5)!");
+    }
+
+    if (not params_.proxy_host_and_port_.empty())  {
+        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_PROXY, params_.proxy_host_and_port_.c_str())
+                     != CURLE_OK))
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (6)!");
     }
 }
 
