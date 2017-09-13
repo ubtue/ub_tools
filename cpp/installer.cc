@@ -1,6 +1,9 @@
 /** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu and Centos systems.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
+ *  \note Compile with   g++ -std=gnu++14 -O3 -o installer installer.cc
+ *  \note or             clang++ -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -O3 -o installer installer.cc
+ *
  *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -1041,13 +1044,6 @@ std::string ExecUtil_Which(const std::string &executable_candidate) {
 }
 
 
-void InstallUBToolsSubmodules() {
-    ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
-    ExecOrDie(ExecUtil_Which("git"), { "submodule", "update", "--init", "--recursive" });
-    Echo("Installed ub_tools submodules.");
-}
-
-
 void InstallUBTools() {
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
     ExecOrDie(ExecUtil_Which("make"), { "install" });
@@ -1915,11 +1911,10 @@ int main(int argc, char **argv) {
     else
         Error("system type must be either \"krimdok\" or \"ixtheo\"!");
 
-    //const OSSystemType os_system_type(DetermineOSSystemType());
+    const OSSystemType os_system_type(DetermineOSSystemType());
 
     try {
         MountDeptDriveOrDie(vufind_system_type);
-        InstallUBToolsSubmodules();
         InstallUBTools();
         InstallCronjobs(vufind_system_type);
         InstallVuFind(vufind_system_type);
