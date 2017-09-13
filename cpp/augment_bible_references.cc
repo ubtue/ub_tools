@@ -505,7 +505,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<MarcWriter> title_writer(MarcWriter::Factory(title_output_filename, MarcWriter::BINARY));
 
     const std::string books_of_the_bible_to_code_map_filename(
-        "/var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map");
+        "/usr/local/var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map");
     File books_of_the_bible_to_code_map_file(books_of_the_bible_to_code_map_filename, "r");
     if (not books_of_the_bible_to_code_map_file)
         Error("can't open \"" + books_of_the_bible_to_code_map_filename + "\" for reading!");

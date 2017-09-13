@@ -215,7 +215,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
 
 std::string GetEmailTemplate(const std::string user_type) {
     std::string result;
-    const std::string EMAIL_TEMPLATE_PATH("/var/lib/tuelib/subscriptions_email." + user_type + ".template");
+    const std::string EMAIL_TEMPLATE_PATH("/usr/local/var/lib/tuelib/subscriptions_email." + user_type + ".template");
     
     if (unlikely(!FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
         Error("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
@@ -385,7 +385,7 @@ void RecordNewlyNotifiedIds(const std::unique_ptr<kyotocabinet::HashDB> &notifie
 
 
 std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB(const std::string &user_type) {
-    const std::string DB_FILENAME("/var/lib/tuelib/" + user_type + "_notified.db");
+    const std::string DB_FILENAME("/usr/local/var/lib/tuelib/" + user_type + "_notified.db");
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(DB_FILENAME,
                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))

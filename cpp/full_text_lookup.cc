@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015,2017 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,7 +28,8 @@
 #include "util.h"
 
 
-const std::string DB_PATH("/var/lib/tuelib/full_text.db");
+const std::string DB_PATH("/usr/local/var/lib/tuelib/full_text.db");
+
 
 bool GetIdFromCGI(std::string * const id) {
     const char * const query = ::getenv("QUERY_STRING");
