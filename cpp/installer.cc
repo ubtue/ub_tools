@@ -1044,7 +1044,16 @@ std::string ExecUtil_Which(const std::string &executable_candidate) {
 }
 
 
-void InstallUBTools() {
+void InstallSoftwareDependencies(const OSSystemType os_system_type) {
+    if (os_system_type == UBUNTU)
+        ExecOrDie("cpp/data/installer/scripts/install_ubuntu_packages.sh", {});
+    else
+        ExecOrDie("cpp/data/installer/scripts/install_centos_packages.sh", {});
+}
+
+
+void InstallUBTools(const OSSystemType os_system_type) {
+    InstallSoftwareDependencies(os_system_type);
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
     ExecOrDie(ExecUtil_Which("make"), { "install" });
     Echo("Installed ub_tools.");
@@ -1915,7 +1924,7 @@ int main(int argc, char **argv) {
 
     try {
         MountDeptDriveOrDie(vufind_system_type);
-        InstallUBTools();
+        InstallUBTools(os_system_type);
         InstallCronjobs(vufind_system_type);
         InstallVuFind(vufind_system_type);
     } catch (const std::exception &x) {
