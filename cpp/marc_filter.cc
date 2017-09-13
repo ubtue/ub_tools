@@ -491,7 +491,7 @@ void ParseReplacementString(const std::string &replacement,
 
 FilterDescriptor::FilterDescriptor(const std::vector<std::string> &subfield_specs, const std::string &regex,
                                    const std::string &replacement)
-    : filter_type_(FilterType::FILTER_CHARS), subfield_specs_(subfield_specs), translate_map_(nullptr)
+    : filter_type_(FilterType::REPLACE), subfield_specs_(subfield_specs), translate_map_(nullptr)
 {
     std::string err_msg;
     if ((regex_matcher_ = RegexMatcher::RegexMatcherFactory(regex, &err_msg)) == nullptr)
