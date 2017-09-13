@@ -834,6 +834,7 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
                 Error("missing replacement string after --replace and regex!");
             const std::string replacement(*argv);
             filters->emplace_back(FilterDescriptor::MakeReplacementFilter(subfield_specs, regex, replacement));
+            ++argv;
         } else
             Error("unknown operation type \"" + std::string(*argv) + "\"!");
     }
