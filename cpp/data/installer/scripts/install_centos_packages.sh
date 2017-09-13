@@ -1,7 +1,7 @@
 #!/bin/bash
 yum update
 yum -y install epel-release
-yum -y install mawk git mariadb mariadb-server httpd php php-devel php-mcrypt php-intl php-ldap php-mysql php-xsl php-gd php-mbstring php-mcrypt java-*-openjdk-devel mawk mod_ssl epel-release wget policycoreutils-python
+yum -y install mawk git mariadb httpd php php-devel php-mcrypt php-intl php-ldap php-mysql php-xsl php-gd php-mbstring php-mcrypt java-*-openjdk-devel mawk mod_ssl epel-release wget policycoreutils-python
 
 cd /etc/yum.repos.d/
 wget http://download.opensuse.org/repositories/security:shibboleth/CentOS_7/security:shibboleth.repo
