@@ -1046,9 +1046,9 @@ std::string ExecUtil_Which(const std::string &executable_candidate) {
 
 void InstallSoftwareDependencies(const OSSystemType os_system_type) {
     if (os_system_type == UBUNTU)
-        ExecOrDie("cpp/data/installer/scripts/install_ubuntu_packages.sh", {});
+        ExecOrDie("data/installer/scripts/install_ubuntu_packages.sh", {});
     else
-        ExecOrDie("cpp/data/installer/scripts/install_centos_packages.sh", {});
+        ExecOrDie("data/installer/scripts/install_centos_packages.sh", {});
 }
 
 
