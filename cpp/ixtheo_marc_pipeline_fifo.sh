@@ -174,6 +174,15 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
+StartPhase "Fix Local Keyword Capitalisations"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(marc_filter --replace 600a:610a:630a:648a:650a:651a:655a 'ISLAM|islam' Islam \
+    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+    ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Replace 689\$A with 689\$q"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (subfield_code_replacer --input-format=marc-21\
