@@ -54,7 +54,7 @@
 static char *progname;
 
 
-void Error(const std::string &msg) {
+__attribute__((noreturn)) void Error(const std::string &msg) {
     if (progname == nullptr)
         std::cerr << "You must set \"progname\" in main() with \"progname = argv[0];\" in oder to use Error().\n";
     else
@@ -63,7 +63,7 @@ void Error(const std::string &msg) {
 }
 
 
-void Usage() {
+__attribute__((noreturn)) void Usage() {
     std::cerr << "Usage: " << ::progname << " [--ub-tools-only] vufind_system_type\n";
     std::cerr << "       where \"vufind_system_type\" must be either \"krimdok\" or \"ixtheo\".\n\n";
     std::exit(EXIT_FAILURE);
