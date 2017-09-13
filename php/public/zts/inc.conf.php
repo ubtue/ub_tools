@@ -8,6 +8,11 @@ define('DIR_LIB', '/usr/local/ub_tools/php/lib/');
 // tmp directory (for CLI processing + downloads)
 define('DIR_TMP', '/tmp/Zts/');
 
+// max script runtime in seconds
+define('MAX_SCRIPT_RUNTIME', 300);
+ini_set('max_input_time', MAX_SCRIPT_RUNTIME);
+ini_set('max_execution_time', MAX_SCRIPT_RUNTIME);
+
 // Musterdatei für Zotero Crawler:
 define('ZOTERO_FILE_CRAWLER', '/usr/local/ub_tools/cpp/data/zotero_crawler.conf');
 
