@@ -708,7 +708,7 @@ void ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter 
 
 
 std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
-    const std::string DB_FILENAME("/var/lib/tuelib/crossref_downloader/notified.db");
+    const std::string DB_FILENAME("/usr/local/var/lib/tuelib/crossref_downloader/notified.db");
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(DB_FILENAME,
                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))

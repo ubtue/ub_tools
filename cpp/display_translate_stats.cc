@@ -30,7 +30,7 @@
 #include "util.h"
 
 
-const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
+const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
 
 
 void GetLanguageCodes(DbConnection * const db_connection, std::vector<std::string> * const language_codes) {

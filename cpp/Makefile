@@ -3,7 +3,7 @@ LIB_SRCS       = lib/src
 CCC            ?= clang++
 CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -O3 -ftrapv \
                  -Ilib/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
-                 -DETC_DIR='"/var/lib/tuelib"'
+                 -DETC_DIR='"/usr/local/var/lib/tuelib"'
 ifeq ($(CCC),clang++)
   CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
 else
@@ -56,16 +56,17 @@ cgi_install: $(CGI_PROGS)
 data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.template data/*.conf \
               data/crossref_journal_list
 	@echo "Installing data..."
-	mkdir --parents /var/lib/tuelib/bibleRef/
-	cp data/books_of_the_bible_to_canonical_form.map data/books_of_the_bible_to_code.map /var/lib/tuelib/bibleRef/
-	mkdir --parents /var/lib/tuelib/translate_chainer
+	mkdir --parents /usr/local/var/lib/tuelib/bibleRef/
+	cp data/books_of_the_bible_to_canonical_form.map data/books_of_the_bible_to_code.map \
+           /usr/local/var/lib/tuelib/bibleRef/
+	mkdir --parents /usr/local/var/lib/tuelib/translate_chainer
 	cp data/done_translating.html data/translate.html data/translation_front_page.html \
-           data/mytranslations_template.msg /var/lib/tuelib/translate_chainer/
-	cp data/subscriptions_email.ixtheo.template /var/lib/tuelib/
-	cp data/subscriptions_email.relbib.template /var/lib/tuelib/
-	cp data/zotero_crawler.conf /var/lib/tuelib/
-	mkdir --parents /var/lib/tuelib/crossref_downloader/
-	cp data/crossref_journal_list /var/lib/tuelib/crossref_downloader/
+           data/mytranslations_template.msg /usr/local/var/lib/tuelib/translate_chainer/
+	cp data/subscriptions_email.ixtheo.template /usr/local/var/lib/tuelib/
+	cp data/subscriptions_email.relbib.template /usr/local/var/lib/tuelib/
+	cp data/zotero_crawler.conf /usr/local/var/lib/tuelib/
+	mkdir --parents /usr/local/var/lib/tuelib/crossref_downloader/
+	cp data/crossref_journal_list /usr/local/var/lib/tuelib/crossref_downloader/
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
