@@ -64,7 +64,7 @@ void Error(const std::string &msg) {
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " vufind_system_type\n";
+    std::cerr << "Usage: " << ::progname << " [--ub-tools-only] vufind_system_type\n";
     std::cerr << "       where \"vufind_system_type\" must be either \"krimdok\" or \"ixtheo\".\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -282,7 +282,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
     return 0; // Keep the compiler happy!
 }
-    
+
 
 } // unnamed namespace
 
@@ -1052,10 +1052,11 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type) {
 }
 
 
-void InstallUBTools(const OSSystemType os_system_type) {
+void InstallUBTools(const OSSystemType os_system_type, const bool make_install) {
     InstallSoftwareDependencies(os_system_type);
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
-    ExecOrDie(ExecUtil_Which("make"), { "install" });
+    if (make_install)
+        ExecOrDie(ExecUtil_Which("make"), { "install" });
     Echo("Installed ub_tools.");
 }
 
@@ -1875,7 +1876,7 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
             std::make_pair<std::string, std::vector<std::string>>(
                 "relbib_host", { GetStringFromTerminal("RelBib Hostname") }));
     }
-    
+
     FileUtil_AutoTempFile crontab_temp_file1;
     ExecOrDie(ExecUtil_Which("crontab"), { "-l" }, "", crontab_temp_file1.getFilePath());
     FileUtil_AutoTempFile crontab_temp_file2;
@@ -1906,6 +1907,14 @@ void InstallVuFind(const VuFindSystemType vufind_system_type) {
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
+    bool ub_tools_only(false);
+    if (argc == 3) {
+        if (std::strcmp("--ub-tools-only", argv[1]) != 0)
+            Usage();
+        ub_tools_only = true;
+        --argc, ++argv;
+    }
+
     if (argc != 2)
         Usage();
 
@@ -1923,10 +1932,13 @@ int main(int argc, char **argv) {
     const OSSystemType os_system_type(DetermineOSSystemType());
 
     try {
-        MountDeptDriveOrDie(vufind_system_type);
-        InstallUBTools(os_system_type);
-        InstallCronjobs(vufind_system_type);
-        InstallVuFind(vufind_system_type);
+        if (not ub_tools_only)
+            MountDeptDriveOrDie(vufind_system_type);
+        InstallUBTools(os_system_type, /* make_install = */ not ub_tools_only);
+        if (not ub_tools_only) {
+            InstallCronjobs(vufind_system_type);
+            InstallVuFind(vufind_system_type);
+        }
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
