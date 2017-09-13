@@ -1057,6 +1057,8 @@ void InstallUBTools(const OSSystemType os_system_type, const bool make_install) 
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
     if (make_install)
         ExecOrDie(ExecUtil_Which("make"), { "install" });
+    else
+        ExecOrDie(ExecUtil_Which("make"), {});
     Echo("Installed ub_tools.");
 }
 
