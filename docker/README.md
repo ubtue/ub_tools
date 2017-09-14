@@ -44,3 +44,8 @@ Hinweis: Bei bestimmten Aktionen, z.B. Neustarten des Apache Servers kann der Co
 
 ## Laufenden Container stoppen
 `docker stop 6714d8880fad`
+
+## Alle Docker Container und Images löschen
+Container: `docker rm $(docker ps -a -q)`
+
+Images: `docker rmi $(docker images -q)`
