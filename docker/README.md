@@ -30,9 +30,11 @@ Lässt man --no-cache weg, legt sich Docker einen Cache für alles an was er bei
 `docker images`
 
 ## Image in einem Container ausführen
-`docker run -p 8080:80 -d example`
+`docker run -e ZOTERO_TRANSLATION_SERVER_URL="http://ub28.uni-tuebingen.de:1969/web" -p 8080:80 -d example`
+* -e => wird verwendet um beim Start des Containers spezielle Umgebungsvariablen zu setzen
 * -p 8080:80 => Port 80 des Containers wird auf Port 8080 auf dem Host gemappt
 * -d => detach, wird im Hintergrund ausgeführt
+Man kann auch Umgebungsvariablen setzen
 
 ## Laufende Docker-Prozesse (=Container) anzeigen
 `docker ps`
