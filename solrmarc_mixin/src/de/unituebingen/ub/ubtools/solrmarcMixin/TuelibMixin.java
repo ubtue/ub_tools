@@ -1274,6 +1274,23 @@ public class TuelibMixin extends SolrIndexerMixin {
         phys_code_to_format_map = Collections.unmodifiableMap(tempMap);
     }
 
+    // Set used by getPhysicalType().
+    private static final Set<String> electronicResourceCarrierTypes;
+
+    static {
+        Set<String> tempSet = new HashSet<>();
+        tempSet.add("cb");
+        tempSet.add("cd");
+        tempSet.add("ce");
+        tempSet.add("ca");
+        tempSet.add("cf");
+        tempSet.add("ch");
+        tempSet.add("cr");
+        tempSet.add("ck");
+        tempSet.add("cz");
+        electronicResourceCarrierTypes = Collections.unmodifiableSet(tempSet);
+    };
+    
     /**
      * Determine Record Formats
      *
@@ -1305,11 +1322,20 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
+        // Evaluate the carrier-type field as to the object being an electronic resource or not:
+        List<VariableField> _338_fields = record.getVariableFields("338");
+        for (final VariableField _338_field : _338_fields) {
+            final DataField dataField = (DataField) _338_field;
+            if (dataField.getSubfield('b') != null
+                && TuelibMixin.electronicResourceCarrierTypes.contains(dataField.getSubfield('b').getData()))
+                result.add("Electronic");
+        }
+        
         // check the 007 - this is a repeating field
         List<VariableField> fields = record.getVariableFields("007");
         if (fields != null) {
             ControlField formatField;
-            for (VariableField varField : fields) {
+            for (final VariableField varField : fields) {
                 formatField = (ControlField) varField;
                 formatString = formatField.getData().toUpperCase();
                 formatCode = formatString.length() > 0 ? formatString.charAt(0) : ' ';
