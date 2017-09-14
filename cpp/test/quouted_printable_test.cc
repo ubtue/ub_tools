@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     try {
         if (std::strcmp("--encode", argv[1]) == 0)
             std::cout << TextUtil::EncodeQuotedPrintable(argv[2]) << '\n';
-        else if (std::strcmp("--dencode", argv[1]) == 0)
+        else if (std::strcmp("--decode", argv[1]) == 0)
             std::cout << TextUtil::DecodeQuotedPrintable(argv[2]) << '\n';
         else
             Usage();
