@@ -2,7 +2,7 @@ FROM ubuntu:latest
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # Install apache, PHP, and supplimentary programs. openssh-server, curl, and lynx-cur are for debugging the container.
-RUN apt-get update && apt-get -y upgrade && DEBIAN_FRONTEND=noninteractive apt-get -y install apache2 php7.0 php7.0-mysql libapache2-mod-php7.0 git curl lynx-cur
+RUN apt-get update && apt-get -y upgrade && DEBIAN_FRONTEND=noninteractive apt-get -y install apache2 php7.0 php7.0-mysql libapache2-mod-php7.0 curl git g++ lynx-cur
 
 # Enable apache mods
 RUN a2enmod php7.0
@@ -24,10 +24,8 @@ EXPOSE 80
 
 # download & install ub_tools
 RUN git clone https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
-# TODO: compile (make) ub_tools via installer script, which is available yet (=> ruschein)
-
-# Also copy dependencies
-ADD zts_client_maps /usr/local/ub_tools/cpp/data/zts_client_maps
+RUN g++ -std=gnu++14 -O3 -o /usr/local/ub_tools/cpp/installer /usr/local/ub_tools/cpp/installer.cc
+RUN cd /usr/local/ub_tools/cpp && ./installer --ub-tools-only krimdok
 
 # Update the default apache site with the config we created
 ADD apache-config.conf /etc/apache2/sites-enabled/000-default.conf
