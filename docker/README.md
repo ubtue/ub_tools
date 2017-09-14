@@ -22,7 +22,7 @@ Ins Verzeichnis mit Dockerfile wechseln, z.B. docker/example
 Makefile verwenden falls vorhanden (Grund siehe weiter oben / Makefile).
 Falls es nicht existiert, kann zum Erstellen und lokalen Registrieren folgender Befehl verwendet werden:
 
-`docker build --no-nache -t example .`
+`docker build --no-cache -t example .`
 
 Lässt man --no-cache weg, legt sich Docker einen Cache für alles an was er beim Buildvorgang herunterlädt. Das gilt nicht nur für das Ubuntu-Image und apt-Pakete, sondern auch für Dinge wie ub_tools usw. => Wenn man also Änderungen am Code vornimmt und diese Testen möchte (mehrere Builds hintereinander), sollte man immer unbedingt --no-cache verwenden, da die Änderungen sonst nicht im Image ankommen!
 
