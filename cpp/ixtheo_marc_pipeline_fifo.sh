@@ -161,7 +161,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          Normdaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-cp pericopes_to_codes.map /var/lib/tuelib/bibleRef/ && \
+cp pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/ && \
 EndPhase || Abort) &
 
 
