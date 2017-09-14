@@ -17,7 +17,14 @@ ini_set('max_execution_time', MAX_SCRIPT_RUNTIME);
 define('ZOTERO_FILE_CRAWLER', '/usr/local/ub_tools/cpp/data/zotero_crawler.conf');
 
 // URL to Zotero server for zts_client
-define('ZOTERO_SERVER_URL', 'http://ub28.uni-tuebingen.de:1969/web');
+// get from environment variable if exists - this is especially useful for docker container
+$env_key = 'ZOTERO_TRANSLATION_SERVER_URL';
+$env_url = getenv($env_key);
+if ($env_url != '') {
+    define($env_key, $env_url);
+} else {
+    define($env_key, 'http://ub28.uni-tuebingen.de:1969/web');
+}
 
 // Create own tempdir if not exists
 if (!is_dir(DIR_TMP)) mkdir(DIR_TMP);
