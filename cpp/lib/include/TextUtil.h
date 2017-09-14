@@ -202,6 +202,11 @@ public:
 };
 
 
+/* En- and decode text to and from the encoded-printable format. */
+std::string EncodeQuotedPrintable(const std::string &s);
+std::string DecodeQuotedPrintable(const std::string &s);
+
+
 } // namespace TextUtil
 
 

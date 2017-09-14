@@ -629,4 +629,73 @@ bool UTF8ToUTF32Decoder::addByte(const char ch) {
 }
 
 
+std::string EncodeQuotedPrintable(const std::string &s) {
+    if (unlikely(s.empty()))
+        return s;
+
+    std::string encoded_string;
+
+    for (const char ch : s) {
+        const unsigned char uch(static_cast<unsigned char>(ch));
+        if ((uch >= 33 and uch <= 126) or uch == 9 or uch == 32) {
+            if (unlikely(ch == '='))
+                encoded_string += "=3D";
+            else
+                encoded_string += ch;
+        } else {
+            encoded_string += '=';
+            encoded_string += StringUtil::ToHex(uch >> 4u);
+            encoded_string += StringUtil::ToHex(uch & 0xFu);
+        }
+    }
+
+    // Tab and space at the end of the string must be encoded:
+    if (unlikely(encoded_string[encoded_string.size() - 1] == ' ')) {
+        encoded_string.resize(encoded_string.size() - 1);
+        encoded_string += "=20";
+    } else if (unlikely(encoded_string[encoded_string.size() - 1] == '\t')) {
+        encoded_string.resize(encoded_string.size() - 1);
+        encoded_string += "=09";
+    }
+
+    return encoded_string;
+}
+
+
+static char HEX_CHARS[] = "0123456789ABCDEF";
+
+
+std::string DecodeQuotedPrintable(const std::string &s) {
+    std::string decoded_string;
+
+    for (auto ch(s.cbegin()); ch != s.cend(); ++ch) {
+        if (unlikely(*ch == '=')) {
+            // First nibble:
+            ++ch;
+            if (unlikely(ch == s.cend()))
+                throw std::runtime_error("TextUtil::DecodeQuotedPrintable: bad character sequence! (1)");
+            char *cp(std::strchr(HEX_CHARS, *ch));
+            if (unlikely(cp == nullptr))
+                throw std::runtime_error("TextUtil::DecodeQuotedPrintable: bad character sequence! (2)");
+            unsigned char uch(cp - HEX_CHARS);
+            uch <<= 4u;
+
+            // Second nibble:
+            ++ch;
+            if (unlikely(ch == s.cend()))
+                throw std::runtime_error("TextUtil::DecodeQuotedPrintable: bad character sequence! (3)");
+            cp = std::strchr(HEX_CHARS, *ch);
+            if (unlikely(cp == nullptr))
+                throw std::runtime_error("TextUtil::DecodeQuotedPrintable: bad character sequence! (4)");
+            uch |= cp - HEX_CHARS;
+
+            decoded_string += static_cast<char>(uch);
+        } else
+            decoded_string += *ch;
+    }
+
+    return decoded_string;
+}
+
+
 } // namespace TextUtil
