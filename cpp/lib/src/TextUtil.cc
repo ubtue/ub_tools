@@ -629,6 +629,7 @@ bool UTF8ToUTF32Decoder::addByte(const char ch) {
 }
 
 
+// In order to understand this implementation, it may help to read https://en.wikipedia.org/wiki/Quoted-printable
 std::string EncodeQuotedPrintable(const std::string &s) {
     if (unlikely(s.empty()))
         return s;
@@ -665,6 +666,7 @@ std::string EncodeQuotedPrintable(const std::string &s) {
 static char HEX_CHARS[] = "0123456789ABCDEF";
 
 
+// In order to understand this implementation, it may help to read https://en.wikipedia.org/wiki/Quoted-printable
 std::string DecodeQuotedPrintable(const std::string &s) {
     std::string decoded_string;
 
