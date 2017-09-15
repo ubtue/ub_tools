@@ -96,34 +96,6 @@ void PerformExchange(const int socket_fd, const TimeLimit &time_limit, const std
 }
 
 
-void PerformHeloExchange(const int socket_fd, const TimeLimit &time_limit,
-                         SslConnection * const ssl_connection = nullptr)
-{
-    PerformExchange(socket_fd, time_limit, "HELO " + DnsUtil::GetHostname(), "2[0-9][0-9]*", ssl_connection);
-}
-
-
-void PerformStartTlsExchange(const int socket_fd, const TimeLimit &time_limit) {
-    PerformExchange(socket_fd, time_limit, "STARTTLS", "2[0-9][0-9]*");
-}
-
-
-void PerformMailFromExchange(const int socket_fd, const std::string &sender_email_address,
-                             const TimeLimit &time_limit, SslConnection * const ssl_connection)
-{
-    PerformExchange(socket_fd, time_limit, "MAIL FROM:<" + sender_email_address + ">", "2[0-9][0-9]*",
-                    ssl_connection);
-}
-
-
-void PerformReceipientToExchange(const int socket_fd, const std::string &receiver_email_address,
-                                 const TimeLimit &time_limit, SslConnection * const ssl_connection)
-{
-    PerformExchange(socket_fd, time_limit, "RCPT TO:<" + receiver_email_address + ">", "2[0-9][0-9]*",
-                    ssl_connection);
-}
-
-
 std::string GetDotStuffedMessage(const std::string &message) {
     std::list<std::string> lines;
     StringUtil::SplitThenTrim(message, "\n", "\r", &lines, /* suppress_empty_words = */ false);
@@ -159,24 +131,6 @@ std::string CreateEmailMessage(const EmailSender::Priority priority, const Email
     message += GetDotStuffedMessage(message_body) + ".\r\n";
 
     return message;
-}
-
-
-void ProcessSendEmailExchange(const int socket_fd, const EmailSender::Priority priority,
-                              const EmailSender::Format format, const std::string &sender,
-                              const std::string &recipient, const std::string &subject,
-                              const std::string &message_body, const TimeLimit &time_limit,
-                              SslConnection * const ssl_connection)
-{
-    PerformExchange(socket_fd, time_limit, "DATA", "3[0-9][0-9]*", ssl_connection);
-    PerformExchange(socket_fd, time_limit,
-                    CreateEmailMessage(priority, format, sender, recipient, subject, message_body) + "\r\n.",
-                    "2[0-9][0-9]*", ssl_connection);
-}
-
-
-void PerformQuitExchange(const int socket_fd, const TimeLimit &time_limit, SslConnection * const ssl_connection) {
-    PerformExchange(socket_fd, time_limit, "QUIT", "2[0-9][0-9]*", ssl_connection);
 }
 
 
@@ -221,25 +175,30 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
     }
 
     try {
-        PerformHeloExchange(socket_fd, time_limit);
+        PerformExchange(socket_fd, time_limit, "HELO " + DnsUtil::GetHostname(), "2[0-9][0-9]*");
 
         std::unique_ptr<SslConnection> ssl_connection;
         if (use_ssl) {
-            PerformStartTlsExchange(socket_fd, time_limit);
+            PerformExchange(socket_fd, time_limit, "STARTTLS", "2[0-9][0-9]*");
             ssl_connection.reset(new SslConnection(socket_fd));
         }
 
-        PerformHeloExchange(socket_fd, time_limit, ssl_connection.get());
-        PerformMailFromExchange(socket_fd, sender, time_limit, ssl_connection.get());
+        PerformExchange(socket_fd, time_limit, "HELO " + DnsUtil::GetHostname(), "2[0-9][0-9]*",
+                        ssl_connection.get());
+        PerformExchange(socket_fd, time_limit, "MAIL FROM:<" + sender + ">", "2[0-9][0-9]*",
+                        ssl_connection.get());
 
         // Send email to each recipient:
         const std::list<std::string> receiver_email_address_list{ recipient };
         for (const auto &receiver_email_address : receiver_email_address_list)
-            PerformReceipientToExchange(socket_fd, receiver_email_address, time_limit, ssl_connection.get());
+            PerformExchange(socket_fd, time_limit, "RCPT TO:<" + receiver_email_address + ">", "2[0-9][0-9]*",
+                            ssl_connection.get());
 
-        ProcessSendEmailExchange(socket_fd, priority, format, sender, recipient, subject, message_body, time_limit,
-                                 ssl_connection.get());
-        PerformQuitExchange(socket_fd, time_limit, ssl_connection.get());
+        PerformExchange(socket_fd, time_limit, "DATA", "3[0-9][0-9]*", ssl_connection.get());
+        PerformExchange(socket_fd, time_limit,
+                        CreateEmailMessage(priority, format, sender, recipient, subject, message_body) + "\r\n.",
+                        "2[0-9][0-9]*", ssl_connection.get());
+        PerformExchange(socket_fd, time_limit, "QUIT", "2[0-9][0-9]*", ssl_connection.get());
     } catch (const std::exception &x) {
         if (log)
             std::clog << x.what() << '\n';
