@@ -22,6 +22,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "EmailSender.h"
+#include <iostream>
 #include <memory>
 #include <list>
 #include <stdexcept>
@@ -31,6 +32,7 @@
 #include "DnsUtil.h"
 #include "FileDescriptor.h"
 #include "IniFile.h"
+#include "MiscUtil.h"
 #include "SocketUtil.h"
 #include "SslConnection.h"
 #include "StringUtil.h"
@@ -128,6 +130,8 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
 
     const TimeLimit time_limit(10000 /* ms */);
 
+    const bool log(not MiscUtil::SafeGetEnv("ENABLE_SMPT_CLIENT_LOGGING").empty());
+
     // Open connection:
     const unsigned short PORT(use_ssl ? 587 : 25);
     std::string error_message;
@@ -145,14 +149,18 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
 
     // Read the welcome message:
     char buf[1000];
-    if (SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf), ssl_connection.get()) <= 0) {
+    ssize_t response_size;
+    if ((response_size = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf), ssl_connection.get())) <= 0) {
         Warning("in EmailSender::SendEmail: Can't read SMTP server's welcome message!");
         return false;
     }
+    if (log) {
+        buf[std::min(static_cast<size_t>(response_size), sizeof(buf) - 1)] = '\0';
+        std::clog << "Sever sent: " << buf << '\n';
+    }   
 
     // HELO <hostname>
     WriteToConnection(socket_fd, time_limit, "HELO " + DnsUtil::GetHostname() + "\r\n", ssl_connection.get());
-    ssize_t response_size;
     if ((response_size = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf), ssl_connection.get())) <= 0) { // read the response
         Warning("in EmailSender::SendEmail: Can't read SMTP server's response to HELO!");
         return false;
