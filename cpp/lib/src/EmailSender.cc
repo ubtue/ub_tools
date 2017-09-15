@@ -215,7 +215,7 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
     buf[std::min(static_cast<size_t>(response_size), sizeof(buf) - 1)] = '\0';
     // Expect a 3xx code:
     if (not StringUtil::Match("3[0-9][0-9]*", buf)) {
-        Warning("in EmailSender::SendEmail: Bad status code in response to \"DATE\" command: " + std::string(buf));
+        Warning("in EmailSender::SendEmail: Bad status code in response to \"DATA\" command: " + std::string(buf));
         return false;
     }
 
