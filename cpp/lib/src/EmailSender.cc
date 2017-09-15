@@ -81,7 +81,7 @@ std::string GetDotStuffedMessage(const std::string &message) {
     std::list<std::string> lines;
     StringUtil::SplitThenTrim(message, "\n", "\r", &lines, /* suppress_empty_words = */ false);
     for (std::list<std::string>::iterator line(lines.begin()); line != lines.end(); ++line) {
-        if (not line->empty() and (*line)[0] == '.')
+        if (*line == ".")
             *line = "." + *line;
     }
 
