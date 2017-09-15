@@ -71,46 +71,48 @@ std::string GetSmtpServer() {
 }
 
 
-void CheckResponse(const std::string &verb, const std::string &server_response, const std::string &expected) {
+void CheckResponse(const std::string &command, const std::string &server_response, const std::string &expected) {
     if (not StringUtil::Match(expected, server_response))
-        throw std::runtime_error("in EmailSender.cc: did not receive expected server response to " + verb
-                                 + " but instead got \"" + server_response + "\"!");
+        throw std::runtime_error("in EmailSender.cc: did not receive expected server response to \"" + command
+                                 + "\" but instead got \"" + server_response + "\"!");
 }
 
-    
-void PerformHeloExchange(const int socket_fd, const TimeLimit &time_limit, SslConnection * const ssl_connection) {
-    if (unlikely(SocketUtil::TimedWrite(socket_fd, time_limit, "HELO " + DnsUtil::GetHostname() + "\r\n",
-                                        ssl_connection) == -1))
-        throw std::runtime_error("in PerformHeloExchange(EmailSender.cc) SocketUtil::TimedWrite failed! ("
-                                 + std::string(strerror(errno)) + ")");
+
+void PerformExchange(const int socket_fd, const TimeLimit &time_limit, const std::string &command,
+                     const std::string &expected_response_pattern, SslConnection * const ssl_connection = nullptr)
+{
+    if (unlikely(SocketUtil::TimedWrite(socket_fd, time_limit, command + "\r\n", ssl_connection) == -1))
+        throw std::runtime_error("in PerformExchange(EmailSender.cc) SocketUtil::TimedWrite failed! (sent: "
+                                 + command + ", error: "+ std::string(strerror(errno)) + ")");
 
     // Read the response:
     ssize_t response_size;
     char buf[1000];
     if ((response_size = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf), ssl_connection)) <= 0)
-        throw std::runtime_error("in PerformHeloExchange(EmailSender.cc): Can't read SMTP server's response to "
-                                 "HELO! (" + std::string(strerror(errno)) + ")");
+        throw std::runtime_error("in PerformExchange(EmailSender.cc): Can't read SMTP server's response to \""
+                                 + command + "\"! (" + std::string(strerror(errno)) + ")");
     buf[std::min(static_cast<size_t>(response_size), sizeof(buf) - 1)] = NUL;
-    CheckResponse("HELO", buf, "2[0-9][0-9]*");
+    CheckResponse(command, buf, expected_response_pattern);
+}
+
+
+void PerformHeloExchange(const int socket_fd, const TimeLimit &time_limit,
+                         SslConnection * const ssl_connection = nullptr)
+{
+    PerformExchange(socket_fd, time_limit, "HELO " + DnsUtil::GetHostname(), "2[0-9][0-9]*", ssl_connection);
+}
+
+
+void PerformStartTlsExchange(const int socket_fd, const TimeLimit &time_limit) {
+    PerformExchange(socket_fd, time_limit, "STARTTLS", "2[0-9][0-9]*");
 }
 
 
 void PerformMailFromExchange(const int socket_fd, const std::string &sender_email_address,
                              const TimeLimit &time_limit, SslConnection * const ssl_connection)
 {
-    if (unlikely(SocketUtil::TimedWrite(socket_fd, time_limit, "MAIL FROM:<" + sender_email_address + "\r\n",
-                                        ssl_connection) == -1))
-        throw std::runtime_error("in PerformMailFromExchange(EmailSender.cc) SocketUtil::TimedWrite failed! ("
-                                 + std::string(strerror(errno)) + ")");
-
-    // Read the response:
-    ssize_t response_size;
-    char buf[1000];
-    if ((response_size = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf), ssl_connection)) <= 0)
-        throw std::runtime_error("in PerformMailFromExchange(EmailSender.cc): Can't read SMTP server's response to "
-                                 "MAIL FROM:! ("+ std::string(strerror(errno)) + ")");
-    buf[std::min(static_cast<size_t>(response_size), sizeof(buf) - 1)] = NUL;
-    CheckResponse("MAIL FROM", buf, "2[0-9][0-9]*");
+    PerformExchange(socket_fd, time_limit, "MAIL FROM:<" + sender_email_address + ">", "2[0-9][0-9]*",
+                    ssl_connection);
 }
 
 
@@ -248,14 +250,10 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
         return false;
     }
 
-    std::unique_ptr<SslConnection> ssl_connection;
-    if (use_ssl)
-        ssl_connection.reset(new SslConnection(socket_fd));
-
     // Read the welcome message:
     char buf[1000];
     ssize_t response_size;
-    if ((response_size = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf), ssl_connection.get())) <= 0) {
+    if ((response_size = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf))) <= 0) {
         Warning("in EmailSender::SendEmail: Can't read SMTP server's welcome message!");
         return false;
     }
@@ -265,6 +263,14 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
     }
 
     try {
+        PerformHeloExchange(socket_fd, time_limit);
+
+        std::unique_ptr<SslConnection> ssl_connection;
+        if (use_ssl) {
+            PerformStartTlsExchange(socket_fd, time_limit);
+            ssl_connection.reset(new SslConnection(socket_fd));
+        }
+
         PerformHeloExchange(socket_fd, time_limit, ssl_connection.get());
         PerformMailFromExchange(socket_fd, sender, time_limit, ssl_connection.get());
 
