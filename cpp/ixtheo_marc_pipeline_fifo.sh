@@ -88,7 +88,7 @@ EndPhase || Abort) &
 
 
 
-StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, Superflous Subfield 2 in Topic Fields and Remove Sorting Chars\$a"
+StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, Superflous Subfield 2 in Topic Fields, Remove Sorting Chars From Title Subfields, Remove blmsh Subject Heading Term and Fix Local Keyword Capitalisations"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --input-format=marc-21 \
@@ -96,7 +96,8 @@ StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856
     --drop 935a:mtex \
     --remove-fields '856u:ixtheo\.de' \
     --filter-chars 130a:240a:245a '@' >> "${log}" \
-    --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' >> "${log}" 2>&1 && \
+    --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
+    --replace 600a:610a:630a:648a:650a:651a:655a 'ISLAM|islam' Islam >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -168,15 +169,6 @@ EndPhase || Abort) &
 StartPhase "Update IxTheo Notations"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (update_ixtheo_notations \
-    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-
-
-StartPhase "Fix Local Keyword Capitalisations"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(marc_filter --replace 600a:610a:630a:648a:650a:651a:655a 'ISLAM|islam' Islam \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     ../cpp/data/IxTheo_Notation.csv >> "${log}" 2>&1 && \
