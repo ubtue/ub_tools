@@ -37,7 +37,7 @@ function StartPhase {
         ((++PHASE))
     fi
     START=$(date +%s.%N)
-    echo "*** Phase $PHASE: $1 - $(date) ***" | tee --append "${log}"
+    echo -e "*** Phase $PHASE: $1 - $(date) ***" | tee --append "${log}"
 }
 
 
@@ -88,7 +88,12 @@ EndPhase || Abort) &
 
 
 
-StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, Superflous Subfield 2 in Topic Fields, Remove Sorting Chars From Title Subfields, Remove blmsh Subject Heading Term and Fix Local Keyword Capitalisations"
+StartPhase "Drop Records Containing mtex in 935" \
+           "\n\tFilter out Self-referential 856 Fields" \
+           "\n\tSuperflous Subfield 2 in Topic Fields" \
+           "\n\tRemove Sorting Chars From Title Subfields" \
+           "\n\tRemove blmsh Subject Heading Term" \
+           "\n\tFix Local Keyword Capitalisations"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --input-format=marc-21 \
