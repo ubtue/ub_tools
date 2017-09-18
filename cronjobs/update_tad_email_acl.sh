@@ -10,7 +10,7 @@ fi
 
 DOWNLOAD_URL="http://biber3.ub.uni-tuebingen.de/tad/acl.yaml"
 DOWNLOAD_DOCUMENT="/tmp/new_tad_email_acl.yaml"
-TARGET_DOCUMENT="/var/lib/tuelib/tad_email_acl.yaml"
+TARGET_DOCUMENT="/usr/local/var/lib/tuelib/tad_email_acl.yaml"
 
 if ! wget "$DOWNLOAD_URL" --output-document="$DOWNLOAD_DOCUMENT" 2> /dev/null; then
     mutt -H - <<END_OF_EMAIL
