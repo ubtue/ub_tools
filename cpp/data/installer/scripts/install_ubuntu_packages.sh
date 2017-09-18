@@ -12,3 +12,6 @@ apt-get --yes install composer git make
 a2enmod rewrite
 phpenmod mcrypt
 /etc/init.d/apache2 restart
+
+apt-get --yes ca-certificates libleptonica libopenjpeg5 libpoppler58 libwebp5 poppler-utils
+apt-get --yes install tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng tesseract-ocr-fra
