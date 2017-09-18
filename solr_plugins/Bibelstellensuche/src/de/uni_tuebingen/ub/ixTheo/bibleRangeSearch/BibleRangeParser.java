@@ -67,7 +67,7 @@ public class BibleRangeParser extends QParser {
      * If no book index is found, only '*' will be returned.
      *
      * The first two digits of a range are the book index.
-     * See /var/lib/tuelib/books_of_the_bible_to_code.map
+     * See /usr/local/var/lib/tuelib/books_of_the_bible_to_code.map
      *
      * @param queryString The search string from user
      * @return e.g.  ".*(11|12|03)[0-9]{6}.*" (NB. the Solr query parser anchors regular expressions at the
