@@ -59,19 +59,16 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout,
                              std::string * const document, std::string * const media_type)
 {
     Downloader::Params params;
-    //params.user_agent_            = USER_AGENT;
-    //params.acceptable_languages_  = acceptable_languages;
-    //params.honour_robots_dot_txt_ = not ignore_robots_dot_txt;
     Downloader downloader(url, params, timeout);
     if (downloader.anErrorOccurred()) {
-        Warning("Failed to download the document for " + url + " (timeout: " + std::to_string(timeout) + " sec, message: " + downloader.getLastErrorMessage() + ")" );
+        Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to download the document for " + url + " (timeout: " + std::to_string(timeout) + " sec, message: " + downloader.getLastErrorMessage() + ")" );
         return false;
     }
 
     *document = downloader.getMessageBody();
     *media_type = downloader.getMediaType();
     if (media_type->empty()) {
-        Warning("Failed to get the media type for " + url);
+        Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to get the media type for " + url);
         return false;
     }
     return true;
