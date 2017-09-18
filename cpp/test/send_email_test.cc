@@ -85,15 +85,19 @@ int main(int argc, char *argv[]) {
     EmailSender::Priority priority(EmailSender::DO_NOT_SET_PRIORITY);
     EmailSender::Format format(EmailSender::PLAIN_TEXT);
 
-    std::string sender, reply_to, recipient, subject, message_body, priority_as_string, format_as_string;
-    ParseCommandLine(++argv, &sender, &reply_to, &recipient, &subject, &message_body, &priority_as_string,
-                     &format_as_string);
+    try {
+        std::string sender, reply_to, recipient, subject, message_body, priority_as_string, format_as_string;
+        ParseCommandLine(++argv, &sender, &reply_to, &recipient, &subject, &message_body, &priority_as_string,
+                         &format_as_string);
 
-    if (not priority_as_string.empty())
-        priority = StringToPriority(priority_as_string);
-    if (not format_as_string.empty())
-        format = StringToFormat(format_as_string);
+        if (not priority_as_string.empty())
+            priority = StringToPriority(priority_as_string);
+        if (not format_as_string.empty())
+            format = StringToFormat(format_as_string);
 
-    if (not EmailSender::SendEmail(sender, recipient, subject, message_body, priority, format, reply_to))
-        Error("failed to send your email!");
+        if (not EmailSender::SendEmail(sender, recipient, subject, message_body, priority, format, reply_to))
+            Error("failed to send your email!");
+    } catch (const std::exception &e) {
+        Error("Caught exception: " + std::string(e.what()));
+    }
 }

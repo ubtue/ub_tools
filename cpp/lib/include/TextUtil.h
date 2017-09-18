@@ -141,12 +141,14 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 
 
 /** \brief  Base64 encodes a string.
- *  \param  s         The string that will be encoded.
- *  \param  symbol63  The character that will be used for symbol 63.
- *  \param  symbol64  The character that will be used for symbol 64.
+ *  \param  s                   The string that will be encoded.
+ *  \param  symbol63            The character that will be used for symbol 63.
+ *  \param  symbol64            The character that will be used for symbol 64.
+ *  \param  use_output_padding  Nomen est omen.
  *  \return The encoded string.
  */
-std::string Base64Encode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/');
+std::string Base64Encode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/',
+                         const bool use_output_padding = true);
 
 
 /** \brief  Base64 decodes a string.
