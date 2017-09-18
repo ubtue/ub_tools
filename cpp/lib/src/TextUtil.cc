@@ -415,7 +415,9 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 static char base64_symbols[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\0\0";
 
 
-std::string Base64Encode(const std::string &s, const char symbol63, const char symbol64) {
+std::string Base64Encode(const std::string &s, const char symbol63, const char symbol64,
+                         const bool use_output_padding)
+{
     base64_symbols[62] = symbol63;
     base64_symbols[63] = symbol64;
 
@@ -451,7 +453,17 @@ std::string Base64Encode(const std::string &s, const char symbol63, const char s
             encoded_chars += next4[char_no];
     }
 
-    return encoded_chars;
+    if (not use_output_padding)
+        return encoded_chars;
+
+    switch (encoded_chars.size() % 3) {
+    case 1:
+        return encoded_chars + "==";
+    case 2:
+        return encoded_chars + "=";
+    default:
+        return encoded_chars;
+    }
 }
 
 
