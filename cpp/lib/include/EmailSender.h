@@ -37,7 +37,8 @@ enum Format { PLAIN_TEXT, HTML };
  */
 bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
                const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
-               const Format format = PLAIN_TEXT, const std::string &reply_to = "");
+               const Format format = PLAIN_TEXT, const std::string &reply_to = "", const bool use_ssl = true,
+               const bool use_authentication = true);
 
 
 } // namespace EmailSender
