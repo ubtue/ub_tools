@@ -14,4 +14,4 @@ phpenmod mcrypt
 /etc/init.d/apache2 restart
 
 apt-get --yes ca-certificates libleptonica libopenjpeg5 libpoppler58 libwebp5 poppler-utils
-apt-get --yes install tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng tesseract-ocr-fra
+apt-get --yes install tesseract-ocr tesseract-ocr-bul tesseract-ocr-ces tesseract-ocr-dan tesseract-ocr-deu tesseract-ocr-eng tesseract-ocr-fin tesseract-ocr-fra tesseract-ocr-hun tesseract-ocr-ita tesseract-ocr-nld tesseract-ocr-nor tesseract-ocr-pol tesseract-ocr-por tesseract-ocr-rus tesseract-ocr-slv tesseract-ocr-swe

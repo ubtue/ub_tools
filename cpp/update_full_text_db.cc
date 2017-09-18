@@ -72,22 +72,22 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout,
 
 
 static std::map<std::string, std::string> marc_to_tesseract_language_codes_map {
-    { "fre", "fra" },
-    { "eng", "eng" },
-    { "ger", "deu" },
-    { "ita", "ita" },
-    { "dut", "nld" },
-    { "swe", "swe" },
-    { "dan", "dan" },
-    { "nor", "nor" },
-    { "rus", "rus" },
-    { "fin", "fin" },
-    { "por", "por" },
-    { "pol", "pol" },
-    { "slv", "slv" },
-    { "hun", "hun" },
-    { "cze", "ces" },
     { "bul", "bul" },
+    { "cze", "ces" },
+    { "dan", "dan" },
+    { "dut", "nld" },
+    { "eng", "eng" },
+    { "fin", "fin" },
+    { "fre", "fra" },
+    { "ger", "deu" },
+    { "hun", "hun" },
+    { "ita", "ita" },
+    { "nor", "nor" },
+    { "pol", "pol" },
+    { "por", "por" },
+    { "rus", "rus" },
+    { "slv", "slv" },
+    { "swe", "swe" },
 };
 
 
@@ -166,12 +166,12 @@ std::string DbLockedWriteDocumentWithMediaType(const std::string &media_type, co
     if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER))
         Error("Failed to open database \"" + db_filename + "\" for writing ("
               + std::string(db.error().message()) + ")!");
-    
+
     const std::string key(std::to_string(db.count() + 1));
     if (not db.add(key, "Content-type: " + media_type + "\r\n\r\n" + document))
         Error("Failed to add key/value pair to database \"" + db_filename + "\" ("
               + std::string(db.error().message()) + ")!");
-    
+
     return key;
 }
 
@@ -213,7 +213,7 @@ bool CacheExpired(DbConnection * const db_connection, const std::string &url) {
     const std::string LAST_USED_QUERY("SELECT last_used FROM full_text_cache WHERE url=\"" + url + "\"");
     if (unlikely(not db_connection->query(LAST_USED_QUERY)))
         Error("in CacheExpired, DB query failed: " + LAST_USED_QUERY);
-    
+
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty())
         return true;
@@ -315,7 +315,7 @@ int main(int argc, char *argv[]) {
     long offset;
     if (not StringUtil::ToNumber(argv[1], &offset))
         Error("file offset must be a number!");
-    
+
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
     if (not marc_reader->seek(offset, SEEK_SET))
         Error("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset)
