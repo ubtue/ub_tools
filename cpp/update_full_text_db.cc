@@ -28,6 +28,7 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DirectoryEntry.h"
+#include "Downloader.h"
 #include "ExecUtil.h"
 #include "FileLocker.h"
 #include "FileUtil.h"
@@ -37,7 +38,6 @@
 #include "MediaTypeUtil.h"
 #include "PdfUtil.h"
 #include "Semaphore.h"
-#include "SmartDownloader.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -58,15 +58,19 @@ static void Usage() {
 bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout,
                              std::string * const document, std::string * const media_type)
 {
-    if (not SmartDownload(url, timeout, document)) {
-        std::cerr << "Failed to download the document for " << url << " (timeout: " << timeout << " sec)\n";
+    Downloader::Params params;
+    Downloader downloader(url, params, timeout);
+    if (downloader.anErrorOccurred()) {
+        Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to download the document for " + url + " (timeout: " + std::to_string(timeout) + " sec, message: " + downloader.getLastErrorMessage() + ")" );
         return false;
     }
 
-    *media_type = MediaTypeUtil::GetMediaType(*document, /* auto_simplify = */ false);
-    if (media_type->empty())
+    *document = downloader.getMessageBody();
+    *media_type = downloader.getMediaType();
+    if (media_type->empty()) {
+        Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to get the media type for " + url);
         return false;
-
+    }
     return true;
 }
 
