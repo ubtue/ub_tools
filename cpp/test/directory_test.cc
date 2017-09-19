@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
             directory = new FileUtil::Directory(argv[1], argv[2]);
 
         for (const auto entry : *directory)
-            std::cout << entry.getName() << ", " << entry.getType() << '\n';
+            std::cout << entry.getName() << ", " << std::to_string(entry.getType()) << '\n';
 
         delete directory;
     } catch (const std::exception &x) {
