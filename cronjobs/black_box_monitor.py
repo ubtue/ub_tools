@@ -20,6 +20,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
+import ssl
 import sys
 import traceback
 import urllib2
@@ -46,9 +47,12 @@ def RunTest(test_name, url, timeout, expected):
 def Main():
     util.default_email_recipient = sys.argv[1]
     config = util.LoadConfigFile()
+    if config.has_option("Global", "validate_ssl_certificates"):
+        if not config.getboolean("Global", "validate_ssl_certificates"):
+            ssl._create_default_https_context = ssl._create_unverified_context
 
     for section in config.sections():
-        if section == "SMTPServer":
+        if section == "Global":
             continue
         url = config.get(section, "url")
         expected = None
