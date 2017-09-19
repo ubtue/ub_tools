@@ -83,11 +83,11 @@ std::string Base64Encode(const std::string &s) {
     std::string retval(data, len);
 
     ::BIO_free_all(b64);
-    
+
     return retval;
 }
 
-    
+
 bool perform_logging;
 
 
@@ -202,13 +202,15 @@ std::string CreateEmailMessage(const EmailSender::Priority priority, const Email
     message += "To: " + recipient + "\r\n";
     if (not cc.empty())
         message += "Cc: " + cc + "\r\n";
-    message += "Subject: " + subject + "\r\n\r\n";
+    message += "Subject: " + subject + "\r\n";
     if (format == EmailSender::PLAIN_TEXT)
-        message += "Content-Type: text/plain; charset=\"utf-8\"";
+        message += "Content-Type: text/plain; charset=\"utf-8\"\r\n";
     else
-        message += "Content-Type: text/html; charset=\"utf-8\"";
+        message += "Content-Type: text/html; charset=\"utf-8\"\r\n";
     if (priority != EmailSender::DO_NOT_SET_PRIORITY)
-        message += "X-Priority: " + std::to_string(priority) + "\r\n\r\n";
+        message += "X-Priority: " + std::to_string(priority) + "\r\n";
+
+    message += "\r\n";
     message += GetDotStuffedMessage(message_body) + ".\r\n";
 
     return message;
