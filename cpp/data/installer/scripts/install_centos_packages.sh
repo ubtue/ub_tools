@@ -10,4 +10,4 @@ yum -y install clang gcc-c++.x86_64 file-devel pcre-devel openssl-devel kyotocab
 yum -y install ca-certificates leptonica libwebp openjpeg-libs poppler poppler-utils
 
 # install tesseract. in centos, there is no language pack for "eng", it seems to be part of the default installation
-yum -y install tesseract tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-swe
+yum -y install tesseract tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe

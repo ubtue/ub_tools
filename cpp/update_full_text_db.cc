@@ -84,13 +84,17 @@ static std::map<std::string, std::string> marc_to_tesseract_language_codes_map {
     { "fin", "fin" },
     { "fre", "fra" },
     { "ger", "deu" },
+    { "grc", "grc" },
+    { "heb", "heb" },
     { "hun", "hun" },
     { "ita", "ita" },
+    { "lat", "lat" },
     { "nor", "nor" },
     { "pol", "pol" },
     { "por", "por" },
     { "rus", "rus" },
     { "slv", "slv" },
+    { "spa", "spa" },
     { "swe", "swe" },
 };
 
