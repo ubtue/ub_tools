@@ -64,7 +64,7 @@ inline bool IsReliableSynonym(const std::string &status) {
 }
 
 
-std::string ReplaceAngleBracketsByOrdinaryBrackets(const std::string &value) {
+std::string ReplaceAngleBracketsByParentheses(const std::string &value) {
     return StringUtil::Map(value, "<>", "()");
 }
 
@@ -88,7 +88,7 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
                 std::string translation(row["translation"]);
                 // Handle '#'-separated synonyms appropriately
                 if (translation.find("#") == std::string::npos)
-                    translations.emplace_back(ReplaceAngleBracketsByOrdinaryBrackets(translation),
+                    translations.emplace_back(ReplaceAngleBracketsByParentheses(translation),
                                               row["language_code"], row["origin"], row["status"]);
                 else {
                     std::vector<std::string> primary_and_synonyms;
@@ -99,7 +99,7 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
                     // Add further synonyms as derived synonyms
                     for (auto synonyms(std::next(primary_and_synonyms.cbegin()));
                          synonyms != primary_and_synonyms.cend(); ++synonyms)
-                        translations.emplace_back(ReplaceAngleBracketsByOrdinaryBrackets(*synonyms),
+                        translations.emplace_back(ReplaceAngleBracketsByParentheses(*synonyms),
                                                   row["language_code"], row["origin"], "derived_synonym");
                 }
             }
