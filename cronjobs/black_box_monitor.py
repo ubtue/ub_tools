@@ -52,7 +52,7 @@ def Main():
             ssl._create_default_https_context = ssl._create_unverified_context
 
     for section in config.sections():
-        if section == "SMTPServer" or section == "Global":
+        if section == "Global":
             continue
         url = config.get(section, "url")
         expected = None
