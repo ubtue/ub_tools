@@ -39,7 +39,7 @@
 #include "WebUtil.h"
 
 
-const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/var/lib/tuelib/zotero_crawler.conf");
+const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 
 
 void Usage() {
@@ -593,7 +593,14 @@ std::pair<unsigned, unsigned> GenerateMARC(
 
             const auto ISSN_and_license_code(ISSN_to_licence_map.find(issn));
             if (ISSN_and_license_code != ISSN_to_licence_map.end()) {
-                //TODO(ruschein): Do whatever Mrs. Kellmeyer says after she returns from her vacation.
+                if (ISSN_and_license_code->second != "l")
+                    Warning("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
+                            + ISSN_and_license_code->second + "\" instead and we don't know what to do with it!");
+                else {
+                    const size_t _856_index(new_record.getFieldIndex("856"));
+                    if (_856_index != MarcRecord::FIELD_NOT_FOUND)
+                        new_record.addSubfield("856", 'z', "Kostenfrei");
+                }
             }
         }
 

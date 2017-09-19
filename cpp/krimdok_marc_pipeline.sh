@@ -105,7 +105,7 @@ create_full_text_db --process-count-low-and-high-watermarks \
 
 cat fulltext/* >> GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 rm -R fulltext/
-cp full_text.db /var/lib/tuelib/
+cp full_text.db /usr/local/var/lib/tuelib/
 EndPhase
 
 

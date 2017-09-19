@@ -1,4 +1,5 @@
 <?php
+
     /**
      * Test site for Zotero Translation Server, using c++ zts_client and zotero_crawler
      */
@@ -38,7 +39,7 @@
 </head>
 <body>
 <h1>ZTS Test</h1>
-<p><i>Zotero Translation Server</i></p>
+<p><i>Zotero Translation Server: <?= ZOTERO_TRANSLATION_SERVER_URL ?></i></p>
 
 <h2>Parameters</h2>
 <form method="post" action="index.php">
@@ -82,7 +83,7 @@
 <?php
 if (count($_POST) > 0) {
     $ignoreRobots = true;
-    $zotero = new Zotero\MetadataHarvester(ZOTERO_SERVER_URL);
+    $zotero = new Zotero\MetadataHarvester(ZOTERO_TRANSLATION_SERVER_URL);
     $task = $zotero->start($_POST['urlBase'], $_POST['urlRegex'], $_POST['depth'], $ignoreRobots, $_POST['fileExtension']);
     ?>
     <h2>Result</h2>

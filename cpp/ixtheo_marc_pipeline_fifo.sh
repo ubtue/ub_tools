@@ -37,7 +37,7 @@ function StartPhase {
         ((++PHASE))
     fi
     START=$(date +%s.%N)
-    echo "*** Phase $PHASE: $1 - $(date) ***" | tee --append "${log}"
+    echo -e "*** Phase $PHASE: $1 - $(date) ***" | tee --append "${log}"
 }
 
 
@@ -88,7 +88,12 @@ EndPhase || Abort) &
 
 
 
-StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856 Fields, Superflous Subfield 2 in Topic Fields and Remove Sorting Chars\$a"
+StartPhase "Drop Records Containing mtex in 935" \
+           "\n\tFilter out Self-referential 856 Fields" \
+           "\n\tSuperflous Subfield 2 in Topic Fields" \
+           "\n\tRemove Sorting Chars From Title Subfields" \
+           "\n\tRemove blmsh Subject Heading Term" \
+           "\n\tFix Local Keyword Capitalisations"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --input-format=marc-21 \
@@ -96,7 +101,8 @@ StartPhase "Drop Records Containing mtex in 935, Filter out Self-referential 856
     --drop 935a:mtex \
     --remove-fields '856u:ixtheo\.de' \
     --filter-chars 130a:240a:245a '@' >> "${log}" \
-    --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' >> "${log}" 2>&1 && \
+    --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
+    --replace 600a:610a:630a:648a:650a:651a:655a 'ISLAM|islam' Islam >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -161,7 +167,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          Normdaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-cp pericopes_to_codes.map /var/lib/tuelib/bibleRef/ && \
+cp pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/ && \
 EndPhase || Abort) &
 
 

@@ -56,6 +56,7 @@ const std::string MACS_COLUMN_DESCRIPTOR("macs");
 const int NO_INDEX(-1);
 const unsigned int LOOKFOR_PREFIX_LIMIT(3);
 
+
 enum Category { VUFIND, KEYWORDS };
 
 
@@ -478,7 +479,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     names_to_values_map.emplace("target_language_code", std::vector<std::string> {""});
     names_to_values_map.emplace("target_translation_scope", std::vector<std::string> {target});
 
-    std::ifstream translate_html("/var/lib/tuelib/translate_chainer/translation_front_page.html", std::ios::binary);
+    std::ifstream translate_html("/usr/local/var/lib/tuelib/translate_chainer/translation_front_page.html", std::ios::binary);
     MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
 }
 
@@ -598,7 +599,7 @@ void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, co
 
     //Expand Template
     std::stringstream mail_content;
-    std::ifstream mytranslations_template("/var/lib/tuelib/translate_chainer/mytranslations_template.msg",
+    std::ifstream mytranslations_template("/usr/local/var/lib/tuelib/translate_chainer/mytranslations_template.msg",
                                           std::ios::binary);
     MiscUtil::ExpandTemplate(mytranslations_template, mail_content, names_to_values_map);
 
@@ -639,7 +640,7 @@ void RestoreUserState(DbConnection &db_connection, const std::string &translator
 }
 
 
-const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
+const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
 
 
 int main(int argc, char *argv[]) {
