@@ -71,7 +71,7 @@ public:
     public:
         Entry(const Entry &other);
         inline std::string getName() const { return entry_.d_name; }
-        inline unsigned char getType() const;
+        unsigned char getType() const;
         inline ino_t getInode() const { return entry_.d_ino; }
     private:
         Entry(const struct dirent &entry, const std::string * const dirname);
@@ -101,8 +101,8 @@ public:
      */
     explicit Directory(const std::string &path, const std::string &regex = ".*"): path_(path), regex_(regex) { }
 
-    inline const_iterator cbegin() const { return const_iterator(path_, regex_); }
-    inline const_iterator cend() const { return const_iterator(path_, regex_, /* end = */ true); }
+    inline const_iterator begin() const { return const_iterator(path_, regex_); }
+    inline const_iterator end() const { return const_iterator(path_, regex_, /* end = */ true); }
 };
 
 
