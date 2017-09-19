@@ -206,7 +206,7 @@ void ValidateKeywordTranslation(DbConnection * const connection, const std::stri
 }
 
 
-const std::string CONF_FILE_PATH("/var/lib/tuelib/translations.conf");
+const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
 
 
 int main(int argc, char *argv[]) {

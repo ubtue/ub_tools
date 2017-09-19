@@ -28,6 +28,7 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DirectoryEntry.h"
+#include "Downloader.h"
 #include "ExecUtil.h"
 #include "FileLocker.h"
 #include "FileUtil.h"
@@ -37,7 +38,6 @@
 #include "MediaTypeUtil.h"
 #include "PdfUtil.h"
 #include "Semaphore.h"
-#include "SmartDownloader.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
@@ -58,36 +58,40 @@ static void Usage() {
 bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout,
                              std::string * const document, std::string * const media_type)
 {
-    if (not SmartDownload(url, timeout, document)) {
-        std::cerr << "Failed to download the document for " << url << " (timeout: " << timeout << " sec)\n";
+    Downloader::Params params;
+    Downloader downloader(url, params, timeout);
+    if (downloader.anErrorOccurred()) {
+        Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to download the document for " + url + " (timeout: " + std::to_string(timeout) + " sec, message: " + downloader.getLastErrorMessage() + ")" );
         return false;
     }
 
-    *media_type = MediaTypeUtil::GetMediaType(*document, /* auto_simplify = */ false);
-    if (media_type->empty())
+    *document = downloader.getMessageBody();
+    *media_type = downloader.getMediaType();
+    if (media_type->empty()) {
+        Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to get the media type for " + url);
         return false;
-
+    }
     return true;
 }
 
 
 static std::map<std::string, std::string> marc_to_tesseract_language_codes_map {
-    { "fre", "fra" },
-    { "eng", "eng" },
-    { "ger", "deu" },
-    { "ita", "ita" },
-    { "dut", "nld" },
-    { "swe", "swe" },
-    { "dan", "dan" },
-    { "nor", "nor" },
-    { "rus", "rus" },
-    { "fin", "fin" },
-    { "por", "por" },
-    { "pol", "pol" },
-    { "slv", "slv" },
-    { "hun", "hun" },
-    { "cze", "ces" },
     { "bul", "bul" },
+    { "cze", "ces" },
+    { "dan", "dan" },
+    { "dut", "nld" },
+    { "eng", "eng" },
+    { "fin", "fin" },
+    { "fre", "fra" },
+    { "ger", "deu" },
+    { "hun", "hun" },
+    { "ita", "ita" },
+    { "nor", "nor" },
+    { "pol", "pol" },
+    { "por", "por" },
+    { "rus", "rus" },
+    { "slv", "slv" },
+    { "swe", "swe" },
 };
 
 
@@ -166,12 +170,12 @@ std::string DbLockedWriteDocumentWithMediaType(const std::string &media_type, co
     if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER))
         Error("Failed to open database \"" + db_filename + "\" for writing ("
               + std::string(db.error().message()) + ")!");
-    
+
     const std::string key(std::to_string(db.count() + 1));
     if (not db.add(key, "Content-type: " + media_type + "\r\n\r\n" + document))
         Error("Failed to add key/value pair to database \"" + db_filename + "\" ("
               + std::string(db.error().message()) + ")!");
-    
+
     return key;
 }
 
@@ -213,7 +217,7 @@ bool CacheExpired(DbConnection * const db_connection, const std::string &url) {
     const std::string LAST_USED_QUERY("SELECT last_used FROM full_text_cache WHERE url=\"" + url + "\"");
     if (unlikely(not db_connection->query(LAST_USED_QUERY)))
         Error("in CacheExpired, DB query failed: " + LAST_USED_QUERY);
-    
+
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty())
         return true;
@@ -315,7 +319,7 @@ int main(int argc, char *argv[]) {
     long offset;
     if (not StringUtil::ToNumber(argv[1], &offset))
         Error("file offset must be a number!");
-    
+
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
     if (not marc_reader->seek(offset, SEEK_SET))
         Error("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset)

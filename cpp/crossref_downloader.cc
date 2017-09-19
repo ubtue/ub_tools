@@ -708,7 +708,7 @@ void ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter 
 
 
 std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
-    const std::string DB_FILENAME("/var/lib/tuelib/crossref_downloader/notified.db");
+    const std::string DB_FILENAME("/usr/local/var/lib/tuelib/crossref_downloader/notified.db");
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(DB_FILENAME,
                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
@@ -747,7 +747,7 @@ int main(int argc, char *argv[]) {
         std::vector<MapDescriptor *> map_descriptors;
         InitCrossrefToMarcMapping(&map_descriptors);
 
-        unsigned success_count(0), total_written_count(0), total_success_count(0);
+        unsigned journal_success_count(0), total_written_count(0), total_suppressed_count(0);
         while (not journal_list_file->eof()) {
             std::string line;
             journal_list_file->getline(&line);
@@ -755,17 +755,17 @@ int main(int argc, char *argv[]) {
             if (not line.empty()) {
                 const unsigned old_total_written_count(total_written_count);
                 ProcessJournal(timeout, line, marc_writer.get(), notified_db.get(), map_descriptors,
-                               &total_written_count , &total_success_count);
+                               &total_written_count , &total_suppressed_count);
                 if (old_total_written_count < total_written_count)
-                    ++success_count;
+                    ++journal_success_count;
             }
         }
 
-        std::cout << "Downloaded metadata for at least one article from " << success_count << " journals.\n";
+        std::cout << "Downloaded metadata for at least one article from " << journal_success_count << " journals.\n";
         std::cout << "The total number of articles for which metadata was downloaded and written out is "
                   << total_written_count
                   << ".\nAnd the number of articles that were identical to previous downloads and therefore "
-                  << "suppressed is " << total_success_count << ".\n";
+                  << "suppressed is " << total_suppressed_count << ".\n";
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }

@@ -1,7 +1,7 @@
 /** \brief A MARC-21 filter utility that can remove records or fields based on patterns for MARC subfields.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "Compiler.h"
 #include "DirectoryEntry.h"
 #include "FileUtil.h"
 #include "Leader.h"
@@ -35,26 +36,45 @@
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
 void Usage() {
-    std::cerr << "usage: " << ::progname
-              << "       marc_input marc_output [[--input-format=(marc-xml|marc-21)]\n"
+    std::cerr << "usage: " << ::progname << " marc_input marc_output [[--input-format=(marc-xml|marc-21)]\n"
               << "       [--output-format=(marc-xml|marc-21)] op1 [op2 .. opN]\n"
-              << "       where each operation must start with the operation type. Operation-type flags\n"
-              << "       are --drop, --keep, --drop-biblio-level, --keep-biblio-level --remove-fields,\n"
-              << "       --remove-subfields, --filter-chars or --max-count.  Arguments for --keep, --drop,\n"
-              << "       --remove-field are field_or_subfieldspec1:regex1 [field_or_subfieldspec2:regex2 ..\n"
-              << "       field_or_subfieldspecN:regexN] where \"field_or_subfieldspec\" must either be a MARC tag\n"
-              << "       or a MARC tag followed by a single-character subfield code and \"regex\" is a Perl-\n"
-              << "       compatible regular expression.  Arguments for --remove-subfields are constructed\n"
-              << "       accordingly but only subfield specs are permissible --drop-biblio-level and\n"
-              << "       --keep-biblio-level arguments must one or more characters.  --filter-chars' arguments are\n"
-              << "       subfield_spec1:subfield_spec2:...:subfield_specN  characters_to_delete\n"
-              << "       --max-count has a single count numeric argument which specifies the maximum\n"
-              << "       number of records to emit.\n"
-              << "       The bibliographic-level operations are basically a comparsion against leader position 07.\n"
+              << "       where each operation must start with the operation type. Operation-type flags are\n"
+              << "           --drop field_or_subfield_specs\n"
+              << "               where field_or_subfield_specs is a list of one or more arguments where a field or\n"
+              << "               or subfield specifier is followed by a colon and a PCRE regex.  Examples would be\n"
+              << "               007:x[ab] or 856u:http:.* etc.\n"
+              << "               Any record where a field or subfield matched will be dropped entirely.\n"
+              << "           --keep field_or_subfield_specs\n"
+              << "               where field_or_subfield_specs is the same as for the --drop operation.\n"
+              << "               Only records that have at least one field or subfield that matched will be kept.\n"
+              << "           --drop-biblio-level characters\n"
+              << "               Drop any records that have a bibliographic level matching any of the specified\n"
+              << "               characters.  (Comparsion against leader position 07.)\n"
+              << "           --keep-biblio-level characters\n"
+              << "               Keep only records that have a bibliographic level matching any of the specified\n"
+              << "               characters.  (Comparsion against leader position 07.)\n"
+              << "           --remove-fields field_or_subfield_specs\n"
+              << "               Any fields that matched or that have subfields that matched will be dropped.\n"
+              << "           --remove-subfields field_or_subfield_specs\n"
+              << "               Any subfields that matched will be dropped.\n"
+              << "           --filter-chars subfield_specs characters_to_delete\n"
+              << "                Drops any characters in characters_to_delete from matching subfields.\n"
+              << "           --max-count count\n"
+              << "               Quit after we had count records that matched any one of our conditions.\n"
+              << "           --translate subfield_specs character_set1 character_set2\n"
+              << "                 Inspired by tr, this is used to specify a mapping from one set of Unicode\n"
+              << "                 characters to another.  Arguments to --translate must be\n"
+              << "                 character_set1 and character_set2 where both must be either explicit and\n"
+              << "                 equally long lists of individual characters or the sequences [:upper:] or\n"
+              << "                 [:lower:] where currently [:upper:] and [:lower:] may only be mapped to each\n"
+              << "                 other.\n"
+              << "           --replace subfield_specs pcre_regex replacement_string\n"
+              << "                replacement_string may contain back references like \\3 etc.\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
 
     std::exit(EXIT_FAILURE);
@@ -204,7 +224,7 @@ bool MatchedSubfield(const MarcRecord &record, const std::vector<CompiledPattern
                         matched_at_least_one = true;
                     }
                 }
-            } 
+            }
         }
     }
 
@@ -217,10 +237,118 @@ namespace {
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
 enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS,
-                        REMOVE_SUBFIELDS, FILTER_CHARS, MAX_COUNT };
+                        REMOVE_SUBFIELDS, FILTER_CHARS, MAX_COUNT, TRANSLATE, REPLACE };
 
 
 } // unnamed namespace
+
+
+class TranslateMap {
+public:
+    virtual ~TranslateMap() { }
+
+    virtual TranslateMap *clone() const = 0;
+
+    /** \return True if "*s" was changed, else false. */
+    virtual bool map(std::string * const s) const = 0;
+};
+
+
+class CharSetTranslateMap: public TranslateMap {
+    std::wstring set1_, set2_;
+public:
+    CharSetTranslateMap(const std::string &set1, const std::string &set2);
+    virtual bool map(std::string * const s) const final;
+    virtual CharSetTranslateMap *clone() const final { return new CharSetTranslateMap(set1_, set2_); }
+private:
+    CharSetTranslateMap(const std::wstring &set1, const std::wstring &set2): set1_(set1), set2_(set2) { }
+};
+
+
+CharSetTranslateMap::CharSetTranslateMap(const std::string &set1, const std::string &set2) {
+    if (unlikely(not TextUtil::UTF8toWCharString(set1, &set1_)))
+        Error("in CharSetTranslateMap::CharSetTranslateMap: set1 \"" + set1 + "\" is not a valid UTF-8 string!");
+    if (unlikely(not TextUtil::UTF8toWCharString(set2, &set2_)))
+        Error("in CharSetTranslateMap::CharSetTranslateMap: set2 \"" + set2 + "\" is not a valid UTF-8 string!");
+    if (set1_.size() != set2_.size())
+        Error("in CharSetTranslateMap::CharSetTranslateMap: input sets must contain an equal number of Unicode "
+              "characters!");
+}
+
+
+bool CharSetTranslateMap::map(std::string * const s) const {
+    std::wstring ws;
+    if (unlikely(not TextUtil::UTF8toWCharString(*s, &ws)))
+        Error("in CharSetTranslateMap::map: input \"" + *s + "\" is not a valid UTF-8 string!");
+
+    bool changed(false);
+    for (auto wch(ws.begin()); wch != ws.end(); ++wch) {
+        const auto pos(set1_.find(*wch));
+        if (pos != std::wstring::npos) {
+            *wch = set2_[pos];
+            changed = true;
+        }
+    }
+
+    if (unlikely(not TextUtil::WCharToUTF8String(ws, s)))
+        Error("in CharSetTranslateMap::map: TextUtil::WCharToUTF8String() failed! (This should *never* happen!)");
+
+    return changed;
+}
+
+
+class UpperLowerTranslateMap: public TranslateMap {
+public:
+    enum MapType { UPPER_TO_LOWER, LOWER_TO_UPPER };
+private:
+    MapType map_type_;
+public:
+    UpperLowerTranslateMap(const MapType map_type): map_type_(map_type) { }
+    virtual bool map(std::string * const s) const final;
+    virtual UpperLowerTranslateMap *clone() const final { return new UpperLowerTranslateMap(map_type_); }
+};
+
+
+bool UpperLowerTranslateMap::map(std::string * const s) const {
+    std::wstring ws;
+    if (unlikely(not TextUtil::UTF8toWCharString(*s, &ws)))
+        Error("in UpperLowerTranslateMap::map: input \"" + *s + "\" is not a valid UTF-8 string!");
+
+    bool changed(false);
+    if (map_type_ == UPPER_TO_LOWER) {
+        for (auto wch(ws.begin()); wch != ws.end(); ++wch) {
+            if (std::iswupper(static_cast<wint_t>(*wch))) {
+                *wch = std::towlower(*wch);
+                changed = true;
+            }
+        }
+    } else { // map_type_ == LOWER_TO_UPPER.
+        for (auto wch(ws.begin()); wch != ws.end(); ++wch) {
+            if (std::iswlower(static_cast<wint_t>(*wch))) {
+                *wch = std::towupper(*wch);
+                changed = true;
+            }
+        }
+    }
+
+    if (unlikely(not TextUtil::WCharToUTF8String(ws, s)))
+        Error("in UpperLowerTranslateMap::map: TextUtil::WCharToUTF8String() failed! (This should *never* happen!)");
+
+    return changed;
+}
+
+
+struct StringFragmentOrBackreference {
+    enum Type { STRING_FRAGMENT, BACK_REFERENCE };
+    Type type_;
+    std::string string_fragment_;
+    unsigned back_reference_;
+public:
+    explicit StringFragmentOrBackreference(const std::string &string_fragment)
+        : type_(STRING_FRAGMENT), string_fragment_(string_fragment) { }
+    explicit StringFragmentOrBackreference(const unsigned back_reference)
+        : type_(BACK_REFERENCE), back_reference_(back_reference) { }
+};
 
 
 class FilterDescriptor {
@@ -232,6 +360,9 @@ private:
     std::string biblio_levels_;
     mutable unsigned count_;
     unsigned max_count_;
+    TranslateMap *translate_map_;
+    RegexMatcher *regex_matcher_;
+    std::vector<StringFragmentOrBackreference> string_fragments_and_back_references_;
 public:
     inline FilterType getFilterType() const { return filter_type_; }
     inline const std::string &getBiblioLevels() const { return biblio_levels_; }
@@ -245,6 +376,17 @@ public:
 
     /** \note Only call this if the filter type is FILTER_CHARS! */
     inline const std::string &getCharsToDelete() const { return chars_to_delete_; }
+
+    /** \note Only call this if the filter type is TRANSLATE! */
+    inline const TranslateMap &getTranslateMap() const { return *translate_map_; }
+
+    /** \note Only call this if the filter type is REPLACE! */
+    inline const RegexMatcher &getRegexMatcher() const { return *regex_matcher_; }
+
+    /** \note Only call this if the filter type is REPLACE! */
+    inline const std::vector<StringFragmentOrBackreference> &getStringFragmentsAndBackreferences() const {
+        return string_fragments_and_back_references_;
+    }
 
     inline static FilterDescriptor MakeDropFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::DROP, compiled_patterns);
@@ -280,17 +422,82 @@ public:
     inline static FilterDescriptor MakeMaxCountFilter(const unsigned max_count) {
         return FilterDescriptor(max_count);
     }
+
+    inline static FilterDescriptor MakeTranslateFilter(const std::vector<std::string> &subfield_specs,
+                                                       const TranslateMap &translate_map)
+    {
+        return FilterDescriptor(subfield_specs, translate_map);
+    }
+
+    inline static FilterDescriptor MakeReplacementFilter(const std::vector<std::string> &subfield_specs,
+                                                         const std::string &regex, const std::string &replacement)
+    {
+        return FilterDescriptor(subfield_specs, regex, replacement);
+    }
 private:
     FilterDescriptor(const FilterType filter_type, const std::vector<CompiledPattern *> &compiled_patterns)
-        : filter_type_(filter_type), compiled_patterns_(compiled_patterns) { }
+        : filter_type_(filter_type), compiled_patterns_(compiled_patterns), translate_map_(nullptr),
+          regex_matcher_(nullptr) { }
     FilterDescriptor(const std::vector<std::string> &subfield_specs, const std::string &chars_to_delete)
         : filter_type_(FilterType::FILTER_CHARS), subfield_specs_(subfield_specs),
-          chars_to_delete_(chars_to_delete) { }
+          chars_to_delete_(chars_to_delete), translate_map_(nullptr), regex_matcher_(nullptr) { }
     FilterDescriptor(const FilterType filter_type, const std::string &biblio_levels)
-        : filter_type_(filter_type), biblio_levels_(biblio_levels) { }
+        : filter_type_(filter_type), biblio_levels_(biblio_levels), regex_matcher_(nullptr) { }
     FilterDescriptor(const unsigned max_count)
-        : filter_type_(FilterType::MAX_COUNT), count_(0), max_count_(max_count) { }
+        : filter_type_(FilterType::MAX_COUNT), count_(0), max_count_(max_count), translate_map_(nullptr),
+          regex_matcher_(nullptr) { }
+    FilterDescriptor(const std::vector<std::string> &subfield_specs, const TranslateMap &translate_map)
+        : filter_type_(FilterType::TRANSLATE), subfield_specs_(subfield_specs),
+          translate_map_(translate_map.clone()), regex_matcher_(nullptr) { }
+    FilterDescriptor(const std::vector<std::string> &subfield_specs, const std::string &regex,
+                     const std::string &replacement);
 };
+
+
+void ParseReplacementString(const std::string &replacement,
+                            std::vector<StringFragmentOrBackreference> * const string_fragments_and_back_references)
+{
+    if (unlikely(replacement.empty())) {
+        string_fragments_and_back_references->emplace_back("");
+        return;
+    }
+    
+    std::string string_fragment;
+    bool backslash_seen(false);
+    for (const char ch : replacement) {
+        if (backslash_seen) {
+            if (StringUtil::IsDigit(ch)) {
+                if (not string_fragment.empty()) {
+                    string_fragments_and_back_references->emplace_back(string_fragment);
+                    string_fragment.clear();
+                }
+                const unsigned digit(ch - '0');
+                string_fragments_and_back_references->emplace_back(digit);
+            } else
+                string_fragment += ch;
+            backslash_seen = false;
+        } else if (ch == '\\')
+            backslash_seen = true;
+        else
+            string_fragment += ch;
+    }
+
+    if (not string_fragment.empty())
+        string_fragments_and_back_references->emplace_back(string_fragment);
+    if (backslash_seen)
+        Error("replacement string for --replace ends in a backslash!");
+}
+
+
+FilterDescriptor::FilterDescriptor(const std::vector<std::string> &subfield_specs, const std::string &regex,
+                                   const std::string &replacement)
+    : filter_type_(FilterType::REPLACE), subfield_specs_(subfield_specs), translate_map_(nullptr)
+{
+    std::string err_msg;
+    if ((regex_matcher_ = RegexMatcher::RegexMatcherFactory(regex, &err_msg)) == nullptr)
+        Error("failed to compile regex \"" + regex + "\"! (" + err_msg + ")");
+    ParseReplacementString(replacement, &string_fragments_and_back_references_);
+}
 
 
 std::string GetSubfieldCodes(const MarcTag &tag, const std::vector<std::string> &subfield_specs) {
@@ -306,13 +513,13 @@ std::string GetSubfieldCodes(const MarcTag &tag, const std::vector<std::string> 
 
 
 /** \brief Removes any of the characters in "chars_to_delete" from all of the subfields specified by "subfield_specs".
- *  \return True if at least one subfield has been modofied, else false.
+ *  \return True if at least one subfield has been modified, else false.
  */
 bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std::string &chars_to_delete,
                       MarcRecord * const record)
 {
     bool modified_at_least_one_field(false);
-    for (size_t field_index = 0; field_index < record->getNumberOfFields(); ++field_index) {
+    for (size_t field_index(0); field_index < record->getNumberOfFields(); ++field_index) {
         const std::string subfield_codes(GetSubfieldCodes(record->getTag(field_index), subfield_specs));
         if (subfield_codes.empty())
             continue;
@@ -326,6 +533,82 @@ bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std:
                 StringUtil::RemoveChars(chars_to_delete, &(subfield->value_));
                 if (subfield->value_.length() != old_length)
                     modified_at_least_one_subfield = true;
+            }
+        }
+
+        if (modified_at_least_one_subfield) {
+            modified_at_least_one_field = true;
+            record->updateField(field_index, subfields.toString());
+        }
+    }
+
+    return modified_at_least_one_field;
+}
+
+
+/** \brief Maps contents of the subfields specified by "subfield_specs".
+ *  \return True if at least one subfield has been modified, else false.
+ */
+bool TranslateCharacters(const std::vector<std::string> &subfield_specs, const TranslateMap &translate_map,
+                         MarcRecord * const record)
+{
+    bool modified_at_least_one_field(false);
+    for (size_t field_index(0); field_index < record->getNumberOfFields(); ++field_index) {
+        const std::string subfield_codes(GetSubfieldCodes(record->getTag(field_index), subfield_specs));
+        if (subfield_codes.empty())
+            continue;
+
+        bool modified_at_least_one_subfield(false);
+        Subfields subfields(record->getSubfields(field_index));
+        for (const auto subfield_code : subfield_codes) {
+            const auto begin_end(subfields.getIterators(subfield_code));
+            for (auto subfield(begin_end.first); subfield != begin_end.second; ++subfield) {
+                if (translate_map.map(&(subfield->value_)))
+                    modified_at_least_one_subfield = true;
+            }
+        }
+
+        if (modified_at_least_one_subfield) {
+            modified_at_least_one_field = true;
+            record->updateField(field_index, subfields.toString());
+        }
+    }
+
+    return modified_at_least_one_field;
+}
+
+
+bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, const RegexMatcher &matcher,
+                      const std::vector<StringFragmentOrBackreference> &string_fragments_and_back_references,
+                      MarcRecord * const record)
+{
+    bool modified_at_least_one_field(false);
+    for (size_t field_index(0); field_index < record->getNumberOfFields(); ++field_index) {
+        const std::string subfield_codes(GetSubfieldCodes(record->getTag(field_index), subfield_specs));
+        if (subfield_codes.empty())
+            continue;
+
+        bool modified_at_least_one_subfield(false);
+        Subfields subfields(record->getSubfields(field_index));
+        for (const auto subfield_code : subfield_codes) {
+            const auto begin_end(subfields.getIterators(subfield_code));
+            for (auto subfield(begin_end.first); subfield != begin_end.second; ++subfield) {
+                if (matcher.matched(subfield->value_)) {
+                    const unsigned no_of_match_groups(matcher.getNoOfGroups());
+                    std::string replacement;
+                    for (const auto &string_fragment_or_back_reference : string_fragments_and_back_references) {
+                        if (string_fragment_or_back_reference.type_ == StringFragmentOrBackreference::STRING_FRAGMENT)
+                            replacement += string_fragment_or_back_reference.string_fragment_;
+                        else { // We're dealing w/ a back-reference.
+                            if (unlikely(string_fragment_or_back_reference.back_reference_ > no_of_match_groups))
+                                Error("can't satisfy back-reference \\"
+                                      + std::to_string(string_fragment_or_back_reference.back_reference_) + "!");
+                            replacement += matcher[string_fragment_or_back_reference.back_reference_];
+                        }
+                    }
+                    subfield->value_ = replacement;
+                    modified_at_least_one_subfield = true;
+                }
             }
         }
 
@@ -373,12 +656,19 @@ void Filter(const std::vector<FilterDescriptor> &filters, MarcReader * const mar
                std::vector<std::pair<size_t, char>> matched_field_indices_and_subfields;
                if (MatchedSubfield(record, filter.getCompiledPatterns(), &matched_field_indices_and_subfields)) {
                    std::sort(matched_field_indices_and_subfields.begin(), matched_field_indices_and_subfields.end());
-                   for (const auto field_index_and_subfield : matched_field_indices_and_subfields) 
+                   for (const auto field_index_and_subfield : matched_field_indices_and_subfields)
                         record.deleteSubfield(field_index_and_subfield.first, field_index_and_subfield.second);
                    modified_record = true;
                    break;
                }
-           } else {
+            } else if (filter.getFilterType() == FilterType::TRANSLATE) {
+                if (TranslateCharacters(filter.getSubfieldSpecs(), filter.getTranslateMap(), &record))
+                    modified_record = true;
+            } else if (filter.getFilterType() == FilterType::REPLACE) {
+                if (ReplaceSubfields(filter.getSubfieldSpecs(), filter.getRegexMatcher(),
+                                     filter.getStringFragmentsAndBackreferences(), &record))
+                    modified_record = true;
+            } else {
                 std::vector<size_t> matched_field_indices;
                 if (Matched(record, filter.getCompiledPatterns(), &matched_field_indices)) {
                     if (filter.getFilterType() == FilterType::DROP) {
@@ -477,6 +767,16 @@ unsigned TestAndConvertCount(char ***argvp) {
 }
 
 
+void ExtractSubfieldSpecs(const std::string &command, char ***argvp, std::vector<std::string> * const subfield_specs)
+{
+    ++*argvp;
+    StringUtil::Split(**argvp, ':', subfield_specs);
+    if (not ArePlausibleSubfieldSpecs(*subfield_specs))
+        Error("bad subfield specifications \"" + std::string(**argvp) + "\" for " + command + "!");
+    ++*argvp;
+}
+
+
 void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filters) {
     while (*argv != nullptr) {
         std::vector<CompiledPattern *> compiled_patterns;
@@ -494,16 +794,47 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             filters->emplace_back(FilterDescriptor::MakeRemoveFieldsFilter(CollectAndCompilePatterns(&argv)));
         else if (std::strcmp(*argv, "--remove-subfields") == 0)
             filters->emplace_back(FilterDescriptor::MakeRemoveSubfieldsFilter(CollectAndCompilePatterns(&argv)));
-        else if (std::strcmp(*argv, "--filter-chars") == 0) {
-            ++argv;
+        else if (std::strcmp(*argv, "--translate") == 0) {
             std::vector<std::string> subfield_specs;
-            StringUtil::Split(*argv, ':', &subfield_specs);
-            if (not ArePlausibleSubfieldSpecs(subfield_specs))
-                Error("bad subfield specifications \"" + std::string(*argv) + "\"!");
-            ++argv;
+            ExtractSubfieldSpecs("--translate", &argv, &subfield_specs);
             if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
-                Error("missing of bad \"characters_to_delete\" argument to \"--filter-chars\"!");
+                Error("missing or bad \"set1\" argument to \"--translate\"!");
+            if (argv + 1 == nullptr or StringUtil::StartsWith(*(argv + 1), "--"))
+                Error("missing or bad \"set2\" argument to \"--translate\"!");
+            TranslateMap *translate_map;
+            if (std::strcmp(*argv, "[:upper:]") == 0 or std::strcmp(*argv, "[:lower:]") == 0) {
+                if (std::strcmp(*argv, "[:upper:]") == 0) {
+                    if (std::strcmp(*(argv + 1), "[:lower:]") != 0)
+                        Error("if \"[:upper:]\" was specified as set1 for --translate, \"[:lower:]\" must be "
+                              "specified as set2!");
+                    translate_map = new UpperLowerTranslateMap(UpperLowerTranslateMap::UPPER_TO_LOWER);
+                } else {
+                   if (std::strcmp(*(argv + 1), "[:upper:]") != 0)
+                        Error("if \"[:lower:]\" was specified as set1 for --translate, \"[:upper:]\" must be "
+                              "specified as set2!");
+                    translate_map = new UpperLowerTranslateMap(UpperLowerTranslateMap::LOWER_TO_UPPER);
+                 }
+            } else
+                translate_map = new CharSetTranslateMap(*argv, *(argv + 1));
+            filters->emplace_back(FilterDescriptor::MakeTranslateFilter(subfield_specs, *translate_map));
+            argv += 2;
+        } else if (std::strcmp(*argv, "--filter-chars") == 0) {
+            std::vector<std::string> subfield_specs;
+            ExtractSubfieldSpecs("--filter-chars", &argv, &subfield_specs);
+            if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
+                Error("missing or bad \"characters_to_delete\" argument to \"--filter-chars\"!");
             filters->emplace_back(FilterDescriptor::MakeFilterCharsFilter(subfield_specs, *argv++));
+        } else if (std::strcmp(*argv, "--replace") == 0) {
+            std::vector<std::string> subfield_specs;
+            ExtractSubfieldSpecs("--replace", &argv, &subfield_specs);
+            if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
+                Error("missing regex arg after --replace!");
+            const std::string regex(*argv);
+            if (++argv == nullptr or StringUtil::StartsWith(*argv, "--"))
+                Error("missing replacement string after --replace and regex!");
+            const std::string replacement(*argv);
+            filters->emplace_back(FilterDescriptor::MakeReplacementFilter(subfield_specs, regex, replacement));
+            ++argv;
         } else
             Error("unknown operation type \"" + std::string(*argv) + "\"!");
     }

@@ -14,7 +14,7 @@
 #include "util.h"
 
 
-const std::string TESSERACT("/usr/bin/tesseract");
+const std::string TESSERACT(ExecUtil::Which("tesseract"));
 const int TIMEOUT(20); // in seconds
 
 

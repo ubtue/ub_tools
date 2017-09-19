@@ -195,6 +195,24 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 }
 
 
+bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_utf8_string) {
+    std::wstring wchar_string;
+    if (not UTF8toWCharString(utf8_string, &wchar_string))
+        return false;
+
+    // Uppercase the wide character string:
+    std::wstring uppercase_wide_string;
+    for (const auto wide_ch : wchar_string) {
+        if (std::iswlower(static_cast<wint_t>(wide_ch)))
+            uppercase_wide_string += std::towupper(static_cast<wint_t>(wide_ch));
+        else
+            uppercase_wide_string += wide_ch;
+    }
+
+    return WCharToUTF8String(uppercase_wide_string, uppercase_utf8_string);
+}
+
+
 /** The following conversions are implemented here:
 
     Unicode range 0x00000000 - 0x0000007F:
@@ -397,7 +415,9 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 static char base64_symbols[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\0\0";
 
 
-std::string Base64Encode(const std::string &s, const char symbol63, const char symbol64) {
+std::string Base64Encode(const std::string &s, const char symbol63, const char symbol64,
+                         const bool use_output_padding)
+{
     base64_symbols[62] = symbol63;
     base64_symbols[63] = symbol64;
 
@@ -433,7 +453,17 @@ std::string Base64Encode(const std::string &s, const char symbol63, const char s
             encoded_chars += next4[char_no];
     }
 
-    return encoded_chars;
+    if (not use_output_padding)
+        return encoded_chars;
+
+    switch (encoded_chars.size() % 3) {
+    case 1:
+        return encoded_chars + "==";
+    case 2:
+        return encoded_chars + "=";
+    default:
+        return encoded_chars;
+    }
 }
 
 
@@ -608,6 +638,77 @@ bool UTF8ToUTF32Decoder::addByte(const char ch) {
     }
 
     return required_count_ != 0;
+}
+
+
+// In order to understand this implementation, it may help to read https://en.wikipedia.org/wiki/Quoted-printable
+std::string EncodeQuotedPrintable(const std::string &s) {
+    if (unlikely(s.empty()))
+        return s;
+
+    std::string encoded_string;
+
+    for (const char ch : s) {
+        const unsigned char uch(static_cast<unsigned char>(ch));
+        if ((uch >= 33 and uch <= 126) or uch == 9 or uch == 32) {
+            if (unlikely(ch == '='))
+                encoded_string += "=3D";
+            else
+                encoded_string += ch;
+        } else {
+            encoded_string += '=';
+            encoded_string += StringUtil::ToHex(uch >> 4u);
+            encoded_string += StringUtil::ToHex(uch & 0xFu);
+        }
+    }
+
+    // Tab and space at the end of the string must be encoded:
+    if (unlikely(encoded_string[encoded_string.size() - 1] == ' ')) {
+        encoded_string.resize(encoded_string.size() - 1);
+        encoded_string += "=20";
+    } else if (unlikely(encoded_string[encoded_string.size() - 1] == '\t')) {
+        encoded_string.resize(encoded_string.size() - 1);
+        encoded_string += "=09";
+    }
+
+    return encoded_string;
+}
+
+
+static char HEX_CHARS[] = "0123456789ABCDEF";
+
+
+// In order to understand this implementation, it may help to read https://en.wikipedia.org/wiki/Quoted-printable
+std::string DecodeQuotedPrintable(const std::string &s) {
+    std::string decoded_string;
+
+    for (auto ch(s.cbegin()); ch != s.cend(); ++ch) {
+        if (unlikely(*ch == '=')) {
+            // First nibble:
+            ++ch;
+            if (unlikely(ch == s.cend()))
+                throw std::runtime_error("TextUtil::DecodeQuotedPrintable: bad character sequence! (1)");
+            char *cp(std::strchr(HEX_CHARS, *ch));
+            if (unlikely(cp == nullptr))
+                throw std::runtime_error("TextUtil::DecodeQuotedPrintable: bad character sequence! (2)");
+            unsigned char uch(cp - HEX_CHARS);
+            uch <<= 4u;
+
+            // Second nibble:
+            ++ch;
+            if (unlikely(ch == s.cend()))
+                throw std::runtime_error("TextUtil::DecodeQuotedPrintable: bad character sequence! (3)");
+            cp = std::strchr(HEX_CHARS, *ch);
+            if (unlikely(cp == nullptr))
+                throw std::runtime_error("TextUtil::DecodeQuotedPrintable: bad character sequence! (4)");
+            uch |= cp - HEX_CHARS;
+
+            decoded_string += static_cast<char>(uch);
+        } else
+            decoded_string += *ch;
+    }
+
+    return decoded_string;
 }
 
 

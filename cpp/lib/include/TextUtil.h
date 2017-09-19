@@ -65,8 +65,14 @@ bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string);
 
 /** \brief Converts a UTF8 string to lowercase.
  *  \return True if no character set conversion error occurred, o/w false.
-  */
+ */
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string);
+
+
+/** \brief Converts a UTF8 string to uppercase.
+ *  \return True if no character set conversion error occurred, o/w false.
+ */
+bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_utf8_string);
 
 
 /** Converts UTF-32 a.k.a. UCS-4 to UTF-8. */
@@ -135,12 +141,14 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 
 
 /** \brief  Base64 encodes a string.
- *  \param  s         The string that will be encoded.
- *  \param  symbol63  The character that will be used for symbol 63.
- *  \param  symbol64  The character that will be used for symbol 64.
+ *  \param  s                   The string that will be encoded.
+ *  \param  symbol63            The character that will be used for symbol 63.
+ *  \param  symbol64            The character that will be used for symbol 64.
+ *  \param  use_output_padding  Nomen est omen.
  *  \return The encoded string.
  */
-std::string Base64Encode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/');
+std::string Base64Encode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/',
+                         const bool use_output_padding = true);
 
 
 /** \brief  Base64 decodes a string.
@@ -194,6 +202,11 @@ public:
 
     uint32_t getUTF32Char() { required_count_ = -1; return utf32_char_; }
 };
+
+
+/* En- and decode text to and from the encoded-printable format. */
+std::string EncodeQuotedPrintable(const std::string &s);
+std::string DecodeQuotedPrintable(const std::string &s);
 
 
 } // namespace TextUtil
