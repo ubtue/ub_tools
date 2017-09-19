@@ -95,8 +95,10 @@ public class MultiLanguageQueryParser extends QParser {
                    myQuery = myQuery.rewrite(request.getSearcher().getIndexReader());
                    if (myQuery instanceof BooleanQuery) {
                          Iterator<BooleanClause> boolIterator = ((BooleanQuery) myQuery).iterator();
+                         BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
                          while (boolIterator.hasNext()) {
-                             Query termQueryCandidate = boolIterator.next().getQuery();
+                             BooleanClause currentClause = boolIterator.next();
+                             Query termQueryCandidate = currentClause.getQuery();
                              if (termQueryCandidate instanceof TermQuery){
                                  TermQuery termQuery = (TermQuery) termQueryCandidate;
                                  String field = termQuery.getTerm().field();
@@ -109,7 +111,11 @@ public class MultiLanguageQueryParser extends QParser {
                                     termQueryCandidate = new TermQuery(new Term(field, "\""  +
                                                               termQuery.getTerm().text() + "\""));
                              }
+                             else
+                                 logger.warn("No appropriate Query in BooleanClause");
+                             queryBuilder.add(termQueryCandidate, currentClause.getOccur());
                         }
+                        myQuery = queryBuilder.build();
                    } else if (myQuery instanceof TermRangeQuery) {
                        TermRangeQuery termRangeQuery = (TermRangeQuery) myQuery;
                        String field = termRangeQuery.getField();
@@ -130,7 +136,8 @@ public class MultiLanguageQueryParser extends QParser {
                             field = newFieldName;
                             myQuery = new TermQuery(new Term(newFieldName, "\"" +  termQuery.getTerm().text() + "\""));
                        }
-                       else myQuery = new TermQuery(new Term(field, "\"" +  termQuery.getTerm().text() + "\""));
+                       else { myQuery = new TermQuery(new Term(field, "\"" +  termQuery.getTerm().text() + "\""));
+                       }
                    } else {
                        logger.warn("No rewrite rule did match for " + myQuery.getClass());
                    }
@@ -163,7 +170,8 @@ public class MultiLanguageQueryParser extends QParser {
 
     public Query parse() throws SyntaxError {
         this.newRequest.setParams(newParams);
-        QParser parser = getParser(this.searchString, "edismax", this.newRequest);
+        QParser parser = getParser(this.searchString, null, this.newRequest);
         return parser.parse();
     }
 }
+
