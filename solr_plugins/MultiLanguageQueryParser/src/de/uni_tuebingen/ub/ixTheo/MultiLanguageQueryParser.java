@@ -33,6 +33,7 @@ public class MultiLanguageQueryParser extends QParser {
     protected SolrQueryRequest newRequest;
     protected ModifiableSolrParams newParams;
 
+
     public MultiLanguageQueryParser(final String searchString, final SolrParams localParams, final SolrParams params,
             final SolrQueryRequest request) throws MultiLanguageQueryParserException
     {
@@ -51,8 +52,7 @@ public class MultiLanguageQueryParser extends QParser {
         if (queryType != null) {
             queryFields = newParams.getParams("qf");
             useDismax = true;
-        }
-        else {
+        } else {
             if (query.length != 1)
                throw new MultiLanguageQueryParserException("Only one q-parameter is supported");
             final String[] separatedFields = query[0].split(":");
@@ -69,81 +69,13 @@ public class MultiLanguageQueryParser extends QParser {
         // language
         lang = ArrayUtils.contains(SUPPORTED_LANGUAGES, lang) ? lang : "de";
 
-        if (useDismax) {
-           StringBuilder stringBuilder = new StringBuilder();
-           for (final String param : queryFields) {
-               newParams.remove("qf", param);
-               String[] singleParams = param.split(" ");
-               int i = 0;
-               for (final String singleParam : singleParams) {
-                   String newFieldName = singleParam + "_" + lang;
-                   newFieldName = (schema.getFieldOrNull(newFieldName) != null) ? newFieldName : singleParam;
-                   stringBuilder.append(newFieldName);
-                   if (++i < singleParams.length)
-                       stringBuilder.append(" ");
-               }
-            }
-            newParams.add("qf", stringBuilder.toString());
-        }
+
+        // Handling for [e]dismax
+        if (useDismax)
+            handleDismaxParser(queryFields, lang, schema);
         // Support for Lucene parser
-        else {
-            if (query.length == 1) {
-                try {
-                   QParser tmpParser = new LuceneQParser(searchString, localParams, params, request);
-                   Query myQuery = tmpParser.getQuery();
-                   myQuery = myQuery.rewrite(request.getSearcher().getIndexReader());
-                   if (myQuery instanceof BooleanQuery) {
-                         Iterator<BooleanClause> boolIterator = ((BooleanQuery) myQuery).iterator();
-                         BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
-                         while (boolIterator.hasNext()) {
-                             BooleanClause currentClause = boolIterator.next();
-                             Query termQueryCandidate = currentClause.getQuery();
-                             if (termQueryCandidate instanceof TermQuery){
-                                 TermQuery termQuery = (TermQuery) termQueryCandidate;
-                                 String field = termQuery.getTerm().field();
-                                 String newFieldName = field + "_" + lang;
-                                 if (schema.getFieldOrNull(newFieldName) != null) {
-                                     termQueryCandidate = new TermQuery(new Term(newFieldName, "\"" +
-                                                              termQuery.getTerm().text() + "\""));
-                                 } else
-                                    termQueryCandidate = new TermQuery(new Term(field, "\""  +
-                                                              termQuery.getTerm().text() + "\""));
-                             } else
-                                 logger.warn("No appropriate Query in BooleanClause");
-                             queryBuilder.add(termQueryCandidate, currentClause.getOccur());
-                        }
-                        myQuery = queryBuilder.build();
-                   } else if (myQuery instanceof TermRangeQuery) {
-                       TermRangeQuery termRangeQuery = (TermRangeQuery) myQuery;
-                       String field = termRangeQuery.getField();
-                       String newFieldName = field + "_" + lang;
-                       if (schema.getFieldOrNull(newFieldName) != null) {
-                            termRangeQuery = new TermRangeQuery(newFieldName,
-                                                                termRangeQuery.getLowerTerm(),
-                                                                termRangeQuery.getUpperTerm(),
-                                                                termRangeQuery.includesLower(),
-                                                                termRangeQuery.includesUpper());
-                            myQuery = termRangeQuery;
-                       }
-                   } else if (myQuery instanceof TermQuery) {
-                       TermQuery termQuery = (TermQuery) myQuery;
-                       String field = termQuery.getTerm().field();
-                       String newFieldName = field + "_" + lang;
-                       if (schema.getFieldOrNull(newFieldName) != null) {
-                            field = newFieldName;
-                            myQuery = new TermQuery(new Term(newFieldName, "\"" +  termQuery.getTerm().text() + "\""));
-                       } else 
-                           myQuery = new TermQuery(new Term(field, "\"" +  termQuery.getTerm().text() + "\""));
-                   } else
-                       logger.warn("No rewrite rule did match for " + myQuery.getClass());
-                   this.searchString = myQuery.toString();
-                   newParams.set("q", this.searchString);
-                } catch(SyntaxError|IOException e) {
-                    throw new SolrException(ErrorCode.SERVER_ERROR, "Rewriting Lucene support for new languages failed", e);
-                }
-            } else
-                throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
-        }
+        else
+            handleLuceneParser(query, request, lang, schema);
 
         // Handle Facet Fields
         if (facetFields != null && facetFields.length > 0) {
@@ -161,6 +93,85 @@ public class MultiLanguageQueryParser extends QParser {
             }
         }
     }
+
+
+    protected void handleDismaxParser(String[] queryFields, String lang, IndexSchema schema) {
+        StringBuilder stringBuilder = new StringBuilder();
+        for (final String param : queryFields) {
+            newParams.remove("qf", param);
+            String[] singleParams = param.split(" ");
+            int i = 0;
+            for (final String singleParam : singleParams) {
+                String newFieldName = singleParam + "_" + lang;
+                newFieldName = (schema.getFieldOrNull(newFieldName) != null) ? newFieldName : singleParam;
+                stringBuilder.append(newFieldName);
+                if (++i < singleParams.length)
+                    stringBuilder.append(" ");
+            }
+         }
+         newParams.add("qf", stringBuilder.toString());
+    }
+
+
+    protected void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
+       if (query.length == 1) {
+           try {
+              QParser tmpParser = new LuceneQParser(searchString, localParams, params, request);
+              Query myQuery = tmpParser.getQuery();
+              myQuery = myQuery.rewrite(request.getSearcher().getIndexReader());
+              if (myQuery instanceof BooleanQuery) {
+                    Iterator<BooleanClause> boolIterator = ((BooleanQuery) myQuery).iterator();
+                    BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
+                    while (boolIterator.hasNext()) {
+                        BooleanClause currentClause = boolIterator.next();
+                        Query termQueryCandidate = currentClause.getQuery();
+                        if (termQueryCandidate instanceof TermQuery){
+                            TermQuery termQuery = (TermQuery) termQueryCandidate;
+                            String field = termQuery.getTerm().field();
+                            String newFieldName = field + "_" + lang;
+                            if (schema.getFieldOrNull(newFieldName) != null) {
+                                termQueryCandidate = new TermQuery(new Term(newFieldName, "\"" +
+                                                         termQuery.getTerm().text() + "\""));
+                            } else
+                               termQueryCandidate = new TermQuery(new Term(field, "\""  +
+                                                         termQuery.getTerm().text() + "\""));
+                        } else
+                            logger.warn("No appropriate Query in BooleanClause");
+                        queryBuilder.add(termQueryCandidate, currentClause.getOccur());
+                   }
+                   myQuery = queryBuilder.build();
+              } else if (myQuery instanceof TermRangeQuery) {
+                  TermRangeQuery termRangeQuery = (TermRangeQuery) myQuery;
+                  String field = termRangeQuery.getField();
+                  String newFieldName = field + "_" + lang;
+                  if (schema.getFieldOrNull(newFieldName) != null) {
+                       termRangeQuery = new TermRangeQuery(newFieldName,
+                                                           termRangeQuery.getLowerTerm(),
+                                                           termRangeQuery.getUpperTerm(),
+                                                           termRangeQuery.includesLower(),
+                                                           termRangeQuery.includesUpper());
+                       myQuery = termRangeQuery;
+                  }
+              } else if (myQuery instanceof TermQuery) {
+                  TermQuery termQuery = (TermQuery) myQuery;
+                  String field = termQuery.getTerm().field();
+                  String newFieldName = field + "_" + lang;
+                  if (schema.getFieldOrNull(newFieldName) != null) {
+                       field = newFieldName;
+                       myQuery = new TermQuery(new Term(newFieldName, "\"" +  termQuery.getTerm().text() + "\""));
+                  } else
+                      myQuery = new TermQuery(new Term(field, "\"" +  termQuery.getTerm().text() + "\""));
+              } else
+                  logger.warn("No rewrite rule did match for " + myQuery.getClass());
+              this.searchString = myQuery.toString();
+              newParams.set("q", this.searchString);
+           } catch(SyntaxError|IOException e) {
+               throw new SolrException(ErrorCode.SERVER_ERROR, "Rewriting Lucene support for new languages failed", e);
+           }
+       } else
+           throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
+    }
+
 
     public Query parse() throws SyntaxError {
         this.newRequest.setParams(newParams);
