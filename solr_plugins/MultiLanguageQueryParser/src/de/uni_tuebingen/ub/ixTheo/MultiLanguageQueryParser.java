@@ -1,8 +1,8 @@
 package de.uni_tuebingen.ub.ixTheo.multiLanguageQuery;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.Set;
-import java.io.IOException;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -16,18 +16,17 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.schema.IndexSchema;
-import org.apache.solr.search.QParser;
 import org.apache.solr.search.LuceneQParser;
+import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
 import org.apache.solr.servlet.SolrRequestParsers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringUtils;
 
 
 public class MultiLanguageQueryParser extends QParser {
-    //protected Query query;
     protected String searchString;
     protected static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
     protected String[] SUPPORTED_LANGUAGES = { "de", "en", "fr", "it", "es", "hant", "hans" };
@@ -71,7 +70,7 @@ public class MultiLanguageQueryParser extends QParser {
         lang = ArrayUtils.contains(SUPPORTED_LANGUAGES, lang) ? lang : "de";
 
         if (useDismax) {
-           StringBuilder sb = new StringBuilder();
+           StringBuilder stringBuilder = new StringBuilder();
            for (final String param : queryFields) {
                newParams.remove("qf", param);
                String[] singleParams = param.split(" ");
@@ -79,12 +78,12 @@ public class MultiLanguageQueryParser extends QParser {
                for (final String singleParam : singleParams) {
                    String newFieldName = singleParam + "_" + lang;
                    newFieldName = (schema.getFieldOrNull(newFieldName) != null) ? newFieldName : singleParam;
-                   sb.append(newFieldName);
+                   stringBuilder.append(newFieldName);
                    if (++i < singleParams.length)
-                       sb.append(" ");
+                       stringBuilder.append(" ");
                }
             }
-            newParams.add("qf", sb.toString());
+            newParams.add("qf", stringBuilder.toString());
         }
         // Support for Lucene parser
         else {
@@ -106,12 +105,10 @@ public class MultiLanguageQueryParser extends QParser {
                                  if (schema.getFieldOrNull(newFieldName) != null) {
                                      termQueryCandidate = new TermQuery(new Term(newFieldName, "\"" +
                                                               termQuery.getTerm().text() + "\""));
-                                 }
-                                 else
+                                 } else
                                     termQueryCandidate = new TermQuery(new Term(field, "\""  +
                                                               termQuery.getTerm().text() + "\""));
-                             }
-                             else
+                             } else
                                  logger.warn("No appropriate Query in BooleanClause");
                              queryBuilder.add(termQueryCandidate, currentClause.getOccur());
                         }
@@ -135,19 +132,16 @@ public class MultiLanguageQueryParser extends QParser {
                        if (schema.getFieldOrNull(newFieldName) != null) {
                             field = newFieldName;
                             myQuery = new TermQuery(new Term(newFieldName, "\"" +  termQuery.getTerm().text() + "\""));
-                       }
-                       else { myQuery = new TermQuery(new Term(field, "\"" +  termQuery.getTerm().text() + "\""));
-                       }
-                   } else {
+                       } else 
+                           myQuery = new TermQuery(new Term(field, "\"" +  termQuery.getTerm().text() + "\""));
+                   } else
                        logger.warn("No rewrite rule did match for " + myQuery.getClass());
-                   }
                    this.searchString = myQuery.toString();
                    newParams.set("q", this.searchString);
                 } catch(SyntaxError|IOException e) {
                     throw new SolrException(ErrorCode.SERVER_ERROR, "Rewriting Lucene support for new languages failed", e);
                 }
-            }
-            else
+            } else
                 throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
         }
 
