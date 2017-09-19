@@ -4,7 +4,7 @@
 #    @brief  A very simple black box tester for web sites.
 #    @author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
 #
-#    Copyright (C) 2015, Library of the University of Tübingen
+#    Copyright (C) 2015,2017 Library of the University of Tübingen
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,17 @@
 #
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Example config file:
+"""
+[Global] # Optional section
+validate_ssl_certificates = false # Optional enntry, defaults to "true".
+
+[Test1]
+url      = https://sobek.ub.uni-tuebingen.de/Search/Results?lookfor=test&type=AllFields
+timeout  = 20
+expected = .+Treffer.+
+"""
 
 import re
 import ssl
