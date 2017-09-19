@@ -248,7 +248,7 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
 
     const TimeLimit time_limit(10000 /* ms */);
 
-    perform_logging = not MiscUtil::SafeGetEnv("ENABLE_SMPT_CLIENT_PERFORM_LOGGINGING").empty();
+    perform_logging = not MiscUtil::SafeGetEnv("ENABLE_SMPT_CLIENT_PERFORM_LOGGING").empty();
 
     // Open connection:
     const unsigned short PORT(use_ssl ? 587 : 25);
