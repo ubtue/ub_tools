@@ -53,6 +53,108 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix) {
 }
 
 
+Directory::Entry::Entry(const struct dirent &entry, const std::string * const dirname)
+    : dirname_(dirname)
+{
+    std::memcpy(reinterpret_cast<void *>(&entry_), reinterpret_cast<const void *>(&entry), sizeof(struct dirent));
+}
+
+
+Directory::Entry::Entry(const Directory::Entry &other)
+    : dirname_(other.dirname_)
+{
+    if (&other != this)
+        std::memcpy(reinterpret_cast<void *>(&entry_), reinterpret_cast<const void *>(&other.entry_),
+                    sizeof(struct dirent));
+}
+
+
+unsigned char Directory::Entry::getType() const {
+    if (entry_.d_type != DT_UNKNOWN)
+        return entry_.d_type;
+
+    struct stat statbuf;
+    errno = 0;
+    if (::stat((*dirname_ + entry_.d_name).c_str(), &statbuf) == -1)
+        throw std::runtime_error("in Directory::Entry::getType: stat(2) failed! (" + std::string(std::strerror(errno))
+                                 + ")");
+
+    return IFTODT(statbuf.st_mode); // Convert from st_mode to d_type.
+}
+
+
+Directory::const_iterator::const_iterator(const std::string &path, const std::string &regex, const bool end)
+    : path_(path), regex_matcher_(nullptr), last_entry_(nullptr)
+{
+    if (end)
+        dir_handle_ = nullptr;
+    else {
+        std::string err_msg;
+        if ((regex_matcher_ = RegexMatcher::RegexMatcherFactory(regex, &err_msg)) == nullptr)
+            throw std::runtime_error("in Directory::const_iterator::const_iterator: bad PCRE \"" + regex + "\"! ("
+                                     + err_msg + ")");
+        if ((dir_handle_ = ::opendir(path.c_str())) == nullptr)
+            throw std::runtime_error("in Directory::const_iterator::const_iterator: opendir(3) on \"" + path
+                                     + "\" failed! (" + std::string(std::strerror(errno)) + ")");
+    }
+}
+
+
+Directory::const_iterator::~const_iterator() {
+    delete regex_matcher_;
+    if (dir_handle_ != nullptr)
+        ::closedir(dir_handle_);
+}
+
+
+void Directory::const_iterator::advance() {
+    if (dir_handle_ == nullptr)
+        return;
+
+    errno = 0;
+    while (true) {
+        struct dirent *entry_ptr;
+        int retcode;
+        if ((retcode = ::readdir_r(dir_handle_, &entry_, &entry_ptr)) != 0)
+            throw std::runtime_error("in Directory::const_iterator::advance: readdir_r(3) failed!");
+
+        // Reached end-of-directory?
+        if (entry_ptr == nullptr) { // Yes!
+            ::closedir(dir_handle_);
+            dir_handle_ = nullptr;
+            return;
+        }
+
+        if (regex_matcher_->matched(entry_.d_name))
+            return;
+    }
+}
+
+
+Directory::Entry Directory::const_iterator::operator*() {
+    if (dir_handle_ == nullptr)
+        throw std::runtime_error("in Directory::const_iterator::operator*: can't dereference an iterator pointing"
+                                 " to the end!");
+    return Directory::Entry(entry_, &path_);
+}
+
+
+void Directory::const_iterator::operator++() {
+    advance();
+}
+
+
+bool Directory::const_iterator::operator==(const const_iterator &rhs) {
+    if (rhs.dir_handle_ == nullptr and dir_handle_ == nullptr)
+        return true;
+    if ((rhs.dir_handle_ == nullptr and dir_handle_ != nullptr)
+        or (rhs.dir_handle_ != nullptr and dir_handle_ == nullptr))
+        return false;
+
+    return std::strcmp(rhs.entry_.d_name, entry_.d_name) == 0;
+}
+
+
 off_t GetFileSize(const std::string &path) {
     struct stat stat_buf;
     if (::stat(path.c_str(), &stat_buf) == -1)
@@ -191,11 +293,11 @@ std::string CanonisePath(const std::string &path)
     std::string canonised_path;
     for (std::list<std::string>::const_iterator path_component(canonical_path_list.begin());
          path_component != canonical_path_list.end(); ++path_component)
-        {
-            if (not canonised_path.empty() and canonised_path != "/")
-                canonised_path += '/';
-            canonised_path += *path_component;
-        }
+    {
+        if (not canonised_path.empty() and canonised_path != "/")
+            canonised_path += '/';
+        canonised_path += *path_component;
+    }
 
     return canonised_path;
 }
