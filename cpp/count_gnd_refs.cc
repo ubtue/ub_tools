@@ -48,7 +48,7 @@ void LoadGNDNumbers(File * const input, std::unordered_map<std::string, unsigned
 }
 
 
-const std::vector<std::string> GND_REFERENCE_FIELDS{ "100", "689", "700" };
+const std::vector<std::string> GND_REFERENCE_FIELDS{ "100", "600", "689", "700" };
 
 
 void ProcessRecords(MarcReader * const marc_reader,
