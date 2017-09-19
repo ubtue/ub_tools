@@ -96,6 +96,8 @@ Directory::const_iterator::const_iterator(const std::string &path, const std::st
         if ((dir_handle_ = ::opendir(path.c_str())) == nullptr)
             throw std::runtime_error("in Directory::const_iterator::const_iterator: opendir(3) on \"" + path
                                      + "\" failed! (" + std::string(std::strerror(errno)) + ")");
+
+        advance();
     }
 }
 
