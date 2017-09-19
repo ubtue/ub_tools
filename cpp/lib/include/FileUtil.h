@@ -34,10 +34,15 @@
 #include <string>
 #include <vector>
 #include <cstdio>
+#include <dirent.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "File.h"
 #include "TimeLimit.h"
+
+
+// Forward declaration:
+class RegexMatcher;
 
 
 namespace FileUtil {
@@ -51,6 +56,53 @@ class AutoDeleteFile {
 public:
     explicit AutoDeleteFile(const std::string &path): path_(path) {}
     ~AutoDeleteFile() { if (not path_.empty()) ::unlink(path_.c_str()); }
+};
+
+
+class Directory {
+    const std::string path_;
+    const std::string regex_;
+public:
+    class const_iterator; // Forward declaration.
+    class Entry {
+        friend class Directory::const_iterator;
+        const std::string * const dirname_;
+        struct dirent entry_;
+    public:
+        Entry(const Entry &other);
+        inline std::string getName() const { return entry_.d_name; }
+        inline unsigned char getType() const;
+        inline ino_t getInode() const { return entry_.d_ino; }
+    private:
+        Entry(const struct dirent &entry, const std::string * const dirname);
+    };
+public:
+    class const_iterator {
+        friend class Directory;
+        std::string path_;
+        RegexMatcher *regex_matcher_;
+        DIR *dir_handle_;
+        struct dirent *last_entry_, entry_;
+    public:
+        ~const_iterator();
+
+        Entry operator*();
+        void operator++();
+        bool operator==(const const_iterator &rhs);
+        bool operator!=(const const_iterator &rhs) { return not operator==(rhs); }
+    private:
+        explicit const_iterator(const std::string &path, const std::string &regex, const bool end = false);
+        void advance();
+    };
+public:
+    /** \brief Initialises a new instance of Directory.
+     *  \param path   The path to the directory we want to list.
+     *  \param regex  Only entries matching this PCRE will be listed.
+     */
+    explicit Directory(const std::string &path, const std::string &regex = ".*"): path_(path), regex_(regex) { }
+
+    inline const_iterator cbegin() const { return const_iterator(path_, regex_); }
+    inline const_iterator cend() const { return const_iterator(path_, regex_, /* end = */ true); }
 };
 
 
