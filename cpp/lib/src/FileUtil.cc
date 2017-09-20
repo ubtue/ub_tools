@@ -73,6 +73,8 @@ unsigned char Directory::Entry::getType() const {
     if (entry_.d_type != DT_UNKNOWN)
         return entry_.d_type;
 
+    // Not all filesystems return the type in the d_type field.  In those cases DT_UNKNOWN will be returned and we
+    // therefore need to fall back to using the stat(2) system call.
     struct stat statbuf;
     errno = 0;
     if (::stat((*dirname_ + entry_.d_name).c_str(), &statbuf) == -1)
