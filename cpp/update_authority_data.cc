@@ -1,7 +1,7 @@
 /** \brief Utility for replacing generating up-to-date authority MARC collections.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -61,29 +61,19 @@ std::string GetMostRecentFile(const std::string &path_regex) {
     if (unlikely(path_regex.find("\\d\\d\\d\\d\\d\\d") == std::string::npos))
         Error("in GetMostRecentFile: regex \"" + path_regex + "\" does not contain \\d\\d\\d\\d\\d\\d!");
 
-    std::string filename, directory;
-    FileUtil::DirnameAndBasename(path_regex, &filename, &directory);
-    
-    std::string err_msg;
-    RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory(filename, &err_msg));
-    if (unlikely(matcher == nullptr))
-        Error("in GetMostRecentFile: failed to compile regex \"" + filename + "\"! (" + err_msg + ")");
-
-    DIR * const directory_stream(::opendir(directory.c_str()));
-    if (unlikely(directory_stream == nullptr))
-        Error("in GetMostRecentFile: opendir(" + directory + ") failed(" + std::string(::strerror(errno)) + ")");
+    std::string filename_regex, dirname;
+    FileUtil::DirnameAndBasename(path_regex, &filename_regex, &dirname);
 
     std::string most_recent_file;
-    struct dirent *entry;
-    while ((entry = ::readdir(directory_stream)) != nullptr) {
-        if ((entry->d_type == DT_REG or entry->d_type == DT_UNKNOWN) and matcher->matched(entry->d_name)) {
-            std::string dir_entry(entry->d_name);
-            if (dir_entry > most_recent_file)
-                most_recent_file.swap(dir_entry);
+    FileUtil::Directory directory(dirname, filename_regex);
+    for (const auto entry : directory) {
+        const int entry_type(entry.getType());
+        if (entry_type == DT_REG or entry_type == DT_UNKNOWN) {
+            const std::string filename(entry.getName());
+            if (filename most_recent_file)
+                most_recent_file.swap(filename);
         }
     }
-    ::closedir(directory_stream);
-    delete matcher;
 
     return most_recent_file;
 }
