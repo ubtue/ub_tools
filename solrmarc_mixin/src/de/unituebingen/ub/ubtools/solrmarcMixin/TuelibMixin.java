@@ -168,7 +168,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final StringBuilder completeTitle = new StringBuilder();
         if (titleA == null)
             completeTitle.append(DataUtil.cleanData(titleB));
-        else if (titleB == null)
+        else if (titleB == null || !titleA.endsWith(":"))
             completeTitle.append(DataUtil.cleanData(titleA));
         else { // Neither titleA nor titleB are null.
             completeTitle.append(DataUtil.cleanData(titleA));
