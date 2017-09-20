@@ -71,6 +71,9 @@ public:
     public:
         Entry(const Entry &other);
         inline std::string getName() const { return entry_.d_name; }
+
+        // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),
+        //         DT_LNK(symlink), DT_REG(regular file), DT_SOCK(UNIX domain socket), or DT_UNKNOWN(unknown type).
         unsigned char getType() const;
         inline ino_t getInode() const { return entry_.d_ino; }
     private:
