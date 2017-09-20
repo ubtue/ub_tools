@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016,2017 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -128,25 +128,12 @@ void LogSendEmailAndDie(const std::string &one_line_message) {
 unsigned GetSortedListOfRegularFiles(const std::string &filename_regex, std::vector<std::string> * const filenames) {
     filenames->clear();
 
-    // Make sure we skip further extensions
-    const std::string filename_regex_precise_ending = filename_regex + "$";
-
-    std::string err_msg;
-    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(filename_regex_precise_ending, &err_msg));
-    if (unlikely(not err_msg.empty()))
-        LogSendEmailAndDie("in GetListOfRegularFiles: failed to compile file name regex: \""
-                           + filename_regex_precise_ending + "\". (" + err_msg + ")");
-
-    DIR * const directory_stream(::opendir("."));
-    if (unlikely(directory_stream == nullptr))
-        LogSendEmailAndDie("in GetListOfRegularFiles: opendir(3) failed(" + std::string(::strerror(errno)) + ")");
-
-    struct dirent *entry;
-    while ((entry = ::readdir(directory_stream)) != nullptr) {
-        if ((entry->d_type == DT_REG or entry->d_type == DT_UNKNOWN) and matcher->matched(entry->d_name))
-            filenames->emplace_back(entry->d_name);
+    FileUtil::Directory directory(".", filename_regex + "$" /* Skip additional extensions. */);
+    for (const auto entry : directory) {
+        const int entry_type(entry.getType());
+        if (entry_type == DT_REG or entry_type == DT_UNKNOWN)
+            filenames->emplace_back(entry.getName());
     }
-    ::closedir(directory_stream);
 
     std::sort(filenames->begin(), filenames->end());
 
