@@ -7,7 +7,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2016 Universitätsbibliothek Tübingen
+ *  Copyright 2016,2017 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -909,7 +909,7 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
         dirname = ".";
 
     std::vector<std::string> filenames;
-    FileUtil::Directory directory(dirname, "^" + basename + "(\\.[0-9]+)?");
+    FileUtil::Directory directory(dirname, "^" + basename + "(\\.[0-9]+)?$");
     for (const auto entry : directory) {
         if (entry.getType() == DT_REG)
             filenames.emplace_back(entry.getName());;
