@@ -1,7 +1,7 @@
 /** \brief Utility for augmenting MARC records with links to a local full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -61,7 +61,9 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout,
     Downloader::Params params;
     Downloader downloader(url, params, timeout);
     if (downloader.anErrorOccurred()) {
-        Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to download the document for " + url + " (timeout: " + std::to_string(timeout) + " sec, message: " + downloader.getLastErrorMessage() + ")" );
+        Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to download the document for " + url
+                + " (timeout: " + std::to_string(timeout) + " sec, message: " + downloader.getLastErrorMessage()
+                + ")" );
         return false;
     }
 
