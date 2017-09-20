@@ -136,6 +136,16 @@ inline unsigned HammingWeight(unsigned long mask) { return static_cast<unsigned>
 inline unsigned HammingWeight(unsigned long long mask) { return static_cast<unsigned>(__builtin_popcountll(mask)); }
 
 
+/** \brief Renames a set of log files with a common basename.
+ *  \param log_file_prefix  We're looking for this followed by no suffix, ".1", ".2" etc.
+ *  \param max_count        If positive, we remove older logs that would cause more than "max_count" log files
+ *                          to exist.
+ *
+ *  \note If there are access permission problems we abort. OTOH, a non-existent logfile is will be ignored.
+ */
+void LogRotate(const std::string &log_file_prefix, const unsigned max_count = 0);
+
+
 } // namespace MiscUtil
 
 

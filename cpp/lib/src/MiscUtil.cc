@@ -35,6 +35,7 @@
 #include <cctype>
 #include <unistd.h>
 #include "Compiler.h"
+#include "FileUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -865,6 +866,69 @@ std::string StringMapToString(const std::map<std::string, std::string> &map) {
         map_as_string += key_and_value.first + "=" + key_and_value.second + ", ";
 
     return map_as_string.empty() ? "[]" : "[" + map_as_string.substr(0, map_as_string.length() - 2) + "]";
+}
+
+
+static unsigned GetLogSuffix(const std::string &log_file_prefix, const std::string &filename) {
+    if (filename == log_file_prefix)
+        return 0;
+
+    unsigned generation;
+    if (unlikely(not StringUtil::ToUnsigned(filename.substr(log_file_prefix.length() + 1), &generation)))
+        Error("in GetLogSuffix(MiscUtil.cc): bad conversion, filename = \"" + filename + "\"!");
+
+    return generation;
+}
+
+
+class LogCompare {
+    const std::string log_file_prefix_;
+public:
+    explicit LogCompare(const std::string &log_file_prefix) : log_file_prefix_(log_file_prefix) { }
+    bool operator()(const std::string &filename1, const std::string &filename2)
+        { return GetLogSuffix(log_file_prefix_, filename1) < GetLogSuffix(log_file_prefix_, filename2); }
+};
+
+
+static std::string IncrementFile(const std::string &log_file_prefix, const std::string &filename) {
+    if (filename == log_file_prefix)
+        return log_file_prefix + ".1";
+
+    return log_file_prefix + "." + std::to_string(GetLogSuffix(log_file_prefix, filename) + 1);
+}
+
+
+void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
+    std::string dirname, basename;
+    FileUtil::DirnameAndBasename(log_file_prefix, &dirname, &basename);
+    if (basename.empty()) {
+        basename = dirname;
+        dirname  = ".";
+    }
+
+    std::vector<std::string> filenames;
+    FileUtil::Directory directory(dirname, "^" + basename + "(\\.[0-9]+)?");
+    for (const auto entry : directory) {
+        if (entry.getType() == DT_REG)
+            filenames.emplace_back(entry.getName());;
+    }
+
+    std::sort(filenames.begin(), filenames.end(), LogCompare(log_file_prefix));
+
+    if (max_count > 0) {
+        while (filenames.size() > max_count) {
+            const std::string path_to_delete(dirname + "/" + filenames.back());
+            if (unlikely(not FileUtil::DeleteFile(path_to_delete)))
+                Error("in MiscUtil::LogRotate: failed to delete \"" + path_to_delete + "\"!");
+            filenames.pop_back();
+        }
+    }
+
+    for (auto filename(filenames.rbegin()); filename != filenames.rend(); ++filename) {
+        if (unlikely(not FileUtil::RenameFile(*filename, IncrementFile(log_file_prefix, *filename))))
+            Error("in MiscUtil::LogRotate:: failed to rename \"" + *filename + "\" to \""
+                  + IncrementFile(log_file_prefix, *filename) + "\"!");
+    }
 }
 
 
