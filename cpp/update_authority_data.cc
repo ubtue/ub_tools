@@ -69,8 +69,8 @@ std::string GetMostRecentFile(const std::string &path_regex) {
     for (const auto entry : directory) {
         const int entry_type(entry.getType());
         if (entry_type == DT_REG or entry_type == DT_UNKNOWN) {
-            const std::string filename(entry.getName());
-            if (filename most_recent_file)
+            std::string filename(entry.getName());
+            if (filename > most_recent_file)
                 most_recent_file.swap(filename);
         }
     }
