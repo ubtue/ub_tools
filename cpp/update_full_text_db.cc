@@ -36,6 +36,7 @@
 #include "MarcReader.h"
 #include "MarcWriter.h"
 #include "MediaTypeUtil.h"
+#include "MiscUtil.h"
 #include "PdfUtil.h"
 #include "Semaphore.h"
 #include "SqlUtil.h"
@@ -128,8 +129,14 @@ bool GetTextFromImagePDF(const std::string &document, const std::string &media_t
     const std::string &output_filename(auto_temp_file2.getFilePath());
     const std::string language_code(GetTesseractLanguageCode(record));
     static constexpr unsigned TIMEOUT(60); // in seconds
-    if (ExecUtil::Exec(pdf_images_script, { input_filename, output_filename, language_code }, "", "", "", TIMEOUT)
-        != 0)
+
+    const std::string UPDATE_DB_LOG_PATH(
+        "/var/log/" + std::string(FileUtil::Exists("/var/log/krimdok") ? "krimdok" : "ixtheo")
+        + "/update_full_text_db/log");
+    MiscUtil::LogRotate(UPDATE_DB_LOG_PATH, /* max_count = */5);
+
+    if (ExecUtil::Exec(pdf_images_script, { input_filename, output_filename, language_code }, /* new_stdin = */"",
+                       /* new_stdout = */UPDATE_DB_LOG_PATH, /* new_stderr = */UPDATE_DB_LOG_PATH, TIMEOUT) != 0)
     {
         Warning("failed to execute conversion script \"" + pdf_images_script + "\" w/in "
                 + std::to_string(TIMEOUT) + " seconds ! (original Url: " + original_url + ")");

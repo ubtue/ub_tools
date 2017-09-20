@@ -1,7 +1,7 @@
 /** \brief Utility for augmenting MARC records with links to a local full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -233,6 +233,12 @@ int main(int argc, char **argv) {
         Error("Failed to create and truncate database \"" + db_filename + "\" ("
               + std::string(db.error().message()) + ")!");
     db.close();
+
+    const std::string UPDATE_DB_LOG_DIR_PATH(
+        "/var/log/" + std::string(FileUtil::Exists("/var/log/krimdok") ? "krimdok" : "ixtheo")
+        + "/update_full_text_db");
+    if (not FileUtil::MakeDirectory(UPDATE_DB_LOG_DIR_PATH, /* recursive = */ true))
+        Error("failed to create directory: " + UPDATE_DB_LOG_DIR_PATH);
 
     try {
         ProcessRecords(max_record_count, skip_count, marc_reader.get(), marc_writer.get(), db_filename,
