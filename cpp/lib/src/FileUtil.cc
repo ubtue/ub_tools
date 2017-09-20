@@ -753,29 +753,10 @@ size_t GetFileNameList(const std::string &filename_regex, std::vector<std::strin
 {
     if (unlikely(filename_regex.find('/') != std::string::npos))
         throw std::runtime_error("in FileUtil::GetFileNameList: filename regex contained a slash!");
-    std::string err_msg;
-    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(filename_regex, &err_msg));
-    if (unlikely(not err_msg.empty()))
-        throw std::runtime_error("in FileUtil::GetFileNameList: failed to compile regular expression \"" + filename_regex
-                                 + "\"! (" + err_msg + ")");
 
-    DIR *dir_handle(::opendir(directory_to_scan.c_str()));
-    if (unlikely(dir_handle == nullptr))
-        throw std::runtime_error("in FileUtil::GetFileNameList: failed to opendir(2) \"" + directory_to_scan + "\"! ("
-                                 + std::string(::strerror(errno)) + ")");
-    struct dirent *entry;
-    while ((entry = ::readdir(dir_handle)) != nullptr) {
-        if (matcher->matched(entry->d_name))
-            matched_filenames->emplace_back(entry->d_name);
-    }
-    if (unlikely(errno != 0)) {
-        CloseDirWhilePreservingErrno(dir_handle);
-        throw std::runtime_error("in FileUtil::GetFileNameList: readdir(2) failed: " + std::string(::strerror(errno)));
-    }
-
-    if (unlikely(::closedir(dir_handle) != 0))
-        throw std::runtime_error("in FileUtil::GetFileNameList: failed to opendir(2) \"" + directory_to_scan + "\"! ("
-                                 + std::string(::strerror(errno)) + ")");
+    Directory directory(directory_to_scan, filename_regex);
+    for (const auto entry : directory)
+        matched_filenames->emplace_back(entry.getName());
 
     return matched_filenames->size();
 }
