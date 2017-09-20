@@ -905,6 +905,8 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
         basename = dirname;
         dirname  = ".";
     }
+    if (dirname.empty())
+        dirname = ".";
 
     std::vector<std::string> filenames;
     FileUtil::Directory directory(dirname, "^" + basename + "(\\.[0-9]+)?");
