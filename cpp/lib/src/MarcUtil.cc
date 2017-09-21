@@ -99,13 +99,8 @@ bool IsArticle(const MarcRecord &marc_record) {
     marc_record.getFieldIndices("935", &field_indices);
     for (const size_t index : field_indices) {
         const Subfields subfields(marc_record.getFieldData(index));
-        const auto begin_end(subfields.getIterators('c'));
-        for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
-             ++subfield_code_and_value)
-        {
-            if (subfield_code_and_value->value_ == "sodr")
-                return true;
-        }
+        if (subfields.hasSubfieldWithValue('c', "sodr"))
+            return true;
     }
 
     return false;
