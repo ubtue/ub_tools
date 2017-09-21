@@ -1589,6 +1589,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                     for (final Subfield cSubfield : _935Field.getSubfields('c')) {
                         if (cSubfield.getData().equals("sodr")) {
                             result.remove("Book");
+                            if (result.contains("eBook")) {
+                                result.remove("eBook");
+                                result.add("Electronic");
+                            } 
                             result.add("Article");
                             break;
                         }
@@ -1723,7 +1727,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (foundMatch == true)
                 break;
         }
-
 
         // Rewrite all E-Books as electronic Books
         if (formats.contains("eBook")) {
