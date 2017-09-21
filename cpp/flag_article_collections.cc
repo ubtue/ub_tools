@@ -59,6 +59,10 @@ void MarkArticleCollections(MarcReader * const reader, MarcWriter * const writer
         if (not is_article_collection and not MarcUtil::IsArticle(record)) {
             is_article_collection = MarcUtil::HasSubfieldWithValue(record, "935", 'c', "fe");
             if (not is_article_collection)
+                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "655", 'a', "Aufsatzsammlung");
+            if (not is_article_collection)
+                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "689", 'a', "Aufsatzsammlung");
+            if (not is_article_collection)
                 is_article_collection = MarcUtil::HasSubfieldWithValue(record, "655", 'a', "Festschrift");
             if (not is_article_collection)
                 is_article_collection = MarcUtil::HasSubfieldWithValue(record, "655", 'a', "Konferenzschrift");
