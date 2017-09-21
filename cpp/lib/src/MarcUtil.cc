@@ -95,15 +95,7 @@ bool IsArticle(const MarcRecord &marc_record) {
     if (marc_record.getLeader().isArticle())
         return true;
 
-    std::vector<size_t> field_indices;
-    marc_record.getFieldIndices("935", &field_indices);
-    for (const size_t index : field_indices) {
-        const Subfields subfields(marc_record.getFieldData(index));
-        if (subfields.hasSubfieldWithValue('c', "sodr"))
-            return true;
-    }
-
-    return false;
+    return HasSubfieldWithValue(marc_record, "935", 'c', "sodr");
 }
 
 
