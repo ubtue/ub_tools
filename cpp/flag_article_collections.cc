@@ -53,7 +53,24 @@ void MarkArticleCollections(MarcReader * const reader, MarcWriter * const writer
     while (MarcRecord record = reader->read()) {
         ++count;
 
-        if (article_collection_ppns.find(record.getControlNumber()) != article_collection_ppns.end()) {
+        bool is_article_collection(false);
+        if (article_collection_ppns.find(record.getControlNumber()) != article_collection_ppns.end())
+            is_article_collection = true;
+        if (not is_article_collection and not MarcUtil::IsArticle(record)) {
+            is_article_collection = MarcUtil::HasSubfieldWithValue(record, "935", 'c', "fe");
+            if (not is_article_collection)
+                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "655", 'a', "Festschrift");
+            if (not is_article_collection)
+                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "655", 'a', "Konferenzschrift");
+            if (not is_article_collection)
+                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "689", 'a', "Konferenzschrift");
+            if (not is_article_collection)
+                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "689", 'a', "Kongress");
+            if (not is_article_collection)
+                is_article_collection = MarcUtil::HasSubfieldWithValue(record, "935", 'c', "gkko");
+        }
+
+        if (is_article_collection) {
             record.insertSubfield("ACO", 'a', "1");
             ++modified_count;
         }
@@ -72,8 +89,8 @@ int main(int argc, char **argv) {
     if (argc != 3)
         Usage();
     
-    std::unique_ptr <MarcReader> marc_reader(MarcReader::Factory(argv[1]));
-    std::unique_ptr <MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
+    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
     try {
         std::unordered_set<std::string> article_collection_ppns;
         CollectArticleCollection(marc_reader.get(), &article_collection_ppns);

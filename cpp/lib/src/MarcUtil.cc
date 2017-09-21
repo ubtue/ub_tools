@@ -107,4 +107,19 @@ bool IsArticle(const MarcRecord &marc_record) {
 }
 
 
+bool HasSubfieldWithValue(const MarcRecord &marc_record, const std::string &tag, const char subfield_code,
+                          const std::string &value)
+{
+    std::vector<size_t> field_indices;
+    marc_record.getFieldIndices(tag, &field_indices);
+    for (const size_t index : field_indices) {
+        const Subfields subfields(marc_record.getFieldData(index));
+        if (subfields.hasSubfieldWithValue(subfield_code, value))
+            return true;
+    }
+
+    return false;
+}
+
+
 } // namespace MarcUtil
