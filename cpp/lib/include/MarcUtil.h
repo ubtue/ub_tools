@@ -49,6 +49,9 @@ unsigned CollectRecordOffsets(MarcReader * const marc_reader,
                               std::unordered_map<std::string, off_t> * const control_number_to_offset_map);
 
 
+bool IsArticle(const MarcRecord &marc_record);
+
+
 } // namespace MarcUtil
 
 
