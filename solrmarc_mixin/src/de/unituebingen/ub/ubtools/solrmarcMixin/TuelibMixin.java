@@ -1580,13 +1580,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // Nothing worked!
-        if (result.isEmpty()) {
-            result.add("Unknown");
-        }
-
         // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
-        if (result.contains("Book")) {
+        if (!result.contains("Article")) {
             final List<VariableField> _935Fields = record.getVariableFields("935");
             for (final VariableField variableField : _935Fields) {
                 final DataField _935Field = (DataField) variableField;
@@ -1600,6 +1595,11 @@ public class TuelibMixin extends SolrIndexerMixin {
                     }
                 }
             }
+        }
+
+        // Nothing worked!
+        if (result.isEmpty()) {
+            result.add("Unknown");
         }
 
         return result;
