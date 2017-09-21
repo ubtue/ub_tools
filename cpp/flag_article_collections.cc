@@ -32,8 +32,8 @@ void Usage() {
 }
 
 
-void CollectArticleCollection(MarcReader * const reader,
-                              std::unordered_set<std::string> * const article_collection_ppns)
+void CollectArticleCollectionPPNs(MarcReader * const reader,
+                                  std::unordered_set<std::string> * const article_collection_ppns)
 {
     article_collection_ppns->clear();
     while (const MarcRecord record = reader->read()) {
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2]));
     try {
         std::unordered_set<std::string> article_collection_ppns;
-        CollectArticleCollection(marc_reader.get(), &article_collection_ppns);
+        CollectArticleCollectionPPNs(marc_reader.get(), &article_collection_ppns);
         marc_reader->rewind();
         MarkArticleCollections(marc_reader.get(), marc_writer.get(), article_collection_ppns);
     } catch (const std::exception &x) {
