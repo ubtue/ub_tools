@@ -62,6 +62,7 @@ flag_records_as_available_in_tuebingen
 test_chop_into_words
 fix_article_biblio_levels
 fix_iso_8859_1_garbage
+flag_article_collections
 full_text_cache_cleaner
 full_text_cache_expirer
 full_text_lookup
