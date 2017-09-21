@@ -52,6 +52,10 @@ unsigned CollectRecordOffsets(MarcReader * const marc_reader,
 bool IsArticle(const MarcRecord &marc_record);
 
 
+bool HasSubfieldWithValue(const MarcRecord &marc_record, const std::string &tag, const char subfield_code,
+                          const std::string &value);
+
+
 } // namespace MarcUtil
 
 
