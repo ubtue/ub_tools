@@ -168,7 +168,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final StringBuilder completeTitle = new StringBuilder();
         if (titleA == null)
             completeTitle.append(DataUtil.cleanData(titleB));
-        else if (titleB == null)
+        else if (titleB == null || !titleA.endsWith(":"))
             completeTitle.append(DataUtil.cleanData(titleA));
         else { // Neither titleA nor titleB are null.
             completeTitle.append(DataUtil.cleanData(titleA));
@@ -1580,13 +1580,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // Nothing worked!
-        if (result.isEmpty()) {
-            result.add("Unknown");
-        }
-
         // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
-        if (result.contains("Book")) {
+        if (!result.contains("Article")) {
             final List<VariableField> _935Fields = record.getVariableFields("935");
             for (final VariableField variableField : _935Fields) {
                 final DataField _935Field = (DataField) variableField;
@@ -1594,12 +1589,21 @@ public class TuelibMixin extends SolrIndexerMixin {
                     for (final Subfield cSubfield : _935Field.getSubfields('c')) {
                         if (cSubfield.getData().equals("sodr")) {
                             result.remove("Book");
+                            if (result.contains("eBook")) {
+                                result.remove("eBook");
+                                result.add("Electronic");
+                            } 
                             result.add("Article");
                             break;
                         }
                     }
                 }
             }
+        }
+
+        // Nothing worked!
+        if (result.isEmpty()) {
+            result.add("Unknown");
         }
 
         return result;
@@ -1723,7 +1727,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (foundMatch == true)
                 break;
         }
-
 
         // Rewrite all E-Books as electronic Books
         if (formats.contains("eBook")) {
