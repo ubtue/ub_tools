@@ -57,7 +57,7 @@ bool UBTueIsElectronicResource(const MarcRecord &marc_record) {
 
 
 std::string GetParentPPN(const MarcRecord &marc_record) {
-    static const std::vector<std::string> parent_reference_fields{ "800", "810", "830", "773" };
+    static const std::vector<std::string> parent_reference_fields{ "800", "810", "830", "773", "776" };
     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\([^)]+\\)(.+)$"));
     for (auto tag : parent_reference_fields) {
         if (matcher->matched(marc_record.getSubfields(tag).getFirstSubfieldValue('w'))) {
@@ -88,6 +88,29 @@ unsigned CollectRecordOffsets(MarcReader * const marc_reader,
     }
 
     return record_count;
+}
+
+
+bool IsArticle(const MarcRecord &marc_record) {
+    if (marc_record.getLeader().isArticle())
+        return true;
+
+    return HasSubfieldWithValue(marc_record, "935", 'c', "sodr");
+}
+
+
+bool HasSubfieldWithValue(const MarcRecord &marc_record, const std::string &tag, const char subfield_code,
+                          const std::string &value)
+{
+    std::vector<size_t> field_indices;
+    marc_record.getFieldIndices(tag, &field_indices);
+    for (const size_t index : field_indices) {
+        const Subfields subfields(marc_record.getFieldData(index));
+        if (subfields.hasSubfieldWithValue(subfield_code, value))
+            return true;
+    }
+
+    return false;
 }
 
 
