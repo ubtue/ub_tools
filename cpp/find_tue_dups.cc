@@ -191,6 +191,30 @@ std::string NormalisePPN(const std::string &ppn_or_double_ppn) {
 }
 
 
+// Extracts 084$a entries but only if 084$2 contains "zdbs".
+std::string ExtractDDCGroups(const MarcRecord &record) {
+    std::string ddc_groups;
+    std::vector<size_t> _084_indices;
+    record.getFieldIndices("084", &_084_indices);
+    for (const size_t _084_index : _084_indices) {
+        const std::string _084_field_contents(record.getFieldData(_084_index));
+        if (_084_field_contents.empty())
+            continue;
+        const Subfields subfields(_084_field_contents);
+        if (not subfields.hasSubfieldWithValue('2', "zdbs"))
+            continue;
+        const std::string a_contents(subfields.getFirstSubfieldValue('a'));
+        if (not a_contents.empty()) {
+            if (not ddc_groups.empty())
+                ddc_groups += ';';
+            ddc_groups += a_contents;
+        }
+    }
+
+    return ddc_groups;
+}
+
+
 enum OutputSet { MONOGRAPHS, SERIALS };
 
 
@@ -231,12 +255,15 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
     else
         ExtractISSNs(record, &issns_and_isbns);
 
+    const std::string ddc_groups(ExtractDDCGroups(record));
+
     std::cout << '"' << NormalisePPN(record.getControlNumber()) << "\",\"" << TextUtil::CSVEscape(main_title)
               << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
               << (output_set == MONOGRAPHS ? "\",\"" + TextUtil::CSVEscape(publication_year) : "")
               << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
-              << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) <<  "\",\""
-              << TextUtil::CSVEscape(non_ub_sigils_and_inventory) << "\"\n";
+              << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) << "\",\""
+              << TextUtil::CSVEscape(non_ub_sigils_and_inventory) << "\",\"" << TextUtil::CSVEscape(ddc_groups)
+              << "\"\n";
 
     return true;
 }
@@ -249,7 +276,7 @@ void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
               << (output_set == MONOGRAPHS ? ",\"Fachgebiet\"" : ",\"ZDB-ID-Nummer\"")
               << (output_set == MONOGRAPHS ? ",\"UB - Signatur\"" : ",\"UB - Bestandsangabe\"")
               << ",\"Sigel der anderen besitzenden Bibliotheken"
-              << (output_set == SERIALS ? " mit Bestandsangaben\"" : "\"") << '\n';
+              << (output_set == SERIALS ? " mit Bestandsangaben\"" : "\"") << ",\"DDC-Sachgruppe\"\n";
 
     unsigned count(0), control_number_dups_count(0), dups_count(0), monograph_count(0), serial_count(0);
     std::unordered_set<std::string> previously_seen_ppns;
