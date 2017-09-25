@@ -722,7 +722,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
 
                 final String month = dataString.substring(2, 4);
-                return year + "-" + month + "-01T11:00:00:000Z";
+                return year + "-" + month + "-01T11:00:00.000Z";
             }
         }
         return null;
