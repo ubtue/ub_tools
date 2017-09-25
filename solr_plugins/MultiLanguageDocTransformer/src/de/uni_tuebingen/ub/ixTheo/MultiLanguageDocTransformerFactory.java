@@ -61,7 +61,7 @@ public class MultiLanguageDocTransformerFactory extends TransformerFactory {
         }
 
         @Override
-        public void transform(SolrDocument doc, int docid) throws IOException {
+        public void transform(SolrDocument doc, int docid, float score) throws IOException {
             if (enabled) {
                 for (String fieldName : fieldNames) {
                     // Select extension according to chosen language

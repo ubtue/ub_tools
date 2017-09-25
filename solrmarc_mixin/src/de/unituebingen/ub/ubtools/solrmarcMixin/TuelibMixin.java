@@ -1064,7 +1064,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return set of dates
      */
 
-    public Set<String> getDates(final Record record) {
+    public Set<String> getDatesBasedOnRecordType(final Record record) {
         final Set<String> dates = new LinkedHashSet<>();
         final Set<String> format = getFormatIncludingElectronic(record);
 
@@ -1290,7 +1290,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         tempSet.add("cz");
         electronicResourceCarrierTypes = Collections.unmodifiableSet(tempSet);
     };
-    
+
     /**
      * Determine Record Formats
      *
@@ -1330,7 +1330,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 && TuelibMixin.electronicResourceCarrierTypes.contains(dataField.getSubfield('b').getData()))
                 result.add("Electronic");
         }
-        
+
         // check the 007 - this is a repeating field
         List<VariableField> fields = record.getVariableFields("007");
         if (fields != null) {
@@ -1592,7 +1592,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                             if (result.contains("eBook")) {
                                 result.remove("eBook");
                                 result.add("Electronic");
-                            } 
+                            }
                             result.add("Article");
                             break;
                         }
@@ -1746,7 +1746,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return mediatype of the record
      */
 
-    public Set<String> getFormat(final Record record) {
+    public Set<String> getFormatsWithoutElectronic(final Record record) {
         Set<String> formats = getFormatIncludingElectronic(record);
 
         // Since we now have an additional facet mediatype we remove the
@@ -1840,7 +1840,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
 
     public String getPublicationSortDate(final Record record) {
-        final Set<String> dates = getDates(record);
+        final Set<String> dates = getDatesBasedOnRecordType(record);
         if (dates.isEmpty())
             return "";
 
