@@ -263,7 +263,7 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
               << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
               << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) << "\",\""
               << TextUtil::CSVEscape(non_ub_sigils_and_inventory)
-              << (output_set == SERIALS ? "\",\"" + TextUtil::CSVEscape(ddc_groups) + "\"" : "") << '\n';
+              << (output_set == SERIALS ? "\",\"" + TextUtil::CSVEscape(ddc_groups) : "") << "\"\n";
 
     return true;
 }
