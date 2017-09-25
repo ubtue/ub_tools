@@ -78,8 +78,8 @@ unsigned char Directory::Entry::getType() const {
     struct stat statbuf;
     errno = 0;
     if (::stat((*dirname_ + entry_.d_name).c_str(), &statbuf) == -1)
-        throw std::runtime_error("in Directory::Entry::getType: stat(2) failed! (" + std::string(std::strerror(errno))
-                                 + ")");
+        throw std::runtime_error("in FileUtil::Directory::Entry::getType: stat(2) on \"" + (*dirname_ + entry_.d_name)
+                                 + " \"failed! (" + std::string(std::strerror(errno)) + ")");
 
     return IFTODT(statbuf.st_mode); // Convert from st_mode to d_type.
 }
