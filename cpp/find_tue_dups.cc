@@ -262,8 +262,8 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
               << (output_set == MONOGRAPHS ? "\",\"" + TextUtil::CSVEscape(publication_year) : "")
               << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
               << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) << "\",\""
-              << TextUtil::CSVEscape(non_ub_sigils_and_inventory) << "\",\"" << TextUtil::CSVEscape(ddc_groups)
-              << "\"\n";
+              << TextUtil::CSVEscape(non_ub_sigils_and_inventory)
+              << (output_set == SERIALS ? "\",\"" + TextUtil::CSVEscape(ddc_groups) + "\"" : "") << '\n';
 
     return true;
 }
@@ -276,7 +276,8 @@ void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
               << (output_set == MONOGRAPHS ? ",\"Fachgebiet\"" : ",\"ZDB-ID-Nummer\"")
               << (output_set == MONOGRAPHS ? ",\"UB - Signatur\"" : ",\"UB - Bestandsangabe\"")
               << ",\"Sigel der anderen besitzenden Bibliotheken"
-              << (output_set == SERIALS ? " mit Bestandsangaben\"" : "\"") << ",\"DDC-Sachgruppe\"\n";
+              << (output_set == SERIALS ? " mit Bestandsangaben\"" : "\"")
+              << (output_set == SERIALS ? ",\"DDC-Sachgruppe\"" : "") << '\n';
 
     unsigned count(0), control_number_dups_count(0), dups_count(0), monograph_count(0), serial_count(0);
     std::unordered_set<std::string> previously_seen_ppns;
