@@ -2,7 +2,7 @@
  *  \brief  Implementation of the Subfields class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014,2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -18,44 +18,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Subfields.h"
-#include <stdexcept>
-#include "Compiler.h"
 #include "RegexMatcher.h"
 #include "util.h"
-
-
-Subfields::Subfields(const std::string &field_data) {
-    if (field_data.size() < 3) {
-        indicator1_ = indicator2_ = '\0';
-        return;
-    }
-
-    std::string::const_iterator ch(field_data.begin());
-    indicator1_ = *ch++;
-    indicator2_ = *ch++;
-
-    while (ch != field_data.end()) {
-        if (*ch != '\x1F')
-            throw std::runtime_error("in Subfields::Subfields(const std::string &): expected subfield code delimiter"
-                                     " not found! Found " + std::string(1, *ch) + " in " + field_data
-                                     + " indicators: " + std::string(1, indicator1_) + ", "
-                                     + std::string(1, indicator2_) + "! " + field_data);
-
-        ++ch;
-        if (ch == field_data.end())
-            throw std::runtime_error("in Subfields::Subfields(const std::string &): unexpected subfield data end "
-                                     "while expecting a subfield code! " + field_data);
-        const char subfield_code(*ch++);
-
-        std::string subfield_data;
-        while (ch != field_data.end() and *ch != '\x1F')
-            subfield_data += *ch++;
-        if (not subfield_data.empty())
-            subfields_.emplace_back(subfield_code, subfield_data);
-    }
-
-    std::sort(begin(), end(), SubfieldCodeLessThan());
-}
 
 
 bool Subfields::hasSubfieldWithValue(const char subfield_code, const std::string &value) const {
