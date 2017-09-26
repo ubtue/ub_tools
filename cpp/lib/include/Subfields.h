@@ -22,9 +22,11 @@
 
 
 #include <algorithm>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "Compiler.h"
 
 
 // Forward declaration:
@@ -67,7 +69,38 @@ public:
         : indicator1_(indicator1), indicator2_(indicator2) { }
 
     /** \brief Parses a binary MARC-21 field. */
-    explicit Subfields(const std::string &field_data);
+    inline explicit Subfields(const std::string &field_data) {
+        if (unlikely(field_data.size() < 3)) {
+            indicator1_ = indicator2_ = '\0';
+            return;
+        }
+
+        std::string::const_iterator ch(field_data.begin());
+        indicator1_ = *ch++;
+        indicator2_ = *ch++;
+
+        while (unlikely(ch != field_data.end())) {
+            if (unlikely(*ch != '\x1F'))
+                throw std::runtime_error("in Subfields::Subfields(const std::string &): expected subfield code "
+                                         "delimiter not found! Found " + std::string(1, *ch) + " in " + field_data
+                                         + " indicators: " + std::string(1, indicator1_) + ", "
+                                         + std::string(1, indicator2_) + "! " + field_data);
+
+            ++ch;
+            if (unlikely(ch == field_data.end()))
+                throw std::runtime_error("in Subfields::Subfields(const std::string &): unexpected subfield data end "
+                                         "while expecting a subfield code! " + field_data);
+            const char subfield_code(*ch++);
+
+            std::string subfield_data;
+            while (likely(ch != field_data.end()) and likely(*ch != '\x1F'))
+                subfield_data += *ch++;
+            if (likely(not subfield_data.empty()))
+                subfields_.emplace_back(subfield_code, subfield_data);
+        }
+
+        std::sort(begin(), end(), SubfieldCodeLessThan());
+    }
 
     bool empty() const { return subfields_.empty(); }
     size_t size() const { return subfields_.size(); }
