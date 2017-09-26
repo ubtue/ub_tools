@@ -665,10 +665,5 @@ MarcRecord MarcRecord::ReadSingleRecord(File * const input) {
 
     record.field_data_ = std::string(raw_field_data, FIELD_DATA_SIZE - 1); // don't keep the end-of-record terminator
 
-    std::string flaw_description;
-    if (unlikely(not record.isProbablyCorrect(&flaw_description)))
-        Error("in MarcRecord::ReadSingleRecord: record w/ control #" + record.getControlNumber() + " has a flaw: "
-              + flaw_description);
-
     return record;
 }
