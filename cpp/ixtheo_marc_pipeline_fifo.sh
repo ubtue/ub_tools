@@ -221,6 +221,13 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
+StartPhase "Extract Tags From MySql Tables and Insert Them Into MARC Records"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(convert_tags_to_keywords GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Tag further potential relbib entries"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_additional_relbib_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
