@@ -148,7 +148,7 @@ wait
 
 
 StartPhase "Add ACO Fields to Records That Are Article Collections" 
-(flag_article_collections. GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(flag_article_collections GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -217,6 +217,13 @@ wait
 StartPhase "Fill in missing 773\$a Subfields"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Extract Tags From MySql Tables and Insert Them Into MARC Records"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(convert_tags_to_keywords --input-format=marc_binary GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 

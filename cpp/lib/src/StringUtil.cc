@@ -2867,16 +2867,6 @@ bool ContainsAtLeastOneLowercaseLetter(const std::string &s) {
 }
 
 
-std::string PadLeading(const std::string &s, const std::string::size_type min_length, const char pad_char) {
-    const std::string::size_type length(s.length());
-
-    if (length >= min_length)
-        return s;
-
-    return std::string(min_length - length, pad_char) + s;
-}
-
-
 static inline bool CaseInsensitiveEqual(const char ch1, const char ch2) {
     return std::toupper(ch1) == std::toupper(ch2);
 }
