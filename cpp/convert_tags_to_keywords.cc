@@ -35,7 +35,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " [--input-format=(marc_binary|marc_xml)] marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -130,11 +130,21 @@ void AddTagsToRecords(MarcReader * const reader, MarcWriter * const writer,
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 3)
+    if (argc != 3 and argc != 4)
         Usage();
 
+    MarcReader::ReaderType reader_type(MarcReader::AUTO);
+    if (argc == 4) {
+        if (std::strcmp(argv[1], "--input-format=marc_binary") == 0)
+            reader_type = MarcReader::BINARY;
+        else if (std::strcmp(argv[1], "--input-format=marc_xml") == 0)
+            reader_type = MarcReader::XML;
+        else
+            Usage();
+    }
+
     try {
-        std::unique_ptr<MarcReader> reader(MarcReader::Factory(argv[1]));
+        std::unique_ptr<MarcReader> reader(MarcReader::Factory(argv[1], reader_type));
         std::unique_ptr<MarcWriter> writer(MarcWriter::Factory(argv[2]));
 
         std::string mysql_url;
