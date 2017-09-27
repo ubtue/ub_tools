@@ -141,6 +141,7 @@ int main(int argc, char *argv[]) {
             reader_type = MarcReader::XML;
         else
             Usage();
+        ++argv, --argc;
     }
 
     try {
