@@ -2474,7 +2474,16 @@ bool ContainsAtLeastOneLowercaseLetter(const std::string &s);
 
 
 /** Pads "s" with leading "pad_char"'s if s.length() < min_length. */
-std::string PadLeading(const std::string &s, const std::string::size_type min_length, const char pad_char = ' ');
+inline std::string PadLeading(const std::string &s, const std::string::size_type min_length,
+                              const char pad_char = ' ')
+{
+    const std::string::size_type length(s.length());
+
+    if (length >= min_length)
+        return s;
+
+    return std::string(min_length - length, pad_char) + s;
+}
 
 
 /** \return If "needle" was found in "haystack", the starting position in "haystack" else std::string::npos. */
