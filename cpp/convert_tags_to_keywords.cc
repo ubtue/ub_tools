@@ -135,16 +135,13 @@ int main(int argc, char *argv[]) {
 
     MarcReader::ReaderType reader_type(MarcReader::AUTO);
     if (argc == 4) {
-        if (std::strcmp(argv[1], "--input-format=marc_binary") == 0) {
+        if (std::strcmp(argv[1], "--input-format=marc_binary") == 0)
             reader_type = MarcReader::BINARY;
-            ++argv;
-        }
-        else if (std::strcmp(argv[1], "--input-format=marc_xml") == 0) {
+        else if (std::strcmp(argv[1], "--input-format=marc_xml") == 0)
             reader_type = MarcReader::XML;
-            ++argv;
-        }
         else
             Usage();
+        ++argv, --argc;
     }
 
     try {
