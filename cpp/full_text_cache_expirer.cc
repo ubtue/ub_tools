@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <kchashdb.h>
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "SqlUtil.h"
@@ -31,9 +32,9 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << ::progname << " no_of_months_db\n"
+    std::cerr << "Usage: " << ::progname << " no_of_months full_text_db\n"
               << "       Removes all records from the full-text database whose last_used dates are older than\n"
-              << "       \"no_of_months_db\" months.\n\n";
+              << "       \"no_of_months\" months.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -48,7 +49,27 @@ std::string GetDateOfOldestEntry(DbConnection * const db_connection) {
 }
 
 
-void ExpungeOldRecords(const unsigned no_of_months) {
+void DeleteOldEntriesFromTheKeyValueDatabase(DbConnection * const db_connection, const std::string &full_text_db_path)
+{
+    kyotocabinet::HashDB db;
+    if (not db.open(full_text_db_path, kyotocabinet::HashDB::OWRITER))
+        Error("in DeleteOldEntriesFromTheKeyValueDatabase: Failed to open database \"" + full_text_db_path
+              + "\" for writing (" + std::string(db.error().message()) + ")!");
+
+    DbResultSet result_set(db_connection->getLastResultSet());
+    while (const DbRow row = result_set.getNextRow()) {
+        if (unlikely(not db.remove(row["key_value_db_key"])))
+            Error("in DeleteOldEntriesFromTheKeyValueDatabase: Failed to delete an entry w/ key \""
+                  + row["key_value_db_key"] + "\" from the database \"" + full_text_db_path + "\"!");
+    }
+
+    if (unlikely(not db.defrag()))
+        Error("in DeleteOldEntriesFromTheKeyValueDatabase: Failed to defragment the database \"" + full_text_db_path
+              + "\"!");
+}
+
+
+void ExpungeOldRecords(const unsigned no_of_months, const std::string &full_text_db_path) {
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
     DbConnection db_connection(mysql_url);
@@ -59,7 +80,9 @@ void ExpungeOldRecords(const unsigned no_of_months) {
     else {
         const time_t now(std::time(nullptr));
         const std::string cutoff_datetime(SqlUtil::TimeTToDatetime(now - no_of_months * 30 * 86400));
-        const std::string DELETE_STMT("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
+        db_connection.queryOrDie("SELECT key_value_db_key WHERE created < \"" + cutoff_datetime + "\"");
+        DeleteOldEntriesFromTheKeyValueDatabase(&db_connection, full_text_db_path);
+        const std::string DELETE_STMT("DELETE FROM full_text_cache WHERE created < \"" + cutoff_datetime + "\"");
         db_connection.queryOrDie(DELETE_STMT);
         std::cout << "Deleted " << db_connection.getNoOfAffectedRows() << " rows from the cache.\n";
         std::cout << "The date of the oldest entry was " << oldest_date << ".\n";
@@ -70,7 +93,7 @@ void ExpungeOldRecords(const unsigned no_of_months) {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 2)
+    if (argc != 3)
         Usage();
 
     unsigned no_of_months;
@@ -78,7 +101,7 @@ int main(int argc, char *argv[]) {
         Error("no_of_months must be a number!");
 
     try {
-        ExpungeOldRecords(no_of_months);
+        ExpungeOldRecords(no_of_months, argv[2]);
     } catch (const std::exception &e) {
         Error("caught exception: " + std::string(e.what()));
     }

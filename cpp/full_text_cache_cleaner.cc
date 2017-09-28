@@ -1,7 +1,7 @@
 /** \brief Tool to delete old cache entries from the KrimDok full text cache.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,9 +32,9 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << ::progname << " max_last_used_age\n";
-    std::cerr << "       Deletes all records in the full text cache that are older than \"max_last_used_age\".\n";
-    std::cerr << "       \"max_last_used_age\" is in days.\n";
+    std::cerr << "usage: " << ::progname << " max_created_age\n";
+    std::cerr << "       Deletes all records in the full text cache that are older than \"max_created_age\".\n";
+    std::cerr << "       \"max_created_age\" is in days.\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     
     unsigned age_in_days;
     if (not StringUtil::ToUnsigned(argv[1], &age_in_days))
-        Error("max_last_used_age is not a valid unsigned number!");
+        Error("max_created_age is not a valid unsigned number!");
     const time_t now(std::time(nullptr));
     const time_t cutoff_time(TimeUtil::AddDays(now, -static_cast<int>(age_in_days)));
     const std::string cutoff_datetime(SqlUtil::TimeTToDatetime(cutoff_time));
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
         DbConnection db_connection(mysql_url);
         const unsigned size_before_deletion(GetTableSize(&db_connection, "full_text_cache"));
 
-        db_connection.queryOrDie("DELETE FROM full_text_cache WHERE last_used < \"" + cutoff_datetime + "\"");
+        db_connection.queryOrDie("DELETE FROM full_text_cache WHERE created < \"" + cutoff_datetime + "\"");
 
         const unsigned size_after_deletion(GetTableSize(&db_connection, "full_text_cache"));
         std::cout << "Expired " << (size_before_deletion - size_after_deletion)
