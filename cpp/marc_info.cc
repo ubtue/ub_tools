@@ -1,7 +1,7 @@
 /** \brief Utility for displaying various bits of info about a collection of MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -54,7 +54,7 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
         const std::string &control_number(record.getControlNumber());
 
         if (control_numbers.find(control_number) != control_numbers.end())
-            Error("found at least one duplicate control number: " + control_number);
+            Warning("found at least one duplicate control number: " + control_number);
         control_numbers.insert(control_number);
 
         const Leader::RecordType record_type(record.getRecordType());
