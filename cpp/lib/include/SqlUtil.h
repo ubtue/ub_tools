@@ -60,7 +60,7 @@ private:
         unsigned reference_count_;
         Status(const IsolationLevel &level = READ_COMMITTED)
             : level_(level), rolled_back_(false), reference_count_(1) {}
-    };		
+    };
     static std::map<DbConnection *, Status> connection_status_;
 
     DbConnection * const db_connection_;
@@ -121,6 +121,9 @@ std::string GetDatetime(const long offset=0);
 /** \return A set that contains the names of the columns in "table_name". */
 std::set<std::string> GetColumnNames(DbConnection * const connection, const std::string &table_name);
 
+
+/** \return The number of rows in "table_name". */
+unsigned GetTableSize(DbConnection * const connection, const std::string &table_name);
 
 
 } // namespace SqlUtil

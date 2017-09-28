@@ -229,4 +229,13 @@ std::set<std::string> GetColumnNames(DbConnection * const connection, const std:
 }
 
 
+unsigned GetTableSize(DbConnection * const connection, const std::string &table_name) {
+    connection->queryOrDie("SELECT COUNT(*) FROM " + table_name);
+    DbResultSet result_set(connection->getLastResultSet());
+    const DbRow first_row(result_set.getNextRow());
+
+    return StringUtil::ToUnsigned(first_row[0]);
+}
+
+
 } // namespace SqlUtil

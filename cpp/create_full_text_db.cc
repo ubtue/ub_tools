@@ -217,9 +217,8 @@ int main(int argc, char **argv) {
 
     const std::string db_filename(*argv);
     kyotocabinet::HashDB db;
-    if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
-                                 | kyotocabinet::HashDB::OTRUNCATE))
-        Error("Failed to create and truncate database \"" + db_filename + "\" ("
+    if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE))
+        Error("Failed to create the key/valuedatabase \"" + db_filename + "\" ("
               + std::string(db.error().message()) + ")!");
     db.close();
 
