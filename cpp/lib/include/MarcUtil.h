@@ -60,6 +60,12 @@ bool HasSubfieldWithValue(const MarcRecord &marc_record, const std::string &tag,
                           const std::string &value);
 
 
+/** \true if the record has at lest one field with tag "tag" and that field has a subfield with subfield code
+ *        "subfield_code".
+ */
+bool HasTagAndSubfield(const MarcRecord &marc_record, const std::string &tag, const char subfield_code);
+
+
 void FileLockedComposeAndWriteRecord(MarcWriter * const marc_writer, MarcRecord * const record);
 
 
