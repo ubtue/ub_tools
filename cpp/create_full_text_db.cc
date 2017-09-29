@@ -127,7 +127,10 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             continue;
         }
 
-        if (not FoundAtLeastOneNonReviewLink(record)) {
+        const bool insert_in_cache(FoundAtLeastOneNonReviewLink(record)
+                                   or (not MarcUtil::HasTagAndSubfield(record, "856", 'u')
+                                       and MarcUtil::HasTagAndSubfield(record, "520", 'a')));
+        if (not insert_in_cache) {
             MarcUtil::FileLockedComposeAndWriteRecord(marc_writer, &record);
             record_start = marc_reader->tell();
             continue;
