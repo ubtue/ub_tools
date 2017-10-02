@@ -25,7 +25,11 @@
 
 #include <unordered_map>
 #include "MarcRecord.h"
-#include "MarcReader.h"
+
+
+// Forward declarations:
+class MarcReader;
+class MarcWriter;
 
 
 namespace MarcUtil {
@@ -54,6 +58,15 @@ bool IsArticle(const MarcRecord &marc_record);
 
 bool HasSubfieldWithValue(const MarcRecord &marc_record, const std::string &tag, const char subfield_code,
                           const std::string &value);
+
+
+/** \true if the record has at lest one field with tag "tag" and that field has a subfield with subfield code
+ *        "subfield_code".
+ */
+bool HasTagAndSubfield(const MarcRecord &marc_record, const std::string &tag, const char subfield_code);
+
+
+void FileLockedComposeAndWriteRecord(MarcWriter * const marc_writer, MarcRecord * const record);
 
 
 } // namespace MarcUtil

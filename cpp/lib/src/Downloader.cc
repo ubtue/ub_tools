@@ -593,7 +593,7 @@ int Download(const std::string &url, const unsigned timeout, std::string * const
     const std::string &output_filename(auto_temp_file.getFilePath());
     const int retval = Download(url, output_filename, timeout, cookie_file);
     if (retval == 0) {
-        if (not ReadFile(output_filename, output))
+        if (not FileUtil::ReadString(output_filename, output))
             return -1;
     }
 
