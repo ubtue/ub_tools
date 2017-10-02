@@ -66,7 +66,7 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
 namespace TextUtil {
 
 
-std::string ExtractText(const std::string &html) {
+std::string ExtractTextFromHtml(const std::string &html) {
     std::string extracted_text;
     TextExtractor extractor(html, &extracted_text);
     extractor.parse();

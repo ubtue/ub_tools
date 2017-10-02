@@ -33,10 +33,10 @@
 #include <kchashdb.h>
 #include "Downloader.h"
 #include "ExecUtil.h"
-#include "FileLocker.h"
 #include "FileUtil.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
+#include "MarcUtil.h"
 #include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "Semaphore.h"
@@ -58,15 +58,6 @@ static void Usage() {
               << "       until we reach the low watermark.\n\n";
 
     std::exit(EXIT_FAILURE);
-}
-
-
-void FileLockedComposeAndWriteRecord(MarcWriter * const marc_writer, MarcRecord * const record) {
-    FileLocker file_locker(&(marc_writer->getFile()), FileLocker::WRITE_ONLY);
-    if (not (marc_writer->getFile().seek(0, SEEK_END)))
-        Error("failed to seek to the end of \"" + marc_writer->getFile().getPath() + "\"!");
-    marc_writer->write(*record);
-    marc_writer->getFile().flush();
 }
 
 
@@ -123,9 +114,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
     std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
 
-    const std::string &UPDATE_FULL_TEXT_DB_PATH(ExecUtil::Which("update_full_text_db"));
-    if (UPDATE_FULL_TEXT_DB_PATH.empty())
-        Error("can't find \"update_full_text_db\" in our $PATH!");
+    const std::string UPDATE_FULL_TEXT_DB_PATH("/usr/local/bin/update_full_text_db");
 
     std::cout << "Skip " << skip_count << " records\n";
     off_t record_start = marc_reader->tell();
@@ -138,8 +127,11 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             continue;
         }
 
-        if (not FoundAtLeastOneNonReviewLink(record)) {
-            FileLockedComposeAndWriteRecord(marc_writer, &record);
+        const bool insert_in_cache(FoundAtLeastOneNonReviewLink(record)
+                                   or (not MarcUtil::HasTagAndSubfield(record, "856", 'u')
+                                       and MarcUtil::HasTagAndSubfield(record, "520", 'a')));
+        if (not insert_in_cache) {
+            MarcUtil::FileLockedComposeAndWriteRecord(marc_writer, &record);
             record_start = marc_reader->tell();
             continue;
         }
@@ -228,9 +220,8 @@ int main(int argc, char **argv) {
 
     const std::string db_filename(*argv);
     kyotocabinet::HashDB db;
-    if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE
-                                 | kyotocabinet::HashDB::OTRUNCATE))
-        Error("Failed to create and truncate database \"" + db_filename + "\" ("
+    if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE))
+        Error("Failed to create the key/valuedatabase \"" + db_filename + "\" ("
               + std::string(db.error().message()) + ")!");
     db.close();
 

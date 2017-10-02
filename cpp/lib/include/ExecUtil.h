@@ -46,7 +46,7 @@ public:
     explicit SignalBlocker(const int signal_to_block);
     ~SignalBlocker();
 };
-        
+
 
 /** \brief  Run a subcommand to completion.
  *  \param  command             The path to the command that should be executed.
@@ -81,6 +81,12 @@ int Spawn(const std::string &command, const std::vector<std::string> &args = {},
  *          "executable_candidate" is not executable.
  */
 std::string Which(const std::string &executable_candidate);
+
+
+/** \brief Like Which(), only we abort if we can't find \"executable_candidate\".
+ *  \return The path where the executable can be found.
+ */
+std::string LocateOrDie(const std::string &executable_candidate);
 
 
 /**  \brief Retrieve the stdout of a subcommand.

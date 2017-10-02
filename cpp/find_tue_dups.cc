@@ -182,15 +182,6 @@ unsigned FindTueSigilsAndSignaturesOrInventory(const MarcRecord &record,
 }
 
 
-// Apperently we have "PPN's" that look like "103571965_256955174", which are actually two PPN's.  In this case
-// we only want the first one.  (The second one is presumably the PPN of the superior work.)
-std::string NormalisePPN(const std::string &ppn_or_double_ppn) {
-    const size_t first_underscore_pos(ppn_or_double_ppn.find('_'));
-    return first_underscore_pos == std::string::npos ? ppn_or_double_ppn
-                                                     : ppn_or_double_ppn.substr(0, first_underscore_pos);
-}
-
-
 // Extracts 084$a entries but only if 084$2 contains "zdbs".
 std::string ExtractDDCGroups(const MarcRecord &record) {
     std::string ddc_groups;
@@ -257,7 +248,7 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
 
     const std::string ddc_groups(ExtractDDCGroups(record));
 
-    std::cout << '"' << NormalisePPN(record.getControlNumber()) << "\",\"" << TextUtil::CSVEscape(main_title)
+    std::cout << '"' << record.getControlNumber() << "\",\"" << TextUtil::CSVEscape(main_title)
               << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
               << (output_set == MONOGRAPHS ? "\",\"" + TextUtil::CSVEscape(publication_year) : "")
               << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
@@ -279,17 +270,24 @@ void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
               << (output_set == SERIALS ? " mit Bestandsangaben\"" : "\"")
               << (output_set == SERIALS ? ",\"DDC-Sachgruppe\"" : "") << '\n';
 
-    unsigned count(0), control_number_dups_count(0), dups_count(0), monograph_count(0), serial_count(0);
+    unsigned count(0), control_number_dups_count(0), dups_count(0), monograph_count(0), serial_count(0),
+             linked_ppn_count(0);
     std::unordered_set<std::string> previously_seen_ppns;
     while (const MarcRecord record = marc_reader->read()) {
         ++count;
 
-        if (previously_seen_ppns.find(record.getControlNumber()) != previously_seen_ppns.cend()) {
+        const std::string ppn(record.getControlNumber());
+        if (previously_seen_ppns.find(ppn) != previously_seen_ppns.cend()) {
             ++control_number_dups_count;
-            Warning("found a duplicate control number: " + record.getControlNumber());
+            Warning("found a duplicate control number: " + ppn);
             continue;
         } else
-            previously_seen_ppns.insert(record.getControlNumber());
+            previously_seen_ppns.insert(ppn);
+
+        if (ppn.find('_') != std::string::npos) {
+            ++linked_ppn_count;
+            continue;
+        }
 
         // Only consider monographs and serials:
         const Leader &leader(record.getLeader());
@@ -309,6 +307,7 @@ void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
     std::cerr << "Processed " << count << " records and found " << dups_count << " dups (" << monograph_count
               << " monographs and " << serial_count << " serials).\n";
     std::cerr << "Found " << control_number_dups_count << " records w/ duplicate control numbers!\n";
+    std::cerr << "Ignored " << linked_ppn_count << " records that have a control numbers w/ an underscore.\n";
 }
 
 
