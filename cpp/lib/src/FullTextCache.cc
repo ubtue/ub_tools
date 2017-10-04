@@ -49,7 +49,7 @@ bool CacheExpired(DbConnection * const db_connection, const std::string &full_te
         return false;
 
     kyotocabinet::HashDB db;
-    if (not db.open(full_text_db_path, kyotocabinet::HashDB::OWRITER))
+    if (not db.open(full_text_db_path, kyotocabinet::HashDB::OCREATE))
         Error("in FullTextCache::CacheExpired: Failed to open database \"" + full_text_db_path + "\" for writing ("
               + std::string(db.error().message()) + ")!");
     db.remove(id);
@@ -64,7 +64,7 @@ void InsertIntoCache(DbConnection * const db_connection, const std::string &full
 {
     if (not data.empty()) {
         kyotocabinet::HashDB db;
-        if (not db.open(full_text_db_path, kyotocabinet::HashDB::OWRITER))
+        if (not db.open(full_text_db_path, kyotocabinet::HashDB::OCREATE))
             Error("in FullTextCache::InsertIntoCache: Failed to open database \"" + full_text_db_path
                   + "\" for writing (" + std::string(db.error().message()) + ")!");
         if (unlikely(not db.set(key, data)))
