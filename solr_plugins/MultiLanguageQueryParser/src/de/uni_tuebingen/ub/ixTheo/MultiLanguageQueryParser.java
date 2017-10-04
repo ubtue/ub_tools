@@ -96,6 +96,9 @@ public class MultiLanguageQueryParser extends QParser {
 
     protected void handleDismaxParser(String[] queryFields, String lang, IndexSchema schema) {
         StringBuilder stringBuilder = new StringBuilder();
+        // Only replace parameters if qf is indeed set
+        if (newParams.get("qf") == null)
+            return;
         for (final String param : queryFields) {
             newParams.remove("qf", param);
             String[] singleParams = param.split(" ");
