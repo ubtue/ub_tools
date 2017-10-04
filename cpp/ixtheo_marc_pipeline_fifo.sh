@@ -102,14 +102,15 @@ StartPhase "Drop Records Containing mtex in 935" \
     --remove-fields '856u:ixtheo\.de' \
     --filter-chars 130a:240a:245a '@' >> "${log}" \
     --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
-    --replace 600a:610a:630a:648a:650a:651a:655a 'ISLAM|islam' Islam >> "${log}" 2>&1 && \
+    --replace 600a:610a:630a:648a:650a:651a:655a /usr/local/var/lib/tuelib/keyword_normalistion.map \
+    >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
 StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
 (extract_keywords_for_translation GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                 Normdaten-"${date}".mrc >> "${log}" 2>&1 && \
+                                  Normdaten-"${date}".mrc >> "${log}" 2>&1 && \
 extract_vufind_translations_for_translation \
     "$VUFIND_HOME"/local/languages/de.ini \ # German terms before all others.
     $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
