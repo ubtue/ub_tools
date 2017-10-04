@@ -927,9 +927,10 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
     }
 
     for (auto filename(filenames.rbegin()); filename != filenames.rend(); ++filename) {
-        if (unlikely(not FileUtil::RenameFile(*filename, IncrementFile(log_file_prefix, *filename))))
-            Error("in MiscUtil::LogRotate:: failed to rename \"" + *filename + "\" to \""
-                  + IncrementFile(log_file_prefix, *filename) + "\"!");
+        if (unlikely(not FileUtil::RenameFile(dirname + "/" + *filename,
+                                              dirname + "/" + IncrementFile(log_file_prefix, *filename))))
+            Error("in MiscUtil::LogRotate:: failed to rename \"" + dirname + "/" + *filename + "\" to \""
+                  + dirname + "/" + IncrementFile(log_file_prefix, *filename) + "\"!");
     }
 }
 
