@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
@@ -75,6 +76,10 @@ void Usage() {
               << "                 other.\n"
               << "           --replace subfield_specs pcre_regex replacement_string\n"
               << "                replacement_string may contain back references like \\3 etc.\n"
+              << "             or\n"
+              << "           --replace subfield_specs map_file\n"
+              << "             every \"map_file\" must either start with a hash character in which case it is\n"
+              << "             ignored or lines that look like \"regex->replacement\" followed by a newline.\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
 
     std::exit(EXIT_FAILURE);
@@ -461,7 +466,7 @@ void ParseReplacementString(const std::string &replacement,
         string_fragments_and_back_references->emplace_back("");
         return;
     }
-    
+
     std::string string_fragment;
     bool backslash_seen(false);
     for (const char ch : replacement) {
@@ -777,6 +782,53 @@ void ExtractSubfieldSpecs(const std::string &command, char ***argvp, std::vector
 }
 
 
+void LoadReplaceMapFile(const std::string &map_filename,
+                        std::unordered_map<std::string, std::string> * const regexes_to_replacements_map)
+{
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(map_filename));
+    unsigned line_no(0);
+    while (not input->eof()) {
+        ++line_no;
+
+        std::string line;
+        input->getline(&line);
+        if (line.empty() or line[0] == '#')
+            continue;
+
+        const size_t arrow_start(line.find("->"));
+        if (unlikely(arrow_start == std::string::npos))
+            Error("bad line #" + std::to_string(line_no) + ": missing \"->\"!");
+        if (unlikely(arrow_start == 0))
+            Error("bad line #" + std::to_string(line_no) + ": missing regex before \"->\"!");
+        if (unlikely(arrow_start + 1 == line.length()))
+            Error("bad line #" + std::to_string(line_no) + ": missing replacement text after \"->\"!");
+        regexes_to_replacements_map->emplace(std::make_pair(line.substr(0, arrow_start),
+                                                            line.substr(arrow_start + 2)));
+    }
+}
+
+
+void ProcessReplaceCommand(char ***argv, std::vector<FilterDescriptor> * const filters) {
+    std::vector<std::string> subfield_specs;
+    ExtractSubfieldSpecs("--replace", argv, &subfield_specs);
+    if (argv == nullptr or StringUtil::StartsWith(**argv, "--"))
+        Error("missing regex or map-filename arg after --replace!");
+    const std::string regex_or_map_filename(**argv);
+    if (++*argv == nullptr or StringUtil::StartsWith(**argv, "--")) {
+        std::unordered_map<std::string, std::string> regexes_to_replacements_map;
+        LoadReplaceMapFile(regex_or_map_filename, &regexes_to_replacements_map);
+        for (const auto &regex_and_replacement : regexes_to_replacements_map)
+            filters->emplace_back(FilterDescriptor::MakeReplacementFilter(subfield_specs, regex_and_replacement.first,
+                                                                          regex_and_replacement.second));
+    } else {
+        const std::string replacement(**argv);
+        filters->emplace_back(FilterDescriptor::MakeReplacementFilter(subfield_specs, regex_or_map_filename,
+                                                                      replacement));
+        ++*argv;
+    }
+}
+
+
 void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filters) {
     while (*argv != nullptr) {
         std::vector<CompiledPattern *> compiled_patterns;
@@ -824,18 +876,9 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
                 Error("missing or bad \"characters_to_delete\" argument to \"--filter-chars\"!");
             filters->emplace_back(FilterDescriptor::MakeFilterCharsFilter(subfield_specs, *argv++));
-        } else if (std::strcmp(*argv, "--replace") == 0) {
-            std::vector<std::string> subfield_specs;
-            ExtractSubfieldSpecs("--replace", &argv, &subfield_specs);
-            if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
-                Error("missing regex arg after --replace!");
-            const std::string regex(*argv);
-            if (++argv == nullptr or StringUtil::StartsWith(*argv, "--"))
-                Error("missing replacement string after --replace and regex!");
-            const std::string replacement(*argv);
-            filters->emplace_back(FilterDescriptor::MakeReplacementFilter(subfield_specs, regex, replacement));
-            ++argv;
-        } else
+        } else if (std::strcmp(*argv, "--replace") == 0)
+            ProcessReplaceCommand(&argv, filters);
+        else
             Error("unknown operation type \"" + std::string(*argv) + "\"!");
     }
 }
