@@ -54,7 +54,7 @@ cgi_install: $(CGI_PROGS)
 	cp $(CGI_PROGS) /var/www/cgi-bin/
 
 data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.template data/*.conf \
-              data/crossref_journal_list
+              data/crossref_journal_list data/keyword_normalistion.map
 	@echo "Installing data..."
 	mkdir --parents /usr/local/var/lib/tuelib/bibleRef/
 	cp data/books_of_the_bible_to_canonical_form.map data/books_of_the_bible_to_code.map \
@@ -65,6 +65,7 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	cp data/subscriptions_email.ixtheo.template /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.relbib.template /usr/local/var/lib/tuelib/
 	cp data/zotero_crawler.conf /usr/local/var/lib/tuelib/
+	cp data/keyword_normalistion.map /usr/local/var/lib/tuelib/
 	mkdir --parents /usr/local/var/lib/tuelib/crossref_downloader/
 	cp data/crossref_journal_list /usr/local/var/lib/tuelib/crossref_downloader/
 
