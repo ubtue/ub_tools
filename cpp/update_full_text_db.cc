@@ -78,7 +78,7 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std
 }
 
 
-static std::map<std::string, std::string> marc_to_tesseract_language_codes_map {
+static const std::map<std::string, std::string> marc_to_tesseract_language_codes_map {
     { "bul", "bul" },
     { "cze", "ces" },
     { "dan", "dan" },
