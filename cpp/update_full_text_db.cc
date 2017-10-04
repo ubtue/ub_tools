@@ -50,7 +50,7 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << ::progname << " file_offset counter marc_input marc_output full_text_db\n\n"
+    std::cerr << "Usage: " << ::progname << " file_offset marc_input marc_output full_text_db\n\n"
               << "       file_offset  Where to start reading a MARC data set from in marc_input.\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -248,7 +248,7 @@ int main(int argc, char *argv[]) {
               + "! (" + std::to_string(errno) + ")");
 
     try {
-        return ProcessRecord(marc_reader.get(), argv[4], argv[5]) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return ProcessRecord(marc_reader.get(), argv[3], argv[4]) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         Error("While reading \"" + marc_reader->getPath() + "\" starting at offset \"" + std::string(argv[1])
               + "\", caught exception: " + std::string(e.what()));
