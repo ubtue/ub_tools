@@ -79,12 +79,13 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
         Error("\"" + (*matcher)[2] + "\" is not a valid ending volume!");
 
     const std::string non_canonical_book_name((*matcher)[3]);
-    const std::string starting_bible_book_candidate(
-        BibleUtil::CanoniseBibleBook(verbose, books_of_the_bible_to_canonical_form_map_filename,
-                                     std::to_string(starting_volume) + non_canonical_book_name));
-    const std::string ending_bible_book_candidate(
-        BibleUtil::CanoniseBibleBook(verbose, books_of_the_bible_to_canonical_form_map_filename,
-                                     std::to_string(ending_volume) + non_canonical_book_name));
+    BibleUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
+    const std::string starting_bible_book_candidate(bible_book_canoniser.canonise(
+        std::to_string(starting_volume) + non_canonical_book_name, verbose));
+                                     
+    const std::string ending_bible_book_candidate(bible_book_canoniser.canonise(
+        std::to_string(ending_volume) + non_canonical_book_name, verbose));
+                                     
     if (verbose) {
         std::cout << "Identified a bible book range.  Starting volume " << starting_volume << ", ending volume "
                   << ending_volume << ", book is \"" << non_canonical_book_name << "\".\n";
@@ -117,8 +118,8 @@ void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query
         std::cerr << "chapters_and_verses_candidate = \"" << chapters_and_verses_candidate << "\"\n";
     }
 
-    book_candidate = BibleUtil::CanoniseBibleBook(
-        verbose, books_of_the_bible_to_canonical_form_map_filename, book_candidate);
+    BibleUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
+    book_candidate = bible_book_canoniser.canonise(book_candidate, verbose);
     const std::string book_code(BibleUtil::MapBibleBookToCode(verbose, book_candidate,
                                                                          bible_books_to_codes_map_filename));
     if (verbose)
