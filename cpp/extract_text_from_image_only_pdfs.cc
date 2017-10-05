@@ -10,7 +10,7 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << progname << " pdf_image_file_name [language_code_or_codes]\n";
+    std::cerr << "Usage: " << ::progname << " pdf_image_file_name [language_code_or_codes]\n";
     std::cerr << "       When no language code has been specified, \"deu\" is used as a default.\n";
     std::exit(EXIT_FAILURE);
 }
@@ -20,7 +20,7 @@ const std::string BASH_HELPER("pdf_images_to_text.sh");
 
 
 int main(int argc, char *argv[]) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     try {
         if (argc != 2 and argc != 3)
@@ -31,10 +31,10 @@ int main(int argc, char *argv[]) {
             Error("can't read \"" + input_filename + "\"!");
 
         std::string pdf;
-        if (not ReadFile(input_filename, &pdf))
+        if (not FileUtil::ReadString(input_filename, &pdf))
             Error("failed to read document from \"" + input_filename + "\"!");
 
-        if (not PdfDocContainsNoText(pdf))
+        if (not PdfUtil::PdfDocContainsNoText(pdf))
             Error("input file \"" + input_filename + "\" contains text!");
 
         char output_filename[] = "OCR_OUT_XXXXXX";
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
             Error("failed to execute conversion script!");
 
         std::string extracted_text;
-        if (not ReadFile(output_filename, &extracted_text))
+        if (not FileUtil::ReadString(output_filename, &extracted_text))
             Error("failed to read contents of \"" + std::string(output_filename) + "\"!");
 
         if (extracted_text.empty())

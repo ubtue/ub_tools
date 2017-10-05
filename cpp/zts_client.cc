@@ -22,6 +22,7 @@
 #include <cinttypes>
 #include <uuid/uuid.h>
 #include "Compiler.h"
+#include "Downloader.h"
 #include "ExecUtil.h"
 #include "FileDescriptor.h"
 #include "FileUtil.h"
@@ -312,6 +313,25 @@ const JSON::StringNode *CastToStringNodeOrDie(const std::string &node_name, cons
 }
 
 
+// "author" must be in the lastname,firstname format. Returns the empty string if no PPN was found.
+std::string DownloadAuthorPPN(const std::string &author) {
+    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
+         "<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)"));
+    const std::string lookup_url("http://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/CMD?SGE=&ACT=SRCHM&MATCFILTER=Y"
+                                 "&MATCSET=Y&NOSCAN=Y&PARSE_MNEMONICS=N&PARSE_OPWORDS=N&PARSE_OLDSETS=N&IMPLAND=Y"
+                                 "&NOABS=Y&ACT0=SRCHA&SHRTST=50&IKT0=1&TRM0=" + UrlUtil::UrlEncode(author)
+                                 +"&ACT1=*&IKT1=2057&TRM1=*&ACT2=*&IKT2=8977&TRM2=theolog*&ACT3=-&IKT3=8978-&TRM3=1"
+                                 "[1%2C2%2C3%2C4%2C5%2C6%2C7%2C8][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]"
+                                 "[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]?");
+    Downloader downloader(lookup_url);
+    if (downloader.anErrorOccurred())
+        Warning("in DownloadAuthorPPN: " + downloader.getLastErrorMessage());
+    else if (matcher->matched(downloader.getMessageBody()))
+        return (*matcher)[1];
+    return "";
+}
+
+
 void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MarcRecord * const marc_record) {
     if (creators_node->getType() != JSON::JSONNode::ARRAY_NODE)
         Error("in CreateCreatorFields: expected \"creators\" to have a array node!");
@@ -333,6 +353,10 @@ void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MarcRecord
             const JSON::StringNode * const first_name(CastToStringNodeOrDie("firstName", first_name_node));
             name += ", " + first_name->getValue();
         }
+
+        const std::string PPN(DownloadAuthorPPN(name));
+        if (not PPN.empty())
+            name = "!" + PPN + "!";
 
         const JSON::JSONNode * const creator_type(creator_object->getValue("creatorType"));
         std::string creator_role;

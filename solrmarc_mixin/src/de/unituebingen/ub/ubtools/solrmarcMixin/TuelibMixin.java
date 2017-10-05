@@ -1698,6 +1698,11 @@ public class TuelibMixin extends SolrIndexerMixin {
                 formats.add("Review");
                 break;
             }
+            if (dataField.getSubfield('a').getData().startsWith("Weblog")) {
+                formats.remove("Journal");
+                formats.add("Blog");
+                break;
+            }
         }
 
         // A review can also be indicated if 935$c set to "uwre"
@@ -1753,6 +1758,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (foundMatch == true)
                 break;
         }
+
 
         // Rewrite all E-Books as electronic Books
         if (formats.contains("eBook")) {

@@ -153,8 +153,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
             default:
                 return WEXITSTATUS(child_exit_status);
             }
-        }
-        else if (WIFSIGNALED(child_exit_status))
+        } else if (WIFSIGNALED(child_exit_status))
             throw std::runtime_error("in Exec: \"" + command + "\" killed by signal "
                                      + std::to_string(WTERMSIG(child_exit_status)) + "!");
         else // I have no idea how we got here!
@@ -163,7 +162,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 
     return 0; // Keep the compiler happy!
 }
-    
+
 
 } // unnamed namespace
 
@@ -225,9 +224,18 @@ std::string Which(const std::string &executable_candidate) {
 }
 
 
+std::string LocateOrDie(const std::string &executable_candidate) {
+    const std::string path(ExecUtil::Which(executable_candidate));
+    if (path.empty())
+        Error("in ExecUtil::LocateOrDie: can't find \"" + executable_candidate + "\" in our PATH environment!");
+    return path;
+}
+
+
+
 bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output) {
     stdout_output->clear();
-    
+
     FILE * const subcommand_stdout(::popen(command.c_str(), "r"));
     if (subcommand_stdout == nullptr)
         return false;

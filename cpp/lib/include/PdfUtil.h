@@ -2,7 +2,7 @@
  *  \brief  Functions relating to PDF documents.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,12 @@
 #include <string>
 
 
+namespace PdfUtil {
+
+
+std::string ExtractText(const std::string &pdf_document);
+
+
 /** \brief Returns whether a document contains text or not.
  *
  *  If this returns false it is likely that the document contains only images.
@@ -36,6 +42,14 @@ bool PdfFileContainsNoText(const std::string &path);
  *  If this returns false it is likely that the document contains only images.
  */
 bool PdfDocContainsNoText(const std::string &document);
+
+
+/** \brief Uses tesseract to attempt OCR. */
+bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
+                         std::string * const extracted_text);
+
+
+} // namespace PdfUtil
 
 
 #endif // ifndef PDF_UTIL_H
