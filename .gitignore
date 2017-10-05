@@ -51,6 +51,7 @@ display_translate_stats
 dsv_reader
 enrich_ddcs
 enrich_keywords_with_title_words
+extract_bible_references
 extract_keywords_for_translation
 extract_local_keywords
 extract_normdata_translations
@@ -64,7 +65,6 @@ fix_article_biblio_levels
 fix_iso_8859_1_garbage
 flag_article_collections
 full_text_cache_cleaner
-full_text_cache_expirer
 full_text_lookup
 full_text_stats
 generate_title_and_author_list
