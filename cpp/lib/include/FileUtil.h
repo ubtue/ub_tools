@@ -35,6 +35,7 @@
 #include <vector>
 #include <cstdio>
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "File.h"
@@ -386,6 +387,11 @@ void AppendFileToFile(const std::string &path_source, const std::string &path_ta
 void ConcatenateFiles(std::vector<std::string> * const filenames_source, const std::string &filename_target);
 
 void CreateSymlink(const std::string &target_filename, const std::string &link_filename);
+
+// \return The size of the concatenated result.
+size_t ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames,
+                   const mode_t target_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+
 
 } // namespace FileUtil
 
