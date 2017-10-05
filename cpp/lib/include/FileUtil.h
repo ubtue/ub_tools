@@ -382,6 +382,10 @@ bool FilesDiffer(const std::string &path1, const std::string &path2);
 void AppendStringToFile(const std::string &path, const std::string &text);
 
 
+// \return The size of the concatenated result.
+size_t ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames);
+
+
 } // namespace FileUtil
 
 
