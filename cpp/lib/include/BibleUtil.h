@@ -67,8 +67,18 @@ public:
 };
 
 
-std::string MapBibleBookToCode(const bool verbose, const std::string &bible_book_candidate,
-                               const std::string &books_of_the_bible_to_code_map_filename);
+
+
+class BibleBookToCodeMapper {
+    std::unordered_map<std::string, std::string> bible_books_to_codes_map_;
+public:
+    explicit BibleBookToCodeMapper(const std::string &books_of_the_bible_to_code_map_filename);
+
+    /** \brief Map from noncanonical bible book forms to the canonical ones.
+     *  \return The mapped name or, if no mapping was found, "bible_book_candidate".
+     */
+    std::string mapToCode(const std::string &bible_book_candidate, const bool verbose = false) const;
+};
 
 
 } // namespace BibleUtil
