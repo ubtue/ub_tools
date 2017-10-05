@@ -986,7 +986,7 @@ bool FileUtil_WriteString(const std::string &path, const std::string &data) {
 }
 
 
-std::unique_ptr<File> FileUtil_OpenForAppeningOrDie(const std::string &filename) {
+std::unique_ptr<File> FileUtil_OpenForAppendingOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "a"));
     if (file->fail())
         Error("can't open \"" + filename + "\" for appending!");
@@ -996,7 +996,7 @@ std::unique_ptr<File> FileUtil_OpenForAppeningOrDie(const std::string &filename)
 
 
 void FileUtil_AppendStringToFile(const std::string &path, const std::string &text) {
-    std::unique_ptr<File> file(FileUtil_OpenForAppeningOrDie(path));
+    std::unique_ptr<File> file(FileUtil_OpenForAppendingOrDie(path));
     if (unlikely(file->write(text.data(), text.size()) != text.size()))
         Error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
 }
@@ -1065,6 +1065,7 @@ void InstallUBTools(const OSSystemType os_system_type, const bool make_install) 
         ExecOrDie(ExecUtil_Which("make"), { "install" });
     else
         ExecOrDie(ExecUtil_Which("make"), {});
+    ExecOrDie(ExecUtil_Which("apt-get"), { "install", "--yes", "mutt" });
 
     Echo("Installed ub_tools.");
 }
