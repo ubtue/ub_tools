@@ -960,7 +960,7 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
         Error("in FileUtil::ConcatFiles: failed to open or create \"" + target_path + "\"!");
 
     size_t total_size(0);
-    for (const auto filename : filenames) {
+    for (const auto &filename : filenames) {
         FileDescriptor source_fd(::open(filename.c_str(), O_RDONLY | O_LARGEFILE));
         if (source_fd == -1)
             Error("in FileUtil::ConcatFiles: failed to open \"" + filename + "\" for reading!");
