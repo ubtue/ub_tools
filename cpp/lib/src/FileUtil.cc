@@ -806,7 +806,7 @@ std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
 }
 
 
-std::unique_ptr<File> OpenForAppeningOrDie(const std::string &filename) {
+std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "a"));
     if (file->fail())
         Error("can't open \"" + filename + "\" for appending!");
@@ -941,7 +941,7 @@ bool FilesDiffer(const std::string &path1, const std::string &path2) {
 
 
 void AppendStringToFile(const std::string &path, const std::string &text) {
-    std::unique_ptr<File> file(OpenForAppeningOrDie(path));
+    std::unique_ptr<File> file(OpenForAppendingOrDie(path));
     if (unlikely(file->write(text.data(), text.size()) != text.size()))
         Error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
 }
