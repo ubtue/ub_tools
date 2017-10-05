@@ -28,10 +28,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
-#include <fcntl.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include "Compiler.h"
 #include "FileDescriptor.h"
@@ -950,12 +948,13 @@ void AppendStringToFile(const std::string &path, const std::string &text) {
 }
 
 
-size_t ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames) {
+size_t ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames,
+                   const mode_t target_mode)
+{
     if (filenames.empty())
         Error("in FileUtil::ConcatFiles: no files to concatenate!");
 
-    FileDescriptor target_fd(::open(target_path.c_str(), O_WRONLY | O_CREAT | O_LARGEFILE | O_TRUNC,
-                                    S_IRUSR | S_IWUSR));
+    FileDescriptor target_fd(::open(target_path.c_str(), O_WRONLY | O_CREAT | O_LARGEFILE | O_TRUNC, target_mode));
     if (target_fd == -1)
         Error("in FileUtil::ConcatFiles: failed to open or create \"" + target_path + "\"!");
 

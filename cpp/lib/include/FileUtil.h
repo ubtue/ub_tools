@@ -35,6 +35,7 @@
 #include <vector>
 #include <cstdio>
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "File.h"
@@ -383,7 +384,8 @@ void AppendStringToFile(const std::string &path, const std::string &text);
 
 
 // \return The size of the concatenated result.
-size_t ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames);
+size_t ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames,
+                   const mode_t target_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 
 
 } // namespace FileUtil
