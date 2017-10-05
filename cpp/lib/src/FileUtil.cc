@@ -946,5 +946,20 @@ void AppendStringToFile(const std::string &path, const std::string &text) {
         Error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
 }
 
+void AppendFileToFile(const std::string &path_source, const std::string &path_target) {
+    std::string string_source = "";
+    if (unlikely(!ReadString(path_source, &string_source)))
+        Error("in FileUtil::AppendFileToFile: failed to read file: \"" + path_source + "\"!");
+
+    AppendStringToFile(path_target, string_source);
+}
+
+void ConcatenateFiles(std::vector<std::string> * const filenames_source, const std::string &filename_target) {
+    WriteString(filename_target, "");
+    for (auto filename_source : *filenames_source) {
+        AppendFileToFile(filename_source, filename_target);
+    }
+}
+
 
 } // namespace FileUtil
