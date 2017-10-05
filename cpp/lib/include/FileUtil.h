@@ -385,6 +385,8 @@ void AppendFileToFile(const std::string &path_source, const std::string &path_ta
 
 void ConcatenateFiles(std::vector<std::string> * const filenames_source, const std::string &filename_target);
 
+void CreateSymlink(const std::string &target_filename, const std::string &link_filename);
+
 } // namespace FileUtil
 
 
