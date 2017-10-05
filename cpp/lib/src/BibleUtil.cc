@@ -19,7 +19,6 @@
  */
 #include "BibleUtil.h"
 #include <iostream>
-#include <unordered_map>
 #include <cctype>
 #include "Locale.h"
 #include "MapIO.h"
@@ -32,7 +31,7 @@ namespace BibleUtil {
 
 
 namespace {
-    
+
 
 // Checks whether the new reference comes strictly after already existing references.
 bool NewReferenceIsCompatibleWithExistingReferences(
@@ -46,7 +45,7 @@ bool NewReferenceIsCompatibleWithExistingReferences(
 
     return true;
 }
-        
+
 
 bool IsNumericString(const std::string &s) {
     for (const char ch : s) {
@@ -196,7 +195,7 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
 
 
 enum State { INITIAL, CHAPTER1, CHAPTER2, VERSE1, VERSE2 };
-    
+
 
 } // unnamed namespace
 
@@ -420,19 +419,16 @@ void SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candid
 }
 
 
-/** \brief Map from noncanonical bible book forms to the canonical ones.
- *  \return The mapped name or, if no mapping was found, "bible_book_candidate".
- */
-std::string CanoniseBibleBook(const bool verbose,
-                              const std::string &books_of_the_bible_to_canonical_form_map_filename,
-                              const std::string &bible_book_candidate)
-{
-    std::unordered_map<std::string, std::string> books_of_the_bible_to_canonical_form_map;
+BibleBookCanoniser::BibleBookCanoniser(const std::string &books_of_the_bible_to_canonical_form_map_filename) {
     MapIO::DeserialiseMap(books_of_the_bible_to_canonical_form_map_filename,
-                          &books_of_the_bible_to_canonical_form_map);
+                          &books_of_the_bible_to_canonical_form_map_);
+}
+
+
+std::string BibleBookCanoniser::canonise(const std::string &bible_book_candidate, const bool verbose) const {
     const auto non_canonical_form_and_canonical_form(
-        books_of_the_bible_to_canonical_form_map.find(bible_book_candidate));
-    if (non_canonical_form_and_canonical_form != books_of_the_bible_to_canonical_form_map.end()) {
+        books_of_the_bible_to_canonical_form_map_.find(bible_book_candidate));
+    if (non_canonical_form_and_canonical_form != books_of_the_bible_to_canonical_form_map_.end()) {
         if (verbose)
             std::cerr << "Replacing \"" << bible_book_candidate << "\" with \""
                       << non_canonical_form_and_canonical_form->second << "\".\n";

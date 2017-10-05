@@ -23,6 +23,7 @@
 
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <utility>
 
 
@@ -54,12 +55,16 @@ void SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candid
                                        std::string * const chapters_and_verses_candidate);
 
 
-/** \brief Map from noncanonical bible book forms to the canonical ones.
- *  \return The mapped name or, if no mapping was found, "bible_book_candidate".
- */
-std::string CanoniseBibleBook(const bool verbose,
-                              const std::string &books_of_the_bible_to_canonical_form_map_filename,
-                              const std::string &bible_book_candidate);
+class BibleBookCanoniser {
+    std::unordered_map<std::string, std::string> books_of_the_bible_to_canonical_form_map_;
+public:
+    explicit BibleBookCanoniser(const std::string &books_of_the_bible_to_canonical_form_map_filename);
+
+    /** \brief Map from noncanonical bible book forms to the canonical ones.
+     *  \return The mapped name or, if no mapping was found, "bible_book_candidate".
+     */
+    std::string canonise(const std::string &bible_book_candidate, const bool verbose = false) const;
+};
 
 
 std::string MapBibleBookToCode(const bool verbose, const std::string &bible_book_candidate,
