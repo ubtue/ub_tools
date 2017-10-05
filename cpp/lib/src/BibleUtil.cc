@@ -1,4 +1,4 @@
-/** \file   BibleReferenceParser.cc
+/** \file   BibleUtil.cc
  *  \brief  Implementation of a bible reference parser that generates numeric code ranges.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
@@ -17,14 +17,18 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "BibleReferenceParser.h"
+#include "BibleUtil.h"
+#include <iostream>
+#include <unordered_map>
 #include <cctype>
 #include "Locale.h"
+#include "MapIO.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
 
-namespace BibleReferenceParser {
+namespace BibleUtil {
 
 
 namespace {
@@ -341,4 +345,119 @@ bool CanParseBibleReference(const std::string &bib_ref_candidate) {
 }
 
 
-} // namespace BibleReferenceParser
+// Squeezes out spaces after a leading number, e.g. "1. mos" => "1.mos" or "1 mos" => "1mos".
+static std::string CanoniseLeadingNumber(const std::string &bible_reference_candidate) {
+    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\d\\.?\\s+\\S+"));
+    std::string err_msg;
+    if (not matcher->matched(bible_reference_candidate, &err_msg)) {
+        if (not err_msg.empty())
+            Error("unexpected reg ex error: " + err_msg);
+        return bible_reference_candidate;
+    }
+
+    std::string ordinal_string;
+    ordinal_string = bible_reference_candidate[0];
+    size_t rest_start(1);
+    if (bible_reference_candidate[1] == '.') {
+        ordinal_string += '.';
+        ++rest_start;
+    }
+
+    while (isspace(bible_reference_candidate[rest_start]))
+        ++rest_start;
+
+    return ordinal_string + bible_reference_candidate.substr(rest_start);
+}
+
+
+static std::string InsertSpaceAtFirstLetterDigitBoundary(const std::string &s) {
+    if (s.empty())
+        return s;
+
+    std::string retval;
+    bool found_first_boundary(false);
+    auto ch(s.cbegin());
+    retval += *ch;
+    while (++ch != s.cend()) {
+        if (not found_first_boundary and (std::isalpha(*(ch - 1)) and std::isdigit(*ch))) {
+            found_first_boundary = true;
+            retval += ' ';
+        }
+
+        retval += *ch;
+    }
+
+    return retval;
+}
+
+
+void SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candidate,
+                                       std::string * const book_candidate,
+                                       std::string * const chapters_and_verses_candidate)
+{
+    book_candidate->clear();
+    chapters_and_verses_candidate->clear();
+
+    std::string normalised_bible_reference_candidate(bible_reference_candidate);
+    normalised_bible_reference_candidate = CanoniseLeadingNumber(InsertSpaceAtFirstLetterDigitBoundary(
+        StringUtil::RemoveChars(" \t", &normalised_bible_reference_candidate)));
+    const size_t len(normalised_bible_reference_candidate.length());
+    if (len <= 3)
+        *book_candidate = normalised_bible_reference_candidate;
+    else if (isdigit(normalised_bible_reference_candidate[len - 1])
+             or (isalpha(normalised_bible_reference_candidate[len - 1])
+                 and isdigit(normalised_bible_reference_candidate[len - 2])))
+    {
+        const size_t last_space_pos(normalised_bible_reference_candidate.rfind(' '));
+        if (last_space_pos == std::string::npos)
+            *book_candidate = normalised_bible_reference_candidate;
+        else {
+            *book_candidate = normalised_bible_reference_candidate.substr(0, last_space_pos);
+            *chapters_and_verses_candidate = normalised_bible_reference_candidate.substr(last_space_pos + 1);
+        }
+    } else
+        *book_candidate = normalised_bible_reference_candidate;
+}
+
+
+/** \brief Map from noncanonical bible book forms to the canonical ones.
+ *  \return The mapped name or, if no mapping was found, "bible_book_candidate".
+ */
+std::string CanoniseBibleBook(const bool verbose,
+                              const std::string &books_of_the_bible_to_canonical_form_map_filename,
+                              const std::string &bible_book_candidate)
+{
+    std::unordered_map<std::string, std::string> books_of_the_bible_to_canonical_form_map;
+    MapIO::DeserialiseMap(books_of_the_bible_to_canonical_form_map_filename,
+                          &books_of_the_bible_to_canonical_form_map);
+    const auto non_canonical_form_and_canonical_form(
+        books_of_the_bible_to_canonical_form_map.find(bible_book_candidate));
+    if (non_canonical_form_and_canonical_form != books_of_the_bible_to_canonical_form_map.end()) {
+        if (verbose)
+            std::cerr << "Replacing \"" << bible_book_candidate << "\" with \""
+                      << non_canonical_form_and_canonical_form->second << "\".\n";
+        return non_canonical_form_and_canonical_form->second;
+    }
+
+    return bible_book_candidate;
+}
+
+
+std::string MapBibleBookToCode(const bool verbose, const std::string &bible_book_candidate,
+                               const std::string &books_of_the_bible_to_code_map_filename)
+{
+    std::unordered_map<std::string, std::string> bible_books_to_codes_map;
+    MapIO::DeserialiseMap(books_of_the_bible_to_code_map_filename, &bible_books_to_codes_map);
+    const auto bible_book_and_code(bible_books_to_codes_map.find(bible_book_candidate));
+    if (bible_book_and_code == bible_books_to_codes_map.end()) {
+        if (verbose)
+            std::cerr << "No mapping from \"" << bible_book_candidate << "\" to a book code was found!\n";
+
+        std::exit(EXIT_FAILURE); // Unknown bible book!
+    }
+
+    return bible_book_and_code->second;
+}
+
+
+} // namespace BibleUtil
