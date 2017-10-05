@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
         Usage();
 
     const std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(argv[1]));
-    const std::unique_ptr<File> output(append ? FileUtil::OpenForAppeningOrDie(argv[2])
+    const std::unique_ptr<File> output(append ? FileUtil::OpenForAppendingOrDie(argv[2])
                                               : FileUtil::OpenOutputFileOrDie(argv[2]));
 
     try {
