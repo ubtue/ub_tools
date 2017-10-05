@@ -439,13 +439,14 @@ std::string BibleBookCanoniser::canonise(const std::string &bible_book_candidate
 }
 
 
-std::string MapBibleBookToCode(const bool verbose, const std::string &bible_book_candidate,
-                               const std::string &books_of_the_bible_to_code_map_filename)
-{
-    std::unordered_map<std::string, std::string> bible_books_to_codes_map;
-    MapIO::DeserialiseMap(books_of_the_bible_to_code_map_filename, &bible_books_to_codes_map);
-    const auto bible_book_and_code(bible_books_to_codes_map.find(bible_book_candidate));
-    if (bible_book_and_code == bible_books_to_codes_map.end()) {
+BibleBookToCodeMapper::BibleBookToCodeMapper(const std::string &books_of_the_bible_to_code_map_filename) {
+    MapIO::DeserialiseMap(books_of_the_bible_to_code_map_filename, &bible_books_to_codes_map_);
+}
+
+
+std::string BibleBookToCodeMapper::mapToCode(const std::string &bible_book_candidate, const bool verbose) const {
+    const auto bible_book_and_code(bible_books_to_codes_map_.find(bible_book_candidate));
+    if (bible_book_and_code == bible_books_to_codes_map_.end()) {
         if (verbose)
             std::cerr << "No mapping from \"" << bible_book_candidate << "\" to a book code was found!\n";
 
