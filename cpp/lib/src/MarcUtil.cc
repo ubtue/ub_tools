@@ -20,6 +20,9 @@
  */
 
 #include "MarcUtil.h"
+#include "FileLocker.h"
+#include "MarcReader.h"
+#include "MarcWriter.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 
@@ -111,6 +114,29 @@ bool HasSubfieldWithValue(const MarcRecord &marc_record, const std::string &tag,
     }
 
     return false;
+}
+
+
+bool HasTagAndSubfield(const MarcRecord &marc_record, const std::string &tag, const char subfield_code) {
+    std::vector<size_t> field_indices;
+    marc_record.getFieldIndices(tag, &field_indices);
+    for (const size_t index : field_indices) {
+        const Subfields subfields(marc_record.getFieldData(index));
+        if (subfields.hasSubfield(subfield_code))
+            return true;
+    }
+
+    return false;
+}
+
+
+void FileLockedComposeAndWriteRecord(MarcWriter * const marc_writer, MarcRecord * const record) {
+    FileLocker file_locker(&(marc_writer->getFile()), FileLocker::WRITE_ONLY);
+    if (not (marc_writer->getFile().seek(0, SEEK_END)))
+        Error("in FileLockedComposeAndWriteRecord: failed to seek to the end of \""
+              + marc_writer->getFile().getPath() + "\"!");
+    marc_writer->write(*record);
+    marc_writer->getFile().flush();
 }
 
 

@@ -40,7 +40,7 @@ namespace TextUtil {
 
 
 /** \brief Strips HTML tags and converts entities. */
-std::string ExtractText(const std::string &html);
+std::string ExtractTextFromHtml(const std::string &html);
 
 
 /** \brief Recognises roman numerals up to a few thousand. */
