@@ -29,6 +29,7 @@
 #include <stack>
 #include <vector>
 #include <cassert>
+#include <climits>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
@@ -64,7 +65,7 @@ __attribute__((noreturn)) void Error(const std::string &msg) {
 
 
 __attribute__((noreturn)) void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--ub-tools-only] vufind_system_type\n";
+    std::cerr << "Usage: " << ::progname << " --ub-tools-only|(vufind_system_type [--omit-cronjobs])\n";
     std::cerr << "       where \"vufind_system_type\" must be either \"krimdok\" or \"ixtheo\".\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -76,12 +77,73 @@ void Echo(const std::string &log_message) {
 }
 
 
+// Creates a symlink called "link_filename" pointing to "target_filename".
+void FileUtil_CreateSymlink(const std::string &target_filename, const std::string &link_filename) {
+    if (unlikely(::unlink(link_filename.c_str()) == -1 and errno != ENOENT /* "No such file or directory." */))
+        throw std::runtime_error("unlink(2) of \"" + link_filename + "\" failed: " + std::string(::strerror(errno)));
+    if (unlikely(::symlink(target_filename.c_str(), link_filename.c_str()) != 0))
+        throw std::runtime_error("failed to create symlink \"" + link_filename + "\" => \"" + target_filename + "\"! ("
+                           + std::string(::strerror(errno)) + ")");
+}
+
+
+// DirnameAndBasename -- Split a path into a directory name part and filename part.
+//
+void FileUtil_DirnameAndBasename(const std::string &path, std::string * const dirname, std::string * const basename) {
+    if (unlikely(path.length() == 0)) {
+        *dirname = *basename = "";
+        return;
+    }
+
+    std::string::size_type last_slash_pos = path.rfind('/');
+    if (last_slash_pos == std::string::npos) {
+        *dirname  = "";
+        *basename = path;
+    } else {
+        *dirname  = path.substr(0, last_slash_pos);
+        *basename = path.substr(last_slash_pos + 1);
+    }
+}
+
+
+// Exists -- test whether a file exists
+bool FileUtil_Exists(const std::string &path) {
+    int access_status = ::access(path.c_str(), F_OK);
+    return (access_status == 0);
+}
+
+
+std::string FileUtil_GetCurrentWorkingDirectory() {
+    char buf[PATH_MAX];
+    const char * const current_working_dir(::getcwd(buf, sizeof buf));
+    if (unlikely(current_working_dir == nullptr))
+        throw std::runtime_error("in FileUtil::GetCurrentWorkingDirectory: getcwd(3) failed ("
+                                 + std::string(::strerror(errno)) + ")!");
+    return current_working_dir;
+}
+
+
 off_t FileUtil_GetFileSize(const std::string &path) {
     struct stat stat_buf;
     if (::stat(path.c_str(), &stat_buf) == -1)
         Error("in FileUtil::GetFileSize: can't stat(2) \"" + path + "\"!");
 
     return stat_buf.st_size;
+}
+
+
+bool FileUtil_IsMountPoint(const std::string &path) {
+    struct stat statbuf;
+    if (::stat(path.c_str(), &statbuf) == -1)
+        Error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "\" failed! (" + std::string(::strerror(errno))
+              + ")");
+
+    struct stat parent_statbuf;
+    if (::stat((path + "/..").c_str(), &parent_statbuf) == -1)
+        Error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "/..\" failed! (" + std::string(::strerror(errno))
+              + ")");
+
+    return statbuf.st_dev != parent_statbuf.st_dev;
 }
 
 
@@ -119,6 +181,16 @@ size_t StringUtil_FindCaseInsensitive(const std::string &haystack, const std::st
 
 
 enum VuFindSystemType { KRIMDOK, IXTHEO };
+
+std::string VuFindSystemTypeToString(VuFindSystemType vufind_system_type) {
+    if (vufind_system_type == KRIMDOK)
+        return "krimdok";
+    else if (vufind_system_type == IXTHEO)
+        return "ixtheo";
+    else
+        Error("invalid VuFind system type!");
+}
+
 enum OSSystemType { UBUNTU, CENTOS };
 
 
@@ -318,6 +390,7 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &argum
 
 
 const std::string UB_TOOLS_DIRECTORY("/usr/local/ub_tools");
+const std::string VUFIND_DIRECTORY("/usr/local/vufind");
 
 
 void ChangeDirectoryOrDie(const std::string &new_working_directory) {
@@ -334,6 +407,26 @@ std::string GetPassword(const std::string &prompt) {
         Error("failed to read the password from the terminal!");
 
     return password;
+}
+
+
+
+class TemporaryChDir {
+    std::string old_working_dir_;
+public:
+    explicit TemporaryChDir(const std::string &new_working_dir);
+    ~TemporaryChDir();
+};
+
+
+TemporaryChDir::TemporaryChDir(const std::string &new_working_dir)
+    : old_working_dir_(FileUtil_GetCurrentWorkingDirectory())
+{
+    ChangeDirectoryOrDie(new_working_dir);
+}
+
+TemporaryChDir::~TemporaryChDir() {
+    ChangeDirectoryOrDie(old_working_dir_);
 }
 
 
@@ -994,6 +1087,14 @@ std::unique_ptr<File> FileUtil_OpenForAppendingOrDie(const std::string &filename
     return file;
 }
 
+std::unique_ptr<File> FileUtil_OpenOutputFileOrDie(const std::string &filename) {
+    std::unique_ptr<File> file(new File(filename, "w"));
+    if (file->fail())
+        Error("can't open \"" + filename + "\" for writing!");
+
+    return file;
+}
+
 
 void FileUtil_AppendStringToFile(const std::string &path, const std::string &text) {
     std::unique_ptr<File> file(FileUtil_OpenForAppendingOrDie(path));
@@ -1001,24 +1102,44 @@ void FileUtil_AppendStringToFile(const std::string &path, const std::string &tex
         Error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
 }
 
+void FileUtil_AppendFileToFile(const std::string &path_source, const std::string &path_target) {
+    std::string string_source = "";
+    if (unlikely(!FileUtil_ReadString(path_source, &string_source)))
+        Error("in FileUtil::AppendFileToFile: failed to read file: \"" + path_source + "\"!");
+
+    FileUtil_AppendStringToFile(path_target, string_source);
+}
+
+void FileUtil_ConcatenateFiles(std::vector<std::string> * const filenames_source, const std::string &filename_target) {
+    FileUtil_WriteString(filename_target, "");
+    for (auto filename_source : *filenames_source) {
+        FileUtil_AppendFileToFile(filename_source, filename_target);
+    }
+}
+
 
 void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
     const std::string MOUNT_POINT("/mnt/ZE020150/");
     if (not FileUtil_MakeDirectory(MOUNT_POINT))
         Error("failed to create mount point \"" + MOUNT_POINT + "\"!");
-    const std::string role_account(vufind_system_type == KRIMDOK ? "qubob15" : "qubob16");
-    const std::string password(GetPassword("Enter password for " + role_account));
-    const std::string credentials_file("/root/.smbcredentials");
-    if (unlikely(not FileUtil_WriteString(credentials_file, "username=" + role_account + "\npassword=" + password
-                                          + "\n")))
-        Error("failed to write " + credentials_file + "!");
-    if (not FileContainsLineStartingWith("/etc/fstab", "//sn00.zdv.uni-tuebingen.de/ZE020150"))
-        FileUtil_AppendStringToFile("/etc/fstab",
-                                    "//sn00.zdv.uni-tuebingen.de/ZE020150 " + MOUNT_POINT + " cifs "
-                                    "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
-                                    "gid=root,auto 0 0");
-    ExecOrDie("/bin/mount", { MOUNT_POINT });
-    Echo("Successfully mounted the department drive.");
+
+    if (FileUtil_IsMountPoint(MOUNT_POINT))
+        Echo("Department drive already mounted");
+    else {
+        const std::string role_account(vufind_system_type == KRIMDOK ? "qubob15" : "qubob16");
+        const std::string password(GetPassword("Enter password for " + role_account));
+        const std::string credentials_file("/root/.smbcredentials");
+        if (unlikely(not FileUtil_WriteString(credentials_file, "username=" + role_account + "\npassword=" + password
+                                              + "\n")))
+            Error("failed to write " + credentials_file + "!");
+        if (not FileContainsLineStartingWith("/etc/fstab", "//sn00.zdv.uni-tuebingen.de/ZE020150"))
+            FileUtil_AppendStringToFile("/etc/fstab",
+                                        "//sn00.zdv.uni-tuebingen.de/ZE020150 " + MOUNT_POINT + " cifs "
+                                        "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
+                                        "gid=root,auto 0 0");
+        ExecOrDie("/bin/mount", { MOUNT_POINT });
+        Echo("Successfully mounted the department drive.");
+    }
 }
 
 
@@ -1065,7 +1186,6 @@ void InstallUBTools(const OSSystemType os_system_type, const bool make_install) 
         ExecOrDie(ExecUtil_Which("make"), { "install" });
     else
         ExecOrDie(ExecUtil_Which("make"), {});
-    ExecOrDie(ExecUtil_Which("apt-get"), { "install", "--yes", "mutt" });
 
     Echo("Installed ub_tools.");
 }
@@ -1888,7 +2008,8 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
     }
 
     FileUtil_AutoTempFile crontab_temp_file1;
-    ExecOrDie(ExecUtil_Which("crontab"), { "-l" }, "", crontab_temp_file1.getFilePath());
+    // crontab -l returns error code if crontab is empty, so dont use ExecOrDie!!!
+    ExecUtil_Exec(ExecUtil_Which("crontab"), { "-l" }, "", crontab_temp_file1.getFilePath());
     FileUtil_AutoTempFile crontab_temp_file2;
     ExecOrDie(ExecUtil_Which("sed"),
               { "-e", "/# START VUFIND AUTOGENERATED/,/# END VUFIND AUTOGENERATE/d",
@@ -1896,21 +2017,106 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
 
     std::string cronjobs("# START VUFIND AUTOGENERATED\n");
     if (vufind_system_type == KRIMDOK)
-        cronjobs += ReadStringOrDie("data/installer/krimdok.cronjobs");
+        cronjobs += ReadStringOrDie(UB_TOOLS_DIRECTORY + "/cpp/data/installer/krimdok.cronjobs");
     else
-        cronjobs += MiscUtil_ExpandTemplate(ReadStringOrDie("data/installer/ixtheo.cronjobs"), names_to_values_map);
-    cronjobs += "# END VUFIND AUTOGENERATE\n";
+        cronjobs += MiscUtil_ExpandTemplate(ReadStringOrDie(UB_TOOLS_DIRECTORY + "/cpp/data/installer/ixtheo.cronjobs"), names_to_values_map);
+    cronjobs += "# END VUFIND AUTOGENERATED\n";
     FileUtil_AppendStringToFile(crontab_temp_file2.getFilePath(), cronjobs);
     ExecOrDie(ExecUtil_Which("crontab"), { crontab_temp_file2.getFilePath() });
     Echo("Installed cronjobs.");
 }
 
 
-void InstallVuFind(const VuFindSystemType vufind_system_type) {
-    const std::string git_url(vufind_system_type == KRIMDOK ? "https://github.com/ubtue/krimdok.git"
-                                                            : "https://github.com/ubtue/ixtheo.git");
-    ExecOrDie(ExecUtil_Which("git"), { "clone", git_url, UB_TOOLS_DIRECTORY });
-    Echo("Downloaded VuFind git repository.");
+void GenerateXml(const std::string &filename_source, const std::string &filename_target) {
+    std::string dirname_source, basename_source;
+    FileUtil_DirnameAndBasename(filename_source, &dirname_source, &basename_source);
+
+    Echo("Generating " + filename_target + " from " + basename_source);
+    ExecUtil_Exec(ExecUtil_Which("xmllint"), { "--xinclude", "--format", filename_source }, "", filename_target);
+}
+
+
+void GitAssumeUnchanged(const std::string &filename) {
+    std::string dirname, basename;
+    FileUtil_DirnameAndBasename(filename, &dirname, &basename);
+    TemporaryChDir tmp(dirname);
+    ExecOrDie(ExecUtil_Which("git"), { "update-index", "--assume-unchanged", filename });
+}
+
+void GitCheckout(const std::string &filename) {
+    std::string dirname, basename;
+    FileUtil_DirnameAndBasename(filename, &dirname, &basename);
+    TemporaryChDir tmp(dirname);
+    ExecOrDie(ExecUtil_Which("git"), { "checkout", filename });
+}
+
+void UseCustomFileIfExists(std::string filename_custom, std::string filename_default) {
+    if (FileUtil_Exists(filename_custom)) {
+        GitAssumeUnchanged(filename_default);
+        FileUtil_CreateSymlink(filename_custom, filename_default);
+    } else {
+        GitCheckout(filename_default);
+    }
+}
+
+
+void DownloadVuFind() {
+    if (FileUtil_IsDirectory(VUFIND_DIRECTORY)) {
+        Echo("VuFind directory already exists, skipping download");
+    } else {
+        const std::string git_url("https://github.com/ubtue/tufind.git");
+        ExecOrDie(ExecUtil_Which("git"), { "clone", git_url, VUFIND_DIRECTORY });
+        Echo("Downloaded VuFind git repository.");
+    }
+}
+
+/**
+ * Configure VuFind system
+ * - Solr Configuration
+ * - Schema Fields & Types
+ * - solrmarc settings
+ * - alphabetical browse
+ * - cronjobs
+ *
+ * Writes a file into vufind directory to save configured system type
+ */
+void ConfigureVuFind(const VuFindSystemType vufind_system_type, const bool install_cronjobs) {
+    const std::string vufind_system_type_string = VuFindSystemTypeToString(vufind_system_type);
+    Echo("Starting configuration for " + vufind_system_type_string);
+    const std::string dirname_solr_conf = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
+
+    Echo("SOLR Configuration (solrconfig.xml)");
+    const std::string filename_solr_conf_local = dirname_solr_conf + "/solrconfig.xml";
+    GitAssumeUnchanged(filename_solr_conf_local);
+    FileUtil_CreateSymlink(dirname_solr_conf + "/solrconfig_" + vufind_system_type_string + ".xml", filename_solr_conf_local);
+
+    Echo("SOLR Schema (schema_local_*.xml)");
+    Echo("  (note: if you get XInclude errors, these may be ignored => fallback IS defined and working!!!)");
+    GenerateXml(dirname_solr_conf + "/schema_" + vufind_system_type_string + "_types.xml", dirname_solr_conf + "/schema_local_types.xml");
+    GenerateXml(dirname_solr_conf + "/schema_" + vufind_system_type_string + "_fields.xml", dirname_solr_conf + "/schema_local_fields.xml");
+
+    Echo("solrmarc (marc_local.properties)");
+    const std::string dirname_solrmarc_conf = VUFIND_DIRECTORY + "/import";
+    const std::string filename_solrmarc_conf_local = dirname_solrmarc_conf + "/marc_local.properties";
+    GitAssumeUnchanged(filename_solrmarc_conf_local);
+    std::vector<std::string> filenames_solrmarc_conf_custom = {};
+    filenames_solrmarc_conf_custom.push_back(dirname_solrmarc_conf + "/marc_tufind.properties");
+    filenames_solrmarc_conf_custom.push_back(dirname_solrmarc_conf + "/marc_" + vufind_system_type_string + ".properties");
+    FileUtil_ConcatenateFiles(&filenames_solrmarc_conf_custom, filename_solrmarc_conf_local);
+
+    Echo("alphabetical browse");
+    UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh", VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
+    UseCustomFileIfExists(VUFIND_DIRECTORY + "/import/browse-indexing_" + vufind_system_type_string + ".jar", VUFIND_DIRECTORY + "/import/browse-indexing.jar");
+    UseCustomFileIfExists(VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler_" + vufind_system_type_string + ".jar", VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler.jar");
+
+    if (install_cronjobs) {
+        Echo("cronjobs");
+        InstallCronjobs(vufind_system_type);
+    }
+
+    // write configured instance type to file
+    FileUtil_WriteString(VUFIND_DIRECTORY + "/tufind.instance", vufind_system_type_string);
+    Echo(vufind_system_type_string + " configuration completed!");
 }
 
 
@@ -1918,26 +2124,34 @@ int main(int argc, char **argv) {
     ::progname = argv[0];
 
     bool ub_tools_only(false);
-    if (argc == 3) {
-        if (std::strcmp("--ub-tools-only", argv[1]) != 0)
-            Usage();
-        ub_tools_only = true;
-        --argc, ++argv;
-    }
+    VuFindSystemType vufind_system_type;
+    bool omit_cronjobs(false);
 
-    if (argc != 2)
+    if (argc < 2 || argc > 3)
         Usage();
+
+    if (std::strcmp("--ub-tools-only", argv[1]) == 0) {
+        ub_tools_only = true;
+        if (argc > 2)
+            Usage();
+    } else {
+        if (::strcasecmp(argv[1], "krimdok") == 0)
+            vufind_system_type = KRIMDOK;
+        else if (::strcasecmp(argv[1], "ixtheo") == 0)
+            vufind_system_type = IXTHEO;
+        else
+            Usage();
+
+        if (argc == 3) {
+            if (std::strcmp("--omit-cronjobs", argv[2]) == 0)
+                omit_cronjobs = true;
+            else
+                Usage();
+        }
+    }
 
     if (::geteuid() != 0)
         Error("you must execute this program as root!");
-
-    VuFindSystemType vufind_system_type;
-    if (::strcasecmp(argv[1], "krimdok") == 0)
-        vufind_system_type = KRIMDOK;
-    else if (::strcasecmp(argv[1], "ixtheo") == 0)
-        vufind_system_type = IXTHEO;
-    else
-        Error("system type must be either \"krimdok\" or \"ixtheo\"!");
 
     const OSSystemType os_system_type(DetermineOSSystemType());
 
@@ -1946,8 +2160,8 @@ int main(int argc, char **argv) {
             MountDeptDriveOrDie(vufind_system_type);
         InstallUBTools(os_system_type, /* make_install = */ not ub_tools_only);
         if (not ub_tools_only) {
-            InstallCronjobs(vufind_system_type);
-            InstallVuFind(vufind_system_type);
+            DownloadVuFind();
+            ConfigureVuFind(vufind_system_type, !omit_cronjobs);
         }
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
