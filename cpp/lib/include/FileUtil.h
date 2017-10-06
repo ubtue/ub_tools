@@ -386,11 +386,9 @@ bool FilesDiffer(const std::string &path1, const std::string &path2);
 
 void AppendStringToFile(const std::string &path, const std::string &text);
 
-void AppendFileToFile(const std::string &path_source, const std::string &path_target);
-
-void ConcatenateFiles(std::vector<std::string> * const filenames_source, const std::string &filename_target);
 
 void CreateSymlink(const std::string &target_filename, const std::string &link_filename);
+
 
 // \return The size of the concatenated result.
 size_t ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames,
