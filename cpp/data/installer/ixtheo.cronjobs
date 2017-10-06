@@ -4,21 +4,15 @@ BSZ_DATEN=/usr/local/ub_tools/bsz_daten
 BIN=/usr/local/bin
 EMAIL=ixtheo-team@ub.uni-tuebingen.de
 LOG_DIR=/var/log/krimdok
-0 */4 * * * cd \"$BSZ_DATEN\" && \"$BIN/black_box_monitor.py\" \"$EMAIL\" "
-    > $LOG_DIR/black_box_monitor.log 2>&1
-0 0 * * * $BIN/log_rotate --max-rotation-count 4 $LOG_DIR/*.log
-0 1 * * * $BIN/full_text_cache_cleaner 100 > $LOG_DIR/full_text_cache_cleaner.log 2>&1
-0 2 * * * cd \"$BSZ_DATEN\" && \"$BIN/purge_old_data.py\" \"$EMAIL\" > $LOG_DIR/purge_old_data.log 2>&1
-0 3 * * * cd \"$BSZ_DATEN\" && \"$BIN/fetch_marc_updates.py\" \"$EMAIL\" "
-    > $LOG_DIR/fetch_marc_updates.log 2>&1
-30 3 * * * cd \"$BSZ_DATEN\" && \"$BIN/merge_differential_and_full_marc_updates\" \"$EMAIL\" "
-    > $LOG_DIR/merge_differential_and_full_marc_updates.log 2>&1
-0 4 * * * cd \"$BSZ_DATEN\" && \"$BIN/create_refterm_file.py\" \"$EMAIL\" 2>&1
-0 5 * * * cd \"$BSZ_DATEN\" && \"$BIN/initiate_marc_pipeline.py\" \"$EMAIL\" "
-    \"$BIN/ixtheo_marc_pipeline_fifo.sh\" > $LOG_DIR/initiate_marc_pipeline.log 2>&1
-0 22 * * * $BIN/new_journal_alert ixtheo {ixtheo_host} \"IxTheo Team<ixtheo-noreply@uni-tuebingen.de\" "
-    \"IxTheo Subscriptions\"
-0 23 * * * $BIN/new_journal_alert relbib {relbib_host} ""\"Relbib Team<relbib-noreply@uni-tuebingen.de>\" "
-    \"RelBib Subscriptions\"
-0 24 * * * $BIN/update_tad_email_acl.sh \"$EMAIL\"
-0 21 * * 7 $VUFIND_HOME/solr.sh restart
+0 */4 * * * cd "$BSZ_DATEN" && "$BIN/black_box_monitor.py" "$EMAIL" > "$LOG_DIR/black_box_monitor.log" 2>&1
+0 0 * * * "$BIN/log_rotate" --max-rotation-count 4 "$LOG_DIR/*.log"
+0 0 * * * "$BIN/update_tad_email_acl.sh" "$EMAIL"
+0 1 * * * "$BIN/full_text_cache_cleaner" 100 > "$LOG_DIR/full_text_cache_cleaner.log" 2>&1
+0 2 * * * cd "$BSZ_DATEN" && "$BIN/purge_old_data.py" "$EMAIL" > "$LOG_DIR/purge_old_data.log" 2>&1
+0 3 * * * cd "$BSZ_DATEN" && "$BIN/fetch_marc_updates.py" "$EMAIL" > "$LOG_DIR/fetch_marc_updates.log" 2>&1
+30 3 * * * cd "$BSZ_DATEN" && "$BIN/merge_differential_and_full_marc_updates" "$EMAIL" > "$LOG_DIR/merge_differential_and_full_marc_updates.log" 2>&1
+0 4 * * * cd "$BSZ_DATEN" && "$BIN/create_refterm_file.py" "$EMAIL" 2>&1
+0 5 * * * cd "$BSZ_DATEN" && "$BIN/initiate_marc_pipeline.py" "$EMAIL" "$BIN/ixtheo_marc_pipeline_fifo.sh" > "$LOG_DIR/initiate_marc_pipeline.log" 2>&1
+0 21 * * 7 "$VUFIND_HOME/solr.sh" restart
+0 22 * * * "$BIN/new_journal_alert" ixtheo {ixtheo_host} "IxTheo Team<ixtheo-noreply@uni-tuebingen.de" "IxTheo Subscriptions"
+0 23 * * * "$BIN/new_journal_alert" relbib {relbib_host} "Relbib Team<relbib-noreply@uni-tuebingen.de>" "RelBib Subscriptions"
