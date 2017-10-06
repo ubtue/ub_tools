@@ -100,7 +100,7 @@ StartPhase "Drop Records Containing mtex in 935" \
     --output-format=marc-21 \
     --drop 935a:mtex \
     --remove-fields '856u:ixtheo\.de' \
-    --filter-chars 130a:240a:245a '@' >> "${log}" \
+    --filter-chars 130a:240a:245a '@' \
     --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
     --replace 600a:610a:630a:648a:650a:651a:655a /usr/local/var/lib/tuelib/keyword_normalistion.map \
     >> "${log}" 2>&1 && \
