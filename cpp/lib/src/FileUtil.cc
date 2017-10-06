@@ -249,6 +249,16 @@ bool Exists(const std::string &path, std::string * const error_message) {
 }
 
 
+std::string GetCurrentWorkingDirectory() {
+    char buf[PATH_MAX];
+    const char * const current_working_dir(::getcwd(buf, sizeof buf));
+    if (unlikely(current_working_dir == nullptr))
+        throw std::runtime_error("in FileUtil::GetCurrentWorkingDirectory: getcwd(3) failed ("
+                                 + std::string(::strerror(errno)) + ")!");
+    return current_working_dir;
+}
+
+
 namespace {
 
 
@@ -278,12 +288,6 @@ void MakeCanonicalPathList(const char * const path, std::list<std::string> * con
         else
             canonical_path_list->push_back(directory);
     }
-}
-
-
-std::string ErrnoToString(const int error_code) {
-    char buf[1024];
-    return ::strerror_r(error_code, buf, sizeof buf); // GNU version of strerror_r.
 }
 
 
@@ -348,15 +352,6 @@ std::string MakeAbsolutePath(const std::string &reference_path, const std::strin
     canonized_path += relative_basename;
 
     return canonized_path;
-}
-
-
-std::string MakeAbsolutePath(const std::string &relative_path) {
-    char buf[PATH_MAX];
-    const char * const current_working_dir(::getcwd(buf, sizeof buf));
-    if (unlikely(current_working_dir == nullptr))
-        throw std::runtime_error("in FileUtil::MakeAbsolutePath: getcwd(3) failed (" + ErrnoToString(errno) + ")!");
-    return MakeAbsolutePath(std::string(current_working_dir) + "/", relative_path);
 }
 
 
