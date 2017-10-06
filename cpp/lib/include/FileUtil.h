@@ -144,6 +144,9 @@ bool AppendString(const std::string &path, const std::string &data);
 bool Exists(const std::string &path, std::string * const error_message = nullptr);
 
 
+std::string GetCurrentWorkingDirectory();
+
+
 /** \brief  Makes a relative path absolute using an absolute reference path.
  *  \param  reference_path  An absolute path to use as the reference path for "relative_path".
  *  \param  relative_path   The path to make absolute (unless it already starts with a slash).
@@ -156,11 +159,12 @@ std::string MakeAbsolutePath(const std::string &reference_path, const std::strin
 
 
 /** Makes "relative_path" absolute using the current working directory as the reference path. */
-std::string MakeAbsolutePath(const std::string &relative_path);
+inline std::string MakeAbsolutePath(const std::string &relative_path)
+    { return MakeAbsolutePath(GetCurrentWorkingDirectory() + "/", relative_path); }
 
 
 inline std::string MakeAbsolutePath(const char * const relative_path)
-{ return MakeAbsolutePath(std::string(relative_path)); }
+    { return MakeAbsolutePath(std::string(relative_path)); }
 
 
 /** \brief Create an empty file or clear an existing file.
