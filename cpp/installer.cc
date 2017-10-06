@@ -34,6 +34,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -157,6 +158,11 @@ bool FileUtil_ReadString(const std::string &path, std::string * const data) {
     input.read(const_cast<char *>(data->data()), file_size);
     return not input.bad();
 
+}
+
+
+bool FileUtil_Rewind(const int fd) {
+    return ::lseek(fd, 0, SEEK_SET) == 0;
 }
 
 
@@ -836,8 +842,82 @@ File &File::operator<<(const double d) {
 }
 
 
-bool FileUtil_Rewind(const int fd) {
-    return ::lseek(fd, 0, SEEK_SET) == 0;
+class FileDescriptor {
+    int fd_;
+public:
+    FileDescriptor(): fd_(-1) { }
+    explicit FileDescriptor(const int fd): fd_(fd) { }
+
+    /** Creates a duplicate file descriptor using dup(2). */
+    FileDescriptor(const FileDescriptor &rhs);
+
+    ~FileDescriptor() { close();}
+
+    void close();
+
+    bool isValid() const { return fd_ != -1; }
+    bool operator!() const { return fd_ == -1; }
+    operator int() const { return fd_; }
+
+    // Assignment operators:
+    const FileDescriptor &operator=(const FileDescriptor &rhs);
+    const FileDescriptor &operator=(const int new_fd);
+
+    /** \brief   Reliquishes ownership.
+     *  \warning The caller becomes responsible for closing of the returned file descriptor!
+     */
+    int release();
+};
+
+
+FileDescriptor::FileDescriptor(const FileDescriptor &rhs) {
+    if (rhs.fd_ == -1)
+        fd_ = -1;
+    else {
+        fd_ = ::dup(rhs.fd_);
+        if (unlikely(fd_ == -1))
+            throw std::runtime_error("in FileDescriptor::FileDescriptor: dup(2) failed (" + std::to_string(errno) + ")!");
+    }
+}
+
+
+void FileDescriptor::close() {
+    if (unlikely(fd_ != -1))
+        ::close(fd_);
+
+    fd_ = -1;
+}
+
+
+const FileDescriptor &FileDescriptor::operator=(const FileDescriptor &rhs) {
+    // Prevent self-assignment!
+    if (likely(&rhs != this)) {
+        if (unlikely(fd_ != -1))
+            ::close(fd_);
+
+        fd_ = ::dup(rhs.fd_);
+        if (unlikely(fd_ == -1))
+            throw std::runtime_error("in FileDescriptor::operator=: dup(2) failed (" + std::to_string(errno) + ")!");
+    }
+
+    return *this;
+}
+
+
+const FileDescriptor &FileDescriptor::operator=(const int new_fd) {
+    if (unlikely(fd_ != -1))
+        ::close(fd_);
+
+    fd_ = new_fd;
+
+    return *this;
+}
+
+
+int FileDescriptor::release() {
+    const int retval(fd_);
+    fd_ = -1;
+    return retval;
 }
 
 
@@ -1110,11 +1190,35 @@ void FileUtil_AppendFileToFile(const std::string &path_source, const std::string
     FileUtil_AppendStringToFile(path_target, string_source);
 }
 
-void FileUtil_ConcatenateFiles(std::vector<std::string> * const filenames_source, const std::string &filename_target) {
-    FileUtil_WriteString(filename_target, "");
-    for (auto filename_source : *filenames_source) {
-        FileUtil_AppendFileToFile(filename_source, filename_target);
+
+size_t FileUtil_ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames,
+                   const mode_t target_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
+{
+    if (filenames.empty())
+        Error("in FileUtil::ConcatFiles: no files to concatenate!");
+
+    FileDescriptor target_fd(::open(target_path.c_str(), O_WRONLY | O_CREAT | O_LARGEFILE | O_TRUNC, target_mode));
+    if (target_fd == -1)
+        Error("in FileUtil::ConcatFiles: failed to open or create \"" + target_path + "\"!");
+
+    size_t total_size(0);
+    for (const auto &filename : filenames) {
+        FileDescriptor source_fd(::open(filename.c_str(), O_RDONLY | O_LARGEFILE));
+        if (source_fd == -1)
+            Error("in FileUtil::ConcatFiles: failed to open \"" + filename + "\" for reading!");
+
+        struct stat statbuf;
+        if (::fstat(source_fd, &statbuf) == -1)
+            Error("in FileUtil::ConcatFiles: failed to fstat(2) \"" + filename + "\"! ("
+                  + std::string(::strerror(errno)) + ")");
+        const ssize_t count(::sendfile(target_fd, source_fd, nullptr, statbuf.st_size));
+        if (count == -1)
+            Error("in FileUtil::ConcatFiles: failed to append \"" + filename + "\" to \"" + target_path
+                  + "\"! (" + std::string(::strerror(errno)) + ")");
+        total_size += static_cast<size_t>(count);
     }
+
+    return total_size;
 }
 
 
@@ -2099,10 +2203,11 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const bool insta
     const std::string dirname_solrmarc_conf = VUFIND_DIRECTORY + "/import";
     const std::string filename_solrmarc_conf_local = dirname_solrmarc_conf + "/marc_local.properties";
     GitAssumeUnchanged(filename_solrmarc_conf_local);
-    std::vector<std::string> filenames_solrmarc_conf_custom = {};
-    filenames_solrmarc_conf_custom.push_back(dirname_solrmarc_conf + "/marc_tufind.properties");
-    filenames_solrmarc_conf_custom.push_back(dirname_solrmarc_conf + "/marc_" + vufind_system_type_string + ".properties");
-    FileUtil_ConcatenateFiles(&filenames_solrmarc_conf_custom, filename_solrmarc_conf_local);
+    const std::vector<std::string> filenames_solrmarc_conf_custom{
+        dirname_solrmarc_conf + "/marc_tufind.properties",
+        dirname_solrmarc_conf + "/marc_" + vufind_system_type_string + ".properties"
+    };
+    FileUtil_ConcatFiles(filename_solrmarc_conf_local, filenames_solrmarc_conf_custom);
 
     Echo("alphabetical browse");
     UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh", VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
