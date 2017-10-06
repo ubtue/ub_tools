@@ -72,6 +72,7 @@ generate_vufind_translation_files
 get_essay_collection_pdfs
 insert_translation_gaps
 installer
+is_mount_point_test
 iViaCore-mkdep
 json_grep
 jop_grep
