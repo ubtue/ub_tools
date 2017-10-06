@@ -450,7 +450,7 @@ std::string BibleBookToCodeMapper::mapToCode(const std::string &bible_book_candi
         if (verbose)
             std::cerr << "No mapping from \"" << bible_book_candidate << "\" to a book code was found!\n";
 
-        std::exit(EXIT_FAILURE); // Unknown bible book!
+        return ""; // Unknown bible book!
     }
 
     return bible_book_and_code->second;

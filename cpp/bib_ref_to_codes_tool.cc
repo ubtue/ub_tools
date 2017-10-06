@@ -93,7 +93,11 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
 
     BibleUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
     const std::string first_book_code(bible_book_to_code_mapper.mapToCode(starting_bible_book_candidate, verbose));
+    if (first_book_code.empty())
+        Error("failed to map \"" + starting_bible_book_candidate + "\" to a bible code!");
     const std::string second_book_code(bible_book_to_code_mapper.mapToCode(ending_bible_book_candidate, verbose));
+    if (second_book_code.empty())
+        Error("failed to map \"" + ending_bible_book_candidate + "\" to a bible code!");
 
     std::cout << (first_book_code + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH, '0'))
               << (generate_solr_query ? '_' : ':')
@@ -121,6 +125,8 @@ void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query
     book_candidate = bible_book_canoniser.canonise(book_candidate, verbose);
     BibleUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
     const std::string book_code(bible_book_to_code_mapper.mapToCode(book_candidate, verbose));
+    if (book_code.empty())
+        Error("failed to map \"" + book_candidate + "\" to a bible code!");
     if (verbose)
         std::cerr << "book code = \"" << book_code << "\"\n";
     if (chapters_and_verses_candidate.empty()) {
