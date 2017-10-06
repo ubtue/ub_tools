@@ -1,7 +1,7 @@
 /** \brief A test harness for the bible reference parser.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,7 +20,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
-#include "BibleReferenceParser.h"
+#include "BibleUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
 
     const std::string book_code("01");
     std::set<std::pair<std::string, std::string>> start_end;
-    if (not BibleReferenceParser::ParseBibleReference(argv[1], book_code, &start_end)) {
+    if (not BibleUtil::ParseBibleReference(argv[1], book_code, &start_end)) {
         if (argc == 2)
             std::cerr << "Bad bible reference: " << argv[1] << '\n';
         std::exit(EXIT_FAILURE);
