@@ -387,6 +387,9 @@ bool FilesDiffer(const std::string &path1, const std::string &path2);
 void AppendStringToFile(const std::string &path, const std::string &text);
 
 
+void CreateSymlink(const std::string &target_filename, const std::string &link_filename);
+
+
 // \return The size of the concatenated result.
 size_t ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames,
                    const mode_t target_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
