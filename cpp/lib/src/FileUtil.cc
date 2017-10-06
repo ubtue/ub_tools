@@ -986,7 +986,7 @@ bool IsMountPoint(const std::string &path) {
               + ")");
 
     struct stat parent_statbuf;
-    if (::stat(path.c_str(), &parent_statbuf) == -1)
+    if (::stat((path + "/..").c_str(), &parent_statbuf) == -1)
         Error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "/..\" failed! (" + std::string(::strerror(errno))
               + ")");
 
