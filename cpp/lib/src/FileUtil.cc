@@ -1003,4 +1003,19 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
 }
 
 
+bool IsMountPoint(const std::string &path) {
+    struct stat statbuf;
+    if (::stat(path.c_str(), &statbuf) == -1)
+        Error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "\" failed! (" + std::string(::strerror(errno))
+              + ")");
+
+    struct stat parent_statbuf;
+    if (::stat(path.c_str(), &parent_statbuf) == -1)
+        Error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "/..\" failed! (" + std::string(::strerror(errno))
+              + ")");
+
+    return statbuf.st_dev != parent_statbuf.st_dev;
+}
+
+
 } // namespace FileUtil

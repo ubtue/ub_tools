@@ -393,6 +393,9 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
                    const mode_t target_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 
 
+bool IsMountPoint(const std::string &path);
+
+
 } // namespace FileUtil
 
 
