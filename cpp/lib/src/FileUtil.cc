@@ -802,8 +802,8 @@ std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
 }
 
 
-std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename, const bool create_if_not_exists) {
-    std::unique_ptr<File> file(new File(filename, create_if_not_exists ? "a+" : "a"));
+std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
+    std::unique_ptr<File> file(new File(filename, "a"));
     if (file->fail())
         Error("can't open \"" + filename + "\" for appending!");
 
