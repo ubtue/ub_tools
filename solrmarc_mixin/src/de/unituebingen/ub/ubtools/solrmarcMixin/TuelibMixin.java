@@ -1226,13 +1226,28 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Set<String> genres = getValuesOrUnassignedTranslated(record, fieldSpecs, langShortcut);
 
         // Also try to find the code for "Festschrift" in 935$c:
-        final DataField _935Field = (DataField) record.getVariableField("935");
-        if (_935Field != null) {
-            final List<Subfield> cSubfields = _935Field.getSubfields('c');
+        List<VariableField> _935Fields = record.getVariableFields("935");
+        for (final VariableField _935Field : _935Fields) {
+            DataField dataField = (DataField) _935Field;
+            final List<Subfield> cSubfields = dataField.getSubfields('c');
             for (final Subfield cSubfield : cSubfields) {
                 if (cSubfield.toString().equals("fe")) {
                     genres.remove(UNASSIGNED_STRING);
                     genres.add("Festschrift");
+                }
+            }
+        }
+
+        // Also add "Formschlagwort"s from Keywordchains to genre
+        List<VariableField> _689Fields = record.getVariableFields("689");
+        for (final VariableField _689Field : _689Fields) {
+            DataField dataField = (DataField) _689Field;
+            final List<Subfield> qSubfields = dataField.getSubfields('q');
+            for (final Subfield qSubfield : qSubfields) {
+                if (qSubfield.toString().equals("f")) {
+                    final List<Subfield> aSubfields = dataField.getSubfields('a');
+                    for (final Subfield aSubfield : aSubfields)
+                        genres.add(aSubfield.toString());
                 }
             }
         }
