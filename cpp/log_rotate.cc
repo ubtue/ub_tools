@@ -96,11 +96,11 @@ int main(int argc, char *argv[]) {
         file_regex     = argv[2];
     } else { // argc == 4.
         if (StringUtil::StartsWith(argv[1], "--max-rotations=")) {
-            if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--max-rotations="), &max_rotations)
+            if (StringUtil::ToUnsigned(argv[1] + std::strlen("--max-rotations="), &max_rotations)
                 or max_rotations == 0)
                 Error("\"" + std::string(argv[1] + std::strlen("--max-rotations="))
                       + "\" is not a valid maximum rotation count!");
-            else if (not StringUtil::StartsWith(argv[1], "--no-of-lines-to-keep=")) {
+            else if (StringUtil::StartsWith(argv[1], "--no-of-lines-to-keep=")) {
                 if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--no-of-lines-to-keep="), &max_line_count)
                     or max_line_count == 0)
                     Error("\"" + std::string(argv[1] + std::strlen("--no-of-lines-to-keep="))
