@@ -17,7 +17,7 @@ LOG_DIR=/var/log/ixtheo
 30 4 * * * cd "$BSZ_DATEN" && "$BIN/fetch_interlibraryloan_ppns.py" "$EMAIL" 2>&1
 30 5 * * * cd "$BSZ_DATEN" && "$BIN/initiate_marc_pipeline.py" "$EMAIL" "$BIN/ixtheo_marc_pipeline_fifo.sh" > "$LOG_DIR/initiate_marc_pipeline.log" 2>&1
 0 20 * * * "$BIN/generate_beacon_file.py" "$EMAIL" "/usr/local/ub_tools/cpp/data/ixtheo-beacon.header" "$VUFIND_HOME/public/docs/ixtheo-beacon.txt" > "$LOG_DIR/generate_beacon_file.log" 2>&1
-0 21 * * 7 "$VUFIND_HOME/solr.sh" restart
+0 21 * * 7 systemctl restart vufind
 0 22 * * * "$BIN/new_journal_alert" ixtheo {ixtheo_host} "IxTheo Team<ixtheo-noreply@uni-tuebingen.de" "IxTheo Subscriptions"
 30 22 * * * "$BIN/new_journal_alert" relbib {relbib_host} "Relbib Team<relbib-noreply@uni-tuebingen.de>" "RelBib Subscriptions"
 0 23 * * * "$BIN/update_tad_email_acl.sh" "$EMAIL"
