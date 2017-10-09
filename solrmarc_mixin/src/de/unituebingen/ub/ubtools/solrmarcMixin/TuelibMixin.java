@@ -1250,7 +1250,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        if (genre.size() > 1)
+        if (genres.size() > 1)
             genres.remove(UNASSIGNED_STRING);
 
         return genres;
