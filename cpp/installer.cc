@@ -398,6 +398,9 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &argum
 const std::string UB_TOOLS_DIRECTORY("/usr/local/ub_tools");
 const std::string VUFIND_DIRECTORY("/usr/local/vufind");
 
+const std::string INSTALLER_DATA_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/installer");
+const std::string INSTALLER_SCRIPTS_DIRECTORY(INSTALLER_DATA_DIRECTORY + "/scripts");
+
 
 void ChangeDirectoryOrDie(const std::string &new_working_directory) {
     if (::chdir(new_working_directory.c_str()) != 0)
@@ -1271,9 +1274,9 @@ std::string ExecUtil_Which(const std::string &executable_candidate) {
 
 void InstallSoftwareDependencies(const OSSystemType os_system_type) {
     if (os_system_type == UBUNTU)
-        ExecOrDie("data/installer/scripts/install_ubuntu_packages.sh", {});
+        ExecOrDie(INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh", {});
     else
-        ExecOrDie("data/installer/scripts/install_centos_packages.sh", {});
+        ExecOrDie(INSTALLER_SCRIPTS_DIRECTORY + "/install_centos_packages.sh", {});
 }
 
 
@@ -2124,9 +2127,9 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
 
     std::string cronjobs_generated(crontab_block_start + "\n");
     if (vufind_system_type == KRIMDOK)
-        cronjobs_generated += ReadStringOrDie(UB_TOOLS_DIRECTORY + "/cpp/data/installer/krimdok.cronjobs");
+        cronjobs_generated += ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/krimdok.cronjobs");
     else
-        cronjobs_generated += MiscUtil_ExpandTemplate(ReadStringOrDie(UB_TOOLS_DIRECTORY + "/cpp/data/installer/ixtheo.cronjobs"), names_to_values_map);
+        cronjobs_generated += MiscUtil_ExpandTemplate(ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/ixtheo.cronjobs"), names_to_values_map);
     cronjobs_generated += crontab_block_end + "\n";
 
     FileUtil_AutoTempFile crontab_temp_file_new;
@@ -2181,6 +2184,39 @@ void DownloadVuFind() {
     }
 }
 
+
+/**
+ * Configure Solr User
+ * - Create user "solr" as system user if not exists
+ * - Grant permissions on relevant directories
+ */
+void ConfigureSolrUserAndService() {
+    // note: if you wanna change username, dont do it only here, also check vufind.service!
+    const std::string username("solr");
+    const std::string servicename("vufind");
+
+    int user_exists = ExecUtil_Exec(ExecUtil_Which("id"), {"-u", username});
+    if (user_exists == 1) {
+        Echo("Creating solr user...");
+        ExecOrDie(ExecUtil_Which("adduser"), { "--system", "--no-create-home", username });
+    }
+
+    Echo("Setting directory permissions for solr user...");
+    ExecOrDie(ExecUtil_Which("chown"), { "-R", username, VUFIND_DIRECTORY + "/solr" });
+    ExecOrDie(ExecUtil_Which("chown"), { "-R", username, VUFIND_DIRECTORY + "/import" });
+
+    // systemctl: we do enable as well as daemon-reload and restart
+    // to achieve an indepotent installation
+    Echo("Activating solr service...");
+    const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
+    ExecOrDie(ExecUtil_Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
+    ExecOrDie(ExecUtil_Which("cp"), { INSTALLER_DATA_DIRECTORY + "/" + servicename + ".service", SYSTEMD_SERVICE_DIRECTORY + "/" + servicename + ".service" });
+    ExecOrDie(ExecUtil_Which("systemctl"), { "enable", servicename });
+    ExecOrDie(ExecUtil_Which("systemctl"), { "daemon-reload" });
+    ExecOrDie(ExecUtil_Which("systemctl"), { "restart", servicename });
+}
+
+
 /**
  * Configure VuFind system
  * - Solr Configuration
@@ -2225,6 +2261,8 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const bool insta
         Echo("cronjobs");
         InstallCronjobs(vufind_system_type);
     }
+
+    ConfigureSolrUserAndService();
 
     // write configured instance type to file
     FileUtil_WriteString(VUFIND_DIRECTORY + "/tufind.instance", vufind_system_type_string);
