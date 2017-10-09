@@ -33,9 +33,9 @@ const unsigned DEFAULT_MAX_ROTATIONS(5);
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--max-rotations=max_rotations|--no-of-lines-to-keep=max_line_count] regex\n"
+              << " [--max-rotations=max_rotations|--no-of-lines-to-keep=max_line_count] directory file_regex\n"
               << "       where the default for \"max_rotations\" is " << DEFAULT_MAX_ROTATIONS << '\n'
-              << "       and \"regex\" must be a PCRE.  (There is no default for \"max_line_count\".)\n"
+              << "       and \"file_regex\" must be a PCRE.  (There is no default for \"max_line_count\".)\n"
               << "       When using --no-of-lines-to-keep, the result will be either empty, if the original\n"
               << "       was empty, or the file will end in a newline even if it originally didn't.\n\n";
     std::exit(EXIT_FAILURE);
@@ -86,14 +86,15 @@ inline bool HasNumericExtension(const std::string &filename) {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 2 and argc != 3)
+    if (argc != 3 and argc != 4)
         Usage();
 
     unsigned max_rotations(DEFAULT_MAX_ROTATIONS), max_line_count(0);
-    std::string file_regex;
-    if (argc == 2)
-            file_regex = argv[1];
-    else { // argc == 3.
+    std::string directory_path, file_regex;
+    if (argc == 3) {
+        directory_path = argv[1];
+        file_regex     = argv[2];
+    } else { // argc == 4.
         if (StringUtil::StartsWith(argv[1], "--max-rotations=")) {
             if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--max-rotations="), &max_rotations)
                 or max_rotations == 0)
@@ -106,12 +107,13 @@ int main(int argc, char *argv[]) {
                           + "\" is not a valid line count!");
             } else
                 Usage();
-            file_regex = argv[2];
+            directory_path = argv[2];
+            file_regex     = argv[3];
         }
     }
 
     try {
-        FileUtil::Directory directory(file_regex);
+        FileUtil::Directory directory(directory_path, file_regex);
         for (const auto &entry : directory) {
             if (not HasNumericExtension(entry.getName())) {
                 if (max_line_count > 0)
