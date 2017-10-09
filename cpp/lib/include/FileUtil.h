@@ -395,6 +395,9 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
 bool IsMountPoint(const std::string &path);
 
 
+size_t CountLines(const std::string &filename);
+
+
 } // namespace FileUtil
 
 
