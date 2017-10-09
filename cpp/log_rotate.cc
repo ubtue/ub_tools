@@ -43,9 +43,10 @@ void Usage() {
 
 
 void SkipLines(File * const input, unsigned skip_count) {
-    while (skip_count-- > 0) {
+    while (skip_count > 0) {
         std::string line;
         input->getline(&line);
+        --skip_count;
     }
 }
 
@@ -53,6 +54,7 @@ void SkipLines(File * const input, unsigned skip_count) {
 void CopyLines(File * const input, File * const output) {
     while (not input->eof()) {
         std::string line;
+        input->getline(&line);
         if (unlikely(not output->write(line + "\n")))
             Error("in CopyLines: failed to write a line to \"" + output->getPath() + "\"!");
     }
@@ -100,16 +102,15 @@ int main(int argc, char *argv[]) {
                 or max_rotations == 0)
                 Error("\"" + std::string(argv[1] + std::strlen("--max-rotations="))
                       + "\" is not a valid maximum rotation count!");
-            else if (StringUtil::StartsWith(argv[1], "--no-of-lines-to-keep=")) {
-                if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--no-of-lines-to-keep="), &max_line_count)
-                    or max_line_count == 0)
-                    Error("\"" + std::string(argv[1] + std::strlen("--no-of-lines-to-keep="))
-                          + "\" is not a valid line count!");
-            } else
-                Usage();
-            directory_path = argv[2];
-            file_regex     = argv[3];
-        }
+        } else if (StringUtil::StartsWith(argv[1], "--no-of-lines-to-keep=")) {
+            if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--no-of-lines-to-keep="), &max_line_count)
+                or max_line_count == 0)
+                Error("\"" + std::string(argv[1] + std::strlen("--no-of-lines-to-keep="))
+                      + "\" is not a valid line count!");
+        } else
+            Usage();
+        directory_path = argv[2];
+        file_regex     = argv[3];
     }
 
     try {
@@ -117,7 +118,7 @@ int main(int argc, char *argv[]) {
         for (const auto &entry : directory) {
             if (not HasNumericExtension(entry.getName())) {
                 if (max_line_count > 0)
-                    KeepLines(entry.getName(), max_line_count);
+                    KeepLines(directory_path + "/" + entry.getName(), max_line_count);
                 else
                     MiscUtil::LogRotate(entry.getName(), max_rotations);
             }
