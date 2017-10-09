@@ -1222,8 +1222,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         return iso8601_date.toString();
     }
 
-    public Set<String> getGenre(final Record record, final String fieldSpecs) {
-        final Set<String> genres = getValuesOrUnassigned(record, fieldSpecs);
+    public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String langShortcut) {
+        final Set<String> genres = getValuesOrUnassignedTranslated(record, fieldSpecs, langShortcut);
 
         // Also try to find the code for "Festschrift" in 935$c:
         final DataField _935Field = (DataField) record.getVariableField("935");
