@@ -317,8 +317,11 @@ std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename);
 std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename);
 
 
-/** \brief Opens a file for appending or aborts. */
-std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename);
+/** \brief Opens a file for appending or aborts.
+ *  \param filename              The path to the file to append to.
+ *  \param create_if_not_exists  If false, and "filename" does not exists we abort, if true we create the file.
+ */
+std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename, const bool create_if_not_exists = true);
 
 
 /** \brief Copies "no_of_bytes" from the current file offset of "from" to the current file offset of "to".
