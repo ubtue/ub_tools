@@ -13,7 +13,7 @@ import util
 
 
 # Delete the index to do away with old data that might remain otherwise
-# Since no commit is executed here wo circumwent the empty index problem
+# Since no commit is executed here we avoid the empty index problem
 def DeleteSolrIndex():
     try:
         request = urllib2.Request(
@@ -24,6 +24,16 @@ def DeleteSolrIndex():
         sys.exit(-1)
 
 
+def OptimizeSolrIndex():
+    try:
+        request = urllib2.Request(
+            "http://localhost:8080/solr/biblio/update?optimize=true")
+        response = urllib2.urlopen(request, timeout=1200)
+    except:
+        util.SendEmail("MARC-21 Pipeline", "Failed to optimize the SOLR index!", priority=1)
+        sys.exit(-1)
+
+
 def ImportIntoVuFind(pattern, log_file_name):
     args = [ sorted(glob.glob(pattern), reverse=True)[0] ]
     if len(args) != 1:
@@ -31,6 +41,7 @@ def ImportIntoVuFind(pattern, log_file_name):
                    + " files! (Should have matched exactly 1 file!)")
     DeleteSolrIndex()
     util.ExecOrDie("/usr/local/vufind/import-marc.sh", args, log_file_name)
+    OptimizeSolrIndex()
     util.ExecOrDie("/usr/local/vufind/index-alphabetic-browse.sh", None, log_file_name)
 
 

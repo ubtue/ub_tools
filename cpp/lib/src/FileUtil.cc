@@ -999,4 +999,20 @@ bool IsMountPoint(const std::string &path) {
 }
 
 
+size_t CountLines(const std::string &filename) {
+    if (GetFileSize(filename) == 0)
+        return 0;
+
+    std::unique_ptr<File> input(OpenInputFileOrDie(filename));
+    size_t line_count(0);
+    while (not input->eof()) {
+        std::string line;
+        input->getline(&line);
+        ++line_count;
+    }
+
+    return line_count;
+}
+
+
 } // namespace FileUtil
