@@ -31,7 +31,7 @@
 #include <utility>
 #include <cstdlib>
 #include <cstring>
-#include "BibleReferenceParser.h"
+#include "BibleUtil.h"
 #include "DirectoryEntry.h"
 #include "Leader.h"
 #include "MapIO.h"
@@ -329,14 +329,14 @@ bool GetBibleRanges(const std::string &field_tag, const MarcRecord &record,
             ranges->insert(
                 std::make_pair(
                     book_codes.front()
-                    + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH,
+                    + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH,
                                   '0'),
                     book_codes.back()
-                    + std::string(BibleReferenceParser::MAX_CHAPTER_LENGTH + BibleReferenceParser::MAX_VERSE_LENGTH,
+                    + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH,
                                   '9')
                 )
             );
-        else if (not BibleReferenceParser::ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
+        else if (not BibleUtil::ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
             std::cerr << record.getControlNumber() << ": failed to parse bible references (1): "
                       << n_subfield_values.front() << '\n';
             continue;
