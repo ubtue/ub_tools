@@ -808,23 +808,24 @@ void LoadReplaceMapFile(const std::string &map_filename,
 }
 
 
-void ProcessReplaceCommand(char ***argv, std::vector<FilterDescriptor> * const filters) {
+void ProcessReplaceCommand(char ***argvp, std::vector<FilterDescriptor> * const filters) {
     std::vector<std::string> subfield_specs;
-    ExtractSubfieldSpecs("--replace", argv, &subfield_specs);
-    if (argv == nullptr or StringUtil::StartsWith(**argv, "--"))
+    ExtractSubfieldSpecs("--replace", argvp, &subfield_specs);
+    if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--"))
         Error("missing regex or map-filename arg after --replace!");
-    const std::string regex_or_map_filename(**argv);
-    if (++*argv == nullptr or StringUtil::StartsWith(**argv, "--")) {
+    const std::string regex_or_map_filename(**argvp);
+    ++*argvp;
+    if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--")) {
         std::unordered_map<std::string, std::string> regexes_to_replacements_map;
         LoadReplaceMapFile(regex_or_map_filename, &regexes_to_replacements_map);
         for (const auto &regex_and_replacement : regexes_to_replacements_map)
             filters->emplace_back(FilterDescriptor::MakeReplacementFilter(subfield_specs, regex_and_replacement.first,
                                                                           regex_and_replacement.second));
     } else {
-        const std::string replacement(**argv);
+        const std::string replacement(**argvp);
         filters->emplace_back(FilterDescriptor::MakeReplacementFilter(subfield_specs, regex_or_map_filename,
                                                                       replacement));
-        ++*argv;
+        ++*argvp;
     }
 }
 
