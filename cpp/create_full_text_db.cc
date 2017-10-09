@@ -117,24 +117,28 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
     const std::string UPDATE_FULL_TEXT_DB_PATH("/usr/local/bin/update_full_text_db");
 
     std::cout << "Skip " << skip_count << " records\n";
+    off_t record_start = marc_reader->tell();
     while (MarcRecord record = marc_reader->read()) {
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;
-        if (total_record_count <= skip_count)
-             continue;
+        if (total_record_count <= skip_count) {
+            record_start = marc_reader->tell();
+            continue;
+        }
 
         const bool insert_in_cache(FoundAtLeastOneNonReviewLink(record)
                                    or (not MarcUtil::HasTagAndSubfield(record, "856", 'u')
                                        and MarcUtil::HasTagAndSubfield(record, "520", 'a')));
         if (not insert_in_cache) {
             MarcUtil::FileLockedComposeAndWriteRecord(marc_writer, &record);
+            record_start = marc_reader->tell();
             continue;
         }
 
         ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
-                        { std::to_string(marc_reader->tell()), marc_reader->getPath(),
-                          marc_writer->getFile().getPath(), db_filename });
+                        { std::to_string(record_start), marc_reader->getPath(), marc_writer->getFile().getPath(),
+                          db_filename });
         ++active_child_count;
         ++spawn_count;
 
@@ -142,6 +146,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             child_reported_failure_count += CleanUpZombies(active_child_count - process_count_low_watermark);
             active_child_count = process_count_low_watermark;
         }
+        record_start = marc_reader->tell();
     }
 
     // Wait for stragglers:
