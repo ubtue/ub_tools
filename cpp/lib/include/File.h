@@ -62,7 +62,8 @@ public:
      *  \param  mode                      The open mode (see fopen(3) for details).  An extension to the fopen modes
      *                                    are either "c" or "u".  "c" meaning "compress" can only be combined with "w"
      *                                    and "u" meaning "uncompress" with "r".  Using either flag makes seeking or
-     *                                    rewinding impossible.
+     *                                    rewinding impossible.  "r" and "a" can optionally be followed by a "+"
+     *                                    which has the same semantics as for fopen(3).
      *  \param  throw_on_error_behaviour  If true, any open failure will cause an exception to be thrown.  If not true
      *                                    you must use the fail() member function.
      */
