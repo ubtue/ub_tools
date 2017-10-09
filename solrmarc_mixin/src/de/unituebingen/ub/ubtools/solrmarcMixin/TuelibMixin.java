@@ -1231,10 +1231,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             DataField dataField = (DataField) _935Field;
             final List<Subfield> cSubfields = dataField.getSubfields('c');
             for (final Subfield cSubfield : cSubfields) {
-                if (cSubfield.toString().equals("fe")) {
-                    genres.remove(UNASSIGNED_STRING);
+                if (cSubfield.toString().equals("fe"))
                     genres.add("Festschrift");
-                }
             }
         }
 
@@ -1251,6 +1249,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
         }
+
+        if (genre.size() > 1)
+            genres.remove(UNASSIGNED_STRING);
 
         return genres;
     }
