@@ -71,6 +71,9 @@ void KeepLines(const std::string &filename, const unsigned &max_line_count) {
     FileUtil::AutoTempFile temp_file;
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(temp_file.getFilePath()));
     CopyLines(input.get(), output.get());
+    input->close(), output->close();
+    if (not FileUtil::RenameFile(temp_file.getFilePath(), filename, /* remove_target = */ true))
+        Error("in KeepLines: failed to rename \"" + temp_file.getFilePath() + "\" to \"" + filename + "\"!");
 }
 
 
