@@ -156,7 +156,8 @@ unsigned FindTueSigilsAndSignaturesOrInventory(const MarcRecord &record,
         else
             inventory = ExtractInventory(subfields.getFirstSubfieldValue('a'));
 
-        if (record.getLeader().isMonograph() and sigil != "21")
+        const bool is_monograph(record.getLeader().isMonograph());
+        if (is_monograph and sigil != "21")
             continue;
         if (SIGILS_OF_INTEREST.find(sigil) == SIGILS_OF_INTEREST.cend())
             continue;
@@ -249,11 +250,14 @@ bool FindTueDups(const MarcRecord &record, File * const monos_csv, File * const 
 {
     const bool is_monograph(record.getLeader().isMonograph());
     std::string ub_signatures_or_inventory, non_ub_sigils_and_inventory;
-    FindTueSigilsAndSignaturesOrInventory(record, (is_monograph ? SIGNATURE : INVENTORY),
-                                          &ub_signatures_or_inventory, &non_ub_sigils_and_inventory);
+    if (FindTueSigilsAndSignaturesOrInventory(record, (is_monograph ? SIGNATURE : INVENTORY),
+                                              &ub_signatures_or_inventory, &non_ub_sigils_and_inventory) < 2)
+        return false; // Not a dupe.
 
-    // We only keep dups and only those that occur at least once in the Tübingen University's main library:
-    if (ub_signatures_or_inventory.empty() or non_ub_sigils_and_inventory.empty())
+    if (is_monograph) {
+        if (ub_signatures_or_inventory.empty())
+            return false;
+    } else if (ub_signatures_or_inventory.empty() or non_ub_sigils_and_inventory.empty())
         return false;
 
     const std::string _008_contents(record.getFieldData("008"));
