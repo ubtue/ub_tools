@@ -26,6 +26,7 @@
 #include <unordered_set>
 #include <cstring>
 #include "Compiler.h"
+#include "FileUtil.h"
 #include "JSON.h"
 #include "TextUtil.h"
 #include "MarcReader.h"
@@ -35,7 +36,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " --output-set=(MONOGRAPHS|SERIALS) marc_input\n";
+    std::cerr << "Usage: " << ::progname << " marc_input\n";
     std::cerr << "       Please note that this program requires an input MARC format as provided by\n";
     std::cerr << "       the team at the University of Freiburg!\n\n";
     std::exit(EXIT_FAILURE);
@@ -129,6 +130,7 @@ std::string ExtractInventory(const std::string &_910_subfield_a) {
 
 
 enum SupplementaryInfoType { SIGNATURE, INVENTORY };
+const std::set<std::string> SIGILS_OF_INTEREST{ "21", "21-24", "21-108", "21-31", "21-35" };
 
 
 // \return The number of occurrences of an object in Tübingen.
@@ -154,7 +156,7 @@ unsigned FindTueSigilsAndSignaturesOrInventory(const MarcRecord &record,
         else
             inventory = ExtractInventory(subfields.getFirstSubfieldValue('a'));
 
-        if (not sigil.empty() and sigil != "LFER") {
+        if (SIGILS_OF_INTEREST.find(sigil) != SIGILS_OF_INTEREST.cend()) {
             ++occurrence_count;
             if (sigil == "21") { // UB
                 if (supplementary_info_type == SIGNATURE) {
@@ -206,12 +208,27 @@ std::string ExtractDDCGroups(const MarcRecord &record) {
 }
 
 
-enum OutputSet { MONOGRAPHS, SERIALS };
+void WriteSerialEntry(File * const output, const std::string &ppn, const std::string &main_title,
+                      const std::set<std::string> &issns_and_isbns, const std::string &area_or_zdb_number,
+                      const std::string &ub_signatures_or_inventory, const std::string &non_ub_sigils_and_inventory,
+                      const std::string &ddc_groups)
+{
+    (*output) << '"' << ppn << "\",\"" << TextUtil::CSVEscape(main_title)
+              << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
+              << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
+              << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory)
+              << "\",\"" << TextUtil::CSVEscape(non_ub_sigils_and_inventory)
+              << "\",\"" << TextUtil::CSVEscape(ddc_groups) << "\"\n";
+}
 
 
-bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
+bool FindTueDups(const MarcRecord &record, File * const monos_csv, File * const juristisches_seminar_csv,
+                 File * const brechtbau_bibliothek_csv, File * const evangelische_theologie_csv,
+                 File * const katholische_theologie_csv)
+{
+    const bool is_monograph(record.getLeader().isMonograph());
     std::string ub_signatures_or_inventory, non_ub_sigils_and_inventory;
-    FindTueSigilsAndSignaturesOrInventory(record, (output_set == MONOGRAPHS ? SIGNATURE : INVENTORY),
+    FindTueSigilsAndSignaturesOrInventory(record, (is_monograph ? SIGNATURE : INVENTORY),
                                           &ub_signatures_or_inventory, &non_ub_sigils_and_inventory);
 
     // We only keep dups and only those that occur at least once in the Tübingen University's main library:
@@ -224,7 +241,7 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
         publication_year = _008_contents.substr(7, 4);
 
     std::string area_or_zdb_number;
-    if (output_set == MONOGRAPHS) {
+    if (is_monograph) {
         const std::string _910_contents(record.getFieldData("910"));
         if (not _910_contents.empty()) {
             const Subfields subfields(_910_contents);
@@ -241,34 +258,66 @@ bool FindTueDups(const OutputSet output_set, const MarcRecord &record) {
     }
 
     std::set<std::string> issns_and_isbns;
-    if (output_set == MONOGRAPHS)
+    if (is_monograph)
         ExtractISBNs(record, &issns_and_isbns);
     else
         ExtractISSNs(record, &issns_and_isbns);
 
     const std::string ddc_groups(ExtractDDCGroups(record));
 
-    std::cout << '"' << record.getControlNumber() << "\",\"" << TextUtil::CSVEscape(main_title)
-              << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
-              << (output_set == MONOGRAPHS ? "\",\"" + TextUtil::CSVEscape(publication_year) : "")
-              << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
-              << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory) << "\",\""
-              << TextUtil::CSVEscape(non_ub_sigils_and_inventory)
-              << (output_set == SERIALS ? "\",\"" + TextUtil::CSVEscape(ddc_groups) : "") << "\"\n";
-
+    if (is_monograph) {
+        (*monos_csv) << '"' << record.getControlNumber() << "\",\"" << TextUtil::CSVEscape(main_title)
+                     << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
+                     << "\",\"" << TextUtil::CSVEscape(publication_year)
+                     << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)
+                     << "\",\"" << TextUtil::CSVEscape(ub_signatures_or_inventory)
+                     << "\",\"" << TextUtil::CSVEscape(non_ub_sigils_and_inventory) << "\"\n";
+    } else {
+        if (non_ub_sigils_and_inventory.find("21-24") != std::string::npos)
+            WriteSerialEntry(juristisches_seminar_csv, record.getControlNumber(), main_title, issns_and_isbns,
+                             area_or_zdb_number, ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
+        if (non_ub_sigils_and_inventory.find("21-108") != std::string::npos)
+            WriteSerialEntry(brechtbau_bibliothek_csv, record.getControlNumber(), main_title, issns_and_isbns,
+                             area_or_zdb_number, ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
+        if (non_ub_sigils_and_inventory.find("21-31") != std::string::npos)
+            WriteSerialEntry(evangelische_theologie_csv, record.getControlNumber(), main_title, issns_and_isbns,
+                             area_or_zdb_number, ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
+        if (non_ub_sigils_and_inventory.find("21-35") != std::string::npos)
+            WriteSerialEntry(katholische_theologie_csv, record.getControlNumber(), main_title, issns_and_isbns,
+                             area_or_zdb_number, ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
+    }
+    
     return true;
 }
 
 
-void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
-    // Write a header:
-    std::cout << "\"PPN\"" << ",\"Titel\"" << (output_set == MONOGRAPHS ? ",\"ISBN\"" : ",\"ISSN\"")
+enum OutputSet { MONOGRAPHS, SERIALS };
+
+
+void WriteHeader(File * const output, const OutputSet output_set) {
+    (*output) << "\"PPN\"" << ",\"Titel\"" << (output_set == MONOGRAPHS ? ",\"ISBN\"" : ",\"ISSN\"")
               << (output_set == MONOGRAPHS ? ",\"Erscheinungsjahr\"" : "")
               << (output_set == MONOGRAPHS ? ",\"Fachgebiet\"" : ",\"ZDB-ID-Nummer\"")
               << (output_set == MONOGRAPHS ? ",\"UB - Signatur\"" : ",\"UB - Bestandsangabe\"")
               << ",\"Sigel der anderen besitzenden Bibliotheken"
               << (output_set == SERIALS ? " mit Bestandsangaben\"" : "\"")
               << (output_set == SERIALS ? ",\"DDC-Sachgruppe\"" : "") << '\n';
+}
+
+
+void FindTueDups(MarcReader * const marc_reader) {
+    std::unique_ptr<File> monos_csv(FileUtil::OpenOutputFileOrDie("monos.csv"));
+    std::unique_ptr<File> juristisches_seminar_csv(FileUtil::OpenOutputFileOrDie("juristisches_seminar.csv"));
+    std::unique_ptr<File> brechtbau_bibliothek_csv(FileUtil::OpenOutputFileOrDie("brechtbau_bibliothek.csv"));
+    std::unique_ptr<File> evangelische_theologie_csv(FileUtil::OpenOutputFileOrDie("evangelische_theologie.csv"));
+    std::unique_ptr<File> katholische_theologie_csv(FileUtil::OpenOutputFileOrDie("katholische_theologie.csv"));
+    
+    // Write the headers:
+    WriteHeader(monos_csv.get(), MONOGRAPHS);
+    WriteHeader(juristisches_seminar_csv.get(), SERIALS);
+    WriteHeader(brechtbau_bibliothek_csv.get(), SERIALS);
+    WriteHeader(evangelische_theologie_csv.get(), SERIALS);
+    WriteHeader(katholische_theologie_csv.get(), SERIALS);
 
     unsigned count(0), control_number_dups_count(0), dups_count(0), monograph_count(0), serial_count(0),
              linked_ppn_count(0);
@@ -291,12 +340,12 @@ void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
 
         // Only consider monographs and serials:
         const Leader &leader(record.getLeader());
-        if (not (leader.isMonograph() or leader.isSerial())
-            or (leader.isMonograph() and output_set == SERIALS)
-            or (leader.isSerial() and output_set == MONOGRAPHS))
+        if (not (leader.isMonograph() or leader.isSerial()))
             continue;
 
-        if (FindTueDups(output_set, record)) {
+        if (FindTueDups(record, monos_csv.get(), juristisches_seminar_csv.get(), brechtbau_bibliothek_csv.get(),
+                        evangelische_theologie_csv.get(), katholische_theologie_csv.get()))
+        {
             ++dups_count;
             if (leader.isMonograph())
                 ++monograph_count;
@@ -314,21 +363,13 @@ void FindTueDups(const OutputSet output_set, MarcReader * const marc_reader) {
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 3)
+    if (argc != 2)
         Usage();
 
-    OutputSet output_set;
-    if (std::strcmp(argv[1], "--output-set=MONOGRAPHS") == 0)
-        output_set = MONOGRAPHS;
-    else if (std::strcmp(argv[1], "--output-set=SERIALS") == 0)
-        output_set = SERIALS;
-    else
-        Error("invalid input format \"" + std::string(argv[1]) + "\"!  (Must be MONOGRAPHS or SERIALS)");
-
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
+    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
 
     try {
-        FindTueDups(output_set, marc_reader.get());
+        FindTueDups(marc_reader.get());
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
