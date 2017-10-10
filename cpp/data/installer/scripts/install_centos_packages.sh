@@ -23,7 +23,7 @@ if yum list installed php71w-common | grep -q php71w-common; then
     echo "PHP 7.1 already installed"
 else
     echo "replacing standard PHP with PHP7.1"
-    yum -y remove php-*
+    yum -y remove php-
     yum -y install php71w-cli php71w-common php71w-devel php71w-gd php71w-intl php71w-ldap php71w-mbstring php71w-mcrypt php71w-mysqlnd php71w-xml mod_php71w
     systemctl restart httpd
 
