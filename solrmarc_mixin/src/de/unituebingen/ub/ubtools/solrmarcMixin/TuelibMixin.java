@@ -1231,7 +1231,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             DataField dataField = (DataField) _935Field;
             final List<Subfield> cSubfields = dataField.getSubfields('c');
             for (final Subfield cSubfield : cSubfields) {
-                if (cSubfield.toString().equals("fe"))
+                if (cSubfield.getData().toLowerCase().equals("fe"))
                     genres.add("Festschrift");
             }
         }
@@ -1242,10 +1242,10 @@ public class TuelibMixin extends SolrIndexerMixin {
             DataField dataField = (DataField) _689Field;
             final List<Subfield> qSubfields = dataField.getSubfields('q');
             for (final Subfield qSubfield : qSubfields) {
-                if (qSubfield.toString().equals("f")) {
+                if (qSubfield.getData().toLowerCase().equals("f")) {
                     final List<Subfield> aSubfields = dataField.getSubfields('a');
                     for (final Subfield aSubfield : aSubfields)
-                        genres.add(aSubfield.toString());
+                        genres.add(aSubfield.getData());
                 }
             }
         }
