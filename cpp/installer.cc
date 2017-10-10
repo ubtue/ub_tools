@@ -2315,13 +2315,12 @@ int main(int argc, char **argv) {
     const OSSystemType os_system_type(DetermineOSSystemType());
 
     try {
-        if (not ub_tools_only)
-            MountDeptDriveOrDie(vufind_system_type);
-        InstallUBTools(os_system_type, /* make_install = */ not ub_tools_only);
         if (not ub_tools_only) {
+            MountDeptDriveOrDie(vufind_system_type);
             DownloadVuFind();
             ConfigureVuFind(vufind_system_type, !omit_cronjobs);
         }
+        InstallUBTools(os_system_type, /* make_install = */ not ub_tools_only);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
