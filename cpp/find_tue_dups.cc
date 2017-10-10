@@ -363,7 +363,7 @@ void FindTueDups(MarcReader * const marc_reader) {
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 3)
+    if (argc != 2)
         Usage();
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
