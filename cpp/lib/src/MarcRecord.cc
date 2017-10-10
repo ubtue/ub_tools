@@ -460,6 +460,17 @@ bool MarcRecord::isElectronicResource() const {
         }
     }
 
+    std::vector<size_t> _245_field_indices;
+    getFieldIndices("245", &_245_field_indices);
+    for (auto _245_field_index : _245_field_indices) {
+        const Subfields subfields(getFieldData(_245_field_index));
+        const auto begin_end(subfields.getIterators('h'));
+        for (auto code_and_value(begin_end.first); code_and_value != begin_end.second; ++code_and_value) {
+            if (code_and_value->value_.find("[Elektronische Ressource]") != std::string::npos)
+                return true;
+        }
+    }
+
     return false;
 }
 
