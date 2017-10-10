@@ -319,7 +319,7 @@ void WriteHeader(File * const output, const OutputSet output_set) {
               << (output_set == MONOGRAPHS ? ",\"Erscheinungsjahr\"" : "")
               << (output_set == MONOGRAPHS ? ",\"Fachgebiet\"" : ",\"ZDB-ID-Nummer\"")
               << (output_set == MONOGRAPHS ? ",\"UB - Signatur\"" : ",\"UB - Bestandsangabe\"")
-              << (output_set == MONOGRAPHS ? ",\"Sigel der anderen besitzenden Bibliotheken" : ",\"Sigel+Bestand\"")
+              << (output_set == MONOGRAPHS ? ",\"Siegel der anderen besitzenden Bibliotheken" : ",\"Siegel+Bestand\"")
               << (output_set == SERIALS ? ",\"DDC-Sachgruppe\"" : "") << '\n';
 }
 
