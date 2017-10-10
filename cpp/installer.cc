@@ -411,7 +411,7 @@ void ChangeDirectoryOrDie(const std::string &new_working_directory) {
 
 std::string GetPassword(const std::string &prompt) {
     errno = 0;
-    const std::string password(::getpass((prompt + " >").c_str()));
+    const std::string password(::getpass((prompt + " > ").c_str()));
     if (errno != 0)
         Error("failed to read the password from the terminal!");
 
@@ -1230,7 +1230,7 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
     if (not FileUtil_MakeDirectory(MOUNT_POINT))
         Error("failed to create mount point \"" + MOUNT_POINT + "\"!");
 
-    if (FileUtil_IsMountPoint(MOUNT_POINT))
+    if (FileUtil_IsMountPoint(MOUNT_POINT) or FileUtil_IsDirectory(MOUNT_POINT + "/FID-Entwicklung"))
         Echo("Department drive already mounted");
     else {
         const std::string role_account(vufind_system_type == KRIMDOK ? "qubob15" : "qubob16");
@@ -2178,9 +2178,13 @@ void DownloadVuFind() {
     if (FileUtil_IsDirectory(VUFIND_DIRECTORY)) {
         Echo("VuFind directory already exists, skipping download");
     } else {
+        Echo("Downloading TuFind git repository");
         const std::string git_url("https://github.com/ubtue/tufind.git");
         ExecOrDie(ExecUtil_Which("git"), { "clone", git_url, VUFIND_DIRECTORY });
-        Echo("Downloaded VuFind git repository.");
+
+        TemporaryChDir tmp(VUFIND_DIRECTORY);
+        ExecOrDie(ExecUtil_Which("composer"), { "install" });
+        ExecOrDie(ExecUtil_Which("php"), { "util/cssBuilder.php" });
     }
 }
 
@@ -2224,6 +2228,7 @@ void ConfigureSolrUserAndService() {
  * - solrmarc settings
  * - alphabetical browse
  * - cronjobs
+ * - create directories in /var/log/<vufind_system_type> and /usr/local/var/lib/tuelib
  *
  * Writes a file into vufind directory to save configured system type
  */
@@ -2261,6 +2266,10 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const bool insta
         Echo("cronjobs");
         InstallCronjobs(vufind_system_type);
     }
+
+    Echo("creating directories");
+    ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/lib/tuelib" });
+    ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/var/log/" + vufind_system_type_string });
 
     ConfigureSolrUserAndService();
 
