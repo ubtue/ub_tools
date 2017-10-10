@@ -9,7 +9,7 @@ yum -y update
 
 # basic dependencies
 yum -y install \
-    ant clang gcc-c++.x86_64 git java-*-openjdk-devel make \
+    ant clang crontabs gcc-c++.x86_64 git java-*-openjdk-devel make sudo \
     httpd mariadb mod_ssl \
     boost-devel ca-certificates curl-openssl file-devel kyotocabinet-devel leptonica libarchive-devel libcurl-openssl-devel libuuid-devel libwebp libxml2-devel.x86_64 lsof lz4 mariadb-devel.x86_64 mawk openjpeg-libs openssl-devel pcre-devel policycoreutils-python poppler poppler-utils tokyocabinet-devel unzip \
     tesseract tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe
