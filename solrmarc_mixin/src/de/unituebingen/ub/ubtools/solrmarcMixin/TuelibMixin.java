@@ -1015,12 +1015,38 @@ public class TuelibMixin extends SolrIndexerMixin {
         return results;
     }
 
+    private Set<String> addHonourees(final Record record, final Set<String> values) {
+        for (final VariableField variableField : record.getVariableFields("700")) {
+            final DataField dataField = (DataField) variableField;
+            final List<Subfield> subfieldFields4 = dataField.getSubfields('4');
+            if (subfieldFields4 != null) {
+                for (final Subfield subfield4 : subfieldFields4) {
+                    if (subfield4.getData().equals("hnr")) {
+                        final List<Subfield> subfieldsA = dataField.getSubfields('a');
+                        if (subfieldsA != null) {
+                            for (final Subfield subfieldA : subfieldsA)
+                                values.add(subfieldA.getData());
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        return values;
+    }
+
     public Set<String> getValuesOrUnassigned(final Record record, final String fieldSpecs) {
         final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
             values.add(UNASSIGNED_STRING);
         }
         return values;
+    }
+
+    public Set<String> getTopicFacet(final Record record, final String fieldSpecs) {
+        final Set<String> values = getValuesOrUnassigned(record, fieldSpecs);
+        return addHonourees(record, values);
     }
 
     public Set<String> getValuesOrUnassignedTranslated(final Record record, final String fieldSpecs,
@@ -1035,29 +1061,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         return valuesTranslated;
     }
 
-    public Set<String> getTopicFacet(final Record record, final String fieldSpecs, final String lang) {
+    public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, final String lang) {
         final Set<String> valuesTranslated = getValuesOrUnassignedTranslated(record, fieldSpecs, lang);
-
-        for (final VariableField variableField : record.getVariableFields("700")) {
-            final DataField dataField = (DataField) variableField;
-            final List<Subfield> subfieldFields4 = dataField.getSubfields('4');
-            if (subfieldFields4 != null) {
-                for (final Subfield subfield4 : subfieldFields4) {
-                    if (subfield4.getData().equals("hnr")) {
-                        final List<Subfield> subfieldsA = dataField.getSubfields('a');
-                        if (subfieldsA != null) {
-                            for (final Subfield subfieldA : subfieldsA)
-                                valuesTranslated.add(subfieldA.getData());
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        return valuesTranslated;
+        return addHonourees(record, valuesTranslated);
     }
-    
+
     public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
         final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
