@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2017 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -39,13 +40,14 @@ FileDescriptor::FileDescriptor(const FileDescriptor &rhs) {
     else {
         fd_ = ::dup(rhs.fd_);
         if (unlikely(fd_ == -1))
-            throw std::runtime_error("in FileDescriptor::FileDescriptor: dup(2) failed (" + std::to_string(errno) + ")!");
+            throw std::runtime_error("in FileDescriptor::FileDescriptor: dup(2) failed ("
+                                     + std::string(::strerror(errno)) + ")!");
     }
 }
 
 
 void FileDescriptor::close() {
-    if (unlikely(fd_ != -1))
+    if (likely(fd_ != -1))
         ::close(fd_);
 
     fd_ = -1;
@@ -55,12 +57,13 @@ void FileDescriptor::close() {
 const FileDescriptor &FileDescriptor::operator=(const FileDescriptor &rhs) {
     // Prevent self-assignment!
     if (likely(&rhs != this)) {
-        if (unlikely(fd_ != -1))
+        if (likely(fd_ != -1))
             ::close(fd_);
 
         fd_ = ::dup(rhs.fd_);
         if (unlikely(fd_ == -1))
-            throw std::runtime_error("in FileDescriptor::operator=: dup(2) failed (" + std::to_string(errno) + ")!");
+            throw std::runtime_error("in FileDescriptor::operator=: dup(2) failed ("
+                                     + std::string(::strerror(errno)) + ")!");
     }
 
     return *this;
@@ -68,7 +71,7 @@ const FileDescriptor &FileDescriptor::operator=(const FileDescriptor &rhs) {
 
 
 const FileDescriptor &FileDescriptor::operator=(const int new_fd) {
-    if (unlikely(fd_ != -1))
+    if (likely(fd_ != -1))
         ::close(fd_);
 
     fd_ = new_fd;
