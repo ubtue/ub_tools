@@ -66,7 +66,7 @@ __attribute__((noreturn)) void Error(const std::string &msg) {
 
 
 __attribute__((noreturn)) void Usage() {
-    std::cerr << "Usage: " << ::progname << " --ub-tools-only|(vufind_system_type [--omit-cronjobs])\n";
+    std::cerr << "Usage: " << ::progname << " --ub-tools-only|(vufind_system_type [--omit-cronjobs] [--omit-systemctl])\n";
     std::cerr << "       where \"vufind_system_type\" must be either \"krimdok\" or \"ixtheo\".\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -2194,7 +2194,7 @@ void DownloadVuFind() {
  * - Create user "solr" as system user if not exists
  * - Grant permissions on relevant directories
  */
-void ConfigureSolrUserAndService() {
+void ConfigureSolrUserAndService(const bool install_systemctl) {
     // note: if you wanna change username, dont do it only here, also check vufind.service!
     const std::string username("solr");
     const std::string servicename("vufind");
@@ -2211,13 +2211,15 @@ void ConfigureSolrUserAndService() {
 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an indepotent installation
-    Echo("Activating solr service...");
-    const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
-    ExecOrDie(ExecUtil_Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
-    ExecOrDie(ExecUtil_Which("cp"), { INSTALLER_DATA_DIRECTORY + "/" + servicename + ".service", SYSTEMD_SERVICE_DIRECTORY + "/" + servicename + ".service" });
-    ExecOrDie(ExecUtil_Which("systemctl"), { "enable", servicename });
-    ExecOrDie(ExecUtil_Which("systemctl"), { "daemon-reload" });
-    ExecOrDie(ExecUtil_Which("systemctl"), { "restart", servicename });
+    if (install_systemctl) {
+        Echo("Activating solr service...");
+        const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
+        ExecOrDie(ExecUtil_Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
+        ExecOrDie(ExecUtil_Which("cp"), { INSTALLER_DATA_DIRECTORY + "/" + servicename + ".service", SYSTEMD_SERVICE_DIRECTORY + "/" + servicename + ".service" });
+        ExecOrDie(ExecUtil_Which("systemctl"), { "enable", servicename });
+        ExecOrDie(ExecUtil_Which("systemctl"), { "daemon-reload" });
+        ExecOrDie(ExecUtil_Which("systemctl"), { "restart", servicename });
+    }
 }
 
 
@@ -2232,7 +2234,7 @@ void ConfigureSolrUserAndService() {
  *
  * Writes a file into vufind directory to save configured system type
  */
-void ConfigureVuFind(const VuFindSystemType vufind_system_type, const bool install_cronjobs) {
+void ConfigureVuFind(const VuFindSystemType vufind_system_type, const bool install_cronjobs, const bool install_systemctl) {
     const std::string vufind_system_type_string = VuFindSystemTypeToString(vufind_system_type);
     Echo("Starting configuration for " + vufind_system_type_string);
     const std::string dirname_solr_conf = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
@@ -2271,7 +2273,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const bool insta
     ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/lib/tuelib" });
     ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/var/log/" + vufind_system_type_string });
 
-    ConfigureSolrUserAndService();
+    ConfigureSolrUserAndService(install_systemctl);
 
     // write configured instance type to file
     FileUtil_WriteString(VUFIND_DIRECTORY + "/tufind.instance", vufind_system_type_string);
@@ -2285,8 +2287,9 @@ int main(int argc, char **argv) {
     bool ub_tools_only(false);
     VuFindSystemType vufind_system_type;
     bool omit_cronjobs(false);
+    bool omit_systemctl(false);
 
-    if (argc < 2 || argc > 3)
+    if (argc < 2 || argc > 4)
         Usage();
 
     if (std::strcmp("--ub-tools-only", argv[1]) == 0) {
@@ -2301,11 +2304,18 @@ int main(int argc, char **argv) {
         else
             Usage();
 
-        if (argc == 3) {
-            if (std::strcmp("--omit-cronjobs", argv[2]) == 0)
-                omit_cronjobs = true;
-            else
-                Usage();
+        if (argc >= 3) {
+            for (int i=2;i<=3;i++) {
+                if (i < argc) {
+                    if (std::strcmp("--omit-cronjobs", argv[i]) == 0) {
+                        omit_cronjobs = true;
+                    } else if (std::strcmp("--omit-systemctl", argv[i]) == 0) {
+                        omit_systemctl = true;
+                    } else {
+                        Usage();
+                    }
+                }
+            }
         }
     }
 
@@ -2318,7 +2328,7 @@ int main(int argc, char **argv) {
         if (not ub_tools_only) {
             MountDeptDriveOrDie(vufind_system_type);
             DownloadVuFind();
-            ConfigureVuFind(vufind_system_type, !omit_cronjobs);
+            ConfigureVuFind(vufind_system_type, !omit_cronjobs, !omit_systemctl);
         }
         InstallUBTools(os_system_type, /* make_install = */ not ub_tools_only);
     } catch (const std::exception &x) {
