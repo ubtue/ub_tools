@@ -6,7 +6,7 @@ CREATE TABLE vufind_translations (
   UNIQUE KEY token_language_code (token,language_code),
   KEY vufind_translations_idx_token (token),
   KEY vufind_translations_idx_language_code (language_code)
-) DEFAULT CHARSET=utf8;
+) DEFAULT CHARSET=utf8mb4;
 
 
 CREATE TABLE keyword_translations (
@@ -24,7 +24,7 @@ CREATE TABLE keyword_translations (
   KEY keyword_translations_idx_translation (translation(30)),
   KEY keyword_translations_idx_gnd_code (gnd_code),
   KEY keyword_translations_idx_status (status)
-) DEFAULT CHARSET=utf8;
+) DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE translators (
   translator VARCHAR(30) NOT NULL,
@@ -32,6 +32,6 @@ CREATE TABLE translators (
   lookfor VARCHAR(100),
   offset VARCHAR(10),
   PRIMARY KEY (translator, translation_target)
-) DEFAULT CHARSET=utf8;
+) DEFAULT CHARSET=utf8mb4;
 
 GRANT CREATE TEMPORARY TABLES ON ixtheo.* TO 'ixtheo'@'localhost';
