@@ -970,6 +970,15 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     private static final char[] author2SubfieldCodes = new char[] { 'a', 'b', 'c', 'd' };
 
+    private boolean isHonoree(final List<Subfield> subfieldFields4) {
+        for (final Subfield subfield4 : subfieldFields4) {
+            if (subfield4.getData().equals("hnr"))
+                return true;
+        }
+
+        return false;
+    }
+
     /**
      * @param record
      *            the record
@@ -991,7 +1000,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
 
             final List<Subfield> _4Subfields = dataField.getSubfields('4');
-            if (_4Subfields == null || _4Subfields.isEmpty())
+            if (_4Subfields == null || _4Subfields.isEmpty() || isHonoree(_4Subfields))
                 continue;
 
             final StringBuilder author2AndRoles = new StringBuilder();
@@ -1014,7 +1023,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         return values;
     }
 
-    public Set<String> getValuesOrUnassignedTranslated(final Record record, final String fieldSpecs, final String langShortcut) {
+    public Set<String> getValuesOrUnassignedTranslated(final Record record, final String fieldSpecs,
+                                                       final String langShortcut)
+    {
         Set<String> valuesTranslated = new TreeSet<String>();
         Set<String> values = getValuesOrUnassigned(record, fieldSpecs);
         for (final String value : values) {
@@ -1024,6 +1035,29 @@ public class TuelibMixin extends SolrIndexerMixin {
         return valuesTranslated;
     }
 
+    public Set<String> getTopicFacet(final Record record, final String fieldSpecs, final String lang) {
+        final Set<String> valuesTranslated = getValuesOrUnassignedTranslated(record, fieldSpecs, lang);
+
+        for (final VariableField variableField : record.getVariableFields("700")) {
+            final DataField dataField = (DataField) variableField;
+            final List<Subfield> subfieldFields4 = dataField.getSubfields('4');
+            if (subfieldFields4 != null) {
+                for (final Subfield subfield4 : subfieldFields4) {
+                    if (subfield4.getData().equals("hnr")) {
+                        final List<Subfield> subfieldsA = dataField.getSubfields('a');
+                        if (subfieldsA != null) {
+                            for (final Subfield subfieldA : subfieldsA)
+                                valuesTranslated.add(subfieldA.getData());
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        return valuesTranslated;
+    }
+    
     public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
         final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
         if (values.isEmpty()) {
@@ -1306,7 +1340,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         tempSet.add("cz");
         electronicResourceCarrierTypes = Collections.unmodifiableSet(tempSet);
     };
-    
+
     /**
      * Determine Record Formats
      *
@@ -1346,7 +1380,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 && TuelibMixin.electronicResourceCarrierTypes.contains(dataField.getSubfield('b').getData()))
                 result.add("Electronic");
         }
-        
+
         // check the 007 - this is a repeating field
         List<VariableField> fields = record.getVariableFields("007");
         if (fields != null) {
@@ -1608,7 +1642,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                             if (result.contains("eBook")) {
                                 result.remove("eBook");
                                 result.add("Electronic");
-                            } 
+                            }
                             result.add("Article");
                             break;
                         }
