@@ -386,7 +386,7 @@ int ExecUtil_Exec(const std::string &command, const std::vector<std::string> &ar
 }
 
 
-void ExecOrDie(const std::string &command, const std::vector<std::string> &arguments,
+void ExecOrDie(const std::string &command, const std::vector<std::string> &arguments = {},
                const std::string &new_stdin = "", const std::string &new_stdout = "")
 {
     int exit_code;
@@ -419,7 +419,6 @@ std::string GetPassword(const std::string &prompt) {
 }
 
 
-
 class TemporaryChDir {
     std::string old_working_dir_;
 public:
@@ -433,6 +432,7 @@ TemporaryChDir::TemporaryChDir(const std::string &new_working_dir)
 {
     ChangeDirectoryOrDie(new_working_dir);
 }
+
 
 TemporaryChDir::~TemporaryChDir() {
     ChangeDirectoryOrDie(old_working_dir_);
@@ -1170,6 +1170,7 @@ std::unique_ptr<File> FileUtil_OpenForAppendingOrDie(const std::string &filename
     return file;
 }
 
+
 std::unique_ptr<File> FileUtil_OpenOutputFileOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "w"));
     if (file->fail())
@@ -1274,9 +1275,9 @@ std::string ExecUtil_Which(const std::string &executable_candidate) {
 
 void InstallSoftwareDependencies(const OSSystemType os_system_type) {
     if (os_system_type == UBUNTU)
-        ExecOrDie(INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh", {});
+        ExecOrDie(INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh");
     else
-        ExecOrDie(INSTALLER_SCRIPTS_DIRECTORY + "/install_centos_packages.sh", {});
+        ExecOrDie(INSTALLER_SCRIPTS_DIRECTORY + "/install_centos_packages.sh");
 }
 
 
@@ -1292,7 +1293,7 @@ void InstallUBTools(const OSSystemType os_system_type, const bool make_install) 
     if (make_install)
         ExecOrDie(ExecUtil_Which("make"), { "install" });
     else
-        ExecOrDie(ExecUtil_Which("make"), {});
+        ExecOrDie(ExecUtil_Which("make"));
 
     Echo("Installed ub_tools.");
 }
