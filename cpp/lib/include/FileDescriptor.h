@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
+ *  Copyright 2017 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -28,8 +29,9 @@
 #define FILE_DESCRIPTOR_H
 
 
-/** \brief   Class that avoids file descriptor leaks due to forgotten calls to close(2) and/or unexpected exceptions being thrown.
- *  \warning Be careful about copying these objects.  They use dup(2) internally upon copying!
+/** \brief   Class that avoids file descriptor leaks due to forgotten calls to close(2) and/or unexpected exceptions
+ *           being thrown.
+ *  \warning Be careful about copying these objects.  They use dup(2) internally while copying!
  */
 class FileDescriptor {
     int fd_;
@@ -54,6 +56,7 @@ public:
 
     /** \brief   Reliquishes ownership.
      *  \warning The caller becomes responsible for closing of the returned file descriptor!
+     *  \note    The FileDescriptor instance no longer has a valid file descriptor!
      */
     int release();
 };
