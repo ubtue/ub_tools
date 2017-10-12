@@ -12,7 +12,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 
     private final static String KEYWORD_DELIMITER = "/";
     private final static String SUBFIELD_CODES = "abctnp";
-    private final static IxTheo ixTheoObject = new IxTheo();
+    private final static TuelibMixin tuelibMixin = new TuelibMixin();
 
     public Set<String> getKeyWordChain(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
@@ -86,7 +86,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                             keyword.append(", ");
                         }
                     }
-                    keyword.append(ixTheoObject.translateTopic(subfield.getData(), lang));
+                    keyword.append(tuelibMixin.translateTopic(subfield.getData(), lang));
                 } else if (subfield.getCode() == '9' && keyword.length() > 0 && subfield.getData().startsWith("g:")) {
                     // For Ixtheo-translations the specification in the g:-Subfield is appended in angle
                     // brackets, so this is a special case where we have to begin from scratch
@@ -94,7 +94,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                     final Subfield germanASubfield = dataField.getSubfield('a');
                     if (germanASubfield != null) {
                         final String translationCandidate = germanASubfield.getData() + " <" + specification + ">";
-                        final String translation = ixTheoObject.translateTopic(translationCandidate, lang);
+                        final String translation = tuelibMixin.translateTopic(translationCandidate, lang);
                         if (translation != translationCandidate) {
                             keyword.setLength(0);
                             keyword.append(translation.replaceAll("<", "(").replaceAll(">", ")"));
@@ -102,7 +102,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                     }
                     else {
                         keyword.append(" (");
-                        keyword.append(ixTheoObject.translateTopic(specification, lang));
+                        keyword.append(tuelibMixin.translateTopic(specification, lang));
                         keyword.append(')');
                     }
                 }
