@@ -19,9 +19,9 @@ ADD httpd/*.pem /etc/ssl/certs/
 
 # run installer (set java encoding to avoid problems in solr plugins)
 ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
-RUN /usr/local/ub_tools/cpp/installer krimdok --omit-cronjobs --omit-systemctl
+RUN /usr/local/ub_tools/cpp/installer ixtheo --omit-cronjobs --omit-systemctl
 RUN find /usr/local/vufind/local -name 'cache' -exec chown -R apache:apache {} +
-RUN chown -R apache:apache /var/log/krimdok
+RUN chown -R apache:apache /var/log/ixtheo
 
 # add local config
 ADD local_overrides/* /usr/local/vufind/local/tufind/local_overrides/
@@ -40,6 +40,7 @@ RUN echo "mysqld_safe &" > /tmp/config \
     && echo "mysqladmin --silent --wait=30 ping || exit 1" >> /tmp/config \
     && echo "mysql -u root -e \"CREATE DATABASE vufind;\"" >> /tmp/config \
     && echo "mysql -u root vufind < /usr/local/vufind/module/VuFind/sql/mysql.sql" >> /tmp/config \
+    && echo "mysql -u root vufind < /usr/local/vufind/module/IxTheo/sql/mysql.sql" >> /tmp/config \
     && echo "mysql -u root -e \"CREATE USER vufind@localhost IDENTIFIED BY 'vufind';\"" >> /tmp/config \
     && echo "mysql -u root -e \"GRANT ALL ON *.* TO vufind@localhost;\"" >> /tmp/config \
     && echo "mysql -u root -e \"FLUSH PRIVILEGES;\"" >> /tmp/config \
