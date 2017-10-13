@@ -2141,6 +2141,15 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
     Echo("Installed cronjobs.");
 }
 
+// Note: this will also create a group with the same name
+void CreateUserIfNotExists(const std::string &username) {
+    int user_exists = ExecUtil_Exec(ExecUtil_Which("id"), {"-u", username});
+    if (user_exists == 1) {
+        Echo("Creating user " + username + "...");
+        ExecOrDie(ExecUtil_Which("adduser"), { "--system", "--no-create-home", username });
+    }
+}
+
 
 void GenerateXml(const std::string &filename_source, const std::string &filename_target) {
     std::string dirname_source, basename_source;
@@ -2191,20 +2200,53 @@ void DownloadVuFind() {
 
 
 /**
+ * Configure Apache User
+ * - Create user "vufind" as system user if not exists
+ * - Grant permissions on relevant directories
+ */
+void ConfigureApacheUser(const std::string &vufind_system_type_string, const OSSystemType os_system_type) {
+    const std::string username("vufind");
+    CreateUserIfNotExists(username);
+
+    // systemd will start apache as root
+    // but apache will start children as configured in /etc
+    if (os_system_type == UBUNTU) {
+        const std::string config_filename("/etc/apache2/envvars");
+        ExecOrDie(ExecUtil_Which("sed"),
+            { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/",
+                config_filename });
+
+        ExecOrDie(ExecUtil_Which("sed"),
+            { "-i", "s/export APACHE_RUN_GROUP=www-data/export APACHE_RUN_GROUP=" + username + "/",
+                config_filename });
+    } else if (os_system_type == CENTOS) {
+        const std::string config_filename("/etc/httpd/conf/httpd.conf");
+        ExecOrDie(ExecUtil_Which("sed"),
+            { "-i", "s/User apache/User " + username + "/",
+                config_filename });
+
+        ExecOrDie(ExecUtil_Which("sed"),
+            { "-i", "s/Group apache/Group " + username + "/",
+                config_filename });
+    }
+
+    ExecOrDie(ExecUtil_Which("find"), {"/usr/local/vufind/local", "-name", "cache", "-exec", "chown", "-R", username, "{}", "+"});
+    ExecOrDie(ExecUtil_Which("chown"), { "-R", username, "/var/log/" + vufind_system_type_string});
+}
+
+
+/**
  * Configure Solr User
  * - Create user "solr" as system user if not exists
  * - Grant permissions on relevant directories
+ * - register solr service in systemctl
  */
 void ConfigureSolrUserAndService(const bool install_systemctl) {
     // note: if you wanna change username, dont do it only here, also check vufind.service!
     const std::string username("solr");
     const std::string servicename("vufind");
 
-    int user_exists = ExecUtil_Exec(ExecUtil_Which("id"), {"-u", username});
-    if (user_exists == 1) {
-        Echo("Creating solr user...");
-        ExecOrDie(ExecUtil_Which("adduser"), { "--system", "--no-create-home", username });
-    }
+    CreateUserIfNotExists(username);
 
     Echo("Setting directory permissions for solr user...");
     ExecOrDie(ExecUtil_Which("chown"), { "-R", username, VUFIND_DIRECTORY + "/solr" });
@@ -2235,7 +2277,7 @@ void ConfigureSolrUserAndService(const bool install_systemctl) {
  *
  * Writes a file into vufind directory to save configured system type
  */
-void ConfigureVuFind(const VuFindSystemType vufind_system_type, const bool install_cronjobs, const bool install_systemctl) {
+void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemType os_system_type, const bool install_cronjobs, const bool install_systemctl) {
     const std::string vufind_system_type_string = VuFindSystemTypeToString(vufind_system_type);
     Echo("Starting configuration for " + vufind_system_type_string);
     const std::string dirname_solr_conf = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
@@ -2275,6 +2317,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const bool insta
     ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/var/log/" + vufind_system_type_string });
 
     ConfigureSolrUserAndService(install_systemctl);
+    ConfigureApacheUser(vufind_system_type_string, os_system_type);
 
     // write configured instance type to file
     FileUtil_WriteString(VUFIND_DIRECTORY + "/tufind.instance", vufind_system_type_string);
@@ -2329,7 +2372,7 @@ int main(int argc, char **argv) {
         if (not ub_tools_only) {
             MountDeptDriveOrDie(vufind_system_type);
             DownloadVuFind();
-            ConfigureVuFind(vufind_system_type, !omit_cronjobs, !omit_systemctl);
+            ConfigureVuFind(vufind_system_type, os_system_type, !omit_cronjobs, !omit_systemctl);
         }
         InstallUBTools(os_system_type, /* make_install = */ not ub_tools_only);
     } catch (const std::exception &x) {
