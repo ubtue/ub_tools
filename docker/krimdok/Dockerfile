@@ -1,15 +1,11 @@
 FROM centos:latest
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
-# install git to install ub_tools
-RUN yum -y update
-RUN yum -y install git
-
-# download & install ub_tools
-RUN git clone https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
-RUN /usr/local/ub_tools/cpp/data/installer/scripts/install_centos_packages.sh
-RUN cd /usr/local/ub_tools/cpp/lib/mkdep && CCC=clang++ make install
-RUN cd /usr/local/ub_tools/cpp && CCC=clang++ make installer
+# download ubtools installation script
+# (use curl because it's part of standard centos installation)
+RUN curl https://raw.githubusercontent.com/ubtue/ub_tools/mtrojan/cpp/data/installer/scripts/install_ubtools.sh -o /tmp/install_ubtools.sh \
+    && chmod 700 /tmp/install_ubtools.sh
+    && /tmp/install_ubtools.sh
 
 # add needed configuration files
 # (+simulate mounted /mnt/ZE020150)
@@ -24,11 +20,11 @@ RUN /usr/local/ub_tools/cpp/installer krimdok --omit-cronjobs --omit-systemctl
 # add local config
 ADD local_overrides/* /usr/local/vufind/local/tufind/local_overrides/
 
-# configure solr & import example marc data
+# expose solr & import example marc data
+EXPOSE 8080
 ADD data.mrc /usr/local/ub_tools/bsz_daten/data.mrc
 RUN sudo -u solr /usr/local/vufind/solr.sh start \
     && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/data.mrc
-EXPOSE 8080
 
 # configure mariadb (needs to be done via temp file)
 # (see https://stackoverflow.com/questions/26982905/mysql-setup-using-docker)
