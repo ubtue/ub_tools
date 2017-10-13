@@ -20,8 +20,6 @@ ADD httpd/*.pem /etc/ssl/certs/
 # run installer (set java encoding to avoid problems in solr plugins)
 ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 RUN /usr/local/ub_tools/cpp/installer ixtheo --omit-cronjobs --omit-systemctl
-RUN find /usr/local/vufind/local -name 'cache' -exec chown -R apache:apache {} +
-RUN chown -R apache:apache /var/log/ixtheo
 
 # add local config
 ADD local_overrides/* /usr/local/vufind/local/tufind/local_overrides/
