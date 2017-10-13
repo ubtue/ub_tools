@@ -74,8 +74,7 @@ const unsigned LEADER_LENGTH(24);
 
 
 Record::Record(const size_t record_size, char * const record_start): record_size_(record_size) {
-    record_start[17] = '\0';
-    const char * const base_address_of_data(record_start + StringUtil::ToUnsigned(record_start + 12));
+    const char * const base_address_of_data(record_start + ToUnsigned(record_start + 12, 5));
     
     // Process directory:
     const char *directory_entry(record_start + LEADER_LENGTH);
