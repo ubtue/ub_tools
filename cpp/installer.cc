@@ -2143,10 +2143,12 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
 
 // Note: this will also create a group with the same name
 void CreateUserIfNotExists(const std::string &username) {
-    int user_exists = ExecUtil_Exec(ExecUtil_Which("id"), {"-u", username});
+    const int user_exists(ExecUtil_Exec(ExecUtil_Which("id"), { "-u", username }));
     if (user_exists == 1) {
         Echo("Creating user " + username + "...");
         ExecOrDie(ExecUtil_Which("adduser"), { "--system", "--no-create-home", username });
+    } else if (user_exists > 1) {
+        Error("Failed to check if user exists: " + username);
     }
 }
 
@@ -2214,20 +2216,18 @@ void ConfigureApacheUser(const std::string &vufind_system_type_string, const OSS
         const std::string config_filename("/etc/apache2/envvars");
         ExecOrDie(ExecUtil_Which("sed"),
             { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/",
-                config_filename });
+              config_filename });
 
         ExecOrDie(ExecUtil_Which("sed"),
             { "-i", "s/export APACHE_RUN_GROUP=www-data/export APACHE_RUN_GROUP=" + username + "/",
-                config_filename });
+              config_filename });
     } else if (os_system_type == CENTOS) {
         const std::string config_filename("/etc/httpd/conf/httpd.conf");
         ExecOrDie(ExecUtil_Which("sed"),
-            { "-i", "s/User apache/User " + username + "/",
-                config_filename });
+            { "-i", "s/User apache/User " + username + "/", config_filename });
 
         ExecOrDie(ExecUtil_Which("sed"),
-            { "-i", "s/Group apache/Group " + username + "/",
-                config_filename });
+            { "-i", "s/Group apache/Group " + username + "/", config_filename });
     }
 
     ExecOrDie(ExecUtil_Which("find"), {"/usr/local/vufind/local", "-name", "cache", "-exec", "chown", "-R", username, "{}", "+"});
@@ -2372,7 +2372,7 @@ int main(int argc, char **argv) {
         if (not ub_tools_only) {
             MountDeptDriveOrDie(vufind_system_type);
             DownloadVuFind();
-            ConfigureVuFind(vufind_system_type, os_system_type, !omit_cronjobs, !omit_systemctl);
+            ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
         }
         InstallUBTools(os_system_type, /* make_install = */ not ub_tools_only);
     } catch (const std::exception &x) {
