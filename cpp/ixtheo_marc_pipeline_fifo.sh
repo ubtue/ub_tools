@@ -90,7 +90,6 @@ EndPhase || Abort) &
 
 StartPhase "Drop Records Containing mtex in 935" \
            "\n\tFilter out Self-referential 856 Fields" \
-           "\n\tSuperflous Subfield 2 in Topic Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
            "\n\tRemove blmsh Subject Heading Term" \
            "\n\tFix Local Keyword Capitalisations"
