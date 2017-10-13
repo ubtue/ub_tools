@@ -4,8 +4,8 @@ MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 # download ubtools installation script
 # (use curl because it's part of standard centos installation)
 RUN curl https://raw.githubusercontent.com/ubtue/ub_tools/mtrojan/cpp/data/installer/scripts/install_ubtools.sh -o /tmp/install_ubtools.sh \
-    && chmod 700 /tmp/install_ubtools.sh
-    && /tmp/install_ubtools.sh
+    && chmod 700 /tmp/install_ubtools.sh \
+    && /tmp/install_ubtools.sh krimdok --omit-cronjobs --omit-systemctl
 
 # add needed configuration files
 # (+simulate mounted /mnt/ZE020150)
