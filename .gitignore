@@ -136,7 +136,6 @@ MultiLanguageDocTransformerFactory-0.0.1.jar
 MultiLanguageQueryParser-0.0.1.jar
 solr_plugins/PrefixSortFacetten/bin/
 solrmarc_mixin/bin/
-go/bin/*
 
 cronjobs/README
 
