@@ -8,6 +8,7 @@ import struct
 import sys
 import tarfile
 import traceback
+import process_util
 import re
 import util
 
@@ -18,7 +19,7 @@ def ExecOrCleanShutdownAndDie(cmd_name, args, log_file_name=None):
     if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
                              new_stderr=log_file_name, append_stdout=True, append_stderr=True) == 0:
         CleanUp()
-        SendEmail("util.ExecOrDie", "Failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name
+        util.SendEmail("util.ExecOrDie", "Failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name
                   + "\" for the reason.", priority=1)
         sys.exit(-1)
 
