@@ -76,8 +76,13 @@ public:
     inline std::string getFieldData(const MarcTag &tag) const { return getFieldData(getFieldIndex(tag)); }
 
     /** \brief Returns the content of the field at given index or an empty string if this index is not present. **/
-    std::string getFieldData(const size_t tag_index) const;
+    std::string getFieldData(const size_t field_index) const;
 
+    inline bool isControlField(const size_t field_index) const
+        { return directory_entries_[field_index].isControlFieldEntry(); }
+    inline bool isDataField(const size_t field_index) const
+        { return not directory_entries_[field_index].isControlFieldEntry(); }
+    
     /** \brief Returns the subfields of the first field with given tag or an empty Subfields if the tag is not
      *         present.
      **/
