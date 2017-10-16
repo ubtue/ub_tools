@@ -20,7 +20,8 @@ ADD local_overrides/* /usr/local/vufind/local/tufind/local_overrides/
 # expose solr & import example marc data
 EXPOSE 8080
 ADD data.mrc /usr/local/ub_tools/bsz_daten/data.mrc
-RUN sudo -u solr /usr/local/vufind/solr.sh start \
+RUN source /etc/profile.d/vufind.sh \
+    && sudo -u solr /usr/local/vufind/solr.sh start \
     && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/data.mrc
 
 # configure mariadb (needs to be done via temp file)
