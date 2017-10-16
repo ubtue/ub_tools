@@ -34,7 +34,9 @@ Lässt man --no-cache weg, legt sich Docker einen Cache für alles an was er bei
 * -e => wird verwendet um beim Start des Containers spezielle Umgebungsvariablen zu setzen
 * -p 8080:80 => Port 80 des Containers wird auf Port 8080 auf dem Host gemappt
 * -d => detach, wird im Hintergrund ausgeführt
-Man kann auch Umgebungsvariablen setzen
+
+Ein Container beendet sich von selbst, sobald kein Prozess (z.B. Apache httpd) mehr im Vordergrund läuft.
+Um dies zu vermeiden kann man beim Starten zusätzlich den Parameter -t angeben.
 
 ## Laufende Docker-Prozesse (=Container) anzeigen
 `docker ps`

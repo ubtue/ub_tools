@@ -34,31 +34,31 @@
  *  \warning Be careful about copying these objects.  They use dup(2) internally while copying!
  */
 class FileDescriptor {
-        int fd_;
+    int fd_;
 public:
-        FileDescriptor(): fd_(-1) { }
-        explicit FileDescriptor(const int fd): fd_(fd) { }
+    FileDescriptor(): fd_(-1) { }
+    explicit FileDescriptor(const int fd): fd_(fd) { }
 
-        /** Creates a duplicate file descriptor using dup(2). */
-        FileDescriptor(const FileDescriptor &rhs);
+    /** Creates a duplicate file descriptor using dup(2). */
+    FileDescriptor(const FileDescriptor &rhs);
 
-        ~FileDescriptor() { close();}
+    ~FileDescriptor() { close();}
 
-        void close();
+    void close();
 
-        bool isValid() const { return fd_ != -1; }
-        bool operator!() const { return fd_ == -1; }
-        operator int() const { return fd_; }
+    bool isValid() const { return fd_ != -1; }
+    bool operator!() const { return fd_ == -1; }
+    operator int() const { return fd_; }
 
-        // Assignment operators:
-        const FileDescriptor &operator=(const FileDescriptor &rhs);
-        const FileDescriptor &operator=(const int new_fd);
+    // Assignment operators:
+    const FileDescriptor &operator=(const FileDescriptor &rhs);
+    const FileDescriptor &operator=(const int new_fd);
 
-        /** \brief   Reliquishes ownership.
-         *  \warning The caller becomes responsible for closing of the returned file descriptor!
-         *  \note    The FileDescriptor instance no longer has a valid file descriptor!
-         */
-        int release();
+    /** \brief   Reliquishes ownership.
+     *  \warning The caller becomes responsible for closing of the returned file descriptor!
+     *  \note    The FileDescriptor instance no longer has a valid file descriptor!
+     */
+    int release();
 };
 
 

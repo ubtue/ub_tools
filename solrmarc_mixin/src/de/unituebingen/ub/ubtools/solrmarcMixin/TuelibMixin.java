@@ -632,6 +632,32 @@ public class TuelibMixin extends SolrIndexerMixin {
         return isils;
     }
 
+    public Set<String> getJournalIssue(final Record record) {
+        final DataField _773Field = (DataField)record.getVariableField("773");
+        if (_773Field == null)
+            return null;
+
+        final Subfield aSubfield = _773Field.getSubfield('a');
+        if (aSubfield == null)
+            return null;
+
+        final Set<String> subfields = new LinkedHashSet<String>();
+        subfields.add(aSubfield.getData());
+
+        final Subfield gSubfield = _773Field.getSubfield('g');
+        if (gSubfield != null)
+            subfields.add(gSubfield.getData());
+
+        final List<Subfield> wSubfields = _773Field.getSubfields('w');
+        for (final Subfield wSubfield : wSubfields) {
+            final String subfieldContents = wSubfield.getData();
+            if (subfieldContents.startsWith("(DE-576)"))
+                subfields.add(subfieldContents);
+        }
+
+        return subfields;
+    }
+
     /**
      * @param record
      *            the record
@@ -724,7 +750,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
 
                 final String month = dataString.substring(2, 4);
-                return year + "-" + month + "-01T11:00:00:000Z";
+                return year + "-" + month + "-01T11:00:00.000Z";
             }
         }
         return null;
@@ -1376,7 +1402,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return set of dates
      */
 
-    public Set<String> getDates(final Record record) {
+    public Set<String> getDatesBasedOnRecordType(final Record record) {
         final Set<String> dates = new LinkedHashSet<>();
         final Set<String> format = getFormatIncludingElectronic(record);
 
@@ -2080,7 +2106,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return mediatype of the record
      */
 
-    public Set<String> getFormat(final Record record) {
+    public Set<String> getFormatsWithoutElectronic(final Record record) {
         Set<String> formats = getFormatIncludingElectronic(record);
 
         // Since we now have an additional facet mediatype we remove the
@@ -2174,7 +2200,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
 
     public String getPublicationSortDate(final Record record) {
-        final Set<String> dates = getDates(record);
+        final Set<String> dates = getDatesBasedOnRecordType(record);
         if (dates.isEmpty())
             return "";
 
