@@ -2231,8 +2231,8 @@ void ConfigureApacheUser(const std::string &vufind_system_type_string, const OSS
             { "-i", "s/Group apache/Group " + username + "/", config_filename });
     }
 
-    ExecOrDie(ExecUtil_Which("find"), {"/usr/local/vufind/local", "-name", "cache", "-exec", "chown", "-R", username, "{}", "+"});
-    ExecOrDie(ExecUtil_Which("chown"), { "-R", username, "/var/log/" + vufind_system_type_string});
+    ExecOrDie(ExecUtil_Which("find"), {"/usr/local/vufind/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+"});
+    ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, "/var/log/" + vufind_system_type_string});
 }
 
 
@@ -2250,8 +2250,8 @@ void ConfigureSolrUserAndService(const bool install_systemctl) {
     CreateUserIfNotExists(username);
 
     Echo("Setting directory permissions for solr user...");
-    ExecOrDie(ExecUtil_Which("chown"), { "-R", username, VUFIND_DIRECTORY + "/solr" });
-    ExecOrDie(ExecUtil_Which("chown"), { "-R", username, VUFIND_DIRECTORY + "/import" });
+    ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, VUFIND_DIRECTORY + "/solr" });
+    ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, VUFIND_DIRECTORY + "/import" });
 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an indepotent installation
