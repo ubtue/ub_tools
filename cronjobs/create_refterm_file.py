@@ -12,6 +12,17 @@ import re
 import util
 
 
+def ExecOrCleanShutdownAndDie(cmd_name, args, log_file_name=None):
+    if log_file_name is None:
+        log_file_name = "/proc/self/fd/2" # stderr
+    if not process_util.Exec(cmd_path=cmd_name, args=args, new_stdout=log_file_name,
+                             new_stderr=log_file_name, append_stdout=True, append_stderr=True) == 0:
+        CleanUp()
+        SendEmail("util.ExecOrDie", "Failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name
+                  + "\" for the reason.", priority=1)
+        sys.exit(-1)
+
+
 def FoundNewBSZDataFile(link_filename):
     try:
         statinfo = os.stat(link_filename)
@@ -65,16 +76,16 @@ def CreateRefTermFile(ref_data_archive, date_string, conf, log_file_name):
     ExtractRefDataMarcFile(ref_data_archive, ref_data_marc_file, log_file_name)
     ref_data_synonym_file = ref_data_base_filename + ".txt"
     # Make a refterm -> circumscription table file
-    util.ExecOrDie("/usr/local/bin/extract_referenceterms", [ref_data_marc_file, ref_data_synonym_file],
+    ExecOrCleanShutdownAndDie("/usr/local/bin/extract_referenceterms", [ref_data_marc_file, ref_data_synonym_file],
                    log_file_name)
     # Create a file with a list of refterms and containing ids
-    util.ExecOrDie("/usr/local/bin/create_reference_import_file.sh", [ref_data_synonym_file, os.getcwd()],
+    ExecOrCleanShutdownAndDie("/usr/local/bin/create_reference_import_file.sh", [ref_data_synonym_file, os.getcwd()],
                    log_file_name)
 
 
 def CreateSerialSortDate(title_data_file, date_string, log_file_name):
     serial_ppn_sort_list = "Schriftenreihen-Sortierung-" + date_string + ".txt"
-    util.ExecOrDie("/usr/local/bin/query_serial_sort_data.sh", [title_data_file, serial_ppn_sort_list], log_file_name)
+    ExecOrCleanShutdownAndDie("/usr/local/bin/query_serial_sort_data.sh", [title_data_file, serial_ppn_sort_list], log_file_name)
 
 
 def CreateLogFile():
