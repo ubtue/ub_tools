@@ -2142,12 +2142,6 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
 }
 
 
-void MiscUtil_SetEnv(const std::string &name, const std::string &value, const bool overwrite) {
-    if (unlikely(::setenv(name.c_str(), value.c_str(), overwrite ? 1 : 0) != 0))
-        throw std::runtime_error("in MiscUtil::SetEnv: setenv(3) failed!");
-}
-
-
 // Note: this will also create a group with the same name
 void CreateUserIfNotExists(const std::string &username) {
     const int user_exists(ExecUtil_Exec(ExecUtil_Which("id"), { "-u", username }));
@@ -2273,6 +2267,14 @@ void ConfigureSolrUserAndService(const bool install_systemctl) {
 }
 
 
+void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
+    std::string variables;
+    variables += "export VUFIND_HOME=" + VUFIND_DIRECTORY + "\n";
+    variables += "export VUFIND_LOCAL_DIR=" + VUFIND_DIRECTORY + "/local/tufind/instances/" + vufind_system_type_string + "\n";
+    FileUtil_WriteString("/etc/profile.d/vufind.sh", variables);
+}
+
+
 /**
  * Configure VuFind system
  * - Solr Configuration
@@ -2308,7 +2310,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
         dirname_solrmarc_conf + "/marc_" + vufind_system_type_string + ".properties"
     };
     FileUtil_ConcatFiles(filename_solrmarc_conf_local, filenames_solrmarc_conf_custom);
-    MiscUtil_SetEnv("VUFIND_LOCAL_DIR", VUFIND_DIRECTORY + "/local/tufind/instances/" + vufind_system_type_string, true);
+    SetEnvironmentVariables(vufind_system_type_string);
 
     Echo("alphabetical browse");
     UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh", VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
