@@ -42,7 +42,8 @@ static void Usage() {
 
 void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
     std::string raw_record;
-    unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0);
+    unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0),
+             max_subfield_count(0);
     std::unordered_set<std::string> control_numbers;
     std::map<Leader::RecordType, unsigned> record_types_and_counts;
 
@@ -69,6 +70,16 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
         if (record_length >= 100000)
             ++oversized_record_count;
 
+        for (unsigned i(0); i < record.getNumberOfFields(); ++i) {
+            if (record.isControlField(i))
+                continue;
+
+            const Subfields subfields(record.getFieldData(i));
+            const size_t subfield_count(subfields.size());
+            if (unlikely(subfield_count > max_subfield_count))
+                max_subfield_count = subfield_count;
+        }
+
         std::vector<std::pair<size_t, size_t>> local_block_boundaries;
         const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
         if (local_block_count > max_local_block_count)
@@ -94,6 +105,7 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
               << " authority record(s), and " << record_types_and_counts[Leader::RecordType::UNKNOWN]
               << " record(s) of unknown record type.\n";
     std::cout << "Found " << oversized_record_count << " oversized records.\n";
+    std::cout << "The field with the most subfields has " << max_subfield_count << " subfield(s).\n";
 }
 
 

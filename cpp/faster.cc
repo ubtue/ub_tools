@@ -50,6 +50,8 @@ public:
         inline const std::string &getTag() const { return tag_; }
         inline const std::string &getContents() const { return contents_; }
         inline std::string getContents() { return contents_; }
+        inline bool isControlField() const __attribute__ ((pure)) { return tag_ <= "009"; }
+        inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
     };
 private:
     friend class Reader;
@@ -242,9 +244,11 @@ int main(int argc, char *argv[]) {
                           << record.getControlNumber() << ".\n";
 
             for (const auto &field : record) {
-                const Subfields subfields(field);
-                if (unlikely(subfields.size() > max_subfield_count))
-                    max_subfield_count = subfields.size();
+                if (field.isDataField()) {
+                    const Subfields subfields(field);
+                    if (unlikely(subfields.size() > max_subfield_count))
+                        max_subfield_count = subfields.size();
+                }
             }
             
             std::vector<std::pair<size_t, size_t>> local_block_boundaries;
