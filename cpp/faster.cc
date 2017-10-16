@@ -64,12 +64,19 @@ public:
     enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
 public:
     explicit Record(const size_t record_size, char * const record_start);
+    
+    inline Record(Record &&other) {
+        std::swap(record_size_, other.record_size_);
+        leader_.swap(other.leader_);
+        fields_.swap(other.fields_);
+    }
+
     operator bool () const { return not fields_.empty(); }
     inline size_t size() const { return record_size_; }
     inline size_t getNumberOfFields() const { return fields_.size(); }
     inline const std::string &getLeader() const { return leader_; }
-    inline std::string getControlNumber()
-        { return fields_.front().getTag() == "001" ? fields_.front().getContents() : ""; }
+    inline std::string getControlNumber() const
+        { return likely(fields_.front().getTag() == "001") ? fields_.front().getContents() : ""; }
     ssize_t getFirstFieldIndex(const std::string &tag) const;
     RecordType getRecordType() const;
     inline const std::string &getFieldData(const size_t field_index) const
@@ -81,11 +88,7 @@ public:
      */
     size_t findAllLocalDataBlocks(std::vector<std::pair<size_t, size_t>> * const local_block_boundaries) const;
 private:
-    inline Record(Record &&other) {
-        std::swap(record_size_, other.record_size_);
-        leader_.swap(other.leader_);
-        fields_.swap(other.fields_);
-    }
+    Record() { }
 };
 
 
@@ -162,6 +165,36 @@ size_t Record::findAllLocalDataBlocks(std::vector<std::pair<size_t, size_t>> *co
 }
 
 
+class Reader {
+    std::unique_ptr<File> input_;
+public:
+    explicit Reader(const std::string &input_filename);
+    Record read();
+};
+
+
+Reader::Reader(const std::string &input_filename): input_(FileUtil::OpenInputFileOrDie(input_filename)) {
+}
+
+
+Record Reader::read() {
+    char buf[99999];
+    size_t bytes_read;
+    if (unlikely((bytes_read = input_->read(buf, 5)) == 0))
+        return Record();
+
+    if (unlikely(bytes_read != 5))
+        Error("in Reader::read: failed to read record length!");
+    const unsigned record_length(ToUnsigned(buf, 5));
+
+    bytes_read = input_->read(buf + 5, record_length - 5);
+    if (unlikely(bytes_read != record_length - 5))
+        Error("Reader::read: failed to read a record!");
+
+    return Record(record_length, buf);
+}
+
+
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
@@ -175,24 +208,13 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(argv[1]));
+    Reader reader(argv[1]);
 
     try {
-        char buf[99999];
         unsigned record_count(0);
-        size_t bytes_read;
         size_t max_record_size(0), max_field_count(0), max_local_block_count(0);
         std::map<Record::RecordType, unsigned> record_types_and_counts;
-        while ((bytes_read = input->read(buf, 5))) {
-            if (unlikely(bytes_read != 5))
-                Error("failed to read record length!");
-            const unsigned record_length(ToUnsigned(buf, 5));
-
-            bytes_read = input->read(buf + 5, record_length - 5);
-            if (unlikely(bytes_read != record_length - 5))
-                Error("failed to read a record!");
-
-            Record record(record_length, buf);
+        while (const Record record = reader.read()) {
             ++record_count;
             if (record.size() > max_record_size)
                 max_record_size = record.size();
