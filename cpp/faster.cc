@@ -52,6 +52,8 @@ public:
         inline std::string getContents() { return contents_; }
         inline bool isControlField() const __attribute__ ((pure)) { return tag_ <= "009"; }
         inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
+        inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
+        inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
     };
 private:
     friend class Reader;
@@ -59,6 +61,9 @@ private:
     std::string leader_;
     std::vector<Field> fields_;
 public:
+    static constexpr unsigned MAX_RECORD_LENGTH = 99999;
+    static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH = 5;
+
     enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
     typedef std::vector<Field>::iterator iterator;
     typedef std::vector<Field>::const_iterator const_iterator;
@@ -173,8 +178,6 @@ class Subfields {
     const std::string &field_contents_;
 public:
     explicit Subfields(const Record::Field &field): field_contents_(field.getContents()) { }
-    inline char getIndicator1() const { return unlikely(field_contents_.empty()) ? '\0' : field_contents_[0]; }
-    inline char getIndicator2() const { return unlikely(field_contents_.size() < 2) ? '\0' : field_contents_[1]; }
     unsigned size() const __attribute__ ((pure))
         { return std::count(field_contents_.cbegin(), field_contents_.cend(), '\x1F');}
 };
@@ -193,17 +196,18 @@ Reader::Reader(const std::string &input_filename): input_(FileUtil::OpenInputFil
 
 
 Record Reader::read() {
-    char buf[99999];
+    char buf[Record::MAX_RECORD_LENGTH];
     size_t bytes_read;
-    if (unlikely((bytes_read = input_->read(buf, 5)) == 0))
+    if (unlikely((bytes_read = input_->read(buf, Record::RECORD_LENGTH_FIELD_LENGTH)) == 0))
         return Record();
 
-    if (unlikely(bytes_read != 5))
+    if (unlikely(bytes_read != Record::RECORD_LENGTH_FIELD_LENGTH))
         Error("in Reader::read: failed to read record length!");
-    const unsigned record_length(ToUnsigned(buf, 5));
+    const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
 
-    bytes_read = input_->read(buf + 5, record_length - 5);
-    if (unlikely(bytes_read != record_length - 5))
+    bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH,
+                              record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
+    if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
         Error("Reader::read: failed to read a record!");
 
     return Record(record_length, buf);
