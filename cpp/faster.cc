@@ -17,7 +17,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <algorithm>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -49,15 +51,41 @@ public:
 };
 
 
+class Subfields {
+};
+
+
 class Record {
+    friend class Reader;
     size_t record_size_; // in bytes
+    std::string leader_;
     std::vector<Field> fields_;
 public:
+    enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
+public:
     explicit Record(const size_t record_size, char * const record_start);
+    operator bool () const { return not fields_.empty(); }
     inline size_t size() const { return record_size_; }
     inline size_t getNumberOfFields() const { return fields_.size(); }
+    inline const std::string &getLeader() const { return leader_; }
     inline std::string getControlNumber()
         { return fields_.front().getTag() == "001" ? fields_.front().getContents() : ""; }
+    ssize_t getFirstFieldIndex(const std::string &tag) const;
+    RecordType getRecordType() const;
+    inline const std::string &getFieldData(const size_t field_index) const
+        { return fields_[field_index].getContents(); }
+
+    /** \brief Finds local ("LOK") block boundaries.
+     *  \param local_block_boundaries  Each entry contains the index of the first field of a local block in "first"
+     *                                 and the index of the last field + 1 of a local block in "second".
+     */
+    size_t findAllLocalDataBlocks(std::vector<std::pair<size_t, size_t>> * const local_block_boundaries) const;
+private:
+    inline Record(Record &&other) {
+        std::swap(record_size_, other.record_size_);
+        leader_.swap(other.leader_);
+        fields_.swap(other.fields_);
+    }
 };
 
 
@@ -73,7 +101,9 @@ inline unsigned ToUnsigned(const char *cp, const unsigned count) {
 const unsigned LEADER_LENGTH(24);
 
 
-Record::Record(const size_t record_size, char * const record_start): record_size_(record_size) {
+Record::Record(const size_t record_size, char * const record_start)
+    : record_size_(record_size), leader_(record_start, record_size)
+{
     const char * const base_address_of_data(record_start + ToUnsigned(record_start + 12, 5));
     
     // Process directory:
@@ -94,6 +124,44 @@ Record::Record(const size_t record_size, char * const record_start): record_size
 }
 
 
+Record::RecordType Record::getRecordType() const {
+    if (leader_[6] == 'z')
+        return AUTHORITY;
+    if (leader_[6] == 'w')
+        return CLASSIFICATION;
+    return std::strchr("acdefgijkmoprt", leader_[6]) == nullptr ? UNKNOWN : BIBLIOGRAPHIC;
+}
+
+
+ssize_t Record::getFirstFieldIndex(const std::string &tag) const {
+    const auto iter(std::find_if(fields_.cbegin(), fields_.cend(),
+                                 [&tag](const Field &field){ return field.getTag() == tag; }));
+    return (iter == fields_.cend()) ? -1 : std::distance(fields_.cbegin(), iter);
+}
+
+
+size_t Record::findAllLocalDataBlocks(std::vector<std::pair<size_t, size_t>> *const local_block_boundaries) const
+{
+    local_block_boundaries->clear();
+
+    size_t local_block_start(getFirstFieldIndex("LOK"));
+    if (static_cast<ssize_t>(local_block_start) == -1)
+        return 0;
+
+    size_t local_block_end(local_block_start + 1);
+    while (local_block_end < fields_.size()) {
+        if (StringUtil::StartsWith(fields_[local_block_end].getContents(), "  ""\x1F""0000")) {
+            local_block_boundaries->emplace_back(std::make_pair(local_block_start, local_block_end));
+            local_block_start = local_block_end;
+        }
+        ++local_block_end;
+    }
+    local_block_boundaries->emplace_back(std::make_pair(local_block_start, local_block_end));
+
+    return local_block_boundaries->size();
+}
+
+
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
@@ -110,32 +178,48 @@ int main(int argc, char *argv[]) {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(argv[1]));
 
     try {
-        char size_buf[5 + 1];
+        char buf[99999];
         unsigned record_count(0);
         size_t bytes_read;
-        size_t max_record_size(0), max_field_count(0);
-        while ((bytes_read = input->read(size_buf, 5))) {
+        size_t max_record_size(0), max_field_count(0), max_local_block_count(0);
+        std::map<Record::RecordType, unsigned> record_types_and_counts;
+        while ((bytes_read = input->read(buf, 5))) {
             if (unlikely(bytes_read != 5))
                 Error("failed to read record length!");
-            size_buf[5] = '\0';
-            const unsigned record_length(ToUnsigned(size_buf, 5));
+            const unsigned record_length(ToUnsigned(buf, 5));
 
-            char buf[99999];
-            bytes_read = input->read(buf, record_length - 5);
+            bytes_read = input->read(buf + 5, record_length - 5);
             if (unlikely(bytes_read != record_length - 5))
                 Error("failed to read a record!");
 
-            Record record(record_length, buf - 5);
+            Record record(record_length, buf);
             ++record_count;
             if (record.size() > max_record_size)
                 max_record_size = record.size();
             if (record.getNumberOfFields() > max_field_count)
                 max_field_count = record.getNumberOfFields();
+
+            const Record::RecordType record_type(record.getRecordType());
+            ++record_types_and_counts[record_type];
+            if (record_type == Record::RecordType::UNKNOWN)
+                std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for control number "
+                          << record.getControlNumber() << ".\n";
+
+            std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+            const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
+            if (local_block_count > max_local_block_count)
+                max_local_block_count = local_block_count;
         }
 
         std::cerr << "Read " << record_count << " records.\n";
         std::cerr << "The largest record contains " << max_record_size << " bytes.\n";
         std::cerr << "The record with the largest number of fields contains " << max_field_count << " fields.\n";
+        std::cerr << "The record with the most local data blocks has " << max_local_block_count << " local blocks.\n";
+        std::cerr << "Counted " << record_types_and_counts[Record::RecordType::BIBLIOGRAPHIC]
+                  << " bibliographic record(s), " << record_types_and_counts[Record::RecordType::AUTHORITY]
+                  << " classification record(s), " << record_types_and_counts[Record::RecordType::CLASSIFICATION]
+                  << " authority record(s), and " << record_types_and_counts[Record::RecordType::UNKNOWN]
+                  << " record(s) of unknown record type.\n";
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
