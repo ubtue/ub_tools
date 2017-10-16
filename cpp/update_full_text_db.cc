@@ -50,14 +50,17 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << ::progname << " file_offset marc_input marc_output full_text_db\n\n"
+    std::cerr << "Usage: " << ::progname << " file_offset marc_input marc_output full_text_db error_log_path\n\n"
               << "       file_offset  Where to start reading a MARC data set from in marc_input.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
-                             std::string * const media_type)
+enum ReturnType { SUCCESS, DOWNLOAD_TIMEOUT_ERROR, MEDIA_TYPE_DETERMINATION_ERROR };
+
+
+ReturnType GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
+                                   std::string * const media_type)
 {
     Downloader::Params params;
     Downloader downloader(url, params, timeout);
@@ -65,16 +68,17 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std
         Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to download the document for " + url
                 + " (timeout: " + std::to_string(timeout) + " sec, message: " + downloader.getLastErrorMessage()
                 + ")" );
-        return false;
+        return DOWNLOAD_TIMEOUT_ERROR;
     }
 
     *document = downloader.getMessageBody();
     *media_type = downloader.getMediaType();
     if (media_type->empty()) {
         Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to get the media type for " + url);
-        return false;
+        return MEDIA_TYPE_DETERMINATION_ERROR;
     }
-    return true;
+    
+    return SUCCESS;
 }
 
 
@@ -171,7 +175,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 
 // Returns true if text has been successfully extracted, else false.
 bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_output_filename,
-                   const std::string &full_text_db_path)
+                   const std::string &full_text_db_path, const std::string &error_log_path)
 {
     MarcRecord record(marc_reader->read());
     const std::string key(record.getControlNumber());
@@ -203,8 +207,20 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
 
             const std::string url(_856_subfields.getFirstSubfieldValue('u'));
             std::string document, media_type;
-            if (not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type))
+            ReturnType return_type;
+            if ((return_type = GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type)) != SUCCESS) {
+                std::unique_ptr<File> error_log_file(FileUtil::OpenForAppendingOrDie(error_log_path));
+                FileLocker file_locker(error_log_file.get(), FileLocker::WRITE_ONLY);
+                if (not (error_log_file->seek(0, SEEK_END)))
+                    Error("in ProcessRecord: failed to seek to the end of \"" + error_log_path + "\"!");
+                error_log_file->write(url + " ("
+                                      + std::string(return_type == DOWNLOAD_TIMEOUT_ERROR
+                                                    ? "download timeout" : "failed to determine media type")
+                                      + ")");
+                error_log_file->flush();
+
                 continue;
+            }
 
             std::string extracted_text(ConvertToPlainText(media_type, GetTesseractLanguageCode(record), document));
             if (not extracted_text.empty()) {
@@ -236,7 +252,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 5)
+    if (argc != 6)
         Usage();
 
     long offset;
@@ -249,7 +265,7 @@ int main(int argc, char *argv[]) {
               + "! (" + std::to_string(errno) + ")");
 
     try {
-        return ProcessRecord(marc_reader.get(), argv[3], argv[4]) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return ProcessRecord(marc_reader.get(), argv[3], argv[4], argv[5]) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         Error("While reading \"" + marc_reader->getPath() + "\" starting at offset \"" + std::string(argv[1])
               + "\", caught exception: " + std::string(e.what()));
