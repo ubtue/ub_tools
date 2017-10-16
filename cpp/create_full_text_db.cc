@@ -52,7 +52,7 @@ static void Usage() __attribute__((noreturn));
 static void Usage() {
     std::cerr << "Usage: " << ::progname
               << "[--max-record-count count] [--skip-count count] [--process-count-low-and-high-watermarks low:high] "
-              << "marc_input marc_output full_text_db\n"
+              << "marc_input marc_output full_text_db error_log_path\n"
               << "       --process-count-low-and-high-watermarks sets the maximum and minimum number of spawned\n"
               << "       child processes.  When we hit the high water mark we wait for child processes to exit\n"
               << "       until we reach the low watermark.\n\n";
@@ -107,7 +107,7 @@ unsigned CleanUpZombies(const unsigned zombies_to_collect) {
 
 
 void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, MarcReader * const marc_reader,
-                    MarcWriter * const marc_writer, const std::string &db_filename,
+                    MarcWriter * const marc_writer, const std::string &db_filename, const std::string &error_log_path,
                     const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
 {
     Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
@@ -138,7 +138,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
         ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
                         { std::to_string(record_start), marc_reader->getPath(), marc_writer->getFile().getPath(),
-                          db_filename });
+                                db_filename, error_log_path });
         ++active_child_count;
         ++spawn_count;
 
@@ -169,7 +169,7 @@ constexpr unsigned PROCESS_COUNT_DEFAULT_LOW_WATERMARK(5);
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 4 and argc != 6 and argc != 8 and argc != 10)
+    if (argc != 5 and argc != 7 and argc != 9 and argc != 11)
         Usage();
     ++argv; // skip program name
 
@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
     unsigned max_record_count(UINT_MAX), skip_count(0);
     unsigned process_count_low_watermark(PROCESS_COUNT_DEFAULT_LOW_WATERMARK),
              process_count_high_watermark(PROCESS_COUNT_DEFAULT_HIGH_WATERMARK);
-    while (argc > 4) {
+    while (argc > 5) {
         std::cout << "Arg: " << *argv << "\n";
         if (std::strcmp(*argv, "--max-record-count") == 0) {
             ++argv;
@@ -218,13 +218,14 @@ int main(int argc, char **argv) {
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
-    const std::string db_filename(*argv);
+    const std::string db_filename(*argv++);
     kyotocabinet::HashDB db;
     if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE))
         Error("Failed to create the key/valuedatabase \"" + db_filename + "\" ("
               + std::string(db.error().message()) + ")!");
     db.close();
 
+    const std::string error_log_path(*argv);
     const std::string UPDATE_DB_LOG_DIR_PATH(
         "/var/log/" + std::string(FileUtil::Exists("/var/log/krimdok") ? "krimdok" : "ixtheo")
         + "/update_full_text_db");
@@ -233,7 +234,7 @@ int main(int argc, char **argv) {
 
     try {
         ProcessRecords(max_record_count, skip_count, marc_reader.get(), marc_writer.get(), db_filename,
-                       process_count_low_watermark, process_count_high_watermark);
+                       error_log_path, process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
