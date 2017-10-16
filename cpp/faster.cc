@@ -40,28 +40,26 @@ static void Usage() {
 }
 
 
-class Field {
-    std::string tag_;
-    std::string contents_;
-public:
-    Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
-    inline const std::string &getTag() const { return tag_; }
-    inline const std::string &getContents() const { return contents_; }
-    inline std::string getContents() { return contents_; }
-};
-
-
-class Subfields {
-};
-
-
 class Record {
+public:
+    class Field {
+        std::string tag_;
+        std::string contents_;
+    public:
+        Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
+        inline const std::string &getTag() const { return tag_; }
+        inline const std::string &getContents() const { return contents_; }
+        inline std::string getContents() { return contents_; }
+    };
+private:
     friend class Reader;
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
 public:
     enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
+    typedef std::vector<Field>::iterator iterator;
+    typedef std::vector<Field>::const_iterator const_iterator;
 public:
     explicit Record(const size_t record_size, char * const record_start);
     
@@ -81,6 +79,11 @@ public:
     RecordType getRecordType() const;
     inline const std::string &getFieldData(const size_t field_index) const
         { return fields_[field_index].getContents(); }
+
+    inline iterator begin() { return fields_.begin(); }
+    inline iterator end() { return fields_.end(); }
+    inline const_iterator begin() const { return fields_.cbegin(); }
+    inline const_iterator end() const { return fields_.cend(); }
 
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the index of the first field of a local block in "first"
@@ -165,6 +168,17 @@ size_t Record::findAllLocalDataBlocks(std::vector<std::pair<size_t, size_t>> *co
 }
 
 
+class Subfields {
+    const std::string &field_contents_;
+public:
+    explicit Subfields(const Record::Field &field): field_contents_(field.getContents()) { }
+    inline char getIndicator1() const { return unlikely(field_contents_.empty()) ? '\0' : field_contents_[0]; }
+    inline char getIndicator2() const { return unlikely(field_contents_.size() < 2) ? '\0' : field_contents_[1]; }
+    unsigned size() const __attribute__ ((pure))
+        { return std::count(field_contents_.cbegin(), field_contents_.cend(), '\x1F');}
+};
+
+
 class Reader {
     std::unique_ptr<File> input_;
 public:
@@ -212,7 +226,7 @@ int main(int argc, char *argv[]) {
 
     try {
         unsigned record_count(0);
-        size_t max_record_size(0), max_field_count(0), max_local_block_count(0);
+        size_t max_record_size(0), max_field_count(0), max_local_block_count(0), max_subfield_count(0);
         std::map<Record::RecordType, unsigned> record_types_and_counts;
         while (const Record record = reader.read()) {
             ++record_count;
@@ -227,21 +241,29 @@ int main(int argc, char *argv[]) {
                 std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for control number "
                           << record.getControlNumber() << ".\n";
 
+            for (const auto &field : record) {
+                const Subfields subfields(field);
+                if (unlikely(subfields.size() > max_subfield_count))
+                    max_subfield_count = subfields.size();
+            }
+            
             std::vector<std::pair<size_t, size_t>> local_block_boundaries;
             const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
             if (local_block_count > max_local_block_count)
                 max_local_block_count = local_block_count;
         }
 
-        std::cerr << "Read " << record_count << " records.\n";
+        std::cerr << "Read " << record_count << " record(s).\n";
         std::cerr << "The largest record contains " << max_record_size << " bytes.\n";
-        std::cerr << "The record with the largest number of fields contains " << max_field_count << " fields.\n";
-        std::cerr << "The record with the most local data blocks has " << max_local_block_count << " local blocks.\n";
+        std::cerr << "The record with the largest number of fields contains " << max_field_count << " field(s).\n";
+        std::cerr << "The record with the most local data blocks has " << max_local_block_count
+                  << " local block(s).\n";
         std::cerr << "Counted " << record_types_and_counts[Record::RecordType::BIBLIOGRAPHIC]
                   << " bibliographic record(s), " << record_types_and_counts[Record::RecordType::AUTHORITY]
                   << " classification record(s), " << record_types_and_counts[Record::RecordType::CLASSIFICATION]
                   << " authority record(s), and " << record_types_and_counts[Record::RecordType::UNKNOWN]
                   << " record(s) of unknown record type.\n";
+        std::cerr << "The field with the most subfields has " << max_subfield_count << " subfield(s).\n";
     } catch (const std::exception &e) {
         Error("Caught exception: " + std::string(e.what()));
     }
