@@ -167,6 +167,7 @@ public class MultiLanguageQueryParser extends QParser {
                   logger.warn("No rewrite rule did match for " + myQuery.getClass());
               this.searchString = myQuery.toString();
               newParams.set("q", this.searchString);
+              newParams.set("q.op", "OR");
            } catch(SyntaxError|IOException e) {
                throw new SolrException(ErrorCode.SERVER_ERROR, "Rewriting Lucene support for new languages failed", e);
            }
