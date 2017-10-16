@@ -64,7 +64,7 @@ public:
     typedef std::vector<Field>::const_iterator const_iterator;
 public:
     explicit Record(const size_t record_size, char * const record_start);
-    
+
     inline Record(Record &&other) {
         std::swap(record_size_, other.record_size_);
         leader_.swap(other.leader_);
@@ -78,7 +78,15 @@ public:
     inline std::string getControlNumber() const
         { return likely(fields_.front().getTag() == "001") ? fields_.front().getContents() : ""; }
     ssize_t getFirstFieldIndex(const std::string &tag) const;
-    RecordType getRecordType() const;
+
+    RecordType getRecordType() const {
+        if (leader_[6] == 'z')
+            return AUTHORITY;
+        if (leader_[6] == 'w')
+            return CLASSIFICATION;
+        return __builtin_strchr("acdefgijkmoprt", leader_[6]) == nullptr ? UNKNOWN : BIBLIOGRAPHIC;
+    }
+
     inline const std::string &getFieldData(const size_t field_index) const
         { return fields_[field_index].getContents(); }
 
@@ -113,7 +121,7 @@ Record::Record(const size_t record_size, char * const record_start)
     : record_size_(record_size), leader_(record_start, record_size)
 {
     const char * const base_address_of_data(record_start + ToUnsigned(record_start + 12, 5));
-    
+
     // Process directory:
     const char *directory_entry(record_start + LEADER_LENGTH);
     while (directory_entry != base_address_of_data - 1) {
@@ -129,15 +137,6 @@ Record::Record(const size_t record_size, char * const record_start)
         fields_.emplace_back(tag, field_contents);
         directory_entry += 3 /* tag */ + 4 /* field length */ + 5 /* field offset */;
     }
-}
-
-
-Record::RecordType Record::getRecordType() const {
-    if (leader_[6] == 'z')
-        return AUTHORITY;
-    if (leader_[6] == 'w')
-        return CLASSIFICATION;
-    return std::strchr("acdefgijkmoprt", leader_[6]) == nullptr ? UNKNOWN : BIBLIOGRAPHIC;
 }
 
 
@@ -250,7 +249,7 @@ int main(int argc, char *argv[]) {
                         max_subfield_count = subfields.size();
                 }
             }
-            
+
             std::vector<std::pair<size_t, size_t>> local_block_boundaries;
             const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
             if (local_block_count > max_local_block_count)
