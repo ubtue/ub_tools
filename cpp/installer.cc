@@ -2270,7 +2270,7 @@ void ConfigureSolrUserAndService(const bool install_systemctl) {
  * Configure VuFind system
  * - Solr Configuration
  * - Schema Fields & Types
- * - solrmarc settings
+ * - solrmarc settings (including VUFIND_LOCAL_DIR)
  * - alphabetical browse
  * - cronjobs
  * - create directories in /var/log/<vufind_system_type> and /usr/local/var/lib/tuelib
@@ -2301,6 +2301,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
         dirname_solrmarc_conf + "/marc_" + vufind_system_type_string + ".properties"
     };
     FileUtil_ConcatFiles(filename_solrmarc_conf_local, filenames_solrmarc_conf_custom);
+    ExecOrDie("export", { "VUFIND_LOCAL_DIR=" + VUFIND_DIRECTORY + "/local/tufind/instances/" + vufind_system_type_string });
 
     Echo("alphabetical browse");
     UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh", VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
