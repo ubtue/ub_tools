@@ -32,6 +32,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <unordered_map>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/sendfile.h>
@@ -1251,25 +1252,46 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
 }
 
 
+std::unordered_map<std::string, std::string> which_cache;
+
+
 std::string ExecUtil_Which(const std::string &executable_candidate) {
+    auto which_cache_entry = which_cache.find(executable_candidate);
+    if (which_cache_entry != which_cache.end())
+        return which_cache[executable_candidate];
+
+    std::string executable;
+
     const size_t last_slash_pos(executable_candidate.find_last_of('/'));
-    if (last_slash_pos != std::string::npos)
-        return IsExecutableFile(executable_candidate) ? executable_candidate : "";
-
-    const char * const PATH(::secure_getenv("PATH"));
-    if (PATH == nullptr)
-        return "";
-
-    const std::string path_str(PATH);
-    std::vector<std::string> path_compoments;
-    StringUtil_Split(path_str, ':', &path_compoments);
-    for (const auto &path_compoment : path_compoments) {
-        const std::string full_path(path_compoment + "/" + executable_candidate);
-        if (IsExecutableFile(full_path))
-            return full_path;
+    if (last_slash_pos != std::string::npos) {
+        if (not IsExecutableFile(executable_candidate))
+            return "";
+        executable = executable_candidate;
     }
 
-    return "";
+    if (executable.empty()) {
+        const char * const PATH(::secure_getenv("PATH"));
+        if (PATH == nullptr)
+            return "";
+
+        const std::string path_str(PATH);
+        std::vector<std::string> path_components;
+        StringUtil_Split(path_str, ':', &path_components);
+        for (const auto &path_component : path_components) {
+            const std::string full_path(path_component + "/" + executable_candidate);
+            if (IsExecutableFile(full_path)) {
+                executable = full_path;
+                break;
+            }
+        }
+    }
+
+    if (executable.empty())
+        return "";
+    else {
+        which_cache[executable_candidate] = executable;
+        return executable;
+    }
 }
 
 
