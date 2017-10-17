@@ -34,6 +34,9 @@ def OptimizeSolrIndex():
         sys.exit(-1)
 
 
+solrmarc_log_summary = "/tmp/solrmarc_log.summary"
+
+
 def ImportIntoVuFind(pattern, log_file_name):
     args = [ sorted(glob.glob(pattern), reverse=True)[0] ]
     if len(args) != 1:
@@ -41,6 +44,8 @@ def ImportIntoVuFind(pattern, log_file_name):
                    + " files! (Should have matched exactly 1 file!)")
     DeleteSolrIndex()
     util.ExecOrDie("/usr/local/vufind/import-marc.sh", args, log_file_name)
+    util.ExecOrDie("/usr/local/bin/summarize_logs", ["/usr/local/vufind/import/solrmarc.log", solrmarc_log_summary],
+                   log_file_name)
     OptimizeSolrIndex()
     util.ExecOrDie("/usr/local/vufind/index-alphabetic-browse.sh", None, log_file_name)
 
@@ -108,5 +113,5 @@ try:
     Main()
 except Exception as e:
     error_msg =  "An unexpected error occurred: " + str(e) + "\n\n" + traceback.format_exc(20)
-    util.SendEmail("MARC-21 Pipeline Kick-Off", error_msg, priority=1)
+    util.SendEmail("MARC-21 Pipeline Kick-Off", error_msg, priority=1, attachment=solrmarc_log_summary)
     sys.stderr.write(error_msg)
