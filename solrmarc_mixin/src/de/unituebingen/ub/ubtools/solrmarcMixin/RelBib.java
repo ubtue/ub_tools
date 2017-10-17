@@ -7,6 +7,7 @@ import java.io.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.*;
+import java.util.logging.Logger;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.VariableField;
@@ -15,7 +16,7 @@ import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.Utils;
 
 public class RelBib extends IxTheo {
-
+    protected static Logger logger = Logger.getLogger(RelBib.class.getName());
     protected final static Pattern RELBIB_POSITIVE_MATCH_PATTERN =
         Pattern.compile("^A.*|^B.*|^HD.*|^HH.*|^KB.*|" +
                         "KCA|KCG|KDG|KDH|NBC|NBD|NBE|NBH|NBK|NBQ|NCB|NCC|NCD|NCE|NCF|NCG|NCH|NCJ|" +
@@ -156,7 +157,7 @@ public class RelBib extends IxTheo {
                     temporaryReligiousStudiesSuperior.add(line);
                 }
             } catch (IOException e) {
-                System.err.println("Could not open file" + e.toString());
+                logger.severe("Could not open file" + e.toString());
                 System.exit(1);
             }
         }
