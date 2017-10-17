@@ -709,6 +709,15 @@ public class TuelibMixin extends SolrIndexerMixin {
         return collections.iterator().next();
     }
 
+    private static boolean isValidMonthCode(final String month_candidate) {
+        try {
+            final int month_code = Integer.parseInt(month_candidate);
+            return month_code >= 1 && month_code <= 12;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+    
     /**
      * @param record
      *            the record
@@ -750,7 +759,12 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
 
                 final String month = dataString.substring(2, 4);
-                return year + "-" + month + "-01T11:00:00.000Z";
+                if (!isValidMonthCode(month)) {
+                    System.err.println("in getTueLocalIndexedDate: bad month in LOK 988 field: " + month
+                                       + "! (PPN: " + record.getControlNumber() + ")");
+                    return null;
+                }
+                return year + "-" + month + "-01T11:00:00:000Z";
             }
         }
         return null;
