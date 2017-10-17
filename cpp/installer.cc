@@ -2126,6 +2126,12 @@ std::string MiscUtil_ExpandTemplate(const std::string &template_string,
 }
 
 
+void MiscUtil_SetEnv(const std::string &name, const std::string &value, const bool overwrite) {
+    if (unlikely(::setenv(name.c_str(), value.c_str(), overwrite ? 1 : 0) != 0))
+        throw std::runtime_error("in MiscUtil::SetEnv: setenv(3) failed!");
+}
+
+
 void InstallCronjobs(const VuFindSystemType vufind_system_type) {
     std::map<std::string, std::vector<std::string>> names_to_values_map;
     if (vufind_system_type == IXTHEO) {
@@ -2229,7 +2235,7 @@ void DownloadVuFind() {
  * - Create user "vufind" as system user if not exists
  * - Grant permissions on relevant directories
  */
-void ConfigureApacheUser(const std::string &vufind_system_type_string, const OSSystemType os_system_type) {
+void ConfigureApacheUser(const OSSystemType os_system_type) {
     const std::string username("vufind");
     CreateUserIfNotExists(username);
 
@@ -2254,7 +2260,7 @@ void ConfigureApacheUser(const std::string &vufind_system_type_string, const OSS
     }
 
     ExecOrDie(ExecUtil_Which("find"), {"/usr/local/vufind/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+"});
-    ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, "/var/log/" + vufind_system_type_string});
+    ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, "/usr/local/var/log/tufind" });
 }
 
 
@@ -2290,10 +2296,20 @@ void ConfigureSolrUserAndService(const bool install_systemctl) {
 
 
 void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
+    std::vector<std::pair<std::string, std::string>> keys_and_values {
+        { "VUFIND_HOME", VUFIND_DIRECTORY },
+        { "VUFIND_LOCAL_DIR", VUFIND_DIRECTORY + "/local/tufind/instances/" + vufind_system_type_string },
+        { "TUFIND_FLAVOUR", vufind_system_type_string },
+    };
+
     std::string variables;
-    variables += "export VUFIND_HOME=" + VUFIND_DIRECTORY + "\n";
-    variables += "export VUFIND_LOCAL_DIR=" + VUFIND_DIRECTORY + "/local/tufind/instances/" + vufind_system_type_string + "\n";
-    FileUtil_WriteString("/etc/profile.d/vufind.sh", variables);
+    for (const auto &key_and_value : keys_and_values) {
+        MiscUtil_SetEnv(key_and_value.first, key_and_value.second, /* overwrite = */ true);
+        variables += "export " + key_and_value.first + "=" + key_and_value.second + "\n";
+    }
+
+    const std::string script_path("/etc/profile.d/vufind.sh");
+    FileUtil_WriteString(script_path, variables);
 }
 
 
@@ -2304,7 +2320,7 @@ void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
  * - solrmarc settings (including VUFIND_LOCAL_DIR)
  * - alphabetical browse
  * - cronjobs
- * - create directories in /var/log/<vufind_system_type> and /usr/local/var/lib/tuelib
+ * - create directories /usr/local/var/log/tufind and /usr/local/var/lib/tuelib
  *
  * Writes a file into vufind directory to save configured system type
  */
@@ -2346,13 +2362,11 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
 
     Echo("creating directories");
     ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/lib/tuelib" });
-    ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/var/log/" + vufind_system_type_string });
+    ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/log/tufind" });
 
     ConfigureSolrUserAndService(install_systemctl);
-    ConfigureApacheUser(vufind_system_type_string, os_system_type);
+    ConfigureApacheUser(os_system_type);
 
-    // write configured instance type to file
-    FileUtil_WriteString(VUFIND_DIRECTORY + "/tufind.instance", vufind_system_type_string);
     Echo(vufind_system_type_string + " configuration completed!");
 }
 
@@ -2381,15 +2395,14 @@ int main(int argc, char **argv) {
             Usage();
 
         if (argc >= 3) {
-            for (int i=2;i<=3;i++) {
+            for (int i = 2; i <= 3; ++i) {
                 if (i < argc) {
-                    if (std::strcmp("--omit-cronjobs", argv[i]) == 0) {
+                    if (std::strcmp("--omit-cronjobs", argv[i]) == 0)
                         omit_cronjobs = true;
-                    } else if (std::strcmp("--omit-systemctl", argv[i]) == 0) {
+                    else if (std::strcmp("--omit-systemctl", argv[i]) == 0)
                         omit_systemctl = true;
-                    } else {
+                    else
                         Usage();
-                    }
                 }
             }
         }

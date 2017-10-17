@@ -228,8 +228,7 @@ int main(int argc, char **argv) {
 
     const std::string error_log_path(*argv);
     const std::string UPDATE_DB_LOG_DIR_PATH(
-        "/var/log/" + std::string(FileUtil::Exists("/var/log/krimdok") ? "krimdok" : "ixtheo")
-        + "/update_full_text_db");
+        "/usr/local/var/log/tufind/update_full_text_db");
     if (not FileUtil::MakeDirectory(UPDATE_DB_LOG_DIR_PATH, /* recursive = */ true))
         Error("failed to create directory: " + UPDATE_DB_LOG_DIR_PATH);
 
