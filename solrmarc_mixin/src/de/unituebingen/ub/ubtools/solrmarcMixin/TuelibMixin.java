@@ -683,7 +683,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return collections.iterator().next();
     }
 
-    private boolean isValidMonthCode(final String month_candidate) {
+    private static boolean isValidMonthCode(final String month_candidate) {
         try {
             final int month_code = Integer.parseInt(month_candidate);
             return month_code >= 1 && month_code <= 12;
