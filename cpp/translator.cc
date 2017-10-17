@@ -516,7 +516,7 @@ void GetAdditionalViewLanguages(const IniFile &ini_file, std::vector<std::string
 }
 
 
-void GetAsciiTableForQuery(DbConnection &db_connection,
+void GetTableForQuery(DbConnection &db_connection,
                            std::vector<std::string> *const rows, const std::string &query,
                            std::vector<std::string> &display_languages, enum Category category)
 {
@@ -546,7 +546,7 @@ void GetAsciiTableForQuery(DbConnection &db_connection,
         int index(GetColumnIndexForColumnHeading(display_languages, row_values, language_code));
         if (index == NO_INDEX)
             continue;
-        row_values[index] = "<td>" + db_row["translation"] + "</td>";
+        row_values[index] = "<td>" + HtmlUtil::HtmlEscape(db_row["translation"]) + "</td>";
 
     } while ((db_row = result_set.getNextRow()));
     rows->emplace_back(StringUtil::Join(row_values, ""));
@@ -574,7 +574,7 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
                                    "translator=\'" + translator + "\') as t) ORDER BY token, language_code;");
 
     std::vector<std::string> vufind_rows;
-    GetAsciiTableForQuery(db_connection, &vufind_rows, vufind_query, display_languages, VUFIND);
+    GetTableForQuery(db_connection, &vufind_rows, vufind_query, display_languages, VUFIND);
     names_to_values_map->emplace("vufind_translations", vufind_rows);
 
     // Get Keyword Translations
@@ -586,7 +586,7 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
                                     + translator + "\') ORDER BY k.translation;");
 
     std::vector<std::string> keyword_rows;
-    GetAsciiTableForQuery(db_connection, &keyword_rows, keyword_query, display_languages, KEYWORDS);
+    GetTableForQuery(db_connection, &keyword_rows, keyword_query, display_languages, KEYWORDS);
     names_to_values_map->emplace("keyword_translations", keyword_rows);
     return true;
 }
