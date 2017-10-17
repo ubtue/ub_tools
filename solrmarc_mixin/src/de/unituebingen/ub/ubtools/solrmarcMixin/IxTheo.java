@@ -3,6 +3,7 @@ package de.unituebingen.ub.ubtools.solrmarcMixin;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.Reader.*;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.*;
@@ -16,6 +17,7 @@ import org.solrmarc.tools.Utils;
 import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheo extends SolrIndexerMixin {
+    protected static Logger logger = Logger.getLogger(IxTheo.class.getName());
     private Set<String> ixTheoNotations = null;
 
 

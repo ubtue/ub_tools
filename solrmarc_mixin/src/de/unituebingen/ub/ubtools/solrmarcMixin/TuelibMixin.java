@@ -257,7 +257,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                  else if (fieldSpec.length() == 3)
                      subfieldsToSearch = field.getSubfields();
                  else {
-                     System.err.println("in TuelibMixin.getAllSubfieldsBut: invalid field specification: " + fieldSpec);
+                     logger.severe("in TuelibMixin.getAllSubfieldsBut: invalid field specification: " + fieldSpec);
                      System.exit(1);
                  }
                  for (final Subfield subfield : subfieldsToSearch)
@@ -717,7 +717,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             return false;
         }
     }
-    
+
     /**
      * @param record
      *            the record
@@ -760,8 +760,8 @@ public class TuelibMixin extends SolrIndexerMixin {
 
                 final String month = dataString.substring(2, 4);
                 if (!isValidMonthCode(month)) {
-                    System.err.println("in getTueLocalIndexedDate: bad month in LOK 988 field: " + month
-                                       + "! (PPN: " + record.getControlNumber() + ")");
+                    logger.severe("in getTueLocalIndexedDate: bad month in LOK 988 field: " + month
+                                  + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
                 return year + "-" + month + "-01T11:00:00:000Z";
@@ -834,7 +834,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                         translation_map.put(translations[0], translations[1]);
                 }
             } catch (IOException e) {
-                System.err.println("Could not open file: " + e.toString());
+                logger.severe("Could not open file: " + e.toString());
                 System.exit(1);
             }
         }
@@ -984,7 +984,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (map.containsKey(physical_code))
                     results.add(map.get(physical_code));
                 else
-                    System.err.println("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
+                    logger.severe("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
             }
         }
 
@@ -1106,7 +1106,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         String[] subfieldSeparatorList = separatorSpec.split(regexColon);
         for (String s : subfieldSeparatorList) {
-            // System.out.println("separator Spec: " + s);
+            // logger.info("separator Spec: " + s);
             // Create map of subfields and separators
 
             Matcher subfieldMatcher = SUBFIELD_PATTERN.matcher(s);
@@ -1116,7 +1116,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 // Get $ and the character
                 String subfield = subfieldMatcher.group(1);
                 String separatorToUse = subfieldMatcher.group(2);
-                // System.out.println("Inserting separators | subfield: " +
+                // logger.info("Inserting separators | subfield: " +
                 // subfield + " - text: " + separatorToUse);
                 separators.put(subfield, separatorToUse.replace(esc, ""));
             }
@@ -1225,7 +1225,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (fldTags[i].substring(0, 3).equals("LOK")) {
 
                 if (fldTags[i].substring(3, 6).length() < 3) {
-                    System.err.println("Invalid tag for \"Lokaldaten\": " + fldTags[i]);
+                    logger.severe("Invalid tag for \"Lokaldaten\": " + fldTags[i]);
                     continue;
                 }
                 // Save LOK-Subfield
@@ -1402,8 +1402,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             yearTwoDigit = Integer.parseInt(yyMMDate.substring(0, 1));
         }
         catch (NumberFormatException e) {
-            System.err.println("in yyMMDateToString: expected date in YYMM format, found \"" + yyMMDate
-                               + "\" instead! (Control number was " + controlNumber + ")");
+            logger.severe("in yyMMDateToString: expected date in YYMM format, found \"" + yyMMDate
+                          + "\" instead! (Control number was " + controlNumber + ")");
         }
         return Integer.toString(yearTwoDigit < (currentYear - 2000) ? (2000 + yearTwoDigit) : (1900 + yearTwoDigit));
     }
@@ -1424,7 +1424,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (format.contains("Website")) {
             final ControlField _008_field = (ControlField) record.getVariableField("008");
             if (_008_field == null) {
-                System.err.println("getDates [No 008 Field for Website " + record.getControlNumber() + "]");
+                logger.severe("getDates [No 008 Field for Website " + record.getControlNumber() + "]");
                 return dates;
             }
             dates.add(yyMMDateToString(record.getControlNumber(), _008_field.getData()));
@@ -1465,7 +1465,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
             if (dates.isEmpty())
-                System.err.println("getDates [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
+                logger.severe("getDates [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
             else
                 return dates;
         }
@@ -1481,7 +1481,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 dates.add(jSubfield.getData());
             }
             else {
-                System.err.println("getDates [No 190j subfield for PPN " + record.getControlNumber() + "]");
+                logger.severe("getDates [No 190j subfield for PPN " + record.getControlNumber() + "]");
             }
             return dates;
         }
@@ -1491,7 +1491,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Use the sort date given in the 008-Field
         final ControlField _008_field = (ControlField) record.getVariableField("008");
         if (_008_field == null) {
-            System.err.println("getDates [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
+            logger.severe("getDates [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
             return dates;
         }
         final String _008FieldContents = _008_field.getData();
@@ -1499,7 +1499,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Test whether we have a reasonable value
         final String year = checkValidYear(yearExtracted);
         if (year.isEmpty())
-            System.err.println("getDates [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
+            logger.severe("getDates [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
         dates.add(year);
         return dates;
 }
