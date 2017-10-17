@@ -104,7 +104,8 @@ def Main():
         file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
 
         StartPipeline(pipeline_script_name, file_name_list[0], conf)
-        util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5)
+        util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5,
+                       attachment=solrmarc_log_summary)
         util.WriteTimestamp()
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.", priority=5)
@@ -114,5 +115,5 @@ try:
     Main()
 except Exception as e:
     error_msg =  "An unexpected error occurred: " + str(e) + "\n\n" + traceback.format_exc(20)
-    util.SendEmail("MARC-21 Pipeline Kick-Off", error_msg, priority=1, attachment=solrmarc_log_summary)
+    util.SendEmail("MARC-21 Pipeline Kick-Off", error_msg, priority=1)
     sys.stderr.write(error_msg)
