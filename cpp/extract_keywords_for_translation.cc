@@ -244,7 +244,7 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, MarcWriter *
     record->extractSubfield("065", 'a', &gnd_systems);
     std::string gnd_system(StringUtil::Join(gnd_systems, ","));
 
-    const std::string INSERT_STATEMENT_START("INSERT INTO keyword_translations (ppn,gnd_code,language_code,"
+    const std::string INSERT_STATEMENT_START("INSERT IGNORE INTO keyword_translations (ppn,gnd_code,language_code,"
                                              "translation,status,origin,gnd_system) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
 
