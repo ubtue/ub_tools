@@ -1,3 +1,4 @@
+TUFIND_FLAVOUR ?= "unknown"
 .PHONY: all install clean test install_configs
 
 all: 
@@ -25,13 +26,13 @@ test:
 	$(MAKE) -C cpp/tests test;
 
 install_configs:
-ifneq "$(wildcard /var/log/ixtheo/)" ""
-	@echo "We have an IxTheo installation..."
+ifeq "$(TUFIND_FLAVOUR)" "ixtheo"
+	@echo "Installing $(TUFIND_FLAVOUR)..."
 	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/IxTheo/ install
-else ifneq "$(wildcard /var/log/krimdok/)" ""
-	@echo "We have a KrimDok installation..."
+else ifeq "$(TUFIND_FLAVOUR)" "krimdok"
+	@echo "Installing $(TUFIND_FLAVOUR)..."
 	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/KrimDok/ install
 else
-	$(error Did not find /var/log/ixtheo/ nor /var/log/krimdok/.)
+	$(error TUFIND_FLAVOUR neither ixtheo nor krimdok!)
 endif
-# DO NOT DELETE
+
