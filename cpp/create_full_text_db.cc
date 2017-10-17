@@ -38,6 +38,7 @@
 #include "MarcRecord.h"
 #include "MarcUtil.h"
 #include "MarcWriter.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "Semaphore.h"
 #include "StringUtil.h"
@@ -233,6 +234,7 @@ int main(int argc, char **argv) {
         Error("failed to create directory: " + UPDATE_DB_LOG_DIR_PATH);
 
     try {
+        MiscUtil::LogRotate(error_log_path, /* max_count = */ 5);
         ProcessRecords(max_record_count, skip_count, marc_reader.get(), marc_writer.get(), db_filename,
                        error_log_path, process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
