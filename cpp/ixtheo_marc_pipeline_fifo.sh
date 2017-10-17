@@ -64,7 +64,7 @@ function CleanUp {
 
 
 # Sets up the log file:
-logdir=/var/log/ixtheo
+logdir=/usr/local/var/log/tufind
 log="${logdir}/ixtheo_marc_pipeline_fifo.log"
 rm -f "${log}"
 
@@ -79,7 +79,7 @@ update_authority_data 'LOEPPN-\d\d\d\d\d\d' 'Normdaten-\d\d\d\d\d\d'.mrc 'WA-MAR
 EndPhase
 
 
-StartPhase "Filter out Local Data of Other Institutions" 
+StartPhase "Filter out Local Data of Other Institutions"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (delete_unused_local_data GesamtTiteldaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -128,10 +128,10 @@ StartPhase "Normalise URL's"
 (normalise_urls GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait 
+wait
 
 
-StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items" 
+StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
 (create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
 add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -140,28 +140,28 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Add Author Synonyms from Authority Data" 
+StartPhase "Add Author Synonyms from Authority Data"
 (add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
-StartPhase "Add ACO Fields to Records That Are Article Collections" 
+StartPhase "Add ACO Fields to Records That Are Article Collections"
 (flag_article_collections GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
-StartPhase "Adding of ISBN's and ISSN's to Component Parts" 
+StartPhase "Adding of ISBN's and ISSN's to Component Parts"
 (add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
-StartPhase "Extracting Keywords from Titles" 
+StartPhase "Extracting Keywords from Titles"
 (enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  ../cpp/data/stopwords.??? && \
@@ -169,7 +169,7 @@ EndPhase) &
 wait
 
 
-StartPhase "Augment Bible References" 
+StartPhase "Augment Bible References"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          Normdaten-"${date}".mrc \
@@ -196,7 +196,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-StartPhase "Map DDC and RVK to IxTheo Notations" 
+StartPhase "Map DDC and RVK to IxTheo Notations"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (map_ddc_and_rvk_to_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
@@ -272,7 +272,7 @@ StartPhase "Extract Normdata Translations"
 (extract_normdata_translations Normdaten-augmented-"${date}".mrc \
      normdata_translations.txt >> "${log}" 2>&1 &&
 EndPhase || Abort) &
-wait 
+wait
 
 
 StartPhase "Cleanup of Intermediate Files"
