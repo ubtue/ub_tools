@@ -85,8 +85,13 @@ void SummarizeLog(File * const log_file, File * const summary_file) {
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("((?:DEBUG|INFO|WARN|SEVERE).*$)", &err_msg));
     if (matcher == nullptr)
         Error("in SummarizeLog: failed to compile regex: " + err_msg);
+    RegexMatcher * const datatime_matcher(RegexMatcher::RegexMatcherFactory("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}",
+                                                                            &err_msg));
+    if (matcher == nullptr)
+        Error("in SummarizeLog: failed to compile datetime regex: " + err_msg);
 
     std::unordered_map<std::string, unsigned> lines_and_frequencies;
+    std::string max_datetime("0000-00-00 00:00"), min_datetime("9999-99-99 99:00");
     while (not log_file->eof()) {
         std::string line;
         if (unlikely(log_file->getline(&line) == 0))
@@ -95,6 +100,14 @@ void SummarizeLog(File * const log_file, File * const summary_file) {
         if (not matcher->matched(line)) {
             Warning("in SummarizeLog: failed to match line: " + line);
             continue;
+        }
+
+        if (datatime_matcher->matched(line)) {
+            const std::string datetime(line.substr(0, 16));
+            if (datetime > max_datetime)
+                max_datetime = datetime;
+            if (datetime < min_datetime)
+                min_datetime = datetime;
         }
 
         const std::string summary((*matcher)[1]);
@@ -114,6 +127,8 @@ void SummarizeLog(File * const log_file, File * const summary_file) {
     std::sort(lines_and_frequencies_as_vector.begin(), lines_and_frequencies_as_vector.end(),
               LineAndFrequencyCompare);
 
+    *summary_file << "Summary of " << log_file->getPath() << " between " << min_datetime << " and "
+                  << max_datetime << ".\n";
     for (const auto &line_and_frequency : lines_and_frequencies_as_vector)
         *summary_file << line_and_frequency.first << ": " << line_and_frequency.second << '\n';
 }
