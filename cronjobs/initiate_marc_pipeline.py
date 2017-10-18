@@ -34,6 +34,9 @@ def OptimizeSolrIndex():
         sys.exit(-1)
 
 
+solrmarc_log_summary = "/tmp/solrmarc_log.summary"
+
+
 def ImportIntoVuFind(pattern, log_file_name):
     args = [ sorted(glob.glob(pattern), reverse=True)[0] ]
     if len(args) != 1:
@@ -41,6 +44,9 @@ def ImportIntoVuFind(pattern, log_file_name):
                    + " files! (Should have matched exactly 1 file!)")
     DeleteSolrIndex()
     util.ExecOrDie("/usr/local/vufind/import-marc.sh", args, log_file_name)
+    util.ExecOrDie("/usr/local/bin/summarize_logs", ["/usr/local/vufind/import/solrmarc.log", solrmarc_log_summary],
+                   log_file_name)
+    util.ExecOrDie("/usr/local/bin/log_rotate ", ["/usr/local/vufind/import/", "solrmarc\\.log"], log_file_name)
     OptimizeSolrIndex()
     util.ExecOrDie("/usr/local/vufind/index-alphabetic-browse.sh", None, log_file_name)
 
@@ -98,7 +104,8 @@ def Main():
         file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
 
         StartPipeline(pipeline_script_name, file_name_list[0], conf)
-        util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5)
+        util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5,
+                       attachment=solrmarc_log_summary)
         util.WriteTimestamp()
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.", priority=5)
