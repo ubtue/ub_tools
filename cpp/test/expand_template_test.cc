@@ -32,7 +32,7 @@ void ExtractNamesAndValues(const int argc, char *argv[],
         StringUtil::Split(arg, ':', &values);
         const std::string name(values.front());
         if (values.empty())
-            Error(name + " is missing at least one value!");
+            logger->error(name + " is missing at least one value!");
         values.erase(values.begin());
         (*names_to_values_map)[name] = values;
     }
@@ -48,12 +48,12 @@ int main(int argc, char *argv[]) {
         const std::string template_filename(argv[1]);
         std::string template_string;
         if (not FileUtil::ReadString(template_filename, &template_string))
-            Error("failed to read the template from \"" + template_filename + "\" for reading!");
+            logger->error("failed to read the template from \"" + template_filename + "\" for reading!");
         std::map<std::string, std::vector<std::string>> names_to_values_map;
         ExtractNamesAndValues(argc, argv, &names_to_values_map);
         std::istringstream input(template_string);
         MiscUtil::ExpandTemplate(input, std::cout, names_to_values_map);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

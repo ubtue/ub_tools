@@ -88,13 +88,13 @@ void ExtractTags(DbConnection * const connection,
 
         const auto tag_id_and_resource_id(tag_id_to_resource_id_map.find(db_row["id"]));
         if (unlikely(tag_id_and_resource_id == tag_id_to_resource_id_map.end())) {
-            Warning("no resource ID for tag ID \"" + db_row["id"] + "\" found!");
+            logger->warning("no resource ID for tag ID \"" + db_row["id"] + "\" found!");
             continue;
         }
 
         const auto resource_id_and_record_id(resource_id_to_record_id_map.find(tag_id_and_resource_id->second));
         if (unlikely(resource_id_and_record_id == resource_id_to_record_id_map.end())) {
-            Warning("no record ID for resource ID \"" + tag_id_and_resource_id->second + "\" found!");
+            logger->warning("no record ID for resource ID \"" + tag_id_and_resource_id->second + "\" found!");
             continue;
         }
 
@@ -163,6 +163,6 @@ int main(int argc, char *argv[]) {
 
         AddTagsToRecords(reader.get(), writer.get(), record_id_to_tags_map);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

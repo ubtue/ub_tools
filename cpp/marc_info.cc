@@ -51,11 +51,11 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
         ++record_count;
 
         if (unlikely(record.getNumberOfFields() == 0))
-            Error("record #" + std::to_string(record_count) + " has zero fields!");
+            logger->error("record #" + std::to_string(record_count) + " has zero fields!");
         const std::string &control_number(record.getControlNumber());
 
         if (control_numbers.find(control_number) != control_numbers.end())
-            Warning("found at least one duplicate control number: " + control_number);
+            logger->warning("found at least one duplicate control number: " + control_number);
         control_numbers.insert(control_number);
 
         const Leader::RecordType record_type(record.getRecordType());
@@ -88,10 +88,10 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
             std::vector<size_t> field_indices;
             record.findFieldsInLocalBlock("001", "??", local_block_boundary, &field_indices);
             if (field_indices.size() != 1)
-                Error("Every local data block has to have exactly one 001 field. (Record: "
-                      + record.getControlNumber() + ", Local data block: "
-                      + std::to_string(local_block_boundary.first) + " - "
-                      + std::to_string(local_block_boundary.second));
+                logger->error("Every local data block has to have exactly one 001 field. (Record: "
+                              + record.getControlNumber() + ", Local data block: "
+                              + std::to_string(local_block_boundary.first) + " - "
+                              + std::to_string(local_block_boundary.second));
         }
     }
 
@@ -127,6 +127,6 @@ int main(int argc, char *argv[]) {
     try {
         ProcessRecords(verbose, marc_reader.get());
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

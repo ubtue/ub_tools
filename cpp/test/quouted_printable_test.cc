@@ -45,6 +45,6 @@ int main(int argc, char *argv[]) {
         else
             Usage();
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

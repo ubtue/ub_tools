@@ -63,7 +63,7 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
     CachedPageFetcher cached_page_fetcher(url, timeout, params);
 
     if (cached_page_fetcher.anErrorOccurred())
-        Error("CachedPageFetcher error: " + cached_page_fetcher.getErrorMsg());
+        logger->error("CachedPageFetcher error: " + cached_page_fetcher.getErrorMsg());
 
     std::vector<std::string> headers;
     if (print_redirects) {
@@ -210,6 +210,6 @@ int main(int argc, char *argv[]) {
 
         return EXIT_SUCCESS;
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
