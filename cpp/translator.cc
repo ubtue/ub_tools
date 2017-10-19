@@ -384,7 +384,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
                if (index != NO_INDEX)
                    row_values[index] = (translator_language == "ger") ? CreateNonEditableRowEntry("") :
-                                       CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations",
+                                       CreateEditableRowEntry(current_ppn, "", translator_language, "keyword_translations",
                                                               "", gnd_code);
            }
            // Insert Synonyms
