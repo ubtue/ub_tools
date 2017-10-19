@@ -232,6 +232,7 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, MarcWriter *
     // Remove entries for which authoritative translation were shipped to us from the BSZ:
     const std::string ppn(record->getControlNumber());
     shared_connection->queryOrDie("DELETE FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND "
+                                  + "translator IS NULL AND "
                                   + GenerateLanguageCodeWhereClause(text_language_codes_statuses_and_origin_tags));
 
     std::string gnd_code;
