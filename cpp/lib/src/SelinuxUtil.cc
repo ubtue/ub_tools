@@ -20,10 +20,8 @@
 
 #include "SelinuxUtil.h"
 #include <algorithm>
-#include <cctype>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 #include <string>
 #include <vector>
 #include "ExecUtil.h"
@@ -43,14 +41,13 @@ void AddFileContext(const std::string &context, const std::string &file_spec) {
 
 void AddFileContextIfMissing(const std::string &path, const std::string &context, const std::string &file_spec) {
     if (not HasFileContext(path, context)) {
-        std::cout << "missing, adding" << '\n';
         AddFileContext(context, file_spec);
         ApplyChanges(path);
     }
 
     if (not HasFileContext(path, context)) {
         throw new std::runtime_error("in " + std::string(__func__) +": "
-                                     + "could not set context " + context + " for " + path + " using " + file_spec);
+                                     + "could not set context \"" + context + "\" for \"" + path + "\" using " + file_spec);
     }
 }
 
@@ -62,9 +59,8 @@ void ApplyChanges(const std::string &path) {
 
 
 void AssertEnabled(const std::string &caller) {
-    if (GetMode() == DISABLED) {
+    if (not IsEnabled())
         throw new std::runtime_error("in " + caller +": SElinux is disabled!");
-    }
 }
 
 
@@ -78,16 +74,12 @@ void AssertFileHasContext(const std::string &path, const std::string &context) {
 
 std::vector<std::string> GetFileContexts(const std::string &path) {
     AssertEnabled(std::string(__func__));
-    const std::string tempfile = "/tmp/filecontext";
-    if (ExecUtil::Exec(ExecUtil::Which("ls"), { "-ldZ", path }, "", tempfile) != 0)
+    std::string ls;
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout("ls -ldZ \"" + path + "\"", &ls))
         throw new std::runtime_error("in " + std::string(__func__) +": "
                                      + "could not read file permission: " + path);
     else {
-        std::string ls;
-        std::cout << ls << '\n';
-        FileUtil::ReadString(tempfile, &ls);
         StringUtil::TrimWhite(&ls);
-
         static const std::string FILE_CONTEXT_EXTRACTION_REGEX("^[^ ]+ [^ ]+ [^ ]+ ([^ ]+) .+$");
         static RegexMatcher *matcher;
         if (matcher == nullptr) {
@@ -108,11 +100,9 @@ std::vector<std::string> GetFileContexts(const std::string &path) {
 
 Mode GetMode() {
     const std::string getenforce_binary(ExecUtil::Which("getenforce"));
+    std::string getenforce;
     if (not getenforce_binary.empty()) {
-        const std::string tempfile("/tmp/getenforce");
-        if (ExecUtil::Exec(getenforce_binary, {}, "", tempfile) == 0) {
-            std::string getenforce;
-            FileUtil::ReadString(tempfile, &getenforce);
+        if (ExecUtil::ExecSubcommandAndCaptureStdout(getenforce_binary, &getenforce)) {
             StringUtil::TrimWhite(&getenforce);
 
             if (getenforce == "Enforcing")
@@ -121,13 +111,11 @@ Mode GetMode() {
                 return PERMISSIVE;
             else if (getenforce == "Disabled")
                 return DISABLED;
-
-            std::cout << "i cry" << '\n';
         }
     }
 
-    // return DISABLED on error or if not installed
-    return DISABLED;
+    throw new std::runtime_error("in " + std::string(__func__) +": "
+                                 + " could not detemine mode via getenforce ");
 }
 
 
@@ -137,4 +125,14 @@ bool HasFileContext(const std::string &path, const std::string &context) {
 }
 
 
+bool IsAvailable() {
+    return (ExecUtil::Which("getenforce") != "");
 }
+
+
+bool IsEnabled() {
+    return (IsAvailable() && (GetMode() != DISABLED));
+}
+
+
+} // namespace SelinuxUtil
