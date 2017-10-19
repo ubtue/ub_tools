@@ -36,6 +36,7 @@
 #include "HtmlUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
 #include "util.h"
@@ -55,7 +56,6 @@ const std::string TOKEN_COLUMN_DESCRIPTOR("token");
 const std::string MACS_COLUMN_DESCRIPTOR("macs");
 const int NO_INDEX(-1);
 const unsigned int LOOKFOR_PREFIX_LIMIT(3);
-
 
 enum Category { VUFIND, KEYWORDS };
 
@@ -241,6 +241,12 @@ int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headin
 }
 
 
+bool IsEmptyEntry(const std::string &entry) {
+     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("<td.*></td>"));
+     return matcher->matched(entry);
+}
+
+
 void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
                                                  const std::string &offset, std::vector<std::string> * const rows,
                                                  std::string * const headline,
@@ -410,7 +416,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        if (IsTranslatorLanguage(translator_languages, language_code)) {
           // We can have several translations in one language, i.e. from MACS, IxTheo (reliable) or translated by this tool (new)
           // Since we are iteratring over a single column, make sure sure we select the correct translation (reliable or new)
-          if (row_values[index].empty() or status=="new" or status=="reliable")
+          if (IsEmptyEntry(row_values[index]) or status=="new" or status=="reliable")
               row_values[index] = (language_code == "ger" || status == "reliable") ? CreateNonEditableRowEntry(translation) :
                               CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
                                                      translator, gnd_code);
@@ -426,6 +432,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     db_connection.queryOrDie(drop_get_sorted);
     db_connection.queryOrDie(drop_sort_limit);
 }
+
+
 
 
 void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum Category category = KEYWORDS) {
