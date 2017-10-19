@@ -60,6 +60,9 @@ public:
 };
 
 
+std::string GetSELinuxContext(const std::string &path);
+
+
 class Directory {
     const std::string path_;
     const std::string regex_;
@@ -67,18 +70,20 @@ public:
     class const_iterator; // Forward declaration.
     class Entry {
         friend class Directory::const_iterator;
-        const std::string * const dirname_;
+        const std::string &dirname_;
         struct dirent entry_;
     public:
         Entry(const Entry &other);
         inline std::string getName() const { return entry_.d_name; }
+        std::string getSELinuxContext() const
+            { return GetSELinuxContext(dirname_ + "/" + std::string(entry_.d_name)); }
 
         // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),
         //         DT_LNK(symlink), DT_REG(regular file), DT_SOCK(UNIX domain socket), or DT_UNKNOWN(unknown type).
         unsigned char getType() const;
         inline ino_t getInode() const { return entry_.d_ino; }
     private:
-        Entry(const struct dirent &entry, const std::string * const dirname);
+        Entry(const struct dirent &entry, const std::string &dirname);
     };
 public:
     class const_iterator {

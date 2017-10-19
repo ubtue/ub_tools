@@ -28,6 +28,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
+#ifdef HAS_SELINUX_HEADERS
+#   include <selinux/selinux.h>
+#endif
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -54,10 +57,29 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix) {
 }
 
 
-Directory::Entry::Entry(const struct dirent &entry, const std::string * const dirname)
+Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
     : dirname_(dirname)
 {
     std::memcpy(reinterpret_cast<void *>(&entry_), reinterpret_cast<const void *>(&entry), sizeof(struct dirent));
+}
+
+
+std::string GetSELinuxContext(const std::string &path) {
+#ifndef HAS_SELINUX_HEADESR
+    (void)path;
+    return "";
+#else
+    char *file_context;
+    if (::getfilecon(path.c_str(), &file_context) == -1) {
+        if (errno == ENODATA or enodata== ENOTSUP)
+            return "";
+        throw std::runtime_error("in GetSELinuxContext: failed to get file context for \"" + path + "\"!");
+    }
+    if (file_context == nullptr)
+        return "";
+    
+    ::freecon(file_context);
+#endif
 }
 
 
@@ -78,9 +100,10 @@ unsigned char Directory::Entry::getType() const {
     // therefore need to fall back to using the stat(2) system call.
     struct stat statbuf;
     errno = 0;
-    if (::stat((*dirname_ + "/" +  std::string(entry_.d_name)).c_str(), &statbuf) == -1)
-        throw std::runtime_error("in FileUtil::Directory::Entry::getType: stat(2) on \"" + (*dirname_ + "/" + std::string(entry_.d_name))
-                                 + " \"failed! (" + std::string(std::strerror(errno)) + ")");
+    if (::stat((dirname_ + "/" +  std::string(entry_.d_name)).c_str(), &statbuf) == -1)
+        throw std::runtime_error("in FileUtil::Directory::Entry::getType: stat(2) on \""
+                                 + (dirname_ + "/" + std::string(entry_.d_name)) + " \"failed! ("
+                                 + std::string(std::strerror(errno)) + ")");
 
     return IFTODT(statbuf.st_mode); // Convert from st_mode to d_type.
 }
@@ -140,7 +163,7 @@ Directory::Entry Directory::const_iterator::operator*() {
     if (dir_handle_ == nullptr)
         throw std::runtime_error("in Directory::const_iterator::operator*: can't dereference an iterator pointing"
                                  " to the end!");
-    return Directory::Entry(entry_, &path_);
+    return Directory::Entry(entry_, path_);
 }
 
 
