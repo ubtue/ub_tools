@@ -284,7 +284,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
        std::string translation(db_row["translation"]);
        std::string language_code(db_row["language_code"]);
        std::string translator(db_row["translator"]);
-       if (current_token != token){
+       if (current_token != token) {
            if (not current_token.empty())
               rows->emplace_back(StringUtil::Join(row_values, ""));
 
@@ -297,10 +297,8 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
            row_values[token_index] = CreateNonEditableRowEntry(token);
            for (auto translator_language : translator_languages) {
                int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
-               if (index != NO_INDEX) {
-                   row_values[index] = CreateEditableRowEntry(current_token, "", language_code, "vufind_translations",
-                                                              translator);
-               }
+               if (index != NO_INDEX)
+                   row_values[index] = CreateEditableRowEntry(current_token, "", translator_language, "vufind_translations", "");
            }
        }
 
@@ -386,7 +384,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
                if (index != NO_INDEX)
                    row_values[index] = (translator_language == "ger") ? CreateNonEditableRowEntry("") :
-                                       CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations",
+                                       CreateEditableRowEntry(current_ppn, "", translator_language, "keyword_translations",
                                                               "", gnd_code);
            }
            // Insert Synonyms
@@ -459,18 +457,23 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     std::vector<std::string> jump_entries_vufind;
     GenerateDirectJumpTable(&jump_entries_vufind, VUFIND);
     names_to_values_map.emplace("direct_jump_vufind", jump_entries_vufind);
+    names_to_values_map.emplace("translator", std::vector<std::string> { translator });
 
-    GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
-                                                translator_languages, additional_view_languages);
-    names_to_values_map.emplace("translator", std::vector<std::string> {translator});
+    if (target == "vufind")
+        GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
+                                                    translator_languages, additional_view_languages);
+    else if (target == "keywords")
+        GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
+                                                     translator_languages, additional_view_languages);
+    else {
+       ShowErrorPage("Error - Invalid Target", "No valid target selected");
+       std::exit(0);
+    }
     names_to_values_map.emplace("vufind_token_row", rows);
     names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
 
-    GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
-                                                 translator_languages, additional_view_languages);
     names_to_values_map.emplace("keyword_row", rows);
     names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
-
 
     names_to_values_map.emplace("lookfor", std::vector<std::string> {lookfor});
     names_to_values_map.emplace("prev_offset", std::vector<std::string>
