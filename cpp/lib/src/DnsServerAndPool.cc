@@ -66,7 +66,8 @@ class QueryIdMatch: public std::unary_function<DnsServer::OutstandingRequest, bo
     uint16_t query_id_to_match_;
 public:
     explicit QueryIdMatch(const uint16_t query_id_to_match): query_id_to_match_(query_id_to_match) { }
-    bool operator()(const DnsServer::OutstandingRequest &request) const { return request.query_id_ == query_id_to_match_; }
+    bool operator()(const DnsServer::OutstandingRequest &request) const
+        { return request.query_id_ == query_id_to_match_; }
 };
 
 
@@ -175,7 +176,7 @@ bool DnsServer::processServerReply(std::vector<in_addr_t> * const resolved_ip_ad
 
     if (unlikely(outstanding_requests_.empty())) {
         SocketUtil::TimedRead(socket_fd_, time_limit, packet, sizeof(packet));
-        Warning("in DnsServer::processServerReply: can't process a reply with an empty queue!");
+        logger->warning("in DnsServer::processServerReply: can't process a reply with an empty queue!");
         return false;
     }
 
@@ -189,7 +190,7 @@ bool DnsServer::processServerReply(std::vector<in_addr_t> * const resolved_ip_ad
     std::set<in_addr_t> ip_addresses;
     std::set<std::string> domainnames;
     if (Resolver::DecodeReply(packet, read_retcode, &domainnames, &ip_addresses, ttl, &reply_id, &truncated,
-                              nullptr /* logger */, 0 /* verbosity */))
+                              0 /* verbosity */))
     {
         std::string original_request_hostname;
         if (likely(outstanding_requests_.removeRequest(reply_id, &original_request_hostname))) {

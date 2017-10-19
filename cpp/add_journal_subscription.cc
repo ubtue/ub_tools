@@ -68,7 +68,7 @@ void AddSubscription(const bool verbose, DbConnection * const db_connection, con
                                   + ",last_issue_date='" + ZuluNow() + "',journal_control_number='" + parent_ppn
                                   + "'");
     if (unlikely(not db_connection->query(INSERT_STMT)))
-        Error("Replace failed: " + INSERT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
+        logger->error("Replace failed: " + INSERT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 }
 
 
@@ -78,7 +78,7 @@ void AddSubscriptions(const bool verbose, DbConnection * const db_connection, co
     db_connection->queryOrDie("SELECT id FROM user WHERE id=" + user_id);
     DbResultSet id_result_set(db_connection->getLastResultSet());
     if (id_result_set.empty())
-        Error(user_id + " is an unknown user ID!");
+        logger->error(user_id + " is an unknown user ID!");
 
     for (const auto &parent_ppn : parent_ppns)
         AddSubscription(verbose, db_connection, user_id, parent_ppn);
@@ -102,13 +102,13 @@ int main(int argc, char **argv) {
 
     const std::string user_id(argv[1]);
     if (not StringUtil::IsUnsignedNumber(user_id))
-        Error("\"" + user_id + "\" is not a valid numeric user ID!");
+        logger->error("\"" + user_id + "\" is not a valid numeric user ID!");
 
     std::vector<std::string> parent_ppns;
     for (int arg_no(2); arg_no < argc; ++arg_no) {
         const std::string ppn_candidate(argv[arg_no]);
         if (not MiscUtil::IsValidPPN(ppn_candidate))
-            Error("\"" + ppn_candidate + "\" is not a valid PPN!");
+            logger->error("\"" + ppn_candidate + "\" is not a valid PPN!");
         parent_ppns.emplace_back(ppn_candidate);
     }
 
@@ -119,6 +119,6 @@ int main(int argc, char **argv) {
 
         AddSubscriptions(verbose, &db_connection, user_id, parent_ppns);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -80,7 +80,7 @@ void ExtractSynonyms(MarcReader * const marc_reader, std::map<std::string, std::
     std::set<std::string> synonyms;
     std::vector<std::string> tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(field_list, ':', &tags_and_subfield_codes) < 2))
-        Error("in ExtractSynonymsAndWriteSynonymMap: need at least two fields!");
+        logger->error("in ExtractSynonymsAndWriteSynonymMap: need at least two fields!");
     unsigned count(0);
     while (const MarcRecord record = marc_reader->read()) {
         ++count;
@@ -131,7 +131,7 @@ void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::s
                    const std::string &primary_author_field)
 {
     if (unlikely(record->getFieldIndex(SYNOMYM_FIELD) != MarcRecord::FIELD_NOT_FOUND))
-        Error("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!");
+        logger->error("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!");
 
     const size_t primary_name_field_index(record->getFieldIndex(primary_author_field.substr(0, 3)));
     if (primary_name_field_index == MarcRecord::FIELD_NOT_FOUND)
@@ -151,8 +151,8 @@ void ProcessRecord(MarcRecord * const record, const std::map<std::string, std::s
     subfields.addSubfield('a', synonyms);
 
     if (not record->insertField(SYNOMYM_FIELD, subfields)) {
-        Warning("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: "
-                + record->getControlNumber() + ")");
+        logger->warning("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: "
+                        + record->getControlNumber() + ")");
         return;
     }
     ++modified_count;
@@ -183,9 +183,9 @@ int main(int argc, char **argv) {
     const std::string authority_data_marc_input_filename(argv[2]);
     const std::string marc_output_filename(argv[3]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        Error("Title input file name equals title output file name!");
+        logger->error("Title input file name equals title output file name!");
     if (unlikely(authority_data_marc_input_filename == marc_output_filename))
-        Error("Authority data input file name equals MARC output file name!");
+        logger->error("Authority data input file name equals MARC output file name!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcReader> authority_reader(MarcReader::Factory(authority_data_marc_input_filename,
@@ -197,6 +197,6 @@ int main(int argc, char **argv) {
         ExtractSynonyms(authority_reader.get(), author_to_synonyms_map, "100abcd:400abcd");
         AddAuthorSynonyms(marc_reader.get(), marc_writer.get(), author_to_synonyms_map, "100abcd");
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

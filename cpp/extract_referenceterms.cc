@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -113,11 +113,11 @@ int main(int argc, char **argv) {
 
     const std::string output_filename(argv[2]);
     if (unlikely(marc_reader->getPath() == output_filename))
-        Error("Reference data input file name equals output file name!");
+        logger->error("Reference data input file name equals output file name!");
 
     File output(output_filename, "w");
     if (not output)
-        Error("can't open \"" + output_filename + "\" for writing!");
+        logger->error("can't open \"" + output_filename + "\" for writing!");
 
     try {
         // Determine possible mappings
@@ -128,11 +128,11 @@ int main(int argc, char **argv) {
         std::set<std::string> primary_tags_and_subfield_codes;
         std::set<std::string> synonym_tags_and_subfield_codes;
         if (unlikely(StringUtil::Split(REFERENCE_DATA_PRIMARY_SPEC, ":", &primary_tags_and_subfield_codes) < 1))
-            Error("Need at least one primary field");
+            logger->error("Need at least one primary field");
         if (unlikely(StringUtil::Split(REFERENCE_DATA_SYNONYM_SPEC, ":", &synonym_tags_and_subfield_codes) < 1))
-            Error("Need at least one synonym field");
+            logger->error("Need at least one synonym field");
         if (primary_tags_and_subfield_codes.size() != synonym_tags_and_subfield_codes.size())
-            Error("Number of reference primary specs must match number of synonym specs");
+            logger->error("Number of reference primary specs must match number of synonym specs");
              
         std::vector<std::map<std::string, std::string>> synonym_maps(synonym_tags_and_subfield_codes.size(),
                                                                      std::map<std::string, std::string>());
@@ -146,6 +146,6 @@ int main(int argc, char **argv) {
 
         std::cerr << "Read in " << read_in_count << " record(s).\n";
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

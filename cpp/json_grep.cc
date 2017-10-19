@@ -64,7 +64,7 @@ int main(int /*argc*/, char *argv[]) {
     try {
         std::string json_document;
         if (not FileUtil::ReadString(json_input_filename, &json_document))
-            Error("could not read \"" + json_input_filename + "\"!");
+            logger->error("could not read \"" + json_input_filename + "\"!");
 
         JSON::Parser parser(json_document);
         JSON::JSONNode *tree;
@@ -84,6 +84,6 @@ int main(int /*argc*/, char *argv[]) {
 
         delete tree;
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

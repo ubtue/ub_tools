@@ -1,7 +1,7 @@
 /** \brief Generates a list of values from LOK $a where $0=689.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -92,6 +92,6 @@ int main(int argc, char *argv[]) {
         ExtractLocalKeywords(marc_reader.get(), &local_keywords);
         DisplayKeywords(local_keywords);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

@@ -87,7 +87,8 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
     params.honour_robots_dot_txt_ = not ignore_robots_dot_txt;
     Downloader downloader(url, params, timeout);
     if (downloader.anErrorOccurred()) {
-        Warning("in ProcessURL: Failed to retrieve a Web page (" + url + "): " + downloader.getLastErrorMessage());
+        logger->warning("in ProcessURL: Failed to retrieve a Web page (" + url + "): "
+                        + downloader.getLastErrorMessage());
         return;
     }
 
@@ -222,19 +223,19 @@ void ParseConfigFile(File * const input, std::vector<SiteDesc> * const site_desc
 
         std::vector<std::string> line_parts;
         if (StringUtil::SplitThenTrimWhite(line, ' ', &line_parts) != 3)
-            Error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \"" + input->getPath()
-                  + "\"!");
+            logger->error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \""
+                          + input->getPath() + "\"!");
 
         unsigned max_crawl_depth;
         if (not StringUtil::ToUnsigned(line_parts[1], &max_crawl_depth))
-            Error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \"" + input->getPath()
-                  + "\"! (Invalid max. crawl depth: \"" + line_parts[1] + "\")");
+            logger->error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \""
+                          + input->getPath() + "\"! (Invalid max. crawl depth: \"" + line_parts[1] + "\")");
 
         std::string err_msg;
         RegexMatcher * const url_regex_matcher(RegexMatcher::RegexMatcherFactory(line_parts[2], &err_msg));
         if (url_regex_matcher == nullptr)
-            Error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \"" + input->getPath()
-                  + "\", regex is faulty! (" + err_msg + ")");
+            logger->error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \""
+                          + input->getPath() + "\", regex is faulty! (" + err_msg + ")");
         site_descs->emplace_back(line_parts[0], max_crawl_depth, url_regex_matcher);
     }
 }
@@ -266,6 +267,6 @@ int main(int argc, char *argv[]) {
 
         return EXIT_SUCCESS;
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
