@@ -149,7 +149,7 @@ char DetermineNextFreeIndicator1(MarcRecord * const record, std::vector<size_t> 
         Subfields subfields(record->getSubfields(field_index));
         char indicator1(subfields.getIndicator1());
         if (indicator1 == '9')
-            logger->error("Indicator1 cannot be further incremented");
+            logger->error("Indicator1 cannot be further incremented for PPN " + record->getControlNumber());
         if (indicator1 == ' ')
             new_indicator1 = '1';
         else
