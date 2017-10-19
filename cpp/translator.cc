@@ -389,34 +389,38 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                        CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations",
                                                               "", gnd_code);
            }
+           // Insert Synonyms
+           std::vector<std::string> synonyms;
+           GetSynonymsForGNDCode(db_connection, gnd_code, &synonyms);
+           int synonym_index(GetColumnIndexForColumnHeading(display_languages, row_values, SYNONYM_COLUMN_DESCRIPTOR));
+           if (synonym_index == NO_INDEX)
+               continue;
+           row_values[synonym_index] = CreateNonEditableSynonymEntry(synonyms, "<br/>");
+
+           // Insert MACS Translations display table
+           std::vector<std::string> macs_translations;
+           GetMACSTranslationsForGNDCode(db_connection, gnd_code, &macs_translations);
+           int macs_index(GetColumnIndexForColumnHeading(display_languages, row_values, MACS_COLUMN_DESCRIPTOR));
+           if (macs_index == NO_INDEX)
+               continue;
+           row_values[macs_index] = CreateNonEditableSynonymEntry(macs_translations, "<br/>");
        }
 
        int index(GetColumnIndexForColumnHeading(display_languages, row_values, language_code));
        if (index == NO_INDEX)
            continue;
-       if (IsTranslatorLanguage(translator_languages, language_code))
-          row_values[index] = (language_code == "ger") ? CreateNonEditableRowEntry(translation) :
+       if (IsTranslatorLanguage(translator_languages, language_code)) {
+          // We can have several translations in one language, i.e. from MACS, IxTheo (reliable) or translated by this tool (new)
+          // Since we are iteratring over a single column, make sure sure we select the correct translation (reliable or new)
+          if (row_values[index].empty() or status=="new" or status=="reliable")
+              row_values[index] = (language_code == "ger" || status == "reliable") ? CreateNonEditableRowEntry(translation) :
                               CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
                                                      translator, gnd_code);
+       } 
        else
            row_values[index] = (language_code == "ger") ? CreateNonEditableHintEntry(translation, gnd_code)
                                                         : CreateNonEditableRowEntry(translation);
 
-       // Insert Synonyms
-       std::vector<std::string> synonyms;
-       GetSynonymsForGNDCode(db_connection, gnd_code, &synonyms);
-       int synonym_index(GetColumnIndexForColumnHeading(display_languages, row_values, SYNONYM_COLUMN_DESCRIPTOR));
-       if (synonym_index == NO_INDEX)
-           continue;
-       row_values[synonym_index] = CreateNonEditableSynonymEntry(synonyms, "<br/>");
-
-       // Insert MACS Translations display table
-       std::vector<std::string> macs_translations;
-       GetMACSTranslationsForGNDCode(db_connection, gnd_code, &macs_translations);
-       int macs_index(GetColumnIndexForColumnHeading(display_languages, row_values, MACS_COLUMN_DESCRIPTOR));
-       if (macs_index == NO_INDEX)
-           continue;
-       row_values[macs_index] = CreateNonEditableSynonymEntry(macs_translations, "<br/>");
     }
     rows->emplace_back(StringUtil::Join(row_values, ""));
     const std::string drop_get_sorted("DROP TEMPORARY TABLE keywords_ger_sorted");
