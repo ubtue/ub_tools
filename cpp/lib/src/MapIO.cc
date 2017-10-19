@@ -2,7 +2,7 @@
  *  \brief  Map-IO-related utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,7 +43,7 @@ std::string Escape(const std::string &s) {
 void SerialiseMap(const std::string &output_filename, const std::unordered_map<std::string, std::string> &map) {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
     if (output.fail())
-        Error("Failed to open \"" + output_filename + "\" for writing!");
+        logger->error("in MapIO::SerialiseMap: Failed to open \"" + output_filename + "\" for writing!");
 
     for (const auto &key_and_value : map)
         output << Escape(key_and_value.first) << '=' << Escape(key_and_value.second) << '\n';
@@ -55,7 +55,7 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
 
     std::ifstream input(input_filename, std::ofstream::in);
     if (input.fail())
-        Error("Failed to open \"" + input_filename + "\" for reading!");
+        logger->error("Failed to open \"" + input_filename + "\" for reading!");
 
     unsigned line_no(0);
     for (std::string line; std::getline(input, line); /* Intentionally empty! */) {
@@ -82,10 +82,11 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
                 escaped = true;
             else if (ch == '=') {
                 if (key.empty())
-                    Error("Missing key in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
+                    logger->error("in MapIO::DeserialiseMap: Missing key in \"" + input_filename + "\" on line "
+                                  + std::to_string(line_no) + "!");
                 else if (not in_key)
-                    Error("Unescaped equal-sign in \"" + input_filename + "\" on line " + std::to_string(line_no)
-                          + "!");
+                    logger->error("in MapIO::DeserialiseMap: Unescaped equal-sign in \"" + input_filename
+                                  + "\" on line " + std::to_string(line_no) + "!");
                 in_key = false;
             } else if (in_key)
                   key += ch;
@@ -93,7 +94,7 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
                 value += ch;
         }
         if (key.empty() or value.empty())
-            Error("Bad input in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
+            logger->error("Bad input in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
         (*map)[key] = value;
     }
 }
@@ -104,7 +105,7 @@ void SerialiseMap(const std::string &output_filename,
 {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
     if (output.fail())
-        Error("Failed to open \"" + output_filename + "\" for writing!");
+        logger->error("in MapIO::SerialiseMap: Failed to open \"" + output_filename + "\" for writing!");
 
     for (const auto &key_and_value : multimap)
         output << Escape(key_and_value.first) << '=' << Escape(key_and_value.second) << '\n';
@@ -118,7 +119,7 @@ void DeserialiseMap(const std::string &input_filename,
 
     std::ifstream input(input_filename, std::ofstream::in);
     if (input.fail())
-        Error("Failed to open \"" + input_filename + "\" for reading!");
+        logger->error("in MapIO::DeserialiseMap: Failed to open \"" + input_filename + "\" for reading!");
 
     unsigned line_no(0);
     for (std::string line; std::getline(input, line); /* Intentionally empty! */) {
@@ -145,10 +146,11 @@ void DeserialiseMap(const std::string &input_filename,
                 escaped = true;
             else if (ch == '=') {
                 if (key.empty())
-                    Error("Missing key in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
+                    logger->error("in MapIO::DeserialiseMap: Missing key in \"" + input_filename + "\" on line "
+                                  + std::to_string(line_no) + "!");
                 else if (not in_key)
-                    Error("Unescaped equal-sign in \"" + input_filename + "\" on line " + std::to_string(line_no)
-                          + "!");
+                    logger->error("in MapIO::DeserialiseMap: Unescaped equal-sign in \"" + input_filename
+                                  + "\" on line " + std::to_string(line_no) + "!");
                 in_key = false;
             } else if (in_key)
                   key += ch;
@@ -156,7 +158,8 @@ void DeserialiseMap(const std::string &input_filename,
                 value += ch;
         }
         if (key.empty() or value.empty())
-            Error("Bad input in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
+            logger->error("in MapIO::DeserialiseMap: Bad input in \"" + input_filename + "\" on line "
+                          + std::to_string(line_no) + "!");
         multimap->emplace(key, value);
     }
 }

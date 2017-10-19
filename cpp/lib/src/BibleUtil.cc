@@ -215,7 +215,7 @@ bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_
     if (bib_ref_candidate.find('.') != std::string::npos) {
         const bool parse_succeeded(ParseRefWithDot(bib_ref_candidate, book_code, start_end));
         if (parse_succeeded and not RangesAreWellFormed(*start_end))
-            Error("Bad ranges (" + RangesToString(*start_end) + ") were generated in ParseBibleReference! (1)");
+            logger->error("Bad ranges (" + RangesToString(*start_end) + ") were generated in ParseBibleReference! (1)");
         return parse_succeeded;
     }
 
@@ -333,7 +333,7 @@ bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_
     }
 
     if (not RangesAreWellFormed(*start_end))
-        Error("Bad ranges (" + RangesToString(*start_end) + ") were generated in ParseBibleReference! (2)");
+        logger->error("Bad ranges (" + RangesToString(*start_end) + ") were generated in ParseBibleReference! (2)");
     return true;
 }
 
@@ -350,7 +350,7 @@ static std::string CanoniseLeadingNumber(const std::string &bible_reference_cand
     std::string err_msg;
     if (not matcher->matched(bible_reference_candidate, &err_msg)) {
         if (not err_msg.empty())
-            Error("unexpected reg ex error: " + err_msg);
+            logger->error("unexpected reg ex error: " + err_msg);
         return bible_reference_candidate;
     }
 

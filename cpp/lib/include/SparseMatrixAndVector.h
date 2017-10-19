@@ -38,10 +38,6 @@
 #include <SparseVector.h>
 
 
-// Forward declaration(s):
-class Logger;
-
-
 struct IndicesAndValue {
     unsigned row_, col_;
     double value_;
@@ -113,7 +109,7 @@ public:
         Sorts elements as a side effect. */
     void printMatlabRepresentation(std::ostream &output, const int precision) const;
 
-    void log(const std::string &log_message, Logger * const logger, const int precision = 3) const;
+    void log(const std::string &log_message, const int precision = 3) const;
 
     SparseMatrix &operator*=(const SparseMatrix &);
 
@@ -137,7 +133,7 @@ public:
     const Vector &operator*=(const SparseMatrix &rhs);
     void l1Normalise();
     void print(std::ostream &output, const int precision) const;
-    void log(const std::string &log_message, Logger * const logger, const int precision = 3) const;
+    void log(const std::string &log_message, const int precision = 3) const;
 };
 
 

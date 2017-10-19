@@ -51,8 +51,8 @@ top_loop:
         if (unlikely(line.empty())) // Ignore empty lines.
             continue;
         if (line.length() < PPN_START_INDEX)
-            Error("short line " + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath()
-                  + "\": \"" + line + "\"!");
+            logger->error("short line " + std::to_string(line_no) + " in deletion list file \""
+                          + deletion_list->getPath() + "\": \"" + line + "\"!");
         for (const char indicator : FULL_RECORD_DELETE_INDICATORS) {
             if (line[SEPARATOR_INDEX] == indicator) {
                 delete_full_record_ids->insert(line.substr(PPN_START_INDEX)); // extract PPN
@@ -62,14 +62,15 @@ top_loop:
         for (const char indicator : LOCAL_DATA_DELETE_INDICATORS) {
             if (line[SEPARATOR_INDEX] == indicator) {
                 if (line.length() < MIN_LINE_LENGTH)
-                    Error("unexpected line length " + std::to_string(line.length()) + " for local entry on line "
-                          + std::to_string(line_no) + " in deletion list file \"" + deletion_list->getPath() + "\"!");
+                    logger->error("unexpected line length " + std::to_string(line.length())
+                                  + " for local entry on line " + std::to_string(line_no)
+                                  + " in deletion list file \"" + deletion_list->getPath() + "\"!");
                 local_deletion_ids->insert(line.substr(PPN_START_INDEX, PPN_LENGTH)); // extract ELN
                 goto top_loop;
             }
         }
-        Warning("in \"" + deletion_list->getPath() + " \" on line #" + std::to_string(line_no)
-                + " unknown indicator: '" + line.substr(SEPARATOR_INDEX, 1) + "'!");
+        logger->warning("in \"" + deletion_list->getPath() + " \" on line #" + std::to_string(line_no)
+                        + " unknown indicator: '" + line.substr(SEPARATOR_INDEX, 1) + "'!");
     }
 }
 
@@ -81,12 +82,13 @@ std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
         std::string err_msg;
         matcher = RegexMatcher::RegexMatcherFactory(DATE_EXTRACTION_REGEX, &err_msg);
         if (unlikely(not err_msg.empty()))
-            Error("in ExtractDateFromFilenameOrDie: failed to compile regex: \"" + DATE_EXTRACTION_REGEX +"\".");
+            logger->error("in ExtractDateFromFilenameOrDie: failed to compile regex: \"" + DATE_EXTRACTION_REGEX
+                          + "\".");
     }
 
     if (unlikely(not matcher->matched(filename)))
-        Error("in ExtractDateFromFilenameOrDie: \"" + filename + "\" failed to match the regex \""
-              + DATE_EXTRACTION_REGEX + "\"!");
+        logger->error("in ExtractDateFromFilenameOrDie: \"" + filename + "\" failed to match the regex \""
+                      + DATE_EXTRACTION_REGEX + "\"!");
 
     return (*matcher)[1];
 }

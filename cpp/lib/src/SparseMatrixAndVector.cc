@@ -35,7 +35,7 @@
 #include <cstdint>
 #include <cmath>
 #include <Compiler.h>
-#include <Logger.h>
+#include "util.h"
 
 
 SparseMatrix::SparseMatrix(const size_type n): size_(n), default_value_(0.0) {
@@ -242,7 +242,7 @@ void SparseMatrix::printMatlabRepresentation(std::ostream &output, const int pre
 }
 
 
-void SparseMatrix::log(const std::string &log_message, Logger * const logger, const int precision) const {
+void SparseMatrix::log(const std::string &log_message, const int precision) const {
     std::stringstream str_stream;
 
     std::vector<IndicesAndValue> sorted(*this);
@@ -265,7 +265,7 @@ void SparseMatrix::log(const std::string &log_message, Logger * const logger, co
         str_stream << ")\n";
     }
 
-    logger->log(log_message + "\n" + str_stream.str());
+    logger->info(log_message + "\n" + str_stream.str());
 }
 
 
@@ -390,9 +390,8 @@ void Vector::print(std::ostream &output, const int precision) const
 }
 
 
-void Vector::log(const std::string &log_message, Logger * const logger, const int precision) const
-{
+void Vector::log(const std::string &log_message, const int precision) const {
 	std::stringstream str_stream;
 	print(str_stream, precision);
-	logger->log(log_message + " " + str_stream.str());
+	logger->info(log_message + " " + str_stream.str());
 }

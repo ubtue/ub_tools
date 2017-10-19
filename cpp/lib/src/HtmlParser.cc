@@ -391,7 +391,7 @@ int HtmlParser::getChar(bool * const is_entity)
 void HtmlParser::ungetChar()
 {
     if (unlikely(cp_ == cp_start_))
-        Error("in HtmlParser::ungetChar: trying to push back at beginning of input!");
+        logger->error("in HtmlParser::ungetChar: trying to push back at beginning of input!");
 
     --cp_;
     if (unlikely(*cp_ == '\n'))

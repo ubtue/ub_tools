@@ -2,7 +2,7 @@
  *  \brief  Implementations of the ArchiveReader and ArchiveWriter classes which are wrappers around libtar.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -59,8 +59,7 @@ ArchiveReader::ArchiveReader(const std::string &archive_file_name) {
 
 ArchiveReader::~ArchiveReader() {
     if (unlikely(::archive_read_free(archive_handle_) != ARCHIVE_OK))
-        throw std::runtime_error("in ArchiveReader::~ArchiveReader: archive_read_free(3) failed: "
-                                 + std::string(::strerror(errno)));
+        throw std::runtime_error("in ArchiveReader::~ArchiveReader: archive_read_free(3) failed!");
 }
 
 
@@ -99,12 +98,11 @@ bool ArchiveReader::extractEntry(const std::string &member_name, std::string out
             continue;
 
         if (entry_info.isDirectory())
-            Error("in ArchiveReader::extractEntry: can't extract a directory!");
+            logger->error("in ArchiveReader::extractEntry: can't extract a directory!");
 
         const int to_fd(::open(output_filename.c_str(), O_WRONLY));
         if (unlikely(to_fd == -1))
-            Error("in FileUtil::CopyOrDie: failed to open \"" + output_filename  + "\" for writing! ("
-                  + std::string(::strerror(errno)) + ")");
+            logger->error("in FileUtil::CopyOrDie: failed to open \"" + output_filename  + "\" for writing!");
 
         char buf[BUFSIZ];
         for (;;) {
@@ -115,10 +113,10 @@ bool ArchiveReader::extractEntry(const std::string &member_name, std::string out
             }
 
             if (unlikely(no_of_bytes < 0))
-                Error("in ArchiveReader::extractEntry: " + getLastErrorMessage());
+                logger->error("in ArchiveReader::extractEntry: " + getLastErrorMessage());
 
             if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes))
-                Error("in ArchiveReader::extractEntry: write(2) failed! (" + std::string(::strerror(errno)) + ")");
+                logger->error("in ArchiveReader::extractEntry: write(2) failed!");
         }
 
         ::close(to_fd);
@@ -199,8 +197,7 @@ void ArchiveWriter::add(const std::string &filename, const std::string &archive_
     size_t count;
     while ((count = input.read(buffer, DEFAULT_BLOCKSIZE)) > 0) {
         if (count < DEFAULT_BLOCKSIZE and input.anErrorOccurred())
-            throw std::runtime_error("in ArchiveWriter::add: error reading \"" + filename + "\": "
-                                     + std::string(::strerror(errno)));
+            throw std::runtime_error("in ArchiveWriter::add: error reading \"" + filename + "\" !");
         if (unlikely(::archive_write_data(archive_handle_, buffer, count) != static_cast<const ssize_t>(count)))
             throw std::runtime_error("in ArchiveWriter::add: archive_write_data(3) failed: "
                                      + std::string(::archive_error_string(archive_handle_)));

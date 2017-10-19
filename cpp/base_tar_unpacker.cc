@@ -1,7 +1,7 @@
 /** \brief Generates a continous decompressed stream of data from a BASE tarball containing gzipped ListRecord files.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -52,19 +52,19 @@ void ProcessTarball(const bool verbose, const std::string &input_filename, File 
                                                   static_cast<unsigned>(n_read) - total_processed, decompressed_data,
                                                   sizeof decompressed_data, &bytes_consumed, &bytes_produced);
                 if (unlikely(output->write(decompressed_data, bytes_produced) != bytes_produced))
-                    Error("unexpected error while writing to \"" + output->getPath() + "\"!");
+                    logger->error("unexpected error while writing to \"" + output->getPath() + "\"!");
                 total_processed += bytes_consumed;
             } while (total_processed < n_read);
         }
 
         if (unlikely(n_read == -1))
-            Error("unexpected error while reading tar member data! (" + reader.getLastErrorMessage() + ")");
+            logger->error("unexpected error while reading tar member data! (" + reader.getLastErrorMessage() + ")");
 
         while (more) {
             more = gunzip_streamer.decompress(nullptr, n_read, decompressed_data, sizeof(decompressed_data),
                                               &bytes_consumed, &bytes_produced);
             if (unlikely(output->write(decompressed_data, bytes_produced) != bytes_produced))
-                Error("unexpected error while writing to \"" + output->getPath() + "\"!");
+                logger->error("unexpected error while writing to \"" + output->getPath() + "\"!");
         }
     }
 
@@ -92,6 +92,6 @@ int main(int argc, char *argv[]) {
     try {
         ProcessTarball(verbose, argv[1], output.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

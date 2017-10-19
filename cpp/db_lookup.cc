@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015,2017 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,12 +39,12 @@ int main(int argc, char *argv[]) {
 
     kyotocabinet::HashDB db;
     if (not db.open(argv[1], kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::ONOLOCK))
-        Error("Failed to open database \"" + std::string(argv[1]) + "\" for reading ("
-              + std::string(db.error().message()) + ")!");
+        logger->error("Failed to open database \"" + std::string(argv[1]) + "\" for reading ("
+                      + std::string(db.error().message()) + ")!");
 
     std::string data;
     if (not db.get(argv[2], &data))
-        Error("Lookup failed: " + std::string(db.error().message()));
+        logger->error("Lookup failed: " + std::string(db.error().message()));
 
     std::cout << data;
 

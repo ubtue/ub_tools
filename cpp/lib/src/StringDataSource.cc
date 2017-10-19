@@ -81,7 +81,7 @@ bool StringDataSource::seek(const off_t offset, const int whence) {
         ch_ += offset;
         return true;
     } default:
-        Error("in StringDataSource::seek: \"whence\" must be one of SEEK_SET, SEEK_END, and SEEK_CUR!");
+        logger->error("in StringDataSource::seek: \"whence\" must be one of SEEK_SET, SEEK_END, and SEEK_CUR!");
     }
 }
 

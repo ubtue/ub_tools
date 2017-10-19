@@ -1,7 +1,7 @@
 /** \brief A tool to add DDC metadata to title data using various means.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,7 +39,7 @@ bool IsPossibleDDC(const std::string &ddc_candidate) {
     if (not matcher->matched(ddc_candidate, &err_msg)) {
         if (err_msg.empty())
             return false;
-        Error("unexpected regex error while trying to match \"" + ddc_candidate + "\": " + err_msg);
+        logger->error("unexpected regex error while trying to match \"" + ddc_candidate + "\": " + err_msg);
     }
 
     return true;
@@ -198,10 +198,10 @@ int main(int argc, char *argv[]) {
     const std::string title_output_filename(argv[verbose ? 4 : 3]);
 
     if (unlikely(title_input_filename == title_output_filename))
-        Error("Title input file name equals title output file name!");
+        logger->error("Title input file name equals title output file name!");
 
     if (unlikely(authority_input_filename == title_output_filename))
-        Error("Authority data input file name equals title output file name!");
+        logger->error("Authority data input file name equals title output file name!");
 
     std::unique_ptr<MarcReader> title_reader(MarcReader::Factory(title_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcReader> authority_reader(MarcReader::Factory(authority_input_filename, MarcReader::BINARY));
@@ -211,6 +211,6 @@ int main(int argc, char *argv[]) {
         ExtractDDCsFromAuthorityData(verbose, authority_reader.get(), &authority_ids_to_ddcs_map);
         AugmentRecordsWithDDCs(verbose, title_reader.get(), title_writer.get(), authority_ids_to_ddcs_map);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

@@ -2,7 +2,7 @@
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -126,7 +126,7 @@ void XmlMarcReader::rewind() {
         // We can't handle FIFO's here:
     struct stat stat_buf;
     if (unlikely(fstat(input_->getFileDescriptor(), &stat_buf) and S_ISFIFO(stat_buf.st_mode)))
-        Error("in XmlMarcReader::rewind: can't rewind a FIFO!");
+        logger->error("in XmlMarcReader::rewind: can't rewind a FIFO!");
 
     input_->rewind();
 
@@ -153,7 +153,8 @@ void XmlMarcReader::parseLeader(const std::string &input_filename, Leader * cons
                                  + xml_parser_->getLastErrorMessage() + " on line "
                                  + std::to_string(xml_parser_->getLineNo()) + ".");
     if (unlikely(type != SimpleXmlParser<File>::CHARACTERS or data.length() != Leader::LEADER_LENGTH)) {
-        Warning("in XmlMarcReader::ParseLeader: leader data expected while parsing \"" + input_filename + "\" on line "
+        logger->warning("in XmlMarcReader::ParseLeader: leader data expected while parsing \"" + input_filename
+                        + "\" on line "
                 + std::to_string(xml_parser_->getLineNo()) + ".");
         if (unlikely(not getNext(&type, &attrib_map, &data)))
             throw std::runtime_error("in XmlMarcReader::ParseLeader: error while skipping to </" + namespace_prefix_
@@ -162,7 +163,7 @@ void XmlMarcReader::parseLeader(const std::string &input_filename, Leader * cons
             const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
                                  or type == SimpleXmlParser<File>::CLOSING_TAG);
             throw std::runtime_error("in XmlMarcReader::ParseLeader: closing </" + namespace_prefix_
-                                                                          + "leader> tag expected while parsing \"" + input_filename + "\" on line "
+                                     + "leader> tag expected while parsing \"" + input_filename + "\" on line "
                                      + std::to_string(xml_parser_->getLineNo())
                                      + ". (Found: " + SimpleXmlParser<File>::TypeToString(type)
                                      + (tag_found ? (":" + data) : ""));
@@ -208,8 +209,8 @@ bool XmlMarcReader::parseControlfield(const std::string &input_filename, const s
 
         // Do we have an empty control field?
     if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "controlfield")) {
-        Warning("in XmlMarcReader::ParseControlfield: empty \"" + tag + "\" control field on line "
-                + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
+        logger->warning("in XmlMarcReader::ParseControlfield: empty \"" + tag + "\" control field on line "
+                        + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
         return false;
     }
 
@@ -281,8 +282,8 @@ DirectoryEntry XmlMarcReader::parseDatafield(const std::string &input_filename,
                 // 2. Subfield data.
         if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CHARACTERS)) {
             if (type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "subfield") {
-                Warning("Found an empty subfield on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
-                        + input_filename + "\"!");
+                logger->warning("Found an empty subfield on line " + std::to_string(xml_parser_->getLineNo())
+                                + " in file \"" + input_filename + "\"!");
                 field_data.resize(field_data.length() - 2); // Remove subfield delimiter and code.
                 continue;
             }
@@ -360,11 +361,11 @@ std::unique_ptr<MarcReader> MarcReader::Factory(const std::string &input_filenam
     if (reader_type == AUTO) {
         const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
         if (unlikely(media_type == "cannot"))
-            Error("not found or no permissions: \"" + input_filename + "\"!");
+            logger->error("not found or no permissions: \"" + input_filename + "\"!");
         if (unlikely(media_type.empty()))
-            Error("can't determine media type of \"" + input_filename + "\"!");
+            logger->error("can't determine media type of \"" + input_filename + "\"!");
         if (media_type != "application/xml" and media_type != "application/marc")
-            Error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
+            logger->error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
         reader_type = (media_type == "application/xml") ? XML : BINARY;
     }
 

@@ -163,7 +163,7 @@ bool Directory::const_iterator::operator==(const const_iterator &rhs) {
 off_t GetFileSize(const std::string &path) {
     struct stat stat_buf;
     if (::stat(path.c_str(), &stat_buf) == -1)
-        Error("in FileUtil::GetFileSize: can't stat(2) \"" + path + "\"!");
+        logger->error("in FileUtil::GetFileSize: can't stat(2) \"" + path + "\"!");
 
     return stat_buf.st_size;
 }
@@ -787,7 +787,7 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "r"));
     if (file->fail())
-        Error("can't open \"" + filename + "\" for reading!");
+        logger->error("can't open \"" + filename + "\" for reading!");
 
     return file;
 }
@@ -796,7 +796,7 @@ std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
 std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "w"));
     if (file->fail())
-        Error("can't open \"" + filename + "\" for writing!");
+        logger->error("can't open \"" + filename + "\" for writing!");
 
     return file;
 }
@@ -805,7 +805,7 @@ std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
 std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "a"));
     if (file->fail())
-        Error("can't open \"" + filename + "\" for appending!");
+        logger->error("can't open \"" + filename + "\" for appending!");
 
     return file;
 }
@@ -824,13 +824,11 @@ bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
 void CopyOrDie(const std::string &from_path, const std::string &to_path) {
     const int from_fd(::open(from_path.c_str(), O_RDONLY));
     if (unlikely(from_fd == -1))
-        Error("in FileUtil::CopyOrDie: failed to open \"" + from_path  + "\" for reading! ("
-              + std::string(::strerror(errno)) + ")");
+        logger->error("in FileUtil::CopyOrDie: failed to open \"" + from_path  + "\" for reading!");
 
     const int to_fd(::open(to_path.c_str(), O_WRONLY));
     if (unlikely(to_fd == -1))
-        Error("in FileUtil::CopyOrDie: failed to open \"" + to_path  + "\" for writing! ("
-              + std::string(::strerror(errno)) + ")");
+        logger->error("in FileUtil::CopyOrDie: failed to open \"" + to_path  + "\" for writing!");
 
     char buf[BUFSIZ];
     for (;;) {
@@ -839,10 +837,10 @@ void CopyOrDie(const std::string &from_path, const std::string &to_path) {
             break;
 
         if (unlikely(no_of_bytes < 0))
-            Error("in FileUtil::CopyOrDie: read(2) failed! (" + std::string(::strerror(errno)) + ")");
+            logger->error("in FileUtil::CopyOrDie: read(2) failed!");
 
         if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes))
-            Error("in FileUtil::CopyOrDie: write(2) failed! (" + std::string(::strerror(errno)) + ")");
+            logger->error("in FileUtil::CopyOrDie: write(2) failed!");
     }
 
     ::close(from_fd);
@@ -939,7 +937,7 @@ bool FilesDiffer(const std::string &path1, const std::string &path2) {
 void AppendStringToFile(const std::string &path, const std::string &text) {
     std::unique_ptr<File> file(OpenForAppendingOrDie(path));
     if (unlikely(file->write(text.data(), text.size()) != text.size()))
-        Error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
+        logger->error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
 }
 
 
@@ -947,26 +945,26 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
                    const mode_t target_mode)
 {
     if (filenames.empty())
-        Error("in FileUtil::ConcatFiles: no files to concatenate!");
+        logger->error("in FileUtil::ConcatFiles: no files to concatenate!");
 
     FileDescriptor target_fd(::open(target_path.c_str(), O_WRONLY | O_CREAT | O_LARGEFILE | O_TRUNC, target_mode));
     if (target_fd == -1)
-        Error("in FileUtil::ConcatFiles: failed to open or create \"" + target_path + "\"!");
+        logger->error("in FileUtil::ConcatFiles: failed to open or create \"" + target_path + "\"!");
 
     size_t total_size(0);
     for (const auto &filename : filenames) {
         FileDescriptor source_fd(::open(filename.c_str(), O_RDONLY | O_LARGEFILE));
         if (source_fd == -1)
-            Error("in FileUtil::ConcatFiles: failed to open \"" + filename + "\" for reading!");
+            logger->error("in FileUtil::ConcatFiles: failed to open \"" + filename + "\" for reading!");
 
         struct stat statbuf;
         if (::fstat(source_fd, &statbuf) == -1)
-            Error("in FileUtil::ConcatFiles: failed to fstat(2) \"" + filename + "\"! ("
+            logger->error("in FileUtil::ConcatFiles: failed to fstat(2) \"" + filename + "\"! ("
                   + std::string(::strerror(errno)) + ")");
         const ssize_t count(::sendfile(target_fd, source_fd, nullptr, statbuf.st_size));
         if (count == -1)
-            Error("in FileUtil::ConcatFiles: failed to append \"" + filename + "\" to \"" + target_path
-                  + "\"! (" + std::string(::strerror(errno)) + ")");
+            logger->error("in FileUtil::ConcatFiles: failed to append \"" + filename + "\" to \"" + target_path
+                          + "\"!");
         total_size += static_cast<size_t>(count);
     }
 
@@ -977,13 +975,11 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
 bool IsMountPoint(const std::string &path) {
     struct stat statbuf;
     if (::stat(path.c_str(), &statbuf) == -1)
-        Error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "\" failed! (" + std::string(::strerror(errno))
-              + ")");
+        logger->error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "\" failed!");
 
     struct stat parent_statbuf;
     if (::stat((path + "/..").c_str(), &parent_statbuf) == -1)
-        Error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "/..\" failed! (" + std::string(::strerror(errno))
-              + ")");
+        logger->error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "/..\" failed!");
 
     return statbuf.st_dev != parent_statbuf.st_dev;
 }
