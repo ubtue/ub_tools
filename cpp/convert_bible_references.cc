@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
     if (marc_input_filename == marc_output_filename)
-        Error("input filename can't equal the output filename!");
+        logger->error("input filename can't equal the output filename!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
@@ -98,6 +98,6 @@ int main(int argc, char **argv) {
     try {
         ConvertBibleRefs(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
