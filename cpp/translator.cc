@@ -457,7 +457,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     std::vector<std::string> jump_entries_vufind;
     GenerateDirectJumpTable(&jump_entries_vufind, VUFIND);
     names_to_values_map.emplace("direct_jump_vufind", jump_entries_vufind);
-    names_to_values_map.emplace("translator", std::vector<std::string> {translator});
+    names_to_values_map.emplace("translator", std::vector<std::string> { translator });
 
     if (target == "vufind")
         GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
