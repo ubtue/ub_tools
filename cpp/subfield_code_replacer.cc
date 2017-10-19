@@ -93,7 +93,7 @@ void CollectReplacements(int argc, char **argv, std::vector<Replacement> * const
     for (int arg_no(3); arg_no < argc; ++arg_no) {
         const std::string replacement_pattern(argv[arg_no]);
         if (replacement_pattern.length() != 6 or replacement_pattern[4] != '=')
-            Error("bad replacement pattern: \"" + replacement_pattern + "\"!");
+            logger->error("bad replacement pattern: \"" + replacement_pattern + "\"!");
         replacements->emplace_back(replacement_pattern.substr(0, 3), replacement_pattern[3], replacement_pattern[5]);
     }
 }
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
         else if (std::strcmp(argv[1], "--input-format=marc-xml") == 0)
             reader_type = MarcReader::XML;
         else
-            Error("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
+            logger->error("invalid reader type \"" + std::string(argv[1] + std::strlen("--input-format=")) + "\"!");
         ++argv;
         --argc;
     }
@@ -126,10 +126,10 @@ int main(int argc, char **argv) {
         std::vector<Replacement> replacements;
         CollectReplacements(argc, argv, &replacements);
         if (replacements.empty())
-            Error("need at least one replacement pattern!");
+            logger->error("need at least one replacement pattern!");
 
         ReplaceCodes(marc_reader.get(), marc_writer.get(), replacements);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

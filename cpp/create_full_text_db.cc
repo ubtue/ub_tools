@@ -154,7 +154,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
     child_reported_failure_count += CleanUpZombies(active_child_count);
 
     if (not err_msg.empty())
-        Error(err_msg);
+        logger->error(err_msg);
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Spawned " << spawn_count << " subprocesses.\n";
     std::cerr << semaphore.getValue()
@@ -183,13 +183,13 @@ int main(int argc, char **argv) {
         if (std::strcmp(*argv, "--max-record-count") == 0) {
             ++argv;
             if (not StringUtil::ToNumber(*argv, &max_record_count) or max_record_count == 0)
-                Error("bad value for --max-record-count!");
+                logger->error("bad value for --max-record-count!");
             ++argv;
             argc -= 2;
         } else if (std::strcmp(*argv, "--skip-count") == 0) {
             ++argv;
             if (not StringUtil::ToNumber(*argv, &skip_count))
-                Error("bad value for --skip-count!");
+                logger->error("bad value for --skip-count!");
             std::cout << "Should skip " << skip_count << " records\n";
             ++argv;
             argc -= 2;
@@ -198,23 +198,23 @@ int main(int argc, char **argv) {
             char *arg_end(*argv + std::strlen(*argv));
             char * const colon(std::find(*argv, arg_end, ':'));
             if (colon == arg_end)
-                Error("bad argument to --process-count-low-and-high-watermarks: colon is missing!");
+                logger->error("bad argument to --process-count-low-and-high-watermarks: colon is missing!");
             *colon = '\0';
             if (not StringUtil::ToNumber(*argv, &process_count_low_watermark)
                 or not StringUtil::ToNumber(*argv, &process_count_high_watermark))
-                Error("low or high watermark is not an unsigned number!");
+                logger->error("low or high watermark is not an unsigned number!");
             if (process_count_high_watermark > process_count_low_watermark)
-                Error("the high watermark must be larger than the low watermark!");
+                logger->error("the high watermark must be larger than the low watermark!");
             ++argv;
             argc -= 2;
         } else
-            Error("unknown flag: " + std::string(*argv));
+            logger->error("unknown flag: " + std::string(*argv));
     }
 
     const std::string marc_input_filename(*argv++);
     const std::string marc_output_filename(*argv++);
     if (marc_input_filename == marc_output_filename)
-        Error("input filename must not equal output filename!");
+        logger->error("input filename must not equal output filename!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
@@ -222,8 +222,8 @@ int main(int argc, char **argv) {
     const std::string db_filename(*argv++);
     kyotocabinet::HashDB db;
     if (not db.open(db_filename, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OCREATE))
-        Error("Failed to create the key/valuedatabase \"" + db_filename + "\" ("
-              + std::string(db.error().message()) + ")!");
+        logger->error("Failed to create the key/valuedatabase \"" + db_filename + "\" ("
+                      + std::string(db.error().message()) + ")!");
     db.close();
 
     const std::string error_log_path(*argv);
@@ -231,13 +231,13 @@ int main(int argc, char **argv) {
         "/var/log/" + std::string(FileUtil::Exists("/var/log/krimdok") ? "krimdok" : "ixtheo")
         + "/update_full_text_db");
     if (not FileUtil::MakeDirectory(UPDATE_DB_LOG_DIR_PATH, /* recursive = */ true))
-        Error("failed to create directory: " + UPDATE_DB_LOG_DIR_PATH);
+        logger->error("failed to create directory: " + UPDATE_DB_LOG_DIR_PATH);
 
     try {
         MiscUtil::LogRotate(error_log_path, /* max_count = */ 5);
         ProcessRecords(max_record_count, skip_count, marc_reader.get(), marc_writer.get(), db_filename,
                        error_log_path, process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

@@ -185,13 +185,13 @@ void CleanupRange(std::string * const range, unsigned * const trailing_issue1, u
     if (trailing_issue_matcher->matched(*range)) {
         size_t trailing_length(1 + (*trailing_issue_matcher)[1].length());
         if (unlikely(not StringUtil::ToUnsigned((*trailing_issue_matcher)[1], trailing_issue1)))
-            Error("can't convert \"" + (*trailing_issue_matcher)[1] + "\" to an unsigned trailing issue!");
+            logger->error("can't convert \"" + (*trailing_issue_matcher)[1] + "\" to an unsigned trailing issue!");
         if (trailing_issue_matcher->getNoOfGroups() == 2) {
             const std::string trailing_issue2_candidate((*trailing_issue_matcher)[2].substr(1));
             if (not trailing_issue2_candidate.empty()) {
                 if (unlikely(not StringUtil::ToUnsigned(trailing_issue2_candidate, trailing_issue2)))
-                    Error("can't convert \"" + (*trailing_issue_matcher)[2].substr(1)
-                          + "\" to an unsigned trailing issue!");
+                    logger->error("can't convert \"" + (*trailing_issue_matcher)[2].substr(1)
+                                  + "\" to an unsigned trailing issue!");
             }
             trailing_length += (*trailing_issue_matcher)[2].length();
         }
@@ -230,25 +230,25 @@ bool ParseRanges1(const std::vector<std::string> &individual_ranges, std::vector
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_volume;
         if (not StringUtil::ToUnsigned((*matcher)[3], &end_volume)) {
-            Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
+            logger->warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
             continue;
         }
 
         unsigned end_year;
         if (not StringUtil::ToUnsigned((*matcher)[4], &end_year)) {
-            Warning("can't convert \"" + (*matcher)[4] + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + (*matcher)[4] + "\" to an unsigned end year!");
             continue;
         }
 
@@ -269,13 +269,13 @@ bool ParseRanges2(const std::vector<std::string> &individual_ranges, std::vector
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
@@ -296,13 +296,13 @@ bool ParseRanges3(const std::vector<std::string> &individual_ranges, std::vector
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &end_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end year!");
             continue;
         }
 
@@ -323,7 +323,7 @@ bool ParseRanges4(const std::vector<std::string> &individual_ranges, std::vector
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
             continue;
         }
 
@@ -344,14 +344,14 @@ bool ParseRanges5(const std::vector<std::string> &individual_ranges, std::vector
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
             continue;
         }
 
         const std::string end_year_string((*matcher)[1].substr(0, 2) + (*matcher)[2]);
         unsigned end_year;
         if (not StringUtil::ToUnsigned(end_year_string, &end_year)) {
-            Warning("can't convert \"" + end_year_string + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + end_year_string + "\" to an unsigned end year!");
             continue;
         }
 
@@ -372,13 +372,13 @@ bool ParseRanges6(const std::vector<std::string> &individual_ranges, std::vector
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
@@ -399,20 +399,20 @@ bool ParseRanges7(const std::vector<std::string> &individual_ranges, std::vector
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_year;
         const std::string end_year_candidate((*matcher)[2].substr(0, 2) + (*matcher)[3]);
         if (not StringUtil::ToUnsigned(end_year_candidate, &end_year)) {
-            Warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
             continue;
         }
 
@@ -433,13 +433,13 @@ bool ParseRanges8(const std::vector<std::string> &individual_ranges, std::vector
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
@@ -461,26 +461,26 @@ bool ParseRanges9(const std::vector<std::string> &individual_ranges, std::vector
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_volume;
         if (not StringUtil::ToUnsigned((*matcher)[3], &end_volume)) {
-            Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
+            logger->warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
             continue;
         }
 
         unsigned end_year;
         const std::string end_year_candidate((*matcher)[4].substr(0, 2) + (*matcher)[5]);
         if (not StringUtil::ToUnsigned(end_year_candidate, &end_year)) {
-            Warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
             continue;
         }
 
@@ -502,14 +502,14 @@ bool ParseRanges10(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
             continue;
         }
 
         const std::string end_year_candidate((*matcher)[2].substr(0, 2) + (*matcher)[3]);
         unsigned end_year;
         if (not StringUtil::ToUnsigned(end_year_candidate, &end_year)) {
-            Warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
             continue;
         }
 
@@ -530,7 +530,7 @@ bool ParseRanges11(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
             continue;
         }
 
@@ -551,19 +551,19 @@ bool ParseRanges12(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_year;
         if (not StringUtil::ToUnsigned((*matcher)[3], &end_year)) {
-            Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end year!");
             continue;
         }
 
@@ -584,26 +584,26 @@ bool ParseRanges13(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned end_volume;
         if (not StringUtil::ToUnsigned((*matcher)[2], &end_volume)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end volume!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[3], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned start year!");
             continue;
         }
 
         const std::string end_year_candidate((*matcher)[3].substr(0, 2) + (*matcher)[4]);
         unsigned end_year;
         if (not StringUtil::ToUnsigned(end_year_candidate, &end_year)) {
-            Warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
             continue;
         }
 
@@ -624,25 +624,25 @@ bool ParseRanges14(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned end_volume;
         if (not StringUtil::ToUnsigned((*matcher)[2], &end_volume)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end volume!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[3], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_year;
         if (not StringUtil::ToUnsigned((*matcher)[4], &end_year)) {
-            Warning("can't convert \"" + (*matcher)[4] + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + (*matcher)[4] + "\" to an unsigned end year!");
             continue;
         }
 
@@ -663,13 +663,13 @@ bool ParseRanges15(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &end_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end year!");
             continue;
         }
 
@@ -691,25 +691,25 @@ bool ParseRanges16(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_volume;
         if (not StringUtil::ToUnsigned((*matcher)[3], &end_volume)) {
-            Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
+            logger->warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
             continue;
         }
 
         unsigned end_year;
         if (not StringUtil::ToUnsigned((*matcher)[4], &end_year)) {
-            Warning("can't convert \"" + (*matcher)[4] + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + (*matcher)[4] + "\" to an unsigned end year!");
             continue;
         }
 
@@ -730,19 +730,19 @@ bool ParseRanges17(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_volume;
         if (not StringUtil::ToUnsigned((*matcher)[2], &end_volume)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end volume!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end volume!");
             continue;
         }
 
         unsigned end_year;
         if (not StringUtil::ToUnsigned((*matcher)[3], &end_year)) {
-            Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end year!");
             continue;
         }
 
@@ -765,20 +765,20 @@ bool ParseRanges18(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_year;
         const std::string end_year_candidate((*matcher)[3].substr(0, 2) + (*matcher)[4]);
         if (not StringUtil::ToUnsigned(end_year_candidate, &end_year)) {
-            Warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
             continue;
         }
 
@@ -801,26 +801,26 @@ bool ParseRanges19(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_volume;
         if (not StringUtil::ToUnsigned((*matcher)[3], &end_volume)) {
-            Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
+            logger->warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
             continue;
         }
 
         unsigned end_year;
         const std::string end_year_candidate((*matcher)[4].substr(0, 2) + (*matcher)[5]);
         if (not StringUtil::ToUnsigned(end_year_candidate, &end_year)) {
-            Warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
             continue;
         }
 
@@ -842,13 +842,13 @@ bool ParseRanges20(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &end_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned end year!");
             continue;
         }
 
@@ -871,20 +871,20 @@ bool ParseRanges21(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
         const std::string end_year_candidate((*matcher)[2].substr(0, 2) + (*matcher)[3]);
         unsigned end_year;
         if (not StringUtil::ToUnsigned(end_year_candidate, &end_year)) {
-            Warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
             continue;
         }
 
@@ -907,26 +907,26 @@ bool ParseRanges22(const std::vector<std::string> &individual_ranges, std::vecto
 
         unsigned start_volume;
         if (not StringUtil::ToUnsigned((*matcher)[1], &start_volume)) {
-            Warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
+            logger->warning("can't convert \"" + (*matcher)[1] + "\" to an unsigned start volume!");
             continue;
         }
 
         unsigned start_year;
         if (not StringUtil::ToUnsigned((*matcher)[2], &start_year)) {
-            Warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
+            logger->warning("can't convert \"" + (*matcher)[2] + "\" to an unsigned start year!");
             continue;
         }
 
         unsigned end_volume;
         if (not StringUtil::ToUnsigned((*matcher)[3], &end_volume)) {
-            Warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
+            logger->warning("can't convert \"" + (*matcher)[3] + "\" to an unsigned end volume!");
             continue;
         }
 
         const std::string end_year_candidate((*matcher)[4].substr(0, 2) + (*matcher)[5]);
         unsigned end_year;
         if (not StringUtil::ToUnsigned(end_year_candidate, &end_year)) {
-            Warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
+            logger->warning("can't convert \"" + end_year_candidate + "\" to an unsigned end year!");
             continue;
         }
 
@@ -999,7 +999,7 @@ void ParseRanges(const std::string &_866a_contents, std::vector<Range> * const r
     ++bad_match_count;
 
     for (const auto &individual_range : individual_ranges)
-        Warning("couldn't match range: \"" + individual_range + "\"!");
+        logger->warning("couldn't match range: \"" + individual_range + "\"!");
 }
 
 
@@ -1201,7 +1201,7 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, MarcReader * const
 {
     std::string err_msg;
     if (not MarcRecord::ProcessRecords(marc_reader, ProcessSerialRecord, marc_writer, &err_msg))
-        Error("error while processing serial records: " + err_msg);
+        logger->error("error while processing serial records: " + err_msg);
 
     if (verbose) {
         std::cout << "Successfully matched " << Percentage(good_match_count, good_match_count + bad_match_count)
@@ -1212,7 +1212,7 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, MarcReader * const
 
     marc_reader->rewind();
     if (not MarcRecord::ProcessRecords(marc_reader, ProcessRecord, marc_writer, &err_msg))
-        Error("error while processing records: " + err_msg);
+        logger->error("error while processing records: " + err_msg);
 
     if (verbose) {
         std::cout << "Modified " << modified_record_count << " records.\n";
@@ -1241,6 +1241,6 @@ int main(int argc, char **argv) {
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[argc == 3 ? 2 : 3]));
         PopulateTheInTuebingenAvailableField(verbose, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

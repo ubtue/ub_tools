@@ -65,16 +65,17 @@ ReturnType GetDocumentAndMediaType(const std::string &url, const unsigned timeou
     Downloader::Params params;
     Downloader downloader(url, params, timeout);
     if (downloader.anErrorOccurred()) {
-        Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to download the document for " + url
-                + " (timeout: " + std::to_string(timeout) + " sec, message: " + downloader.getLastErrorMessage()
-                + ")" );
+        logger->warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to download the document for "
+                        + url + " (timeout: " + std::to_string(timeout) + " sec, message: "
+                        + downloader.getLastErrorMessage() + ")" );
         return DOWNLOAD_TIMEOUT_ERROR;
     }
 
     *document = downloader.getMessageBody();
     *media_type = downloader.getMediaType();
     if (media_type->empty()) {
-        Warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to get the media type for " + url);
+        logger->warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to get the media type for "
+                        + url);
         return MEDIA_TYPE_DETERMINATION_ERROR;
     }
     
@@ -168,7 +169,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
         return PdfUtil::ExtractText(document);
 
     }
-    Warning("in ConvertToPlainText: don't know how to handle media type: " + media_type);
+    logger->warning("in ConvertToPlainText: don't know how to handle media type: " + media_type);
     return "";
 }
 
@@ -212,7 +213,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
                 std::unique_ptr<File> error_log_file(FileUtil::OpenForAppendingOrDie(error_log_path));
                 FileLocker file_locker(error_log_file.get(), FileLocker::WRITE_ONLY);
                 if (not (error_log_file->seek(0, SEEK_END)))
-                    Error("in ProcessRecord: failed to seek to the end of \"" + error_log_path + "\"!");
+                    logger->error("in ProcessRecord: failed to seek to the end of \"" + error_log_path + "\"!");
                 error_log_file->write(url + " ("
                                       + std::string(return_type == DOWNLOAD_TIMEOUT_ERROR
                                                     ? "download timeout" : "failed to determine media type")
@@ -257,17 +258,17 @@ int main(int argc, char *argv[]) {
 
     long offset;
     if (not StringUtil::ToNumber(argv[1], &offset))
-        Error("file offset must be a number!");
+        logger->error("file offset must be a number!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
     if (not marc_reader->seek(offset, SEEK_SET))
-        Error("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset)
-              + "! (" + std::to_string(errno) + ")");
+        logger->error("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset)
+                      + "! (" + std::to_string(errno) + ")");
 
     try {
         return ProcessRecord(marc_reader.get(), argv[3], argv[4], argv[5]) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
-        Error("While reading \"" + marc_reader->getPath() + "\" starting at offset \"" + std::string(argv[1])
-              + "\", caught exception: " + std::string(e.what()));
+        logger->error("While reading \"" + marc_reader->getPath() + "\" starting at offset \"" + std::string(argv[1])
+                      + "\", caught exception: " + std::string(e.what()));
     }
 }

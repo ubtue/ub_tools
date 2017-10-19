@@ -2,7 +2,7 @@
  *  \brief Test program for the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -44,6 +44,6 @@ int main(int argc, char *argv[]) {
             std::cout << '\n';
         }
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
