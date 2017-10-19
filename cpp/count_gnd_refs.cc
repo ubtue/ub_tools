@@ -1,7 +1,7 @@
 /** \brief Utility for counting references to GND numbers.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -100,6 +100,6 @@ int main(int argc, char *argv[]) {
         std::unique_ptr<File> counts_file(FileUtil::OpenOutputFileOrDie(argv[3]));
         WriteCounts(gnd_numbers_and_counts, counts_file.get());
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

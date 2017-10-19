@@ -108,8 +108,7 @@ wait
 
 
 StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
-(extract_keywords_for_translation GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                  Normdaten-"${date}".mrc >> "${log}" 2>&1 && \
+(extract_keywords_for_translation Normdaten-"${date}".mrc >> "${log}" 2>&1 && \
 extract_vufind_translations_for_translation \
     "$VUFIND_HOME"/local/languages/de.ini \ # German terms before all others.
     $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \

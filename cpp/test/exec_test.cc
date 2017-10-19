@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
             if (arg_no == argc)
                 Usage();
             if (not StringUtil::ToUnsigned(argv[arg_no++], &timeout_in_seconds))
-                Error("The argument following \"--timeout-in-seconds\" must be a non-negative integer!");
+                logger->error("The argument following \"--timeout-in-seconds\" must be a non-negative integer!");
         } else
             Usage();
     }
@@ -53,6 +53,6 @@ int main(int argc, char *argv[]) {
         } else
             std::cerr << "The executed script or binary succeeded!\n";
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

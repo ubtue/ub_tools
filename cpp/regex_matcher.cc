@@ -1,7 +1,7 @@
 /** \brief Test program for the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
         std::string err_msg;
         RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(argv[1], &err_msg));
         if (matcher == nullptr)
-            Error("regex compile failed: " + err_msg);
+            logger->error("regex compile failed: " + err_msg);
 
         for (int arg_no(2); arg_no < argc; ++arg_no) {
             const std::string subject(argv[arg_no]);
@@ -48,13 +48,13 @@ int main(int argc, char *argv[]) {
                     std::cout << '"' << subject << "\" was not matched!\n";
                     continue;
                 }
-                Error("match for subject \"" + subject +"\" failed! (" + err_msg + ")");
+                logger->error("match for subject \"" + subject +"\" failed! (" + err_msg + ")");
             }
             std::cout << subject << ":\n";
             for (unsigned group(0); group < matcher->getLastMatchCount(); ++group)
                 std::cout << '\t' << (*matcher)[group] << '\n';
         }
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
