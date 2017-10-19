@@ -40,16 +40,19 @@
                  event.cancelBubble = true;
                  event.preventDefault();
                  event.stopPropagation();
-                 insertTranslationIntoDB(this);
+                 InsertTranslationIntoDB(this);
              }
         });
         $(".editable_translation").blur(function() {{
-            insertTranslationIntoDB(this);
+            InsertTranslationIntoDB(this);
         });
-        
     });
 
-    function insertTranslationIntoDB(object) {{
+    function IsEmpty(str) {{
+       return (!str || 0 === str.length);
+    }
+
+    function InsertTranslationIntoDB(object) {{
        var index = $(object).attr("index");
        var gnd_code = $(object).attr("gnd_code");
        var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine anguage from the heading
@@ -60,7 +63,7 @@
            return;
 
        $(object).attr("translation", translation);
-       var action = (!translator_exists) ? "insert" : "update"
+       var action = (!IsEmpty(old_translation) || translator_exists) ? "update" : "insert"
        $.ajax({{
           type: "PUT",
           url: "translator_ajax",
