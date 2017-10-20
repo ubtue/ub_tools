@@ -58,9 +58,8 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix) {
 
 
 Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
-    : dirname_(dirname)
+    : dirname_(dirname), name_(entry.d_name), inode_(entry.d_ino), type_(entry.d_type)
 {
-    std::memcpy(reinterpret_cast<void *>(&entry_), reinterpret_cast<const void *>(&entry), sizeof(struct dirent));
 }
 
 
@@ -84,25 +83,22 @@ std::string GetSELinuxContext(const std::string &path) {
 
 
 Directory::Entry::Entry(const Directory::Entry &other)
-    : dirname_(other.dirname_)
+    : dirname_(other.dirname_), name_(other.name_), inode_(other.inode_), type_(other.type_)
 {
-    if (&other != this)
-        std::memcpy(reinterpret_cast<void *>(&entry_), reinterpret_cast<const void *>(&other.entry_),
-                    sizeof(struct dirent));
 }
 
 
 unsigned char Directory::Entry::getType() const {
-    if (entry_.d_type != DT_UNKNOWN)
-        return entry_.d_type;
+    if (type_ != DT_UNKNOWN)
+        return type_;
 
     // Not all filesystems return the type in the d_type field.  In those cases DT_UNKNOWN will be returned and we
     // therefore need to fall back to using the stat(2) system call.
     struct stat statbuf;
     errno = 0;
-    if (::stat((dirname_ + "/" +  std::string(entry_.d_name)).c_str(), &statbuf) == -1)
+    if (::stat((dirname_ + "/" +  name_).c_str(), &statbuf) == -1)
         throw std::runtime_error("in FileUtil::Directory::Entry::getType: stat(2) on \""
-                                 + (dirname_ + "/" + std::string(entry_.d_name)) + " \"failed! ("
+                                 + dirname_ + "/" + name_ + " \"failed! ("
                                  + std::string(std::strerror(errno)) + ")");
 
     return IFTODT(statbuf.st_mode); // Convert from st_mode to d_type.
@@ -110,7 +106,7 @@ unsigned char Directory::Entry::getType() const {
 
 
 Directory::const_iterator::const_iterator(const std::string &path, const std::string &regex, const bool end)
-    : path_(path), regex_matcher_(nullptr), last_entry_(nullptr)
+    : path_(path), regex_matcher_(nullptr), entry_(path_)
 {
     if (end)
         dir_handle_ = nullptr;
@@ -142,9 +138,8 @@ void Directory::const_iterator::advance() {
     errno = 0;
     while (true) {
         struct dirent *entry_ptr;
-        int retcode;
-        if ((retcode = ::readdir_r(dir_handle_, &entry_, &entry_ptr)) != 0)
-            throw std::runtime_error("in Directory::const_iterator::advance: readdir_r(3) failed!");
+        if (unlikely((entry_ptr = ::readdir(dir_handle_)) == nullptr and errno != 0))
+            throw std::runtime_error("in Directory::const_iterator::advance: readdir(3) failed!");
 
         // Reached end-of-directory?
         if (entry_ptr == nullptr) { // Yes!
@@ -153,8 +148,12 @@ void Directory::const_iterator::advance() {
             return;
         }
 
-        if (regex_matcher_->matched(entry_.d_name))
+        if (regex_matcher_->matched(entry_.name_)) {
+            entry_.name_  = std::string(entry_ptr->d_name);
+            entry_.inode_ = entry_ptr->d_ino;
+            entry_.type_  = entry_ptr->d_type;
             return;
+        }
     }
 }
 
@@ -163,7 +162,7 @@ Directory::Entry Directory::const_iterator::operator*() {
     if (dir_handle_ == nullptr)
         throw std::runtime_error("in Directory::const_iterator::operator*: can't dereference an iterator pointing"
                                  " to the end!");
-    return Directory::Entry(entry_, path_);
+    return entry_;
 }
 
 
@@ -179,7 +178,7 @@ bool Directory::const_iterator::operator==(const const_iterator &rhs) {
         or (rhs.dir_handle_ != nullptr and dir_handle_ == nullptr))
         return false;
 
-    return std::strcmp(rhs.entry_.d_name, entry_.d_name) == 0;
+    return rhs.entry_.name_ == entry_.name_;
 }
 
 
