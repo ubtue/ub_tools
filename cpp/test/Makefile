@@ -14,6 +14,9 @@ MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep
 LIBS           = -L../lib -lubtue -L../lib/libstemmer -lstemmer -lxml2 -lpcre -lkyotocabinet -lmagic -lz \
                  -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
                  -lssl -lcrypto -lpthread -ldl
+ifneq ("$(wildcard /usr/include/selinux)","")
+  LIBS += -lselinux
+endif
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
 INSTALL_PROGS  = $(PROGS) *.sh
 

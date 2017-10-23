@@ -33,7 +33,7 @@ const unsigned DEFAULT_MAX_ROTATIONS(5);
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--max-rotations=max_rotations|--no-of-lines-to-keep=max_line_count] directory file_regex\n"
+              << " [--verbose] [--max-rotations=max_rotations|--no-of-lines-to-keep=max_line_count] directory file_regex\n"
               << "       where the default for \"max_rotations\" is " << DEFAULT_MAX_ROTATIONS << '\n'
               << "       and \"file_regex\" must be a PCRE.  (There is no default for \"max_line_count\".)\n"
               << "       When using --no-of-lines-to-keep, the result will be either empty, if the original\n"
@@ -88,6 +88,15 @@ inline bool HasNumericExtension(const std::string &filename) {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
+    if (argc < 3)
+        Usage();
+
+    bool verbose(false);
+    if (std::strcmp(argv[1], "--verbose") == 0) {
+        verbose = true;
+        --argc, ++argv;
+    }
+
     if (argc != 3 and argc != 4)
         Usage();
 
@@ -117,10 +126,12 @@ int main(int argc, char *argv[]) {
         FileUtil::Directory directory(directory_path, file_regex);
         for (const auto &entry : directory) {
             if (not HasNumericExtension(entry.getName())) {
+                if (verbose)
+                    std::cout << "About to rotate \"" << entry.getName() << "\".\n";
                 if (max_line_count > 0)
                     KeepLines(directory_path + "/" + entry.getName(), max_line_count);
                 else
-                    MiscUtil::LogRotate(entry.getName(), max_rotations);
+                    MiscUtil::LogRotate(directory_path + "/" + entry.getName(), max_rotations);
             }
         }
     } catch (const std::exception &x) {
