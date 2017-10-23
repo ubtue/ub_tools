@@ -60,7 +60,7 @@ public:
 };
 
 
-std::string GetSELinuxContext(const std::string &path);
+std::vector<std::string> GetSELinuxContexts(const std::string &path);
 
 
 class Directory {
@@ -77,7 +77,7 @@ public:
     public:
         Entry(const Entry &other);
         inline std::string getName() const { return name_; }
-        std::string getSELinuxContext() const { return GetSELinuxContext(dirname_ + "/" + name_); }
+        std::vector<std::string> getSELinuxContexts() const { return GetSELinuxContexts(dirname_ + "/" + name_); }
 
         // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),
         //         DT_LNK(symlink), DT_REG(regular file), DT_SOCK(UNIX domain socket), or DT_UNKNOWN(unknown type).
