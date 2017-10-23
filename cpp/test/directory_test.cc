@@ -37,7 +37,8 @@ int main(int argc, char *argv[]) {
 
         for (const auto entry : *directory)
             std::cout << entry.getName() << ", " << std::to_string(entry.getType())
-                      << (display_contexts ? FileUtil::SELinuxContextToString(entry.getSELinuxContext()) : "")
+                      << (display_contexts ? ", " + FileUtil::SELinuxContextToString(entry.getSELinuxContext())
+                          : "")
                       << '\n';
 
         delete directory;
