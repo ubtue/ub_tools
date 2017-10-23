@@ -51,6 +51,8 @@ void AddFileContextIfMissing(const std::string &path, const std::string &type, c
 
 
 /** \brief  Apply all configured file contexts for the specified path
+ *  \note   This also includes all other configurations for the path,
+ *          even if they have not been made with this library.
  *  \param  path                path of a file or directory
  */
 void ApplyChanges(const std::string &path);
