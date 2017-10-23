@@ -78,7 +78,7 @@ SELinuxContext GetSELinuxContext(const std::string &path) {
         return SELinuxContext();
 
     std::vector<std::string> context_as_vector;
-    const unsigned no_of_components(StringUtil::Split(file_context, &context_as_vector,
+    const unsigned no_of_components(StringUtil::Split(file_context, ":", &context_as_vector,
                                                       /* suppress_empty_components = */ false));
     if (unlikely(no_of_components != 4))
         throw std::runtime_error("in GetSELinuxContext: context has unexpected no. of components!");
