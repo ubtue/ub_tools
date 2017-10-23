@@ -36,7 +36,6 @@
 #include "HtmlUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
-#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
 #include "util.h"
@@ -417,7 +416,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
           // Since we are iteratring over a single column, make sure sure we select the correct translation (reliable or new)
           if (IsEmptyEntryWithoutTranslator(row_values[index]) or status=="new" or status=="reliable")
               row_values[index] = (language_code == "ger" || status == "reliable") ? CreateNonEditableRowEntry(translation) :
-                              CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
+                                  CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
                                                      translator, gnd_code);
        } 
        else
