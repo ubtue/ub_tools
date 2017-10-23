@@ -32,7 +32,6 @@
 #include <stdexcept>
 #include <pthread.h>
 #include <semaphore.h>
-#include "Logger.h"
 
 
 namespace ThreadUtil {
@@ -60,55 +59,6 @@ public:
 private:
     Semaphore(const Semaphore &);                  // Intentionally unimplemented!
     const Semaphore &operator=(const Semaphore &); // Intentionally unimplemented!
-};
-
-
-/** \brief  A thread-safe Log file writer.
- */
-class Logger: public ::Logger {
-    std::mutex mutex_;
-public:
-    /** \brief  Creates a new Logger object that writes to a log file.
-     *  \param  log_filename       The log file name.
-     *  \param  default_verbosity  Minimum required verbosity for logging to occur for those member functions that take a verbosity level.
-     *  \param  open_mode          Whether to clear the log file upon opening it or not.
-     */
-    explicit Logger(const std::string &log_filename, const Logger::VerbosityLevel default_verbosity = Logger::VL_NORMAL,
-                    const Logger::OpenMode open_mode = Logger::DO_NOT_CLEAR)
-        : ::Logger(log_filename, default_verbosity, open_mode) { }
-
-    /** \brief  Creates a new Logger object that writes to a stream.
-     *  \param  log_stream  The stream to write to.
-     */
-    explicit Logger(File * const log_stream)
-        : ::Logger(log_stream) { }
-
-    /** Get the log file name currently in use. */
-    std::string getFileName() const { return log_filename_; }
-
-    /** \brief  Reopens the output stream used for logging.
-     *  \param log_filename  File to write logging messages to.  If unspecified here
-     *                       and a filename was provided by the constructor it will be reused.
-     */
-    void reopen(const std::string &log_filename = "");
-
-    void log(const char *fmt, ...);
-    void log(const std::string &message);
-    void sysLog(const char *fmt, ...);
-    void sysLog(const std::string &message);
-    void logAndDie(const char *fmt, ...);
-    void logAndDie(const std::string &message);
-    void sysLogAndDie(const char *fmt, ...);
-    void sysLogAndDie(const std::string &message);
-
-private:
-    Logger();                                   // Intentionally unimplemented!
-    Logger(const Logger &rhs);                  // Intentionally unimplemented!
-    const Logger &operator=(const Logger &rhs); // Intentionally unimplemented!
-    void internalLog(const std::string &message);
-    void internalSysLog(const std::string &message);
-    void internalLogAndDie(const std::string &message);
-    void internalSysLogAndDie(const std::string &message);
 };
 
 

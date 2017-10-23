@@ -1,7 +1,7 @@
 /** \brief Utility for downloading PDFs of essay collections.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -172,7 +172,7 @@ void ProcessRecords(MarcReader * const marc_reader, const unsigned pdf_limit_cou
                 const std::string &control_number(record.getControlNumber());
                 const std::string output_filename(control_number + ".pdf");
                 if (not FileUtil::WriteString(output_filename, document))
-                    Error("failed to write \"" + output_filename + "\"!");
+                    logger->error("failed to write \"" + output_filename + "\"!");
                 ++pdf_success_count;
             }
         }
@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
         if (std::strcmp(argv[1], "--download-pdfs") != 0)
             Usage();
         if (not StringUtil::ToUnsigned(argv[2], &pdf_limit_count))
-            Error(std::string(argv[2]) + " is not a valid PDF limit count!");
+            logger->error(std::string(argv[2]) + " is not a valid PDF limit count!");
     } else
         pdf_limit_count = 0;
 
@@ -207,6 +207,6 @@ int main(int argc, char *argv[]) {
     try {
         ProcessRecords(marc_reader.get(), pdf_limit_count);
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

@@ -56,7 +56,7 @@ void CopyLines(File * const input, File * const output) {
         std::string line;
         input->getline(&line);
         if (unlikely(not output->write(line + "\n")))
-            Error("in CopyLines: failed to write a line to \"" + output->getPath() + "\"!");
+            logger->error("in CopyLines: failed to write a line to \"" + output->getPath() + "\"!");
     }
 }
 
@@ -75,7 +75,7 @@ void KeepLines(const std::string &filename, const unsigned &max_line_count) {
     CopyLines(input.get(), output.get());
     input->close(), output->close();
     if (not FileUtil::RenameFile(temp_file.getFilePath(), filename, /* remove_target = */ true))
-        Error("in KeepLines: failed to rename \"" + temp_file.getFilePath() + "\" to \"" + filename + "\"!");
+        logger->error("in KeepLines: failed to rename \"" + temp_file.getFilePath() + "\" to \"" + filename + "\"!");
 }
 
 
@@ -100,13 +100,13 @@ int main(int argc, char *argv[]) {
         if (StringUtil::StartsWith(argv[1], "--max-rotations=")) {
             if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--max-rotations="), &max_rotations)
                 or max_rotations == 0)
-                Error("\"" + std::string(argv[1] + std::strlen("--max-rotations="))
-                      + "\" is not a valid maximum rotation count!");
+                logger->error("\"" + std::string(argv[1] + std::strlen("--max-rotations="))
+                              + "\" is not a valid maximum rotation count!");
         } else if (StringUtil::StartsWith(argv[1], "--no-of-lines-to-keep=")) {
             if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--no-of-lines-to-keep="), &max_line_count)
                 or max_line_count == 0)
-                Error("\"" + std::string(argv[1] + std::strlen("--no-of-lines-to-keep="))
-                      + "\" is not a valid line count!");
+                logger->error("\"" + std::string(argv[1] + std::strlen("--no-of-lines-to-keep="))
+                              + "\" is not a valid line count!");
         } else
             Usage();
         directory_path = argv[2];
@@ -124,6 +124,6 @@ int main(int argc, char *argv[]) {
             }
         }
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

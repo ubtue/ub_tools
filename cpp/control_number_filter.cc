@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, 2016, Library of the University of Tübingen
+    Copyright (C) 2015-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -48,7 +48,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcRe
     std::string err_msg;
     const RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)
-        Error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
+        logger->error("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
     unsigned count(0), kept_or_deleted_count(0);
 
@@ -57,7 +57,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcRe
 
         const bool matched(matcher->matched(record.getControlNumber(), &err_msg));
         if (not err_msg.empty())
-            Error("regex matching error: " + err_msg);
+            logger->error("regex matching error: " + err_msg);
 
         if ((keep and matched) or (not keep and not matched)) {
             ++kept_or_deleted_count;
@@ -66,7 +66,7 @@ void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MarcRe
     }
 
     if (not err_msg.empty())
-        Error(err_msg);
+        logger->error(err_msg);
 
     std::cerr << "Read " << count << " records.\n";
     std::cerr << (keep ? "Kept " : "Deleted ") << kept_or_deleted_count << " record(s).\n";
@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[3]);
     const std::string marc_output_filename(argv[4]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        Error("Master input file name equals output file name!");
+        logger->error("Master input file name equals output file name!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));

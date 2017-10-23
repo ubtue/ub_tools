@@ -99,6 +99,6 @@ int main(int /*argc*/, char *argv[]) {
         std::cout << "  </body>\n";
         std::cout << "</html>\n";
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

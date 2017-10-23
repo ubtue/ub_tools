@@ -2,7 +2,7 @@
  *  \brief A tool for generating some stats for Martin Faßnacht.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -78,7 +78,7 @@ void GenerateStats(MarcReader * const marc_reader, File * const _150a_output, Fi
 
 int main(int argc, char *argv[]) {
     if (argc != 2)
-        Error("Usage: " + std::string(argv[0]) + " marc_authority_filename");
+        logger->error("Usage: " + std::string(argv[0]) + " marc_authority_filename");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
     std::unique_ptr<File> _150a_output(FileUtil::OpenOutputFileOrDie("150a"));
@@ -87,6 +87,6 @@ int main(int argc, char *argv[]) {
     try {
         GenerateStats(marc_reader.get(), _150a_output.get(), _450a_output.get());
     } catch(const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

@@ -35,7 +35,7 @@ std::string ExtractText(const std::string &pdf_document) {
     const FileUtil::AutoTempFile auto_temp_file1;
     const std::string &input_filename(auto_temp_file1.getFilePath());
     if (not FileUtil::WriteString(input_filename, pdf_document))
-        Error("in PdfUtil::ExtractText: can't write document to \"" + input_filename + "\"!");
+        logger->error("in PdfUtil::ExtractText: can't write document to \"" + input_filename + "\"!");
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
@@ -43,10 +43,10 @@ std::string ExtractText(const std::string &pdf_document) {
     const int retval(ExecUtil::Exec(pdftotext_path,
                                     { "-enc", "UTF-8", "-nopgbrk", input_filename, output_filename }));
     if (retval != 0)
-        Error("in PdfUtil::ExtractText: failed to execute \"" + pdftotext_path + "\"!");
+        logger->error("in PdfUtil::ExtractText: failed to execute \"" + pdftotext_path + "\"!");
     std::string extracted_text;
     if (not FileUtil::ReadString(output_filename, &extracted_text))
-        Error("in PdfUtil::ExtractText: failed to read extracted text from \"" + output_filename + "\"!");
+        logger->error("in PdfUtil::ExtractText: failed to read extracted text from \"" + output_filename + "\"!");
 
     return extracted_text;
 }
@@ -93,7 +93,7 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
     const FileUtil::AutoTempFile auto_temp_file;
     const std::string &input_filename(auto_temp_file.getFilePath());
     if (not FileUtil::WriteString(input_filename, pdf_document))
-        Error("failed to write the PDF to a temp file!");
+        logger->error("failed to write the PDF to a temp file!");
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
@@ -106,14 +106,14 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
                        /* new_stdin = */"", /* new_stdout = */UPDATE_DB_LOG_PATH,
                        /* new_stderr = */UPDATE_DB_LOG_PATH, TIMEOUT) != 0)
     {
-        Warning("failed to execute conversion script \"" + pdf_images_script_path + "\" w/in "
-                + std::to_string(TIMEOUT) + " seconds!");
+        logger->warning("failed to execute conversion script \"" + pdf_images_script_path + "\" w/in "
+                        + std::to_string(TIMEOUT) + " seconds!");
         return false;
     }
 
     std::string plain_text;
     if (not FileUtil::ReadString(output_filename, extracted_text))
-        Error("failed to read OCR output!");
+        logger->error("failed to read OCR output!");
 
     return not extracted_text->empty();
 }

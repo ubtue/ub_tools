@@ -1,7 +1,7 @@
 /** \brief A tool for adding keywords extracted from titles to MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[verbose ? 2 : 1]);
     const std::string marc_output_filename(argv[verbose ? 3 : 2]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        Error("MARC input file name equals MARC output file name!");
+        logger->error("MARC input file name equals MARC output file name!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
@@ -196,11 +196,11 @@ int main(int argc, char **argv) {
         const std::string stopwords_filename(argv[arg_no]);
         if (stopwords_filename.length() != 13 or
             not StringUtil::StartsWith(stopwords_filename, "stopwords."))
-            Error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
+            logger->error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(10));
         File stopwords(stopwords_filename, "r");
         if (not stopwords)
-            Error("can't open \"" + stopwords_filename + "\" for reading!");
+            logger->error("can't open \"" + stopwords_filename + "\" for reading!");
         std::unordered_set<std::string> stopwords_set;
         LoadStopwords(verbose, &stopwords, &stopwords_set);
         language_codes_to_stopword_sets[language_code] = stopwords_set;
@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
 
     // We always need English because librarians suck at specifying English:
     if (language_codes_to_stopword_sets.find("eng") == language_codes_to_stopword_sets.end())
-        Error("You always need to provide \"stopwords.eng\"!");
+        logger->error("You always need to provide \"stopwords.eng\"!");
 
     AugmentKeywordsWithTitleWords(verbose, marc_reader.get(), marc_writer.get(), language_codes_to_stopword_sets);
 }

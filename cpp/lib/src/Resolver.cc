@@ -46,8 +46,8 @@
 #include "NetUtil.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
-#include "ThreadSafeLogger.h"
 #include "TimerUtil.h"
+#include "util.h"
 
 
 uint16_t Resolver::next_request_id_;
@@ -101,9 +101,8 @@ void Resolver::Cache::insert(const std::string &hostname, const std::set<in_addr
 }
 
 
-Resolver::Resolver(const std::list<std::string> &dns_servers, Logger * const logger, const unsigned verbosity)
-        : verbosity_(logger != nullptr ? verbosity : 0), logger_(logger), cleanup_logger_(false), udp_fd_(-1),
-          reply_packet_(nullptr), reply_packet_size_(0)
+Resolver::Resolver(const std::list<std::string> &dns_servers, const unsigned verbosity)
+    : verbosity_(verbosity), udp_fd_(-1), reply_packet_(nullptr), reply_packet_size_(0)
 {
     // This variable keeps track of whether we have read in a
     // list of DNS servers from one of the three sources yet:
@@ -118,8 +117,7 @@ Resolver::Resolver(const std::list<std::string> &dns_servers, Logger * const log
                 if (unlikely(not NetUtil::StringToNetworkAddress(*dns_server, &ip_address)))
                     throw std::runtime_error("in Resolver::Resolver: \"" + *dns_server
                                     + "\" is not a valid IP address (1)!");
-                dns_server_ip_addresses_and_busy_counts_.insert(
-                                                                std::make_pair(ip_address, 0));
+                dns_server_ip_addresses_and_busy_counts_.insert(std::make_pair(ip_address, 0));
             }
 
         dns_servers_processed = true;
@@ -129,17 +127,10 @@ Resolver::Resolver(const std::list<std::string> &dns_servers, Logger * const log
     if (FileUtil::Exists(ETC_DIR "/Resolver.conf")) {
         IniFile ini_file(ETC_DIR "/Resolver.conf");
 
-        if (logger_ == nullptr) {
-            // Read logging instructions:
-            verbosity_ = ini_file.getUnsigned("Logging", "verbosity", 0);
-            if (verbosity_ > 5)
-                verbosity_ = 5;
-            if (verbosity_ > 0) {
-                const std::string log_filename(ini_file.getString("Logging", "log_filename"));
-                logger_ = new ThreadSafeLogger(log_filename);
-                cleanup_logger_ = true;
-            }
-        }
+        // Read logging instructions:
+        verbosity_ = ini_file.getUnsigned("Logging", "verbosity", 0);
+        if (verbosity_ > 5)
+            verbosity_ = 5;
 
         // Read DNS servers:
         if (not dns_servers_processed and ini_file.sectionIsDefined("DNS Servers")) {
@@ -177,8 +168,8 @@ Resolver::Resolver(const std::list<std::string> &dns_servers, Logger * const log
 }
 
 
-Resolver::Resolver(const std::string &dns_server, Logger * const logger, const unsigned verbosity)
-        : verbosity_(logger != nullptr ? verbosity : 0), logger_(logger), cleanup_logger_(false)
+Resolver::Resolver(const std::string &dns_server, const unsigned verbosity)
+    : verbosity_(verbosity)
 {
     in_addr_t ip_address;
     if (unlikely(not NetUtil::StringToNetworkAddress(dns_server, &ip_address)))
@@ -190,8 +181,8 @@ Resolver::Resolver(const std::string &dns_server, Logger * const logger, const u
 }
 
 
-Resolver::Resolver(const in_addr_t dns_server, Logger * const logger, const unsigned verbosity)
-        : verbosity_(logger != nullptr ? verbosity : 0), logger_(logger), cleanup_logger_(false)
+Resolver::Resolver(const in_addr_t dns_server, const unsigned verbosity)
+    : verbosity_(verbosity)
 {
     dns_server_ip_addresses_and_busy_counts_.insert(std::make_pair(dns_server, 0));
 
@@ -203,9 +194,6 @@ Resolver::~Resolver() {
     if (udp_fd_ != -1)
         ::close(udp_fd_);
     delete [] reply_packet_;
-
-    if (cleanup_logger_)
-        delete logger_;
 }
 
 
@@ -302,7 +290,7 @@ void Resolver::poll(std::list<Result> * const results) {
         uint32_t ttl;
         uint16_t reply_id;
         bool truncated;
-        if (DecodeReply(packet, read_retcode, &domainnames, &ip_addresses, &ttl, &reply_id, &truncated, logger_, verbosity_)) {
+        if (DecodeReply(packet, read_retcode, &domainnames, &ip_addresses, &ttl, &reply_id, &truncated, verbosity_)) {
             // For now, we ignore truncated packets.  We should really send a TCP request instead:
             if (truncated)
                 continue;
@@ -318,24 +306,22 @@ namespace { // helper functions for logging
 
 
 void LogIpAddresses(const std::string &domainname, const std::string &event, const std::set<in_addr_t> &ip_addresses,
-                    const TimeLimit &time_limit, Logger * const logger)
+                    const TimeLimit &time_limit)
 {
-    if (logger == nullptr)
-        return;
-
-    std::string result(domainname + " (" + StringUtil::ToString(time_limit.getRemainingTime()) + "ms): " + event + ":");
+    std::string result(domainname + " (" + StringUtil::ToString(time_limit.getRemainingTime()) + "ms): " + event
+                       + ":");
     for (std::set<in_addr_t>::const_iterator ip(ip_addresses.begin()); ip != ip_addresses.end(); ++ip)
         result += " " + NetUtil::NetworkAddressToString(*ip);
 
-    logger->log(result);
+    logger->info(result);
 }
 
 
 void LogIpAddress(const std::string &domainname, const std::string &event,
-                  const in_addr_t &ip_address, const TimeLimit &time_limit, Logger * const logger)
+                  const in_addr_t &ip_address, const TimeLimit &time_limit)
 {
-    logger->log(domainname + " (" + StringUtil::ToString(time_limit.getRemainingTime()) + "ms): "
-                + event + ": " + NetUtil::NetworkAddressToString(ip_address));
+    logger->info(domainname + " (" + StringUtil::ToString(time_limit.getRemainingTime()) + "ms): "
+                 + event + ": " + NetUtil::NetworkAddressToString(ip_address));
 }
 
 
@@ -349,21 +335,21 @@ bool Resolver::resolve(const std::string &mixed_case_domainname, const TimeLimit
     const std::string domainname(StringUtil::ToLower(mixed_case_domainname));
 
     if (verbosity_ >= 3)
-        logger_->log("%s (%ums): Requested...", domainname.c_str(), time_limit.getRemainingTime());
+        logger->info(domainname + " (" + std::to_string(time_limit.getRemainingTime()) + "ms): Requested...");
 
     // Check to see whether "domainname" is already an IP address:
     in_addr domainname_as_address;
     if (::inet_aton(domainname.c_str(), &domainname_as_address)) {
         ip_addresses->insert(domainname_as_address.s_addr);
         if (verbosity_ >= 4)
-            LogIpAddress(domainname, "Already an address", domainname_as_address.s_addr, time_limit, logger_);
+            LogIpAddress(domainname, "Already an address", domainname_as_address.s_addr, time_limit);
         return true;
     }
 
     // First see if we already know the answer to our query:
     if (cache_.lookup(domainname, ip_addresses)) {
         if (verbosity_ >= 4)
-            LogIpAddresses(domainname, "In cache", *ip_addresses, time_limit, logger_);
+            LogIpAddresses(domainname, "In cache", *ip_addresses, time_limit);
         return true;
     }
 
@@ -383,7 +369,7 @@ bool Resolver::resolve(const std::string &mixed_case_domainname, const TimeLimit
             ++dns_server_ip_address_and_busy_count;
         selected_dns_server = dns_server_ip_address_and_busy_count->first;
         if (verbosity_ >= 5)
-            LogIpAddress(domainname, "DNS Server", selected_dns_server, time_limit, logger_);
+            LogIpAddress(domainname, "DNS Server", selected_dns_server, time_limit);
 
         // 2. Get the next request ID in a threadsafe manner:
         request_id = Resolver::next_request_id_;
@@ -396,25 +382,25 @@ bool Resolver::resolve(const std::string &mixed_case_domainname, const TimeLimit
 
     // Now submit the request...
     if (verbosity_ >= 5)
-        logger_->log("in resolve: about to send UPD request (ID %u).", request_id);
+        logger->info("in resolve: about to send UPD request (ID " + std::to_string(request_id) + ").");
     sendUdpRequest(selected_dns_server, packet, static_cast<unsigned>(packet_size));
 
     // Now wait for the server's response:
     for (;;) {
         if (verbosity_ >= 5)
-            logger_->log("in resolve: remaining time %u ms", time_limit.getRemainingTime());
+            logger->info("in resolve: remaining time " + std::to_string(time_limit.getRemainingTime()) + " ms");
         ssize_t actual_packet_size(SocketUtil::TimedRead(udp_fd_, time_limit, reply_packet_, reply_packet_size_));
- process_reply_packet:
+process_reply_packet:
         if (actual_packet_size <= 0) {
             if (errno == ETIMEDOUT) {
                 if (verbosity_ >= 4)
-                    logger_->log("%s failed: actual_packet_size <= 0, (timed out)", domainname.c_str());
+                    logger->info(domainname + " failed: actual_packet_size <= 0, (timed out)");
                 return false;
             }
             else {
                 if (verbosity_ >= 4)
-                    logger_->log("in resolve: resolving of \"" + domainname + "\" failed: actual_packet_size <= 0, looping ("
-                                 + std::to_string(errno)+ ")!");
+                    logger->info("in resolve: resolving of \"" + domainname
+                                 + "\" failed: actual_packet_size <= 0, looping!");
                 continue;
             }
         }
@@ -423,8 +409,8 @@ bool Resolver::resolve(const std::string &mixed_case_domainname, const TimeLimit
         uint32_t ttl;
         uint16_t reply_id;
         bool truncated;
-        if (DecodeReply(reply_packet_, actual_packet_size, &resolved_domainnames, ip_addresses, &ttl, &reply_id, &truncated,
-                        logger_, verbosity_))
+        if (DecodeReply(reply_packet_, actual_packet_size, &resolved_domainnames, ip_addresses, &ttl, &reply_id,
+                        &truncated, verbosity_))
         {
             if (ip_addresses->empty()) {
                 if (reply_id == request_id)
@@ -443,38 +429,42 @@ bool Resolver::resolve(const std::string &mixed_case_domainname, const TimeLimit
             // Make sure we got the reply we were waiting for:
             if (reply_id != request_id) {
                 if (verbosity_ >= 5)
-                    logger_->log("in resolve: discarding reply with unexpected ID: %u.", reply_id);
+                    logger->info("in resolve: discarding reply with unexpected ID: " + std::to_string(reply_id)
+                                 + ".");
                 ip_addresses->clear();
                 continue;
             }
 
             if (truncated) { // => We attempt to get the information using TCP instead of UDP.
                 if (verbosity_ >= 4)
-                    logger_->log("in resolve: UDP packet was truncated.  Attempting TCP request.");
-                FileDescriptor tcp_fd(sendTcpRequest(selected_dns_server, time_limit, packet, static_cast<unsigned>(packet_size)));
+                    logger->info("in resolve: UDP packet was truncated.  Attempting TCP request.");
+                FileDescriptor tcp_fd(sendTcpRequest(selected_dns_server, time_limit, packet,
+                                                     static_cast<unsigned>(packet_size)));
                 if (tcp_fd == -1) {
                     if (verbosity_ >= 4)
-                        logger_->log("in resolve: failed to send request " + std::to_string(errno)+ "!");
+                        logger->info("in resolve: failed to send request " + std::to_string(errno)+ "!");
                     return false;
                 }
 
                 if (verbosity_ >= 5)
-                    logger_->log("in resolve: remaining time %u ms.", time_limit.getRemainingTime());
+                    logger->info("in resolve: remaining time " + std::to_string(time_limit.getRemainingTime())
+                                 + " ms.");
                 if (unlikely(not FileUtil::SetBlocking(tcp_fd)))
-                    throw std::runtime_error("in Resolver::resolve: FileUtil::SetBlocking() failed (" + std::to_string(errno)+ ")!");
+                    throw std::runtime_error("in Resolver::resolve: FileUtil::SetBlocking() failed!");
                 uint16_t reply_data_size;
                 SocketUtil::TimedRead(tcp_fd, time_limit, &reply_data_size, sizeof(reply_data_size));
                 reply_data_size = ntohs(reply_data_size);
                 if (reply_data_size > reply_packet_size_) {
                     delete [] reply_packet_;
                     reply_packet_ = nullptr;
-                    reply_packet_ = reinterpret_cast<byte *>(new uint32_t[(reply_data_size + sizeof(uint32_t) - 1) / sizeof(uint32_t)]);
+                    reply_packet_ = reinterpret_cast<byte *>(new uint32_t[(reply_data_size + sizeof(uint32_t) - 1)
+                                                                          / sizeof(uint32_t)]);
                     reply_packet_size_ = reply_data_size;
                 }
 
                 actual_packet_size = reply_data_size;
                 ssize_t byte_got(0);
-                byte *buf_pointer = reply_packet_;
+                byte *buf_pointer(reply_packet_);
 
                 while (reply_data_size > 0
                        and (byte_got = SocketUtil::TimedRead(tcp_fd, time_limit, buf_pointer, reply_data_size)) > 0)
@@ -485,21 +475,21 @@ bool Resolver::resolve(const std::string &mixed_case_domainname, const TimeLimit
 
                 if (byte_got == -1) {
                     if (verbosity_ >= 4)
-                        logger_->log("in resolve: SocketUtil::TimedRead() failed: " + std::to_string(errno)+ "!");
+                        logger->info("in resolve: SocketUtil::TimedRead() failed!");
                     return false;
                 }
                 if (verbosity_ >= 5)
-                    logger_->log("in resolve: actual_packet_size = %zd.", actual_packet_size);
+                    logger->info("in resolve: actual_packet_size = " + std::to_string(actual_packet_size) + "d.");
 
                 goto process_reply_packet;
             }
 
             if (verbosity_ >= 4)
-                LogIpAddresses(domainname, "Reply", *ip_addresses, time_limit, logger_);
+                LogIpAddresses(domainname, "Reply", *ip_addresses, time_limit);
             return true;
         } else {
             if (verbosity_ >= 4)
-                logger_->log("%s Failed: could not decode reply", domainname.c_str());
+                logger->info(domainname + " Failed: could not decode reply!");
             return false;
         }
     }
@@ -556,27 +546,27 @@ int Resolver::sendTcpRequest(const in_addr_t resolver_ip_address, const TimeLimi
     const int socket_fd(SocketUtil::TcpConnect(resolver_ip_address, 53, time_limit, &error_message, nagle_option_type));
     if (socket_fd == -1) {
         if (verbosity_ >= 4)
-            logger_->log("in Resolver::sendTcpRequest: SocketUtil::TcpConnect() failed (" + error_message + ")!");
+            logger->info("in Resolver::sendTcpRequest: SocketUtil::TcpConnect() failed (" + error_message + ")!");
         return -1;
     }
 
 #ifdef TCP_CORK
     int optval(1);
     if (unlikely(::setsockopt(socket_fd, SOL_TCP, TCP_CORK, &optval, sizeof optval) == -1))
-        throw std::runtime_error("in Resolver::sendTcpRequest: setsockopt(2) failed (1) (" + std::to_string(errno)+ ")!");
+        throw std::runtime_error("in Resolver::sendTcpRequest: setsockopt(2) failed (1)!");
 #endif
 
     uint16_t buf_size((uint16_t)(htons(packet_size)));
     if (SocketUtil::TimedWrite(socket_fd, time_limit, &buf_size, sizeof(buf_size)) == -1) {
         if (verbosity_ >= 4)
-            logger_->log("in Resolver::sendTcpRequest: SocketUtil::TimedWrite() failed (" + std::to_string(errno)+ ")!");
+            logger->info("in Resolver::sendTcpRequest: SocketUtil::TimedWrite() failed!");
         ::close(socket_fd);
         return -1;
     }
 
     if (SocketUtil::TimedWrite(socket_fd, time_limit, packet, packet_size) == -1) {
         if (verbosity_ >= 4)
-            logger_->log("in Resolver::sendTcpRequest: SocketUtil::TimedWrite() failed (" + std::to_string(errno)+ ")!");
+            logger->info("in Resolver::sendTcpRequest: SocketUtil::TimedWrite() failed!");
         ::close(socket_fd);
         return -1;
     }
@@ -584,7 +574,7 @@ int Resolver::sendTcpRequest(const in_addr_t resolver_ip_address, const TimeLimi
 #ifdef TCP_CORK
     optval = 0;
     if (unlikely(::setsockopt(socket_fd, SOL_TCP, TCP_CORK, &optval, sizeof optval) == -1))
-        throw std::runtime_error("in Resolver::sendTcpRequest: setsockopt(2) failed (2) (" + std::to_string(errno)+ ")!");
+        throw std::runtime_error("in Resolver::sendTcpRequest: setsockopt(2) failed (2)!");
 #endif
 
     return socket_fd;
@@ -641,14 +631,14 @@ std::string ExtractDomainName(const unsigned char * const packet_start, const un
 bool Resolver::DecodeReply(const unsigned char * const packet_start, const size_t packet_size,
                            std::set<std::string> * const domainnames, std::set<in_addr_t> * const ip_addresses,
                            uint32_t * const ttl, uint16_t * const reply_id, bool * const truncated,
-                           Logger * const logger, const unsigned _verbosity)
+                           const unsigned _verbosity)
 {
     // Set the actual verbosity:
-    const unsigned verbosity(logger != nullptr ? _verbosity : 0);
+    const unsigned verbosity(_verbosity);
 
     if (unlikely(packet_size < sizeof(HEADER))) {
-        if (logger != nullptr and verbosity > 2)
-            logger->log("in Resolver::DecodeReply: got a short packet!");
+        if (verbosity > 2)
+            logger->info("in Resolver::DecodeReply: got a short packet!");
         return false;
     }
 
@@ -657,7 +647,7 @@ bool Resolver::DecodeReply(const unsigned char * const packet_start, const size_
     *reply_id = ntohs(dns_header->id);
     *truncated = dns_header->tc;
     if (verbosity >= 5)
-        logger->log("in Resolver::DecodeReply: TC bit is %d", (*truncated ? 1 : 0));
+        logger->info("in Resolver::DecodeReply: TC bit is " + std::to_string(*truncated ? 1 : 0));
     if (unlikely(*truncated))
         return true; // Need to retry using TCP?
 
@@ -671,7 +661,7 @@ bool Resolver::DecodeReply(const unsigned char * const packet_start, const size_
         break;
     case 1:
         if (verbosity >= 2)
-            logger->log("in Resolver::DecodeReply: the server indicated that we sent an invalid request!");
+            logger->info("in Resolver::DecodeReply: the server indicated that we sent an invalid request!");
     default:
         /* Some kind of error condition that we ignore. */
         return false;
@@ -712,7 +702,7 @@ bool Resolver::DecodeReply(const unsigned char * const packet_start, const size_
         if (rr_type == 1 and rr_class == 1) { // Type == A and class == IN.
             if (rdlength != sizeof(in_addr_t)) {
                 if (verbosity >= 2)
-                    logger->log("in Resolver::DecodeReply: unexpected \"rdlength\" for A type RR record!");
+                    logger->info("in Resolver::DecodeReply: unexpected \"rdlength\" for A type RR record!");
                 return false;
             }
 
@@ -723,13 +713,13 @@ bool Resolver::DecodeReply(const unsigned char * const packet_start, const size_
             cp += rdlength;
 
             if (verbosity >= 5)
-                logger->log("in Resolver::DecodeReply: %s: %s", rr_domainname.c_str(),
-                            NetUtil::NetworkAddressToString(ip_address).c_str());
+                logger->info("in Resolver::DecodeReply: " + rr_domainname + ": "
+                            + NetUtil::NetworkAddressToString(ip_address));
         } else if (rr_type == 5 and rr_class == 1) { // Type == CNAME and class == IN.
             const std::string cname_domainname(ExtractDomainName(packet_start, cp));
             domainnames->insert(cname_domainname);
             if (verbosity >= 5)
-                logger->log("in Resolver::DecodeReply: %s: CNAME", rr_domainname.c_str());
+                logger->info("in Resolver::DecodeReply: " + rr_domainname + ": CNAME");
 
         }
         else // Nothing we're interested in.
@@ -741,9 +731,9 @@ bool Resolver::DecodeReply(const unsigned char * const packet_start, const size_
 
 
 bool Resolver::ServerIsAlive(const std::string &server_ip_address, const std::string &hostname_to_resolve,
-                             const unsigned time_limit, Logger * const logger, const unsigned verbosity)
+                             const unsigned time_limit, const unsigned verbosity)
 {
-    Resolver resolver(server_ip_address, logger, verbosity);
+    Resolver resolver(server_ip_address, verbosity);
 
     std::set<in_addr_t> ip_addresses;
     if (not resolver.resolve(hostname_to_resolve, time_limit, &ip_addresses))
@@ -754,9 +744,9 @@ bool Resolver::ServerIsAlive(const std::string &server_ip_address, const std::st
 
 
 bool Resolver::ServerIsAlive(const in_addr_t server_ip_address, const std::string &hostname_to_resolve,
-                             const unsigned time_limit, Logger * const logger, const unsigned verbosity)
+                             const unsigned time_limit, const unsigned verbosity)
 {
-    Resolver resolver(server_ip_address, logger, verbosity);
+    Resolver resolver(server_ip_address, verbosity);
 
     std::set<in_addr_t> ip_addresses;
     if (not resolver.resolve(hostname_to_resolve, time_limit, &ip_addresses))

@@ -13,7 +13,7 @@ import datetime
 import glob
 import inspect
 import os
-import path
+import os.path
 import process_util
 import re
 import smtplib

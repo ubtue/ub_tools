@@ -1,7 +1,7 @@
 /** \brief Parses XML and generates MARC-21 data.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -495,7 +495,7 @@ xml_parse_loop:
                                 goto xml_parse_loop;
                             }
                         }
-                        Warning("found no match for \"" + character_data + "\"! (XML tag was " + data + ".)");
+                        logger->warning("found no match for \"" + character_data + "\"! (XML tag was " + data + ".)");
                         break;
                     }
                     }
@@ -511,7 +511,7 @@ xml_parse_loop:
         }
     }
 
-    Error("XML parsing error: " + xml_parser.getLastErrorMessage());
+    logger->error("XML parsing error: " + xml_parser.getLastErrorMessage());
 }
 
 
@@ -547,6 +547,6 @@ int main(int argc, char *argv[]) {
         LoadConfig(config_input.get(), &xml_tag_to_matchers_map);
         ProcessRecords(verbose, input.get(), marc_writer.get(), xml_tag_to_matchers_map);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

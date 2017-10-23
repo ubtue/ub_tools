@@ -20,9 +20,9 @@ int main(int argc, char *argv[]) {
         const std::string input_filename(argv[1]);
         std::string pdf_document;
         if (not FileUtil::ReadString(input_filename, &pdf_document))
-            Error("failed to read \"" + input_filename + "\"!");
+            logger->error("failed to read \"" + input_filename + "\"!");
         std::cout << PdfUtil::ExtractText(pdf_document) << '\n';
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
