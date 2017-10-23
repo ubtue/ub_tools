@@ -101,12 +101,12 @@ void Logger::debug(const std::string &msg) {
 }
 
 
-inline Logger *LoggerInstantator() {
+static inline Logger *LoggerInstantiator() {
     return new Logger();
 }
 
 
-Logger *logger(LoggerInstantator());
+Logger *logger(LoggerInstantiator());
 
 
 
