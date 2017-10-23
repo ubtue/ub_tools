@@ -40,7 +40,7 @@
 
 // A thread-safe logger class.
 class Logger {
-    friend Logger *LoggerInstantator();
+    friend Logger *LoggerInstantiator();
     std::mutex mutex_;
     int fd_;
 private:
