@@ -71,11 +71,11 @@ std::vector<std::string> GetSELinuxContexts(const std::string &path) {
     char *file_context;
     if (::getfilecon(path.c_str(), &file_context) == -1) {
         if (errno == ENODATA or errno == ENOTSUP)
-            return "";
+            return contexts;
         throw std::runtime_error("in GetSELinuxContext: failed to get file context for \"" + path + "\"!");
     }
     if (file_context == nullptr)
-        return "";
+        return contexts;
     
     ::freecon(file_context);
 #endif
