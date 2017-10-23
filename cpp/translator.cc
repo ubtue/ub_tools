@@ -242,7 +242,7 @@ int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headin
 
 
 bool IsEmptyEntryWithoutTranslator(const std::string &entry) {
-    return (StringUtil::EndsWith(entry, "></td>") && (entry.find("translator_exists") == std::string::npos));
+    return (StringUtil::EndsWith(entry, "></td>") and (entry.find("translator_exists") == std::string::npos));
 }
 
 
@@ -415,12 +415,11 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        if (IsTranslatorLanguage(translator_languages, language_code)) {
           // We can have several translations in one language, i.e. from MACS, IxTheo (reliable) or translated by this tool (new)
           // Since we are iteratring over a single column, make sure sure we select the correct translation (reliable or new)
-          if (IsEmptyEntryWithoutTranslator(row_values[index]) or status=="new" or status=="reliable")
-              row_values[index] = (language_code == "ger" || status == "reliable") ? CreateNonEditableRowEntry(translation) :
+          if (IsEmptyEntryWithoutTranslator(row_values[index]) or status == "new" or status == "reliable")
+              row_values[index] = (language_code == "ger" or status == "reliable") ? CreateNonEditableRowEntry(translation) :
                               CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
                                                      translator, gnd_code);
-       } 
-       else
+       } else
            row_values[index] = (language_code == "ger") ? CreateNonEditableHintEntry(translation, gnd_code)
                                                         : CreateNonEditableRowEntry(translation);
     }
