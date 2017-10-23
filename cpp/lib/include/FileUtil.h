@@ -32,6 +32,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <vector>
 #include <cstdio>
 #include <dirent.h>
@@ -60,7 +61,16 @@ public:
 };
 
 
-std::vector<std::string> GetSELinuxContexts(const std::string &path);
+typedef std::tuple<std::string, std::string, std::string, std::string> SELinuxContext;
+
+
+SELinuxContext GetSELinuxContext(const std::string &path);
+
+
+inline std::string SELinuxContextToString(const SELinuxContext &context) {
+    return std::get<0>(context) + ":" + std::get<1>(context) + ":" + std::get<2>(context) + ":"
+           + std::get<3>(context);
+}
 
 
 class Directory {
@@ -77,7 +87,7 @@ public:
     public:
         Entry(const Entry &other);
         inline std::string getName() const { return name_; }
-        std::vector<std::string> getSELinuxContexts() const { return GetSELinuxContexts(dirname_ + "/" + name_); }
+        SELinuxContext getSELinuxContext() const { return GetSELinuxContext(dirname_ + "/" + name_); }
 
         // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),
         //         DT_LNK(symlink), DT_REG(regular file), DT_SOCK(UNIX domain socket), or DT_UNKNOWN(unknown type).
