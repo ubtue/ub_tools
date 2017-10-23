@@ -34,19 +34,20 @@ enum Mode { ENFORCING, PERMISSIVE, DISABLED };
 
 
 /** \brief  Add a file context rule. The change will only be active if ApplyChanges is called afterwards.
- *  \param  context             a context type, e.g. httpd_sys_rw_content_t
+ *  \param  type                a context type, e.g. httpd_sys_rw_content_t
  *  \param  file_spec           a file specification pattern, e.g. "/var/www(.*)?"
  */
-void AddFileContext(const std::string &context, const std::string &file_spec);
+void AddFileContext(const std::string &type, const std::string &file_spec);
 
 
 /** \brief  Add a file context rule, only if the file does not have the context yet.
  *          Also applies changes directly to the given path.
  *  \param  path                path of a file or directory to test
- *  \param  context             a context type, e.g. httpd_sys_rw_content_t
+ *  \param  type                a context type, e.g. httpd_sys_rw_content_t
  *  \param  file_spec           a file specification pattern, e.g. "/var/www(.*)?"
+ *  \throws std::runtime_error if the type could not be added
  */
-void AddFileContextIfMissing(const std::string &path, const std::string &context, const std::string &file_spec);
+void AddFileContextIfMissing(const std::string &path, const std::string &type, const std::string &file_spec);
 
 
 /** \brief  Apply all configured file contexts for the specified path
@@ -62,20 +63,22 @@ void AssertEnabled(const std::string &caller);
 
 /** \brief  Make sure that the file or directory has the specified context, else throw error.
  *  \param  path                path of a file or directory to test
- *  \param  context             a context type, e.g. httpd_sys_rw_content_t
+ *  \param  type                a context type, e.g. httpd_sys_rw_content_t
+ *  \throws std::runtime_error if the file doesn't have the context type
  */
-void AssertFileHasContext(const std::string &path, const std::string &context);
+void AssertFileHasContext(const std::string &path, const std::string &type);
 
 
 /** \brief  Get all file contexts set for the specified path
  *  \param  path                path of a file or directory
- *  \return A list of all contexts for the path
+ *  \throws std::runtime_error if the file contexts could not be determined
+ *  \return A list of all file contexts for the path
  */
 std::vector<std::string> GetFileContexts(const std::string &path);
 
 
-/** \brief  Get the mode Selinux is currently running ("getenforce")
- *  \return Mode enum
+/** \brief  Get the mode Selinux is currently running at
+ *  \throws std::runtime_error if the mode could not be determined (via "getenforce")
  */
 Mode GetMode();
 
@@ -83,19 +86,16 @@ Mode GetMode();
 /** \brief  Check if the path has a certain context
  *  \param  path                path of a file or directory to test
  *  \param  context             a context type, e.g. httpd_sys_rw_content_t
- *  \return bool
  */
 bool HasFileContext(const std::string &path, const std::string &context);
 
 
 /** \brief  Check if Selinux is available (installed) on the current system
- *  \return bool
  */
 bool IsAvailable();
 
 
 /** \brief  Check if Selinux is installed & enabled on the current system.
- *  \return bool
  */
 bool IsEnabled();
 

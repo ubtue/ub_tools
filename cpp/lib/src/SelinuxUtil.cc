@@ -33,21 +33,21 @@
 namespace SelinuxUtil {
 
 
-void AddFileContext(const std::string &context, const std::string &file_spec) {
+void AddFileContext(const std::string &type, const std::string &file_spec) {
     AssertEnabled(std::string(__func__));
-    ExecUtil::Exec(ExecUtil::Which("semanage"), { "fcontext", "-a", "-t", context, file_spec });
+    ExecUtil::Exec(ExecUtil::Which("semanage"), { "fcontext", "-a", "-t", type, file_spec });
 }
 
 
-void AddFileContextIfMissing(const std::string &path, const std::string &context, const std::string &file_spec) {
-    if (not HasFileContext(path, context)) {
-        AddFileContext(context, file_spec);
+void AddFileContextIfMissing(const std::string &path, const std::string &type, const std::string &file_spec) {
+    if (not HasFileContext(path, type)) {
+        AddFileContext(type, file_spec);
         ApplyChanges(path);
     }
 
-    if (not HasFileContext(path, context)) {
+    if (not HasFileContext(path, type)) {
         throw new std::runtime_error("in " + std::string(__func__) +": "
-                                     + "could not set context \"" + context + "\" for \"" + path + "\" using " + file_spec);
+                                     + "could not set context \"" + type + "\" for \"" + path + "\" using " + file_spec);
     }
 }
 
@@ -64,10 +64,10 @@ void AssertEnabled(const std::string &caller) {
 }
 
 
-void AssertFileHasContext(const std::string &path, const std::string &context) {
-    if (not HasFileContext(path, context)) {
+void AssertFileHasContext(const std::string &path, const std::string &type) {
+    if (not HasFileContext(path, type)) {
         throw new std::runtime_error("in " + std::string(__func__) +": "
-                                     + "file " + " doesn't have context " + context);
+                                     + "file " + " doesn't have context type " + type);
     }
 }
 
@@ -119,9 +119,9 @@ Mode GetMode() {
 }
 
 
-bool HasFileContext(const std::string &path, const std::string &context) {
+bool HasFileContext(const std::string &path, const std::string &type) {
     std::vector<std::string> file_contexts = GetFileContexts(path);
-    return (std::find(file_contexts.begin(), file_contexts.end(), context) != file_contexts.end());
+    return (std::find(file_contexts.begin(), file_contexts.end(), type) != file_contexts.end());
 }
 
 
