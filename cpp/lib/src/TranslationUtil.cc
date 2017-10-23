@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,8 +32,8 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
     const std::string SELECT_EXISTING("SELECT id FROM translations WHERE text=\""
                                       + connection->escapeString(german_text) + "\" AND language_code=\"deu\"");
     if (not connection->query(SELECT_EXISTING))
-        Error("in TranslationUtil::GetId: SELECT failed: " + SELECT_EXISTING
-              + " (" + connection->getLastErrorMessage() + ")");
+        logger->error("in TranslationUtil::GetId: SELECT failed: " + SELECT_EXISTING
+                      + " (" + connection->getLastErrorMessage() + ")");
     DbResultSet id_result_set(connection->getLastResultSet());
     std::string id;
     if (not id_result_set.empty())
@@ -41,8 +41,8 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
     else { // We don't have any entries for this German term yet.
         const std::string SELECT_MAX_ID("SELECT MAX(id) FROM translations");
         if (not connection->query(SELECT_MAX_ID))
-            Error("in TranslationUtil::GetId: SELECT failed: " + SELECT_MAX_ID + " ("
-                  + connection->getLastErrorMessage() + ")");
+            logger->error("in TranslationUtil::GetId: SELECT failed: " + SELECT_MAX_ID + " ("
+                          + connection->getLastErrorMessage() + ")");
         DbResultSet max_id_result_set(connection->getLastResultSet());
         if (max_id_result_set.empty())
             return "1";
@@ -66,8 +66,8 @@ std::string MapInternational2LetterCodeToGerman3LetterCode(const std::string &in
     const auto _2letter_and_3letter_codes(
         international_2letter_code_to_german_3letter_code.find(international_2letter_code));
     if (unlikely(_2letter_and_3letter_codes == international_2letter_code_to_german_3letter_code.cend()))
-        Error("in TranslationUtil::MapInternational2LetterCodeToGerman3LetterCode: unknown international 2-letter "
-              "code \"" + international_2letter_code + "\"!");
+        logger->error("in TranslationUtil::MapInternational2LetterCodeToGerman3LetterCode: unknown international "
+                      "2-letter code \"" + international_2letter_code + "\"!");
     return _2letter_and_3letter_codes->second;
 }
 
@@ -77,8 +77,8 @@ std::string MapGerman3LetterCodeToInternational2LetterCode(const std::string &ge
         if (_2letter_and_3letter_codes.second == german_3letter_code)
             return _2letter_and_3letter_codes.first;
     }
-    Error("in TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode: unknown German 3-letter code \""
-          + german_3letter_code + "\"!");
+    logger->error("in TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode: unknown German 3-letter "
+                  "code \"" + german_3letter_code + "\"!");
 }
 
 

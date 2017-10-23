@@ -2,7 +2,7 @@
  *  \brief A tool for adding a PDA field to KrimDok records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -168,12 +168,12 @@ int main(int argc, char *argv[]) {
 
         const unsigned no_of_years(StringUtil::ToUnsigned(argv[1]));
         if (no_of_years > MAX_NO_OF_YEARS_TO_CONSIDER)
-            Error("the number of years we want to consider is probably incorrect!");
+            logger->error("the number of years we want to consider is probably incorrect!");
         
         const std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2]));
         const std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
         AddPDAFieldToRecords(GetCutoffYear(no_of_years), marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

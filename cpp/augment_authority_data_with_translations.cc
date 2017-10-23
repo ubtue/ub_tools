@@ -126,7 +126,7 @@ std::string MapLanguageCode(const std::string lang_code) {
         return "zh-Hant";
     if (lang_code == "hans")
         return "zh-Hans";
-    Error("Unknown language code " + lang_code);
+    logger->error("Unknown language code " + lang_code);
 }
 
 
@@ -149,7 +149,7 @@ char DetermineNextFreeIndicator1(MarcRecord * const record, std::vector<size_t> 
         Subfields subfields(record->getSubfields(field_index));
         char indicator1(subfields.getIndicator1());
         if (indicator1 == '9')
-            Error("Indicator1 cannot be further incremented for PPN " + record->getControlNumber());
+            logger->error("Indicator1 cannot be further incremented for PPN " + record->getControlNumber());
         if (indicator1 == ' ')
             new_indicator1 = '1';
         else
@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
     const std::string marc_output_filename(argv[2]);
 
     if (unlikely(marc_input_filename == marc_output_filename))
-        Error("Input file equals output file");
+        logger->error("Input file equals output file");
 
     try {
         std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename));
@@ -256,6 +256,6 @@ int main(int argc, char **argv) {
 
         AugmentNormdata(marc_reader.get(), marc_writer.get(), all_translations);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

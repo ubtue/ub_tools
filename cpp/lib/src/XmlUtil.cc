@@ -2,7 +2,7 @@
  *  \brief  Implementation of XML-related utility functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -79,7 +79,7 @@ bool DecodeEntities(std::string * const data) {
             if (ch == ';') {
                 std::string decoded_char;
                 if (not DecodeEntity(entity, &decoded_char)) {
-                    Warning("in XmlUtil::DecodeEntities: can't decode \"" + entity + "\"!");
+                    logger->warning("in XmlUtil::DecodeEntities: can't decode \"" + entity + "\"!");
                     return false;
                 }
                 for (const auto dch : decoded_char)

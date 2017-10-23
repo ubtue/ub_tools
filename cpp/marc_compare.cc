@@ -1,7 +1,7 @@
 /** \brief A tool to compare two marc files, regardless of the file format.
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,20 +43,20 @@ void Compare(MarcReader * const lhs_reader, MarcReader * const rhs_reader) {
         if (unlikely(not lhs and not rhs))
             return;
         if (unlikely(not lhs))
-            Error(lhs_reader->getPath() + " has fewer records than " + rhs_reader->getPath());
+            logger->error(lhs_reader->getPath() + " has fewer records than " + rhs_reader->getPath());
         if (unlikely(not rhs))
-            Error(lhs_reader->getPath() + " has more records than " + rhs_reader->getPath());
+            logger->error(lhs_reader->getPath() + " has more records than " + rhs_reader->getPath());
 
         if (lhs.getControlNumber() != rhs.getControlNumber())
-            Error("PPN mismatch:\nLHS: " + lhs.getControlNumber() + "\nRHS: " + rhs.getControlNumber());
+            logger->error("PPN mismatch:\nLHS: " + lhs.getControlNumber() + "\nRHS: " + rhs.getControlNumber());
 
         if (lhs.getNumberOfFields() != rhs.getNumberOfFields())
-            Error("Number of fields (" + lhs.getControlNumber() + "):\nLHS: "
+            logger->error("Number of fields (" + lhs.getControlNumber() + "):\nLHS: "
                   + std::to_string(lhs.getNumberOfFields()) + "\nRHS: " + std::to_string(rhs.getNumberOfFields()));
 
         for (size_t index(0); index < lhs.getNumberOfFields(); ++index) {
             if (lhs.getTag(index) != rhs.getTag(index))
-                Error("Tag mismatch (" + lhs.getControlNumber() + "):\nLHS: " + lhs.getTag(index).to_string()
+                logger->error("Tag mismatch (" + lhs.getControlNumber() + "):\nLHS: " + lhs.getTag(index).to_string()
                       + "\nRHS: " + rhs.getTag(index).to_string());
 
             std::string lhs_data(lhs.getFieldData(index));
@@ -66,8 +66,8 @@ void Compare(MarcReader * const lhs_reader, MarcReader * const rhs_reader) {
             while (rhs_data.find("\x1F") != std::string::npos)
                 rhs_data.replace(rhs_data.find("\x1F"), 1, " $");
             if (lhs_data.compare(rhs_data))
-                Error("Subfield mismatch (" + lhs.getControlNumber() + ", Tag: " + lhs.getTag(index).to_string()
-                      + "): \nLHS:" + lhs_data + "\nRHS:" + rhs_data);
+                logger->error("Subfield mismatch (" + lhs.getControlNumber() + ", Tag: "
+                              + lhs.getTag(index).to_string() + "): \nLHS:" + lhs_data + "\nRHS:" + rhs_data);
         }
     }
 }

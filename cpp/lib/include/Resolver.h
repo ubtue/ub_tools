@@ -39,21 +39,12 @@
 #include "TimeLimit.h"
 
 
-//Forward declaraions:
-class Logger;
-
-
 /** \class  Resolver
  *  \brief  Implements a caching DNS service.
  */
 class Resolver {
     /** If non-zero, then log all Resolver actions in a log file. */
     unsigned verbosity_;
-
-    /** If verbosity_ is non-zero then this used to log operations. */
-    Logger * logger_;
-    bool cleanup_logger_; // If true, it indicates that we internally allocated our own Logger and need to delete it
-    // when we destroy an instance of this class!
 
     int udp_fd_;
 
@@ -98,7 +89,6 @@ private:
 public:
     /** \brief  Construct a Resolver object.
      *  \param  dns_servers  Optional list of nameserver IP addresses for use by the resoolver.
-     *  \param  logger       The logger object to log to.
      *  \param  verbosity    The log verbosity requested.
      *  \note The Resolver class requires a list of nameserver IP addresses, which can come froom one of three sources.  If
      *  the dns_servers parameter is non-empty, then nameservers will be drawn from this list.  Otherwise, if a
@@ -106,9 +96,9 @@ public:
      *  this section.  Otherwise, nameservers will be drawn from the standard UNIX /etc/resolv.conf file.
      */
     explicit Resolver(const std::list<std::string> &dns_servers = std::list<std::string>(),
-                      Logger * const logger = nullptr, const unsigned verbosity = 3);
-    explicit Resolver(const std::string &dns_server, Logger * const logger = nullptr, const unsigned verbosity = 3);
-    explicit Resolver(const in_addr_t dns_server, Logger * const logger = nullptr, const unsigned verbosity = 3);
+                      const unsigned verbosity = 3);
+    explicit Resolver(const std::string &dns_server, const unsigned verbosity = 3);
+    explicit Resolver(const in_addr_t dns_server, const unsigned verbosity = 3);
     ~Resolver();
 
     /** \brief   Submits a lookup request to a DNS server.
@@ -152,27 +142,28 @@ public:
      *  \param  ttl           Time-to-live for the returned nameserver information.
      *  \param  reply_id      The ID of the reply packet in host byte-order.
      *  \param  truncated     True if the "TC" bit was set in the DNS server's reply header.
-     *  \param  logger        If non-nullptr, where we send logging messages.
-     *  \param  verbosity     Verbosity of logging (0-5).  Only relevant if "logger" is not nullptr.
-     *  \return True if we successfully extracted at least one IP address or we received a truncated reply, else false.
+     *  \param  verbosity     Verbosity of logging (0-5).
+     *  \return True if we successfully extracted at least one IP address or we received a truncated reply, else
+     *          false.
      */
-    static bool DecodeReply(const unsigned char * const packet_start, const size_t packet_size, std::set<std::string> * const domainnames,
-                            std::set<in_addr_t> * const ip_addresses, uint32_t * const ttl, uint16_t * const reply_id, bool * const truncated,
-                            Logger * const logger = nullptr, const unsigned verbosity = 3);
+    static bool DecodeReply(const unsigned char * const packet_start, const size_t packet_size,
+                            std::set<std::string> * const domainnames, std::set<in_addr_t> * const ip_addresses,
+                            uint32_t * const ttl, uint16_t * const reply_id, bool * const truncated,
+                            const unsigned verbosity = 3);
 
     /** \brief   Checks whether a DNS server is alive or not.
      *  \param   server_ip_address    The server's IP address as a dotted quad.
      *  \param   hostname_to_resolve  The hostname whose IP address lookup we want to use as a test.
-     *  \param   time_limit           The maximum amount of time we want to give the server to respond (in milliseconds).
-     *  \param   logger               The logger object to log to.
+     *  \param   time_limit           The maximum amount of time we want to give the server to respond (in
+     *                                milliseconds).
      *  \param   verbosity            The log verbosity requested.
      *  \return  True if the server responded within the given maximum time or false if it didn't.
      *  \warning This function is absolutely not thread-safe!
      */
     static bool ServerIsAlive(const std::string &server_ip_address, const std::string &hostname_to_resolve,
-                              const unsigned time_limit = 5000, Logger * const logger = nullptr, const unsigned verbosity = 3);
+                              const unsigned time_limit = 5000, const unsigned verbosity = 3);
     static bool ServerIsAlive(const in_addr_t server_ip_address, const std::string &hostname_to_resolve,
-                              const unsigned time_limit = 5000, Logger * const logger = nullptr, const unsigned verbosity = 3);
+                              const unsigned time_limit = 5000, const unsigned verbosity = 3);
 
     /** \brief  Extracts DNS server IP addresses from /etc/resolv.conf.
      *  \param  server_ip_addresses  Upon return, this variable will contain the resolver IP addresses.

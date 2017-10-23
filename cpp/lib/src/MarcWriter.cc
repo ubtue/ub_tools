@@ -77,7 +77,7 @@ static void inline DetermineRecordDimensions(const size_t control_number_field_l
 static void inline WriteToBuffer(char *&dest, const std::string &data) {
     #if DEBUG
     if (unlikely(dest + data.size() > write_buffer + sizeof(write_buffer)))
-        Error("write past end of write_buffer! (1)");
+        logger->error("write past end of write_buffer! (1)");
     #endif
     std::memcpy(dest, data.data(), data.size());
     dest += data.size();
@@ -87,7 +87,7 @@ static void inline WriteToBuffer(char *&dest, const std::string &data) {
 static void inline WriteToBuffer(char *&dest, const char * const source, const size_t length) {
     #if DEBUG
     if (unlikely(dest + length > write_buffer + sizeof(write_buffer)))
-        Error("write past end of write_buffer! (2)");
+        logger->error("write past end of write_buffer! (2)");
     #endif
     std::memcpy(dest, source, length);
     dest += length;
@@ -108,10 +108,10 @@ void BinaryMarcWriter::write(const MarcRecord &record) {
 
     auto dir_entry(record.directory_entries_.cbegin());
     if (unlikely(dir_entry == record.directory_entries_.cend()))
-        Error("BinaryMarcWriter::write: can't write a record w/ an empty directory!");
+        logger->error("BinaryMarcWriter::write: can't write a record w/ an empty directory!");
     if (unlikely(dir_entry->getTag() != "001"))
-        Error("BinaryMarcWriter::write: first directory entry has to be 001! Found: "
-              + dir_entry->getTag().to_string() + " (Control number: " + record.getControlNumber() + ")");
+        logger->error("BinaryMarcWriter::write: first directory entry has to be 001! Found: "
+                      + dir_entry->getTag().to_string() + " (Control number: " + record.getControlNumber() + ")");
     ++dir_entry;
 
     while (dir_entry < record.directory_entries_.cend()) {

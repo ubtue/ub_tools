@@ -41,10 +41,6 @@
 #include "TimeLimit.h"
 
 
-// Forward declaration(s):
-class Logger;
-
-
 /** \class  CachedPageFetcher
  *  \brief  Download and transparently cache Web pages.
  *
@@ -247,9 +243,6 @@ private:
 
     /** The verbosity setting for logging purposes (should be between 0 and 5 inclusive). */
     static unsigned verbosity_;
-
-    /** */
-    static Logger *logger_;
 public:
     /** \brief  Create a CachedPageFetcher object to download a URL.
      *  \param  url          The URL of the page to download.

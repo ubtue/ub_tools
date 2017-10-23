@@ -4,7 +4,7 @@
  *
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,7 +43,7 @@ void TagGrep(const std::string &regex, const std::string &input_filename) {
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex, &err_msg));
     if (unlikely(matcher == nullptr))
-        Error("bad regex: " + err_msg);
+        logger->error("bad regex: " + err_msg);
 
     unsigned count(0), field_matched_count(0), record_matched_count(0);
     while (const MarcRecord record = marc_reader->read()) {
@@ -75,6 +75,6 @@ int main(int argc, char **argv) {
     try {
         TagGrep(argv[1], argv[2]);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

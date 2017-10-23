@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, 2016, Library of the University of Tübingen
+    Copyright (C) 2015-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -209,6 +209,6 @@ int main(int argc, char **argv) {
         ProcessRecords(verbose, marc_reader.get(), marc_writer.get(), ddc_to_ixtheo_notation_mappers,
                        rvk_to_ixtheo_notation_mappers);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

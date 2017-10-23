@@ -20,6 +20,6 @@ int main(int argc, char *argv[]) {
         const Stemmer *stemmer(Stemmer::StemmerFactory(argv[2]));
         std::cout << stemmer->stem(argv[1]) << '\n';
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

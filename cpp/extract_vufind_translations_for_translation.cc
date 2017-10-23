@@ -97,14 +97,15 @@ int main(int argc, char **argv) {
             // "some_path/xx.ini":
             const std::string ini_filename(argv[arg_no]);
             if (unlikely(not StringUtil::EndsWith(ini_filename, ".ini")))
-                Error("expected filename \"" + ini_filename + "\" to end in \".ini\"!");
+                logger->error("expected filename \"" + ini_filename + "\" to end in \".ini\"!");
             std::string two_letter_code;
             if (ini_filename.length() == 6)
                 two_letter_code = ini_filename.substr(0, 2);
             else {
                 const std::string::size_type last_slash_pos(ini_filename.rfind('/'));
-                if (unlikely(last_slash_pos == std::string::npos or (last_slash_pos + 6 + 1 != ini_filename.length())))
-                    Error("INI filename does not match expected pattern: \"" + ini_filename + "\"!");
+                if (unlikely(last_slash_pos == std::string::npos
+                             or (last_slash_pos + 6 + 1 != ini_filename.length())))
+                    logger->error("INI filename does not match expected pattern: \"" + ini_filename + "\"!");
                 two_letter_code = ini_filename.substr(last_slash_pos + 1, 2);
             }
 
@@ -119,6 +120,6 @@ int main(int argc, char **argv) {
             InsertTranslations(&db_connection, german_3letter_code, keys_to_line_no_and_translation_map);
         }
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

@@ -101,6 +101,6 @@ int main(int argc, char **argv) {
         marc_reader->rewind();
         MarkArticleCollections(marc_reader.get(), marc_writer.get(), article_collection_ppns);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

@@ -2,7 +2,7 @@
  *  \brief  Test harness for FileUtil::FilesDiffer
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -38,6 +38,6 @@ int main(int argc, char *argv[]) {
     try {
         return FileUtil::FilesDiffer(argv[1], argv[2]) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

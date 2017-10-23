@@ -67,31 +67,31 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
 
     const JSON::ArrayNode * const array_node(dynamic_cast<const JSON::ArrayNode *>(subtree->getValue("date-parts")));
     if (unlikely(array_node == nullptr))
-        Error("in CrossrefDate::CrossrefDate: \"date-parts\" does not exist or is not a JSON array!");
+        logger->error("in CrossrefDate::CrossrefDate: \"date-parts\" does not exist or is not a JSON array!");
 
     if (unlikely(array_node->empty()))
-        Error("in CrossrefDate::CrossrefDate: nested child of \"" + field + "\" does not exist!");
+        logger->error("in CrossrefDate::CrossrefDate: nested child of \"" + field + "\" does not exist!");
 
     const JSON::ArrayNode * const array_node2(dynamic_cast<const JSON::ArrayNode *>(array_node->getValue(0)));
     if (unlikely(array_node2 == nullptr))
-        Error("in CrossrefDate::CrossrefDate: inner nested child of \"" + field + "\" is not a JSON array!");
+        logger->error("in CrossrefDate::CrossrefDate: inner nested child of \"" + field + "\" is not a JSON array!");
 
     auto date_component_iter(array_node2->cbegin());
     const auto &date_end(array_node2->cend());
     if (unlikely(date_component_iter == date_end))
-        Error("in CrossrefDate::CrossrefDate: year is missing for the \"" + field + "\" date field!");
+        logger->error("in CrossrefDate::CrossrefDate: year is missing for the \"" + field + "\" date field!");
 
     const JSON::IntegerNode *year_node(dynamic_cast<const JSON::IntegerNode *>(*date_component_iter));
     if (year_node == nullptr or year_node->getValue() < 0) {
-        Warning("in CrossrefDate::CrossrefDate: cannot convert year component \"" + (*date_component_iter)->toString()
-                + "\" to an unsigned integer!");
+        logger->warning("in CrossrefDate::CrossrefDate: cannot convert year component \""
+                        + (*date_component_iter)->toString() + "\" to an unsigned integer!");
         return;
     }
 
     year_ = static_cast<unsigned>(year_node->getValue());
     if (unlikely(year_ < 1000 or year_ > 3000))
-        Error("in CrossrefDate::CrossrefDate: year component \"" + std::to_string(year_)
-              + "\" is unlikely to be a year!");
+        logger->error("in CrossrefDate::CrossrefDate: year component \"" + std::to_string(year_)
+                      + "\" is unlikely to be a year!");
 
     ++date_component_iter;
     if (date_component_iter == date_end) {
@@ -101,11 +101,12 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
 
     const JSON::IntegerNode *month_node(dynamic_cast<const JSON::IntegerNode *>(*date_component_iter));
     if (month_node == nullptr or month_node->getValue() < 0)
-        Error("in CrossrefDate::CrossrefDate: cannot convert month component \"" + (*date_component_iter)->toString()
-              + "\" to an unsigned integer!");
+        logger->error("in CrossrefDate::CrossrefDate: cannot convert month component \""
+                      + (*date_component_iter)->toString() + "\" to an unsigned integer!");
     month_ = static_cast<unsigned>(month_node->getValue());
     if (unlikely(month_ < 1 or month_ > 12))
-        Error("in CrossrefDate::CrossrefDate: month component \"" + std::to_string(month_) + "\" is not a month!");
+        logger->error("in CrossrefDate::CrossrefDate: month component \"" + std::to_string(month_)
+                      + "\" is not a month!");
 
     ++date_component_iter;
     if (date_component_iter == date_end) {
@@ -115,17 +116,17 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
 
     const JSON::IntegerNode *day_node(dynamic_cast<const JSON::IntegerNode *>(*date_component_iter));
     if (day_node == nullptr or day_node->getValue() < 0)
-        Error("in CrossrefDate::CrossrefDate: cannot convert day component \"" + (*date_component_iter)->toString()
-              + "\" to an unsigned integer!");
+        logger->error("in CrossrefDate::CrossrefDate: cannot convert day component \""
+                      + (*date_component_iter)->toString() + "\" to an unsigned integer!");
     day_ = static_cast<unsigned>(day_node->getValue());
     if (unlikely(day_ < 1 or day_ > 31))
-        Error("in CrossrefDate::CrossrefDate: day component \"" + std::to_string(day_) + "\" is not a day!");
+        logger->error("in CrossrefDate::CrossrefDate: day component \"" + std::to_string(day_) + "\" is not a day!");
 }
 
 
 std::string CrossrefDate::toString() const {
     if (not isValid())
-        Error("in CrossrefDate::toString: can't convert an invalid CrossrefDate to a string!");
+        logger->error("in CrossrefDate::toString: can't convert an invalid CrossrefDate to a string!");
 
     if (month_ == 0)
         return std::to_string(year_);
@@ -169,7 +170,7 @@ std::string CrossrefDate::toString() const {
         month_as_string += "December";
         break;
     default:
-        Error("in CrossrefDate::toString: " + std::to_string(month_) + " is not a valid month!");
+        logger->error("in CrossrefDate::toString: " + std::to_string(month_) + " is not a valid month!");
     }
 
     if (day_ == 0)
@@ -266,11 +267,11 @@ bool EqualIgnoreChars(const std::string &s1, const std::string &s2, const std::s
 bool FuzzyTextMatch(const std::string &s1, const std::string &s2) {
     std::string lowercase_s1;
     if (unlikely(not TextUtil::UTF8ToLower(s1, &lowercase_s1)))
-        Error("failed to convert supposed UTF-8 string \"" + s1 + "\" to a wide-character string! (1)");
+        logger->error("failed to convert supposed UTF-8 string \"" + s1 + "\" to a wide-character string! (1)");
 
     std::string lowercase_s2;
     if (unlikely(not TextUtil::UTF8ToLower(s2, &lowercase_s2)))
-        Error("failed to convert supposed UTF-8 string \"" + s2 + "\" to a wide-character string! (2)");
+        logger->error("failed to convert supposed UTF-8 string \"" + s2 + "\" to a wide-character string! (2)");
 
     static const std::string IGNORE_CHARS(" :-");
     return EqualIgnoreChars(lowercase_s1, lowercase_s2, IGNORE_CHARS);
@@ -298,7 +299,7 @@ std::string ExtractAuthor(const JSON::ObjectNode &object_node) {
     const JSON::StringNode * const family_node(
         dynamic_cast<const JSON::StringNode *>(object_node.getValue("family")));
     if (unlikely(family_node == nullptr))
-        Error("in ExtractAuthor: missing or invalid \"family\" node!");
+        logger->error("in ExtractAuthor: missing or invalid \"family\" node!");
 
     std::string author(family_node->getValue());
     const JSON::StringNode * const given_node(
@@ -345,7 +346,7 @@ std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node
     {
         const JSON::StringNode *string_node(dynamic_cast<const JSON::StringNode *>(*array_entry));
         if (unlikely(string_node == nullptr))
-            Error("in ExtractStringVector: expected a string node!");
+            logger->error("in ExtractStringVector: expected a string node!");
         extracted_values.emplace_back(string_node->getValue());
         if (not is_repeatable)
             break;
@@ -370,13 +371,13 @@ std::string ExtractName(const JSON::ObjectNode * const object_node) {
 
     if (given != nullptr) {
         if (unlikely(given->getType() != JSON::JSONNode::STRING_NODE))
-            Error("\"given\" field of \"author\" node is not a string!");
+            logger->error("\"given\" field of \"author\" node is not a string!");
         name = reinterpret_cast<const JSON::StringNode * const>(given)->getValue();
     }
 
     if (family != nullptr) {
         if (unlikely(family->getType() != JSON::JSONNode::STRING_NODE))
-            Error("\"family\" field of \"author\" node is not a string!");
+            logger->error("\"family\" field of \"author\" node is not a string!");
         if (not name.empty())
             name += ' ';
         name += reinterpret_cast<const JSON::StringNode * const>(family)->getValue();
@@ -391,7 +392,7 @@ void AddAuthors(const std::string &DOI, const std::string &ISSN, const JSON::Obj
 {
     const JSON::ArrayNode *authors(dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("author")));
     if (authors == nullptr) {
-        Warning("no author node found, DOI was \"" + DOI + "\", ISSN was \"" + ISSN + "\"!");
+        logger->warning("no author node found, DOI was \"" + DOI + "\", ISSN was \"" + ISSN + "\"!");
         return;
     }
 
@@ -399,7 +400,7 @@ void AddAuthors(const std::string &DOI, const std::string &ISSN, const JSON::Obj
     for (auto author(authors->cbegin()); author != authors->cend(); ++author) {
         const JSON::ObjectNode * const author_node(dynamic_cast<const JSON::ObjectNode *>(*author));
         if (unlikely(author_node == nullptr))
-            Error("weird author node is not a JSON object!");
+            logger->error("weird author node is not a JSON object!");
 
         const std::string author_name(ExtractName(author_node));
         if (unlikely(author_name.empty()))
@@ -422,7 +423,7 @@ void AddEditors(const JSON::ObjectNode &message_tree, MarcRecord * const marc_re
     for (auto editor(editors->cbegin()); editor != editors->cend(); ++editor) {
         const JSON::ObjectNode * const editor_node(dynamic_cast<const JSON::ObjectNode *>(*editor));
         if (unlikely(editor_node == nullptr))
-            Error("weird editor node is not a JSON object!");
+            logger->error("weird editor node is not a JSON object!");
 
         const std::string editor_name(ExtractName(editor_node));
         if (unlikely(editor_name.empty()))
@@ -474,7 +475,7 @@ void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_recor
         for (auto issn_type(issn_types->cbegin()); issn_type != issn_types->cend(); ++issn_type) {
             const JSON::ObjectNode * const issn_type_node(dynamic_cast<const JSON::ObjectNode *>(*issn_type));
             if (unlikely(issn_type_node == nullptr)) {
-                Warning("in AddISSN: strange, issn-type entry is not a JSON object!");
+                logger->warning("in AddISSN: strange, issn-type entry is not a JSON object!");
                 continue;
             }
 
@@ -483,7 +484,8 @@ void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_recor
             const JSON::StringNode * const type_node(
                 dynamic_cast<const JSON::StringNode *>(issn_type_node->getValue("type")));
             if (unlikely(value_node == nullptr or type_node == nullptr)) {
-                Warning("in AddISSN: strange, issn-type entry is missing a \"value\" or \"type\" string subnode!");
+                logger->warning("in AddISSN: strange, issn-type entry is missing a \"value\" or \"type\" string "
+                                "subnode!");
                 continue;
             }
 
@@ -504,14 +506,14 @@ void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_recor
     if (issns == nullptr)
         return;
     if (unlikely(issns->empty())) {
-        Warning("in AddISSN: bizarre, ISSN list is empty!");
+        logger->warning("in AddISSN: bizarre, ISSN list is empty!");
         return;
     }
     const JSON::StringNode * const first_issn(dynamic_cast<const JSON::StringNode *>(issns->getValue(0)));
     if (likely(first_issn != nullptr))
         marc_record->insertSubfield("022", 'a', first_issn->getValue());
     else
-        Warning("first entry of ISSN list is not a string node!");
+        logger->warning("first entry of ISSN list is not a string node!");
 }
 
 
@@ -550,7 +552,7 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
 
     AddISSN(message_tree, &record);
     if (unlikely(not AddTitle(message_tree, &record))) {
-        Warning("no title found for DOI \"" + DOI + "\" and ISSN \"" + ISSN + "\".  Record skipped!");
+        logger->warning("no title found for DOI \"" + DOI + "\" and ISSN \"" + ISSN + "\".  Record skipped!");
         return false;
     }
     AddAuthors(DOI, ISSN, message_tree, &record);
@@ -566,7 +568,7 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
                                                map_descriptor->isRepeatable());
             break;
         default:
-            Error("in CreateAndWriteMarcRecord: unexpected field type!");
+            logger->error("in CreateAndWriteMarcRecord: unexpected field type!");
         }
 
         for (const auto field_value : field_values)
@@ -581,8 +583,8 @@ bool CreateAndWriteMarcRecord(MarcWriter * const marc_writer, kyotocabinet::Hash
             return false;
     }
     if (unlikely(not notified_db->set(DOI, new_hash)))
-        Error("in CreateAndWriteMarcRecord: failed to write the DOI \"" + DOI + "\" into \"" + notified_db->path()
-              + "\"! (" + std::string(notified_db->error().message()) + ")");
+        logger->error("in CreateAndWriteMarcRecord: failed to write the DOI \"" + DOI + "\" into \""
+                      + notified_db->path() + "\"! (" + std::string(notified_db->error().message()) + ")");
 
     marc_writer->write(record);
     return true;
@@ -596,18 +598,18 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
 {
     const size_t first_space_pos(line.find(' '));
     if (unlikely(first_space_pos == std::string::npos or first_space_pos == 0)) {
-        Warning("No space found!");
+        logger->warning("No space found!");
         return false;
     }
 
     if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns) == 0) {
-        Warning("No ISSNS found!");
+        logger->warning("No ISSNS found!");
         return false;
     }
 
     for (const auto &issn : *issns) {
         if (unlikely(not MiscUtil::IsPossibleISSN(issn))) {
-            Warning(issn + " is not a valid ISSN!");
+            logger->warning(issn + " is not a valid ISSN!");
             return false;
         }
     }
@@ -636,9 +638,9 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * c
     // Check for rate limiting and error status codes:
     const HttpHeader http_header(downloader.getMessageHeader());
     if (http_header.getStatusCode() == 429)
-        Error("we got rate limited!");
+        logger->error("we got rate limited!");
     else if (http_header.getStatusCode() != 200) {
-        Warning("Crossref returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "!");
+        logger->warning("Crossref returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "!");
         return;
     }
 
@@ -646,11 +648,11 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * c
     JSON::JSONNode *full_tree;
     JSON::Parser parser(json_document);
     if (not parser.parse(&full_tree))
-        Error("failed to parse JSON (" + parser.getErrorMessage() + "), download URL was: " + DOWNLOAD_URL);
+        logger->error("failed to parse JSON (" + parser.getErrorMessage() + "), download URL was: " + DOWNLOAD_URL);
 
     const JSON::ObjectNode * const top_node(dynamic_cast<const JSON::ObjectNode *>(full_tree));
     if (unlikely(top_node == nullptr))
-        Error("JSON returned from Crossref is not an object! (URL was " + DOWNLOAD_URL + ")");
+        logger->error("JSON returned from Crossref is not an object! (URL was " + DOWNLOAD_URL + ")");
 
     const JSON::ObjectNode * const message_node(
         dynamic_cast<const JSON::ObjectNode *>(top_node->getValue("message")));
@@ -664,12 +666,12 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * c
     for (auto item_iter(items->cbegin()); item_iter != items->cend(); ++item_iter) {
         const JSON::ObjectNode * const item(dynamic_cast<JSON::ObjectNode *>(*item_iter));
         if (unlikely(item == nullptr))
-            Error("item is JSON \"items\" array as returned by Crossref is not an object!");
+            logger->error("item is JSON \"items\" array as returned by Crossref is not an object!");
 
         static const std::string EMPTY_STRING;
         const std::string DOI(JSON::LookupString("/DOI", item, &EMPTY_STRING));
         if (unlikely(DOI.empty()))
-            Error("No \"DOI\" for an item returned for the ISSN " + ISSN + "!");
+            logger->error("No \"DOI\" for an item returned for the ISSN " + ISSN + "!");
 
         // Have we already seen this item?
         if (already_seen->find(DOI) != already_seen->cend()) {
@@ -693,7 +695,7 @@ void ProcessJournal(const unsigned timeout, const std::string &line, MarcWriter 
     std::vector<std::string> issns;
     std::string journal_name;
     if (unlikely(not GetISSNsAndJournalName(line, &issns, &journal_name)))
-        Error("bad input line \"" + line + "\"!");
+        logger->error("bad input line \"" + line + "\"!");
     std::cout << "Processing " << journal_name << '\n';
 
     std::unordered_set<std::string> already_seen;
@@ -712,7 +714,7 @@ std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
     std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
     if (not (db->open(DB_FILENAME,
                       kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        Error("failed to open or create \"" + DB_FILENAME + "\"!");
+        logger->error("failed to open or create \"" + DB_FILENAME + "\"!");
     return db;
 }
 
@@ -727,7 +729,7 @@ int main(int argc, char *argv[]) {
     unsigned timeout(DEFAULT_TIMEOUT);
     if (std::strcmp(argv[1], "--timeout") == 0) {
         if (not StringUtil::ToUnsigned(argv[2], &timeout))
-            Error("bad timeout \"" + std::string(argv[2]) + "\"!");
+            logger->error("bad timeout \"" + std::string(argv[2]) + "\"!");
         argc -= 2;
         argv += 2;
     }
@@ -767,6 +769,6 @@ int main(int argc, char *argv[]) {
                   << ".\nAnd the number of articles that were identical to previous downloads and therefore "
                   << "suppressed is " << total_suppressed_count << ".\n";
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

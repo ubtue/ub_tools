@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -75,7 +75,7 @@ void CollectControlNumberToTitleMappings(const bool verbose, MarcReader * const 
     std::string err_msg;
     if (not MarcRecord::ProcessRecords(marc_reader, RecordControlNumberToTitleMapping,
                                        /* marc_writer = */nullptr, &err_msg))
-        Error("error while looking for control numbers to title mappings: " + err_msg);
+        logger->error("error while looking for control numbers to title mappings: " + err_msg);
 
     if (verbose)
         std::cout << "Found " << control_numbers_to_titles_map.size() << " control number to title mappings.\n";
@@ -114,7 +114,7 @@ bool PatchUpOne773a(MarcRecord * const record, MarcWriter * const marc_writer, s
 void PatchUp773aSubfields(const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer) {
     std::string err_msg;
     if (not MarcRecord::ProcessRecords(marc_reader, PatchUpOne773a, marc_writer, &err_msg))
-        Error("error while adding 773$a subfields to some records: " + err_msg);
+        logger->error("error while adding 773$a subfields to some records: " + err_msg);
 
     if (verbose)
         std::cout << "Added 773$a subfields to " << patch_count << " records.\n";
@@ -146,6 +146,6 @@ int main(int argc, char **argv) {
         marc_reader->rewind();
         PatchUp773aSubfields(verbose, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

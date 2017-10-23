@@ -46,22 +46,22 @@ void Lookup(const std::string &id) {
     try {
         kyotocabinet::HashDB db;
         if (not db.open(DB_PATH, kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::ONOLOCK))
-            Error("Failed to open database \"" + DB_PATH + "\" for reading ("
-                  + std::string(db.error().message()) + ")!");
+            logger->error("Failed to open database \"" + DB_PATH + "\" for reading ("
+                          + std::string(db.error().message()) + ")!");
 
         std::string data;
         if (not db.get(id, &data))
-            Error("Lookup failed: " + std::string(db.error().message()));
+            logger->error("Lookup failed: " + std::string(db.error().message()));
         
         std::cout << data;
     } catch (const std::exception &e) {
-        Error(std::string("caught exception: ") + e.what());
+        logger->error(std::string("caught exception: ") + e.what());
     }
 }
 
 
 int main(int argc, char* argv[]) {
-    progname = argv[0];
+    ::progname = argv[0];
 
     std::string id;
     if (argc == 2)

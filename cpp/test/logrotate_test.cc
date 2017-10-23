@@ -25,6 +25,6 @@ int main(int argc, char *argv[]) {
         else
             MiscUtil::LogRotate(argv[1], StringUtil::ToUnsigned(argv[2]));
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

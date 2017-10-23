@@ -70,7 +70,7 @@ void CollectMonographs(const bool verbose, const std::vector<std::unique_ptr<Mar
             std::cout << "Extracting serial control numbers from \"" << marc_reader->getPath() << "\".\n";
         if (not MarcRecord::ProcessRecords(marc_reader.get(), RecordMonographControlNumbers,
                                            /* marc_writer = */nullptr, &err_msg))
-            Error("error while looking for serials: " + err_msg);
+            logger->error("error while looking for serials: " + err_msg);
     }
 
     if (verbose)
@@ -141,7 +141,7 @@ bool PatchUpArticle(MarcRecord * const record, MarcWriter * const marc_writer, s
 void PatchUpBookComponentParts(const bool verbose, MarcReader * const marc_reader, MarcWriter * const marc_writer) {
     std::string err_msg;
     if (not MarcRecord::ProcessRecords(marc_reader, PatchUpArticle, marc_writer, &err_msg))
-        Error("error while patching up article records: " + err_msg);
+        logger->error("error while patching up article records: " + err_msg);
 
     if (verbose)
         std::cout << "Fixed the bibliographic level of " << patch_count << " article records.\n";
@@ -170,6 +170,6 @@ int main(int argc, char **argv) {
         marc_readers[0]->rewind();
         PatchUpBookComponentParts(verbose, marc_readers[0].get(), marc_writer.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

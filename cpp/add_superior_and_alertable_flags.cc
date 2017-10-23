@@ -6,7 +6,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -104,7 +104,7 @@ void LoadSuperiorPPNs(File * const input) {
     }
 
     if (unlikely(superior_ppns.empty()))
-        Error("Found no data in \"" + input->getPath() + "\"!");
+        logger->error("Found no data in \"" + input->getPath() + "\"!");
     std::cerr << "Read " << line_no << " superior PPNs.\n";
 }
 
@@ -123,6 +123,6 @@ int main(int argc, char **argv) {
         LoadSuperiorPPNs(superior_ppn_input.get());
         AddSuperiorFlag(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

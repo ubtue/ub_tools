@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::string> words;
     if (not TextUtil::ChopIntoWords(argv[1], &words))
-        Error("there was a character code conversion error!");
+        logger->error("there was a character code conversion error!");
 
     for (const auto &word : words)
         std::cout << word << '\n';

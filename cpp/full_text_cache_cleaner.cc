@@ -65,8 +65,8 @@ int main(int argc, char *argv[]) {
         const std::string db_filename(argv[1]);
         kyotocabinet::HashDB key_value_db;
         if (not key_value_db.open(db_filename, kyotocabinet::HashDB::OWRITER))
-            Error("Failed to open the key/valuedatabase \"" + db_filename + "\" ("
-                  + std::string(key_value_db.error().message()) + ")!");
+            logger->error("Failed to open the key/valuedatabase \"" + db_filename + "\" ("
+                          + std::string(key_value_db.error().message()) + ")!");
 
         const unsigned size_before_deletion(SqlUtil::GetTableSize(&db_connection, "full_text_cache"));
             ExpireRecords(&db_connection, &key_value_db);
@@ -75,6 +75,6 @@ int main(int argc, char *argv[]) {
         std::cerr << "Deleted " << (size_before_deletion - size_after_deletion)
                   << " records from the full-text cache.\n";
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));    
+        logger->error("caught exception: " + std::string(x.what()));    
     }
 }

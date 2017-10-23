@@ -56,7 +56,7 @@ void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File>& ill_list,
     while ((line_size = ill_list->getline(&line))) {
         if (line_size == 0) {
             if (unlikely(ill_list->anErrorOccurred()))
-                Error("Error while reading ILL list " + ill_list->getPath());
+                logger->error("Error while reading ILL list " + ill_list->getPath());
             if (unlikely(ill_list->eof()))
                 return;
         }
@@ -96,7 +96,8 @@ void ProcessRecord(const bool verbose, MarcRecord * const record, const std::uno
      
      if (ill_set.find(record->getControlNumber()) == ill_set.cend()) {
          if (record->getFieldIndex(POTENTIALLY_PDA_TAG) != MarcRecord::FIELD_NOT_FOUND)
-             Error("Field " + POTENTIALLY_PDA_TAG + " already populated for PPN " + record->getControlNumber());
+             logger->error("Field " + POTENTIALLY_PDA_TAG + " already populated for PPN "
+                           + record->getControlNumber());
          record->insertSubfield(POTENTIALLY_PDA_TAG, POTENTIALLY_PDA_SUBFIELD, "1");
          ++modified_count;
      }
@@ -137,10 +138,10 @@ int main(int argc, char **argv) {
     const std::string marc_output_filename(argv[3]);
 
     if (unlikely(marc_input_filename == marc_output_filename))
-        Error("Input file equals output file!");
+        logger->error("Input file equals output file!");
 
     if (unlikely(marc_input_filename == ill_list_filename || marc_output_filename == ill_list_filename))
-        Error("ILL list file equals marc input or output file!");
+        logger->error("ILL list file equals marc input or output file!");
 
     try {
         std::unordered_set<std::string> ill_set;
@@ -152,6 +153,6 @@ int main(int argc, char **argv) {
         TagRelevantRecords(verbose, marc_reader.get(), marc_writer.get(), &ill_set);
 
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

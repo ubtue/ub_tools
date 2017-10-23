@@ -16,7 +16,7 @@ std::mutex io_mutex;
 void *Consumer(void *shared_data) {
     int old_state;
     if (::pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old_state) != 0)
-        Error("consumer thread failed to enable cancelability!");
+        logger->error("consumer thread failed to enable cancelability!");
 
     SharedBuffer<unsigned> * const shared_buffer(reinterpret_cast<SharedBuffer<unsigned> * const>(shared_data));
     for (;;) {

@@ -58,9 +58,9 @@ int main(int argc, char *argv[]) {
         std::cout << "directory_to_scan = " << directory_to_scan << '\n';
         const ssize_t count(FileUtil::RemoveMatchingFiles(filename_regex, include_directories, directory_to_scan));
         if (count == -1)
-            Error("failed to delete one or more matching files or directories!");
+            logger->error("failed to delete one or more matching files or directories!");
         std::cout << "Deleted " << count << " matching files and or directories.\n";
     } catch(const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }  
 }

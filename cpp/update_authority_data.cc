@@ -59,7 +59,7 @@ static void Usage() {
  */
 std::string GetMostRecentFile(const std::string &path_regex) {
     if (unlikely(path_regex.find("\\d\\d\\d\\d\\d\\d") == std::string::npos))
-        Error("in GetMostRecentFile: regex \"" + path_regex + "\" does not contain \\d\\d\\d\\d\\d\\d!");
+        logger->error("in GetMostRecentFile: regex \"" + path_regex + "\" does not contain \\d\\d\\d\\d\\d\\d!");
 
     std::string filename_regex, dirname;
     FileUtil::DirnameAndBasename(path_regex, &filename_regex, &dirname);
@@ -107,7 +107,7 @@ void ExtractAuthorityDataFromArchiveOrDie(const std::string &archive_filename) {
     ::unlink(MARC_REFERENCE_FILENAME.c_str());
     ArchiveReader archive_reader(archive_filename);
     if (not archive_reader.extractEntry(MARC_REFERENCE_FILENAME))
-        Error("failed to extract \"" + MARC_REFERENCE_FILENAME + "\" from \"" + archive_filename + "\"!");
+        logger->error("failed to extract \"" + MARC_REFERENCE_FILENAME + "\" from \"" + archive_filename + "\"!");
 }
 
 
@@ -162,11 +162,11 @@ int main(int argc, char *argv[]) {
                 const std::string REPLACE_MARC_RECORDS_PATH("/usr/local/bin/replace_marc_records");
                 if (ExecUtil::Exec(REPLACE_MARC_RECORDS_PATH,
                                    { MARC_REFERENCE_FILENAME, MARC_TEMP_FILENAME, MARC_TARGET_FILENAME }) != 0)
-                    Error("failed to execute \"" + REPLACE_MARC_RECORDS_PATH + "\"!");
+                    logger->error("failed to execute \"" + REPLACE_MARC_RECORDS_PATH + "\"!");
             } else
                 FileUtil::CopyOrDie(MARC_TEMP_FILENAME, MARC_TARGET_FILENAME);
         }
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

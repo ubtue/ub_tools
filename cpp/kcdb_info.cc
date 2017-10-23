@@ -28,13 +28,13 @@ int main(int argc, char *argv[]) {
 
     kyotocabinet::HashDB db;
     if (not db.open(db_filename, kyotocabinet::HashDB::OREADER))
-        Error("Failed to open database \"" + db_filename + "\" for reading ("
-              + std::string(db.error().message()) + ")!");
+        logger->error("Failed to open database \"" + db_filename + "\" for reading ("
+                      + std::string(db.error().message()) + ")!");
 
     std::map<std::string, std::string> status_info;
     if (not db.status(&status_info))
-        Error("Failed to get status info on \"" + db_filename + "\" ("
-              + std::string(db.error().message()) + ")!");
+        logger->error("Failed to get status info on \"" + db_filename + "\" ("
+                      + std::string(db.error().message()) + ")!");
 
     for (const auto &key_and_value : status_info)
         std::cout << key_and_value.first << ": " << key_and_value.second << '\n';

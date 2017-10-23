@@ -47,7 +47,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " title_input norm_data_input\n";
+    std::cerr << "Usage: " << ::progname << " norm_data_input\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -71,7 +71,7 @@ std::string StatusToString(const Status status) {
         return "unreliable_synonym";
     }
 
-    Error("in StatusToString: we should *never* get here!");
+    logger->error("in StatusToString: we should *never* get here!");
 }
 
 
@@ -277,7 +277,7 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, MarcWriter *
 void ExtractTranslationsForAllRecords(MarcReader * const authority_reader) {
     std::string err_msg;
     if (not MarcRecord::ProcessRecords(authority_reader, ExtractTranslationsForASingleRecord, nullptr, &err_msg))
-        Error("error while extracting translations from \"" + authority_reader->getPath() + "\": " + err_msg);
+        logger->error("error while extracting translations from \"" + authority_reader->getPath() + "\": " + err_msg);
 
     std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
     std::cerr << "Found " << german_term_count << " german terms.\n";
@@ -294,17 +294,10 @@ const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 3)
+    if (argc != 2)
         Usage();
 
-    /*FIXME
-    const std::string marc_input_filename(argv[1]);
-    File marc_input(marc_input_filename, "r");
-    if (not marc_input)
-        Error("can't open \"" + marc_input_filename + "\" for reading!");
-    */
-
-    std::unique_ptr<MarcReader> authority_marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
+    std::unique_ptr<MarcReader> authority_marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
 
     try {
         const IniFile ini_file(CONF_FILE_PATH);
@@ -316,6 +309,6 @@ int main(int argc, char **argv) {
 
         ExtractTranslationsForAllRecords(authority_marc_reader.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
