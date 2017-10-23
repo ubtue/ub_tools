@@ -2,7 +2,7 @@
  *  \brief  Implementation of the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -96,7 +96,7 @@ RegexMatcher::RegexMatcher(const RegexMatcher &that): pattern_(that.pattern_) {
     } else {
         std::string err_msg;
         if (not CompileRegex(pattern_, that.utf8_enabled_, &pcre_, &pcre_extra_, &err_msg))
-            Error("In RegexMatcher copy constructor: unexpected error: " + err_msg);
+            logger->error("In RegexMatcher copy constructor: unexpected error: " + err_msg);
         substr_vector_    = that.substr_vector_;
         last_match_count_ = that.last_match_count_;
     }

@@ -50,7 +50,7 @@ std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &
 {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
-        Error("expected a(n) \"" + parameter_name + "\" parameter!");
+        logger->error("expected a(n) \"" + parameter_name + "\" parameter!");
 
     return key_and_value->second;
 }
@@ -93,7 +93,7 @@ void Update(const std::multimap<std::string, std::string> &cgi_args, const std::
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
-        Error("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
+        logger->error("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
 }
 
 
@@ -114,7 +114,7 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
-        Error("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
+        logger->error("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
 }
 
 int main(int argc, char *argv[]) {
@@ -139,15 +139,15 @@ int main(int argc, char *argv[]) {
                 status = "Status: 200 OK\r\n";
             }
             else
-                Error("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
+                logger->error("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
 
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
             std::cout << status;
         } else
-            Error("we should be called w/ either or 5 or 6 CGI arguments!");
+            logger->error("we should be called w/ either or 5 or 6 CGI arguments!");
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
 

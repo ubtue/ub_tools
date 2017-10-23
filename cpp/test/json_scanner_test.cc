@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
     const std::string json_input_filename(argv[1]);
     std::string json_document;
     if (not FileUtil::ReadString(json_input_filename, &json_document))
-        Error("could not read \"" + json_input_filename + "\"!");
+        logger->error("could not read \"" + json_input_filename + "\"!");
 
     JSON::Scanner scanner(json_document);
     for (;;) {

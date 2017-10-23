@@ -40,7 +40,6 @@
 #include "GzStream.h"
 #include "HttpHeader.h"
 #include "IniFile.h"
-#include "Logger.h"
 #include "MediaTypeUtil.h"
 #include "MiscUtil.h"
 #include "SqlUtil.h"
@@ -70,7 +69,6 @@ std::string CachedPageFetcher::default_user_agent_url_("http://ivia.ucr.edu/user
 unsigned CachedPageFetcher::no_of_new_connections_;
 unsigned CachedPageFetcher::no_of_queries_;
 unsigned CachedPageFetcher::verbosity_;
-Logger * CachedPageFetcher::logger_(nullptr);
 
 
 namespace {
@@ -184,10 +182,8 @@ void CachedPageFetcher::ReadIniFile() {
 
     if (ini_file.sectionIsDefined("Logging")) {
         verbosity_ = ini_file.getUnsigned("Logging", "verbosity");
-        if (verbosity_ > 0) {
+        if (verbosity_ > 0)
             const std::string log_filename = ini_file.getString("Logging", "log_filename");
-            logger_ = new Logger(log_filename);
-        }
     } else
         verbosity_ = 0;
 }
@@ -352,7 +348,6 @@ bool CachedPageFetcher::SetPageCacheDatabaseTable(const std::string &server_host
     error_message->clear();
 
     try {
-
         DbConnection db_connection(/* database_name = */ "", server_user_name, server_password,
                                    server_host_name, server_port);
         db_connection.queryOrDie("SELECT make_schema('" + page_cache_schema_name +"')");
@@ -392,8 +387,8 @@ unsigned CachedPageFetcher::getMessageBodyHash() const {
     DbResultSet result_set(db_connection_->getLastResultSet());
     ++CachedPageFetcher::no_of_queries_;
     if (unlikely(result_set.empty()))
-        Error("in CachedPageFetcher::getMessageBodyHash: could not retrieve data from cache table with: "
-              + select_stmt);
+        logger->error("in CachedPageFetcher::getMessageBodyHash: could not retrieve data from cache table with: "
+                      + select_stmt);
 
     const DbRow row(result_set.getNextRow());
 
@@ -424,7 +419,8 @@ unsigned CachedPageFetcher::getRedirectCount() const {
 
     ++CachedPageFetcher::no_of_queries_;
     if (unlikely(result_set.empty()))
-        Error("in CachedPageFetcher::getRedirectCount: query \"" + select_stmt + "\" returned an empty result set!");
+        logger->error("in CachedPageFetcher::getRedirectCount: query \"" + select_stmt
+                      + "\" returned an empty result set!");
 
     DbRow row(result_set.getNextRow());
     return StringUtil::ToUnsigned(row[0]);
@@ -444,7 +440,8 @@ std::string CachedPageFetcher::getRedirectedUrl() const {
     ++CachedPageFetcher::no_of_queries_;
     DbResultSet result_set(db_connection_->getLastResultSet());
     if (unlikely(result_set.empty()))
-        Error("in CachedPageFetcher::getRedirectedUrl: unexpected empty result set for query: " + SELECT_STMT);
+        logger->error("in CachedPageFetcher::getRedirectedUrl: unexpected empty result set for query: "
+                      + SELECT_STMT);
 
     DbRow row(result_set.getNextRow());
     std::string redirected_url;
@@ -497,7 +494,7 @@ bool CachedPageFetcher::accessAllowed(const std::string &url, const TimeLimit &t
 
     const Url test_url(url);
     if (not test_url.isValid())
-        Error("in CachedPageFetcher::accessAllowed: URL: \"" + url + "\" is invalid!");
+        logger->error("in CachedPageFetcher::accessAllowed: URL: \"" + url + "\" is invalid!");
 
     // Access is always allowed for non-HTTP protocols, and for the robots.txt file.
     if (not test_url.isValidWebUrl() or ::strcasecmp("/robots.txt", test_url.getPath().c_str()) == 0)
@@ -673,11 +670,12 @@ bool CachedPageFetcher::httpHeaderChecksOut(const HttpHeader &http_header, const
 bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &time_limit, const long max_redirects) {
     // Make sure that the maximum number of redirects is within reasonable limits:
     if (unlikely(max_redirects < 0 or max_redirects > 255))
-        Error("in CachedPageFetcher::downloadPage: max_redirects " + std::to_string(max_redirects)
-              + "must be in [0, 255]!");
+        logger->error("in CachedPageFetcher::downloadPage: max_redirects " + std::to_string(max_redirects)
+                      + "must be in [0, 255]!");
 
-    if (verbosity_ >= 5 and logger_ != nullptr)
-        logger_->log("%sStoring: '%s', %u ms", useCache() ? "":"Not ", url.c_str(),  time_limit.getRemainingTime());
+    if (verbosity_ >= 5)
+        logger->info(std::string(useCache() ? "Storing" : "Not storing") + ": '" + url + "', "
+                     + std::to_string(time_limit.getRemainingTime()) + " ms");
 
     std::string retrieval_datetime(SqlUtil::GetDatetime());
     timeout_overrides_.setDefaultTimeout(default_expiration_time_);
@@ -722,9 +720,9 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
     int redirect_count = 0;
 
     while (redirect_count <= max_redirects) {
-        if (verbosity_ >= 4 and logger_ != nullptr)
-            logger_->log("Fetch no. %u, URL: '%s', remaining time: %u ms", redirect_count,
-                         redirected_url.toString().c_str(), time_limit.getRemainingTime());
+        if (verbosity_ >= 4)
+            logger->info("Fetch no. " + std::to_string(redirect_count) + ", URL: '" + redirected_url.toString()
+                         + "', remaining time: " + std::to_string(time_limit.getRemainingTime()) +" ms");
 
         unsigned timeout;
         bool found_in_cache(foundInCache(redirected_url, time_limit, &timeout));
@@ -957,8 +955,8 @@ bool CachedPageFetcher::foundInCache(const std::string &url, const TimeLimit &ti
 
     requireDbConnection();
 
-    if (verbosity_ >= 4 and logger_ != nullptr)
-        logger_->log("Finding: '%s', %u ms", url.c_str(), time_limit.getRemainingTime());
+    if (verbosity_ >= 4)
+        logger->info("Finding: '" + url + "', " + std::to_string(time_limit.getRemainingTime()) + " ms");
 
     const bool is_cached(CachedPageFetcher::IsCached(url, params_.robots_dot_txt_option_, &last_error_message_,
                                                      db_connection_.get()));
@@ -1003,7 +1001,8 @@ bool CachedPageFetcher::retrieveFromCache(const std::string &url, std::string * 
     ++CachedPageFetcher::no_of_queries_;
     DbResultSet result_set(db_connection_->getLastResultSet());
     if (unlikely(result_set.empty()))
-        Error("in CachedPageFetcher::retrieveFromCache: unexpected empty result set for query: " + SELECT_STMT);
+        logger->error("in CachedPageFetcher::retrieveFromCache: unexpected empty result set for query: "
+                      + SELECT_STMT);
 
     DbRow row(result_set.getNextRow());
     if (row[0] !="ok") {
@@ -1101,8 +1100,8 @@ void CachedPageFetcher::StoreInCache(const std::string &url, const std::string &
 				     const RobotsDotTxtOption robots_dot_txt_option,
                                      const ConnectionOption connection_option)
 {
-    if (verbosity_ >= 5 and logger_ != nullptr)
-        logger_->log("Storing: '%s', %zu bytes", url.c_str(), http_body.size());
+    if (verbosity_ >= 5)
+        logger->info("Storing: '" + url + "', " + std::to_string(http_body.size()) + " bytes");
 
     // Read config file?
     if (unlikely(server_host_name_.empty()))
@@ -1155,7 +1154,7 @@ void CachedPageFetcher::actualStoreInCache(const std::string &escaped_url, const
 {
     // Make sure we never end up here if we don't want to store in the cache:
     if (unlikely(not useCache()))
-        Error("in CachedPageFetcher::actualStoreInCache: called but useCache() returned false!");
+        logger->error("in CachedPageFetcher::actualStoreInCache: called but useCache() returned false!");
 
     requireDbConnection();
 
@@ -1230,8 +1229,7 @@ void CachedPageFetcher::ActualStoreInCache(const std::string &escaped_url, const
                        + "',";
         insert_stmt += "uncompressed_document_source_size=" + std::to_string(document_source.size());
 
-        if (logger_ != nullptr)
-            logger_->log(insert_stmt);
+        logger->info(insert_stmt);
 
         db_connection->queryOrDie(insert_stmt);
         db_connection->queryOrDie("SELECT LAST_INSERT_ID()");
@@ -1259,8 +1257,7 @@ void CachedPageFetcher::ActualStoreInCache(const std::string &escaped_url, const
                        + "', ";
         update_stmt += "uncompressed_document_source_size=" + std::to_string(document_source.size());
         update_stmt += " WHERE url_id=" + url_id;
-        if (logger_ != nullptr)
-            logger_->log(update_stmt);
+        logger->info(update_stmt);
         db_connection->queryOrDie(update_stmt);
     }
 
@@ -1308,15 +1305,12 @@ void CachedPageFetcher::AddUrlToRedirectTable(DbConnection * const db_connection
             // Now add the new (url,url_id) pair to the redirect table:
             const std::string redirect_stmt("INSERT INTO "+ CreateRedirectTableName(page_cache_schema_name_)
                                             + " (url, cache_id) VALUES('" + escaped_url + "', " + url_id + ")");
-            if (logger_ != nullptr)
-                logger_->log(redirect_stmt);
+            logger->info(redirect_stmt);
             db_connection->queryOrDie(redirect_stmt);
         }
     } catch (std::runtime_error &e) {
-        if (logger_ != nullptr){
-            logger_->log(std::string(e.what()));
-            logger_->log("ROLLBACK");
-        }
+        logger->info(std::string(e.what()));
+        logger->info("ROLLBACK");
         guard.rollback();
     }
 }

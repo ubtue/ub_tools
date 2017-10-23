@@ -906,9 +906,9 @@ void ExtractSomeJavaScriptLinks(const std::string &document_source, std::vector<
 void CheckFlags(const unsigned flags) {
     if (MiscUtil::HammingWeight(flags & (IGNORE_LINKS_TO_SAME_SITE | IGNORE_LINKS_TO_SAME_MAJOR_SITE
                                          | KEEP_LINKS_TO_SAME_SITE_ONLY | KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY)) > 1)
-        Error("in CheckFlags(WebUtil.cc): incompatible flags: you must not specify at most one of "
-              "IGNORE_LINKS_TO_SAME_SITE, IGNORE_LINKS_TO_SAME_MAJOR_SITE, KEEP_LINKS_TO_SAME_SITE_ONLY "
-              " or KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY!");
+        logger->error("in CheckFlags(WebUtil.cc): incompatible flags: you must not specify at most one of "
+                      "IGNORE_LINKS_TO_SAME_SITE, IGNORE_LINKS_TO_SAME_MAJOR_SITE, KEEP_LINKS_TO_SAME_SITE_ONLY "
+                      " or KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY!");
 }
 
 
@@ -1169,7 +1169,7 @@ void ExtractURLs(const std::string &document_source, std::string default_base_ur
         // Check for existence of the Web site (if requested):
         if ((flags & REQUIRE_URLS_FOR_DOWNLOADABLE_PAGES_ONLY) == REQUIRE_URLS_FOR_DOWNLOADABLE_PAGES_ONLY) {
             if (unlikely(extracted_url_form != CANONIZED_URLS))
-                Error("in WebUtil::ExtractURLs: extracted_url_form must equal CANONIZED_URLS here!");
+                logger->error("in WebUtil::ExtractURLs: extracted_url_form must equal CANONIZED_URLS here!");
             std::vector<UrlAndAnchorTexts> filtered_urls_and_anchor_texts;
             filtered_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
             for (std::vector<UrlAndAnchorTexts>::iterator url_and_anchor_texts(urls_and_anchor_texts->begin());

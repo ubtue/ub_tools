@@ -2,7 +2,7 @@
  *  \brief  Regression test related utility functions and classes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,7 +31,7 @@ namespace RegressionTest {
 void Assert(const std::string &test_name, const std::string &condition_as_string, const bool condition) {
     if (not condition) {
         std::clog << test_name << ": condition failed: " << condition_as_string << '\n';
-        Error("in RegessionTest::Assert:  condition failed: \"" + condition_as_string + "\"!");
+        logger->error("in RegessionTest::Assert:  condition failed: \"" + condition_as_string + "\"!");
     }
 }
     
@@ -40,11 +40,11 @@ bool CompareStrings(const std::string &test_name, const std::string &actual_stri
                     const std::string &expected_string)
 {
     if (actual_string == expected_string) {
-        std::clog << test_name << ": strings matched as expected.\n";
+        logger->info(test_name + ": strings matched as expected.");
         return true;
     } else {
-        std::clog << test_name << ": strings \"" << actual_string << "\" and \"" << expected_string
-                  << "\" did not match!\n";
+        logger->info(test_name + ": strings \"" + actual_string + "\" and \"" + expected_string
+                     + "\" did not match!");
         return false;
     }
 }
@@ -54,15 +54,14 @@ bool CompareFiles(const std::string &test_name, const std::string &actual_file, 
                   const bool delete_actual)
 {
     if (FileUtil::FilesDiffer(actual_file, expected_file)) {
-        std::clog << test_name << ": files \"" << actual_file << "\" and \"" << expected_file
-                  << "\" differ!.\n";
+        logger->info(test_name + ": files \"" + actual_file + "\" and \"" + expected_file + "\" differ!.");
         return false;
     } else {
-        std::clog << test_name << ": files \"" << actual_file << "\" and \"" << expected_file
-                  << "\" matched as expected.\n";
+        logger->info(test_name + ": files \"" + actual_file + "\" and \"" + expected_file
+                     + "\" matched as expected.");
 
         if (delete_actual and ::unlink(actual_file.c_str()) != 0)
-            Error("in RegessionTest::CompareFiles: failed to unlink(2) \"" + actual_file + "\"!");
+            logger->error("in RegessionTest::CompareFiles: failed to unlink(2) \"" + actual_file + "\"!");
         
         return true;
     }

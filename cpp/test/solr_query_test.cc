@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
 
     unsigned timeout;
     if (not StringUtil::ToUnsigned(argv[4], &timeout) or timeout < 1)
-        Error("can't convert \"" + std::string(argv[4]) + " \" to a postive integer!");
+        logger->error("can't convert \"" + std::string(argv[4]) + " \" to a postive integer!");
 
     const std::string result_format_candidate(argv[5]);
     Solr::QueryResultFormat result_format;
@@ -57,15 +57,15 @@ int main(int argc, char *argv[]) {
     else if (result_format_candidate == "json")
         result_format = Solr::QueryResultFormat::JSON;
     else
-        Error("unknown query result format \"" + result_format_candidate + "\"!");
+        logger->error("unknown query result format \"" + result_format_candidate + "\"!");
 
     try {
         std::string xml_result;
         if (not Solr::Query(query, fields, &xml_result, host_and_port, timeout, result_format))
-            Error("query failed");
+            logger->error("query failed");
 
         std::cout << xml_result;
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

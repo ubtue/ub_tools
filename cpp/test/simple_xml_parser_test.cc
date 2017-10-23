@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
     const std::string input_filename(argv[silent ? 2 : 1]);
     File input(input_filename, "r");
     if (not input)
-        Error("can't open \"" + input_filename + "\" for reading!");
+        logger->error("can't open \"" + input_filename + "\" for reading!");
 
     try {
         SimpleXmlParser<File>::Type type;
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
         while (xml_parser.getNext(&type, &attrib_map, &data)) {
             switch (type) {
             case SimpleXmlParser<File>::UNINITIALISED:
-                Error("we should never get here as UNINITIALISED should never be returned!");
+                logger->error("we should never get here as UNINITIALISED should never be returned!");
             case SimpleXmlParser<File>::START_OF_DOCUMENT:
                 if (not silent)
                     std::cout << xml_parser.getLineNo() << ":START_OF_DOCUMENT()\n";
@@ -63,7 +63,8 @@ int main(int argc, char *argv[]) {
             case SimpleXmlParser<File>::END_OF_DOCUMENT:
                 return EXIT_SUCCESS;
             case SimpleXmlParser<File>::ERROR:
-                Error("we should never get here because SimpleXmlParser<File>::getNext() should have returned false!");
+                logger->error("we should never get here because SimpleXmlParser<File>::getNext() should have "
+                              "returned false!");
             case SimpleXmlParser<File>::OPENING_TAG:
                 if (not silent) {
                     std::cout << xml_parser.getLineNo() << ":OPENING_TAG(" << data;
@@ -83,8 +84,8 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        Error("XML parsing error: " + xml_parser.getLastErrorMessage());
+        logger->error("XML parsing error: " + xml_parser.getLastErrorMessage());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

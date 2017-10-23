@@ -1,7 +1,7 @@
 /** \brief Utility for deleting partial or entire MARC records based on an input list.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -88,10 +88,11 @@ bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_
         std::vector<size_t> field_indices;
         record->findFieldsInLocalBlock("001", "??", local_block_boundary, &field_indices);
         if (field_indices.size() != 1)
-            Error("Every local data block has to have exactly one 001 field. (Record: " + record->getControlNumber()
-                  + ", Local data block: " + std::to_string(local_block_boundary.first) + " - "
-                  + std::to_string(local_block_boundary.second) + ". Found " + std::to_string(field_indices.size())
-                  + ")");
+            logger->error("Every local data block has to have exactly one 001 field. (Record: "
+                          + record->getControlNumber() + ", Local data block: "
+                          + std::to_string(local_block_boundary.first) + " - "
+                          + std::to_string(local_block_boundary.second) + ". Found "
+                          + std::to_string(field_indices.size()) + ")");
         const Subfields subfields(record->getSubfields(field_indices[0]));
         const std::string subfield_contents(subfields.getFirstSubfieldValue('0'));
         if (not StringUtil::StartsWith(subfield_contents, "001 ")
@@ -143,7 +144,7 @@ int main(int argc, char *argv[]) {
     const std::string deletion_list_filename(argv[1]);
     File deletion_list(deletion_list_filename, "r");
     if (not deletion_list)
-        Error("can't open \"" + deletion_list_filename + "\" for reading!");
+        logger->error("can't open \"" + deletion_list_filename + "\" for reading!");
 
     std::unordered_set <std::string> title_deletion_ids, local_deletion_ids;
     BSZUtil::ExtractDeletionIds(&deletion_list, &title_deletion_ids, &local_deletion_ids);
@@ -154,6 +155,6 @@ int main(int argc, char *argv[]) {
     try {
         ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -65,7 +65,8 @@ void ParseEscapedCommaSeparatedList(const std::string &escaped_text, std::vector
     }
 
     if (unlikely(last_char_was_backslash))
-        Error("weird escaped string ends in backslash \"" + escaped_text + "\"!");
+        logger->error("in ParseEscapedCommaSeparatedList: weird escaped string ends in backslash \"" + escaped_text
+                      + "\"!");
 
     list->emplace_back(StringUtil::RightTrim(&unescaped_text, '\n'));
 }
@@ -84,7 +85,7 @@ void ParseGetMissingLine(const std::string &line, Translation * const translatio
     std::vector<std::string> parts;
     ParseEscapedCommaSeparatedList(line, &parts);
     if (unlikely(parts.size() != 5 and parts.size() != 6))
-        Error("expected 5 or 6 parts, found \"" + line + "\"!");
+        logger->error("in ParseGetMissingLine: expected 5 or 6 parts, found \"" + line + "\"!");
 
     translation->index_           = parts[0];
     translation->remaining_count_ = parts[1];
@@ -112,7 +113,7 @@ std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &
 {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
-        Error("expected a(n) \"" + parameter_name + "\" parameter!");
+        logger->error("expected a(n) \"" + parameter_name + "\" parameter!");
 
     return key_and_value->second;
 }
@@ -143,9 +144,9 @@ std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::s
 
 
 
-void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &output, const std::string &language_code,
-                                                        const std::string &action, const std::string &error_message = "",
-                                                        const std::string &user_translation = "")
+void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
+    const std::string &output, const std::string &language_code, const std::string &action,
+    const std::string &error_message = "", const std::string &user_translation = "")
 {
     std::vector<Translation> translations;
     ParseTranslationsDbToolOutput(output, &translations);
@@ -199,23 +200,28 @@ void GetMissing(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string GET_MISSING_COMMAND("/usr/local/bin/translation_db_tool get_missing \"" + language_code + "\"");
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_MISSING_COMMAND, &output))
-        Error("failed to execute \"" + GET_MISSING_COMMAND + "\" or it returned a non-zero exit code!");
+        logger->error("failed to execute \"" + GET_MISSING_COMMAND + "\" or it returned a non-zero exit code!");
 
     ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, "insert");
 }
 
 
-void GetExisting(const std::string &language_code, const std::string &category, const std::string &index, std::string *const output) {
-    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code + "\" \"" + category + "\" \"" + index + "\"");
+void GetExisting(const std::string &language_code, const std::string &category, const std::string &index,
+                 std::string * const output)
+{
+    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code
+                                           + "\" \"" + category + "\" \"" + index + "\"");
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_EXISTING_COMMAND, output))
-        Error("failed to execute \"" + GET_EXISTING_COMMAND + "\" or it returned a non-zero exit code!");
+        logger->error("failed to execute \"" + GET_EXISTING_COMMAND + "\" or it returned a non-zero exit code!");
 }
+
 
 void GetExisting(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
     const std::string category(GetCGIParameterOrDie(cgi_args, "category"));
-    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code + "\" \"" + category + "\" \"" + index + "\"");
+    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code
+                                           + "\" \"" + category + "\" \"" + index + "\"");
     std::string output;
     GetExisting(language_code, category, index, &output);
     ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, "update");
@@ -223,14 +229,17 @@ void GetExisting(const std::multimap<std::string, std::string> &cgi_args) {
 
 
 bool IsValidTranslation(const std::string &ppn, const std::string &new_translation, std::string *const error_message) {
-    std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword " + ppn + " " + new_translation);
+    std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword " + ppn + " "
+                                 + new_translation);
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(validate_command, error_message))
-        Error("failed to execute \"" + validate_command + "\" or it returned a non-zero exit code!");
+        logger->error("failed to execute \"" + validate_command + "\" or it returned a non-zero exit code!");
     return error_message->empty();
 }
 
 
-void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args) {
+void Insert(const std::multimap<std::string, std::string> &cgi_args,
+            const std::multimap<std::string, std::string> &env_args)
+{
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
@@ -255,7 +264,7 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
-        Error("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
+        logger->error("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
 }
 
 
@@ -284,7 +293,7 @@ void Update(const std::multimap<std::string, std::string> &cgi_args, const std::
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
-        Error("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
+        logger->error("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
 }
 
 
@@ -311,14 +320,14 @@ int main(int argc, char *argv[]) {
             else if (action == "update")
                 Update(cgi_args, env_args);
             else
-                Error("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
+                logger->error("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
 
             const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
             std::cout << "Status: 302 Found\r\n";
             std::cout << "Location: /cgi-bin/translate_chainer?language_code=" << language_code << "\r\n\r\n";
         } else
-            Error("we should be called w/ either 1 or 5 CGI arguments!");
+            logger->error("we should be called w/ either 1 or 5 CGI arguments!");
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

@@ -104,7 +104,7 @@ void PopulateParentIdToISBNAndISSNMap(
     }
 
     if (not err_msg.empty())
-        Error(err_msg);
+        logger->error(err_msg);
 
     if (verbose) {
         std::cerr << "Read " << count << " records.\n";
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[argc == 3 ? 1 : 2]);
     const std::string marc_output_filename(argv[argc == 3 ? 2 : 3]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        Error("Master input file name equals output file name!");
+        logger->error("Master input file name equals output file name!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
@@ -209,6 +209,6 @@ int main(int argc, char **argv) {
         AddMissingISBNsOrISSNsToArticleEntries(verbose, marc_reader.get(), marc_writer.get(),
                                                parent_id_to_isbn_and_issn_map);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

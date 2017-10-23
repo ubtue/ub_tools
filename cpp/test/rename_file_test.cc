@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -53,8 +53,9 @@ int main(int argc, char *argv[]) {
         if (FileUtil::RenameFile(old_name, new_name, remove_target))
             std::cout << "Successfully renamed \"" << old_name << "\" to \"" << new_name << "\".\n";
         else
-            std::cout << "Failed to rename \"" << old_name << "\" to \"" << new_name << "\". (" << ::strerror(errno) << ")\n";
+            std::cout << "Failed to rename \"" << old_name << "\" to \"" << new_name << "\". (" << ::strerror(errno)
+                      << ")\n";
     } catch(const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }  
 }

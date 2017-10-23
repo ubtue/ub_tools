@@ -75,8 +75,8 @@ void ReadIniFile(File * const input, std::vector<std::pair<std::string, std::str
 
         std::string lhs, rhs;
         if (unlikely(not SplitLine(line, &lhs, &rhs)))
-            Error("line with a confusing structure in \"" + input->getPath() + "\", line #" + std::to_string(line_no)
-                  + "!");
+            logger->error("line with a confusing structure in \"" + input->getPath() + "\", line #"
+                          + std::to_string(line_no) + "!");
 
         language_mapping->emplace_back(lhs, rhs);
     }
@@ -122,8 +122,8 @@ void ReadIniFileAndCollectEntries(File * const input, StringPairSet * const lhs_
 
         std::string lhs, rhs;
         if (unlikely(not SplitLine(line, &lhs, &rhs)))
-            Error("line with a confusing structure in \"" + input->getPath() + "\", line #" + std::to_string(line_no)
-                  + "!");
+            logger->error("line with a confusing structure in \"" + input->getPath() + "\", line #"
+                          + std::to_string(line_no) + "!");
 
         lhs_entries->insert(std::make_pair(lhs, rhs));
     }
@@ -195,21 +195,21 @@ int main(int argc, char **argv) {
     const std::string output_filename(argv[3]);
 
     if (reference_filename == other_language_filename)
-        Error("other language file name must differ from the reference file name!");
+        logger->error("other language file name must differ from the reference file name!");
     if (reference_filename == output_filename)
-        Error("the reference file name must differ from the output file name!");
+        logger->error("the reference file name must differ from the output file name!");
     if (other_language_filename == output_filename)
-        Error("other language file name must differ from the output file name!");
+        logger->error("other language file name must differ from the output file name!");
 
     File reference_file(reference_filename, "r");
     if (not reference_file)
-        Error("can't open \"" + reference_filename + "\" for reading!");
+        logger->error("can't open \"" + reference_filename + "\" for reading!");
     File other_language_file(other_language_filename, "r");
     if (not other_language_file)
-        Error("can't open \"" + other_language_filename + "\" for reading!");
+        logger->error("can't open \"" + other_language_filename + "\" for reading!");
     File output(output_filename, "w");
     if (not output)
-        Error("can't open \"" + output_filename + "\" for writing!");
+        logger->error("can't open \"" + output_filename + "\" for writing!");
 
     try {
         std::vector<std::pair<std::string, std::string>> reference_language_mapping;
@@ -221,6 +221,6 @@ int main(int argc, char **argv) {
         ReportMissingEntriesInTheReferenceFile(reference_language_mapping, lhs_entries);
         InsertMissingTranslations(&output, reference_language_mapping, lhs_entries);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

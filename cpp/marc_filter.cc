@@ -110,7 +110,8 @@ bool CompiledPattern::fieldMatched(const std::string &field_contents) const {
     std::string err_msg;
     const bool retval = matcher_.matched(field_contents, &err_msg);
     if (not retval and not err_msg.empty())
-        Error("Unexpected error while trying to match a field in CompiledPattern::fieldMatched(): " + err_msg);
+        logger->error("Unexpected error while trying to match a field in CompiledPattern::fieldMatched(): "
+                      + err_msg);
 
     return retval;
 }
@@ -120,7 +121,8 @@ bool CompiledPattern::subfieldMatched(const std::string &subfield_contents) cons
     std::string err_msg;
     const bool retval = matcher_.matched(subfield_contents, &err_msg);
     if (not retval and not err_msg.empty())
-        Error("Unexpected error while trying to match a subfield in CompiledPattern::subfieldMatched(): " + err_msg);
+        logger->error("Unexpected error while trying to match a subfield in CompiledPattern::subfieldMatched(): "
+                      + err_msg);
 
     return retval;
 }
@@ -272,19 +274,21 @@ private:
 
 CharSetTranslateMap::CharSetTranslateMap(const std::string &set1, const std::string &set2) {
     if (unlikely(not TextUtil::UTF8toWCharString(set1, &set1_)))
-        Error("in CharSetTranslateMap::CharSetTranslateMap: set1 \"" + set1 + "\" is not a valid UTF-8 string!");
+        logger->error("in CharSetTranslateMap::CharSetTranslateMap: set1 \"" + set1
+                      + "\" is not a valid UTF-8 string!");
     if (unlikely(not TextUtil::UTF8toWCharString(set2, &set2_)))
-        Error("in CharSetTranslateMap::CharSetTranslateMap: set2 \"" + set2 + "\" is not a valid UTF-8 string!");
+        logger->error("in CharSetTranslateMap::CharSetTranslateMap: set2 \"" + set2
+                      + "\" is not a valid UTF-8 string!");
     if (set1_.size() != set2_.size())
-        Error("in CharSetTranslateMap::CharSetTranslateMap: input sets must contain an equal number of Unicode "
-              "characters!");
+        logger->error("in CharSetTranslateMap::CharSetTranslateMap: input sets must contain an equal number of "
+                      "Unicode characters!");
 }
 
 
 bool CharSetTranslateMap::map(std::string * const s) const {
     std::wstring ws;
     if (unlikely(not TextUtil::UTF8toWCharString(*s, &ws)))
-        Error("in CharSetTranslateMap::map: input \"" + *s + "\" is not a valid UTF-8 string!");
+        logger->error("in CharSetTranslateMap::map: input \"" + *s + "\" is not a valid UTF-8 string!");
 
     bool changed(false);
     for (auto wch(ws.begin()); wch != ws.end(); ++wch) {
@@ -296,7 +300,8 @@ bool CharSetTranslateMap::map(std::string * const s) const {
     }
 
     if (unlikely(not TextUtil::WCharToUTF8String(ws, s)))
-        Error("in CharSetTranslateMap::map: TextUtil::WCharToUTF8String() failed! (This should *never* happen!)");
+        logger->error("in CharSetTranslateMap::map: TextUtil::WCharToUTF8String() failed! (This should *never* "
+                      "happen!)");
 
     return changed;
 }
@@ -317,7 +322,7 @@ public:
 bool UpperLowerTranslateMap::map(std::string * const s) const {
     std::wstring ws;
     if (unlikely(not TextUtil::UTF8toWCharString(*s, &ws)))
-        Error("in UpperLowerTranslateMap::map: input \"" + *s + "\" is not a valid UTF-8 string!");
+        logger->error("in UpperLowerTranslateMap::map: input \"" + *s + "\" is not a valid UTF-8 string!");
 
     bool changed(false);
     if (map_type_ == UPPER_TO_LOWER) {
@@ -337,7 +342,8 @@ bool UpperLowerTranslateMap::map(std::string * const s) const {
     }
 
     if (unlikely(not TextUtil::WCharToUTF8String(ws, s)))
-        Error("in UpperLowerTranslateMap::map: TextUtil::WCharToUTF8String() failed! (This should *never* happen!)");
+        logger->error("in UpperLowerTranslateMap::map: TextUtil::WCharToUTF8String() failed! (This should *never* "
+                      "happen!)");
 
     return changed;
 }
@@ -490,7 +496,7 @@ void ParseReplacementString(const std::string &replacement,
     if (not string_fragment.empty())
         string_fragments_and_back_references->emplace_back(string_fragment);
     if (backslash_seen)
-        Error("replacement string for --replace ends in a backslash!");
+        logger->error("replacement string for --replace ends in a backslash!");
 }
 
 
@@ -500,7 +506,7 @@ FilterDescriptor::FilterDescriptor(const std::vector<std::string> &subfield_spec
 {
     std::string err_msg;
     if ((regex_matcher_ = RegexMatcher::RegexMatcherFactory(regex, &err_msg)) == nullptr)
-        Error("failed to compile regex \"" + regex + "\"! (" + err_msg + ")");
+        logger->error("failed to compile regex \"" + regex + "\"! (" + err_msg + ")");
     ParseReplacementString(replacement, &string_fragments_and_back_references_);
 }
 
@@ -606,8 +612,9 @@ bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, const Rege
                             replacement += string_fragment_or_back_reference.string_fragment_;
                         else { // We're dealing w/ a back-reference.
                             if (unlikely(string_fragment_or_back_reference.back_reference_ > no_of_match_groups))
-                                Error("can't satisfy back-reference \\"
-                                      + std::to_string(string_fragment_or_back_reference.back_reference_) + "!");
+                                logger->error("can't satisfy back-reference \\"
+                                              + std::to_string(string_fragment_or_back_reference.back_reference_)
+                                              + "!");
                             replacement += matcher[string_fragment_or_back_reference.back_reference_];
                         }
                     }
@@ -720,12 +727,12 @@ std::vector<CompiledPattern *> CollectAndCompilePatterns(char ***argvp) {
     }
 
     if (specs_and_pattern.empty())
-        Error("expected at least one field or subfield specification after \"" + operation_type + "\"!");
+        logger->error("expected at least one field or subfield specification after \"" + operation_type + "\"!");
 
     std::vector<CompiledPattern *> compiled_patterns;
     std::string err_msg;
     if (not CompilePatterns(specs_and_pattern, &compiled_patterns, &err_msg))
-        Error("bad field specification and or regular expression (" + err_msg + ")!");
+        logger->error("bad field specification and or regular expression (" + err_msg + ")!");
 
     return compiled_patterns;
 }
@@ -748,12 +755,12 @@ bool ArePlausibleSubfieldSpecs(const std::vector<std::string> &subfield_specs) {
 std::string GetBiblioLevelArgument(char ***argvp) {
     ++*argvp;
     if (*argvp == nullptr)
-        Error("missing bibliographic level after --drop-biblio-level or --keep-biblio-level flag!");
+        logger->error("missing bibliographic level after --drop-biblio-level or --keep-biblio-level flag!");
     const std::string bibliographic_level_candidate(**argvp);
     ++*argvp;
 
     if (bibliographic_level_candidate.empty())
-        Error("bad empty bibliographic level!");
+        logger->error("bad empty bibliographic level!");
     return bibliographic_level_candidate;
 }
 
@@ -761,11 +768,11 @@ std::string GetBiblioLevelArgument(char ***argvp) {
 unsigned TestAndConvertCount(char ***argvp) {
     ++*argvp;
     if (*argvp == nullptr)
-        Error("missing count value after --max-count flag!");
+        logger->error("missing count value after --max-count flag!");
 
     unsigned max_count;
     if (not StringUtil::ToUnsigned(**argvp, &max_count))
-        Error("\"" + std::string(**argvp) + "\" is not a valid count argument for the --max-count flag!");
+        logger->error("\"" + std::string(**argvp) + "\" is not a valid count argument for the --max-count flag!");
     ++*argvp;
 
     return max_count;
@@ -777,7 +784,7 @@ void ExtractSubfieldSpecs(const std::string &command, char ***argvp, std::vector
     ++*argvp;
     StringUtil::Split(**argvp, ':', subfield_specs);
     if (not ArePlausibleSubfieldSpecs(*subfield_specs))
-        Error("bad subfield specifications \"" + std::string(**argvp) + "\" for " + command + "!");
+        logger->error("bad subfield specifications \"" + std::string(**argvp) + "\" for " + command + "!");
     ++*argvp;
 }
 
@@ -797,11 +804,11 @@ void LoadReplaceMapFile(const std::string &map_filename,
 
         const size_t arrow_start(line.find("->"));
         if (unlikely(arrow_start == std::string::npos))
-            Error("bad line #" + std::to_string(line_no) + ": missing \"->\"!");
+            logger->error("bad line #" + std::to_string(line_no) + ": missing \"->\"!");
         if (unlikely(arrow_start == 0))
-            Error("bad line #" + std::to_string(line_no) + ": missing regex before \"->\"!");
+            logger->error("bad line #" + std::to_string(line_no) + ": missing regex before \"->\"!");
         if (unlikely(arrow_start + 1 == line.length()))
-            Error("bad line #" + std::to_string(line_no) + ": missing replacement text after \"->\"!");
+            logger->error("bad line #" + std::to_string(line_no) + ": missing replacement text after \"->\"!");
         regexes_to_replacements_map->emplace(std::make_pair(line.substr(0, arrow_start),
                                                             line.substr(arrow_start + 2)));
     }
@@ -812,7 +819,7 @@ void ProcessReplaceCommand(char ***argvp, std::vector<FilterDescriptor> * const 
     std::vector<std::string> subfield_specs;
     ExtractSubfieldSpecs("--replace", argvp, &subfield_specs);
     if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--"))
-        Error("missing regex or map-filename arg after --replace!");
+        logger->error("missing regex or map-filename arg after --replace!");
     const std::string regex_or_map_filename(**argvp);
     ++*argvp;
     if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--")) {
@@ -851,19 +858,19 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             std::vector<std::string> subfield_specs;
             ExtractSubfieldSpecs("--translate", &argv, &subfield_specs);
             if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
-                Error("missing or bad \"set1\" argument to \"--translate\"!");
+                logger->error("missing or bad \"set1\" argument to \"--translate\"!");
             if (argv + 1 == nullptr or StringUtil::StartsWith(*(argv + 1), "--"))
-                Error("missing or bad \"set2\" argument to \"--translate\"!");
+                logger->error("missing or bad \"set2\" argument to \"--translate\"!");
             TranslateMap *translate_map;
             if (std::strcmp(*argv, "[:upper:]") == 0 or std::strcmp(*argv, "[:lower:]") == 0) {
                 if (std::strcmp(*argv, "[:upper:]") == 0) {
                     if (std::strcmp(*(argv + 1), "[:lower:]") != 0)
-                        Error("if \"[:upper:]\" was specified as set1 for --translate, \"[:lower:]\" must be "
+                        logger->error("if \"[:upper:]\" was specified as set1 for --translate, \"[:lower:]\" must be "
                               "specified as set2!");
                     translate_map = new UpperLowerTranslateMap(UpperLowerTranslateMap::UPPER_TO_LOWER);
                 } else {
                    if (std::strcmp(*(argv + 1), "[:upper:]") != 0)
-                        Error("if \"[:lower:]\" was specified as set1 for --translate, \"[:upper:]\" must be "
+                        logger->error("if \"[:lower:]\" was specified as set1 for --translate, \"[:upper:]\" must be "
                               "specified as set2!");
                     translate_map = new UpperLowerTranslateMap(UpperLowerTranslateMap::LOWER_TO_UPPER);
                  }
@@ -875,12 +882,12 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             std::vector<std::string> subfield_specs;
             ExtractSubfieldSpecs("--filter-chars", &argv, &subfield_specs);
             if (argv == nullptr or StringUtil::StartsWith(*argv, "--"))
-                Error("missing or bad \"characters_to_delete\" argument to \"--filter-chars\"!");
+                logger->error("missing or bad \"characters_to_delete\" argument to \"--filter-chars\"!");
             filters->emplace_back(FilterDescriptor::MakeFilterCharsFilter(subfield_specs, *argv++));
         } else if (std::strcmp(*argv, "--replace") == 0)
             ProcessReplaceCommand(&argv, filters);
         else
-            Error("unknown operation type \"" + std::string(*argv) + "\"!");
+            logger->error("unknown operation type \"" + std::string(*argv) + "\"!");
     }
 }
 
@@ -922,6 +929,6 @@ int main(int argc, char **argv) {
 
         Filter(filters, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

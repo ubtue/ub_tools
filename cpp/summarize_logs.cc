@@ -52,7 +52,7 @@ std::string GetLoggingLevel(const std::string &line) {
         return "WARN";
     if (StringUtil::StartsWith(line, "SEVERE"))
         return "SEVERE";
-    Error("in GetLoggingLevel: can't determine logging level for line: " + line);
+    logger->error("in GetLoggingLevel: can't determine logging level for line: " + line);
 }
 
 
@@ -84,11 +84,11 @@ void SummarizeLog(File * const log_file, File * const summary_file) {
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("((?:DEBUG|INFO|WARN|SEVERE).*$)", &err_msg));
     if (matcher == nullptr)
-        Error("in SummarizeLog: failed to compile regex: " + err_msg);
+        logger->error("in SummarizeLog: failed to compile regex: " + err_msg);
     RegexMatcher * const datetime_matcher(RegexMatcher::RegexMatcherFactory(
         "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{]2}", &err_msg));
     if (matcher == nullptr)
-        Error("in SummarizeLog: failed to compile datetime regex: " + err_msg);
+        logger->error("in SummarizeLog: failed to compile datetime regex: " + err_msg);
 
     std::unordered_map<std::string, unsigned> lines_and_frequencies;
     std::string max_datetime("0000-00-00 00:00:00"), min_datetime("9999-99-99 99:99:99");
@@ -98,7 +98,7 @@ void SummarizeLog(File * const log_file, File * const summary_file) {
             continue;
 
         if (not matcher->matched(line)) {
-            Warning("in SummarizeLog: failed to match line: " + line);
+            logger->warning("in SummarizeLog: failed to match line: " + line);
             continue;
         }
 
@@ -146,6 +146,6 @@ int main(int argc, char **argv) {
     try {
         SummarizeLog(log_file.get(), summary_file.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

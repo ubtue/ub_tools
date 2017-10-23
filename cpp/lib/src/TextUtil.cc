@@ -145,7 +145,7 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
     if (unlikely(iconv_handle == (iconv_t)-1)) {
         iconv_handle = ::iconv_open("UTF-8","WCHAR_T");
         if (unlikely(iconv_handle == (iconv_t)-1))
-            Error("in TextUtil::WCharToUTF8String: iconv_open(3) failed!");
+            logger->error("in TextUtil::WCharToUTF8String: iconv_open(3) failed!");
     }
 
     const size_t INBYTE_COUNT(wchar_string.length() * sizeof(wchar_t));
@@ -161,7 +161,7 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
     const ssize_t converted_count(static_cast<ssize_t>(::iconv(iconv_handle, &in_bytes, &inbytes_left, &out_bytes,
                                                                &outbytes_left)));
     if (unlikely(converted_count == -1))
-        Error("in TextUtil::WCharToUTF8String: iconv(3) failed!");
+        logger->error("in TextUtil::WCharToUTF8String: iconv(3) failed!");
 
     utf8_string->assign(out_bytes_start, OUTBYTE_COUNT - outbytes_left);
     delete [] in_bytes_start;

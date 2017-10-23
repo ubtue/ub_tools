@@ -53,7 +53,7 @@ void GetMainAndAdditionalTranslations(const std::string &translation, std::strin
     else {
         const size_t first_gt_pos(translation.find('>'));
         if (unlikely(first_gt_pos == std::string::npos or first_gt_pos <= first_lt_pos + 1))
-            Warning("malformed translation: \"" + translation + "\"!");
+            logger->warning("malformed translation: \"" + translation + "\"!");
         else {
             *main_translation = StringUtil::RightTrim(translation.substr(0, first_lt_pos));
             *additional_translation = translation.substr(first_lt_pos + 1, first_gt_pos - first_lt_pos - 1);
@@ -117,6 +117,6 @@ int main(int argc, char *argv[]) {
 
         GenerateAuthortyRecords(&db_connection, marc_writer.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
