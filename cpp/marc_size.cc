@@ -1,7 +1,7 @@
 /** \brief Utility for displaying the count of MARC records contained in a collection.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -53,6 +53,6 @@ int main(int argc, char *argv[]) {
     try {
         CountRecords(marc_reader.get());
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

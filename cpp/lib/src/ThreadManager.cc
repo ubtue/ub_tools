@@ -7,7 +7,7 @@ ThreadManager::ThreadManager(const unsigned no_of_threads, void *ThreadFunc(void
 {
     for (unsigned thread_no(0); thread_no < no_of_threads; ++thread_no) {
         if (::pthread_create(&thread_ids_[thread_no], nullptr, ThreadFunc, thread_data) != 0)
-            Error("thread creation of thread #" + std::to_string(thread_no) + " failed!");
+            logger->error("thread creation of thread #" + std::to_string(thread_no) + " failed!");
     }
 }
 
@@ -15,6 +15,6 @@ ThreadManager::ThreadManager(const unsigned no_of_threads, void *ThreadFunc(void
 ThreadManager::~ThreadManager() {
     for (const auto thread_id : thread_ids_) {
         if (::pthread_cancel(thread_id) != 0)
-            Error("failed to cancel thread with ID " + std::to_string(thread_id) + "!");
+            logger->error("failed to cancel thread with ID " + std::to_string(thread_id) + "!");
     }
 }

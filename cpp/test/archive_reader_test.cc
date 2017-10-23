@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
                 while ((count = reader.read(buffer, sizeof buffer)) > 0)
                     total_count += count;
                 if (count == -1)
-                    Error("ArchiveReader::read() returned an error! (" + reader.getLastErrorMessage() + ")");
+                    logger->error("ArchiveReader::read() returned an error! (" + reader.getLastErrorMessage() + ")");
                 std::cout << "  regular file (" << total_count << " bytes)\n";
             } else if (file_info.isDirectory())
                 std::cout << "  directory\n";
@@ -35,6 +35,6 @@ int main(int argc, char *argv[]) {
                 std::cout << "  neither a regular file nor a directory\n";
         }
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

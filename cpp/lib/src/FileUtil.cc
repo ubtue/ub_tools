@@ -28,6 +28,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
+#ifdef HAS_SELINUX_HEADERS
+#   include <selinux/selinux.h>
+#endif
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -54,40 +57,56 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix) {
 }
 
 
-Directory::Entry::Entry(const struct dirent &entry, const std::string * const dirname)
-    : dirname_(dirname)
+Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
+    : dirname_(dirname), name_(entry.d_name), inode_(entry.d_ino), type_(entry.d_type)
 {
-    std::memcpy(reinterpret_cast<void *>(&entry_), reinterpret_cast<const void *>(&entry), sizeof(struct dirent));
+}
+
+
+std::string GetSELinuxContext(const std::string &path) {
+#ifndef HAS_SELINUX_HEADERS
+    (void)path;
+    return "";
+#else
+    char *file_context;
+    if (::getfilecon(path.c_str(), &file_context) == -1) {
+        if (errno == ENODATA or enodata== ENOTSUP)
+            return "";
+        throw std::runtime_error("in GetSELinuxContext: failed to get file context for \"" + path + "\"!");
+    }
+    if (file_context == nullptr)
+        return "";
+    
+    ::freecon(file_context);
+#endif
 }
 
 
 Directory::Entry::Entry(const Directory::Entry &other)
-    : dirname_(other.dirname_)
+    : dirname_(other.dirname_), name_(other.name_), inode_(other.inode_), type_(other.type_)
 {
-    if (&other != this)
-        std::memcpy(reinterpret_cast<void *>(&entry_), reinterpret_cast<const void *>(&other.entry_),
-                    sizeof(struct dirent));
 }
 
 
 unsigned char Directory::Entry::getType() const {
-    if (entry_.d_type != DT_UNKNOWN)
-        return entry_.d_type;
+    if (type_ != DT_UNKNOWN)
+        return type_;
 
     // Not all filesystems return the type in the d_type field.  In those cases DT_UNKNOWN will be returned and we
     // therefore need to fall back to using the stat(2) system call.
     struct stat statbuf;
     errno = 0;
-    if (::stat((*dirname_ + "/" +  std::string(entry_.d_name)).c_str(), &statbuf) == -1)
-        throw std::runtime_error("in FileUtil::Directory::Entry::getType: stat(2) on \"" + (*dirname_ + "/" + std::string(entry_.d_name))
-                                 + " \"failed! (" + std::string(std::strerror(errno)) + ")");
+    if (::stat((dirname_ + "/" +  name_).c_str(), &statbuf) == -1)
+        throw std::runtime_error("in FileUtil::Directory::Entry::getType: stat(2) on \""
+                                 + dirname_ + "/" + name_ + " \"failed! ("
+                                 + std::string(std::strerror(errno)) + ")");
 
     return IFTODT(statbuf.st_mode); // Convert from st_mode to d_type.
 }
 
 
 Directory::const_iterator::const_iterator(const std::string &path, const std::string &regex, const bool end)
-    : path_(path), regex_matcher_(nullptr), last_entry_(nullptr)
+    : path_(path), regex_matcher_(nullptr), entry_(path_)
 {
     if (end)
         dir_handle_ = nullptr;
@@ -119,9 +138,8 @@ void Directory::const_iterator::advance() {
     errno = 0;
     while (true) {
         struct dirent *entry_ptr;
-        int retcode;
-        if ((retcode = ::readdir_r(dir_handle_, &entry_, &entry_ptr)) != 0)
-            throw std::runtime_error("in Directory::const_iterator::advance: readdir_r(3) failed!");
+        if (unlikely((entry_ptr = ::readdir(dir_handle_)) == nullptr and errno != 0))
+            throw std::runtime_error("in Directory::const_iterator::advance: readdir(3) failed!");
 
         // Reached end-of-directory?
         if (entry_ptr == nullptr) { // Yes!
@@ -130,8 +148,12 @@ void Directory::const_iterator::advance() {
             return;
         }
 
-        if (regex_matcher_->matched(entry_.d_name))
+        if (regex_matcher_->matched(entry_.name_)) {
+            entry_.name_  = std::string(entry_ptr->d_name);
+            entry_.inode_ = entry_ptr->d_ino;
+            entry_.type_  = entry_ptr->d_type;
             return;
+        }
     }
 }
 
@@ -140,7 +162,7 @@ Directory::Entry Directory::const_iterator::operator*() {
     if (dir_handle_ == nullptr)
         throw std::runtime_error("in Directory::const_iterator::operator*: can't dereference an iterator pointing"
                                  " to the end!");
-    return Directory::Entry(entry_, &path_);
+    return entry_;
 }
 
 
@@ -156,14 +178,14 @@ bool Directory::const_iterator::operator==(const const_iterator &rhs) {
         or (rhs.dir_handle_ != nullptr and dir_handle_ == nullptr))
         return false;
 
-    return std::strcmp(rhs.entry_.d_name, entry_.d_name) == 0;
+    return rhs.entry_.name_ == entry_.name_;
 }
 
 
 off_t GetFileSize(const std::string &path) {
     struct stat stat_buf;
     if (::stat(path.c_str(), &stat_buf) == -1)
-        Error("in FileUtil::GetFileSize: can't stat(2) \"" + path + "\"!");
+        logger->error("in FileUtil::GetFileSize: can't stat(2) \"" + path + "\"!");
 
     return stat_buf.st_size;
 }
@@ -787,7 +809,7 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "r"));
     if (file->fail())
-        Error("can't open \"" + filename + "\" for reading!");
+        logger->error("can't open \"" + filename + "\" for reading!");
 
     return file;
 }
@@ -796,7 +818,7 @@ std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
 std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "w"));
     if (file->fail())
-        Error("can't open \"" + filename + "\" for writing!");
+        logger->error("can't open \"" + filename + "\" for writing!");
 
     return file;
 }
@@ -805,7 +827,7 @@ std::unique_ptr<File> OpenOutputFileOrDie(const std::string &filename) {
 std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "a"));
     if (file->fail())
-        Error("can't open \"" + filename + "\" for appending!");
+        logger->error("can't open \"" + filename + "\" for appending!");
 
     return file;
 }
@@ -824,13 +846,11 @@ bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
 void CopyOrDie(const std::string &from_path, const std::string &to_path) {
     const int from_fd(::open(from_path.c_str(), O_RDONLY));
     if (unlikely(from_fd == -1))
-        Error("in FileUtil::CopyOrDie: failed to open \"" + from_path  + "\" for reading! ("
-              + std::string(::strerror(errno)) + ")");
+        logger->error("in FileUtil::CopyOrDie: failed to open \"" + from_path  + "\" for reading!");
 
     const int to_fd(::open(to_path.c_str(), O_WRONLY));
     if (unlikely(to_fd == -1))
-        Error("in FileUtil::CopyOrDie: failed to open \"" + to_path  + "\" for writing! ("
-              + std::string(::strerror(errno)) + ")");
+        logger->error("in FileUtil::CopyOrDie: failed to open \"" + to_path  + "\" for writing!");
 
     char buf[BUFSIZ];
     for (;;) {
@@ -839,10 +859,10 @@ void CopyOrDie(const std::string &from_path, const std::string &to_path) {
             break;
 
         if (unlikely(no_of_bytes < 0))
-            Error("in FileUtil::CopyOrDie: read(2) failed! (" + std::string(::strerror(errno)) + ")");
+            logger->error("in FileUtil::CopyOrDie: read(2) failed!");
 
         if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes))
-            Error("in FileUtil::CopyOrDie: write(2) failed! (" + std::string(::strerror(errno)) + ")");
+            logger->error("in FileUtil::CopyOrDie: write(2) failed!");
     }
 
     ::close(from_fd);
@@ -939,7 +959,7 @@ bool FilesDiffer(const std::string &path1, const std::string &path2) {
 void AppendStringToFile(const std::string &path, const std::string &text) {
     std::unique_ptr<File> file(OpenForAppendingOrDie(path));
     if (unlikely(file->write(text.data(), text.size()) != text.size()))
-        Error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
+        logger->error("in FileUtil::AppendStringToFile: failed to append data to \"" + path + "\"!");
 }
 
 
@@ -957,26 +977,26 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
                    const mode_t target_mode)
 {
     if (filenames.empty())
-        Error("in FileUtil::ConcatFiles: no files to concatenate!");
+        logger->error("in FileUtil::ConcatFiles: no files to concatenate!");
 
     FileDescriptor target_fd(::open(target_path.c_str(), O_WRONLY | O_CREAT | O_LARGEFILE | O_TRUNC, target_mode));
     if (target_fd == -1)
-        Error("in FileUtil::ConcatFiles: failed to open or create \"" + target_path + "\"!");
+        logger->error("in FileUtil::ConcatFiles: failed to open or create \"" + target_path + "\"!");
 
     size_t total_size(0);
     for (const auto &filename : filenames) {
         FileDescriptor source_fd(::open(filename.c_str(), O_RDONLY | O_LARGEFILE));
         if (source_fd == -1)
-            Error("in FileUtil::ConcatFiles: failed to open \"" + filename + "\" for reading!");
+            logger->error("in FileUtil::ConcatFiles: failed to open \"" + filename + "\" for reading!");
 
         struct stat statbuf;
         if (::fstat(source_fd, &statbuf) == -1)
-            Error("in FileUtil::ConcatFiles: failed to fstat(2) \"" + filename + "\"! ("
+            logger->error("in FileUtil::ConcatFiles: failed to fstat(2) \"" + filename + "\"! ("
                   + std::string(::strerror(errno)) + ")");
         const ssize_t count(::sendfile(target_fd, source_fd, nullptr, statbuf.st_size));
         if (count == -1)
-            Error("in FileUtil::ConcatFiles: failed to append \"" + filename + "\" to \"" + target_path
-                  + "\"! (" + std::string(::strerror(errno)) + ")");
+            logger->error("in FileUtil::ConcatFiles: failed to append \"" + filename + "\" to \"" + target_path
+                          + "\"!");
         total_size += static_cast<size_t>(count);
     }
 
@@ -987,13 +1007,11 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
 bool IsMountPoint(const std::string &path) {
     struct stat statbuf;
     if (::stat(path.c_str(), &statbuf) == -1)
-        Error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "\" failed! (" + std::string(::strerror(errno))
-              + ")");
+        logger->error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "\" failed!");
 
     struct stat parent_statbuf;
     if (::stat((path + "/..").c_str(), &parent_statbuf) == -1)
-        Error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "/..\" failed! (" + std::string(::strerror(errno))
-              + ")");
+        logger->error("in FileUtil::IsMountPoint: stat(2) on \"" + path + "/..\" failed!");
 
     return statbuf.st_dev != parent_statbuf.st_dev;
 }

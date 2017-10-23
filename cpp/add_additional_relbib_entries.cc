@@ -6,7 +6,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -53,7 +53,8 @@ void Usage() {
 void ProcessRecord(MarcRecord * const record, const std::unordered_set<std::string> * relbib_relevant_set) {
      if (relbib_relevant_set->find(record->getControlNumber()) != relbib_relevant_set->end()) {
          if (record->getFieldIndex(RELBIB_RELEVANT_TAG) != MarcRecord::FIELD_NOT_FOUND)
-             Error("Field " + RELBIB_RELEVANT_TAG + " already populated for PPN " + record->getControlNumber());
+             logger->error("Field " + RELBIB_RELEVANT_TAG + " already populated for PPN "
+                           + record->getControlNumber());
          record->insertSubfield(RELBIB_RELEVANT_TAG, RELBIB_SUBFIELD, "1");
          ++modified_count;
      }
@@ -79,7 +80,7 @@ void SetupRelBibRelevantSet(std::unordered_set<std::string> * const relbib_relev
     while ((retval = relbib_relevant->getline(&line, '\n'))) {
         if (not retval) {
             if (unlikely(relbib_relevant->anErrorOccurred()))
-                Error("Error on reading in relbib relevant file " + relbib_relevant->getPath());
+                logger->error("Error on reading in relbib relevant file " + relbib_relevant->getPath());
             if (unlikely(relbib_relevant->eof()))
                 return;                             
             continue;
@@ -98,7 +99,7 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        Error("Title data input file name equals output file name!");
+        logger->error("Title data input file name equals output file name!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
@@ -108,6 +109,6 @@ int main(int argc, char **argv) {
         SetupRelBibRelevantSet(&relbib_relevant_set);
         TagRelevantRecords(marc_reader.get(), marc_writer.get(), &relbib_relevant_set);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

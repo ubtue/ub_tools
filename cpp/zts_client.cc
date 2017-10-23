@@ -98,8 +98,8 @@ void LoadMapFile(const std::string &filename, std::unordered_map<std::string, st
         StringUtil::Trim(&line);
         std::string key, value;
         if (not ParseLine(line, &key, &value))
-            Error("in LoadMapFile: invalid input on line \"" + std::to_string(line_no) + "\" in \""
-                  + input->getPath() + "\"!");
+            logger->error("in LoadMapFile: invalid input on line \"" + std::to_string(line_no) + "\" in \""
+                          + input->getPath() + "\"!");
         from_to_map->emplace(key, value);
     }
 }
@@ -122,7 +122,7 @@ RegexMatcher *LoadSupportedURLsRegex(const std::string &map_directory_path) {
     std::string err_msg;
     RegexMatcher * const supported_urls_regex(RegexMatcher::RegexMatcherFactory(combined_regex, &err_msg));
     if (supported_urls_regex == nullptr)
-        Error("in LoadSupportedURLsRegex: compilation of the combined regex failed: " + err_msg);
+        logger->error("in LoadSupportedURLsRegex: compilation of the combined regex failed: " + err_msg);
 
     return supported_urls_regex;
 }
@@ -149,9 +149,9 @@ int TcpConnectOrDie(const std::string &server_address, const unsigned short serv
    const int socket_fd(SocketUtil::TcpConnect(server_address, server_port, time_limit, &tcp_connect_error_message,
                                               SocketUtil::DISABLE_NAGLE));
    if (socket_fd == -1)
-       Error("in TcpConnectOrDie: Could not open TCP connection to " + server_address + ", port "
-             + std::to_string(server_port) + ": " + tcp_connect_error_message + " (Time remaining: "
-             + std::to_string(time_limit.getRemainingTime()) + ").");
+       logger->error("in TcpConnectOrDie: Could not open TCP connection to " + server_address + ", port "
+                     + std::to_string(server_port) + ": " + tcp_connect_error_message + " (Time remaining: "
+                     + std::to_string(time_limit.getRemainingTime()) + ").");
 
    return socket_fd;
 }
@@ -264,7 +264,7 @@ inline bool Download(const Url &url, const TimeLimit &time_limit, const std::str
 
 inline std::string GetValueFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node) {
     if (key_and_node.second->getType() != JSON::JSONNode::STRING_NODE)
-        Error("in GetValueFromStringNode: expected \"" + key_and_node.first + "\" to have a string node!");
+        logger->error("in GetValueFromStringNode: expected \"" + key_and_node.first + "\" to have a string node!");
     const JSON::StringNode * const node(reinterpret_cast<const JSON::StringNode * const>(key_and_node.second));
     return node->getValue();
 }
@@ -276,7 +276,7 @@ inline std::string CreateSubfieldFromStringNode(const std::string &key, const JS
                                                 const char indicator2 = ' ')
 {
     if (node->getType() != JSON::JSONNode::STRING_NODE)
-        Error("in CreateSubfieldFromStringNode: \"" + key + "\" is not a string node!");
+        logger->error("in CreateSubfieldFromStringNode: \"" + key + "\" is not a string node!");
     const std::string value(reinterpret_cast<const JSON::StringNode * const>(node)->getValue());
     marc_record->insertSubfield(tag, subfield_code, value, indicator1, indicator2);
     return value;
@@ -300,7 +300,7 @@ inline std::string GetOptionalStringValue(const JSON::ObjectNode &object, const 
         return "";
 
     if (value_node->getType() != JSON::JSONNode::STRING_NODE)
-        Error("in GetOptionalStringValue: expected \"" + key + "\" to have a string node!");
+        logger->error("in GetOptionalStringValue: expected \"" + key + "\" to have a string node!");
     const JSON::StringNode * const string_node(reinterpret_cast<const JSON::StringNode * const>(value_node));
     return string_node->getValue();
 }
@@ -308,7 +308,7 @@ inline std::string GetOptionalStringValue(const JSON::ObjectNode &object, const 
 
 const JSON::StringNode *CastToStringNodeOrDie(const std::string &node_name, const JSON::JSONNode *  const node) {
     if (unlikely(node->getType() != JSON::JSONNode::STRING_NODE))
-        Error("in CastToStringNodeOrDie: expected \"" + node_name + "\" to be a string node!");
+        logger->error("in CastToStringNodeOrDie: expected \"" + node_name + "\" to be a string node!");
     return reinterpret_cast<const JSON::StringNode * const>(node);
 }
 
@@ -325,7 +325,7 @@ std::string DownloadAuthorPPN(const std::string &author) {
                                  "[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9]?");
     Downloader downloader(lookup_url);
     if (downloader.anErrorOccurred())
-        Warning("in DownloadAuthorPPN: " + downloader.getLastErrorMessage());
+        logger->warning("in DownloadAuthorPPN: " + downloader.getLastErrorMessage());
     else if (matcher->matched(downloader.getMessageBody()))
         return (*matcher)[1];
     return "";
@@ -334,17 +334,17 @@ std::string DownloadAuthorPPN(const std::string &author) {
 
 void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MarcRecord * const marc_record) {
     if (creators_node->getType() != JSON::JSONNode::ARRAY_NODE)
-        Error("in CreateCreatorFields: expected \"creators\" to have a array node!");
+        logger->error("in CreateCreatorFields: expected \"creators\" to have a array node!");
     const JSON::ArrayNode * const array(reinterpret_cast<const JSON::ArrayNode * const>(creators_node));
     for (auto creator_node(array->cbegin()); creator_node != array->cend(); ++creator_node) {
         if ((*creator_node)->getType() != JSON::JSONNode::OBJECT_NODE)
-            Error("in CreateCreatorFields: expected creator node to be an object node!");
+            logger->error("in CreateCreatorFields: expected creator node to be an object node!");
         const JSON::ObjectNode * const creator_object(
             reinterpret_cast<const JSON::ObjectNode * const>(*creator_node));
 
         const JSON::JSONNode * const last_name_node(creator_object->getValue("lastName"));
         if (last_name_node == nullptr)
-            Error("in CreateCreatorFields: creator is missing a last name!");
+            logger->error("in CreateCreatorFields: creator is missing a last name!");
         const JSON::StringNode * const last_name(CastToStringNodeOrDie("lastName", last_name_node));
         std::string name(last_name->getValue());
 
@@ -404,12 +404,12 @@ Date StringToDate(const std::string &date_str) {
     if (unix_time != TimeUtil::BAD_TIME_T) {
         tm *tm(::gmtime(&unix_time));
         if (unlikely(tm == nullptr))
-            Error("in StringToDate: gmtime(3) failed to convert a time_t! (" + date_str + ")");
+            logger->error("in StringToDate: gmtime(3) failed to convert a time_t! (" + date_str + ")");
         date.day_   = tm->tm_mday;
         date.month_ = tm->tm_mon;
         date.year_  = tm->tm_year;
     } else
-        Warning("don't know how to convert \"" + date_str + "\" to a Date instance!");
+        logger->warning("don't know how to convert \"" + date_str + "\" to a Date instance!");
 
     return date;
 }
@@ -447,7 +447,7 @@ void ExtractKeywords(const JSON::JSONNode &tags_node, const std::string &issn,
                      MarcRecord * const new_record)
 {
     if (unlikely(tags_node.getType() != JSON::JSONNode::ARRAY_NODE))
-        Error("in ExtractKeywords: expected the tags node to be an array node!");
+        logger->error("in ExtractKeywords: expected the tags node to be an array node!");
     const JSON::ArrayNode &tags(reinterpret_cast<const JSON::ArrayNode &>(tags_node));
 
     // Where to stuff the data:
@@ -457,7 +457,7 @@ void ExtractKeywords(const JSON::JSONNode &tags_node, const std::string &issn,
         const auto issn_and_field_tag_and_subfield_code(ISSN_to_keyword_field_map.find(issn));
         if (issn_and_field_tag_and_subfield_code != ISSN_to_keyword_field_map.end()) {
             if (unlikely(issn_and_field_tag_and_subfield_code->second.length() != 3 + 1))
-                Error("in ExtractKeywords: \"" + issn_and_field_tag_and_subfield_code->second
+                logger->error("in ExtractKeywords: \"" + issn_and_field_tag_and_subfield_code->second
                       + "\" is not a valid MARC tag + subfield code! (Error in \"ISSN_to_keyword_field.map\"!)");
             marc_field    = issn_and_field_tag_and_subfield_code->second.substr(0, 3);
             marc_subfield =  issn_and_field_tag_and_subfield_code->second[3];
@@ -466,15 +466,15 @@ void ExtractKeywords(const JSON::JSONNode &tags_node, const std::string &issn,
 
     for (auto tag(tags.cbegin()); tag != tags.cend(); ++tag) {
         if ((*tag)->getType() != JSON::JSONNode::OBJECT_NODE)
-            Error("in ExtractKeywords: expected tag node to be an object node but found a(n) "
+            logger->error("in ExtractKeywords: expected tag node to be an object node but found a(n) "
                   + JSON::JSONNode::TypeToString((*tag)->getType()) + " node instead!");
         const JSON::ObjectNode * const tag_object(
                                                   reinterpret_cast<const JSON::ObjectNode * const>(*tag));
         const JSON::JSONNode * const tag_node(tag_object->getValue("tag"));
         if (tag_node == nullptr)
-            Warning("in ExtractKeywords: unexpected: tag object does not contain a \"tag\" entry!");
+            logger->warning("in ExtractKeywords: unexpected: tag object does not contain a \"tag\" entry!");
         else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
-            Error("in ExtractKeywords: unexpected: tag object's \"tag\" entry is not a string node!");
+            logger->error("in ExtractKeywords: unexpected: tag object's \"tag\" entry is not a string node!");
         else
             CreateSubfieldFromStringNode("tag", tag_node, marc_field, marc_subfield, new_record);
     }
@@ -496,7 +496,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
-        Error("in GenerateMARC: expected top-level JSON to be an array!");
+        logger->error("in GenerateMARC: expected top-level JSON to be an array!");
     const JSON::ArrayNode * const top_level_array(reinterpret_cast<const JSON::ArrayNode * const>(tree));
 
     static RegexMatcher * const ignore_fields(RegexMatcher::RegexMatcherFactory(
@@ -507,7 +507,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
         bool is_journal_article(false);
         std::string publication_title, parent_ppn, parent_isdn, issn;
         if ((*entry)->getType() != JSON::JSONNode::OBJECT_NODE)
-            Error("in GenerateMARC: expected an object node!");
+            logger->error("in GenerateMARC: expected an object node!");
         const JSON::ObjectNode * const object_node(reinterpret_cast<const JSON::ObjectNode * const>(*entry));
         for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
             if (ignore_fields->matched(key_and_node->first))
@@ -530,7 +530,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 CreateSubfieldFromStringNode(*key_and_node, "362", 'a', &new_record, /* indicator1 = */ '0');
             else if (key_and_node->first == "DOI") {
                 if (unlikely(key_and_node->second->getType() != JSON::JSONNode::STRING_NODE))
-                    Error("in GenerateMARC: expected DOI node to be a string node!");
+                    logger->error("in GenerateMARC: expected DOI node to be a string node!");
                 new_record.insertSubfield(
                     "856", 'u', "urn:doi:" + reinterpret_cast<JSON::StringNode *>(key_and_node->second)->getValue());
             } else if (key_and_node->first == "shortTitle")
@@ -542,7 +542,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 const std::string issn_candidate(
                     CreateSubfieldFromStringNode(*key_and_node, "022", 'a', &new_record));
                 if (unlikely(not MiscUtil::NormaliseISSN(issn_candidate, &issn)))
-                    Error("in GenerateMARC: \"" + issn_candidate + "\" is not a valid ISSN!");
+                    logger->error("in GenerateMARC: \"" + issn_candidate + "\" is not a valid ISSN!");
 
                 const auto ISSN_and_physical_form(ISSN_to_physical_form_map.find(issn));
                 if (ISSN_and_physical_form != ISSN_to_physical_form_map.cend()) {
@@ -551,7 +551,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
                     else if (ISSN_and_physical_form->second == "O")
                         new_record.insertField("007", "cr uuu---uuuuu");
                     else
-                        Error("in GenerateMARC: unhandled entry in physical form map: \""
+                        logger->error("in GenerateMARC: unhandled entry in physical form map: \""
                               + ISSN_and_physical_form->second + "\"!");
                 }
 
@@ -571,11 +571,11 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 } else if (item_type == "magazineArticle")
                     ExtractVolumeYearIssueAndPages(*object_node, &new_record);
                 else
-                    Warning("in GenerateMARC: unknown item type: \"" + item_type + "\"!");
+                    logger->warning("in GenerateMARC: unknown item type: \"" + item_type + "\"!");
             } else
-                Warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
-                        + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "! ("
-                        + key_and_node->second->toString() + ")");
+                logger->warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
+                                + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "! ("
+                                + key_and_node->second->toString() + ")");
         }
 
         // Handle keywords:
@@ -618,8 +618,9 @@ std::pair<unsigned, unsigned> GenerateMARC(
             const auto ISSN_and_license_code(ISSN_to_licence_map.find(issn));
             if (ISSN_and_license_code != ISSN_to_licence_map.end()) {
                 if (ISSN_and_license_code->second != "l")
-                    Warning("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
-                            + ISSN_and_license_code->second + "\" instead and we don't know what to do with it!");
+                    logger->warning("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
+                                    + ISSN_and_license_code->second
+                                    + "\" instead and we don't know what to do with it!");
                 else {
                     const size_t _856_index(new_record.getFieldIndex("856"));
                     if (_856_index != MarcRecord::FIELD_NOT_FOUND)
@@ -671,7 +672,7 @@ std::pair<unsigned, unsigned> Harvest(
     try {
         JSON::Parser json_parser(json_document);
         if (not (json_parser.parse(&tree_root)))
-            Error("failed to parse returned JSON: " + json_parser.getErrorMessage());
+            logger->error("failed to parse returned JSON: " + json_parser.getErrorMessage());
 
         record_count_and_previously_downloaded_count =
             GenerateMARC(tree_root, ISSN_to_physical_form_map, ISSN_to_language_code_map, ISSN_to_superior_ppn_map,
@@ -715,9 +716,9 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
 
     std::string stdout_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &stdout_output))
-        Error("in LoadHarvestURLs: failed to execute \"" + COMMAND + "\"!");
+        logger->error("in LoadHarvestURLs: failed to execute \"" + COMMAND + "\"!");
     if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0)
-        Error("in LoadHarvestURLs: no harvest URL's were read after executing \"" + COMMAND + "\"!");
+        logger->error("in LoadHarvestURLs: no harvest URL's were read after executing \"" + COMMAND + "\"!");
     std::cerr << "Loaded " << harvest_urls->size() << " harvest URL's.\n";
 }
 
@@ -815,7 +816,7 @@ int main(int argc, char *argv[]) {
                 ++i;
                 if (unlikely(not progress_file->write(
                         StringUtil::Format("%06f", static_cast<double>(i) / harvest_urls.size()))))
-                    Error("failed to write progress to \"" + progress_file->getPath());
+                    logger->error("failed to write progress to \"" + progress_file->getPath());
             }
         }
 
@@ -826,6 +827,6 @@ int main(int argc, char *argv[]) {
             FileUtil::OpenOutputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
         StorePreviouslyDownloadedHashes(previously_downloaded_output.get(), previously_downloaded);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

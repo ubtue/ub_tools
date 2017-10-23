@@ -2,7 +2,7 @@
  *  \brief A tool for reading/editing of the "translations" SQL table.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016,2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -224,18 +224,18 @@ int main(int argc, char *argv[]) {
 
         if (std::strcmp(argv[1], "get_missing") == 0) {
             if (argc != 3)
-                Error("\"get_missing\" requires exactly one argument: language_code!");
+                logger->error("\"get_missing\" requires exactly one argument: language_code!");
             const std::string language_code(argv[2]);
             if (not TranslationUtil::IsValidFake3LetterEnglishLanguagesCode(language_code))
-                Error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
+                logger->error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
             if (not GetMissingVuFindTranslations(&db_connection, language_code))
                 GetMissingKeywordTranslations(&db_connection, language_code);
         } else if (std::strcmp(argv[1], "get_existing") == 0) {
             if (argc != 5)
-                Error("\"get_existing\" requires exactly three arguments: language_code category index!");
+                logger->error("\"get_existing\" requires exactly three arguments: language_code category index!");
             const std::string language_code(argv[2]);
             if (not TranslationUtil::IsValidFake3LetterEnglishLanguagesCode(language_code))
-                Error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
+                logger->error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
             const std::string category(argv[3]);
             const std::string index_value(argv[4]);
             if (category == "vufind_translations")
@@ -244,12 +244,12 @@ int main(int argc, char *argv[]) {
                 GetExistingKeywordTranslations(&db_connection, language_code, index_value);
         } else if (std::strcmp(argv[1], "insert") == 0) {
             if (argc != 6 and argc != 7)
-                Error("\"insert\" requires four or five arguments: token or ppn, gnd_code (if ppn), "
+                logger->error("\"insert\" requires four or five arguments: token or ppn, gnd_code (if ppn), "
                               "language_code, text, and translator!");
 
             const std::string language_code(argv[(argc == 6) ? 3 : 4]);
             if (not TranslationUtil::IsValidFake3LetterEnglishLanguagesCode(language_code))
-                Error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
+                logger->error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
 
             if (argc == 6)
                 InsertIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4], argv[5]);
@@ -257,12 +257,12 @@ int main(int argc, char *argv[]) {
                 InsertIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5], argv[6]);
         } else if (std::strcmp(argv[1], "update") == 0) {
             if (argc != 6 and argc != 7)
-                Error("\"update\" requires four or five arguments: token or ppn, gnd_code (if ppn), "
+                logger->error("\"update\" requires four or five arguments: token or ppn, gnd_code (if ppn), "
                       "language_code, text and translator!");
 
             const std::string language_code(argv[(argc == 6) ? 3 : 4]);
             if (not TranslationUtil::IsValidFake3LetterEnglishLanguagesCode(language_code))
-                Error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
+                logger->error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
 
             if (argc == 6)
                 UpdateIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4], argv[5]);
@@ -270,13 +270,13 @@ int main(int argc, char *argv[]) {
                 UpdateIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5], argv[6]);
         } else if (std::strcmp(argv[1], "validate_keyword") == 0) {
             if (argc != 4)
-                Error("\"get_missing\" requires exactly two argument: ppn translation!");
+                logger->error("\"get_missing\" requires exactly two argument: ppn translation!");
             const std::string ppn(argv[2]);
             const std::string translation(argv[3]);
             ValidateKeywordTranslation(&db_connection, ppn, translation);
         } else
-            Error("unknown command \"" + std::string(argv[1]) + "\"!");
+            logger->error("unknown command \"" + std::string(argv[1]) + "\"!");
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()) + " (login is " + MiscUtil::GetUserName() + ")");
+        logger->error("caught exception: " + std::string(x.what()) + " (login is " + MiscUtil::GetUserName() + ")");
     }
 }

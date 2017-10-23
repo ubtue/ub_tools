@@ -131,7 +131,7 @@ Record::Record(const size_t record_size, char * const record_start)
     const char *directory_entry(record_start + LEADER_LENGTH);
     while (directory_entry != base_address_of_data - 1) {
         if (unlikely(directory_entry > base_address_of_data))
-            Error("in Record::Record: directory_entry > base_address_of_data!");
+            logger->error("in Record::Record: directory_entry > base_address_of_data!");
         std::string tag;
         tag += directory_entry[0];
         tag += directory_entry[1];
@@ -202,13 +202,13 @@ Record Reader::read() {
         return Record();
 
     if (unlikely(bytes_read != Record::RECORD_LENGTH_FIELD_LENGTH))
-        Error("in Reader::read: failed to read record length!");
+        logger->error("in Reader::read: failed to read record length!");
     const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
 
     bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH,
                               record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
     if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
-        Error("Reader::read: failed to read a record!");
+        logger->error("Reader::read: failed to read a record!");
 
     return Record(record_length, buf);
 }
@@ -272,6 +272,6 @@ int main(int argc, char *argv[]) {
                   << " record(s) of unknown record type.\n";
         std::cerr << "The field with the most subfields has " << max_subfield_count << " subfield(s).\n";
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

@@ -2,7 +2,7 @@
  *  \brief Determines the type of MARC-XML records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -62,6 +62,6 @@ int main(int argc, char *argv[]) {
     try {
         Categorise(marc_reader.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

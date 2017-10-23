@@ -49,11 +49,11 @@ int main(int argc, char **argv) {
         std::vector<OaiPmh::Client::MetadataFormatDescriptor> metadata_format_list;
         std::string err_msg;
         if (not oai_pmh_client.listMetadataFormats(&metadata_format_list, &err_msg))
-            Error("oai_pmh_client.listMetadataFormats: " + err_msg);
+            logger->error("oai_pmh_client.listMetadataFormats: " + err_msg);
         std::cerr << "Found " << metadata_format_list.size() << " supported metadata prefix(es),\n";
         for (const auto &metadata_format : metadata_format_list)
             std::cerr << '\t' << metadata_format.metadata_prefix_ << '\n';
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

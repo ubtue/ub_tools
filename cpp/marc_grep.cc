@@ -133,7 +133,7 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
     if (label_format_candidate == "control_number_and_traditional")
         return CONTROL_NUMBER_AND_TRADITIONAL;
 
-    Error("\"" + label_format_candidate + "\" is no valid output label format!");
+    logger->error("\"" + label_format_candidate + "\" is no valid output label format!");
 }
 
 
@@ -159,7 +159,7 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
         return;
     case MARC_BINARY:
     case MARC_XML:
-        Error("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
+        logger->error("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
     case CONTROL_NUMBER_AND_TRADITIONAL:
         std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':'
                   << StringUtil::Map(contents, '\x1F', '$') << '\n';
@@ -243,7 +243,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
                 break;
             }
             if (unlikely(not err_msg.empty()))
-                Error("ProcessEqualityComp: match failed (" + err_msg + ")! (1)");
+                logger->error("ProcessEqualityComp: match failed (" + err_msg + ")! (1)");
         } else  { // We need to match against a subfield's content.
         const Subfields subfields(contents);
         if (not subfields.hasSubfield(subfield_codes[0]))
@@ -256,7 +256,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc,
                     matched_at_least_one = true;
                     break;
                 } else if (unlikely(not err_msg.empty()))
-                    Error("ProcessEqualityComp: match failed (" + err_msg + ")! (1)");
+                    logger->error("ProcessEqualityComp: match failed (" + err_msg + ")! (1)");
             }
         }
     }
@@ -369,7 +369,7 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc, const FieldOrSubfie
                         matched_at_least_one = true;
                         break;
                     } else if (unlikely(not err_msg.empty()))
-                        Error("Unexpected: Match failed in ProcessConditions!");
+                        logger->error("Unexpected: Match failed in ProcessConditions!");
                 }
 
                 if ((matched_at_least_one and comp_type == ConditionDescriptor::SINGLE_FIELD_EQUAL)
@@ -445,7 +445,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
                 // Determine the control number:
                 const auto &control_number_iter(field_to_content_map.find("001"));
                 if (unlikely(control_number_iter == field_to_content_map.end()))
-                    Error("In FieldGrep: record has no control number!");
+                    logger->error("In FieldGrep: record has no control number!");
                 const std::string control_number(control_number_iter->second);
 
                 Emit(control_number, output_format, &tags_and_contents);
@@ -454,7 +454,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
     }
 
     if (not err_msg.empty())
-        Error(err_msg);
+        logger->error(err_msg);
     std::cerr << "Matched " << matched_count << (matched_count == 1 ? " record of " :  " records of ") << count
               << " overall records.\n";
 }
@@ -470,7 +470,7 @@ int main(int argc, char *argv[]) {
             Usage();
 
         if (not StringUtil::ToUnsigned(argv[2], &max_records))
-            Error("bad record count limit: \"" + std::string(argv[2]) + "\"!");
+            logger->error("bad record count limit: \"" + std::string(argv[2]) + "\"!");
         argc -= 2;
         argv += 2;
     }
@@ -481,7 +481,7 @@ int main(int argc, char *argv[]) {
             Usage();
 
         if (not StringUtil::ToUnsigned(argv[2], &sampling_rate))
-            Error("bad sampling rate: \"" + std::string(argv[2]) + "\"!");
+            logger->error("bad sampling rate: \"" + std::string(argv[2]) + "\"!");
         argc -= 2;
         argv += 2;
     }
@@ -507,12 +507,12 @@ int main(int argc, char *argv[]) {
         QueryDescriptor query_desc;
         std::string err_msg;
         if (not ParseQuery(argv[2], &query_desc, &err_msg))
-            Error("Query parsing failed: " + err_msg);
+            logger->error("Query parsing failed: " + err_msg);
 
         const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
             : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
         FieldGrep(max_records, sampling_rate, control_numbers, argv[1], query_desc, output_label);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

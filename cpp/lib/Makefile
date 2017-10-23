@@ -14,6 +14,9 @@ ifeq ($(CCC),clang++)
 else
   CCCFLAGS += -std=gnu++14
 endif
+ifneq ("$(wildcard /usr/include/selinux)","")
+  CCCFLAGS += -DHAS_SELINUX_HEADERS
+endif
 AMD64_CCCFLAGS = $(subst -march=native,,$(CCCFLAGS))
 MAKE_DEPS=iViaCore-mkdep
 

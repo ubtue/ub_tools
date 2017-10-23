@@ -213,7 +213,7 @@ std::string PermissionParser::ToString(const TokenType token) {
         return "END_OF_INPUT";
     }
 
-    Error("in PermissionParser::ToString: we should *never* get here!");
+    logger->error("in PermissionParser::ToString: we should *never* get here!");
 }
 
 
@@ -252,7 +252,7 @@ void SkipToNextDashOrEndOfInput(PermissionParser * const parser) {
 void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const patterns) {
     PermissionParser::TokenType token(parser->getToken());
     if (unlikely(token != PermissionParser::ALLOW and token != PermissionParser::DENY))
-        Error("on line " + std::to_string(parser->getCurrentLineNumber()) + " expected either ALLOW or DENY!");
+        logger->error("on line " + std::to_string(parser->getCurrentLineNumber()) + " expected either ALLOW or DENY!");
     const bool allow(token == PermissionParser::ALLOW);
 
     token = parser->getToken();
@@ -262,13 +262,13 @@ void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const pat
     } else if (token == PermissionParser::QUESTION_MARK) {
         token = parser->getToken();
         if (unlikely(token != PermissionParser::OPEN_SQUARE_BRACKET))
-            Error("on line "  + std::to_string(parser->getCurrentLineNumber()) + ": expected '[' but found "
+            logger->error("on line "  + std::to_string(parser->getCurrentLineNumber()) + ": expected '[' but found "
                   + PermissionParser::ToString(token) + "!");
         for (;;) { // Parse the comma-separated list.
             token = parser->getToken();
             if (unlikely(token != PermissionParser::STRING_CONST))
-                Error("on line "  + std::to_string(parser->getCurrentLineNumber())
-                      + ": expected a string constant but found " + PermissionParser::ToString(token) + "!");
+                logger->error("on line "  + std::to_string(parser->getCurrentLineNumber())
+                              + ": expected a string constant but found " + PermissionParser::ToString(token) + "!");
             patterns->emplace_back(parser->getLastStringConstant(), allow);
 
             token = parser->getToken();
@@ -276,12 +276,12 @@ void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const pat
                 SkipToNextDashOrEndOfInput(parser);
                 return;
             } else if (unlikely(token != PermissionParser::COMMA))
-                Error("on line "  + std::to_string(parser->getCurrentLineNumber())
-                      + ": expected ']' or ',' but found " + PermissionParser::ToString(token) + "!");
+                logger->error("on line "  + std::to_string(parser->getCurrentLineNumber())
+                              + ": expected ']' or ',' but found " + PermissionParser::ToString(token) + "!");
         }
     } else
-        Error("on line " + std::to_string(parser->getCurrentLineNumber()) + " unexpected token "
-              + PermissionParser::ToString(token) + "!");
+        logger->error("on line " + std::to_string(parser->getCurrentLineNumber()) + " unexpected token "
+                      + PermissionParser::ToString(token) + "!");
 }
 
 
@@ -295,8 +295,8 @@ void ParseEmailRules(File * const input, std::vector<Pattern> * const patterns) 
         if (token == PermissionParser::DASH)
             ParseRule(&parser, patterns);
         else
-            Error("unexpected token " + PermissionParser::ToString(token) + " on line "
-                  + std::to_string(parser.getCurrentLineNumber()) + "!");
+            logger->error("unexpected token " + PermissionParser::ToString(token) + " on line "
+                          + std::to_string(parser.getCurrentLineNumber()) + "!");
     }
 }
 
@@ -320,7 +320,7 @@ void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Patt
     db_connection->queryOrDie("SELECT email FROM user WHERE id=" + user_ID);
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty())
-        Error("No email address found for user ID " + user_ID + "!");
+        logger->error("No email address found for user ID " + user_ID + "!");
     const std::string email_address(result_set.getNextRow()["email"]);
 
     db_connection->queryOrDie("UPDATE ixtheo_user SET can_use_tad="
@@ -361,6 +361,6 @@ int main(int argc, char **argv) {
             UpdateSingleUser(&db_connection, patterns, flag_or_user_ID);
 
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

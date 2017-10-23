@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -40,5 +40,5 @@ int main(int argc, char *argv[]) {
 
     const std::string directory_name(argv[1]);
     if (not FileUtil::RemoveDirectory(directory_name))
-        Error("failed to recursively delete \"" + directory_name + "\"! (" + std::string(::strerror(errno)) + ")");
+        logger->error("failed to recursively delete \"" + directory_name + "\"! (" + std::string(::strerror(errno)) + ")");
 }

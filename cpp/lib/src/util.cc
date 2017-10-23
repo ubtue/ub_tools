@@ -26,7 +26,8 @@
 #include <cctype>
 #include <execinfo.h>
 #include <signal.h>
-#include <unistd.h>
+#include "Compiler.h"
+#include "TimeUtil.h"
 
 
 // Macro to determine the number of entries in a one-dimensional array:
@@ -36,21 +37,77 @@
 char *progname; // Must be set in main() with "progname = argv[0];";
 
 
-void Error(const std::string &msg) {
-    if (progname == nullptr)
-        std::cerr << "You must set \"progname\" in main() with \"progname = argv[0];\" in oder to use Error().\n";
-    else
-        std::cerr << progname << ": " << msg << '\n';
+static void WriteString(const int fd, const std::string &msg) {
+    if (unlikely(::write(fd, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
+        const std::string error_message("in WriteString(util.cc): write to file descriptor " + std::to_string(fd)
+                                        + " failed! (errno = " + std::to_string(errno) + ")");
+        ::write(STDERR_FILENO, error_message.data(), error_message.size());
+        _exit(EXIT_FAILURE);
+    }
+}
+
+
+void Logger::error(const std::string &msg) {
+    std::lock_guard<std::mutex> mutex_locker(mutex_);
+
+    if (unlikely(progname == nullptr)) {
+        WriteString(fd_, "You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use "
+                    "Logger::error().\n");
+        _exit(EXIT_FAILURE);
+    } else
+        WriteString(fd_, TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + std::string(" SEVERE ")
+                    + ::progname + std::string(": ") + msg
+                    + (errno == 0 ? "" : " (" + std::string(::strerror(errno)) + ")") + '\n');
     std::exit(EXIT_FAILURE);
 }
 
 
-void Warning(const std::string &msg) {
-    if (progname == nullptr)
-        std::cerr << "You must set \"progname\" in main() with \"progname = argv[0];\" in oder to use Warning().\n";
-    else
-        std::cerr << progname << ": " << msg << '\n';
+void Logger::warning(const std::string &msg) {
+    std::lock_guard<std::mutex> mutex_locker(mutex_);
+
+    if (unlikely(progname == nullptr)) {
+        WriteString(fd_, "You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use "
+                    "Logger::warning().\n");
+        _exit(EXIT_FAILURE);
+    } else
+        WriteString(fd_, TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " WARN "
+                    + std::string(::progname) + ": " + msg + '\n');
 }
+
+
+void Logger::info(const std::string &msg) {
+    std::lock_guard<std::mutex> mutex_locker(mutex_);
+
+    if (unlikely(progname == nullptr)) {
+        WriteString(fd_, "You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use "
+                    "Logger::info().\n");
+        _exit(EXIT_FAILURE);
+    } else
+        WriteString(fd_, TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " INFO "
+                    + std::string(::progname) + ": " + msg + '\n');
+}
+
+
+void Logger::debug(const std::string &msg) {
+    std::lock_guard<std::mutex> mutex_locker(mutex_);
+
+    if (unlikely(progname == nullptr)) {
+        WriteString(fd_, "You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use "
+                    "Logger::debug().\n");
+        _exit(EXIT_FAILURE);
+    } else
+        WriteString(fd_, TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " DEBUG "
+                    + std::string(::progname) + ": " + msg + '\n');
+}
+
+
+static inline Logger *LoggerInstantiator() {
+    return new Logger();
+}
+
+
+Logger *logger(LoggerInstantiator());
+
 
 
 DSVReader::DSVReader(const std::string &filename, const char field_separator, const char field_delimiter)

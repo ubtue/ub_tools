@@ -1,7 +1,7 @@
 /** \brief IxTheo utility to inform subscribed users of changes in monitored queries etc.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -337,13 +337,13 @@ bool ProcessUser(const std::string &user_id, const std::string &/*email_address*
 
         std::string xml_document;
         if (Download(solr_query_url, SOLR_QUERY_TIMEOUT, &xml_document) != 0) {
-            Warning("SOLR query failed! (" + solr_query_url + ")");
+            logger->warning("SOLR query failed! (" + solr_query_url + ")");
             return false;
         }
 
         IdExtractor id_extractor(xml_document);
         if (not id_extractor.parse()) {
-            Warning("Failed to parse XML document! (" + id_extractor.getFirstError() + ")");
+            logger->warning("Failed to parse XML document! (" + id_extractor.getFirstError() + ")");
             return false;
         }
 
@@ -402,9 +402,9 @@ int main(int argc, char *argv[]) {
             const std::string id(row[0]);
             const std::string email_address(row[1]);
             if (not ProcessUser(id, email_address, &connection))
-                Error("Failed to process user w/ ID: " + id);
+                logger->error("Failed to process user w/ ID: " + id);
         }
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

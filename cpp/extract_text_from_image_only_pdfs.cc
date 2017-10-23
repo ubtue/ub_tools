@@ -1,3 +1,21 @@
+/** \file   extract_text_from_image_only_pdfs.cc
+ *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
@@ -28,19 +46,19 @@ int main(int argc, char *argv[]) {
         const std::string input_filename(argv[1]);
 
         if (::access(input_filename.c_str(), R_OK) != 0)
-            Error("can't read \"" + input_filename + "\"!");
+            logger->error("can't read \"" + input_filename + "\"!");
 
         std::string pdf;
         if (not FileUtil::ReadString(input_filename, &pdf))
-            Error("failed to read document from \"" + input_filename + "\"!");
+            logger->error("failed to read document from \"" + input_filename + "\"!");
 
         if (not PdfUtil::PdfDocContainsNoText(pdf))
-            Error("input file \"" + input_filename + "\" contains text!");
+            logger->error("input file \"" + input_filename + "\" contains text!");
 
         char output_filename[] = "OCR_OUT_XXXXXX";
         const int output_fd(::mkstemp(output_filename));
         if (output_fd == -1)
-            Error("failed to create a temporary file!");
+            logger->error("failed to create a temporary file!");
         const FileUtil::AutoDeleteFile auto_deleter(output_filename);
 
         #pragma GCC diagnostic ignored "-Wvla"
@@ -54,17 +72,17 @@ int main(int argc, char *argv[]) {
             args.emplace_back(argv[2]);
 
         if (ExecUtil::Exec(dir_path + "/" + BASH_HELPER, args, "", "", "", 20 /* seconds */) != 0)
-            Error("failed to execute conversion script!");
+            logger->error("failed to execute conversion script!");
 
         std::string extracted_text;
         if (not FileUtil::ReadString(output_filename, &extracted_text))
-            Error("failed to read contents of \"" + std::string(output_filename) + "\"!");
+            logger->error("failed to read contents of \"" + std::string(output_filename) + "\"!");
 
         if (extracted_text.empty())
-            Error("No text was extracted from \"" + input_filename + "\"!");
+            logger->error("No text was extracted from \"" + input_filename + "\"!");
 
         std::cout.write(extracted_text.data(), extracted_text.size());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

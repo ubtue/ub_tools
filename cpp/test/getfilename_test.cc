@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -41,6 +41,6 @@ int main(int argc, char *argv[]) {
         FILE *file(std::fopen(argv[1], "r"));
         std::cout << "File pointer points to \"" << FileUtil::GetFileName(file) << "\".\n";
     } catch(const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }  
 }

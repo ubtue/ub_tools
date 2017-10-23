@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     if (std::strcmp(argv[1], "--timeout") == 0) {
         unsigned timeout;
         if (not StringUtil::ToUnsigned(argv[2], &timeout))
-            Error("bad timeout \"" + std::string(argv[2]) + "\"!");
+            logger->error("bad timeout \"" + std::string(argv[2]) + "\"!");
         --argc, ++argv;
         time_limit = timeout;
     }
@@ -69,9 +69,9 @@ int main(int argc, char *argv[]) {
     try {
         Downloader downloader(url, params, time_limit);
         if (downloader.anErrorOccurred())
-            Error(downloader.getLastErrorMessage());
+            logger->error(downloader.getLastErrorMessage());
         std::cout << downloader.getMessageBody() << '\n';
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

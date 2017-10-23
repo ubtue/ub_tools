@@ -50,8 +50,8 @@ bool CacheExpired(DbConnection * const db_connection, const std::string &full_te
 
     kyotocabinet::HashDB db;
     if (not db.open(full_text_db_path, kyotocabinet::HashDB::OCREATE | kyotocabinet::HashDB::OWRITER))
-        Error("in FullTextCache::CacheExpired: Failed to open database \"" + full_text_db_path + "\" for writing ("
-              + std::string(db.error().message()) + ")!");
+        logger->error("in FullTextCache::CacheExpired: Failed to open database \"" + full_text_db_path
+                      + "\" for writing (" + std::string(db.error().message()) + ")!");
     db.remove(id);
 
     db_connection->queryOrDie("DELETE FROM full_text_cache WHERE id=\"" + db_connection->escapeString(id) + "\"");
@@ -65,11 +65,11 @@ void InsertIntoCache(DbConnection * const db_connection, const std::string &full
     if (not data.empty()) {
         kyotocabinet::HashDB db;
         if (not db.open(full_text_db_path, kyotocabinet::HashDB::OCREATE | kyotocabinet::HashDB::OWRITER))
-            Error("in FullTextCache::InsertIntoCache: Failed to open database \"" + full_text_db_path
-                  + "\" for writing (" + std::string(db.error().message()) + ")!");
+            logger->error("in FullTextCache::InsertIntoCache: Failed to open database \"" + full_text_db_path
+                          + "\" for writing (" + std::string(db.error().message()) + ")!");
         if (unlikely(not db.set(key, data)))
-            Error("in FullTextCache::InsertIntoCache: Failed to insert into database \"" + full_text_db_path + "\" ("
-                  + std::string(db.error().message()) + ")!");
+            logger->error("in FullTextCache::InsertIntoCache: Failed to insert into database \"" + full_text_db_path
+                          + "\" (" + std::string(db.error().message()) + ")!");
     }
 
     const time_t now(std::time(nullptr));

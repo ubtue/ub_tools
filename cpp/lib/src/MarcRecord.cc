@@ -396,7 +396,7 @@ size_t MarcRecord::findFieldsInLocalBlock(const MarcTag &field_tag, const std::s
 {
     field_indices->clear();
     if (unlikely(indicators.length() != 2))
-        Error("in MarcRecord::FindFieldInLocalBlock: indicators must be precisely 2 characters long!");
+        logger->error("in MarcRecord::FindFieldInLocalBlock: indicators must be precisely 2 characters long!");
 
     const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.to_string());
     for (size_t index(block_start_and_end.first); index < block_start_and_end.second; ++index) {

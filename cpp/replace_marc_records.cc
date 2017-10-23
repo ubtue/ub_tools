@@ -1,7 +1,7 @@
 /** \brief Utility for replacing MARC records in one file with records from another file with the same control number.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -59,8 +59,8 @@ void ProcessSourceRecords(MarcReader * const marc_source_reader, MarcReader * co
         }
 
         if (unlikely(not marc_reference_reader->seek(control_number_and_offset->second)))
-            Error("failed to seek in reference records! (offset: "
-                  + std::to_string(control_number_and_offset->second));
+            logger->error("failed to seek in reference records! (offset: "
+                          + std::to_string(control_number_and_offset->second));
 
         const MarcRecord reference_record(marc_reference_reader->read());
         marc_writer->write(reference_record);
@@ -91,6 +91,6 @@ int main(int argc, char *argv[]) {
         ProcessSourceRecords(marc_source_reader.get(), marc_reference_reader.get(), marc_target_writer.get(),
                              control_number_to_offset_map);
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

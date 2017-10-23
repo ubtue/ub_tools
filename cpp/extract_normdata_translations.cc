@@ -109,7 +109,7 @@ void ExtractOneTranslation(const Subfields &all_subfields, const std::string &tr
         language_translation_pair->first = (translation_origin[0] == "IxTheo") ? translation_origin[0] + "_" + language : translation_origin[0];
         language_translation_pair->second = StringUtil::Join(translation_vector, ' ');
     } else
-        Error("Incorrect translation origin translation " + StringUtil::Join(translation_vector, ' '));
+        logger->error("Incorrect translation origin translation " + StringUtil::Join(translation_vector, ' '));
 }
 
 
@@ -136,14 +136,14 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
 {
     std::vector<std::string> german_tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(german_term_field_spec, ':', &german_tags_and_subfield_codes) < 1))
-        Error("ExtractTranslations: Need at least one translation field");
+        logger->error("ExtractTranslations: Need at least one translation field");
 
     std::vector<std::string> translation_tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(translation_field_spec, ':', &translation_tags_and_subfield_codes) < 1))
-        Error("ExtractTranslations: Need at least one translation field");
+        logger->error("ExtractTranslations: Need at least one translation field");
     
     if (unlikely(german_tags_and_subfield_codes.size() != translation_tags_and_subfield_codes.size()))
-        Error("ExtractTranslations: Number of German fields and number of translation fields must be equal");
+        logger->error("ExtractTranslations: Number of German fields and number of translation fields must be equal");
     
     unsigned count(0);
     while (const MarcRecord record = marc_reader->read()) {
@@ -257,14 +257,14 @@ int main(int argc, char **argv) {
     const std::string authority_data_marc_input_filename(argv[1]);
     const std::string extracted_translations_filename(argv[2]);
     if (unlikely(authority_data_marc_input_filename == extracted_translations_filename))
-        Error("Authority data input file name equals output file name!");
+        logger->error("Authority data input file name equals output file name!");
     std::unique_ptr<MarcReader> authority_data_reader(MarcReader::Factory(authority_data_marc_input_filename,
                                                                           MarcReader::BINARY));
     
     // Create a file for each language
     std::vector<std::string> output_file_components;
     if (unlikely(StringUtil::Split(extracted_translations_filename, ".", &output_file_components) < 1)) 
-        Error("extracted_translations_filename " + extracted_translations_filename + " is not valid");
+        logger->error("extracted_translations_filename " + extracted_translations_filename + " is not valid");
    
     File *lang_files[NUMBER_OF_LANGUAGES];
   
@@ -283,7 +283,7 @@ int main(int argc, char **argv) {
                                              + extension);
         lang_files[i] = new File(lang_file_name_str, "w");
         if (lang_files[i]->fail())
-            Error("can't open \"" + lang_file_name_str + "\" for writing!");
+            logger->error("can't open \"" + lang_file_name_str + "\" for writing!");
         ++i;
     }
 
@@ -312,7 +312,7 @@ int main(int argc, char **argv) {
             *(lang_files[HANT]) << line.first << '|' << line.second << '\n';
 
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
 

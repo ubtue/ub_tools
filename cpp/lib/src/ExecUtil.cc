@@ -63,7 +63,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
     else if (pid == 0) {
         // Make us the leader of a new process group:
         if (::setsid() == static_cast<pid_t>(-1))
-            Error("in Exec(): child failed to become a new session leader!");
+            logger->error("in Exec(): child failed to become a new session leader!");
 
         if (not new_stdin.empty()) {
             const int new_stdin_fd(::open(new_stdin.c_str(), O_RDONLY));
@@ -158,7 +158,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
             throw std::runtime_error("in Exec: \"" + command + "\" killed by signal "
                                      + std::to_string(WTERMSIG(child_exit_status)) + "!");
         else // I have no idea how we got here!
-            Error("in Exec: dazed and confused!");
+            logger->error("in Exec: dazed and confused!");
     }
 
     return 0; // Keep the compiler happy!
@@ -176,13 +176,13 @@ SignalBlocker::SignalBlocker(const int signal_to_block) {
     ::sigemptyset(&new_set);
     ::sigaddset(&new_set, signal_to_block);
     if (::sigprocmask(SIG_BLOCK, &new_set, &saved_set_) != 0)
-        Error("in ExecUtil::SignalBlocker::SignalBlocker: call to sigprocmask(2) failed!");
+        logger->error("in ExecUtil::SignalBlocker::SignalBlocker: call to sigprocmask(2) failed!");
 }
 
 
 SignalBlocker::~SignalBlocker() {
     if (::sigprocmask(SIG_SETMASK, &saved_set_, nullptr) != 0)
-        Error("in ExecUtil::SignalBlocker::~SignalBlocker: call to sigprocmask(2) failed!");
+        logger->error("in ExecUtil::SignalBlocker::~SignalBlocker: call to sigprocmask(2) failed!");
 }
 
 
@@ -249,7 +249,8 @@ std::string Which(const std::string &executable_candidate) {
 std::string LocateOrDie(const std::string &executable_candidate) {
     const std::string path(ExecUtil::Which(executable_candidate));
     if (path.empty())
-        Error("in ExecUtil::LocateOrDie: can't find \"" + executable_candidate + "\" in our PATH environment!");
+        logger->error("in ExecUtil::LocateOrDie: can't find \"" + executable_candidate
+                      + "\" in our PATH environment!");
     return path;
 }
 
@@ -268,7 +269,7 @@ bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * co
 
     const int ret_code(::pclose(subcommand_stdout));
     if (ret_code == -1)
-        Error("pclose(3) failed: " + std::string(::strerror(errno)));
+        logger->error("pclose(3) failed: " + std::string(::strerror(errno)));
 
     return WEXITSTATUS(ret_code) == 0;
 }

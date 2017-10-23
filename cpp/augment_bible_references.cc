@@ -74,7 +74,7 @@ void LoadBibleOrderMap(const bool verbose, File * const input,
 
         const size_t equal_pos(line.find('='));
         if (equal_pos == std::string::npos)
-            Error("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
+            logger->error("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
         (*books_of_the_bible_to_code_map)[StringUtil::ToLower(line.substr(0, equal_pos))] =
             line.substr(equal_pos + 1);
     }
@@ -455,7 +455,7 @@ void AugmentBibleRefs(const bool verbose, MarcReader * const marc_reader, MarcWr
         // purpose:
         const size_t bib_ref_index(record.getFieldIndex(BIB_REF_RANGE_TAG));
         if (bib_ref_index != MarcRecord::FIELD_NOT_FOUND)
-            Error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
+            logger->error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
 
         std::set<std::string> ranges;
         if (FindGndCodes(verbose, "600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map,
@@ -496,9 +496,9 @@ int main(int argc, char **argv) {
     const std::string authority_input_filename(argv[verbose ? 3 : 2]);
     const std::string title_output_filename(argv[verbose ? 4 : 3]);
     if (unlikely(title_input_filename == title_output_filename))
-        Error("Title input file name equals title output file name!");
+        logger->error("Title input file name equals title output file name!");
     if (unlikely(authority_input_filename == title_output_filename))
-        Error("Norm data input file name equals title output file name!");
+        logger->error("Norm data input file name equals title output file name!");
 
     std::unique_ptr<MarcReader> title_reader(MarcReader::Factory(title_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcReader> authority_reader(MarcReader::Factory(authority_input_filename, MarcReader::BINARY));
@@ -508,7 +508,7 @@ int main(int argc, char **argv) {
         "/usr/local/var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map");
     File books_of_the_bible_to_code_map_file(books_of_the_bible_to_code_map_filename, "r");
     if (not books_of_the_bible_to_code_map_file)
-        Error("can't open \"" + books_of_the_bible_to_code_map_filename + "\" for reading!");
+        logger->error("can't open \"" + books_of_the_bible_to_code_map_filename + "\" for reading!");
 
     try {
         std::unordered_map<std::string, std::string> books_of_the_bible_to_code_map;
@@ -520,6 +520,6 @@ int main(int argc, char **argv) {
                      &gnd_codes_to_bible_ref_codes_map);
         AugmentBibleRefs(verbose, title_reader.get(), title_writer.get(), gnd_codes_to_bible_ref_codes_map);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
