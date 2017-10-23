@@ -64,7 +64,7 @@ Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
 
 
 std::string GetSELinuxContext(const std::string &path) {
-#ifndef HAS_SELINUX_HEADESR
+#ifndef HAS_SELINUX_HEADERS
     (void)path;
     return "";
 #else
