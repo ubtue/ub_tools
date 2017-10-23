@@ -63,14 +63,14 @@ Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
 }
 
 
-std::string GetSELinuxContext(const std::string &path) {
+std::vector<std::string> GetSELinuxContexts(const std::string &path) {
+    std::vector<std::string> contexts;
 #ifndef HAS_SELINUX_HEADERS
     (void)path;
-    return "";
 #else
     char *file_context;
     if (::getfilecon(path.c_str(), &file_context) == -1) {
-        if (errno == ENODATA or enodata== ENOTSUP)
+        if (errno == ENODATA or errno == ENOTSUP)
             return "";
         throw std::runtime_error("in GetSELinuxContext: failed to get file context for \"" + path + "\"!");
     }
@@ -79,6 +79,7 @@ std::string GetSELinuxContext(const std::string &path) {
     
     ::freecon(file_context);
 #endif
+    return contexts;
 }
 
 
