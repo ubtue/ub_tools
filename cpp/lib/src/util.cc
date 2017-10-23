@@ -101,7 +101,7 @@ void Logger::debug(const std::string &msg) {
 }
 
 
-static inline Logger *LoggerInstantiator() {
+inline Logger *LoggerInstantiator() {
     return new Logger();
 }
 
