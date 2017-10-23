@@ -63,23 +63,29 @@ Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
 }
 
 
-std::vector<std::string> GetSELinuxContexts(const std::string &path) {
-    std::vector<std::string> contexts;
+SELinuxContext GetSELinuxContext(const std::string &path) {
 #ifndef HAS_SELINUX_HEADERS
     (void)path;
+    return SELinuxContext();
 #else
     char *file_context;
     if (::getfilecon(path.c_str(), &file_context) == -1) {
         if (errno == ENODATA or errno == ENOTSUP)
-            return contexts;
+            return SELinuxContext();
         throw std::runtime_error("in GetSELinuxContext: failed to get file context for \"" + path + "\"!");
     }
     if (file_context == nullptr)
-        return contexts;
-    
+        return SELinuxContext();
+
+    std::vector<std::string> context_as_vector;
+    const unsigned no_of_components(StringUtil::Split(file_context, &context_as_vector,
+                                                      /* suppress_empty_components = */ false));
+    if (unlikely(no_of_components != 4))
+        throw std::runtime_error("in GetSELinuxContext: context has unexpected no. of components!");
     ::freecon(file_context);
+
+    return std::tie(context_as_vector[0], context_as_vector[1], context_as_vector[2], context_as_vector[3]);
 #endif
-    return contexts;
 }
 
 
