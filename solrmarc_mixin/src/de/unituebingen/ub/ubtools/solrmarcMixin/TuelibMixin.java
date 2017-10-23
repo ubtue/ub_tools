@@ -764,7 +764,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                                   + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
-                return year + "-" + month + "-01T11:00:00:000Z";
+                return year + "-" + month + "-01T11:00:00.000Z";
             }
         }
         return null;
