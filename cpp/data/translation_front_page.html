@@ -55,15 +55,19 @@
     function InsertTranslationIntoDB(object) {{
        var index = $(object).attr("index");
        var gnd_code = $(object).attr("gnd_code");
-       var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine anguage from the heading
+       var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
        var old_translation = $(object).attr("translation");
        var translator_exists = $(object).attr("translator_exists");
        var translation = $(object).text();
+       var category = $(object).attr("category");
        if (translation == old_translation) 
            return;
 
        $(object).attr("translation", translation);
-       var action = (!IsEmpty(old_translation) || translator_exists) ? "update" : "insert"
+       // For VuFind we can take a straightforward approach
+       // For Keywords there are possibly unreliable translations from the MACS project thus
+       // we have to insert a new translation even if there is already one present in the cell
+       var action = ((category == "vufind_translations" && !IsEmpty(old_translation)) || translator_exists) ? "update" : "insert"
        $.ajax({{
           type: "PUT",
           url: "translator_ajax",
