@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
                 if (max_line_count > 0)
                     KeepLines(directory_path + "/" + entry.getName(), max_line_count);
                 else
-                    MiscUtil::LogRotate(entry.getName(), max_rotations);
+                    MiscUtil::LogRotate(directory_path + "/" + entry.getName(), max_rotations);
             }
         }
     } catch (const std::exception &x) {
