@@ -56,7 +56,6 @@ const std::string MACS_COLUMN_DESCRIPTOR("macs");
 const int NO_INDEX(-1);
 const unsigned int LOOKFOR_PREFIX_LIMIT(3);
 
-
 enum Category { VUFIND, KEYWORDS };
 
 
@@ -241,6 +240,11 @@ int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headin
 }
 
 
+bool IsEmptyEntryWithoutTranslator(const std::string &entry) {
+    return (StringUtil::EndsWith(entry, "></td>") and (entry.find("translator_exists") == std::string::npos));
+}
+
+
 void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
                                                  const std::string &offset, std::vector<std::string> * const rows,
                                                  std::string * const headline,
@@ -410,15 +414,13 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        if (IsTranslatorLanguage(translator_languages, language_code)) {
           // We can have several translations in one language, i.e. from MACS, IxTheo (reliable) or translated by this tool (new)
           // Since we are iteratring over a single column, make sure sure we select the correct translation (reliable or new)
-          if (row_values[index].empty() or status=="new" or status=="reliable")
+          if (IsEmptyEntryWithoutTranslator(row_values[index]) or status=="new" or status=="reliable")
               row_values[index] = (language_code == "ger" || status == "reliable") ? CreateNonEditableRowEntry(translation) :
-                              CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
+                                  CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
                                                      translator, gnd_code);
-       } 
-       else
+       } else
            row_values[index] = (language_code == "ger") ? CreateNonEditableHintEntry(translation, gnd_code)
                                                         : CreateNonEditableRowEntry(translation);
-
     }
     rows->emplace_back(StringUtil::Join(row_values, ""));
     const std::string drop_get_sorted("DROP TEMPORARY TABLE keywords_ger_sorted");
@@ -426,6 +428,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     db_connection.queryOrDie(drop_get_sorted);
     db_connection.queryOrDie(drop_sort_limit);
 }
+
+
 
 
 void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum Category category = KEYWORDS) {
