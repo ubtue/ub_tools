@@ -1,5 +1,4 @@
-/** \file   quouted_printable_test.cc
- *  \brief  A test harness for TextUtil::EncodeQuotedPrintable and TextUtil::DecodeQuotedPrintable.
+/** \brief A tool for writing log messages in a shell script.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -17,34 +16,39 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include <iostream>
-#include <stdexcept>
 #include <cstdlib>
-#include <cstring>
-#include "TextUtil.h"
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " (--encode|--decode) text\n";
+__attribute__((noreturn)) void Usage() {
+    std::cerr << "Usage: " << ::progname << " log_level message\n";
+    std::cerr << "       Where \"log_level\" must be one of SEVERE, WARN, INFO or DEBUG.\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char **argv) {
     ::progname = argv[0];
 
     if (argc != 3)
         Usage();
-    
-    try {
-        if (std::strcmp("--encode", argv[1]) == 0)
-            std::cout << TextUtil::EncodeQuotedPrintable(argv[2]) << '\n';
-        else if (std::strcmp("--decode", argv[1]) == 0)
-            std::cout << TextUtil::DecodeQuotedPrintable(argv[2]) << '\n';
-        else
-            Usage();
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
-    }
+
+    const std::string log_level(argv[1]);
+    if (log_level != "SEVERE" and log_level != "WARN" and log_level != "INFO" and log_level != "DEBUG")
+        logger->error("bad log level \"" + log_level + "\"!@");
+    logger->redirectOutput(STDOUT_FILENO);
+
+    const std::string message(argv[2]);
+    if (log_level == "SEVERE")
+        logger->error(message);
+    else if (log_level == "WARN")
+        logger->warning(message);
+    else if (log_level == "INFO")
+        logger->info(message);
+    else if (log_level == "DEBUG")
+        logger->debug(message);
+    else
+        logger->error("unsupported log level: " + log_level);
 }

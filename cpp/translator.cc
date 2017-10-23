@@ -284,7 +284,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
        std::string translation(db_row["translation"]);
        std::string language_code(db_row["language_code"]);
        std::string translator(db_row["translator"]);
-       if (current_token != token){
+       if (current_token != token) {
            if (not current_token.empty())
               rows->emplace_back(StringUtil::Join(row_values, ""));
 
@@ -297,10 +297,8 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
            row_values[token_index] = CreateNonEditableRowEntry(token);
            for (auto translator_language : translator_languages) {
                int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
-               if (index != NO_INDEX) {
-                   row_values[index] = CreateEditableRowEntry(current_token, "", language_code, "vufind_translations",
-                                                              translator);
-               }
+               if (index != NO_INDEX)
+                   row_values[index] = CreateEditableRowEntry(current_token, "", translator_language, "vufind_translations", "");
            }
        }
 
@@ -386,37 +384,41 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
                if (index != NO_INDEX)
                    row_values[index] = (translator_language == "ger") ? CreateNonEditableRowEntry("") :
-                                       CreateEditableRowEntry(current_ppn, "", language_code, "keyword_translations",
+                                       CreateEditableRowEntry(current_ppn, "", translator_language, "keyword_translations",
                                                               "", gnd_code);
            }
+           // Insert Synonyms
+           std::vector<std::string> synonyms;
+           GetSynonymsForGNDCode(db_connection, gnd_code, &synonyms);
+           int synonym_index(GetColumnIndexForColumnHeading(display_languages, row_values, SYNONYM_COLUMN_DESCRIPTOR));
+           if (synonym_index == NO_INDEX)
+               continue;
+           row_values[synonym_index] = CreateNonEditableSynonymEntry(synonyms, "<br/>");
+
+           // Insert MACS Translations display table
+           std::vector<std::string> macs_translations;
+           GetMACSTranslationsForGNDCode(db_connection, gnd_code, &macs_translations);
+           int macs_index(GetColumnIndexForColumnHeading(display_languages, row_values, MACS_COLUMN_DESCRIPTOR));
+           if (macs_index == NO_INDEX)
+               continue;
+           row_values[macs_index] = CreateNonEditableSynonymEntry(macs_translations, "<br/>");
        }
 
        int index(GetColumnIndexForColumnHeading(display_languages, row_values, language_code));
        if (index == NO_INDEX)
            continue;
-       if (IsTranslatorLanguage(translator_languages, language_code))
-          row_values[index] = (language_code == "ger") ? CreateNonEditableRowEntry(translation) :
+       if (IsTranslatorLanguage(translator_languages, language_code)) {
+          // We can have several translations in one language, i.e. from MACS, IxTheo (reliable) or translated by this tool (new)
+          // Since we are iteratring over a single column, make sure sure we select the correct translation (reliable or new)
+          if (row_values[index].empty() or status=="new" or status=="reliable")
+              row_values[index] = (language_code == "ger" || status == "reliable") ? CreateNonEditableRowEntry(translation) :
                               CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
                                                      translator, gnd_code);
+       } 
        else
            row_values[index] = (language_code == "ger") ? CreateNonEditableHintEntry(translation, gnd_code)
                                                         : CreateNonEditableRowEntry(translation);
 
-       // Insert Synonyms
-       std::vector<std::string> synonyms;
-       GetSynonymsForGNDCode(db_connection, gnd_code, &synonyms);
-       int synonym_index(GetColumnIndexForColumnHeading(display_languages, row_values, SYNONYM_COLUMN_DESCRIPTOR));
-       if (synonym_index == NO_INDEX)
-           continue;
-       row_values[synonym_index] = CreateNonEditableSynonymEntry(synonyms, "<br/>");
-
-       // Insert MACS Translations display table
-       std::vector<std::string> macs_translations;
-       GetMACSTranslationsForGNDCode(db_connection, gnd_code, &macs_translations);
-       int macs_index(GetColumnIndexForColumnHeading(display_languages, row_values, MACS_COLUMN_DESCRIPTOR));
-       if (macs_index == NO_INDEX)
-           continue;
-       row_values[macs_index] = CreateNonEditableSynonymEntry(macs_translations, "<br/>");
     }
     rows->emplace_back(StringUtil::Join(row_values, ""));
     const std::string drop_get_sorted("DROP TEMPORARY TABLE keywords_ger_sorted");
@@ -455,18 +457,23 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     std::vector<std::string> jump_entries_vufind;
     GenerateDirectJumpTable(&jump_entries_vufind, VUFIND);
     names_to_values_map.emplace("direct_jump_vufind", jump_entries_vufind);
+    names_to_values_map.emplace("translator", std::vector<std::string> { translator });
 
-    GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
-                                                translator_languages, additional_view_languages);
-    names_to_values_map.emplace("translator", std::vector<std::string> {translator});
+    if (target == "vufind")
+        GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
+                                                    translator_languages, additional_view_languages);
+    else if (target == "keywords")
+        GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
+                                                     translator_languages, additional_view_languages);
+    else {
+       ShowErrorPage("Error - Invalid Target", "No valid target selected");
+       std::exit(0);
+    }
     names_to_values_map.emplace("vufind_token_row", rows);
     names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
 
-    GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
-                                                 translator_languages, additional_view_languages);
     names_to_values_map.emplace("keyword_row", rows);
     names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
-
 
     names_to_values_map.emplace("lookfor", std::vector<std::string> {lookfor});
     names_to_values_map.emplace("prev_offset", std::vector<std::string>
@@ -595,7 +602,7 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
 void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, const std::string translator) {
     std::map<std::string, std::vector<std::string>> names_to_values_map;
     if (unlikely(not AssembleMyTranslationsData(db_connection, ini_file, &names_to_values_map, translator)))
-        Error("Could not send mail");
+        logger->error("Could not send mail");
 
     //Expand Template
     std::stringstream mail_content;
@@ -610,7 +617,7 @@ void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, co
 
     if (unlikely(not SendEmail("no-reply-ixtheo@uni-tuebingen.de", email, "Your IxTheo Translations",
                                mail_content.str(), EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
-        Error("Could not send mail");
+        logger->error("Could not send mail");
 }
 
 
@@ -691,6 +698,6 @@ int main(int argc, char *argv[]) {
         ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages,
                       additional_view_languages);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

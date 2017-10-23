@@ -1,7 +1,7 @@
 /** \brief Utility for monitoring our full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -61,8 +61,8 @@ void LoadOldStats(const std::string &stats_file_path,
         const std::string domain(line.substr(0, vertical_bar_pos));
         unsigned count;
         if (unlikely(not StringUtil::ToUnsigned(line.substr(vertical_bar_pos + 1))))
-            Error("in LoadOldStats: line #" + std::to_string(line_no) + "in \"" + input->getPath()
-                  + "\" contains junk!");
+            logger->error("in LoadOldStats: line #" + std::to_string(line_no) + "in \"" + input->getPath()
+                          + "\" contains junk!");
 
         domains_and_counts->emplace_back(std::make_pair(domain, count));
     }
@@ -72,7 +72,7 @@ void LoadOldStats(const std::string &stats_file_path,
 // Here we assume we only deal with HTTP and HTTPS URL's.
 std::string GetHost(const std::string &url) {
     if (unlikely(url.length() < 9))
-        Error("in GetHost: we don't know how to deal with this \"URL\": \"" + url + "\"!");
+        logger->error("in GetHost: we don't know how to deal with this \"URL\": \"" + url + "\"!");
 
     const std::string::size_type first_colon_pos(url.find(':', 9));
     if (first_colon_pos != std::string::npos)
@@ -175,6 +175,6 @@ int main(int argc, char *argv[]) {
 
         CompareStatsAndGenerateReport(argv[2], old_domains_and_counts, new_domains_and_counts);
     } catch (const std::exception &e) {
-        Error("caught exception: " + std::string(e.what()));
+        logger->error("caught exception: " + std::string(e.what()));
     }
 }

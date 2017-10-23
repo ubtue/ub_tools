@@ -144,10 +144,10 @@ void NormaliseURLs(const bool verbose, MarcReader * const reader, MarcWriter * c
 
             for (const size_t field_index : erase_field_indices)
                 record.deleteField(field_index);
-            
+
             modified_record = true;
         }
-        
+
         if (modified_record)
             ++modified_count;
 
@@ -174,6 +174,6 @@ int main(int argc, char **argv) {
     try {
         NormaliseURLs(verbose, marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

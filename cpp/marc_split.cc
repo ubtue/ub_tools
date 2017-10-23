@@ -3,7 +3,7 @@
  *
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
 
     unsigned split_count;
     if (not StringUtil::ToUnsigned(argv[3], &split_count))
-        Error("bad split count: \"" + std::string(argv[3]) + "\"!");
+        logger->error("bad split count: \"" + std::string(argv[3]) + "\"!");
 
     const std::string output_prefix(argv[2]);
 

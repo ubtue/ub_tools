@@ -95,7 +95,7 @@ void CollectSuperiorPPNs(const MarcRecord &record, std::unordered_set<std::strin
              std::string err_msg;
              if (not superior_ppn_matcher->matched(superior_ppn, &err_msg)) {
                  if (not err_msg.empty())
-                     Error("Error with regex für superior works " + err_msg);
+                     logger->error("Error with regex für superior works " + err_msg);
                  continue;
              }
              superior_ppn = (*superior_ppn_matcher)[1];
@@ -187,6 +187,6 @@ int main(int argc, char **argv) {
         LoadDE21PPNs(verbose, marc_reader.get());
         AugmentRecords(marc_reader.get(), marc_writer.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

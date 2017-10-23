@@ -26,7 +26,7 @@ EmailSender::Priority StringToPriority(const std::string &priority_candidate) {
         return EmailSender::HIGH;
     if (priority_candidate == "very_high")
         return EmailSender::VERY_HIGH;
-    Error("\"" + priority_candidate + "\" is an unknown priority!");
+    logger->error("\"" + priority_candidate + "\" is an unknown priority!");
 }
 
 
@@ -35,7 +35,7 @@ EmailSender::Format StringToFormat(const std::string &format_candidate) {
         return EmailSender::PLAIN_TEXT;
     else if (format_candidate == "html")
         return EmailSender::HTML;
-    Error("\"" + format_candidate + "\" is an unknown format!");
+    logger->error("\"" + format_candidate + "\" is an unknown format!");
 }
 
 
@@ -43,7 +43,7 @@ bool ExtractArg(const char * const argument, const std::string &arg_name, std::s
     if (StringUtil::StartsWith(argument, "--" + arg_name + "=")) {
         *arg_value = argument + arg_name.length() + 3 /* two dashes and one equal sign */;
         if (arg_value->empty())
-            Error(arg_name + " is missing!");
+            logger->error(arg_name + " is missing!");
 
         return true;
     }
@@ -63,17 +63,17 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
             or ExtractArg(*argv, "format", format))
             ++argv;
         else
-            Error("unknown argument: " + std::string(*argv));
+            logger->error("unknown argument: " + std::string(*argv));
     }
 
     if (sender->empty() and reply_to->empty())
-        Error("you must specify --sender and/or --reply-to!");
+        logger->error("you must specify --sender and/or --reply-to!");
     if (recipient->empty())
-        Error("you must specify a recipient!");
+        logger->error("you must specify a recipient!");
     if (subject->empty())
-        Error("you must specify a subject!");
+        logger->error("you must specify a subject!");
     if (message_body->empty())
-        Error("you must specify a message-body!");
+        logger->error("you must specify a message-body!");
 }
 
 
@@ -96,8 +96,8 @@ int main(int argc, char *argv[]) {
             format = StringToFormat(format_as_string);
 
         if (not EmailSender::SendEmail(sender, recipient, subject, message_body, priority, format, reply_to))
-            Error("failed to send your email!");
+            logger->error("failed to send your email!");
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

@@ -45,16 +45,17 @@ public:
     /** Constructs a DirectoryEntry from the binary representation of a MARC-21 directory entry. */
     inline explicit DirectoryEntry(const std::string &raw_entry) {
         if (unlikely(raw_entry.size() != DIRECTORY_ENTRY_LENGTH))
-            Error("DirectoryEntry::DirectoryEntry: incorrect raw directory entry size ("
+            logger->error("DirectoryEntry::DirectoryEntry: incorrect raw directory entry size ("
                   + std::to_string(raw_entry.size()) + ").  Must be 12!");
         tag_ = raw_entry.substr(0, TAG_LENGTH);
 
         if (unlikely(std::sscanf(raw_entry.data() + TAG_LENGTH, "%4u", &field_length_) != 1))
-            Error("DirectoryEntry::DirectoryEntry: can't scan field length (" + raw_entry.substr(TAG_LENGTH, 4)
-                  + ") in directory entry! (Tag was " + tag_.to_string() + ")");
+            logger->error("DirectoryEntry::DirectoryEntry: can't scan field length ("
+                          + raw_entry.substr(TAG_LENGTH, 4) + ") in directory entry! (Tag was " + tag_.to_string()
+                          + ")");
 
         if (unlikely(std::sscanf(raw_entry.data() + 7, "%5u", &field_offset_) != 1))
-            Error("DirectoryEntry::DirectoryEntry: can't scan field oddset in directory entry!");
+            logger->error("DirectoryEntry::DirectoryEntry: can't scan field oddset in directory entry!");
     }
 
     /** Copy constructor. */

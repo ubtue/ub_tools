@@ -246,7 +246,7 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
                const std::string &reply_to, const bool use_ssl, const bool use_authentication)
 {
     if (unlikely(sender.empty() and reply_to.empty()))
-        Error("in EmailSender::SendEmail: both \"sender\" and \"reply_to\" can't be empty!");
+        logger->error("in EmailSender::SendEmail: both \"sender\" and \"reply_to\" can't be empty!");
 
     const TimeLimit time_limit(10000 /* ms */);
 
@@ -267,7 +267,7 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
     char buf[1000];
     ssize_t response_size;
     if ((response_size = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf))) <= 0) {
-        Warning("in EmailSender::SendEmail: Can't read SMTP server's welcome message!");
+        logger->warning("in EmailSender::SendEmail: Can't read SMTP server's welcome message!");
         return false;
     }
     if (perform_logging) {

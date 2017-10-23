@@ -32,7 +32,6 @@
 #include "FileUtil.h"
 #include "HtmlUtil.h"
 #include "IniFile.h"
-#include "Logger.h"
 #include "MiscUtil.h"
 #include "SimpleXmlParser.h"
 #include "StringDataSource.h"
@@ -84,11 +83,10 @@ private:
 
     std::list<OaiPmh::Field> metadata_fields_; //< The list of metadata fields for the current record.
 
-    Logger *logger_;
     unsigned verbosity_;
 public:
     /** Construct a ListRecords parser. */
-    ListRecordsParser(const std::string &xml_document, Logger * const logger, const unsigned verbosity);
+    ListRecordsParser(const std::string &xml_document, const unsigned verbosity);
 
     virtual void notify(const Chunk &chunk);
 
@@ -121,11 +119,11 @@ bool ListRecordsParser::importReceivedRecord() {
     // Make sure the record has an identifier
     if (identifier_.empty()) {
         if (verbosity_ >= 1)
-            logger_->log("Parser skipping record: no identifier found.");
+            logger->info("Parser skipping record: no identifier found.");
         return false;
     }
     if (verbosity_ >= 5)
-        logger_->log("Parser creating record: " + identifier_);
+        logger->info("Parser creating record: " + identifier_);
 
     // Create a result:
     records_.push_back(OaiPmh::Record(identifier_, datestamp_));
@@ -140,14 +138,13 @@ bool ListRecordsParser::importReceivedRecord() {
 
 // ListRecordsParser -- Construct a ListRecords parser.
 //
-ListRecordsParser::ListRecordsParser(const std::string &xml_document, Logger * const logger, const unsigned verbosity)
+ListRecordsParser::ListRecordsParser(const std::string &xml_document, const unsigned verbosity)
     : XmlParser(xml_document.c_str(), xml_document.size(), true /* = convert_to_iso8859_15 */,
                 XmlParser::START_ELEMENT | XmlParser::END_ELEMENT | XmlParser::CHARACTERS | XmlParser::WARNING
                 | XmlParser::ERROR | XmlParser::FATAL_ERROR),
       received_record_count_(0), detected_error_(false), error_tag_open_(false),
       response_date_tag_open_(false), header_tag_open_(false), identifier_tag_open_(false),
-      datestamp_tag_open_(false), resumption_token_tag_open_(false), metadata_tag_open_(false),
-      logger_(logger), verbosity_(verbosity)
+      datestamp_tag_open_(false), resumption_token_tag_open_(false), metadata_tag_open_(false), verbosity_(verbosity)
 {
 }
 
@@ -304,7 +301,7 @@ bool GetListRecordsResponse(const std::string &server_url, const std::string &fr
 
     // Log the request details:
     if (verbosity >= 3)
-        logger->log("HTTP GET: " + server_url + " " + MiscUtil::StringMapToString(args));
+        logger->info("HTTP GET: " + server_url + " " + MiscUtil::StringMapToString(args));
 
 
     // Contact the OAI-PMH server:
@@ -325,10 +322,10 @@ bool GetListRecordsResponse(const std::string &server_url, const std::string &fr
             return true;
 
         // If we fail, sleep then try again.
-        logger->log("HTTP GET failed: " + error_message);
+        logger->info("HTTP GET failed: " + error_message);
 
         if (attempt_count <= max_attempts) {
-            logger->log("Retrying in %d seconds", sleep_time);
+            logger->info("Retrying in " + std::to_string(sleep_time) + " seconds");
             ::sleep(sleep_time);
             sleep_time *= 2;
         }
@@ -518,7 +515,8 @@ bool Client::listMetadataFormats(std::vector<MetadataFormatDescriptor> * const m
         MetadataFormatDescriptor metadata_format_descriptor;
         std::string err_msg;
         if (unlikely(not ParseMetadataFormat(&xml_parser, &metadata_format_descriptor, &err_msg)))
-            Error("in Client::listMetadataFormats: error while parsing \"metadataFormat\"! (" + err_msg + ")");
+            logger->error("in Client::listMetadataFormats: error while parsing \"metadataFormat\"! (" + err_msg
+                          + ")");
         metadata_format_list->push_back(metadata_format_descriptor);
     }
 }
@@ -530,12 +528,11 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
                         const unsigned verbosity, Logger * const logger)
 {
     if (verbosity >= 2) {
-        logger->log("Harvesting repository '%s', set '%s'",
-                    repository_name_.c_str(), set_spec.c_str());
+        logger->info("Harvesting repository '" + repository_name_ + "', set '" + set_spec + "'");
         if (not from.empty())
-            logger->log("Harvesting records updated since: '%s'", from.c_str());
-        logger->log("OAI base URL: " + base_url_);
-        logger->log("metadataPrefix: " + metadata_prefix_);
+            logger->info("Harvesting records updated since: '" + from + "'");
+        logger->info("OAI base URL: " + base_url_);
+        logger->info("metadataPrefix: " + metadata_prefix_);
     }
 
     // Import statistics
@@ -552,13 +549,12 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
         ++received_xml_page_count;
 
         // Parse the XML document:
-        ListRecordsParser list_records_parser(xml_document, logger, verbosity);
-        const bool parse_succeeded = list_records_parser.parse();
+        ListRecordsParser list_records_parser(xml_document, verbosity);
+        const bool parse_succeeded(list_records_parser.parse());
 
         // Check for unparsable XML file:
         if (not parse_succeeded) {
-            std::string error_message("An error occurred while parsing the data"
-                                      " returned by the OAI-PMH server!");
+            std::string error_message("An error occurred while parsing the data returned by the OAI-PMH server!");
             if (not resumption_token.empty())
                 error_message += " Resumption token was \"" + resumption_token + "\". ";
             throw std::runtime_error(error_message);
@@ -567,11 +563,10 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
         // Check for OAI-PMH error conditions in the XML:
         if (list_records_parser.detectedError()) {
             std::string error_message;
-            std::string error_code = list_records_parser.getErrorCode(&error_message);
+            std::string error_code(list_records_parser.getErrorCode(&error_message));
 
             if (verbosity >= 4)
-                logger->log("Client::harvestSet: import error, code: %s, message: %s",
-                            error_code.c_str(), error_message.c_str());
+                logger->info("Client::harvestSet: import error, code: " + error_code +", message: " + error_message);
 
             if (error_code == "noRecordsMatch")
                 // There were no records available for us to return.
@@ -604,10 +599,10 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
     } while (not resumption_token.empty());
 
     if (verbosity >= 2) {
-        logger->log("Finished harvesting repository '" + repository_name_ + "',"
-                    " set '" + set_spec + "', updated since '" + from + "'.\n"
-                    "\t" + StringUtil::ToString(received_xml_page_count) + " XML pages were retrieved.\n"
-                    "\t" + StringUtil::ToString(received_record_count)   + " OAI-PMH records were retrieved.");
+        logger->info("Finished harvesting repository '" + repository_name_ + "',"
+                     " set '" + set_spec + "', updated since '" + from + "'.\n"
+                     "\t" + StringUtil::ToString(received_xml_page_count) + " XML pages were retrieved.\n"
+                     "\t" + StringUtil::ToString(received_record_count)   + " OAI-PMH records were retrieved.");
     }
 }
 
@@ -616,7 +611,7 @@ void Client::harvestSet(const std::string &set_spec, const std::string &from, co
 //
 void Client::harvest(const std::string &set_name, const unsigned verbosity, Logger * const logger) {
     if (verbosity >= 3)
-        logger->log("Harvesting set '" + set_name + "' from '" + repository_name_ + "'.");
+        logger->info("Harvesting set '" + set_name + "' from '" + repository_name_ + "'.");
 
     // Get the date of the last harvest from the progress file:
     std::string last_harvest_date;
@@ -629,8 +624,7 @@ void Client::harvest(const std::string &set_name, const unsigned verbosity, Logg
             // Perform an incremental harvest:
             FileUtil::ReadString(progress_file, &last_harvest_date);
             if (verbosity >= 3)
-                logger->log("Last harvest date read from " + progress_file + ": " +
-                            last_harvest_date);
+                logger->info("Last harvest date read from " + progress_file + ": " + last_harvest_date);
         }
     }
 
@@ -639,15 +633,15 @@ void Client::harvest(const std::string &set_name, const unsigned verbosity, Logg
         std::string actual_set_name((set_name == "all") ? "" : set_name);
         harvestSet(actual_set_name, last_harvest_date, "" /* until */, verbosity, logger);
     } catch (const std::exception &x) {
-        logger->log("An error occurred while harvesting %s/%s: %s",
-                    repository_name_.c_str(), set_name.c_str(), x.what());
+        logger->info("An error occurred while harvesting " + repository_name_ + "/" + set_name + ": "
+                     + std::string(x.what()));
         throw;
     }
 
     // Write the date of this harvest to the progress file:
     FileUtil::WriteString(progress_file, first_response_date_);
     if (verbosity >= 3)
-        logger->log("Harvest date written to " + progress_file + ": " + first_response_date_);
+        logger->info("Harvest date written to " + progress_file + ": " + first_response_date_);
 }
 
 
@@ -655,7 +649,7 @@ void Client::harvest(const std::string &set_name, const unsigned verbosity, Logg
 //
 void Client::harvest(const unsigned verbosity, Logger * const logger) {
     if (verbosity >= 3)
-        logger->log("Harvesting all known sets for repository '" + repository_name_ + "'.");
+        logger->info("Harvesting all known sets for repository '" + repository_name_ + "'.");
 
     // Import each set
     for (std::list<std::string>::const_iterator set_name(sets_.begin()); set_name != sets_.end(); ++set_name)

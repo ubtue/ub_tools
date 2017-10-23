@@ -21,11 +21,13 @@
 #define UTIL_H
 
 
+#include <mutex>
 #include <string>
 #include <vector>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <unistd.h>
 #include "Compiler.h"
 
 
@@ -36,8 +38,31 @@
 #define ReallyStringize(S) #S
 
 
+// A thread-safe logger class.
+class Logger {
+    friend Logger *LoggerInstantiator();
+    std::mutex mutex_;
+    int fd_;
+private:
+    Logger(): fd_(STDERR_FILENO) { }
+public:
+    void redirectOutput(const int new_fd) { fd_ = new_fd; }
+
+    /** Emits "msg" and then calls exit(3). */
+    void error(const std::string &msg) __attribute__((noreturn));
+
+    void warning(const std::string &msg);
+
+    void info(const std::string &msg);
+
+    void debug(const std::string &msg);
+};
+extern Logger *logger;
+
+
 // TestAndThrowOrReturn -- tests condition "cond" and, if it evaluates to "true", throws an exception unless another
-//                         exception is already in progress.  In the latter case, TestAndThrowOrReturn() simply returns.
+//                         exception is already in progress.  In the latter case, TestAndThrowOrReturn() simply
+//                         returns.
 //
 #define TestAndThrowOrReturn(cond, err_text)                                                                       \
     do {                                                                                                           \
@@ -55,14 +80,6 @@
 
 /** Must be set to point to argv[0] in main(). */
 extern char *progname;
-
-
-/** Emits "msg" on stderr and then calls exit(3). */
-void Error(const std::string &msg) __attribute__((noreturn));
-
-
-/** Emits "msg" on stderr. */
-void Warning(const std::string &msg);
 
 
 /** \class DSVReader

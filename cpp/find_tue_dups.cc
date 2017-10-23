@@ -107,18 +107,18 @@ std::string ExtractInventory(const std::string &_910_subfield_a) {
     try {
         JSON::Parser json_parser(_910_subfield_a);
         if (not (json_parser.parse(&tree_root)))
-            Error("in ExtractInventory: failed to parse returned JSON: " + json_parser.getErrorMessage()
+            logger->error("in ExtractInventory: failed to parse returned JSON: " + json_parser.getErrorMessage()
                   + "(input was: " + StringUtil::CStyleEscape(_910_subfield_a) + ")");
 
         if (tree_root->getType() != JSON::JSONNode::OBJECT_NODE)
-            Error("in ExtractInventory: expected an object node!");
+            logger->error("in ExtractInventory: expected an object node!");
         const JSON::ObjectNode * const object(reinterpret_cast<const JSON::ObjectNode * const>(tree_root));
 
         const JSON::JSONNode * const inventory_node(object->getValue("bestand8032"));
         if (inventory_node == nullptr)
             return "";
         if (inventory_node->getType() != JSON::JSONNode::STRING_NODE)
-            Error("in ExtractInventory: expected a string node!");
+            logger->error("in ExtractInventory: expected a string node!");
         return reinterpret_cast<const JSON::StringNode * const>(inventory_node)->getValue();
 
         delete tree_root;
@@ -353,7 +353,7 @@ void FindTueDups(MarcReader * const marc_reader) {
         const std::string ppn(record.getControlNumber());
         if (previously_seen_ppns.find(ppn) != previously_seen_ppns.cend()) {
             ++control_number_dups_count;
-            Warning("found a duplicate control number: " + ppn);
+            logger->warning("found a duplicate control number: " + ppn);
             continue;
         } else
             previously_seen_ppns.insert(ppn);
@@ -396,6 +396,6 @@ int main(int argc, char **argv) {
     try {
         FindTueDups(marc_reader.get());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

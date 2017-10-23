@@ -25,6 +25,6 @@ int main(int argc, char *argv[]) {
         const size_t result_size(FileUtil::ConcatFiles(argv[1], source_files));
         std::cerr << "Created " << argv[0] << " with a length of " << result_size << " bytes.\n";
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

@@ -71,12 +71,12 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
 
     unsigned starting_volume;
     if (not StringUtil::ToUnsigned((*matcher)[1], &starting_volume) or starting_volume > 2)
-        Error("\"" + (*matcher)[1] + "\" is not a valid starting volume!");
+        logger->error("\"" + (*matcher)[1] + "\" is not a valid starting volume!");
 
     unsigned ending_volume;
     if (not StringUtil::ToUnsigned((*matcher)[2], &ending_volume) or ending_volume > 3
         or ending_volume <= starting_volume)
-        Error("\"" + (*matcher)[2] + "\" is not a valid ending volume!");
+        logger->error("\"" + (*matcher)[2] + "\" is not a valid ending volume!");
 
     const std::string non_canonical_book_name((*matcher)[3]);
     BibleUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
@@ -94,10 +94,10 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
     BibleUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
     const std::string first_book_code(bible_book_to_code_mapper.mapToCode(starting_bible_book_candidate, verbose));
     if (first_book_code.empty())
-        Error("failed to map \"" + starting_bible_book_candidate + "\" to a bible code!");
+        logger->error("failed to map \"" + starting_bible_book_candidate + "\" to a bible code!");
     const std::string second_book_code(bible_book_to_code_mapper.mapToCode(ending_bible_book_candidate, verbose));
     if (second_book_code.empty())
-        Error("failed to map \"" + ending_bible_book_candidate + "\" to a bible code!");
+        logger->error("failed to map \"" + ending_bible_book_candidate + "\" to a bible code!");
 
     std::cout << (first_book_code + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH, '0'))
               << (generate_solr_query ? '_' : ':')
@@ -126,7 +126,7 @@ void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query
     BibleUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
     const std::string book_code(bible_book_to_code_mapper.mapToCode(book_candidate, verbose));
     if (book_code.empty())
-        Error("failed to map \"" + book_candidate + "\" to a bible code!");
+        logger->error("failed to map \"" + book_candidate + "\" to a bible code!");
     if (verbose)
         std::cerr << "book code = \"" << book_code << "\"\n";
     if (chapters_and_verses_candidate.empty()) {

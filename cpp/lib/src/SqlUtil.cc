@@ -60,7 +60,7 @@ TransactionGuard::TransactionGuard(DbConnection * const db_connection, const Iso
     } else {
         connection_status_[db_connection].reference_count_++;
         if (connection_status_[db_connection].level_ != level)
-            Warning("in TransactionGuard::TransactionGuard: Inconsistent isolation level requested!");
+            logger->warning("in TransactionGuard::TransactionGuard: Inconsistent isolation level requested!");
     }
 }
 
