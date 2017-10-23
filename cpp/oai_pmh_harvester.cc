@@ -61,7 +61,7 @@ std::string ExtractResumptionToken(const std::string &xml_document, std::string 
     if (not xml_parser.getNext(&type, &attrib_map, &data) or type == SimpleXmlParser<StringDataSource>::CLOSING_TAG)
         return "";
     if (type != SimpleXmlParser<StringDataSource>::CHARACTERS)
-        Error("strange resumption token XML structure!");
+        logger->error("strange resumption token XML structure!");
 
     // Extract the "cursor" attribute:
     auto name_and_value(attrib_map.find("cursor"));
@@ -101,12 +101,12 @@ unsigned ExtractEncapsulatedRecordData(SimpleXmlParser<StringDataSource> * const
     while (xml_parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "record")) {
         ++record_count;
         if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "metadata"))
-            Error("no <metadata> tag found after a <record> tag!");
+            logger->error("no <metadata> tag found after a <record> tag!");
         xml_parser->skipWhiteSpace();
 
         if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "metadata",
                                    /* attrib_map = */ nullptr, extracted_records))
-            Error("no </metadata> tag found after a <metadata> tag!");
+            logger->error("no </metadata> tag found after a <metadata> tag!");
 
         StripOffTrailingGarbage(extracted_records);
         *extracted_records += '\n';
@@ -123,12 +123,12 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
     const TimeLimit time_limit(time_limit_in_seconds_per_request * 1000);
     Downloader downloader(url, Downloader::Params(), time_limit);
     if (downloader.anErrorOccurred())
-        Error("harvest failed: " + downloader.getLastErrorMessage());
+        logger->error("harvest failed: " + downloader.getLastErrorMessage());
 
     const HttpHeader http_header(downloader.getMessageHeader());
     const unsigned status_code(http_header.getStatusCode());
     if (status_code < 200 or status_code > 299)
-        Error("server returned a status code of " + std::to_string(status_code) + "!");
+        logger->error("server returned a status code of " + std::to_string(status_code) + "!");
 
     const std::string message_body(downloader.getMessageBody());
     std::string extracted_records;
@@ -148,11 +148,11 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
         std::string data;
         if (xml_parser.getNext(&type, &attrib_map, &data) and type == SimpleXmlParser<StringDataSource>::CHARACTERS)
             error_msg += data;
-        Error("OAI-PMH server returned an error: " + error_msg + " (We sent \"" + url + "\")");
+        logger->error("OAI-PMH server returned an error: " + error_msg + " (We sent \"" + url + "\")");
     } else { // record_count > 0
         *total_record_count += record_count;
         if (not output->write(extracted_records))
-            Error("failed to write to \"" + output->getPath() + "\"! (Disc full?)");
+            logger->error("failed to write to \"" + output->getPath() + "\"! (Disc full?)");
     }
 
     *resumption_token = ExtractResumptionToken(message_body, cursor, complete_list_size);
@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
 
     unsigned time_limit_per_request_in_seconds;
     if (not StringUtil::ToUnsigned(time_limit_per_request_as_string, &time_limit_per_request_in_seconds))
-        Error("\"" + time_limit_per_request_as_string + "\" is not a valid time limit!");
+        logger->error("\"" + time_limit_per_request_as_string + "\" is not a valid time limit!");
 
     try {
         const std::string TEMP_FILENAME("/tmp/oai_pmh_harvester.temp.xml");
@@ -238,6 +238,6 @@ int main(int argc, char **argv) {
         GenerateValidatedOutput(marc_reader.get(), control_number_prefix, marc_writer.get());
         ::unlink(TEMP_FILENAME.c_str());
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

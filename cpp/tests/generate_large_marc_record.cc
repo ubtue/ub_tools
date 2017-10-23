@@ -1,7 +1,7 @@
 /** \brief Test program dealing with a record that exceeds 99999 bytes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -58,7 +58,7 @@ std::string IncrementTag(const std::string &tag) {
         return next_tag;
     }
     
-    Error("overflow in IncrementTag()!");
+    logger->error("overflow in IncrementTag()!");
 }
 
 
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
 
     const std::string format(argv[1]);
     if (format != "xml" and format != "binary")
-        Error("bad format, format must be \"xml\" or \"binary\"!");
+        logger->error("bad format, format must be \"xml\" or \"binary\"!");
 
     try {
         MarcRecord record;
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
             std::cout << "Record length is now " << leader.getRecordLength() << ".\n";
             std::string flaw_description;
             if (not record.isProbablyCorrect(&flaw_description))
-                Error("after adding tag \"" + tag + "\": " + flaw_description);
+                logger->error("after adding tag \"" + tag + "\": " + flaw_description);
             tag = IncrementTag(tag);
         }
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[2], format == "xml" ? MarcWriter::XML
@@ -90,6 +90,6 @@ int main(int argc, char *argv[]) {
         marc_writer->write(record);
         std::cout << "The record has been written!\n";
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        logger->error("Caught exception: " + std::string(e.what()));
     }
 }

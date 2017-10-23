@@ -2,7 +2,7 @@
  *  \brief  Implementation of the query parser for the marc_grep2 tool.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -84,7 +84,7 @@ ConditionDescriptor::ConditionDescriptor(const std::string &field_or_subfield_re
     : comp_type_(comp_type), field_or_subfield_reference_(field_or_subfield_reference)
 {
     if (comp_type != EXISTS and comp_type != IS_MISSING)
-        Error("Invalid CompType in ConditionDescriptor constructor! (1)");
+        logger->error("Invalid CompType in ConditionDescriptor constructor! (1)");
 }
 
 
@@ -95,7 +95,7 @@ ConditionDescriptor::ConditionDescriptor(const std::string &field_or_subfield_re
 {
     if (comp_type != EQUAL_EQUAL and comp_type != NOT_EQUAL and comp_type != SINGLE_FIELD_EQUAL
         and comp_type != SINGLE_FIELD_NOT_EQUAL)
-        Error("Invalid CompType in ConditionDescriptor constructor! (2)");
+        logger->error("Invalid CompType in ConditionDescriptor constructor! (2)");
 }
 
 
@@ -204,8 +204,8 @@ ConditionDescriptor::CompType TokenToConditionDescriptorCompType(const TokenType
     case SINGLE_FIELD_NOT_EQUAL:
         return ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL;
     default:
-        Error("In TokenToConditionDescriptorCompType: can't convert \"" + Tokenizer::TokenTypeToString(token)
-              + "\" to a ConditionDescriptor::CompType!");
+        logger->error("in TokenToConditionDescriptorCompType: can't convert \"" + Tokenizer::TokenTypeToString(token)
+                      + "\" to a ConditionDescriptor::CompType!");
     }
 }
 

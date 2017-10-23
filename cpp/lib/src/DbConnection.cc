@@ -57,7 +57,7 @@ DbConnection::~DbConnection() {
 
 void DbConnection::queryOrDie(const std::string &query_statement) {
     if (not query(query_statement))
-        Error("in DbConnection::queryOrDie: \"" + query_statement + "\" failed: " + getLastErrorMessage());
+        logger->error("in DbConnection::queryOrDie: \"" + query_statement + "\" failed: " + getLastErrorMessage());
 }
 
 

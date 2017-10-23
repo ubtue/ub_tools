@@ -24,6 +24,6 @@ int main(int argc, char *argv[]) {
             writer.add(member_filename);
         }
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

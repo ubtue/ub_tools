@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
 
         return EXIT_SUCCESS;
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
 

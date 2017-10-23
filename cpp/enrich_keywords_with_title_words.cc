@@ -1,6 +1,6 @@
 // A tool for adding keywords extracted from titles to MARC records.
 /*
-    Copyright (C) 2015,2016, Library of the University of Tübingen
+    Copyright (C) 2015-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -401,7 +401,7 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[verbose ? 2 : 1]);
     const std::string marc_output_filename(argv[verbose ? 3 : 2]);
     if (unlikely(marc_input_filename == marc_output_filename))
-        Error("MARC input file name equals MARC output file name!");
+        logger->error("MARC input file name equals MARC output file name!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
@@ -413,11 +413,11 @@ int main(int argc, char **argv) {
         const std::string stopwords_filename(argv[arg_no]);
         std::string err_msg;
         if (not matcher->matched(stopwords_filename, &err_msg))
-            Error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
+            logger->error("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(stopwords_filename.length() - 3));
         File stopwords(stopwords_filename, "r");
         if (not stopwords)
-            Error("can't open \"" + stopwords_filename + "\" for reading!");
+            logger->error("can't open \"" + stopwords_filename + "\" for reading!");
         std::unordered_set<std::string> stopwords_set;
         LoadStopwords(verbose, &stopwords, language_code, &stopwords_set);
         language_codes_to_stopword_sets[language_code] = stopwords_set;
@@ -425,7 +425,7 @@ int main(int argc, char **argv) {
 
     // We always need English because librarians suck at specifying English:
     if (language_codes_to_stopword_sets.find("eng") == language_codes_to_stopword_sets.end())
-        Error("You always need to provide \"stopwords.eng\"!");
+        logger->error("You always need to provide \"stopwords.eng\"!");
 
     try {
         std::unordered_map<std::string, std::set<std::string>> stemmed_keyword_to_stemmed_keyphrases_map;
@@ -438,6 +438,6 @@ int main(int argc, char **argv) {
                                         stemmed_keyphrases_to_unstemmed_keyphrases_map,
                                         language_codes_to_stopword_sets);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

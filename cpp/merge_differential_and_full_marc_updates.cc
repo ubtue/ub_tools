@@ -102,7 +102,7 @@ void LogWarning(const std::string &log_message) {
 std::string GetHostname() {
     char buf[1024];
     if (unlikely(::gethostname(buf, sizeof buf) != 0))
-        Error("gethostname(2) failed! (" + std::string(::strerror(errno)) + ")");
+        logger->error("gethostname(2) failed! (" + std::string(::strerror(errno)) + ")");
     buf[sizeof(buf) - 1] = '\0';
 
     return buf;
@@ -111,7 +111,7 @@ std::string GetHostname() {
 
 void SendEmail(const std::string &subject, const std::string &message_body, const EmailSender::Priority priority) {
     if (not EmailSender::SendEmail(::email_server_user, ::default_email_recipient, subject, message_body, priority))
-        Error("failed to send an email!");
+        logger->error("failed to send an email!");
 }
 
 

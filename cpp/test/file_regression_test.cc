@@ -2,7 +2,7 @@
  *  \brief  Regression test
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     const std::string logfile_path(argv[1]);
     std::ofstream logfile(logfile_path);
     if (not logfile)
-        Error("failed to open \"" + logfile_path + "\" for writing!");
+        logger->error("failed to open \"" + logfile_path + "\" for writing!");
 
     // Redirect std::clog to write to logfile:
     auto old_clog_rdbuf(std::clog.rdbuf()); // We need to reset clog's buffer back to the original before exiting!
@@ -57,16 +57,16 @@ int main(int argc, char *argv[]) {
         std::string s;
         file.getline(&s);
         if (s != JELLO_MOLD)
-            Error("Expected \"" + JELLO_MOLD + "\" read \"" + s + "\"!");
+            logger->error("Expected \"" + JELLO_MOLD + "\" read \"" + s + "\"!");
 
         file.seek(6);
         file << "world!";
         file.rewind();
         file.getline(&s);
         if (s != "Jello world!")
-            Error("Expected \"Jello world!\" read \"" + s + "\"!");
+            logger->error("Expected \"Jello world!\" read \"" + s + "\"!");
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 
     // Restore clog's original buffer or we crash!

@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, Library of the University of Tübingen
+    Copyright (C) 2016-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -66,7 +66,7 @@ void ExtractSynonyms(File * const reference_data_id_term_list_input, std::map<st
         std::string line(reference_data_id_term_list_input->getline());
         std::vector<std::string> ids_and_terms;
         if (unlikely(StringUtil::SplitThenTrim(line, '|', "\"", &ids_and_terms) < 2))
-            Error("Invalid line");
+            logger->error("Invalid line");
         const std::string id(ids_and_terms[0]);
         ids_and_terms.erase(ids_and_terms.begin());
         (*synonym_map)[id] = StringUtil::Join(ids_and_terms, ',');
@@ -90,14 +90,15 @@ void ProcessRecord(MarcRecord * const record, const std::string &output_tag_and_
     // Abort if field is already populated
     const std::string tag(GetTag(output_tag_and_subfield_code));
     if (record->getFieldIndex(tag) != MarcRecord::FIELD_NOT_FOUND)
-        Error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
+        logger->error("Field with tag " + tag + " is not empty for PPN " + record->getControlNumber() + '\n');
     std::string subfield_spec(GetSubfieldCodes(output_tag_and_subfield_code));
     if (subfield_spec.size() != 1)
-        Error("We currently only support a single subfield and thus specifying " + subfield_spec + " as output subfield is not valid\n");
+        logger->error("We currently only support a single subfield and thus specifying " + subfield_spec
+                      + " as output subfield is not valid\n");
     Subfields subfields(' ', ' '); // <- indicators must be set explicitly although empty
     subfields.addSubfield(subfield_spec[0], synonyms);
     if (not(record->insertField(tag, subfields)))
-        Warning("Could not insert field " + tag + " for PPN " + record->getControlNumber());
+        logger->warning("Could not insert field " + tag + " for PPN " + record->getControlNumber());
     ++modified_count;
 }
 
@@ -129,7 +130,7 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(argv[2]);
     const std::string marc_output_filename(argv[3]);
     if (unlikely(reference_data_id_term_list_filename == marc_output_filename))
-        Error("Reference data id term list input file name equals output file name!");
+        logger->error("Reference data id term list input file name equals output file name!");
 
     std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
@@ -142,6 +143,6 @@ int main(int argc, char **argv) {
         ExtractSynonyms(reference_data_id_term_list_input.get(), &synonym_map);
         InsertSynonyms(marc_reader.get(), marc_writer.get(), TITLE_DATA_UNUSED_FIELD_FOR_SYNONYMS, synonym_map);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

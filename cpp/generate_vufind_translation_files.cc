@@ -55,18 +55,18 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
     TranslationUtil::ReadIniFile(output_file_path, &token_to_line_no_and_other_map);
 
     if (unlikely(not FileUtil::RenameFile(output_file_path, output_file_path + ".bak", /* remove_target = */true)))
-        Error("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"! ("
-              + std::string(::strerror(errno)) + ")");
+        logger->error("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"! ("
+                      + std::string(::strerror(errno)) + ")");
 
     File output(output_file_path, "w");
     if (unlikely(output.fail()))
-        Error("failed to open \"" + output_file_path + "\" for writing!");
+        logger->error("failed to open \"" + output_file_path + "\" for writing!");
 
     db_connection->queryOrDie("SELECT token,translation FROM vufind_translations WHERE language_code='"
                               + _3letter_code + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (unlikely(result_set.empty()))
-        Error("found no translations for language code \"" + _3letter_code + "\"!");
+        logger->error("found no translations for language code \"" + _3letter_code + "\"!");
     if (verbose)
         std::cerr << "\tFound " << result_set.size() << " (token,translation) pairs.\n";
 
@@ -103,7 +103,7 @@ void GetLanguageCodes(const bool verbose, DbConnection * const db_connection,
     db_connection->queryOrDie("SELECT DISTINCT language_code FROM vufind_translations");
     DbResultSet language_codes_result_set(db_connection->getLastResultSet());
     if (unlikely(language_codes_result_set.empty()))
-        Error("no language codes found, expected multiple!");
+        logger->error("no language codes found, expected multiple!");
 
     while (const DbRow row = language_codes_result_set.getNextRow()) {
         const std::string german_language_code(
@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
 
     const std::string output_directory(argv[1]);
     if (unlikely(not FileUtil::IsDirectory(output_directory)))
-        Error("\"" + output_directory + "\" is not a directory or can't be read!");
+        logger->error("\"" + output_directory + "\" is not a directory or can't be read!");
 
     try {
         const IniFile ini_file(CONF_FILE_PATH);
@@ -154,6 +154,6 @@ int main(int argc, char **argv) {
                             output_directory + "/" + _2letter_intl_code_and_fake_3letter_english_code.first + ".ini",
                             _2letter_intl_code_and_fake_3letter_english_code.second, &db_connection);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

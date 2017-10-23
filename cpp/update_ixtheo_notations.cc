@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015, Library of the University of Tübingen
+    Copyright (C) 2015,2017 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -52,11 +52,13 @@ void LoadCodeToDescriptionMap(File * const code_to_description_map_file,
 
         const size_t comma_pos(line.find(','));
         if (comma_pos == std::string::npos)
-            Error("malformed line " + std::to_string(line_no) + " in \"" + code_to_description_map_file->getPath() + "\"! (1)");
+            logger->error("in LoadCodeToDescriptionMap: malformed line " + std::to_string(line_no) + " in \""
+                          + code_to_description_map_file->getPath() + "\"! (1)");
 
         const std::string code(line.substr(0, comma_pos));
         if (code.length() != 2 and code.length() != 3)
-            Error("malformed line " + std::to_string(line_no) + " in \"" + code_to_description_map_file->getPath() + "\"! (2)");
+            logger->error("in LoadCodeToDescriptionMap: malformed line " + std::to_string(line_no) + " in \""
+                          + code_to_description_map_file->getPath() + "\"! (2)");
 
         (*code_to_description_map)[code] = line.substr(comma_pos + 1);
     }
@@ -155,13 +157,13 @@ int main(int argc, char **argv) {
     const std::string code_to_description_map_filename(argv[3]);
     File code_to_description_map_file(code_to_description_map_filename, "r");
     if (not code_to_description_map_file)
-        Error("can't open \"" + code_to_description_map_filename + "\" for reading!");
+        logger->error("can't open \"" + code_to_description_map_filename + "\" for reading!");
 
     try {
         std::unordered_map<std::string, std::string> code_to_description_map;
         LoadCodeToDescriptionMap(&code_to_description_map_file, &code_to_description_map);
         ProcessRecords(marc_reader.get(), marc_writer.get(), code_to_description_map);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }

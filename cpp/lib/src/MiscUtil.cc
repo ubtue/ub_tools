@@ -78,7 +78,7 @@ char HexDigit(const unsigned value) {
     case 0xF:
         return 'F';
     default:
-        Error("in MiscUtil::HexDigit: invalid value " + std::to_string(value) + "!");
+        logger->error("in MiscUtil::HexDigit: invalid value " + std::to_string(value) + "!");
     }
 }
 
@@ -139,7 +139,7 @@ TemplateScanner::TokenType TemplateScanner::getToken(const bool emit_output) {
     if (unlikely(input_.eof()))
         return END_OF_INPUT;
     if (unlikely(not last_error_message_.empty()))
-        Error("in TemplateScanner::getToken: attempting to continue scanning after an error occurred!");
+        logger->error("in TemplateScanner::getToken: attempting to continue scanning after an error occurred!");
 
     for (;;) {
         int ch(input_.get());
@@ -222,7 +222,7 @@ std::string TemplateScanner::extractKeywordCandidate() {
 void TemplateScanner::seek(const std::istream::streampos stream_position, const unsigned line_no) {
     input_.seekg(stream_position);
     if (unlikely(not input_))
-        Error("in TemplateScanner::seek: this should never happen!");
+        logger->error("in TemplateScanner::seek: this should never happen!");
     line_no_ = line_no;
 }
 
@@ -274,7 +274,7 @@ std::string TemplateScanner::TokenTypeToString(const TemplateScanner::TokenType 
         return "ERROR";
     }
 
-    Error("in TemplateScanner::TokenTypeToString: we should *never* get here!");
+    logger->error("in TemplateScanner::TokenTypeToString: we should *never* get here!");
 }
 
 
@@ -377,8 +377,8 @@ private:
 
 bool Scope::isLoopVariable(const std::string &variable_name) const {
     if (unlikely(type_ != LOOP))
-        Error("in MiscUtil::Scope::isLoopVariable: this should never happen! (type is "
-              + TypeToString(type_) + ", variable is \"" + variable_name + "\")");
+        logger->error("in MiscUtil::Scope::isLoopVariable: this should never happen! (type is "
+                      + TypeToString(type_) + ", variable is \"" + variable_name + "\")");
 
     return loop_vars_.find(variable_name) != loop_vars_.cend();
 }
@@ -386,8 +386,8 @@ bool Scope::isLoopVariable(const std::string &variable_name) const {
 
 unsigned Scope::getCurrentIterationCount() const {
     if (unlikely(type_ != LOOP))
-        Error("in MiscUtil::Scope::getCurrentIterationCount: this should never happen! (type is "
-              + TypeToString(type_) + ")");
+        logger->error("in MiscUtil::Scope::getCurrentIterationCount: this should never happen! (type is "
+                      + TypeToString(type_) + ")");
 
     return iteration_count_;
 }
@@ -395,7 +395,7 @@ unsigned Scope::getCurrentIterationCount() const {
 
 unsigned Scope::getLoopCount() const {
     if (unlikely(type_ != LOOP))
-        Error("in MiscUtil::Scope::getLoopCount: this should never happen!");
+        logger->error("in MiscUtil::Scope::getLoopCount: this should never happen!");
 
     return loop_count_;
 }
@@ -403,7 +403,7 @@ unsigned Scope::getLoopCount() const {
 
 void Scope::incIterationCount() {
     if (unlikely(type_ != LOOP))
-        Error("in MiscUtil::Scope::incIterationCount: this should never happen!");
+        logger->error("in MiscUtil::Scope::incIterationCount: this should never happen!");
 
     ++iteration_count_;
 }
@@ -411,7 +411,7 @@ void Scope::incIterationCount() {
 
 std::istream::streampos Scope::getStartStreamPos() const {
     if (unlikely(type_ != LOOP))
-        Error("in MiscUtil::Scope::getStartStreamPos: this should never happen!");
+        logger->error("in MiscUtil::Scope::getStartStreamPos: this should never happen!");
 
         return start_stream_pos_;
 }
@@ -427,7 +427,7 @@ std::string Scope::TypeToString(const Type type) {
         return "LOOP";
     }
 
-    Error("in Scope::TypeToString: we should *never* get here!");
+    logger->error("in Scope::TypeToString: we should *never* get here!");
 }
 
 
@@ -875,7 +875,7 @@ static unsigned GetLogSuffix(const std::string &log_file_prefix, const std::stri
 
     unsigned generation;
     if (unlikely(not StringUtil::ToUnsigned(filename.substr(log_file_prefix.length() + 1), &generation)))
-        Error("in GetLogSuffix(MiscUtil.cc): bad conversion, filename = \"" + filename + "\"!");
+        logger->error("in GetLogSuffix(MiscUtil.cc): bad conversion, filename = \"" + filename + "\"!");
 
     return generation;
 }
@@ -921,7 +921,7 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
         while (filenames.size() > max_count) {
             const std::string path_to_delete(dirname + "/" + filenames.back());
             if (unlikely(not FileUtil::DeleteFile(path_to_delete)))
-                Error("in MiscUtil::LogRotate: failed to delete \"" + path_to_delete + "\"!");
+                logger->error("in MiscUtil::LogRotate: failed to delete \"" + path_to_delete + "\"!");
             filenames.pop_back();
         }
     }
@@ -929,8 +929,8 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
     for (auto filename(filenames.rbegin()); filename != filenames.rend(); ++filename) {
         if (unlikely(not FileUtil::RenameFile(dirname + "/" + *filename,
                                               dirname + "/" + IncrementFile(basename, *filename))))
-            Error("in MiscUtil::LogRotate:: failed to rename \"" + dirname + "/" + *filename + "\" to \""
-                  + dirname + "/" + IncrementFile(basename, *filename) + "\"!");
+            logger->error("in MiscUtil::LogRotate:: failed to rename \"" + dirname + "/" + *filename + "\" to \""
+                          + dirname + "/" + IncrementFile(basename, *filename) + "\"!");
     }
 }
 

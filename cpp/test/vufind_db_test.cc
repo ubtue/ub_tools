@@ -44,6 +44,6 @@ int main(int argc, char *argv[]) {
         // The following definition would throw an exception if the "mysql_url" was invalid:
         DbConnection db_connection(mysql_url);
     } catch (const std::exception &x) {
-        Error("caught exception: " + std::string(x.what()));    
+        logger->error("caught exception: " + std::string(x.what()));    
     }
 }
