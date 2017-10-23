@@ -241,9 +241,8 @@ int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headin
 }
 
 
-bool IsEmptyEntry(const std::string &entry) {
-     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("<td.*></td>"));
-     return matcher->matched(entry);
+bool IsEmptyEntryWithoutTranslator(const std::string &entry) {
+    return (StringUtil::EndsWith(entry, "></td>") && (entry.find("translator_exists") == std::string::npos));
 }
 
 
@@ -416,7 +415,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        if (IsTranslatorLanguage(translator_languages, language_code)) {
           // We can have several translations in one language, i.e. from MACS, IxTheo (reliable) or translated by this tool (new)
           // Since we are iteratring over a single column, make sure sure we select the correct translation (reliable or new)
-          if (IsEmptyEntry(row_values[index]) or status=="new" or status=="reliable")
+          if (IsEmptyEntryWithoutTranslator(row_values[index]) or status=="new" or status=="reliable")
               row_values[index] = (language_code == "ger" || status == "reliable") ? CreateNonEditableRowEntry(translation) :
                               CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
                                                      translator, gnd_code);
@@ -424,7 +423,6 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        else
            row_values[index] = (language_code == "ger") ? CreateNonEditableHintEntry(translation, gnd_code)
                                                         : CreateNonEditableRowEntry(translation);
-
     }
     rows->emplace_back(StringUtil::Join(row_values, ""));
     const std::string drop_get_sorted("DROP TEMPORARY TABLE keywords_ger_sorted");
