@@ -56,12 +56,13 @@ void AddFileContextIfMissing(const std::string &path, const std::string &type, c
 void ApplyChanges(const std::string &path);
 
 
-/** \brief  Make sure that Selinux is available and enabled, else throw error
+/** \brief  Make sure that Selinux is available and enabled
+ *  \throws std::runtime_error if Selinux is not enabled (or not installed)
  */
 void AssertEnabled(const std::string &caller);
 
 
-/** \brief  Make sure that the file or directory has the specified context, else throw error.
+/** \brief  Make sure that the file or directory has the specified context
  *  \param  path                path of a file or directory to test
  *  \param  type                a context type, e.g. httpd_sys_rw_content_t
  *  \throws std::runtime_error if the file doesn't have the context type
