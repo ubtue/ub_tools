@@ -149,7 +149,7 @@ void Directory::const_iterator::advance() {
             return;
         }
 
-        if (regex_matcher_->matched(entry_.name_)) {
+        if (regex_matcher_->matched(entry_ptr->d_name)) {
             entry_.name_  = std::string(entry_ptr->d_name);
             entry_.inode_ = entry_ptr->d_ino;
             entry_.type_  = entry_ptr->d_type;
