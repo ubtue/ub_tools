@@ -58,7 +58,10 @@ static std::map<std::string, std::string> international_2letter_code_to_german_3
     { "en", "eng" },
     { "fr", "fra" },
     { "it", "ita" },
-    { "es", "spa" }
+    { "es", "spa" },
+    { "ru", "rus" },
+    { "pt", "por" },
+    { "el", "gre" }
 };
 
 
@@ -137,6 +140,9 @@ static std::map<std::string, std::string> german_to_3letter_english_codes{
     { "spa", "spa" },
     { "hant", "cht" },
     { "hans", "chs" },
+    { "por", "por" },
+    { "rus", "rus" },
+    { "gre", "gre" }
 };
 
 

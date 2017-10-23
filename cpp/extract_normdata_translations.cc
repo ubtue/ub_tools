@@ -55,9 +55,9 @@
 
 
 // Languages to handle
-const unsigned int NUMBER_OF_LANGUAGES(6);
-const std::vector<std::string> languages_to_create{ "en", "fr", "es", "it", "hans", "hant" };
-enum Languages { EN, FR, ES, IT, HANS, HANT };
+const unsigned int NUMBER_OF_LANGUAGES(9);
+const std::vector<std::string> languages_to_create{ "en", "fr", "es", "it", "hans", "hant", "pt", "ru", "el"};
+enum Languages { EN, FR, ES, IT, HANS, HANT, PT, RU, EL };
 
 
 void Usage() {
@@ -234,6 +234,12 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
                     term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "ram")
                     term_to_translation_maps[FR].emplace(german_term, *(++translation_vector_it));
+                else if (*translation_vector_it == "IxTheo_por")
+                    term_to_translation_maps[PT].emplace(german_term, *(++translation_vector_it));
+                else if (*translation_vector_it == "IxTheo_rus")
+                    term_to_translation_maps[RU].emplace(german_term, *(++translation_vector_it));
+                else if (*translation_vector_it == "IxTheo_gre")
+                    term_to_translation_maps[EL].emplace(german_term, *(++translation_vector_it));
             }
         }
         ++count;
@@ -244,6 +250,9 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
               << ", IT: " << term_to_translation_maps[IT].size()
               << ", HANS: " << term_to_translation_maps[HANS].size()
               << ", HANT: " << term_to_translation_maps[HANT].size()
+              << ", PT: " << term_to_translation_maps[PT].size()
+              << ", RU: " << term_to_translation_maps[RU].size()
+              << ", EL: " << term_to_translation_maps[EL].size()
               << " in " << count << " records.\n";
 }
 
@@ -311,6 +320,14 @@ int main(int argc, char **argv) {
         for (const auto &line : term_to_translation_maps[HANT])
             *(lang_files[HANT]) << line.first << '|' << line.second << '\n';
 
+        for (const auto &line : term_to_translation_maps[PT])
+            *(lang_files[PT]) << line.first << '|' << line.second << '\n';
+
+        for (const auto &line : term_to_translation_maps[RU])
+            *(lang_files[RU]) << line.first << '|' << line.second << '\n';
+
+        for (const auto &line : term_to_translation_maps[EL])
+            *(lang_files[EL]) << line.first << '|' << line.second << '\n';
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
