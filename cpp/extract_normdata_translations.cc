@@ -57,7 +57,7 @@
 // Languages to handle
 const unsigned int NUMBER_OF_LANGUAGES(9);
 const std::vector<std::string> languages_to_create{ "en", "fr", "es", "it", "hans", "hant", "pt", "ru", "el" };
-enum Languages { EN, FR, ES, IT, HANS, HANT, PT, RU, EL };
+enum Languages { EN, FR, ES, IT, HANS, HANT, PT, RU, EL, LANGUAGES_END };
 
 
 void Usage() {
@@ -302,7 +302,7 @@ int main(int argc, char **argv) {
                             "100a:110a:111a:130a:150a:151a", 
                             "700a:710a:711a:730a:750a:751a",
                             term_to_translation_maps);
-        for (const auto &lang : { EN, FR, ES, IT, HANS, HANT, PT, RU, EL }) {
+        for (int lang(0); lang < LANGUAGES_END; ++lang) {
             for (const auto &line : term_to_translation_maps[lang]) 
                 *(lang_files[lang]) << line.first << '|' << line.second << '\n';
         }
