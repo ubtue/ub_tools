@@ -27,7 +27,7 @@
 #include <vector>
 
 
-namespace SelinuxUtil {
+namespace SELinuxUtil {
 
 
 enum Mode { ENFORCING, PERMISSIVE, DISABLED };
@@ -58,8 +58,8 @@ void AddFileContextIfMissing(const std::string &path, const std::string &type, c
 void ApplyChanges(const std::string &path);
 
 
-/** \brief  Make sure that Selinux is available and enabled
- *  \throws std::runtime_error if Selinux is not enabled (or not installed)
+/** \brief  Make sure that SELinux is available and enabled
+ *  \throws std::runtime_error if SELinux is not enabled (or not installed)
  */
 void AssertEnabled(const std::string &caller);
 
@@ -80,7 +80,7 @@ void AssertFileHasContext(const std::string &path, const std::string &type);
 std::vector<std::string> GetFileContexts(const std::string &path);
 
 
-/** \brief  Get the mode Selinux is currently running at
+/** \brief  Get the mode SELinux is currently running at
  *  \throws std::runtime_error if the mode could not be determined (via "getenforce")
  */
 Mode GetMode();
@@ -93,17 +93,17 @@ Mode GetMode();
 bool HasFileContext(const std::string &path, const std::string &context);
 
 
-/** \brief  Check if Selinux is available (installed) on the current system
+/** \brief  Check if SELinux is available (installed) on the current system
  */
 bool IsAvailable();
 
 
-/** \brief  Check if Selinux is installed & enabled on the current system.
+/** \brief  Check if SELinux is installed & enabled on the current system.
  */
 bool IsEnabled();
 
 
-} // namespace SelinuxUtil
+} // namespace SELinuxUtil
 
 
 #endif /* SELINUX_UTIL_H */
