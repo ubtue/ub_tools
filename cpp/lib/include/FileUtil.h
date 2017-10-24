@@ -73,7 +73,7 @@ public:
     inline const std::string &getRole() const { return role_; }
     inline const std::string &getType() const { return type_; }
     inline const std::string &getRange() const { return range_; }
-    std::string toString() const { return user_ + ":" + role_ + ": " + type_ + ":" + range_; }
+    std::string toString() const { return user_ + ":" + role_ + ":" + type_ + ":" + range_; }
 };
 
 
