@@ -18,7 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "SelinuxUtil.h"
+#include "SELinuxUtil.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -30,7 +30,7 @@
 #include "StringUtil.h"
 
 
-namespace SelinuxUtil {
+namespace SELinuxUtil {
 
 
 void AddFileContext(const std::string &type, const std::string &file_spec) {
@@ -135,4 +135,4 @@ bool IsEnabled() {
 }
 
 
-} // namespace SelinuxUtil
+} // namespace SELinuxUtil
