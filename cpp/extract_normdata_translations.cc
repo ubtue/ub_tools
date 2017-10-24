@@ -56,7 +56,7 @@
 
 // Languages to handle
 const unsigned int NUMBER_OF_LANGUAGES(9);
-const std::vector<std::string> languages_to_create{ "en", "fr", "es", "it", "hans", "hant", "pt", "ru", "el"};
+const std::vector<std::string> languages_to_create{ "en", "fr", "es", "it", "hans", "hant", "pt", "ru", "el" };
 enum Languages { EN, FR, ES, IT, HANS, HANT, PT, RU, EL };
 
 
