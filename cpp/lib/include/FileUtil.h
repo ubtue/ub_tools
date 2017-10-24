@@ -61,16 +61,20 @@ public:
 };
 
 
-typedef std::tuple<std::string, std::string, std::string, std::string> SELinuxContext;
-
-
-SELinuxContext GetSELinuxContext(const std::string &path);
-
-
-inline std::string SELinuxContextToString(const SELinuxContext &context) {
-    return std::get<0>(context) + ":" + std::get<1>(context) + ":" + std::get<2>(context) + ":"
-           + std::get<3>(context);
-}
+class SELinuxContext {
+    std::string user_;
+    std::string role_;
+    std::string type_;
+    std::string range_;
+public:
+    SELinuxContext() = default;
+    explicit SELinuxContext(const std::string &path);
+    inline const std::string &getUser() const { return user_; }
+    inline const std::string &getRole() const { return role_; }
+    inline const std::string &getType() const { return type_; }
+    inline const std::string &getRange() const { return range_; }
+    std::string toString() const { return user_ + ":" + role_ + ": " + type_ + ":" + range_; }
+};
 
 
 class Directory {
@@ -87,7 +91,7 @@ public:
     public:
         Entry(const Entry &other);
         inline std::string getName() const { return name_; }
-        SELinuxContext getSELinuxContext() const { return GetSELinuxContext(dirname_ + "/" + name_); }
+        inline SELinuxContext getSELinuxContext() const { return SELinuxContext(dirname_ + "/" + name_); }
 
         // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),
         //         DT_LNK(symlink), DT_REG(regular file), DT_SOCK(UNIX domain socket), or DT_UNKNOWN(unknown type).

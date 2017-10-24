@@ -57,35 +57,41 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix) {
 }
 
 
-Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
-    : dirname_(dirname), name_(entry.d_name), inode_(entry.d_ino), type_(entry.d_type)
-{
-}
-
-
-SELinuxContext GetSELinuxContext(const std::string &path) {
+SELinuxContext::SELinuxContext(const std::string &path) {
 #ifndef HAS_SELINUX_HEADERS
     (void)path;
-    return SELinuxContext();
 #else
     char *file_context;
     if (::getfilecon(path.c_str(), &file_context) == -1) {
         if (errno == ENODATA or errno == ENOTSUP)
-            return SELinuxContext();
-        throw std::runtime_error("in GetSELinuxContext: failed to get file context for \"" + path + "\"!");
+            return;
+        throw std::runtime_error("in SELinuxContext::SELinuxContext: failed to get file context for \"" + path
+                                 + "\"!");
     }
     if (file_context == nullptr)
-        return SELinuxContext();
+        return;
 
     std::vector<std::string> context_as_vector;
     const unsigned no_of_components(StringUtil::Split(file_context, ":", &context_as_vector,
                                                       /* suppress_empty_components = */ false));
     if (unlikely(no_of_components != 4))
-        throw std::runtime_error("in GetSELinuxContext: context has unexpected no. of components!");
-    ::freecon(file_context);
+        throw std::runtime_error("in SELinuxContext::SELinuxContext: context \"" + std::string(file_context)
+                                 + "\"has unexpected no. of components (" + std::to_string(no_of_components)
+                                 + ")!");
 
-    return std::tie(context_as_vector[0], context_as_vector[1], context_as_vector[2], context_as_vector[3]);
+    user_  = context_as_vector[0];
+    role_  = context_as_vector[1];
+    type_  = context_as_vector[2];
+    range_ = context_as_vector[3];
+
+    ::freecon(file_context);
 #endif
+}
+
+
+Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
+    : dirname_(dirname), name_(entry.d_name), inode_(entry.d_ino), type_(entry.d_type)
+{
 }
 
 
