@@ -46,7 +46,7 @@ def ImportIntoVuFind(pattern, log_file_name):
     util.ExecOrDie("/usr/local/vufind/import-marc.sh", args, log_file_name)
     util.ExecOrDie("/usr/local/bin/summarize_logs", ["/usr/local/vufind/import/solrmarc.log", solrmarc_log_summary],
                    log_file_name)
-    util.ExecOrDie("/usr/local/bin/log_rotate ", ["/usr/local/vufind/import/", "solrmarc\\.log"], log_file_name)
+    util.ExecOrDie("/usr/local/bin/log_rotate", ["/usr/local/vufind/import/", "solrmarc\\.log"], log_file_name)
     OptimizeSolrIndex()
     util.ExecOrDie("sudo -u solr -E /usr/local/vufind/index-alphabetic-browse.sh", None, log_file_name)
 
