@@ -302,32 +302,10 @@ int main(int argc, char **argv) {
                             "100a:110a:111a:130a:150a:151a", 
                             "700a:710a:711a:730a:750a:751a",
                             term_to_translation_maps);
-        for (const auto &line : term_to_translation_maps[EN]) 
-            *(lang_files[EN]) << line.first << '|' << line.second << '\n';
-
-        for (const auto &line : term_to_translation_maps[FR])
-            *(lang_files[FR]) << line.first << '|' << line.second << '\n';
-
-        for (const auto &line : term_to_translation_maps[ES])
-            *(lang_files[ES]) << line.first << '|' << line.second << '\n';
-
-        for (const auto &line : term_to_translation_maps[IT])
-            *(lang_files[IT]) << line.first << '|' << line.second << '\n';
-
-        for (const auto &line : term_to_translation_maps[HANS])
-            *(lang_files[HANS]) << line.first << '|' << line.second << '\n';
-
-        for (const auto &line : term_to_translation_maps[HANT])
-            *(lang_files[HANT]) << line.first << '|' << line.second << '\n';
-
-        for (const auto &line : term_to_translation_maps[PT])
-            *(lang_files[PT]) << line.first << '|' << line.second << '\n';
-
-        for (const auto &line : term_to_translation_maps[RU])
-            *(lang_files[RU]) << line.first << '|' << line.second << '\n';
-
-        for (const auto &line : term_to_translation_maps[EL])
-            *(lang_files[EL]) << line.first << '|' << line.second << '\n';
+        for (const auto &lang : { EN, FR, ES, IT, HANS, HANT, PT, RU, EL }) {
+            for (const auto &line : term_to_translation_maps[lang]) 
+                *(lang_files[lang]) << line.first << '|' << line.second << '\n';
+        }
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
