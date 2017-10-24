@@ -111,7 +111,7 @@ void GetLanguageCodes(const bool verbose, DbConnection * const db_connection,
         if (german_language_code == "???")
             continue;
         const std::string international_language_code(
-            TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode(german_language_code));
+            TranslationUtil::MapGerman3Or4LetterCodeToInternational2LetterCode(german_language_code));
         language_codes->emplace(international_language_code, row[0]);
     }
     if (verbose)
