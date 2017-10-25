@@ -100,9 +100,9 @@ bool ArchiveReader::extractEntry(const std::string &member_name, std::string out
         if (entry_info.isDirectory())
             logger->error("in ArchiveReader::extractEntry: can't extract a directory!");
 
-        const int to_fd(::open(output_filename.c_str(), O_WRONLY));
+        const int to_fd(::open(output_filename.c_str(), O_WRONLY | O_CREAT));
         if (unlikely(to_fd == -1))
-            logger->error("in FileUtil::CopyOrDie: failed to open \"" + output_filename  + "\" for writing!");
+            logger->error("in  ArchiveReader::extractEntry: failed to open \"" + output_filename  + "\" for writing!");
 
         char buf[BUFSIZ];
         for (;;) {
