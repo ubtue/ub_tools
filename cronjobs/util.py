@@ -13,7 +13,6 @@ import datetime
 import glob
 import inspect
 import os
-import os.path
 import process_util
 import re
 import smtplib
@@ -60,8 +59,8 @@ def SendEmail(subject, msg, sender=None, recipient=None, priority=None, attachme
 
     if attachment is not None:
         with open(attachment, "rb") as file:
-            part = MIMEApplication(file.read(), Name=path.basename(attachment))
-        part['Content-Disposition'] = 'attachment; filename="%s"' % basename(attachment)
+            part = MIMEApplication(file.read(), Name=os.path.basename(attachment))
+        part['Content-Disposition'] = 'attachment; filename="%s"' % os.path.basename(attachment)
         message.attach(part)
 
     server = smtplib.SMTP(server_address)
@@ -377,3 +376,17 @@ def ExecOrDie(cmd_name, args, log_file_name=None):
         SendEmail("util.ExecOrDie", "Failed to execute \"" + cmd_name + "\".\nSee logfile \"" + log_file_name
                   + "\" for the reason.", priority=1)
         sys.exit(-1)
+
+
+# @brief Looks for "executable_name" in $PATH unless it contains a slash.
+# @return Either the path to an executable program or the empty string.
+def Which(executable_name):
+    if '/' in executable_name:
+        return executable_name if os.access(executable_name, os.X_OK) else ""
+    path = os.getenv("PATH")
+    if path is None:
+        return ""
+    for path_component in path.split(':'):
+        if os.access(path_component + "/" + executable_name, os.X_OK):
+            return path_component + "/" + executable_name
+    return ""
