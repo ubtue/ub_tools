@@ -57,7 +57,7 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix) {
 }
 
 
-SELinuxContext::SELinuxContext(const std::string &path) {
+SELinuxFileContext::SELinuxFileContext(const std::string &path) {
 #ifndef HAS_SELINUX_HEADERS
     (void)path;
 #else
@@ -65,8 +65,8 @@ SELinuxContext::SELinuxContext(const std::string &path) {
     if (::getfilecon(path.c_str(), &file_context) == -1) {
         if (errno == ENODATA or errno == ENOTSUP)
             return;
-        throw std::runtime_error("in SELinuxContext::SELinuxContext: failed to get file context for \"" + path
-                                 + "\"!");
+        throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: failed to get file context for \""
+                                 + path + "\"!");
     }
     if (file_context == nullptr)
         return;
@@ -75,7 +75,7 @@ SELinuxContext::SELinuxContext(const std::string &path) {
     const unsigned no_of_components(StringUtil::Split(file_context, ":", &context_as_vector,
                                                       /* suppress_empty_components = */ false));
     if (unlikely(no_of_components != 4))
-        throw std::runtime_error("in SELinuxContext::SELinuxContext: context \"" + std::string(file_context)
+        throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: context \"" + std::string(file_context)
                                  + "\"has unexpected no. of components (" + std::to_string(no_of_components)
                                  + ")!");
 
