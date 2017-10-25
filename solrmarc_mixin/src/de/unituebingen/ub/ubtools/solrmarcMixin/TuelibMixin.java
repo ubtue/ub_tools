@@ -2279,5 +2279,4 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
         return "0";
     }
-
 }

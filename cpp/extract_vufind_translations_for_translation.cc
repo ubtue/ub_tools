@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
             }
 
             const std::string german_3letter_code(
-                TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(two_letter_code));
+                TranslationUtil::MapInternational2LetterCodeToGerman3LetterCode(two_letter_code));
 
             std::unordered_map<std::string, std::pair<unsigned, std::string>> keys_to_line_no_and_translation_map;
             TranslationUtil::ReadIniFile(ini_filename, &keys_to_line_no_and_translation_map);

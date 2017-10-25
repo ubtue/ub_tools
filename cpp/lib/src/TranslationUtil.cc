@@ -53,7 +53,7 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
     }
 }
 
-static std::map<std::string, std::string> international_2letter_code_to_german_3or4letter_code{
+static std::map<std::string, std::string> international_2letter_code_to_german_3letter_code{
     { "de", "deu" },
     { "en", "eng" },
     { "fr", "fra" },
@@ -65,32 +65,32 @@ static std::map<std::string, std::string> international_2letter_code_to_german_3
 };
 
 
-std::string MapInternational2LetterCodeToGerman3Or4LetterCode(const std::string &international_2letter_code) {
+std::string MapInternational2LetterCodeToGerman3LetterCode(const std::string &international_2letter_code) {
     const auto _2letter_and_3letter_codes(
-        international_2letter_code_to_german_3or4letter_code.find(international_2letter_code));
-    if (unlikely(_2letter_and_3letter_codes == international_2letter_code_to_german_3or4letter_code.cend()))
+        international_2letter_code_to_german_3letter_code.find(international_2letter_code));
+    if (unlikely(_2letter_and_3letter_codes == international_2letter_code_to_german_3letter_code.cend()))
         logger->error("in TranslationUtil::MapInternational2LetterCodeToGerman3LetterCode: unknown international "
                       "2-letter code \"" + international_2letter_code + "\"!");
     return _2letter_and_3letter_codes->second;
 }
 
 
-std::string MapGerman3Or4LetterCodeToInternational2LetterCode(const std::string &german_3or4letter_code) {
-    for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3or4letter_code) {
-        if (_2letter_and_3letter_codes.second == german_3or4letter_code)
+std::string MapGerman3LetterCodeToInternational2LetterCode(const std::string &german_3letter_code) {
+    for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3letter_code) {
+        if (_2letter_and_3letter_codes.second == german_3letter_code)
             return _2letter_and_3letter_codes.first;
     }
     logger->error("in TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode: unknown German 3-letter "
-                  "code \"" + german_3or4letter_code + "\"!");
+                  "code \"" + german_3letter_code + "\"!");
 }
 
 
-bool IsValidGerman3Or4LetterCode(const std::string &german_3or4letter_code_candidate) {
-    if (german_3or4letter_code_candidate.length() != 3 and german_3or4letter_code_candidate.length() != 4)
+bool IsValidGerman3LetterCode(const std::string &german_3letter_code_candidate) {
+    if (german_3letter_code_candidate.length() != 3)
         return false;
 
-    for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3or4letter_code) {
-        if (_2letter_and_3letter_codes.second == german_3or4letter_code_candidate)
+    for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3letter_code) {
+        if (_2letter_and_3letter_codes.second == german_3letter_code_candidate)
             return true;
     }
 
@@ -132,31 +132,31 @@ void ReadIniFile(
 }
 
 
-static std::map<std::string, std::string> german_to_3or4letter_english_codes {
+static std::map<std::string, std::string> german_to_3letter_english_codes{
     { "deu", "ger" },
     { "eng", "eng" },
     { "fra", "fre" },
     { "ita", "ita" },
     { "spa", "spa" },
+    { "hant", "cht" },
+    { "hans", "chs" },
     { "por", "por" },
     { "rus", "rus" },
-    { "gre", "gre" },
-    { "hans", "hans" },
-    { "hant", "hant" }
+    { "gre", "gre" }
 };
 
 
 std::string MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(const std::string &german_code) {
-    const auto ger_and_eng_code(german_to_3or4letter_english_codes.find(german_code));
-    if (ger_and_eng_code == german_to_3or4letter_english_codes.cend())
+    const auto ger_and_eng_code(german_to_3letter_english_codes.find(german_code));
+    if (ger_and_eng_code == german_to_3letter_english_codes.cend())
         return "???";
     return ger_and_eng_code->second;
 }
 
 
-std::string MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(const std::string &english_3or4letter_code) {
-    for (const auto &ger_and_eng_code : german_to_3or4letter_english_codes) {
-        if (ger_and_eng_code.second == english_3or4letter_code)
+std::string MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(const std::string &english_3letter_code) {
+    for (const auto &ger_and_eng_code : german_to_3letter_english_codes) {
+        if (ger_and_eng_code.second == english_3letter_code)
             return ger_and_eng_code.first;
     }
 
@@ -164,14 +164,15 @@ std::string MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(const std::
 }
 
 
-bool IsValidFake3Or4LetterEnglishLanguagesCode(const std::string &english_3or4letter_code_candidate) {
-    if (english_3or4letter_code_candidate.length() != 3 and english_3or4letter_code_candidate.length() != 4)
+bool IsValidFake3LetterEnglishLanguagesCode(const std::string &english_3letter_code_candidate) {
+    if (english_3letter_code_candidate.length() != 3)
         return false;
 
-    for (const auto &german_and_english_codes: german_to_3or4letter_english_codes) {
-        if (german_and_english_codes.second == english_3or4letter_code_candidate)
+    for (const auto &german_and_english_codes: german_to_3letter_english_codes) {
+        if (german_and_english_codes.second == english_3letter_code_candidate)
             return true;
     }
+
     return false;
 }
 
