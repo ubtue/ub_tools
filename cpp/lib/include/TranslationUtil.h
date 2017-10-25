@@ -40,14 +40,14 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
 
 
 /** \note Aborts if "international_2letter_code" is unknown. */
-std::string MapInternational2LetterCodeToGerman3Or4LetterCode(const std::string &international_2letter_code);
+std::string MapInternational2LetterCodeToGerman3LetterCode(const std::string &international_2letter_code);
 
 
 /** \note Aborts if "german_3letter_code" is unknown. */
-std::string MapGerman3Or4LetterCodeToInternational2LetterCode(const std::string &german_3letter_code);
+std::string MapGerman3LetterCodeToInternational2LetterCode(const std::string &german_3letter_code);
 
 
-bool IsValidGerman3Or4LetterCode(const std::string &german_3letter_code_candidate);
+bool IsValidGerman3LetterCode(const std::string &german_3letter_code_candidate);
 
 
 /** \brief parses a VuFind translation file.
@@ -69,7 +69,7 @@ std::string MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(const std::
 std::string MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(const std::string &english_3letter_code);
 
 
-bool IsValidFake3Or4LetterEnglishLanguagesCode(const std::string &english_3letter_code_candidate);
+bool IsValidFake3LetterEnglishLanguagesCode(const std::string &english_3letter_code_candidate);
 
 } // namespace TranslationUtil
 
