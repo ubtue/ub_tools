@@ -33,19 +33,19 @@
 namespace SELinuxUtil {
 
 
-void AddFileContext(const std::string &type, const std::string &file_spec) {
+void AddFileContextRecord(const std::string &type, const std::string &file_spec) {
     AssertEnabled(std::string(__func__));
     ExecUtil::Exec(ExecUtil::Which("semanage"), { "fcontext", "-a", "-t", type, file_spec });
 }
 
 
-void AddFileContextIfMissing(const std::string &path, const std::string &type, const std::string &file_spec) {
-    if (not HasFileContext(path, type)) {
-        AddFileContext(type, file_spec);
+void AddFileContextRecordIfMissing(const std::string &path, const std::string &type, const std::string &file_spec) {
+    if (not HasFileContextType(path, type)) {
+        AddFileContextRecord(type, file_spec);
         ApplyChanges(path);
     }
 
-    if (not HasFileContext(path, type)) {
+    if (not HasFileContextType(path, type)) {
         throw new std::runtime_error("in " + std::string(__func__) +": "
                                      + "could not set context \"" + type + "\" for \"" + path + "\" using " + file_spec);
     }
@@ -64,37 +64,17 @@ void AssertEnabled(const std::string &caller) {
 }
 
 
-void AssertFileHasContext(const std::string &path, const std::string &type) {
-    if (not HasFileContext(path, type)) {
+void AssertFileHasContextType(const std::string &path, const std::string &type) {
+    if (not HasFileContextType(path, type)) {
         throw new std::runtime_error("in " + std::string(__func__) +": "
                                      + "file " + " doesn't have context type " + type);
     }
 }
 
 
-std::vector<std::string> GetFileContexts(const std::string &path) {
+FileUtil::SELinuxFileContext GetFileContextOrDie(const std::string &path) {
     AssertEnabled(std::string(__func__));
-    std::string ls;
-    if (not ExecUtil::ExecSubcommandAndCaptureStdout("ls -ldZ \"" + path + "\"", &ls))
-        throw new std::runtime_error("in " + std::string(__func__) +": "
-                                     + "could not read file permission: " + path);
-    else {
-        StringUtil::TrimWhite(&ls);
-        static const std::string FILE_CONTEXT_EXTRACTION_REGEX("^[^ ]+ [^ ]+ [^ ]+ ([^ ]+) .+$");
-        static RegexMatcher *matcher;
-        if (matcher == nullptr) {
-            std::string err_msg;
-            matcher = RegexMatcher::RegexMatcherFactory(FILE_CONTEXT_EXTRACTION_REGEX, &err_msg);
-        }
-
-        if (unlikely(not matcher->matched(ls)))
-            throw new std::runtime_error("in " + std::string(__func__) +": \"" + ls + "\" failed to match the regex \""
-                  + FILE_CONTEXT_EXTRACTION_REGEX + "\"!");
-
-        std::vector<std::string> file_contexts;
-        StringUtil::Split((*matcher)[1], ':', &file_contexts);
-        return file_contexts;
-    }
+    return FileUtil::SELinuxFileContext(path);
 }
 
 
@@ -119,9 +99,9 @@ Mode GetMode() {
 }
 
 
-bool HasFileContext(const std::string &path, const std::string &type) {
-    std::vector<std::string> file_contexts = GetFileContexts(path);
-    return (std::find(file_contexts.begin(), file_contexts.end(), type) != file_contexts.end());
+bool HasFileContextType(const std::string &path, const std::string &type) {
+    FileUtil::SELinuxFileContext context(path);
+    return (context.getType() == type);
 }
 
 
