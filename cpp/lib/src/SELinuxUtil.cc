@@ -1,5 +1,5 @@
-/** \file   SelinuxUtil.cc
- *  \brief  Various utility functions related to SElinux
+/** \file   SELinuxUtil.cc
+ *  \brief  Various utility functions related to SELinux
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
  *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -33,51 +33,6 @@
 namespace SELinuxUtil {
 
 
-void AddFileContextRecord(const std::string &type, const std::string &file_spec) {
-    AssertEnabled(std::string(__func__));
-    ExecUtil::Exec(ExecUtil::Which("semanage"), { "fcontext", "-a", "-t", type, file_spec });
-}
-
-
-void AddFileContextRecordIfMissing(const std::string &path, const std::string &type, const std::string &file_spec) {
-    if (not HasFileContextType(path, type)) {
-        AddFileContextRecord(type, file_spec);
-        ApplyChanges(path);
-    }
-
-    if (not HasFileContextType(path, type)) {
-        throw new std::runtime_error("in " + std::string(__func__) +": "
-                                     + "could not set context \"" + type + "\" for \"" + path + "\" using " + file_spec);
-    }
-}
-
-
-void ApplyChanges(const std::string &path) {
-    AssertEnabled(std::string(__func__));
-    ExecUtil::Exec(ExecUtil::Which("restorecon"), { "-R", "-v", path });
-}
-
-
-void AssertEnabled(const std::string &caller) {
-    if (not IsEnabled())
-        throw new std::runtime_error("in " + caller +": SElinux is disabled!");
-}
-
-
-void AssertFileHasContextType(const std::string &path, const std::string &type) {
-    if (not HasFileContextType(path, type)) {
-        throw new std::runtime_error("in " + std::string(__func__) +": "
-                                     + "file " + " doesn't have context type " + type);
-    }
-}
-
-
-FileUtil::SELinuxFileContext GetFileContextOrDie(const std::string &path) {
-    AssertEnabled(std::string(__func__));
-    return FileUtil::SELinuxFileContext(path);
-}
-
-
 Mode GetMode() {
     const std::string getenforce_binary(ExecUtil::Which("getenforce"));
     std::string getenforce;
@@ -99,12 +54,6 @@ Mode GetMode() {
 }
 
 
-bool HasFileContextType(const std::string &path, const std::string &type) {
-    FileUtil::SELinuxFileContext context(path);
-    return (context.getType() == type);
-}
-
-
 bool IsAvailable() {
     return (ExecUtil::Which("getenforce") != "");
 }
@@ -113,6 +62,63 @@ bool IsAvailable() {
 bool IsEnabled() {
     return (IsAvailable() && (GetMode() != DISABLED));
 }
+
+
+void AssertEnabled(const std::string &caller) {
+    if (not IsEnabled())
+        throw new std::runtime_error("in " + caller +": SElinux is disabled!");
+}
+
+
+namespace FileContext {
+
+
+void AddRecord(const std::string &type, const std::string &file_spec) {
+    AssertEnabled(std::string(__func__));
+    ExecUtil::Exec(ExecUtil::Which("semanage"), { "fcontext", "-a", "-t", type, file_spec });
+}
+
+
+void AddRecordIfMissing(const std::string &path, const std::string &type, const std::string &file_spec) {
+    if (not HasFileType(path, type)) {
+        AddRecord(type, file_spec);
+        ApplyChanges(path);
+    }
+
+    if (not HasFileType(path, type)) {
+        throw new std::runtime_error("in " + std::string(__func__) +": "
+                                     + "could not set context \"" + type + "\" for \"" + path + "\" using " + file_spec);
+    }
+}
+
+
+void ApplyChanges(const std::string &path) {
+    AssertEnabled(std::string(__func__));
+    ExecUtil::Exec(ExecUtil::Which("restorecon"), { "-R", "-v", path });
+}
+
+
+void AssertFileHasType(const std::string &path, const std::string &type) {
+    if (not HasFileType(path, type)) {
+        throw new std::runtime_error("in " + std::string(__func__) +": "
+                                     + "file " + " doesn't have context type " + type);
+    }
+}
+
+
+FileUtil::SELinuxFileContext GetOrDie(const std::string &path) {
+    AssertEnabled(std::string(__func__));
+    return FileUtil::SELinuxFileContext(path);
+}
+
+
+bool HasFileType(const std::string &path, const std::string &type) {
+    FileUtil::SELinuxFileContext context(path);
+    return (context.getType() == type);
+}
+
+
+} // namespace FileContext
 
 
 } // namespace SELinuxUtil
