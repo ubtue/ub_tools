@@ -126,6 +126,12 @@ std::string MapLanguageCode(const std::string lang_code) {
         return "zh-Hant";
     if (lang_code == "hans")
         return "zh-Hans";
+    if (lang_code == "por")
+        return "pt";
+    if (lang_code == "rus")
+        return "ru";
+    if (lang_code == "gre")
+        return "el";
     logger->error("Unknown language code " + lang_code);
 }
 
