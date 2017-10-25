@@ -1,6 +1,6 @@
 CREATE TABLE vufind_translations (
   token VARCHAR(255) NOT NULL,
-  language_code CHAR(4) NOT NULL,
+  language_code CHAR(3) NOT NULL,
   translation VARCHAR(1024) NOT NULL,
   translator VARCHAR(50),
   UNIQUE KEY token_language_code (token,language_code),
@@ -12,7 +12,7 @@ CREATE TABLE vufind_translations (
 CREATE TABLE keyword_translations (
   ppn CHAR(9) NOT NULL,
   gnd_code CHAR(10) NOT NULL,
-  language_code CHAR(4) NOT NULL,
+  language_code CHAR(3) NOT NULL,
   translation VARCHAR(1024) NOT NULL,
   status ENUM('reliable_synonym', 'reliable', 'unreliable', 'unreliable_synonym', 'replaced', 'replaced_synonym',
               'new', 'new_synonym', 'macs') NOT NULL,
