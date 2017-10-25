@@ -2261,6 +2261,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
+    // Try to get a numerically sortable representation of issue
+
     public String getIssueSort(final Record record) {
         for (final VariableField variableField : record.getVariableFields("936")) {
             final DataField dataField = (DataField) variableField;
