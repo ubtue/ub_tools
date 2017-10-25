@@ -861,7 +861,7 @@ void CopyOrDie(const std::string &from_path, const std::string &to_path) {
     if (unlikely(from_fd == -1))
         logger->error("in FileUtil::CopyOrDie: failed to open \"" + from_path  + "\" for reading!");
 
-    const int to_fd(::open(to_path.c_str(), O_WRONLY));
+    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT));
     if (unlikely(to_fd == -1))
         logger->error("in FileUtil::CopyOrDie: failed to open \"" + to_path  + "\" for writing!");
 
