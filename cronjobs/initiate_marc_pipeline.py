@@ -48,7 +48,7 @@ def ImportIntoVuFind(pattern, log_file_name):
                    log_file_name)
     util.ExecOrDie("/usr/local/bin/log_rotate", ["/usr/local/vufind/import/", "solrmarc\\.log"], log_file_name)
     OptimizeSolrIndex()
-    util.ExecOrDie("sudo -u solr -E /usr/local/vufind/index-alphabetic-browse.sh", None, log_file_name)
+    util.ExecOrDie("sudo", ["-u", "solr", "-E", "/usr/local/vufind/index-alphabetic-browse.sh"], log_file_name)
 
 
 def StartPipeline(pipeline_script_name, marc_title, conf):
