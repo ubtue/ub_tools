@@ -2259,4 +2259,24 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return "non-open-access";
     }
+
+
+    // Try to get a numerically sortable representation of an issue
+    public String getIssueSort(final Record record) {
+        for (final VariableField variableField : record.getVariableFields("936")) {
+            final DataField dataField = (DataField) variableField;
+            final Subfield subfieldE = dataField.getSubfield('e');
+            if (subfieldE == null)
+                return "0";
+            final String issueString = subfieldE.getData();
+            if (issueString.matches("\\d+"))
+                return issueString;
+            // Handle Some known special cases
+            if (issueString.matches("[\\[]\\d+[\\]]"))
+                return issueString.replace("[]","");
+            if (issueString.matches("\\d+/\\d+"))
+                return issueString.split("/")[0];
+        }
+        return "0";
+    }
 }
