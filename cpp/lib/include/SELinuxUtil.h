@@ -25,6 +25,7 @@
 #include <cctype>
 #include <string>
 #include <vector>
+#include <FileUtil.h>
 
 
 namespace SELinuxUtil {
@@ -33,11 +34,11 @@ namespace SELinuxUtil {
 enum Mode { ENFORCING, PERMISSIVE, DISABLED };
 
 
-/** \brief  Add a file context rule. The change will only be active if ApplyChanges is called afterwards.
- *  \param  type                a context type, e.g. httpd_sys_rw_content_t
+/** \brief  Add a file context record. The change will only be active if ApplyChanges is called afterwards.
+ *  \param  type                a file context type, e.g. httpd_sys_rw_content_t
  *  \param  file_spec           a file specification pattern, e.g. "/var/www(.*)?"
  */
-void AddFileContext(const std::string &type, const std::string &file_spec);
+void AddFileContextRecord(const std::string &type, const std::string &file_spec);
 
 
 /** \brief  Add a file context rule, only if the file does not have the context yet.
@@ -47,7 +48,7 @@ void AddFileContext(const std::string &type, const std::string &file_spec);
  *  \param  file_spec           a file specification pattern, e.g. "/var/www(.*)?"
  *  \throws std::runtime_error if the type could not be added
  */
-void AddFileContextIfMissing(const std::string &path, const std::string &type, const std::string &file_spec);
+void AddFileContextRecordIfMissing(const std::string &path, const std::string &type, const std::string &file_spec);
 
 
 /** \brief  Apply all configured file contexts for the specified path
@@ -69,15 +70,14 @@ void AssertEnabled(const std::string &caller);
  *  \param  type                a context type, e.g. httpd_sys_rw_content_t
  *  \throws std::runtime_error if the file doesn't have the context type
  */
-void AssertFileHasContext(const std::string &path, const std::string &type);
+void AssertFileHasContextType(const std::string &path, const std::string &type);
 
 
-/** \brief  Get all file contexts set for the specified path
+/** \brief  Get the file context of the specified path
  *  \param  path                path of a file or directory
  *  \throws std::runtime_error if the file contexts could not be determined
- *  \return A list of all file contexts for the path
  */
-std::vector<std::string> GetFileContexts(const std::string &path);
+FileUtil::SELinuxFileContext GetFileContextOrDie(const std::string &path);
 
 
 /** \brief  Get the mode SELinux is currently running at
@@ -88,9 +88,9 @@ Mode GetMode();
 
 /** \brief  Check if the path has a certain context
  *  \param  path                path of a file or directory to test
- *  \param  context             a context type, e.g. httpd_sys_rw_content_t
+ *  \param  type                a context type, e.g. httpd_sys_rw_content_t
  */
-bool HasFileContext(const std::string &path, const std::string &context);
+bool HasFileContextType(const std::string &path, const std::string &type);
 
 
 /** \brief  Check if SELinux is available (installed) on the current system
