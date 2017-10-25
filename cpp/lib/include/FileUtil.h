@@ -61,14 +61,17 @@ public:
 };
 
 
-class SELinuxContext {
+class SELinuxFileContext {
     std::string user_;
     std::string role_;
     std::string type_;
     std::string range_;
 public:
-    SELinuxContext() = default;
-    explicit SELinuxContext(const std::string &path);
+    SELinuxFileContext() = default;
+    SELinuxFileContext(const SELinuxFileContext &rhs) = default;
+    SELinuxFileContext(SELinuxFileContext &&rhs) = default;
+    explicit SELinuxFileContext(const std::string &path);
+    inline bool empty() const { return user_.empty() and role_.empty() and type_.empty() and range_.empty(); }
     inline const std::string &getUser() const { return user_; }
     inline const std::string &getRole() const { return role_; }
     inline const std::string &getType() const { return type_; }
@@ -91,7 +94,7 @@ public:
     public:
         Entry(const Entry &other);
         inline std::string getName() const { return name_; }
-        inline SELinuxContext getSELinuxContext() const { return SELinuxContext(dirname_ + "/" + name_); }
+        inline SELinuxFileContext getSELinuxFileContext() const { return SELinuxFileContext(dirname_ + "/" + name_); }
 
         // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),
         //         DT_LNK(symlink), DT_REG(regular file), DT_SOCK(UNIX domain socket), or DT_UNKNOWN(unknown type).
