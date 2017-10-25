@@ -13,7 +13,6 @@ import datetime
 import glob
 import inspect
 import os
-import os.path
 import process_util
 import re
 import smtplib
@@ -60,8 +59,8 @@ def SendEmail(subject, msg, sender=None, recipient=None, priority=None, attachme
 
     if attachment is not None:
         with open(attachment, "rb") as file:
-            part = MIMEApplication(file.read(), Name=path.basename(attachment))
-        part['Content-Disposition'] = 'attachment; filename="%s"' % basename(attachment)
+            part = MIMEApplication(file.read(), Name=os.path.basename(attachment))
+        part['Content-Disposition'] = 'attachment; filename="%s"' % os.path.basename(attachment)
         message.attach(part)
 
     server = smtplib.SMTP(server_address)
