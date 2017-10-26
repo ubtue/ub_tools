@@ -181,7 +181,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
     DbConnection db_connection(mysql_url);
 
     bool success(false);
-    if (not FullTextCache::CacheExpired(&db_connection, full_text_db_path, ppn)) {
+    if (not FullTextCache::CacheEntryExpired(&db_connection, full_text_db_path, ppn)) {
         Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
         ++semaphore;
         success = true;

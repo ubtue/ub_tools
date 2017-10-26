@@ -34,7 +34,9 @@ const unsigned MIN_CACHE_EXPIRE_TIME(84600 *  60); // About 2 months in seconds.
 const unsigned MAX_CACHE_EXPIRE_TIME(84600 * 120); // About 4 months in seconds.
 
 
-bool CacheExpired(DbConnection * const db_connection, const std::string &full_text_db_path, const std::string &id) {
+bool CacheEntryExpired(DbConnection * const db_connection, const std::string &full_text_db_path,
+                       const std::string &id)
+{
     db_connection->queryOrDie("SELECT expiration FROM full_text_cache WHERE id=\"" + db_connection->escapeString(id)
                               + "\"");
     DbResultSet result_set(db_connection->getLastResultSet());

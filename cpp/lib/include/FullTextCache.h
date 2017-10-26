@@ -33,7 +33,8 @@ namespace FullTextCache {
  *          is not found in the database, else false.
  *  \note Deletes expired entries and associated data in the key/value database found at "full_text_db_path".
  */
-bool CacheExpired(DbConnection * const db_connection, const std::string &full_text_db_path, const std::string &key);
+bool CacheEntryExpired(DbConnection * const db_connection, const std::string &full_text_db_path,
+                       const std::string &key);
 
 
 /* \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.  Also
