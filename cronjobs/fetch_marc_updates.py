@@ -180,16 +180,7 @@ def GetBackupDirectoryPath(config):
 # We try to keep all differential updates up to and including the last complete data
 def CleanUpCumulativeCollection(config):
     backup_directory = GetBackupDirectoryPath(config)
-
-    try:
-        filename_pattern_complete_data = config.get("Kompletter Abzug", "filename_pattern")
-    except Exception as e:
-        util.Error("invalid filename pattern for complete data (" + str(e) + ")")
-    try:
-        filename_complete_data_regex = re.compile(filename_pattern_complete_data)
-    except Exception as e:
-        util.Error("filename pattern \"" + filename_pattern_complete_data + "\" failed to compile! ("
-                   + str(e) + ")")    
+    filename_complete_data_regex = GetFilenameRegexForSection(config, "Kompletter Abzug")
 
     # Find the latest complete data file
     try:
@@ -273,20 +264,15 @@ def GetCutoffDateForDownloads(config):
 
 
 def DownloadData(config, section, ftp, download_cutoff_date, msg):
+    filename_regex = GetFilenameRegexForSection(config, section)
     try:
-        filename_pattern = config.get(section, "filename_pattern")
         directory_on_ftp_server = config.get(section, "directory_on_ftp_server")
     except Exception as e:
         util.Error("Invalid section \"" + section + "\" in config file! (" + str(e) + ")")
 
-    try:
-        filename_regex = re.compile(filename_pattern)
-    except Exception as e:
-        util.Error("File name pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
-
     downloaded_files = DownloadRemoteFiles(ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
     if len(downloaded_files) == 0:
-        msg.append("No more recent file for pattern \"" + filename_pattern + "\"!\n")
+        msg.append("No more recent file for pattern \"" + filename_regex.pattern + "\"!\n")
     else:
         msg.append("Successfully downloaded:\n" + string.join(downloaded_files, '\n') + '\n')
         AddToCumulativeCollection(downloaded_files, config)
