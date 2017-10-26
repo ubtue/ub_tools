@@ -60,23 +60,34 @@ bool CacheExpired(DbConnection * const db_connection, const std::string &full_te
 
 
 void InsertIntoCache(DbConnection * const db_connection, const std::string &full_text_db_path,
-                     const std::string &key, const std::string &data)
+                     const std::string &id, const std::string &url, const std::string &data,
+                     const std::string &error_message)
 {
     if (not data.empty()) {
+        if (unlikely(error_message.empty()))
+            logger->error("in FullTextCache::InsertIntoCache: when you provide the data for the full-text cache "
+                          "you must not also provide an error message!");
         kyotocabinet::HashDB db;
         if (not db.open(full_text_db_path, kyotocabinet::HashDB::OCREATE | kyotocabinet::HashDB::OWRITER))
             logger->error("in FullTextCache::InsertIntoCache: Failed to open database \"" + full_text_db_path
                           + "\" for writing (" + std::string(db.error().message()) + ")!");
-        if (unlikely(not db.set(key, data)))
+        if (unlikely(not db.set(id, data)))
             logger->error("in FullTextCache::InsertIntoCache: Failed to insert into database \"" + full_text_db_path
                           + "\" (" + std::string(db.error().message()) + ")!");
-    }
+    } else if (unlikely(error_message.empty()))
+        logger->error("in FullTextCache::InsertIntoCache: you must provide either data to be cached or a non-empty "
+                      "error message!");
 
+    const std::string status(data.empty() ? "error" : "stored");
     const time_t now(std::time(nullptr));
     Random::Rand rand(now);
     const time_t expiration(now + MIN_CACHE_EXPIRE_TIME + rand(MAX_CACHE_EXPIRE_TIME - MIN_CACHE_EXPIRE_TIME));
-    db_connection->queryOrDie("REPLACE INTO full_text_cache SET id=\"" + db_connection->escapeString(key)
-                              + "\",expiration=\"" + SqlUtil::TimeTToDatetime(expiration) + "\"");
+    db_connection->queryOrDie("REPLACE INTO full_text_cache SET id=\"" + db_connection->escapeString(id)
+                              + "\",url=\"" + db_connection->escapeString(url) + "\",expiration=\""
+                              + SqlUtil::TimeTToDatetime(expiration) + "\",status=\"" + status
+                              + (error_message.empty() ? "\""
+                                                       : "\",error_message=\""
+                                                         + db_connection->escapeString(error_message) + "\""));
 }
 
 
