@@ -1501,7 +1501,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final String yearExtracted = _008FieldContents.substring(7, 11);
         // Test whether we have a reasonable value
         final String year = checkValidYear(yearExtracted);
-        // log error if year is empty or a year like "19uu"
+        // log error if year is empty or not a year like "19uu"
         if (year.isEmpty() || year.length() != 4 || !VALID_YEAR_RANGE_PATTERN.matcher(year).matches())
             logger.severe("getDatesBasedOnRecordType [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
 
