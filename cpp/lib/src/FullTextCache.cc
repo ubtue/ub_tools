@@ -84,7 +84,7 @@ void InsertIntoCache(DbConnection * const db_connection, const std::string &full
                      const std::string &error_message)
 {
     if (not data.empty()) {
-        if (unlikely(error_message.empty()))
+        if (unlikely(not error_message.empty()))
             logger->error("in FullTextCache::InsertIntoCache: when you provide the data for the full-text cache "
                           "you must not also provide an error message!");
         kyotocabinet::HashDB db;
