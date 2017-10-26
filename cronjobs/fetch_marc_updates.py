@@ -223,7 +223,7 @@ def GetFilenameRegexForSection(config, section):
     return filename_regex
 
 
-# Test whether we already dispose of a current "Normdatendifferenzabzug"
+# Test whether we already have a current "Normdatendifferenzabzug"
 def CurrentIncrementalAuthorityDumpPresent(config, cutoff_date):
     filename_regex = GetFilenameRegexForSection(config, "Normdatendifferenzabzug")
     try:
@@ -303,9 +303,9 @@ def DownloadCompleteData(config, ftp, download_cutoff_date, msg):
         util.Error("downloaded multiple complete date tar files!")
 
 
-def ShiftDateToSevenDaysBefore(date_to_shift):
+def ShiftDateToTenDaysBefore(date_to_shift):
     date = datetime.datetime.strptime(date_to_shift, "%y%m%d")
-    return datetime.datetime.strftime(date - datetime.timedelta(days=7), "%y%m%d")
+    return datetime.datetime.strftime(date - datetime.timedelta(days=10), "%y%m%d")
 
 
 def Main():
@@ -337,7 +337,7 @@ def Main():
         DownloadData(config, "Hinweisabzug", ftp, "000000", msg)
     if config.has_section("Errors"):
         DownloadData(config, "Errors", ftp, download_cutoff_date, msg)
-    incremental_authority_cutoff_date =  ShiftDateToSevenDaysBefore(download_cutoff_date)
+    incremental_authority_cutoff_date =  ShiftDateToTenDaysBefore(download_cutoff_date)
     if config.has_section("Normdatendifferenzabzug"):
        if (not CurrentIncrementalAuthorityDumpPresent(config, incremental_authority_cutoff_date)):
            DownloadData(config, "Normdatendifferenzabzug", ftp, incremental_authority_cutoff_date, msg)
