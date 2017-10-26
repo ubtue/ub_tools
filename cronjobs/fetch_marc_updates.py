@@ -180,16 +180,7 @@ def GetBackupDirectoryPath(config):
 # We try to keep all differential updates up to and including the last complete data
 def CleanUpCumulativeCollection(config):
     backup_directory = GetBackupDirectoryPath(config)
-
-    try:
-        filename_pattern_complete_data = config.get("Kompletter Abzug", "filename_pattern")
-    except Exception as e:
-        util.Error("invalid filename pattern for complete data (" + str(e) + ")")
-    try:
-        filename_complete_data_regex = re.compile(filename_pattern_complete_data)
-    except Exception as e:
-        util.Error("filename pattern \"" + filename_pattern_complete_data + "\" failed to compile! ("
-                   + str(e) + ")")    
+    filename_complete_data_regex = GetFilenameRegexForSection(config, "Kompletter Abzug")
 
     # Find the latest complete data file
     try:
@@ -208,6 +199,34 @@ def CleanUpCumulativeCollection(config):
         DeleteAllFilesOlderThan(most_recent_complete_data_date, backup_directory)
     
     return None
+
+
+def GetFilenameRegexForSection(config, section):
+    try:
+        filename_pattern = config.get(section, "filename_pattern")
+    except Exception as e:
+        util.Error("Invalid section " + section + "in config file! (" + str(e) + ")")
+    try:
+        filename_regex = re.compile(filename_pattern)
+    except Exception as e:
+        util.Error("filename pattern \"" + filename_pattern + "\" failed to compile! ("
+                   + str(e) + ")")
+    return filename_regex
+
+
+# Test whether we already have a current "Normdatendifferenzabzug"
+def CurrentIncrementalAuthorityDumpPresent(config, cutoff_date):
+    filename_regex = GetFilenameRegexForSection(config, "Normdatendifferenzabzug")
+    try:
+       cumulative_directory = config.get("Kumulierte Abzuege", "output_directory")
+    except Exception as e:
+        util.Error("Extracting cumulative directory failed! (" + str(e) + ")")
+
+    most_recent_incremental_authority_dump = GetMostRecentLocalFile(filename_regex, cumulative_directory)
+    if (most_recent_incremental_authority_dump == None):
+        return False
+    most_recent_file_incremental_authority_date = ExtractDateFromFilename(most_recent_incremental_authority_dump)
+    return most_recent_incremental_authority_dump > cutoff_date
 
 
 # Delete all files that are older than a given date     
@@ -245,20 +264,15 @@ def GetCutoffDateForDownloads(config):
 
 
 def DownloadData(config, section, ftp, download_cutoff_date, msg):
+    filename_regex = GetFilenameRegexForSection(config, section)
     try:
-        filename_pattern = config.get(section, "filename_pattern")
         directory_on_ftp_server = config.get(section, "directory_on_ftp_server")
     except Exception as e:
         util.Error("Invalid section \"" + section + "\" in config file! (" + str(e) + ")")
 
-    try:
-        filename_regex = re.compile(filename_pattern)
-    except Exception as e:
-        util.Error("File name pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
-
     downloaded_files = DownloadRemoteFiles(ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
     if len(downloaded_files) == 0:
-        msg.append("No more recent file for pattern \"" + filename_pattern + "\"!\n")
+        msg.append("No more recent file for pattern \"" + filename_regex.pattern + "\"!\n")
     else:
         msg.append("Successfully downloaded:\n" + string.join(downloaded_files, '\n') + '\n')
         AddToCumulativeCollection(downloaded_files, config)
@@ -273,6 +287,11 @@ def DownloadCompleteData(config, ftp, download_cutoff_date, msg):
         return None
     else:
         util.Error("downloaded multiple complete date tar files!")
+
+
+def ShiftDateToTenDaysBefore(date_to_shift):
+    date = datetime.datetime.strptime(date_to_shift, "%y%m%d")
+    return datetime.datetime.strftime(date - datetime.timedelta(days=10), "%y%m%d")
 
 
 def Main():
@@ -304,7 +323,12 @@ def Main():
         DownloadData(config, "Hinweisabzug", ftp, "000000", msg)
     if config.has_section("Errors"):
         DownloadData(config, "Errors", ftp, download_cutoff_date, msg)
-    DownloadData(config, "Normdatendifferenzabzug", ftp, download_cutoff_date, msg)
+    incremental_authority_cutoff_date =  ShiftDateToTenDaysBefore(download_cutoff_date)
+    if config.has_section("Normdatendifferenzabzug"):
+       if (not CurrentIncrementalAuthorityDumpPresent(config, incremental_authority_cutoff_date)):
+           DownloadData(config, "Normdatendifferenzabzug", ftp, incremental_authority_cutoff_date, msg)
+       else:
+           msg.append("Skipping Download of \"Normdatendifferenzabzug\" since already present\n")
     CleanUpCumulativeCollection(config)
     util.SendEmail("BSZ File Update", string.join(msg, ""), priority=5)
 
