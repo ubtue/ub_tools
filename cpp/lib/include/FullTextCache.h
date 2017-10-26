@@ -28,6 +28,19 @@
 namespace FullTextCache {
 
 
+struct Entry {
+    std::string id_;
+    std::string url_;
+    std::string expiration_;
+    std::string data_;
+    std::string status_;
+    std::string error_message_;
+};
+
+
+bool GetEntry(DbConnection * const db_connection, const std::string &id, Entry &entry);
+
+
 /** \brief Test whether an entry in the cache has expired or not.
  *  \return True if we find "id" in the database and the entry is older than now-CACHE_EXPIRE_TIME_DELTA or if "id"
  *          is not found in the database, else false.
