@@ -224,7 +224,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
         std::string data;
         if (error_message.empty()) {
             url.clear();
-            data = "Content-type: text/plain\r\n\r\n" + combined_text;
+            data = "Content-Type: text/plain\r\n\r\n" + combined_text;
         }
         FullTextCache::InsertIntoCache(&db_connection, full_text_db_path, ppn, url, data, error_message);
 
