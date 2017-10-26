@@ -36,9 +36,12 @@ namespace FullTextCache {
 bool CacheExpired(DbConnection * const db_connection, const std::string &full_text_db_path, const std::string &key);
 
 
-// \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.
+/* \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.  Also
+ *       either "data" must be non-empty or "error_message" must be non-empty.
+ */
 void InsertIntoCache(DbConnection * const db_connection, const std::string &full_text_db_path,
-                     const std::string &key, const std::string &data);
+                     const std::string &id, const std::string &url, const std::string &data,
+                     const std::string &error_message);
 
 
 } // namespace FullTextCache
