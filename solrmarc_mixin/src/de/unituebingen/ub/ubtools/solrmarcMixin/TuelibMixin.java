@@ -974,6 +974,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public Set<String> map935b(final Record record, final Map<String, String> map) {
         final Set<String> results = new TreeSet<>();
+        String last_unmappable_physical_code = null;
         for (final DataField data_field : record.getDataFields()) {
             if (!data_field.getTag().equals("935"))
                 continue;
@@ -984,9 +985,12 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (map.containsKey(physical_code))
                     results.add(map.get(physical_code));
                 else
-                    logger.severe("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
+                    last_unmappable_physical_code = physical_code;
             }
         }
+
+        if (results.isEmpty() && last_unmappable_physical_code != null)
+            logger.severe("in TuelibMixin.getPhysicalType: can't map \"" + last_unmappable_physical_code + "\"!");
 
         return results;
     }
@@ -1411,8 +1415,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Get all available dates from the record.
      *
-     * @param record
-     *            MARC record
+     * @param record MARC record
+     *
      * @return set of dates
      */
 
@@ -1424,7 +1428,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (format.contains("Website")) {
             final ControlField _008_field = (ControlField) record.getVariableField("008");
             if (_008_field == null) {
-                logger.severe("getDates [No 008 Field for Website " + record.getControlNumber() + "]");
+                logger.severe("getDatesBasedOnRecordType [No 008 Field for Website " + record.getControlNumber() + "]");
                 return dates;
             }
             dates.add(yyMMDateToString(record.getControlNumber(), _008_field.getData()));
@@ -1465,7 +1469,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
             if (dates.isEmpty())
-                logger.severe("getDates [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
+                logger.severe("getDatesBasedOnRecordType [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
             else
                 return dates;
         }
@@ -1481,7 +1485,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 dates.add(jSubfield.getData());
             }
             else {
-                logger.severe("getDates [No 190j subfield for PPN " + record.getControlNumber() + "]");
+                logger.severe("getDatesBasedOnRecordType [No 190j subfield for PPN " + record.getControlNumber() + "]");
             }
             return dates;
         }
@@ -1491,7 +1495,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Use the sort date given in the 008-Field
         final ControlField _008_field = (ControlField) record.getVariableField("008");
         if (_008_field == null) {
-            logger.severe("getDates [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
+            logger.severe("getDatesBasedOnRecordType [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
             return dates;
         }
         final String _008FieldContents = _008_field.getData();
@@ -1499,7 +1503,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Test whether we have a reasonable value
         final String year = checkValidYear(yearExtracted);
         if (year.isEmpty())
-            logger.severe("getDates [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
+            logger.severe("getDatesBasedOnRecordType [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
         dates.add(year);
         return dates;
 }
