@@ -27,16 +27,15 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
-    private final static String VALID_FOUR_DIGIT_YEAR = "\\d{4}";
 
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
     private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?(-\\d+)?");
-    private final static Pattern VALID_FOUR_DIGIT_PATTERN = Pattern.compile(VALID_FOUR_DIGIT_YEAR);
+    private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
+    private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
-    private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
 
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
@@ -955,7 +954,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (field_value == null)
             return null;
 
-        final Matcher matcher = YEAR_PATTERN.matcher(field_value);
+        final Matcher matcher = VALID_FOUR_DIGIT_YEAR_PATTERN.matcher(field_value);
         return matcher.matches() ? matcher.group(1) : null;
     }
 
@@ -1395,7 +1394,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     private String checkValidYear(String fourDigitYear) {
-        Matcher validFourDigitYearMatcher = VALID_FOUR_DIGIT_PATTERN.matcher(fourDigitYear);
+        Matcher validFourDigitYearMatcher = VALID_FOUR_DIGIT_YEAR_PATTERN.matcher(fourDigitYear);
         return validFourDigitYearMatcher.matches() ? fourDigitYear : "";
     }
 
@@ -1502,8 +1501,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         final String yearExtracted = _008FieldContents.substring(7, 11);
         // Test whether we have a reasonable value
         final String year = checkValidYear(yearExtracted);
-        if (year.isEmpty())
+        // log error if year is empty or a year like "19uu"
+        if (year.isEmpty() || year.length() != 4 || !VALID_YEAR_RANGE_PATTERN.matcher(year).matches())
             logger.severe("getDatesBasedOnRecordType [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
+
         dates.add(year);
         return dates;
 }
