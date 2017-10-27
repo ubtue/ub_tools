@@ -236,24 +236,27 @@ void ExtractIncludes(Scanner * const scanner, std::vector<std::string> * const i
 }
 
 
-void RemoveUsedNamespaces(Scanner * const scanner, std::set<std::string> * const namespaces) {
+void RemoveUsedNamespacesAndClassNames(Scanner * const scanner, std::set<std::string> * const namespaces_and_class_names) {
+    bool last_token_was_less_than(false);
     for (;;) {
         TokenType token(scanner->getToken());
         if (unlikely(token == END_OF_INPUT))
             return;
+        if (token == OTHER_CHAR)
+            last_token_was_less_than = scanner->getLastOtherChar() == '<';
         if (token == IDENT) {
             const std::string ident(scanner->getLastIdent());
-            if (namespaces->find(ident) == namespaces->cend())
+            if (namespaces_and_class_names->find(ident) == namespaces_and_class_names->cend())
                 continue;
             token = scanner->getToken();
             if (unlikely(token == END_OF_INPUT))
                 return;
             if (token == IDENT)
-                namespaces->erase(ident);
+                namespaces_and_class_names->erase(ident);
             else if (token == OTHER_CHAR) {
                 const char ch(scanner->getLastOtherChar());
-                if (ch == ':' or ch == '&' or ch == '*')
-                    namespaces->erase(ident);
+                if (ch == ':' or ch == '&' or ch == '*' or (ch == '>' and last_token_was_less_than))
+                    namespaces_and_class_names->erase(ident);
             }
         }
     }
@@ -271,20 +274,20 @@ void ProcessFile(const bool report_only, File * const input, File * const /*outp
             std::cout << '\t' << include << '\n';
     }
 
-    std::set<std::string> namespaces;
+    std::set<std::string> namespaces_and_class_names;
     for (const auto &include : includes) {
         if (include != "util.h" and StringUtil::EndsWith(include, ".h"))
-            namespaces.emplace(include.substr(0, include.length() - 2));
+            namespaces_and_class_names.emplace(include.substr(0, include.length() - 2));
     }
     
     input->rewind();
     scanner.rewind();
 
-    RemoveUsedNamespaces(&scanner, &namespaces);
-    if (not namespaces.empty()) {
-        std::cout << "Unused namespaces:\n";
-        for (const auto &name_space : namespaces)
-            std::cout << '\t' << name_space << '\n';
+    RemoveUsedNamespacesAndClassNames(&scanner, &namespaces_and_class_names);
+    if (not namespaces_and_class_names.empty()) {
+        std::cout << "Unused namespaces and class names:\n";
+        for (const auto &namespace_or_class_name : namespaces_and_class_names)
+            std::cout << '\t' << namespace_or_class_name << '\n';
     }
 }
 
