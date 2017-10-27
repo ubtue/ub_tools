@@ -26,7 +26,6 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
-#include "DbRow.h"
 #include "MarcRecord.h"
 #include "MarcReader.h"
 #include "MarcWriter.h"

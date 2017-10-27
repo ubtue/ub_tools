@@ -32,20 +32,14 @@
 #include <cstdlib>
 #include <cstring>
 #include "BibleUtil.h"
-#include "DirectoryEntry.h"
-#include "Leader.h"
 #include "MapIO.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "MarcUtil.h"
-#include "MarcXmlWriter.h"
-#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
-#include "TextUtil.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 void Usage() {

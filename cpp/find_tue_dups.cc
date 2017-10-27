@@ -31,7 +31,6 @@
 #include "TextUtil.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
-#include "RegexMatcher.h"
 #include "util.h"
 
 
@@ -99,7 +98,7 @@ void ExtractISBNs(const MarcRecord &record, std::set<std::string> * const issns_
 }
 
 
-std::string ExtractInventory(const std::string &_910_subfield_a) {
+std::string ExtractInventory(const std::string &_910_subfield_a, const bool is_monograph) {
     if (_910_subfield_a.empty())
         return "";
 
@@ -119,9 +118,19 @@ std::string ExtractInventory(const std::string &_910_subfield_a) {
             return "";
         if (inventory_node->getType() != JSON::JSONNode::STRING_NODE)
             logger->error("in ExtractInventory: expected a string node!");
-        return reinterpret_cast<const JSON::StringNode * const>(inventory_node)->getValue();
+        std::string inventory(reinterpret_cast<const JSON::StringNode * const>(inventory_node)->getValue());
+
+        if (not is_monograph) {
+            const JSON::JSONNode * const comment_node(object->getValue("komment"));
+            if (comment_node != nullptr) {
+                if (comment_node->getType() != JSON::JSONNode::STRING_NODE)
+                    logger->error("in ExtractInventory: expected a string node! (2)");
+                inventory += "(" + reinterpret_cast<const JSON::StringNode * const>(comment_node)->getValue() + ")";
+            }
+        }
 
         delete tree_root;
+        return inventory;
     } catch (...) {
         delete tree_root;
         throw;
@@ -148,15 +157,15 @@ unsigned FindTueSigilsAndSignaturesOrInventory(const MarcRecord &record,
             continue;
         const Subfields subfields(_910_field_contents);
         const std::string sigil(subfields.getFirstSubfieldValue('c'));
+        const bool is_monograph(record.getLeader().isMonograph());
 
         std::vector<std::string> signatures;
         std::string inventory;
         if (supplementary_info_type == SIGNATURE)
             subfields.extractSubfields('d', &signatures);
         else
-            inventory = ExtractInventory(subfields.getFirstSubfieldValue('a'));
+            inventory = ExtractInventory(subfields.getFirstSubfieldValue('a'), is_monograph);
 
-        const bool is_monograph(record.getLeader().isMonograph());
         if (is_monograph and sigil != "21")
             continue;
         if (SIGILS_OF_INTEREST.find(sigil) == SIGILS_OF_INTEREST.cend())
@@ -226,7 +235,7 @@ void WriteSerialEntry(File * const output, const std::string &target_sigil, cons
     }
     if (target_sigils_and_inventory_info.empty())
         return;
-    
+
     (*output) << '"' << ppn << "\",\"" << TextUtil::CSVEscape(main_title)
               << "\",\"" << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
               << "\",\"" << TextUtil::CSVEscape(area_or_zdb_number)

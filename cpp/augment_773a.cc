@@ -26,12 +26,9 @@
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
-#include "DirectoryEntry.h"
-#include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
-#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"

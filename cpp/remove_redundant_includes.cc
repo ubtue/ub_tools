@@ -165,6 +165,16 @@ skip_white_space:
 }
 
 
+inline bool IsHexDigit(const char ch) {
+    return ('0' <= ch and ch <= '9') or ('a' <= ch and ch <= 'z') or ('A' <= ch and ch <= 'Z');
+}
+
+
+inline bool IsOctalDigit(const char ch) {
+    return '0' <= ch and ch <= '7';
+}
+
+
 void Scanner::skipCharacterConstant() {
     int ch(get());
     if (unlikely(ch == EOF))
@@ -173,10 +183,25 @@ void Scanner::skipCharacterConstant() {
         ch = get();
         if (unlikely(ch == EOF))
             error("unexpected EOF while parsing a character constant! (2)");
+        if (ch == 'x') { // hex escape
+            do {
+                ch = get();
+                if (unlikely(ch == EOF))
+                    error("unexpected EOF while parsing a character constant! (3)");
+            } while (IsHexDigit(static_cast<char>(ch)));
+            unget(ch);
+        } else if (IsOctalDigit(static_cast<char>(ch))) { // octal escape
+            do {
+                ch = get();
+                if (unlikely(ch == EOF))
+                    error("unexpected EOF while parsing a character constant! (4)");
+            } while (IsOctalDigit(static_cast<char>(ch)));
+            unget(ch);
+        }
     }
     ch = get();
     if (unlikely(ch == EOF))
-        error("unexpected EOF while parsing a character constant! (3)");
+        error("unexpected EOF while parsing a character constant! (5)");
     if (unlikely(ch != '\''))
         error("expected closing quote at end of a character constant, found '"
               + std::string(1, static_cast<char>(ch)) + "' instead!");
@@ -265,13 +290,15 @@ void RemoveUsedNamespacesAndClassNames(Scanner * const scanner,
 }
 
 
-bool ShouldRemove(const std::string &line, const std::set<std::string> &namespaces_and_class_names) {
+bool ShouldRemove(const std::string &line, std::set<std::string> * const namespaces_and_class_names) {
     if (line.find("#include") == std::string::npos)
         return false;
 
-    for (const auto &namespace_or_class_name : namespaces_and_class_names) {
-        if (line.find(namespace_or_class_name + ".h") != std::string::npos)
+    for (const auto &namespace_or_class_name : *namespaces_and_class_names) {
+        if (line.find(namespace_or_class_name + ".h") != std::string::npos) {
+            namespaces_and_class_names->erase(namespace_or_class_name);
             return true;
+        }
     }
 
     return false;
@@ -280,22 +307,27 @@ bool ShouldRemove(const std::string &line, const std::set<std::string> &namespac
 
 // \return True if at least one include was removed, otherwise false.
 bool RemoveIncludes(File * const input, File * const output,
-                    const std::set<std::string> &namespaces_and_class_names)
+                    std::set<std::string> * const namespaces_and_class_names)
 {
-    unsigned removed_count(0);
+    bool removed_at_least_one(false);
     while (not input->eof()) {
         std::string line;
         input->getline(&line);
         if (ShouldRemove(line, namespaces_and_class_names))
-            ++removed_count;
+            removed_at_least_one = true;
         else
             output->write(line + "\n");
     }
 
-    if (removed_count != namespaces_and_class_names.size())
-        logger->error("failed to remove all unnecessary includes from \"" + input->getPath() + "\"!");
+    if (not namespaces_and_class_names->empty()) {
+        std::cerr << "Failed to remove all the following unnecessary includes from \"" << input->getPath()
+                  << "\":\n";
+        for (const auto &namespace_or_class_name : *namespaces_and_class_names)
+            std::cerr << '\t' << namespace_or_class_name << ".h\n";
+        std::exit(EXIT_FAILURE);
+    }
 
-    return removed_count > 0;
+    return removed_at_least_one;
 }
 
 
@@ -329,7 +361,7 @@ bool ProcessFile(const bool report_only, File * const input) {
         } else {
             input->rewind();
             std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(input->getPath() + ".tmp"));
-            return RemoveIncludes(input, output.get(), namespaces_and_class_names);
+            return RemoveIncludes(input, output.get(), &namespaces_and_class_names);
         }
     }
 
@@ -356,6 +388,7 @@ int main(int argc, char *argv[]) {
         for (int arg_no(1); arg_no < argc; ++arg_no) {
             const std::string source_filename(argv[arg_no]);
             std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(source_filename));
+            std::cout << "Processing " << source_filename << "...\n";
             if (not ProcessFile(report_only, input.get()))
                 continue;
 

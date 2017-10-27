@@ -30,18 +30,13 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
-#include "DbResultSet.h"
-#include "DbRow.h"
-#include "DirectoryEntry.h"
 #include "IniFile.h"
-#include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "MarcUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
-#include "TimeUtil.h"
 #include "TranslationUtil.h"
 #include "util.h"
 

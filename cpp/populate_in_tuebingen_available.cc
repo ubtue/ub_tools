@@ -28,14 +28,11 @@
 #include <utility>
 #include <cstdlib>
 #include "Compiler.h"
-#include "DirectoryEntry.h"
 #include "HtmlUtil.h"
-#include "Leader.h"
 #include "MarcRecord.h"
 #include "MarcReader.h"
 #include "MarcUtil.h"
 #include "MarcWriter.h"
-#include "MarcXmlWriter.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "Subfields.h"
