@@ -270,7 +270,7 @@ bool ShouldRemove(const std::string &line, const std::set<std::string> &namespac
         return false;
 
     for (const auto &namespace_or_class_name : namespaces_and_class_names) {
-        if (line.find(namespace_or_class_name + ".h") == std::string::npos)
+        if (line.find(namespace_or_class_name + ".h") != std::string::npos)
             return true;
     }
 
@@ -278,7 +278,8 @@ bool ShouldRemove(const std::string &line, const std::set<std::string> &namespac
 }
 
 
-void RemoveIncludes(File * const input, File * const output,
+// \return True if at least one include was removed, otherwise false.
+bool RemoveIncludes(File * const input, File * const output,
                     const std::set<std::string> &namespaces_and_class_names)
 {
     unsigned removed_count(0);
@@ -292,11 +293,14 @@ void RemoveIncludes(File * const input, File * const output,
     }
 
     if (removed_count != namespaces_and_class_names.size())
-        logger->error("failed to remove all unnecessary includes!");
+        logger->error("failed to remove all unnecessary includes from \"" + input->getPath() + "\"!");
+
+    return removed_count > 0;
 }
 
 
-void ProcessFile(const bool report_only, File * const input, File * const /*output*/) {
+// \return True if at least one include was removed, otherwise false.
+bool ProcessFile(const bool report_only, File * const input) {
     Scanner scanner(input);
 
     std::vector<std::string> includes;
@@ -309,7 +313,7 @@ void ProcessFile(const bool report_only, File * const input, File * const /*outp
 
     std::set<std::string> namespaces_and_class_names;
     for (const auto &include : includes) {
-        if (include != "util.h" and StringUtil::EndsWith(include, ".h"))
+        if (StringUtil::EndsWith(include, ".h") and include != "util.h" and include != "Compiler.h")
             namespaces_and_class_names.emplace(include.substr(0, include.length() - 2));
     }
 
@@ -323,10 +327,13 @@ void ProcessFile(const bool report_only, File * const input, File * const /*outp
             for (const auto &namespace_or_class_name : namespaces_and_class_names)
                 std::cout << '\t' << namespace_or_class_name << '\n';
         } else {
+            input->rewind();
             std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(input->getPath() + ".tmp"));
-            RemoveIncludes(input, output.get(), namespaces_and_class_names);
+            return RemoveIncludes(input, output.get(), namespaces_and_class_names);
         }
     }
+
+    return false;
 }
 
 
@@ -349,11 +356,10 @@ int main(int argc, char *argv[]) {
         for (int arg_no(1); arg_no < argc; ++arg_no) {
             const std::string source_filename(argv[arg_no]);
             std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(source_filename));
-            FileUtil::AutoTempFile temp_file;
-            std::unique_ptr<File> output(FileUtil::OpenInputFileOrDie(temp_file.getFilePath()));
-            ProcessFile(report_only, input.get(), output.get());
-            output->flush();
-            output->close();
+            if (not ProcessFile(report_only, input.get()))
+                continue;
+
+            input->close();
             if (not report_only) {
                 if (not FileUtil::RenameFile(source_filename, source_filename + ".bak"))
                     logger->error("failed to rename \"" + source_filename + "\" to \"" + source_filename
