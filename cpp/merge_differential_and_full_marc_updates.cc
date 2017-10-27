@@ -27,7 +27,7 @@
 deletion_list              = LOEPPN(?:_m)?-\d{6}
 complete_dump              = SA-MARC-ixtheo-\d{6}.tar.gz
 incremental_dump           = (:?TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-\d{6}.tar.gz
-incremental_authority_dump = (?:WA-MARCcomb-sekkor)-(\d\d\d\d\d\d).tar.gz
+incremental_authority_dump = (?:WA-MARCcomb-sekkor)-(\d{6}).tar.gz
 complete_dump_linkname     = SA-MARC-ixtheo-current.tar.gz
 errors_list                = Errors_ixtheo_\d{6}
 */
