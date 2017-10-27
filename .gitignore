@@ -36,6 +36,7 @@ base_tar_unpacker
 base64_coder
 bib_ref_to_codes_tool
 categorise_marc_xml
+cpp/full_text_cache_monitor
 cpp/installer
 control_number_filter
 convert_bible_references
@@ -66,7 +67,6 @@ fix_article_biblio_levels
 fix_iso_8859_1_garbage
 flag_article_collections
 full_text_cache_cleaner
-full_text_cache_monitor
 full_text_lookup
 full_text_stats
 generate_title_and_author_list

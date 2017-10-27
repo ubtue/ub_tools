@@ -33,7 +33,6 @@
 #include "FileUtil.h"
 #include "FullTextCache.h"
 #include "HtmlUtil.h"
-#include "IniFile.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -41,7 +40,33 @@
 #include "VuFind.h"
 #include "WebUtil.h"
 
+
+class PageException: public std::exception
+{
+public:
+    PageException(std::string message) : message_(message) { }
+    const char * what () const throw ()
+    {
+        return message_.c_str();
+    }
+private:
+    std::string message_;
+};
+
+
+const std::string template_directory("/usr/local/var/lib/tuelib/full_text_cache_monitor/");
 std::multimap<std::string, std::string> cgi_args;
+
+
+void ExpandTemplate(const std::string &template_name,
+                    std::string &body,
+                    const std::map<std::string, std::vector<std::string>> &template_variables = {})
+{
+    std::ifstream template_html(template_directory + template_name + ".html", std::ios::binary);
+    std::ostringstream template_out;
+    MiscUtil::ExpandTemplate(template_html, template_out, template_variables);
+    body += template_out.str();
+}
 
 
 std::string GetCGIParameterOrDefault(const std::string &parameter_name,
@@ -72,47 +97,44 @@ void GetExampleData(DbConnection * const db_connection,
 }
 
 
-void ShowError(const std::string &error_message, const std::string &description = "") {
-    std::cout << "  <h1>" + error_message + "</h1>"
-              << "  <h3>" + description + "</h3>";
-
-    throw std::runtime_error("error_message");
+void ShowError(const std::string &error_message, std::string &body) {
+    body += "<h1 style=\"color: red;\">Error</h1>";
+    body += "<h4 style=\"color: red;\">" + error_message + "</h4>";
 }
 
 
-void ShowPageHeader() {
+void ShowPageHeader(std::string &body) {
+    std::map<std::string, std::vector<std::string>> template_variables;
     std::string id(GetCGIParameterOrDefault("id"));
-    std::cout << "<h1>Fulltext Cache Monitor</h1>";
-    std::cout << "<p>What do you want to do?</p>";
-    std::cout << "<ul>";
-    std::cout << "<li><a href=\"?page=errors\">Show errors</a></li>";
-    std::cout << "<li><form method=\"get\">Search for ID</a><input name=\"id\" value=\"" + id + "\"></input><input type=\"hidden\" name=\"page\" value=\"details\"></input><input type=\"submit\"></input></form></li>";
-    std::cout << "</ul>";
+    template_variables.emplace("id", std::vector<std::string> {id});
+    ExpandTemplate("header", body, template_variables);
 }
 
 
-void ShowPageDetails(DbConnection * const db_connection) {
+void ShowPageIdDetails(DbConnection * const db_connection, std::string &body) {
     std::string id(GetCGIParameterOrDefault("id"));
     if (id.empty())
-        ShowError("error: parameter missing", "no ID given!");
+        throw PageException("parameter missing: no ID given");
+
 
     FullTextCache::Entry entry;
     if (not FullTextCache::GetEntry(db_connection, id, entry))
-        ShowError("error: ID not found", id);
+        throw PageException("ID not found: " + id);
 
-    std::cout << "<h1>Details for ID " + id + ":</h1>";
-    std::cout << "<table>";
-    std::cout << "<tr><td>Status:</td><td>" << entry.status_ << "</td></tr>";
-    std::cout << "<tr><td>Expiration:</td><td>" << entry.expiration_ << "</td></tr>";
-    std::cout << "<tr><td>URL:</td><td>" << entry.url_ << "</td></tr>";
-    std::cout << "<tr><td>Error Message:</td><td>" << entry.error_message_ << "</td></tr>";
-    std::cout << "<tr><td>KrimDok:</td><td><a href=\"https://sobek.ub.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\">test (sobek)</a>&nbsp;<a href=\"https://krimdok.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\">live (ub15)</a></td></tr>";
-    std::cout << "</table>";
+    std::map<std::string, std::vector<std::string>> template_variables;
+    template_variables.emplace("id", std::vector<std::string> {HtmlUtil::HtmlEscape(id)});
+    template_variables.emplace("status", std::vector<std::string> {HtmlUtil::HtmlEscape(entry.status_)});
+    template_variables.emplace("expiration", std::vector<std::string> {HtmlUtil::HtmlEscape(entry.expiration_)});
+    template_variables.emplace("url", std::vector<std::string> {HtmlUtil::HtmlEscape(entry.url_)});
+    template_variables.emplace("error_message", std::vector<std::string> {HtmlUtil::HtmlEscape(entry.error_message_)});
+    template_variables.emplace("link_sobek", std::vector<std::string> {"<a href=\"https://sobek.ub.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\">test (sobek)</a>"});
+    template_variables.emplace("link_ub15", std::vector<std::string> {"<a href=\"https://krimdok.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\">live (ub15)</a>"});
+    ExpandTemplate("id_details", body, template_variables);
 }
 
 
-void ShowPageErrors(DbConnection * const db_connection) {
-    std::vector<std::string> error_messages, counts, domains, urls, ids;
+void ShowPageErrorSummary(DbConnection * const db_connection, std::string &body) {
+    std::vector<std::string> error_messages, counts, domains, urls, ids, links_details, links_error_details;
     {
         db_connection->queryOrDie("SELECT error_message, count(*) AS count, "
                                   "SUBSTRING(LEFT(url, LOCATE('/', url, 8) - 1), 8) AS domain "
@@ -139,38 +161,24 @@ void ShowPageErrors(DbConnection * const db_connection) {
 
         ids.emplace_back(example_id);
         urls.emplace_back(example_url);
+        links_details.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(ids[i]) + "\">" + HtmlUtil::HtmlEscape(ids[i]) + "</a>");
+        links_error_details.emplace_back("<a href=\"?page=error_list&domain=" + UrlUtil::UrlEncode(domains[i]) + "&error_message=" + UrlUtil::UrlEncode(error_messages[i]) + "\">Show error list</a>");
     }
 
-
-    std::cout << "<h1>Error overview:</h1>";
-    std::cout << "<table class=\"errors\">";
-
-    std::cout << "<tr>";
-    std::cout << "<th align=\"left\">Count</th>";
-    std::cout << "<th align=\"left\">Error Message</th>";
-    std::cout << "<th align=\"left\">Domain</th>";
-    std::cout << "<th align=\"left\">Example URL</th>";
-    std::cout << "<th align=\"left\">Example ID</th>";
-    std::cout << "<th align=\"left\">Actions</th>";
-    std::cout << "</tr>";
-    for (unsigned i(0); i < error_messages.size(); ++i) {
-        std::cout << "<tr>";
-
-        std::cout << "<td>" << HtmlUtil::HtmlEscape(counts[i]) << "</td>";
-        std::cout << "<td>" << HtmlUtil::HtmlEscape(error_messages[i]) << "</td>";
-        std::cout << "<td>" << HtmlUtil::HtmlEscape(domains[i]) << "</td>";
-        std::cout << "<td>" << HtmlUtil::HtmlEscape(urls[i]) << "</td>";
-        std::cout << "<td>" << "<a href=\"?page=details&id=" + UrlUtil::UrlEncode(ids[i]) + "\">" + HtmlUtil::HtmlEscape(ids[i]) + "</a>" << "</td>";
-        std::cout << "<td>" << "<a href=\"?page=error_details&domain=" + UrlUtil::UrlEncode(domains[i]) + "&error_message=" + UrlUtil::UrlEncode(error_messages[i]) + "\">Show all</a>" << "</td>";
-
-        std::cout << "</tr>";
-    }
-
-    std::cout << "</table>";
+    std::map<std::string, std::vector<std::string>> template_variables;
+    template_variables.emplace("id", ids);
+    template_variables.emplace("url", urls);
+    template_variables.emplace("error_message", error_messages);
+    template_variables.emplace("domain", domains);
+    template_variables.emplace("count", counts);
+    template_variables.emplace("url", urls);
+    template_variables.emplace("link_details", links_details);
+    template_variables.emplace("link_error_details", links_error_details);
+    ExpandTemplate("error_summary", body, template_variables);
 }
 
 
-void ShowPageErrorDetails(DbConnection * const db_connection) {
+void ShowPageErrorList(DbConnection * const db_connection, std::string &body) {
 
     std::string error_message(GetCGIParameterOrDefault("error_message"));
     std::string domain(GetCGIParameterOrDefault("domain"));
@@ -181,43 +189,28 @@ void ShowPageErrorDetails(DbConnection * const db_connection) {
                               "AND SUBSTRING(LEFT(url, LOCATE('/', url, 8) - 1), 8) = '" + db_connection->escapeString(domain) + "'"
                               );
 
-    std::cout << "<h1>Error overview:</h1>";
-    std::cout << "<table class=\"errors\">";
-
-    std::cout << "<tr>";
-    std::cout << "<th align=\"left\">Id</th>";
-    std::cout << "<th align=\"left\">Url</th>";
-    std::cout << "<th align=\"left\">Error Message</th>";
-    std::cout << "</tr>";
-
+    std::vector<std::string> ids, urls, error_messages;
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const DbRow row = result_set.getNextRow()) {
-        std::cout << "<tr>";
-
-        std::cout << "<td><a href=\"?page=details&id=" << UrlUtil::UrlEncode(row["id"]) << "\">" << HtmlUtil::HtmlEscape(row["id"]) << "</a></td>";
-        std::cout << "<td>" << HtmlUtil::HtmlEscape(row["url"]) << "</td>";
-        std::cout << "<td>" << HtmlUtil::HtmlEscape(error_message) << "</td>";
-
-        std::cout << "</tr>";
+        ids.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(row["id"]) + "\">" + HtmlUtil::HtmlEscape(row["id"]) + "</a>");
+        urls.emplace_back(HtmlUtil::HtmlEscape(row["url"]));
+        error_messages.emplace_back(HtmlUtil::HtmlEscape(error_message));
     }
 
-    std::cout << "</table>";
+    std::map<std::string, std::vector<std::string>> template_variables;
+    template_variables.emplace("id", ids);
+    template_variables.emplace("url", urls);
+    template_variables.emplace("error_message", error_messages);
+    ExpandTemplate("error_list", body, template_variables);
 }
 
 
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
+    std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+
     try {
-        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
-
-        std::cout << "<!DOCTYPE html><html><head>"
-                  << "<style type=\"text/css\">"
-                  << "table.errors td { border: 1px solid #CCCCCC;}"
-                  << "</style>"
-                  << "<title>Fulltext Monitor</title></head>"
-                  << "<body>";
-
         std::string mysql_url;
         VuFind::GetMysqlURL(&mysql_url);
         DbConnection db_connection(mysql_url);
@@ -225,18 +218,33 @@ int main(int argc, char *argv[]) {
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
         const std::string subpage(GetCGIParameterOrDefault("page"));
 
-        ShowPageHeader();
+        std::string body;
+        ShowPageHeader(body);
 
-        if (subpage == "details") {
-            ShowPageDetails(&db_connection);
-        } else if (subpage == "errors") {
-            ShowPageErrors(&db_connection);
-        } else if (subpage == "error_details") {
-            ShowPageErrorDetails(&db_connection);
+        try {
+            if (subpage == "id_details") {
+                ShowPageIdDetails(&db_connection, body);
+            } else if (subpage == "error_summary") {
+                ShowPageErrorSummary(&db_connection, body);
+            } else if (subpage == "error_list") {
+                ShowPageErrorList(&db_connection, body);
+            } else if (subpage != "") {
+                throw PageException("Page does not exist: " + subpage);
+            }
+        } catch (PageException &e) {
+            ShowError(e.what(), body);
         }
 
-        std::cout << "</body>"
-                  << "</html>";
+        std::map<std::string, std::vector<std::string>> names_to_values_map;
+
+        std::string css;
+        FileUtil::ReadString(template_directory + "style.css", &css);
+        names_to_values_map.emplace("css", std::vector<std::string> {css});
+
+        std::ifstream template_html(template_directory + "index.html", std::ios::binary);
+        names_to_values_map.emplace("body", std::vector<std::string> {body});
+
+        MiscUtil::ExpandTemplate(template_html, std::cout, names_to_values_map);
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }

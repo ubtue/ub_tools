@@ -65,6 +65,7 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	mkdir --parents /usr/local/var/lib/tuelib/translate_chainer
 	cp data/done_translating.html data/translate.html data/translation_front_page.html \
            data/mytranslations_template.msg /usr/local/var/lib/tuelib/translate_chainer/
+	cp -r data/full_text_cache_monitor /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.ixtheo.template /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.relbib.template /usr/local/var/lib/tuelib/
 	cp data/zotero_crawler.conf /usr/local/var/lib/tuelib/

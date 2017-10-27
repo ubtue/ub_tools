@@ -1,0 +1,15 @@
+<h2>Error List</h2>
+<table class="errors">
+    <tr>
+        <th>Id</th>
+        <th>Url</th>
+        <th>Error Message</th>
+    </tr>
+    {LOOP id, url, error_message}
+    <tr>
+        <td>{id}</td>
+        <td>{url}</td>
+        <td>{error_message}</td>
+    </tr>
+    {ENDLOOP}
+</table>
