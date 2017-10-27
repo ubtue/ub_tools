@@ -22,11 +22,9 @@
 
 #include <iostream>
 #include <cstdlib>
-#include "DirectoryEntry.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcTag.h"
-#include "MarcWriter.h"
 #include "RegexMatcher.h"
 #include "util.h"
 

@@ -27,7 +27,6 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "MiscUtil.h"
-#include "Solr.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
 #include "util.h"

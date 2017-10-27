@@ -25,14 +25,12 @@
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
-#include "FileUtil.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 static unsigned modified_count(0);
