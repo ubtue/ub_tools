@@ -30,7 +30,6 @@
 #include "File.h"
 #include "FileUtil.h"
 #include "TranslationUtil.h"
-#include "StringUtil.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"

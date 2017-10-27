@@ -28,9 +28,7 @@
 #include "DbRow.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
-#include "SimpleXmlParser.h"
 #include "SqlUtil.h"
-#include "StringUtil.h"
 #include "TranslationUtil.h"
 #include "util.h"
 

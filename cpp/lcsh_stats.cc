@@ -24,7 +24,6 @@
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
-#include "FileUtil.h"
 #include "MarcRecord.h"
 #include "MarcReader.h"
 #include "StringUtil.h"

@@ -23,7 +23,6 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
-#include "FileUtil.h"
 #include "IniFile.h"
 #include "MarcRecord.h"
 #include "StringUtil.h"

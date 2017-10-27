@@ -26,8 +26,6 @@
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "SqlUtil.h"
-#include "StringUtil.h"
-#include "TimeUtil.h"
 #include "util.h"
 #include "VuFind.h"
 
