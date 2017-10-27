@@ -1,0 +1,22 @@
+<h2>Error Summary</h2>
+<table class="errors">
+    <tr>
+        <th>Count</th>
+        <th>Error Message</th>
+        <th>Domain</th>
+        <th>Example URL</th>
+        <th>Example ID</th>
+        <th>Actions</th>
+    </tr>
+
+    {LOOP count, error_message, domain, url, link_details, link_error_details}
+    <tr>
+        <td>{count}</td>
+        <td>{error_message}</td>
+        <td>{domain}</td>
+        <td>{url}</td>
+        <td>{link_details}</td>
+        <td>{link_error_details}</td>
+    </tr>
+    {ENDLOOP}
+</table>
