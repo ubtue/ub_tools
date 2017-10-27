@@ -19,7 +19,6 @@
  */
 #include <iostream>
 #include "Compiler.h"
-#include "FileUtil.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "util.h"

@@ -26,8 +26,6 @@
 #include <unordered_set>
 #include <cstdlib>
 #include <cstring>
-#include "DirectoryEntry.h"
-#include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
@@ -35,7 +33,6 @@
 #include "Subfields.h"
 #include "TextUtil.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 void Usage() {

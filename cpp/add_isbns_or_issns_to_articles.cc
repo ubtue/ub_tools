@@ -27,8 +27,6 @@
 #include <unordered_map>
 #include <cstdlib>
 #include <cstring>
-#include "DirectoryEntry.h"
-#include "FileUtil.h"
 #include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
@@ -37,7 +35,6 @@
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
-#include "XmlWriter.h"
 
 
 void Usage() {
