@@ -36,6 +36,7 @@ base_tar_unpacker
 base64_coder
 bib_ref_to_codes_tool
 categorise_marc_xml
+cpp/installer
 control_number_filter
 convert_bible_references
 convert_oai_pmh_dc_to_marc21
@@ -71,7 +72,6 @@ generate_title_and_author_list
 generate_vufind_translation_files
 get_essay_collection_pdfs
 insert_translation_gaps
-installer
 is_mount_point_test
 iViaCore-mkdep
 json_grep
