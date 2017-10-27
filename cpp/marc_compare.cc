@@ -20,12 +20,8 @@
 #include <iostream>
 #include <string>
 #include "Compiler.h"
-#include "FileUtil.h"
-#include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
-#include "MarcWriter.h"
-#include "MediaTypeUtil.h"
 #include "util.h"
 
 

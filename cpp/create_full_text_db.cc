@@ -31,19 +31,15 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <kchashdb.h>
-#include "Downloader.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcUtil.h"
 #include "MarcWriter.h"
-#include "MiscUtil.h"
-#include "RegexMatcher.h"
 #include "Semaphore.h"
 #include "StringUtil.h"
 #include "Subfields.h"
-#include "TimeLimit.h"
 #include "util.h"
 
 

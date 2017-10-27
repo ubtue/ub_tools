@@ -29,9 +29,7 @@
 #include "MarcRecord.h"
 #include "MarcReader.h"
 #include "MarcWriter.h"
-#include "MarcXmlWriter.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "util.h"
 
 
