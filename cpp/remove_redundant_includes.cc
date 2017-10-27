@@ -356,6 +356,7 @@ int main(int argc, char *argv[]) {
         for (int arg_no(1); arg_no < argc; ++arg_no) {
             const std::string source_filename(argv[arg_no]);
             std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(source_filename));
+            std::cout << "Processing " << source_filename << "...\n";
             if (not ProcessFile(report_only, input.get()))
                 continue;
 
