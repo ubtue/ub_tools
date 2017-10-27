@@ -56,30 +56,25 @@ static void Usage() {
 }
 
 
-enum ReturnType { SUCCESS, DOWNLOAD_TIMEOUT_ERROR, MEDIA_TYPE_DETERMINATION_ERROR };
-
-
-ReturnType GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
-                                   std::string * const media_type)
+// \note Sets "error_message" when it returns false.
+bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
+                             std::string * const media_type, std::string * const error_message)
 {
     Downloader::Params params;
     Downloader downloader(url, params, timeout);
     if (downloader.anErrorOccurred()) {
-        logger->warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to download the document for "
-                        + url + " (timeout: " + std::to_string(timeout) + " sec, message: "
-                        + downloader.getLastErrorMessage() + ")" );
-        return DOWNLOAD_TIMEOUT_ERROR;
+        *error_message = downloader.getLastErrorMessage();
+        return false;
     }
 
     *document = downloader.getMessageBody();
     *media_type = downloader.getMediaType();
     if (media_type->empty()) {
-        logger->warning("in GetDocumentAndMediaType(update_full_text_db.cc): Failed to get the media type for "
-                        + url);
-        return MEDIA_TYPE_DETERMINATION_ERROR;
+        *error_message = "failed to determine the media type!";
+        return false;
     }
     
-    return SUCCESS;
+    return true;
 }
 
 
@@ -176,17 +171,17 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 
 // Returns true if text has been successfully extracted, else false.
 bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_output_filename,
-                   const std::string &full_text_db_path, const std::string &error_log_path)
+                   const std::string &full_text_db_path)
 {
     MarcRecord record(marc_reader->read());
-    const std::string key(record.getControlNumber());
+    const std::string ppn(record.getControlNumber());
 
     std::string mysql_url;
     VuFind::GetMysqlURL(&mysql_url);
     DbConnection db_connection(mysql_url);
 
     bool success(false);
-    if (not FullTextCache::CacheExpired(&db_connection, full_text_db_path, key)) {
+    if (not FullTextCache::CacheEntryExpired(&db_connection, full_text_db_path, ppn)) {
         Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
         ++semaphore;
         success = true;
@@ -198,6 +193,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
     
         constexpr unsigned PER_DOC_TIMEOUT(10000); // in milliseconds
 
+        std::string error_message, url;
         for (const size_t _856_field_index : _856_field_indices) {
             const Subfields _856_subfields(record.getSubfields(_856_field_index));
             if (_856_subfields.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
@@ -206,37 +202,34 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
             if (IsProbablyAReview(_856_subfields))
                 continue;
 
-            const std::string url(_856_subfields.getFirstSubfieldValue('u'));
+            url = _856_subfields.getFirstSubfieldValue('u');
             std::string document, media_type;
-            ReturnType return_type;
-            if ((return_type = GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type)) != SUCCESS) {
-                std::unique_ptr<File> error_log_file(FileUtil::OpenForAppendingOrDie(error_log_path));
-                FileLocker file_locker(error_log_file.get(), FileLocker::WRITE_ONLY);
-                if (not (error_log_file->seek(0, SEEK_END)))
-                    logger->error("in ProcessRecord: failed to seek to the end of \"" + error_log_path + "\"!");
-                error_log_file->write(url + " ("
-                                      + std::string(return_type == DOWNLOAD_TIMEOUT_ERROR
-                                                    ? "download timeout" : "failed to determine media type")
-                                      + ")");
-                error_log_file->flush();
-
-                continue;
-            }
-
-            std::string extracted_text(ConvertToPlainText(media_type, GetTesseractLanguageCode(record), document));
-            if (not extracted_text.empty()) {
-                if (combined_text.empty())
-                    combined_text.swap(extracted_text);
-                else
-                    combined_text += " " + extracted_text;
+            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &error_message)))
+                break;
+            else {
+                std::string extracted_text(ConvertToPlainText(media_type, GetTesseractLanguageCode(record),
+                                                              document));
+                if (not extracted_text.empty()) {
+                    if (combined_text.empty())
+                        combined_text.swap(extracted_text);
+                    else
+                        combined_text += " " + extracted_text;
+                } else {
+                    error_message = "failed to extract text from the downloaded document!";
+                    break;
+                }
             }
         }
-    
-        FullTextCache::InsertIntoCache(&db_connection, full_text_db_path, key,
-                                       "Content-type: text/plain\r\n\r\n" + combined_text);
+
+        std::string data;
+        if (error_message.empty()) {
+            url.clear();
+            data = "Content-Type: text/plain\r\n\r\n" + combined_text;
+        }
+        FullTextCache::InsertIntoCache(&db_connection, full_text_db_path, ppn, url, data, error_message);
 
         if (not combined_text.empty()) {
-            record.insertSubfield("FUL", 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + key);
+            record.insertSubfield("FUL", 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn);
             success = true;
         }
     }
@@ -253,7 +246,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 6)
+    if (argc != 5)
         Usage();
 
     long offset;
@@ -266,9 +259,9 @@ int main(int argc, char *argv[]) {
                       + "! (" + std::to_string(errno) + ")");
 
     try {
-        return ProcessRecord(marc_reader.get(), argv[3], argv[4], argv[5]) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return ProcessRecord(marc_reader.get(), argv[3], argv[4]) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
-        logger->error("While reading \"" + marc_reader->getPath() + "\" starting at offset \"" + std::string(argv[1])
-                      + "\", caught exception: " + std::string(e.what()));
+        logger->error("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
+                      + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));
     }
 }

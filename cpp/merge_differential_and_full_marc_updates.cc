@@ -24,11 +24,12 @@
   Config files for this program look like this:
 
 [Files]
-deletion_list          = LOEPPN(?:_m)?-\d{6}
-complete_dump          = SA-MARC-ixtheo-\d{6}.tar.gz
-incremental_dump       = (:?TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-\d{6}.tar.gz
-complete_dump_linkname = SA-MARC-ixtheo-current.tar.gz
-errors_list            = Errors_ixtheo_\d{6}
+deletion_list              = LOEPPN(?:_m)?-\d{6}
+complete_dump              = SA-MARC-ixtheo-\d{6}.tar.gz
+incremental_dump           = (:?TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-\d{6}.tar.gz
+incremental_authority_dump = (?:WA-MARCcomb-sekkor)-(\d\d\d\d\d\d).tar.gz
+complete_dump_linkname     = SA-MARC-ixtheo-current.tar.gz
+errors_list                = Errors_ixtheo_\d{6}
 */
 
 #include <algorithm>
@@ -61,7 +62,7 @@ errors_list            = Errors_ixtheo_\d{6}
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--keep-intermediate-files] default_email_recipient\n";
+    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] default_email_recipient\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -125,7 +126,8 @@ void LogSendEmailAndDie(const std::string &one_line_message) {
 
 // Populates "filenames" with a list of regular files and returns the number of matching filenames that were found
 // in the current working directory.  The list will be sorted in alphanumerical order.
-unsigned GetSortedListOfRegularFiles(const std::string &filename_regex, std::vector<std::string> * const filenames) {
+unsigned GetSortedListOfRegularFiles(const std::string &filename_regex, std::vector<std::string> * const filenames)
+{
     filenames->clear();
 
     FileUtil::Directory directory(".", filename_regex + "$" /* Skip additional extensions. */);
@@ -171,8 +173,9 @@ CompOutcome DateCompare(const std::string &filename1, const std::string &filenam
 /** \brief Advances "filename_iter" to where its date is greater or equal to the date of "reference_filename".
  *  \return The date matching if "filename_iter"'s date is the same as the reference date else the empty string.
  */
-std::string AdvanceToDate(const std::string &reference_filename, const std::vector<std::string>::const_iterator &end,
-                   std::vector<std::string>::const_iterator * const filename_iter)
+std::string AdvanceToDate(const std::string &reference_filename,
+                          const std::vector<std::string>::const_iterator &end,
+                          std::vector<std::string>::const_iterator * const filename_iter)
 {
     while (*filename_iter != end) {
         const CompOutcome comp_outcome(DateCompare(reference_filename, **filename_iter));
@@ -734,6 +737,49 @@ void RemoveDirectoryOrDie(const std::string &directory_name) {\
 }
 
 
+// Merges the filenames of the "incremental_dump_filenames" list into the "incremental_authority_dump_filenames" list.
+// If filenames in both lists have the same datestamp, we insert the authority dump filename *before* the
+// incremental dump filename.
+void MergeAuthorityAndIncrementalDumpLists(const std::vector<std::string> &incremental_authority_dump_filenames,
+                                           std::vector<std::string> * const incremental_dump_filenames)
+{
+    std::vector<std::string> merged_list;
+
+    auto incremental_authority_dump_filename(incremental_authority_dump_filenames.begin());
+    auto incremental_dump_filename(incremental_dump_filenames->begin());
+    while (incremental_authority_dump_filename != incremental_authority_dump_filenames.end()
+           or incremental_dump_filename != incremental_dump_filenames->end())
+    {
+        if (incremental_authority_dump_filename == incremental_authority_dump_filenames.end()) {
+            merged_list.emplace_back(*incremental_dump_filename);
+            ++incremental_dump_filename;
+        } else if (incremental_dump_filename == incremental_dump_filenames->end()) {
+            merged_list.emplace_back(*incremental_authority_dump_filename);
+            ++incremental_authority_dump_filename;
+        } else {
+            const std::string incremental_authority_dump_date(
+                BSZUtil::ExtractDateFromFilenameOrDie(*incremental_authority_dump_filename));
+            const std::string incremental_dump_date(
+                BSZUtil::ExtractDateFromFilenameOrDie(*incremental_dump_filename));
+            if (incremental_authority_dump_date < incremental_dump_date) {
+                merged_list.emplace_back(*incremental_authority_dump_filename);
+                ++incremental_authority_dump_filename;
+            } else if (incremental_dump_date < incremental_authority_dump_date) {
+                merged_list.emplace_back(*incremental_dump_filename);
+                ++incremental_dump_filename;
+            } else { // Identical dates.
+                merged_list.emplace_back(*incremental_authority_dump_filename);
+                ++incremental_authority_dump_filename;
+                merged_list.emplace_back(*incremental_dump_filename);
+                ++incremental_dump_filename;
+            }
+        }
+    }
+
+    incremental_dump_filenames->swap(merged_list);
+}
+
+
 const std::string EMAIL_CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
 
@@ -762,6 +808,8 @@ int main(int argc, char *argv[]) {
         const std::string deletion_list_pattern(ini_file.getString("Files", "deletion_list"));
         const std::string complete_dump_pattern(ini_file.getString("Files", "complete_dump"));
         const std::string incremental_dump_pattern(ini_file.getString("Files", "incremental_dump"));
+        const std::string incremental_authority_dump_pattern(
+            ini_file.getString("Files", "incremental_authority_dump"));
         const std::string complete_dump_linkname(ini_file.getString("Files", "complete_dump_linkname"));
         // An error list is not unconditionally present
         std::string errors_list_pattern;
@@ -791,12 +839,23 @@ int main(int argc, char *argv[]) {
             Log("identified " + std::to_string(incremental_dump_filenames.size())
                 + " incremental dump filenames for application.");
 
-        if (deletion_list_filenames.empty() and incremental_dump_filenames.empty()) {
+        std::vector<std::string> incremental_authority_dump_filenames;
+        GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_authority_dump_pattern,
+                                      &incremental_authority_dump_filenames);
+        if (not incremental_authority_dump_filenames.empty())
+            Log("identified " + std::to_string(incremental_authority_dump_filenames.size())
+                + " authority dump filenames for application.");
+
+        if (deletion_list_filenames.empty() and incremental_dump_filenames.empty()
+            and incremental_authority_dump_filenames.empty())
+        {
             SendEmail(std::string(::progname),
-                      "No recent deletion lists nor incremental dump filenames.\nTherefore we have nothing to do!\n",
-                      EmailSender::VERY_LOW);
+                      "No recent deletion lists, incremental dump filenames and authority dump filenames.\n"
+                      "Therefore we have nothing to do!\n", EmailSender::VERY_LOW);
             return 0;
         }
+
+        MergeAuthorityAndIncrementalDumpLists(incremental_authority_dump_filenames, &incremental_dump_filenames);
 
         CreateAndChangeIntoTheWorkingDirectory();
         const std::string new_complete_dump_filename(
@@ -808,8 +867,9 @@ int main(int argc, char *argv[]) {
         if (not keep_intermediate_files) {
             RemoveDirectoryOrDie(GetWorkingDirectoryName());
             DeleteFilesOrDie(incremental_dump_pattern);
+            DeleteFilesOrDie(incremental_authority_dump_pattern);
             DeleteFilesOrDie(deletion_list_pattern);
-            if (not errors_list_pattern.empty())  
+            if (not errors_list_pattern.empty())
                 DeleteFilesOrDie(errors_list_pattern);
         }
 
