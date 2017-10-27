@@ -27,7 +27,6 @@
 #include <unordered_set>
 #include <vector>
 #include <cstdlib>
-#include "DirectoryEntry.h"
 #include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"

@@ -25,7 +25,6 @@
 #include "MarcRecord.h"
 #include "MarcReader.h"
 #include "MarcWriter.h"
-#include "SimpleXmlParser.h"
 #include "StringDataSource.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"

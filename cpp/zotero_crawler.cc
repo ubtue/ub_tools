@@ -30,9 +30,7 @@
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "RegexMatcher.h"
-#include "HttpHeader.h"
 #include "StringUtil.h"
-#include "Url.h"
 #include "util.h"
 #include "WebUtil.h"
 
