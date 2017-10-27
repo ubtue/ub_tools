@@ -27,16 +27,15 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
-    private final static String VALID_FOUR_DIGIT_YEAR = "\\d{4}";
 
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
     private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?(-\\d+)?");
-    private final static Pattern VALID_FOUR_DIGIT_PATTERN = Pattern.compile(VALID_FOUR_DIGIT_YEAR);
+    private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
+    private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
-    private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
 
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
@@ -955,7 +954,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (field_value == null)
             return null;
 
-        final Matcher matcher = YEAR_PATTERN.matcher(field_value);
+        final Matcher matcher = VALID_FOUR_DIGIT_YEAR_PATTERN.matcher(field_value);
         return matcher.matches() ? matcher.group(1) : null;
     }
 
@@ -974,6 +973,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public Set<String> map935b(final Record record, final Map<String, String> map) {
         final Set<String> results = new TreeSet<>();
+        String last_unmappable_physical_code = null;
         for (final DataField data_field : record.getDataFields()) {
             if (!data_field.getTag().equals("935"))
                 continue;
@@ -984,9 +984,12 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (map.containsKey(physical_code))
                     results.add(map.get(physical_code));
                 else
-                    logger.severe("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
+                    last_unmappable_physical_code = physical_code;
             }
         }
+
+        if (results.isEmpty() && last_unmappable_physical_code != null)
+            logger.severe("in TuelibMixin.getPhysicalType: can't map \"" + last_unmappable_physical_code + "\"!");
 
         return results;
     }
@@ -1391,7 +1394,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     private String checkValidYear(String fourDigitYear) {
-        Matcher validFourDigitYearMatcher = VALID_FOUR_DIGIT_PATTERN.matcher(fourDigitYear);
+        Matcher validFourDigitYearMatcher = VALID_FOUR_DIGIT_YEAR_PATTERN.matcher(fourDigitYear);
         return validFourDigitYearMatcher.matches() ? fourDigitYear : "";
     }
 
@@ -1411,8 +1414,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Get all available dates from the record.
      *
-     * @param record
-     *            MARC record
+     * @param record MARC record
+     *
      * @return set of dates
      */
 
@@ -1424,7 +1427,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (format.contains("Website")) {
             final ControlField _008_field = (ControlField) record.getVariableField("008");
             if (_008_field == null) {
-                logger.severe("getDates [No 008 Field for Website " + record.getControlNumber() + "]");
+                logger.severe("getDatesBasedOnRecordType [No 008 Field for Website " + record.getControlNumber() + "]");
                 return dates;
             }
             dates.add(yyMMDateToString(record.getControlNumber(), _008_field.getData()));
@@ -1465,7 +1468,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
             if (dates.isEmpty())
-                logger.severe("getDates [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
+                logger.severe("getDatesBasedOnRecordType [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
             else
                 return dates;
         }
@@ -1481,7 +1484,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 dates.add(jSubfield.getData());
             }
             else {
-                logger.severe("getDates [No 190j subfield for PPN " + record.getControlNumber() + "]");
+                logger.severe("getDatesBasedOnRecordType [No 190j subfield for PPN " + record.getControlNumber() + "]");
             }
             return dates;
         }
@@ -1491,15 +1494,17 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Use the sort date given in the 008-Field
         final ControlField _008_field = (ControlField) record.getVariableField("008");
         if (_008_field == null) {
-            logger.severe("getDates [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
+            logger.severe("getDatesBasedOnRecordType [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
             return dates;
         }
         final String _008FieldContents = _008_field.getData();
         final String yearExtracted = _008FieldContents.substring(7, 11);
         // Test whether we have a reasonable value
         final String year = checkValidYear(yearExtracted);
-        if (year.isEmpty())
-            logger.severe("getDates [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
+        // log error if year is empty or not a year like "19uu"
+        if (year.isEmpty() || year.length() != 4 || !VALID_YEAR_RANGE_PATTERN.matcher(year).matches())
+            logger.severe("getDatesBasedOnRecordType [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
+
         dates.add(year);
         return dates;
 }
@@ -2284,5 +2289,26 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
         return "non-open-access";
+    }
+
+
+    // Try to get a numerically sortable representation of an issue
+
+    public String getIssueSort(final Record record) {
+        for (final VariableField variableField : record.getVariableFields("936")) {
+            final DataField dataField = (DataField) variableField;
+            final Subfield subfieldE = dataField.getSubfield('e');
+            if (subfieldE == null)
+                return "0";
+            final String issueString = subfieldE.getData();
+            if (issueString.matches("\\d+"))
+                return issueString;
+            // Handle Some known special cases
+            if (issueString.matches("[\\[]\\d+[\\]]"))
+                return issueString.replace("[]","");
+            if (issueString.matches("\\d+/\\d+"))
+                return issueString.split("/")[0];
+        }
+        return "0";
     }
 }

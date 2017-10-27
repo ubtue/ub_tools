@@ -28,17 +28,34 @@
 namespace FullTextCache {
 
 
+struct Entry {
+    std::string id_;
+    std::string url_;
+    std::string expiration_;
+    std::string data_;
+    std::string status_;
+    std::string error_message_;
+};
+
+
+bool GetEntry(DbConnection * const db_connection, const std::string &id, Entry &entry);
+
+
 /** \brief Test whether an entry in the cache has expired or not.
  *  \return True if we find "id" in the database and the entry is older than now-CACHE_EXPIRE_TIME_DELTA or if "id"
  *          is not found in the database, else false.
  *  \note Deletes expired entries and associated data in the key/value database found at "full_text_db_path".
  */
-bool CacheExpired(DbConnection * const db_connection, const std::string &full_text_db_path, const std::string &key);
+bool CacheEntryExpired(DbConnection * const db_connection, const std::string &full_text_db_path,
+                       const std::string &key);
 
 
-// \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.
+/* \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.  Also
+ *       either "data" must be non-empty or "error_message" must be non-empty.
+ */
 void InsertIntoCache(DbConnection * const db_connection, const std::string &full_text_db_path,
-                     const std::string &key, const std::string &data);
+                     const std::string &id, const std::string &url, const std::string &data,
+                     const std::string &error_message);
 
 
 } // namespace FullTextCache
