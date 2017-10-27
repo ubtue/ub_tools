@@ -18,7 +18,7 @@ ifneq ("$(wildcard /usr/include/selinux)","")
   LIBS += -lselinux
 endif
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
-CGI_PROGS      = full_text_lookup translate_chainer translator_ajax translator display_translate_stats
+CGI_PROGS      = full_text_cache_monitor full_text_lookup translate_chainer translator_ajax translator display_translate_stats
 INSTALL_PROGS  = $(PROGS) *.sh
 
 .PHONY: all .deps tests test install regular_install cgi_install local_clean clean
