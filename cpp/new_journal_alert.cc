@@ -30,7 +30,6 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
-#include "ExecUtil.h"
 #include "FileUtil.h"
 #include "HtmlUtil.h"
 #include "JSON.h"
@@ -38,7 +37,6 @@
 #include "Solr.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
-#include "UrlUtil.h"
 #include "util.h"
 #include "VuFind.h"
 

@@ -22,7 +22,6 @@
 #include <unordered_set>
 #include <vector>
 #include <cstdlib>
-#include "FileUtil.h"
 #include "MarcRecord.h"
 #include "MarcReader.h"
 #include "Subfields.h"

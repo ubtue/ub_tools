@@ -24,12 +24,9 @@
 #include <unordered_map>
 #include <cctype>
 #include <cstdlib>
-#include "DirectoryEntry.h"
-#include "Leader.h"
 #include "MarcRecord.h"
 #include "MarcReader.h"
 #include "MarcWriter.h"
-#include "MarcXmlWriter.h"
 #include "Subfields.h"
 #include "util.h"
 

@@ -40,10 +40,8 @@
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
-#include "MediaTypeUtil.h"
 #include "Subfields.h"
 #include "util.h"
-#include "MarcXmlWriter.h"
 
 
 char help_text[] =

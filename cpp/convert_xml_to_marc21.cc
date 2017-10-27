@@ -22,10 +22,8 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
-#include "MarcXmlWriter.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "SimpleXmlParser.h"
