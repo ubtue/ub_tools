@@ -165,6 +165,16 @@ skip_white_space:
 }
 
 
+inline bool IsHexDigit(const char ch) {
+    return ('0' <= ch and ch <= '9') or ('a' <= ch and ch <= 'z') or ('A' <= ch and ch <= 'Z');
+}
+
+
+inline bool IsOctalDigit(const char ch) {
+    return '0' <= ch and ch <= '7';
+}
+
+
 void Scanner::skipCharacterConstant() {
     int ch(get());
     if (unlikely(ch == EOF))
@@ -173,10 +183,25 @@ void Scanner::skipCharacterConstant() {
         ch = get();
         if (unlikely(ch == EOF))
             error("unexpected EOF while parsing a character constant! (2)");
+        if (ch == 'x') { // hex escape
+            do {
+                ch = get();
+                if (unlikely(ch == EOF))
+                    error("unexpected EOF while parsing a character constant! (3)");
+            } while (IsHexDigit(static_cast<char>(ch)));
+            unget(ch);
+        } else if (IsOctalDigit(static_cast<char>(ch))) { // octal escape
+            do {
+                ch = get();
+                if (unlikely(ch == EOF))
+                    error("unexpected EOF while parsing a character constant! (4)");
+            } while (IsOctalDigit(static_cast<char>(ch)));
+            unget(ch);
+        }
     }
     ch = get();
     if (unlikely(ch == EOF))
-        error("unexpected EOF while parsing a character constant! (3)");
+        error("unexpected EOF while parsing a character constant! (5)");
     if (unlikely(ch != '\''))
         error("expected closing quote at end of a character constant, found '"
               + std::string(1, static_cast<char>(ch)) + "' instead!");
