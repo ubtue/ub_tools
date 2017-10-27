@@ -81,11 +81,12 @@ void ShowError(const std::string &error_message, const std::string &description 
 
 
 void ShowPageHeader() {
+    std::string id(GetCGIParameterOrDefault("id"));
     std::cout << "<h1>Fulltext Cache Monitor</h1>";
     std::cout << "<p>What do you want to do?</p>";
     std::cout << "<ul>";
     std::cout << "<li><a href=\"?page=errors\">Show errors</a></li>";
-    std::cout << "<li><form method=\"get\">Search for ID</a><input name=\"id\"></input><input type=\"hidden\" name=\"page\" value=\"details\"></input><input type=\"submit\"></input></form></li>";
+    std::cout << "<li><form method=\"get\">Search for ID</a><input name=\"id\" value=\"" + id + "\"></input><input type=\"hidden\" name=\"page\" value=\"details\"></input><input type=\"submit\"></input></form></li>";
     std::cout << "</ul>";
 }
 
@@ -105,6 +106,7 @@ void ShowPageDetails(DbConnection * const db_connection) {
     std::cout << "<tr><td>Expiration:</td><td>" << entry.expiration_ << "</td></tr>";
     std::cout << "<tr><td>URL:</td><td>" << entry.url_ << "</td></tr>";
     std::cout << "<tr><td>Error Message:</td><td>" << entry.error_message_ << "</td></tr>";
+    std::cout << "<tr><td>KrimDok:</td><td><a href=\"https://sobek.ub.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\">test (sobek)</a>&nbsp;<a href=\"https://krimdok.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\">live (ub15)</a></td></tr>";
     std::cout << "</table>";
 }
 
@@ -141,30 +143,65 @@ void ShowPageErrors(DbConnection * const db_connection) {
 
 
     std::cout << "<h1>Error overview:</h1>";
-    std::cout << "<table id=\"errors\">";
+    std::cout << "<table class=\"errors\">";
 
     std::cout << "<tr>";
-    std::cout << "<th align=\"left\">Count:</th>";
-    std::cout << "<th align=\"left\">Error Message:</th>";
-    std::cout << "<th align=\"left\">Domain:</th>";
-    std::cout << "<th align=\"left\">Example URL:</th>";
-    std::cout << "<th align=\"left\">Example ID:</th>";
+    std::cout << "<th align=\"left\">Count</th>";
+    std::cout << "<th align=\"left\">Error Message</th>";
+    std::cout << "<th align=\"left\">Domain</th>";
+    std::cout << "<th align=\"left\">Example URL</th>";
+    std::cout << "<th align=\"left\">Example ID</th>";
+    std::cout << "<th align=\"left\">Actions</th>";
     std::cout << "</tr>";
     for (unsigned i(0); i < error_messages.size(); ++i) {
         std::cout << "<tr>";
 
-        std::cout << "<td>" << counts[i] << "</td>";
-        std::cout << "<td>" << error_messages[i] << "</td>";
-        std::cout << "<td>" << domains[i] << "</td>";
-        std::cout << "<td>" << urls[i] << "</td>";
-        std::cout << "<td>" << "<a href=\"?page=details&id=" + ids[i] + "\">" + ids[i] + "</a>" << "</td>";
+        std::cout << "<td>" << HtmlUtil::HtmlEscape(counts[i]) << "</td>";
+        std::cout << "<td>" << HtmlUtil::HtmlEscape(error_messages[i]) << "</td>";
+        std::cout << "<td>" << HtmlUtil::HtmlEscape(domains[i]) << "</td>";
+        std::cout << "<td>" << HtmlUtil::HtmlEscape(urls[i]) << "</td>";
+        std::cout << "<td>" << "<a href=\"?page=details&id=" + UrlUtil::UrlEncode(ids[i]) + "\">" + HtmlUtil::HtmlEscape(ids[i]) + "</a>" << "</td>";
+        std::cout << "<td>" << "<a href=\"?page=error_details&domain=" + UrlUtil::UrlEncode(domains[i]) + "&error_message=" + UrlUtil::UrlEncode(error_messages[i]) + "\">Show all</a>" << "</td>";
 
         std::cout << "</tr>";
     }
 
     std::cout << "</table>";
+}
 
 
+void ShowPageErrorDetails(DbConnection * const db_connection) {
+
+    std::string error_message(GetCGIParameterOrDefault("error_message"));
+    std::string domain(GetCGIParameterOrDefault("domain"));
+
+    db_connection->queryOrDie("SELECT id, url "
+                              "FROM full_text_cache "
+                              "WHERE error_message='" + db_connection->escapeString(error_message) + "'"
+                              "AND SUBSTRING(LEFT(url, LOCATE('/', url, 8) - 1), 8) = '" + db_connection->escapeString(domain) + "'"
+                              );
+
+    std::cout << "<h1>Error overview:</h1>";
+    std::cout << "<table class=\"errors\">";
+
+    std::cout << "<tr>";
+    std::cout << "<th align=\"left\">Id</th>";
+    std::cout << "<th align=\"left\">Url</th>";
+    std::cout << "<th align=\"left\">Error Message</th>";
+    std::cout << "</tr>";
+
+    DbResultSet result_set(db_connection->getLastResultSet());
+    while (const DbRow row = result_set.getNextRow()) {
+        std::cout << "<tr>";
+
+        std::cout << "<td><a href=\"?page=details&id=" << UrlUtil::UrlEncode(row["id"]) << "\">" << HtmlUtil::HtmlEscape(row["id"]) << "</a></td>";
+        std::cout << "<td>" << HtmlUtil::HtmlEscape(row["url"]) << "</td>";
+        std::cout << "<td>" << HtmlUtil::HtmlEscape(error_message) << "</td>";
+
+        std::cout << "</tr>";
+    }
+
+    std::cout << "</table>";
 }
 
 
@@ -176,7 +213,7 @@ int main(int argc, char *argv[]) {
 
         std::cout << "<!DOCTYPE html><html><head>"
                   << "<style type=\"text/css\">"
-                  << "table#errors td { border: 1px solid #CCCCCC;}"
+                  << "table.errors td { border: 1px solid #CCCCCC;}"
                   << "</style>"
                   << "<title>Fulltext Monitor</title></head>"
                   << "<body>";
@@ -194,6 +231,8 @@ int main(int argc, char *argv[]) {
             ShowPageDetails(&db_connection);
         } else if (subpage == "errors") {
             ShowPageErrors(&db_connection);
+        } else if (subpage == "error_details") {
+            ShowPageErrorDetails(&db_connection);
         }
 
         std::cout << "</body>"
