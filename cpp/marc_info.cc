@@ -25,6 +25,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include "FileUtil.h"
 #include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
@@ -43,13 +44,14 @@ static void Usage() {
 void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0),
-             max_subfield_count(0);
+        max_subfield_count(0), cumulative_field_count(0);
     std::unordered_set<std::string> control_numbers;
     std::map<Leader::RecordType, unsigned> record_types_and_counts;
 
     while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
-
+        cumulative_field_count += record.getNumberOfFields();
+        
         if (unlikely(record.getNumberOfFields() == 0))
             logger->error("record #" + std::to_string(record_count) + " has zero fields!");
         const std::string &control_number(record.getControlNumber());
@@ -61,7 +63,8 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
         const Leader::RecordType record_type(record.getRecordType());
         ++record_types_and_counts[record_type];
         if (verbose and record_type == Leader::RecordType::UNKNOWN)
-            std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number << ".\n";
+            std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number
+                      << ".\n";
 
         const Leader &leader(record.getLeader());
         const unsigned record_length(leader.getRecordLength());
@@ -106,6 +109,10 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
               << " record(s) of unknown record type.\n";
     std::cout << "Found " << oversized_record_count << " oversized records.\n";
     std::cout << "The field with the most subfields has " << max_subfield_count << " subfield(s).\n";
+    std::cout << "The average no. of fields per record is "
+              << (static_cast<double>(cumulative_field_count) / record_count) << ".\n";
+    std::cout << "The average record size in bytes is "
+              << (static_cast<double>(FileUtil::GetFileSize(marc_reader->getPath())) / record_count) << ".\n";
 }
 
 
