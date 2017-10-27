@@ -23,8 +23,6 @@
 #include <unordered_map>
 #include <cstdlib>
 #include <cstring>
-#include "DirectoryEntry.h"
-#include "Leader.h"
 #include "MarcReader.h"
 #include "MarcRecord.h"
 #include "MarcWriter.h"
