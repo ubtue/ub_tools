@@ -55,7 +55,7 @@ public:
     inline char getLastOtherChar() const { return last_other_char_; }
     inline const std::string &getLastStringConstant() const { return last_string_constant_; }
     inline unsigned getCurrentLineNo() const { return line_no_; }
-    inline void rewind() { line_no_ = 1; pushed_back_char_count_ = 0; }
+    inline void rewind() { input_.rewind(); line_no_ = 1; pushed_back_char_count_ = 0; }
 private:
     void error(const std::string &msg) const;
     int get();
@@ -349,8 +349,7 @@ bool ProcessFile(const bool report_only, File * const input) {
             namespaces_and_class_names.emplace(include.substr(0, include.length() - 2));
     }
 
-    input->rewind();
-    scanner.rewind();
+    scanner.'();
 
     RemoveUsedNamespacesAndClassNames(&scanner, &namespaces_and_class_names);
     if (not namespaces_and_class_names.empty()) {
