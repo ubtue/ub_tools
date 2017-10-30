@@ -58,6 +58,7 @@ errors_list                = Errors_ixtheo_\d{6}
 #include "IniFile.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
@@ -748,12 +749,21 @@ void MergeAuthorityAndIncrementalDumpLists(const std::vector<std::string> &incre
     incremental_dump_filenames->swap(merged_list);
 }
 
-
-const std::string EMAIL_CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
+// Shift a given YYMMDD to ten days before
+std::string ShiftDateToTenDaysBefore(const std::string &cutoff_date) {
+    struct tm cutoff_date_tm;
+    strptime(cutoff_date.c_str(), "%y%m%d", &cutoff_date_tm);
+    time_t cutoff_date_time_t(TimeUtil::TimeGm(cutoff_date_tm));
+    time_t new_cutoff_date = TimeUtil::AddDays(cutoff_date_time_t, 10);
+    return TimeUtil::TimeTToString(new_cutoff_date, "%y%m%d");
+}
 
 
 } // unnamed namespace
+
+
+const std::string EMAIL_CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
+const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
 
 
 int main(int argc, char *argv[]) {
@@ -812,7 +822,9 @@ int main(int argc, char *argv[]) {
                 + " incremental dump filenames for application.");
 
         std::vector<std::string> incremental_authority_dump_filenames;
-        GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_authority_dump_pattern,
+        // incremental authority dumps are only delivered once a week and a longer span of time must
+        // be taken into account
+        GetFilesMoreRecentThanOrEqual(ShiftDateToTenDaysBefore(complete_dump_filename_date), incremental_authority_dump_pattern,
                                       &incremental_authority_dump_filenames);
         if (not incremental_authority_dump_filenames.empty())
             Log("identified " + std::to_string(incremental_authority_dump_filenames.size())
