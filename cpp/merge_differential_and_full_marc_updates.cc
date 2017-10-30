@@ -749,12 +749,14 @@ void MergeAuthorityAndIncrementalDumpLists(const std::vector<std::string> &incre
     incremental_dump_filenames->swap(merged_list);
 }
 
+
 // Shift a given YYMMDD to ten days before
 std::string ShiftDateToTenDaysBefore(const std::string &cutoff_date) {
     struct tm cutoff_date_tm;
-    strptime(cutoff_date.c_str(), "%y%m%d", &cutoff_date_tm);
-    time_t cutoff_date_time_t(TimeUtil::TimeGm(cutoff_date_tm));
-    time_t new_cutoff_date = TimeUtil::AddDays(cutoff_date_time_t, 10);
+    std::memset(&cutoff_date_tm,0,sizeof(struct tm));
+    ::strptime(cutoff_date.c_str(), "%y%m%d", &cutoff_date_tm);
+    const time_t cutoff_date_time_t(TimeUtil::TimeGm(cutoff_date_tm));
+    const time_t new_cutoff_date(TimeUtil::AddDays(cutoff_date_time_t, -10));
     return TimeUtil::TimeTToString(new_cutoff_date, "%y%m%d");
 }
 
