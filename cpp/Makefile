@@ -33,7 +33,7 @@ all: .deps $(PROGS)
 
 $(PROGS): % : %.o lib/libubtue.a
 	@echo "Linking $@..."
-	@$(CCC) $< --gc-sections -o $@ $(LIBS)
+	@$(CCC) $< -o $@ $(LIBS)
 
 -include .deps
 .deps: *.cc $(INC)/*.h Makefile
