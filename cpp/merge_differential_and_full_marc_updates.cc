@@ -582,7 +582,7 @@ void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
     std::string diff_filename;
 
     // Update the title data:
-    std::string diff_filename_pattern("diff_.*a001.raw");
+    std::string diff_filename_pattern("diff_(.*a001.raw|sekkor-tit.mrc)");
     if (not differential_archive.empty() and not GetMatchingFilename(diff_filename_pattern, &diff_filename))
         LogWarning("found no match for \"" + diff_filename_pattern + "\" which might match a file extracted from \""
                    + differential_archive + "\"!");
@@ -602,7 +602,7 @@ void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
                   diff_filename);
 
     // Update the authority data:
-    diff_filename_pattern = "diff_.*c001.raw";
+    diff_filename_pattern = "diff_(.*c001.raw|sekkor-aut.mrc)";
     if (not differential_archive.empty() and not GetMatchingFilename(diff_filename_pattern, &diff_filename))
         LogWarning("found no match for \"" + diff_filename_pattern + "\" which might match a file extracted from \""
                    + differential_archive + "\"!");
