@@ -61,10 +61,6 @@ errors_list                = Errors_ixtheo_\d{6}
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] default_email_recipient\n";
-    std::exit(EXIT_FAILURE);
-}
 
 
 namespace {
@@ -76,6 +72,10 @@ std::string email_server_user;
 std::string email_server_password;
 
 
+void Usage() {
+    std::cerr << "Usage: " << ::progname << " [--keep-intermediate-files] default_email_recipient\n";
+    std::exit(EXIT_FAILURE);
+}
 
 
 std::string GetProgramBasename() {
@@ -752,7 +752,9 @@ void MergeAuthorityAndIncrementalDumpLists(const std::vector<std::string> &incre
 const std::string EMAIL_CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
 
+
 } // unnamed namespace
+
 
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
