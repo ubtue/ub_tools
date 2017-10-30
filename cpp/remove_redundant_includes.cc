@@ -349,7 +349,7 @@ bool ProcessFile(const bool report_only, File * const input) {
             namespaces_and_class_names.emplace(include.substr(0, include.length() - 2));
     }
 
-    scanner.'();
+    scanner.rewind();
 
     RemoveUsedNamespacesAndClassNames(&scanner, &namespaces_and_class_names);
     if (not namespaces_and_class_names.empty()) {
