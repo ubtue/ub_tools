@@ -42,38 +42,6 @@ static void Usage() {
 }
 
 
-int MatchLocalID(const std::unordered_set <std::string> &local_ids, const std::vector <DirectoryEntry> &dir_entries,
-                 const std::vector <std::string> &field_data)
-{
-    for (size_t i(0); i < dir_entries.size(); ++i) {
-        if (dir_entries[i].getTag() != "LOK")
-            continue;
-
-        const Subfields subfields(field_data[i]);
-        if (not subfields.hasSubfield('0'))
-            continue;
-
-        const std::string subfield_contents(subfields.getFirstSubfieldValue('0'));
-        if (not StringUtil::StartsWith(subfield_contents, "001 ")
-            or local_ids.find(subfield_contents.substr(4)) == local_ids.end())
-            continue;
-
-        return i;
-    }
-
-    return -1;
-}
-
-
-class MatchTag {
-    const std::string tag_to_match_;
-public:
-    explicit MatchTag(const std::string &tag_to_match) : tag_to_match_(tag_to_match) { }
-
-    bool operator()(const DirectoryEntry &dir_entry) const { return dir_entry.getTag() == tag_to_match_; }
-};
-
-
 /** \brief Deletes LOK sections if their pseudo tags are found in "local_deletion_ids"
  *  \return True if at least one local section has been deleted, else false.
  */
@@ -119,13 +87,9 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
         if (title_deletion_ids.find(record.getControlNumber()) != title_deletion_ids.end())
             ++deleted_record_count;
         else { // Look for local (LOK) data sets that may need to be deleted.
-            if (not DeleteLocalSections(local_deletion_ids, &record))
-                marc_writer->write(record);
-            else {
-                // Unlike former versions we no longer delete records without local data
+            if (DeleteLocalSections(local_deletion_ids, &record))
                 ++modified_record_count;
-                marc_writer->write(record);
-            }
+            marc_writer->write(record);
         }
     }
 
