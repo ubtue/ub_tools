@@ -76,7 +76,6 @@ std::string email_server_user;
 std::string email_server_password;
 
 
-} // unnamed namespace
 
 
 std::string GetProgramBasename() {
@@ -328,23 +327,6 @@ std::string ReplaceStringOrDie(const std::string &original, const std::string &r
 }
 
 
-// Creates an previously not existing empty file with read and write permission for the owner only.
-void CreateEmptyFileOrDie(const std::string &filename) {
-    const int fd(::open(filename.c_str(), O_CREAT | O_EXCL, 0600));
-    if (unlikely(fd == -1))
-        LogSendEmailAndDie("failed to create the empty file \"" + filename + "\"! (" + std::string(::strerror(errno))
-                           + ")");
-    ::close(fd);
-}
-
-
-void RenameOrDie(const std::string &old_filename, const std::string &new_filename) {
-    if (unlikely(::rename(old_filename.c_str(), new_filename.c_str()) != 0))
-        LogSendEmailAndDie("in RenameOrDie: rename from \"" + old_filename + "\" to \"" + new_filename
-                           + "\" failed! (" + std::string(::strerror(errno)) + ")");
-}
-
-
 void CopyFileOrDie(const std::string &from, const std::string &to) {
     struct stat stat_buf;
     if (unlikely(::stat(from.c_str(), &stat_buf) != 0))
@@ -466,19 +448,6 @@ void ExtractAndAppendIDs(const std::string &marc_filename, const std::string &de
     if (unlikely(ExecUtil::Exec(EXTRACT_AND_APPEND_SCRIPT, { marc_filename, deletion_list_filename }) != 0))
         LogSendEmailAndDie("\"" + EXTRACT_AND_APPEND_SCRIPT + "\" with arguments \"" + marc_filename + "\" and \""
                            + deletion_list_filename + "\" failed!");
-}
-
-
-/** \brief If "old_name" is non-empty, rename it to "new_name", o/w create an empty file named "new_name". */
-void MoveOrCreateFileOrDie(const std::string &old_name, const std::string &new_name) {
-    if (old_name.empty()) {
-        if (unlikely(not FileUtil::MakeEmpty(new_name)))
-            LogSendEmailAndDie("failed to create an empty file named \"" + new_name + "\"! ("
-                               + std::string(::strerror(errno)) + ")");
-    } else if (unlikely(not FileUtil::RenameFile(old_name, new_name, /* remove_target = */ true))) {
-            LogSendEmailAndDie("failed to rename \"" + old_name + "\" to \"" + new_name + "\"! ("
-                               + std::string(::strerror(errno)) + ")");
-    }
 }
 
 
@@ -783,6 +752,7 @@ void MergeAuthorityAndIncrementalDumpLists(const std::vector<std::string> &incre
 const std::string EMAIL_CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
 
+} // unnamed namespace
 
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
