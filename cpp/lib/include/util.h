@@ -55,6 +55,9 @@ public:
 
     void info(const std::string &msg);
 
+    /** \note Only writes actual log messages if the environment variable "UTIL_LOG_DEBUG" exists and is set
+     *  to "true"!
+     */
     void debug(const std::string &msg);
 };
 extern Logger *logger;

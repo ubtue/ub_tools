@@ -27,6 +27,7 @@
 #include <execinfo.h>
 #include <signal.h>
 #include "Compiler.h"
+#include "MiscUtil.h"
 #include "TimeUtil.h"
 
 
@@ -89,6 +90,9 @@ void Logger::info(const std::string &msg) {
 
 
 void Logger::debug(const std::string &msg) {
+    if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") != "true")
+        return;
+
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     if (unlikely(progname == nullptr)) {
