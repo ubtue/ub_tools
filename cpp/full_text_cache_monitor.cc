@@ -120,7 +120,7 @@ void ShowPageIdDetails(FullTextCache * const cache, std::string * const body) {
     std::string fulltext;
     if (not cache->getFullText(id, &fulltext))
         fulltext = "-";
-    template_variables.emplace("fulltext", std::vector<std::string> {fulltext});
+    template_variables.emplace("fulltext", std::vector<std::string> {HtmlUtil::HtmlEscape(fulltext)});
 
     ExpandTemplate("id_details", body, template_variables);
 }
