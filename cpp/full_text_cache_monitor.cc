@@ -38,6 +38,9 @@
 #include "WebUtil.h"
 
 
+namespace {
+
+
 class PageException: public std::exception {
     std::string message_;
 public:
@@ -170,6 +173,9 @@ void ShowPageErrorList(FullTextCache * const cache, std::string * const body) {
     template_variables.emplace("error_message", error_messages);
     ExpandTemplate("error_list", body, template_variables);
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char *argv[]) {

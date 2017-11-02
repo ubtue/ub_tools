@@ -25,6 +25,9 @@
 #include "util.h"
 
 
+static void Usage() __attribute__((noreturn));
+
+
 void Usage() {
     std::cerr << "Usage: " << ::progname << "\n";
     std::cerr << "       Deletes all expired records from the full text cache\n";

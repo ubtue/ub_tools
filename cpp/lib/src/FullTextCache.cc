@@ -273,7 +273,7 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
         db_connection_->queryOrDie("INSERT INTO full_text_cache_urls "
                                "SET id=\"" + escaped_id + "\","
                                "url=\"" + db_connection_->escapeString(entry_url.url_) + "\","
-                               "domain=\"" + db_connection_->escapeString(entry_url.domain_) + "\","
-                               + (entry_url.error_message_.empty() ? "" : "\"" + db_connection_->escapeString(entry_url.error_message_) + "\""));
+                               "domain=\"" + db_connection_->escapeString(entry_url.domain_) + "\""
+                               + (entry_url.error_message_.empty() ? "" : ", error_message=\"" + db_connection_->escapeString(entry_url.error_message_) + "\""));
     }
 }

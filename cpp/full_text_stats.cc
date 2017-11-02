@@ -40,6 +40,9 @@ static void Usage() {
 }
 
 
+namespace {
+
+
 void LoadOldStats(const std::string &stats_file_path,
                   std::vector<std::pair<std::string, unsigned>> * const domains_and_counts)
 {
@@ -66,23 +69,6 @@ void LoadOldStats(const std::string &stats_file_path,
 
         domains_and_counts->emplace_back(std::make_pair(domain, count));
     }
-}
-
-
-// Here we assume we only deal with HTTP and HTTPS URL's.
-std::string GetHost(const std::string &url) {
-    if (unlikely(url.length() < 9))
-        logger->error("in GetHost: we don't know how to deal with this \"URL\": \"" + url + "\"!");
-
-    const std::string::size_type first_colon_pos(url.find(':', 9));
-    if (first_colon_pos != std::string::npos)
-        return url.substr(0, first_colon_pos);
-
-    const std::string::size_type first_slash_pos(url.find('/', 9));
-    if (first_slash_pos != std::string::npos)
-        return url.substr(0, first_slash_pos);
-
-    return url;
 }
 
 
@@ -152,6 +138,9 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
     EmailSender::SendEmail("no_return@ub.uni-tuebingen.de", email_address, "Full Text Stats", report_text,
                            found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW);
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char *argv[]) {
