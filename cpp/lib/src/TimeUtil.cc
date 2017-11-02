@@ -34,6 +34,7 @@
 #include <cstring>
 #include <ctime>
 #include <sys/time.h>
+#include "Compiler.h"
 
 
 namespace TimeUtil {
@@ -161,6 +162,17 @@ time_t TimeGm(const struct tm &tm) {
 }
 
 
+struct tm StringToStructTm(const std::string &date_and_time, const std::string &format) {
+    struct tm tm;
+    std::memset(&tm, 0, sizeof tm);
+    const char * const retval(::strptime(date_and_time.c_str(), format.c_str(), &tm));
+    if (unlikely(retval == nullptr or *retval != '\0'))
+        throw std::runtime_error("in TimeUtil::StringToStructTm: failed to convert \"" + date_and_time
+                                 + "\" to a struct tm using the format \"" + format + "\"!");
+    return tm;
+}
+
+    
 unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
                                 unsigned * const day, unsigned * const hour, unsigned * const minute,
                                 unsigned * const second, bool * const is_definitely_zulu_time)
