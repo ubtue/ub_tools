@@ -27,30 +27,22 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "DbConnection.h"
-#include "DbResultSet.h"
-#include "DbRow.h"
 #include "FileUtil.h"
 #include "FullTextCache.h"
 #include "HtmlUtil.h"
 #include "MiscUtil.h"
+#include "SqlUtil.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
 #include "util.h"
-#include "VuFind.h"
 #include "WebUtil.h"
 
 
-class PageException: public std::exception
-{
-public:
-    PageException(std::string message) : message_(message) { }
-    const char * what () const throw ()
-    {
-        return message_.c_str();
-    }
-private:
+class PageException: public std::exception {
     std::string message_;
+public:
+    PageException(std::string message): message_(message) { }
+    inline const char *what() const throw () { return message_.c_str(); }
 };
 
 
@@ -59,13 +51,13 @@ std::multimap<std::string, std::string> cgi_args;
 
 
 void ExpandTemplate(const std::string &template_name,
-                    std::string &body,
+                    std::string * const body,
                     const std::map<std::string, std::vector<std::string>> &template_variables = {})
 {
     std::ifstream template_html(template_directory + template_name + ".html", std::ios::binary);
     std::ostringstream template_out;
     MiscUtil::ExpandTemplate(template_html, template_out, template_variables);
-    body += template_out.str();
+    *body += template_out.str();
 }
 
 
@@ -80,30 +72,13 @@ std::string GetCGIParameterOrDefault(const std::string &parameter_name,
 }
 
 
-void GetExampleData(DbConnection * const db_connection,
-                    const std::string &error_message, const std::string &domain,
-                    std::string &example_id, std::string &example_url)
-{
-    db_connection->queryOrDie("SELECT id, url "
-                              "FROM full_text_cache "
-                              "WHERE error_message='" + db_connection->escapeString(error_message) + "' "
-                              "AND SUBSTRING(LEFT(url, LOCATE('/', url, 8) - 1), 8)='" + db_connection->escapeString(domain) + "' "
-                              "LIMIT 1 ");
-
-    DbResultSet result_set(db_connection->getLastResultSet());
-    const DbRow row(result_set.getNextRow());
-    example_id = row["id"];
-    example_url = row["url"];
+void ShowError(const std::string &error_message, std::string * const body) {
+    *body += "<h1 class=\"error\">Error</h1>";
+    *body += "<h4 class=\"error\">" + error_message + "</h4>";
 }
 
 
-void ShowError(const std::string &error_message, std::string &body) {
-    body += "<h1 style=\"color: red;\">Error</h1>";
-    body += "<h4 style=\"color: red;\">" + error_message + "</h4>";
-}
-
-
-void ShowPageHeader(std::string &body) {
+void ShowPageHeader(std::string * const body) {
     std::map<std::string, std::vector<std::string>> template_variables;
     std::string id(GetCGIParameterOrDefault("id"));
     template_variables.emplace("id", std::vector<std::string> {id});
@@ -111,58 +86,54 @@ void ShowPageHeader(std::string &body) {
 }
 
 
-void ShowPageIdDetails(DbConnection * const db_connection, std::string &body) {
+void ShowPageIdDetails(FullTextCache * const cache, std::string * const body) {
     std::string id(GetCGIParameterOrDefault("id"));
     if (id.empty())
         throw PageException("parameter missing: no ID given");
 
-
     FullTextCache::Entry entry;
-    if (not FullTextCache::GetEntry(db_connection, id, entry))
+    if (not cache->getEntry(id, &entry))
         throw PageException("ID not found: " + id);
 
     std::map<std::string, std::vector<std::string>> template_variables;
     template_variables.emplace("id", std::vector<std::string> {HtmlUtil::HtmlEscape(id)});
-    template_variables.emplace("status", std::vector<std::string> {HtmlUtil::HtmlEscape(entry.status_)});
-    template_variables.emplace("expiration", std::vector<std::string> {HtmlUtil::HtmlEscape(entry.expiration_)});
-    template_variables.emplace("url", std::vector<std::string> {HtmlUtil::HtmlEscape(entry.url_)});
-    template_variables.emplace("error_message", std::vector<std::string> {HtmlUtil::HtmlEscape(entry.error_message_)});
-    template_variables.emplace("link_sobek", std::vector<std::string> {"<a href=\"https://sobek.ub.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\">test (sobek)</a>"});
-    template_variables.emplace("link_ub15", std::vector<std::string> {"<a href=\"https://krimdok.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\">live (ub15)</a>"});
+    template_variables.emplace("expiration", std::vector<std::string> {HtmlUtil::HtmlEscape(SqlUtil::TimeTToDatetime(entry.expiration_))});
+    template_variables.emplace("link_sobek", std::vector<std::string> {"<a href=\"https://sobek.ub.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\" target=\"sobek\">test (sobek)</a>"});
+    template_variables.emplace("link_ub15", std::vector<std::string> {"<a href=\"https://krimdok.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\" target=\"ub15\">live (ub15)</a>"});
+
+    std::vector<std::string> urls;
+    std::vector<std::string> domains;
+    std::vector<std::string> error_messages;
+    std::vector<FullTextCache::EntryUrl> entry_urls = cache->getEntryUrls(id);
+    for (const auto &entry_url : entry_urls) {
+        urls.emplace_back(HtmlUtil::HtmlEscape(entry_url.url_));
+        domains.emplace_back(HtmlUtil::HtmlEscape(entry_url.domain_));
+        error_messages.emplace_back(HtmlUtil::HtmlEscape(entry_url.error_message_));
+    }
+    template_variables.emplace("url", urls);
+    template_variables.emplace("domain", domains);
+    template_variables.emplace("error_message", error_messages);
+
+    std::string fulltext;
+    if (not cache->getFullText(id, &fulltext))
+        fulltext = "-";
+    template_variables.emplace("fulltext", std::vector<std::string> {fulltext});
+
     ExpandTemplate("id_details", body, template_variables);
 }
 
 
-void ShowPageErrorSummary(DbConnection * const db_connection, std::string &body) {
+void ShowPageErrorSummary(FullTextCache * const cache, std::string * const body) {
     std::vector<std::string> error_messages, counts, domains, urls, ids, links_details, links_error_details;
-    {
-        db_connection->queryOrDie("SELECT error_message, count(*) AS count, "
-                                  "SUBSTRING(LEFT(url, LOCATE('/', url, 8) - 1), 8) AS domain "
-                                  "FROM full_text_cache "
-                                  "WHERE error_message IS NOT NULL "
-                                  "GROUP BY error_message, domain "
-                                  "ORDER BY count DESC ");
-
-        DbResultSet result_set(db_connection->getLastResultSet());
-        while (const DbRow row = result_set.getNextRow()) {
-            error_messages.emplace_back(row["error_message"]);
-            counts.emplace_back(row["count"]);
-            domains.emplace_back(row["domain"]);
-        }
-    }
-
-    for (unsigned i(0); i < error_messages.size(); ++i) {
-        std::string domain(domains[i]);
-
-        std::string example_id;
-        std::string example_url;
-        GetExampleData(db_connection, error_messages[i], domains[i],
-                       example_id, example_url);
-
-        ids.emplace_back(example_id);
-        urls.emplace_back(example_url);
-        links_details.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(ids[i]) + "\">" + HtmlUtil::HtmlEscape(ids[i]) + "</a>");
-        links_error_details.emplace_back("<a href=\"?page=error_list&domain=" + UrlUtil::UrlEncode(domains[i]) + "&error_message=" + UrlUtil::UrlEncode(error_messages[i]) + "\">Show error list</a>");
+    std::vector<FullTextCache::EntryGroup> groups = cache->getEntryGroupsByDomainAndErrorMessage();
+    for (auto const &group : groups) {
+        counts.emplace_back(std::to_string(group.count_));
+        domains.emplace_back(group.domain_);
+        error_messages.emplace_back(group.error_message_);
+        ids.emplace_back(group.example_entry_.id_);
+        urls.emplace_back(group.example_entry_.url_);
+        links_details.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(group.example_entry_.id_) + "\">" + HtmlUtil::HtmlEscape(group.example_entry_.id_) + "</a>");
+        links_error_details.emplace_back("<a href=\"?page=error_list&domain=" + UrlUtil::UrlEncode(group.domain_) + "&error_message=" + UrlUtil::UrlEncode(group.error_message_) + "\">Show error list</a>");
     }
 
     std::map<std::string, std::vector<std::string>> template_variables;
@@ -178,22 +149,18 @@ void ShowPageErrorSummary(DbConnection * const db_connection, std::string &body)
 }
 
 
-void ShowPageErrorList(DbConnection * const db_connection, std::string &body) {
+void ShowPageErrorList(FullTextCache * const cache, std::string * const body) {
 
     std::string error_message(GetCGIParameterOrDefault("error_message"));
     std::string domain(GetCGIParameterOrDefault("domain"));
 
-    db_connection->queryOrDie("SELECT id, url "
-                              "FROM full_text_cache "
-                              "WHERE error_message='" + db_connection->escapeString(error_message) + "'"
-                              "AND SUBSTRING(LEFT(url, LOCATE('/', url, 8) - 1), 8) = '" + db_connection->escapeString(domain) + "'"
-                              );
-
-    std::vector<std::string> ids, urls, error_messages;
-    DbResultSet result_set(db_connection->getLastResultSet());
-    while (const DbRow row = result_set.getNextRow()) {
-        ids.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(row["id"]) + "\">" + HtmlUtil::HtmlEscape(row["id"]) + "</a>");
-        urls.emplace_back(HtmlUtil::HtmlEscape(row["url"]));
+    std::vector<std::string> ids;
+    std::vector<std::string> urls;
+    std::vector<std::string> error_messages;
+    std::vector<FullTextCache::JoinedEntry> entries = cache->getJoinedEntriesByDomainAndErrorMessage(domain, error_message);
+    for (const auto &entry : entries) {
+        ids.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(entry.id_) + "\">" + HtmlUtil::HtmlEscape(entry.id_) + "</a>");
+        urls.emplace_back(HtmlUtil::HtmlEscape(entry.url_));
         error_messages.emplace_back(HtmlUtil::HtmlEscape(error_message));
     }
 
@@ -211,28 +178,26 @@ int main(int argc, char *argv[]) {
     std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
 
     try {
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-        DbConnection db_connection(mysql_url);
+        FullTextCache cache;
 
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
         const std::string subpage(GetCGIParameterOrDefault("page"));
 
         std::string body;
-        ShowPageHeader(body);
+        ShowPageHeader(&body);
 
         try {
             if (subpage == "id_details") {
-                ShowPageIdDetails(&db_connection, body);
+                ShowPageIdDetails(&cache, &body);
             } else if (subpage == "error_summary") {
-                ShowPageErrorSummary(&db_connection, body);
+                ShowPageErrorSummary(&cache, &body);
             } else if (subpage == "error_list") {
-                ShowPageErrorList(&db_connection, body);
+                ShowPageErrorList(&cache, &body);
             } else if (subpage != "") {
                 throw PageException("Page does not exist: " + subpage);
             }
         } catch (PageException &e) {
-            ShowError(e.what(), body);
+            ShowError(e.what(), &body);
         }
 
         std::map<std::string, std::vector<std::string>> names_to_values_map;

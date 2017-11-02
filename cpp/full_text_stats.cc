@@ -25,9 +25,9 @@
 #include "DbConnection.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
+#include "FullTextCache.h"
 #include "StringUtil.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 static void Usage() __attribute__((noreturn));
@@ -89,17 +89,11 @@ std::string GetHost(const std::string &url) {
 void DetermineNewStats(std::vector<std::pair<std::string, unsigned>> * const domains_and_counts) {
     domains_and_counts->clear();
 
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
-
-    db_connection.queryOrDie("SELECT url FROM full_text_cache");
-    DbResultSet result_set(db_connection.getLastResultSet());
-
+    FullTextCache cache;
+    std::vector<std::string> domains = cache.getDomains();
     std::unordered_map<std::string, unsigned> domains_to_counts_map;
-    while (const DbRow row = result_set.getNextRow()) {
-        const std::string domain(GetHost(row["url"]));
-
+    for (std::vector<std::string>::iterator it = domains.begin(); it < domains.end(); it++) {
+        const std::string domain = *it;
         const auto domain_and_count_iter(domains_to_counts_map.find(domain));
         if (domain_and_count_iter == domains_to_counts_map.end())
             domains_to_counts_map[domain] = 1;

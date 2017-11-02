@@ -21,58 +21,32 @@
 #include <string>
 #include <cstdlib>
 #include <ctime>
-#include <kchashdb.h>
-#include "DbConnection.h"
-#include "DbResultSet.h"
-#include "DbRow.h"
-#include "SqlUtil.h"
+#include "FullTextCache.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " full_text_db_path\n";
+    std::cerr << "Usage: " << ::progname << "\n";
     std::cerr << "       Deletes all expired records from the full text cache\n";
     std::exit(EXIT_FAILURE);
-}
-
-
-void ExpireRecords(DbConnection * const db_connection, kyotocabinet::HashDB * const key_value_db) {
-    const std::string now(SqlUtil::TimeTToDatetime(std::time(nullptr)));
-
-    db_connection->queryOrDie("SELECT id FROM full_text_cache WHERE expiration < \"" + now + "\"");
-    DbResultSet result_set(db_connection->getLastResultSet());
-    while (const DbRow row = result_set.getNextRow())
-        key_value_db->remove(row["id"]);
-
-    db_connection->queryOrDie("DELETE FROM full_text_cache WHERE expiration < \"" + now + "\"");
 }
 
 
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 2)
+    if (argc != 1)
         Usage();
 
     try {
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-        DbConnection db_connection(mysql_url);
-
-        const std::string db_filename(argv[1]);
-        kyotocabinet::HashDB key_value_db;
-        if (not key_value_db.open(db_filename, kyotocabinet::HashDB::OWRITER))
-            logger->error("Failed to open the key/valuedatabase \"" + db_filename + "\" ("
-                          + std::string(key_value_db.error().message()) + ")!");
-
-        const unsigned size_before_deletion(SqlUtil::GetTableSize(&db_connection, "full_text_cache"));
-            ExpireRecords(&db_connection, &key_value_db);
-        const unsigned size_after_deletion(SqlUtil::GetTableSize(&db_connection, "full_text_cache"));
+        FullTextCache cache;
+        const unsigned size_before_deletion(cache.getSize());
+        cache.expireEntries();
+        const unsigned size_after_deletion(cache.getSize());
 
         std::cerr << "Deleted " << (size_before_deletion - size_after_deletion)
                   << " records from the full-text cache.\n";
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));    
+        logger->error("caught exception: " + std::string(x.what()));
     }
 }
