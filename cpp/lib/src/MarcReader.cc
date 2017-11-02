@@ -364,9 +364,9 @@ std::unique_ptr<MarcReader> MarcReader::Factory(const std::string &input_filenam
             logger->error("not found or no permissions: \"" + input_filename + "\"!");
         if (unlikely(media_type.empty()))
             logger->error("can't determine media type of \"" + input_filename + "\"!");
-        if (media_type != "application/xml" and media_type != "application/marc")
+        if (media_type != "application/xml" and media_type != "application/marc" and media_type != "text/xml")
             logger->error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
-        reader_type = (media_type == "application/xml") ? XML : BINARY;
+        reader_type = (media_type == "application/xml" or media_type == "text/xml") ? XML : BINARY;
     }
 
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
