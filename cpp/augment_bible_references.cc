@@ -42,6 +42,9 @@
 #include "util.h"
 
 
+namespace {
+
+
 void Usage() {
     std::cerr << "Usage: " << ::progname
               << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
@@ -75,23 +78,6 @@ void LoadBibleOrderMap(const bool verbose, File * const input,
 
     if (verbose)
         std::cerr << "Loaded " << line_no << " entries from the bible-order map file.\n";
-}
-
-
-/** \brief True if a GND code was found in 035$a else false. */
-bool GetGNDCode(const MarcRecord &record, std::string * const gnd_code)
-{
-    gnd_code->clear();
-
-    const size_t _035_index(record.getFieldIndex("035"));
-    if (_035_index == MarcRecord::FIELD_NOT_FOUND)
-        return false;
-    const Subfields _035_subfields(record.getSubfields(_035_index));
-    const std::string _035a_field(_035_subfields.getFirstSubfieldValue('a'));
-    if (not StringUtil::StartsWith(_035a_field, "(DE-588)"))
-        return false;
-    *gnd_code = _035a_field.substr(8);
-    return not gnd_code->empty();
 }
 
 
@@ -235,22 +221,11 @@ void ExtractBooksOfTheBible(const std::unordered_map<std::string, std::string> &
 
 const std::map<std::string, std::string> book_alias_map {
     { "jesus sirach", "sirach" },
-    { "offenbarung des johannes", "offenbarungdesjohannes" }      
+    { "offenbarung des johannes", "offenbarungdesjohannes" }
 };
 
 
 static unsigned unknown_book_count;
-
-
-std::string RangesToString(const std::set<std::pair<std::string, std::string>> &ranges) {
-    std::string ranges_as_string;
-    for (const auto &start_and_end : ranges) {
-        if (not ranges_as_string.empty())
-            ranges_as_string += ", ";
-        ranges_as_string += start_and_end.first + ":" + start_and_end.second;
-    }
-    return ranges_as_string;
-}
 
 
 /*  Possible fields containing bible references which will be extracted as bible ranges are 130 and 430
@@ -474,6 +449,9 @@ void AugmentBibleRefs(const bool verbose, MarcReader * const marc_reader, MarcWr
         std::cerr << "Augmented the " << BIB_REF_RANGE_TAG << "$a field of " << augment_count
                   << " records of a total of " << total_count << " records.\n";
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char **argv) {
