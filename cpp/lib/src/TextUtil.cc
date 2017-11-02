@@ -51,7 +51,7 @@ class TextExtractor: public HtmlParser {
     std::string charset_;
 public:
     TextExtractor(const std::string &html, std::string * const extracted_text)
-        : HtmlParser(html, HtmlParser::TEXT | HtmlParser::OPENING_TAG), extracted_text_(*extracted_text) { }
+        : HtmlParser(html, HtmlParser::TEXT | HtmlParser::OPENING_TAG | HtmlParser::END_OF_STREAM), extracted_text_(*extracted_text) { }
     virtual void notify(const HtmlParser::Chunk &chunk);
 };
 
@@ -81,6 +81,13 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
 
             if (matcher->matched(key_and_value->second))
                 charset_ = (*matcher)[1];
+        }
+    } else if (chunk.type_ == HtmlParser::END_OF_STREAM and not charset_.empty()) {
+        std::string internal_encoding = "UTF-8";
+        if (StringUtil::ToUpper(charset_) != internal_encoding) {
+            std::string converted_text;
+            if (TextUtil::ConvertEncoding(charset_, internal_encoding, extracted_text_, &converted_text))
+                extracted_text_.swap(converted_text);
         }
     }
 }
@@ -168,7 +175,7 @@ bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 
 static std::map<std::pair<std::string, std::string>, iconv_t> from_and_to_to_iconv_handle;
 
-    
+
 bool ConvertEncoding(const std::string &from_encoding, const std::string &to_encoding, const std::string &input,
                      std::string * const output)
 {
@@ -214,7 +221,7 @@ bool ConvertEncoding(const std::string &from_encoding, const std::string &to_enc
     return true;
 }
 
-    
+
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string) {
     static iconv_t iconv_handle((iconv_t)-1);
     if (unlikely(iconv_handle == (iconv_t)-1)) {
