@@ -199,8 +199,7 @@ std::vector<FullTextCache::JoinedEntry> FullTextCache::getJoinedEntriesByDomainA
                                "LEFT JOIN full_text_cache AS cache "
                                "ON cache.id = urls.id "
                                "WHERE urls.error_message='" + db_connection_->escapeString(error_message) + "' "
-                               "AND urls.domain='" + db_connection_->escapeString(domain) + "' "
-                               "LIMIT 1 ");
+                               "AND urls.domain='" + db_connection_->escapeString(domain) + "' ");
 
     DbResultSet result_set(db_connection_->getLastResultSet());
     while (const DbRow row = result_set.getNextRow()) {

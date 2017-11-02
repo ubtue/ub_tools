@@ -153,7 +153,6 @@ void ShowPageErrorSummary(FullTextCache * const cache, std::string * const body)
 
 
 void ShowPageErrorList(FullTextCache * const cache, std::string * const body) {
-
     std::string error_message(GetCGIParameterOrDefault("error_message"));
     std::string domain(GetCGIParameterOrDefault("domain"));
 
