@@ -22,43 +22,77 @@
 
 
 #include <string>
+#include <vector>
 #include "DbConnection.h"
 
 
-namespace FullTextCache {
+class FullTextCache {
+    DbConnection *db_connection_;
+public:
+    FullTextCache();
+    ~FullTextCache() { delete db_connection_; }
+    struct Entry {
+        std::string id_;
+        time_t expiration_;
+    };
+    struct EntryUrl {
+        std::string id_;
+        std::string url_;
+        std::string domain_;
+        std::string error_message_;
+    };
+    struct JoinedEntry {
+        std::string id_;
+        time_t expiration_;
+        std::string url_;
+        std::string domain_;
+        std::string error_message_;
+    };
+    struct EntryGroup {
+        unsigned count_;
+        std::string domain_;
+        std::string error_message_;
+        JoinedEntry example_entry_;
+    };
 
+    /** \brief Test whether an entry in the cache has expired or not.
+     *  \return True if we don't find "id" in the database, or the entry is older than now-CACHE_EXPIRE_TIME_DELTA,
+     *          or at least one url has changed, else false.
+     *  \note Deletes expired entries and associated data in the key/value database found at "full_text_db_path".
+     */
+    bool entryExpired(const std::string &key, std::vector<std::string> urls);
 
-struct Entry {
-    std::string id_;
-    std::string url_;
-    std::string expiration_;
-    std::string data_;
-    std::string status_;
-    std::string error_message_;
+    /** \brief Delete all records whose expiration field is in the past */
+    void expireEntries();
+    std::vector<std::string> getDomains();
+    bool getDomainFromUrl(const std::string &url, std::string &domain);
+    bool getEntry(const std::string &id, Entry * const entry);
+    std::vector<EntryUrl> getEntryUrls(const std::string &id);
+    std::vector<std::string> getEntryUrlsAsStrings(const std::string &id);
+
+    /** \brief Get the full text (as string) for the given id */
+    bool getFullText(const std::string &id, std::string * const full_text);
+
+    /** \brief Get all entries grouped by domain and error message */
+    std::vector<EntryGroup> getEntryGroupsByDomainAndErrorMessage();
+
+    /** \brief Get all entries for a domain and error message */
+    std::vector<JoinedEntry> getJoinedEntriesByDomainAndErrorMessage(const std::string &domain,
+                                                                     const std::string &error_message);
+
+    /** \brief Get an example entry for a domain and error message */
+    JoinedEntry getJoinedEntryByDomainAndErrorMessage(const std::string &domain,
+                                                      const std::string &error_message);
+
+    /** \brief Get the number of datasets in full_text_cache table */
+    unsigned getSize();
+
+    /* \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.  Also
+     *       either "data" must be non-empty or "error_message" must be non-empty.
+     */
+    void insertEntry(const std::string &id, const std::string &full_text,
+                     const std::vector<EntryUrl> &entry_urls);
 };
-
-
-bool GetEntry(DbConnection * const db_connection, const std::string &id, Entry &entry);
-
-
-/** \brief Test whether an entry in the cache has expired or not.
- *  \return True if we find "id" in the database and the entry is older than now-CACHE_EXPIRE_TIME_DELTA or if "id"
- *          is not found in the database, else false.
- *  \note Deletes expired entries and associated data in the key/value database found at "full_text_db_path".
- */
-bool CacheEntryExpired(DbConnection * const db_connection, const std::string &full_text_db_path,
-                       const std::string &key);
-
-
-/* \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.  Also
- *       either "data" must be non-empty or "error_message" must be non-empty.
- */
-void InsertIntoCache(DbConnection * const db_connection, const std::string &full_text_db_path,
-                     const std::string &id, const std::string &url, const std::string &data,
-                     const std::string &error_message);
-
-
-} // namespace FullTextCache
 
 
 #endif // ifndef FullTextCache_H

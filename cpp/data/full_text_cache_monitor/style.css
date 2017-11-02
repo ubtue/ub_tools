@@ -1,8 +1,12 @@
-table.errors th {
+table th {
     text-align: left;
     border: 1px solid #CCCCCC;
 }
 
-table.errors td {
+table td {
     border: 1px solid #CCCCCC;
+}
+
+.error {
+    color: red;
 }
