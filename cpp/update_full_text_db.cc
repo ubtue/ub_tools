@@ -235,8 +235,10 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
             entry_urls.push_back(entry_url);
         }
 
-        if (success)
+        if (success) {
             combined_text_final = combined_text;
+            StringUtil::CollapseAndTrimWhitespace(&combined_text_final);
+        }
 
         cache.insertEntry(ppn, combined_text_final, entry_urls);
     }
