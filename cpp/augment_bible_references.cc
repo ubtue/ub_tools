@@ -472,9 +472,9 @@ int main(int argc, char **argv) {
     if (unlikely(authority_input_filename == title_output_filename))
         logger->error("Norm data input file name equals title output file name!");
 
-    std::unique_ptr<MarcReader> title_reader(MarcReader::Factory(title_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcReader> authority_reader(MarcReader::Factory(authority_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> title_writer(MarcWriter::Factory(title_output_filename, MarcWriter::BINARY));
+    std::unique_ptr<MarcReader> title_reader(MarcReader::Factory(title_input_filename));
+    std::unique_ptr<MarcReader> authority_reader(MarcReader::Factory(authority_input_filename));
+    std::unique_ptr<MarcWriter> title_writer(MarcWriter::Factory(title_output_filename));
 
     const std::string books_of_the_bible_to_code_map_filename(
         "/usr/local/var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map");
