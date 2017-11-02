@@ -253,7 +253,7 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
     perform_logging = not MiscUtil::SafeGetEnv("ENABLE_SMPT_CLIENT_PERFORM_LOGGING").empty();
 
     // Open connection:
-    const unsigned short PORT(use_ssl ? 587 : 25);
+    const unsigned short PORT(587);
     std::string error_message;
     const FileDescriptor socket_fd(
         SocketUtil::TcpConnect(GetSmtpServer(), PORT, time_limit, &error_message, SocketUtil::DISABLE_NAGLE));

@@ -28,6 +28,9 @@
 #include "util.h"
 
 
+namespace {
+
+
 const unsigned DEFAULT_MAX_ROTATIONS(5);
 
 
@@ -83,6 +86,9 @@ inline bool HasNumericExtension(const std::string &filename) {
     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\\.[0-9]+$"));
     return matcher->matched(filename);
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char *argv[]) {
