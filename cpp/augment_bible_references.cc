@@ -60,7 +60,7 @@ void LoadBibleOrderMap(const bool verbose, File * const input,
                        std::unordered_map<std::string, std::string> * const books_of_the_bible_to_code_map)
 {
     if (verbose)
-        std::cerr << "Started loading of the bible-order map.\n";
+        logger->info("Started loading of the bible-order map.");
 
     unsigned line_no(0);
     while (not input->eof()) {
@@ -77,7 +77,7 @@ void LoadBibleOrderMap(const bool verbose, File * const input,
     }
 
     if (verbose)
-        std::cerr << "Loaded " << line_no << " entries from the bible-order map file.\n";
+        logger->info("Loaded " + std::to_string(line_no) + " entries from the bible-order map file.");
 }
 
 
@@ -88,7 +88,9 @@ bool FindPericopes(const MarcRecord &record, const std::set<std::pair<std::strin
 {
     static const std::string PERICOPE_FIELD("130");
     std::vector<std::string> pericopes;
-    for (size_t index(record.getFieldIndex(PERICOPE_FIELD)); index < record.getNumberOfFields() and record.getTag(index) == PERICOPE_FIELD; ++index) {
+    for (size_t index(record.getFieldIndex(PERICOPE_FIELD)); index < record.getNumberOfFields()
+             and record.getTag(index) == PERICOPE_FIELD; ++index)
+    {
         const Subfields subfields(record.getSubfields(index));
         std::string a_subfield(subfields.getFirstSubfieldValue('a'));
         StringUtil::ToLower(&a_subfield);
@@ -250,18 +252,31 @@ bool GetBibleRanges(const std::string &field_tag, const MarcRecord &record,
     {
         const Subfields subfields(record.getSubfields(index));
         const bool esra_special_case(subfields.getFirstSubfieldValue('a') == "Esra");
+        const bool maccabee_special_case(subfields.getFirstSubfieldValue('a') == "Makkabäer");
         if (not (subfields.getFirstSubfieldValue('a') == "Bibel" and subfields.hasSubfield('p'))
-            and not esra_special_case)
+            and not esra_special_case and not maccabee_special_case)
             continue;
 
-        std::string book_name_candidate(
-            esra_special_case ? "esra" : StringUtil::ToLower(subfields.getFirstSubfieldValue('p')));
+        std::string book_name_candidate;
+        if (esra_special_case)
+            book_name_candidate = "esra";
+        else if (maccabee_special_case) {
+            // If this is a maccabee bible book record, subfield 9 must contain "g:Buch" as there are also
+            // records that are about the person/author Maccabee.
+            if (subfields.hasSubfieldWithValue('9', "g:Buch"))
+                book_name_candidate = "makkabäer";
+        } else
+            book_name_candidate = StringUtil::ToLower(subfields.getFirstSubfieldValue('p'));
+
         const auto pair(book_alias_map.find(book_name_candidate));
         if (pair != book_alias_map.cend())
             book_name_candidate = pair->second;
         if (books_of_the_bible.find(book_name_candidate) == books_of_the_bible.cend()) {
-            std::cerr << record.getControlNumber() << ": unknown bible book: "
-                      << (esra_special_case ? "esra" : subfields.getFirstSubfieldValue('p')) << '\n';
+            logger->warning(
+                record.getControlNumber() + ": unknown bible book: "
+                + (esra_special_case ? "esra"
+                                     : (maccabee_special_case ? "makkabäer"
+                                                              : subfields.getFirstSubfieldValue('p'))));
             ++unknown_book_count;
             continue;
         }
@@ -274,23 +289,23 @@ bool GetBibleRanges(const std::string &field_tag, const MarcRecord &record,
         }
 
         if (not OrderNSubfields(&n_subfield_values)) {
-            std::cerr << "Don't know what to do w/ the $n subfields for PPN " << record.getControlNumber() << "! ("
-                      << StringUtil::Join(n_subfield_values, ", ") << ")\n";
+            logger->warning("Don't know what to do w/ the $n subfields for PPN " + record.getControlNumber()
+                            + "! (" + StringUtil::Join(n_subfield_values, ", ") + ")");
             continue;
         }
 
         std::vector<std::string> books;
         CreateNumberedBooks(book_name_candidate, &n_subfield_values, &books);
         if (not HaveBibleBookCodes(books, bible_book_to_code_map)) {
-            std::cerr << record.getControlNumber() << ": found no bible book code for \"" << book_name_candidate
-                      << "\"! (" << StringUtil::Join(n_subfield_values, ", ") << ")\n";
+            logger->warning(record.getControlNumber() + ": found no bible book code for \"" + book_name_candidate
+                            + "\"! (" + StringUtil::Join(n_subfield_values, ", ") + ")");
             continue;
         }
 
         std::vector<std::string> book_codes;
         if (not ConvertBooksToBookCodes(books, bible_book_to_code_map, &book_codes)) {
-            std::cerr << record.getControlNumber() << ": can't convert one or more of these books to book codes: "
-                      << StringUtil::Join(books, ", ") << "!\n";
+            logger->warning(record.getControlNumber() + ": can't convert one or more of these books to book codes: "
+                            + StringUtil::Join(books, ", ") + "!");
             continue;
         }
 
@@ -306,8 +321,8 @@ bool GetBibleRanges(const std::string &field_tag, const MarcRecord &record,
                 )
             );
         else if (not BibleUtil::ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
-            std::cerr << record.getControlNumber() << ": failed to parse bible references (1): "
-                      << n_subfield_values.front() << '\n';
+            logger->warning(record.getControlNumber() + ": failed to parse bible references (1): "
+                            + n_subfield_values.front());
             continue;
         }
 
@@ -328,7 +343,7 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
 {
     gnd_codes_to_bible_ref_codes_map->clear();
     if (verbose)
-        std::cerr << "Starting loading of norm data.\n";
+        logger->info("Starting loading of norm data.");
 
     std::unordered_set<std::string> books_of_the_bible;
     ExtractBooksOfTheBible(bible_book_to_code_map, &books_of_the_bible);
@@ -356,14 +371,14 @@ void LoadNormData(const bool verbose, const std::unordered_map<std::string, std:
     }
 
     if (verbose)
-        std::cerr << "About to write \"pericopes_to_codes.map\".\n";
+        logger->info("About to write \"pericopes_to_codes.map\".");
     MapIO::SerialiseMap("pericopes_to_codes.map", pericopes_to_ranges_map);
 
     if (verbose) {
-        std::cerr << "Read " << count << " norm data records.\n";
-        std::cerr << "Found " << unknown_book_count << " records w/ unknown bible books.\n";
-        std::cerr << "Found a total of " << bible_ref_count << " bible reference records.\n";
-        std::cerr << "Found " << pericope_count << " records w/ pericopes.\n";
+        logger->info("Read " + std::to_string(count) + " norm data records.");
+        logger->info("Found " + std::to_string(unknown_book_count) + " records w/ unknown bible books.");
+        logger->info("Found a total of " + std::to_string(bible_ref_count) + " bible reference records.");
+        logger->info("Found " + std::to_string(pericope_count) + " records w/ pericopes.");
     }
 }
 
@@ -379,7 +394,9 @@ bool FindGndCodes(const bool verbose, const std::string &tags, const MarcRecord 
 
     bool found_at_least_one(false);
     for (const auto &tag : individual_tags) {
-        for (size_t index(record.getFieldIndex(tag)); index < record.getNumberOfFields() and record.getTag(index) == tag; ++index) {
+        for (size_t index(record.getFieldIndex(tag));
+             index < record.getNumberOfFields() and record.getTag(index) == tag; ++index)
+        {
             const Subfields subfields(record.getSubfields(index));
             const std::string subfield2(subfields.getFirstSubfieldValue('2'));
             if (subfield2.empty() or subfield2 != "gnd")
@@ -397,8 +414,8 @@ bool FindGndCodes(const bool verbose, const std::string &tags, const MarcRecord 
                     for (const auto &range : gnd_code_and_ranges->second)
                         ranges->insert(range.first + ":" + range.second);
                 } else if (verbose)
-                    std::cerr << record.getControlNumber() << ": GND code \"" << gnd_code
-                              << "\" was not found in our map.\n";
+                    logger->info(record.getControlNumber() + ": GND code \"" + gnd_code
+                                 + "\" was not found in our map.");
             }
         }
     }
@@ -414,7 +431,7 @@ void AugmentBibleRefs(const bool verbose, MarcReader * const marc_reader, MarcWr
                           &gnd_codes_to_bible_ref_codes_map)
 {
     if (verbose)
-        std::cerr << "Starting augmentation of title records.\n";
+        logger->info("Starting augmentation of title records.");
 
     unsigned total_count(0), augment_count(0);
     while (MarcRecord record = marc_reader->read()) {
@@ -446,8 +463,8 @@ void AugmentBibleRefs(const bool verbose, MarcReader * const marc_reader, MarcWr
     }
 
     if (verbose)
-        std::cerr << "Augmented the " << BIB_REF_RANGE_TAG << "$a field of " << augment_count
-                  << " records of a total of " << total_count << " records.\n";
+        logger->info("Augmented the " + BIB_REF_RANGE_TAG + "$a field of " + std::to_string(augment_count)
+                     + " records of a total of " + std::to_string(total_count) + " records.");
 }
 
 
