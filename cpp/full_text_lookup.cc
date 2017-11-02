@@ -24,11 +24,8 @@
 #include <string>
 #include <cstdlib>
 #include <cstring>
-#include <kchashdb.h>
+#include "FullTextCache.h"
 #include "util.h"
-
-
-const std::string DB_PATH("/usr/local/var/lib/tuelib/full_text.db");
 
 
 bool GetIdFromCGI(std::string * const id) {
@@ -44,15 +41,13 @@ bool GetIdFromCGI(std::string * const id) {
 
 void Lookup(const std::string &id) {
     try {
-        kyotocabinet::HashDB db;
-        if (not db.open(DB_PATH, kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::ONOLOCK))
-            logger->error("Failed to open database \"" + DB_PATH + "\" for reading ("
-                          + std::string(db.error().message()) + ")!");
+        FullTextCache cache;
 
         std::string data;
-        if (not db.get(id, &data))
-            logger->error("Lookup failed: " + std::string(db.error().message()));
-        
+        if (not cache.getFullText(id, &data))
+            throw std::runtime_error("fulltext not found for id: " + id);
+
+        std::cout << "Content-Type: text/plain\r\n\r\n";
         std::cout << data;
     } catch (const std::exception &e) {
         logger->error(std::string("caught exception: ") + e.what());
