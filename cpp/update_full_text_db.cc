@@ -50,6 +50,9 @@ static void Usage() {
 }
 
 
+namespace {
+
+
 // \note Sets "error_message" when it returns false.
 bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
                              std::string * const media_type, std::string * const error_message)
@@ -249,6 +252,9 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
 
     return success;
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char *argv[]) {

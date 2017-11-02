@@ -94,8 +94,7 @@ create_full_text_db --process-count-low-and-high-watermarks \
                     $(get_config_file_entry.py krimdok_marc_pipeline.conf \
                     create_full_text_db process_count_low_and_high_watermarks) \
                     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                    /usr/local/var/lib/tuelib/full_text.db >> "${log}" 2>&1
+                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 EndPhase
 
 

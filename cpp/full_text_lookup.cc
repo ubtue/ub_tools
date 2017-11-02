@@ -28,6 +28,9 @@
 #include "util.h"
 
 
+namespace {
+
+
 bool GetIdFromCGI(std::string * const id) {
     const char * const query = ::getenv("QUERY_STRING");
     const size_t ID_OFFSET(3);
@@ -53,6 +56,9 @@ void Lookup(const std::string &id) {
         logger->error(std::string("caught exception: ") + e.what());
     }
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char* argv[]) {
