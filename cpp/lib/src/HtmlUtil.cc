@@ -616,11 +616,11 @@ std::string HtmlEscape(const std::string &unescaped_text) {
 
     for (const char ch : unescaped_text) {
         if (ch == '&')
-            escaped_text += "&amp";
+            escaped_text += "&amp;";
         else if (ch == '<')
-            escaped_text += "&lt";
+            escaped_text += "&lt;";
         else if (ch == '>')
-            escaped_text += "&gt";
+            escaped_text += "&gt;";
         else
             escaped_text += ch;
     }
