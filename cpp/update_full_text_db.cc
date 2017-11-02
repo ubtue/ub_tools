@@ -44,7 +44,7 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << ::progname << " file_offset marc_input marc_output full_text_db error_log_path\n\n"
+    std::cerr << "Usage: " << ::progname << " file_offset marc_input marc_output\n\n"
               << "       file_offset  Where to start reading a MARC data set from in marc_input.\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -67,7 +67,7 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std
         *error_message = "failed to determine the media type!";
         return false;
     }
-    
+
     return true;
 }
 
@@ -164,43 +164,55 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 
 
 // Returns true if text has been successfully extracted, else false.
-bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_output_filename,
-                   const std::string &full_text_db_path)
+bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_output_filename)
 {
     MarcRecord record(marc_reader->read());
     const std::string ppn(record.getControlNumber());
+    std::vector<std::string> urls;
 
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
+    // get URLs
+    std::vector<size_t> _856_field_indices;
+    record.getFieldIndices("856", &_856_field_indices);
+    for (const size_t _856_field_index : _856_field_indices) {
+        const Subfields _856_subfields(record.getSubfields(_856_field_index));
 
+        if (_856_subfields.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
+            continue;
+
+        if (IsProbablyAReview(_856_subfields))
+            continue;
+
+        urls.emplace_back(_856_subfields.getFirstSubfieldValue('u'));
+    }
+
+    // Get or create cache entry
+    FullTextCache cache;
+    std::string combined_text_final;
     bool success(false);
-    if (not FullTextCache::CacheEntryExpired(&db_connection, full_text_db_path, ppn)) {
+    if (not cache.entryExpired(ppn, urls)) {
+        cache.getFullText(ppn, &combined_text_final);
         Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
         ++semaphore;
         success = true;
     } else {
+        FullTextCache::Entry entry;
+        std::vector<FullTextCache::EntryUrl> entry_urls;
         std::string combined_text(GetTextFrom520a(record));
-
-        std::vector<size_t> _856_field_indices;
-        record.getFieldIndices("856", &_856_field_indices);
-    
         constexpr unsigned PER_DOC_TIMEOUT(10000); // in milliseconds
+        success = true;
 
-        std::string error_message, url;
-        for (const size_t _856_field_index : _856_field_indices) {
-            const Subfields _856_subfields(record.getSubfields(_856_field_index));
-            if (_856_subfields.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
-                continue;
-
-            if (IsProbablyAReview(_856_subfields))
-                continue;
-
-            url = _856_subfields.getFirstSubfieldValue('u');
-            std::string document, media_type;
-            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &error_message)))
-                break;
-            else {
+        for (const auto &url : urls) {
+            FullTextCache::EntryUrl entry_url;
+            entry_url.id_ = ppn;
+            entry_url.url_ = url;
+            std::string domain;
+            cache.getDomainFromUrl(url, domain);
+            entry_url.domain_ = domain;
+            std::string document, media_type, error_message;
+            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &error_message))) {
+                entry_url.error_message_ = "could not get document and media type!";
+                success = false;
+            } else {
                 std::string extracted_text(ConvertToPlainText(media_type, GetTesseractLanguageCode(record),
                                                               document));
                 if (not extracted_text.empty()) {
@@ -209,23 +221,25 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
                     else
                         combined_text += " " + extracted_text;
                 } else {
-                    error_message = "failed to extract text from the downloaded document!";
-                    break;
+                    entry_url.error_message_ = "failed to extract text from the downloaded document!";
+                    success = false;
                 }
             }
+
+            if (success == true)
+                success = entry_url.error_message_.empty();
+
+            entry_urls.push_back(entry_url);
         }
 
-        std::string data;
-        if (error_message.empty()) {
-            url.clear();
-            data = "Content-Type: text/plain\r\n\r\n" + combined_text;
-        }
-        FullTextCache::InsertIntoCache(&db_connection, full_text_db_path, ppn, url, data, error_message);
+        if (success)
+            combined_text_final = combined_text;
 
-        if (not combined_text.empty()) {
-            record.insertSubfield("FUL", 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn);
-            success = true;
-        }
+        cache.insertEntry(ppn, combined_text_final, entry_urls);
+    }
+
+    if (not combined_text_final.empty()) {
+        record.insertSubfield("FUL", 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn);
     }
 
     // Safely append the modified MARC data to the MARC output file:
@@ -240,7 +254,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 5)
+    if (argc != 4)
         Usage();
 
     long offset;
@@ -253,7 +267,7 @@ int main(int argc, char *argv[]) {
                       + "! (" + std::to_string(errno) + ")");
 
     try {
-        return ProcessRecord(marc_reader.get(), argv[3], argv[4]) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return ProcessRecord(marc_reader.get(), argv[3]) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         logger->error("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
                       + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));
