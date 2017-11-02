@@ -20,6 +20,8 @@
 #include "DbConnection.h"
 #include <stdexcept>
 #include <cstdlib>
+#include "FileUtil.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -52,6 +54,15 @@ DbConnection::DbConnection(const std::string &mysql_url) {
 DbConnection::~DbConnection() {
     if (initialised_)
         ::mysql_close(&mysql_);
+}
+
+
+bool DbConnection::query(const std::string &query_statement) {
+    if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") == "true")
+        FileUtil::AppendString("/usr/local/var/log/tufind/sql_debug.log",
+                               std::string(::progname) + ": " +  query_statement);
+        
+    return ::mysql_query(&mysql_, query_statement.c_str()) == 0;
 }
 
 

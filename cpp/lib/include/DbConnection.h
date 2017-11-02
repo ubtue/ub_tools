@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,9 +39,15 @@ public:
 
     virtual ~DbConnection();
 
-    bool query(const std::string &query_statement) { return ::mysql_query(&mysql_, query_statement.c_str()) == 0; }
+    /** \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
+     *        logged to /usr/local/var/log/tufind/sql_debug.log.
+     */
+    bool query(const std::string &query_statement);
 
-    /** \brief Executes an SQL statement and aborts printing an error message to stderr if an error occurred. */
+    /** \brief Executes an SQL statement and aborts printing an error message to stderr if an error occurred.
+     *  \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
+     *        logged to /usr/local/var/log/tufind/sql_debug.log.
+     */
     void queryOrDie(const std::string &query_statement);
 
     DbResultSet getLastResultSet();
