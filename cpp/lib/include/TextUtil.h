@@ -55,6 +55,14 @@ bool IsUnsignedInteger(const std::string &s);
 bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_string);
 
 
+/** \brief Convert between many text encodings.
+ *  \return True if the conversion succeeded, otherwise false.
+ *  \note When this function returns false "*output" contains the unmodified copy of "input"!
+ */
+bool ConvertEncoding(const std::string &from_encoding, const std::string &to_encoding, const std::string &input,
+                     std::string * const output);
+
+
 /** \brief Convert wide characters to UTF8. */
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string);
 
