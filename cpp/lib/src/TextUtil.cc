@@ -29,6 +29,7 @@
 #include "TextUtil.h"
 #include <algorithm>
 #include <exception>
+#include <iostream>
 #include <memory>
 #include <cstdio>
 #include <cstring>
@@ -47,9 +48,10 @@ namespace {
 
 class TextExtractor: public HtmlParser {
     std::string &extracted_text_;
+    std::string charset_;
 public:
     TextExtractor(const std::string &html, std::string * const extracted_text)
-        : HtmlParser(html, HtmlParser::TEXT), extracted_text_(*extracted_text) { }
+        : HtmlParser(html, HtmlParser::TEXT | HtmlParser::OPENING_TAG), extracted_text_(*extracted_text) { }
     virtual void notify(const HtmlParser::Chunk &chunk);
 };
 
@@ -57,6 +59,30 @@ public:
 void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
     if (chunk.type_ == HtmlParser::TEXT)
         extracted_text_ += chunk.text_;
+    else if (charset_.empty() and chunk.type_ == HtmlParser::OPENING_TAG
+             and StringUtil::ToLower(chunk.text_) == "meta") {
+
+        auto key_and_value(chunk.attribute_map_->find("charset"));
+        if (key_and_value != chunk.attribute_map_->end()) {
+            charset_ = key_and_value->second;
+        } else if (((key_and_value = chunk.attribute_map_->find("http-equiv")) != chunk.attribute_map_->end())
+                     and (StringUtil::ToLower(key_and_value->second) == "content-type")
+                     and ((key_and_value = chunk.attribute_map_->find("content")) != chunk.attribute_map_->end())) {
+
+            static RegexMatcher *matcher(nullptr);
+            if (unlikely(matcher == nullptr)) {
+                const std::string pattern("charset=([^ ;]+)");
+                std::string err_msg;
+                matcher = RegexMatcher::RegexMatcherFactory(pattern, &err_msg);
+                if (unlikely(matcher == nullptr))
+                    throw std::runtime_error("Failed to construct a RegexMatcher for \"" + pattern
+                                             + "\" in TextExtractor::notify: " + err_msg);
+            }
+
+            if (matcher->matched(key_and_value->second))
+                charset_ = (*matcher)[1];
+        }
+    }
 }
 
 
