@@ -30,9 +30,6 @@
 #include "util.h"
 
 
-namespace {
-
-
 void Usage() __attribute__((noreturn));
 
 
