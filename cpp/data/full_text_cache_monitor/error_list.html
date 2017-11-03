@@ -1,15 +1,19 @@
-<h2>Error List</h2>
+<h2>Error List for:</h2>
+<table>
+    <tr><td>Domain</td><td>{domain}</td></tr>
+    <tr><td>Error Message:</td><td>{error_message}</td></tr>
+</table>
+
+<h2>Errors:</h2>
 <table>
     <tr>
         <th>Id</th>
         <th>Url</th>
-        <th>Error Message</th>
     </tr>
-    {LOOP id, url, error_message}
+    {LOOP id, url}
     <tr>
         <td>{id}</td>
         <td>{url}</td>
-        <td>{error_message}</td>
     </tr>
     {ENDLOOP}
 </table>

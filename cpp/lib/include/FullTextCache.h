@@ -70,6 +70,9 @@ public:
     std::vector<EntryUrl> getEntryUrls(const std::string &id);
     std::vector<std::string> getEntryUrlsAsStrings(const std::string &id);
 
+    /** \brief Get the number of cache entries with at least one error */
+    unsigned getErrorCount();
+
     /** \brief Get the full text (as string) for the given id */
     bool getFullText(const std::string &id, std::string * const full_text);
 

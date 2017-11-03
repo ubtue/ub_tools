@@ -141,6 +141,21 @@ std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string 
 }
 
 
+unsigned FullTextCache::getErrorCount() {
+    db_connection_->queryOrDie("SELECT count(*) AS count FROM ("
+                                    "SELECT cache.id FROM full_text_cache_urls AS urls "
+                                    "LEFT JOIN full_text_cache AS cache "
+                                    "ON cache.id = urls.id "
+                                    "WHERE error_message IS NOT NULL "
+                                    "GROUP BY cache.id "
+                               ") AS subselect");
+
+    DbResultSet result_set(db_connection_->getLastResultSet());
+    const DbRow row(result_set.getNextRow());
+    return StringUtil::ToUnsigned(row["count"]);
+}
+
+
 bool FullTextCache::getFullText(const std::string &id, std::string * const full_text) {
     db_connection_->queryOrDie("SELECT full_text FROM full_text_cache "
                                "WHERE id=\"" + db_connection_->escapeString(id) + "\"");
