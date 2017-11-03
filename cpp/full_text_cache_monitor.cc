@@ -81,9 +81,20 @@ void ShowError(const std::string &error_message, std::string * const body) {
 }
 
 
-void ShowPageHeader(std::string * const body) {
+void ShowPageHeader(FullTextCache * const cache, std::string * const body) {
+    unsigned cache_size = cache->getSize();
+    unsigned error_count = cache->getErrorCount();
+    std::string error_rate_string("-");
+    if (cache_size > 0) {
+        float error_rate(static_cast<float>(error_count) / cache_size);
+        error_rate_string = StringUtil::ToString(error_rate);
+    }
+
     std::map<std::string, std::vector<std::string>> template_variables;
     std::string id(GetCGIParameterOrDefault("id"));
+    template_variables.emplace("cache_size", std::vector<std::string> { StringUtil::ToString(cache_size) });
+    template_variables.emplace("error_count", std::vector<std::string> { StringUtil::ToString(error_count) });
+    template_variables.emplace("error_rate", std::vector<std::string> { error_rate_string });
     template_variables.emplace("id", std::vector<std::string> {id});
     ExpandTemplate("header", body, template_variables);
 }
@@ -109,8 +120,8 @@ void ShowPageIdDetails(FullTextCache * const cache, std::string * const body) {
     std::vector<std::string> error_messages;
     std::vector<FullTextCache::EntryUrl> entry_urls = cache->getEntryUrls(id);
     for (const auto &entry_url : entry_urls) {
-        urls.emplace_back(HtmlUtil::HtmlEscape(entry_url.url_));
-        domains.emplace_back(HtmlUtil::HtmlEscape(entry_url.domain_));
+        urls.emplace_back("<a href=\"" + entry_url.url_ + "\">" + entry_url.url_ + "</a>");
+        domains.emplace_back("<a href=\"http://" + entry_url.domain_ + "\">" + entry_url.domain_ + "</a>");
         error_messages.emplace_back(HtmlUtil::HtmlEscape(entry_url.error_message_));
     }
     template_variables.emplace("url", urls);
@@ -131,10 +142,10 @@ void ShowPageErrorSummary(FullTextCache * const cache, std::string * const body)
     std::vector<FullTextCache::EntryGroup> groups = cache->getEntryGroupsByDomainAndErrorMessage();
     for (auto const &group : groups) {
         counts.emplace_back(std::to_string(group.count_));
-        domains.emplace_back(group.domain_);
+        domains.emplace_back("<a href=\"http://" + group.domain_ + "\">" + group.domain_ + "</a>");
         error_messages.emplace_back(group.error_message_);
         ids.emplace_back(group.example_entry_.id_);
-        urls.emplace_back(group.example_entry_.url_);
+        urls.emplace_back("<a href=\"" + group.example_entry_.url_ + "\">" + group.example_entry_.url_ + "</a>");
         links_details.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(group.example_entry_.id_) + "\">" + HtmlUtil::HtmlEscape(group.example_entry_.id_) + "</a>");
         links_error_details.emplace_back("<a href=\"?page=error_list&domain=" + UrlUtil::UrlEncode(group.domain_) + "&error_message=" + UrlUtil::UrlEncode(group.error_message_) + "\">Show error list</a>");
     }
@@ -162,14 +173,15 @@ void ShowPageErrorList(FullTextCache * const cache, std::string * const body) {
     std::vector<FullTextCache::JoinedEntry> entries = cache->getJoinedEntriesByDomainAndErrorMessage(domain, error_message);
     for (const auto &entry : entries) {
         ids.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(entry.id_) + "\">" + HtmlUtil::HtmlEscape(entry.id_) + "</a>");
-        urls.emplace_back(HtmlUtil::HtmlEscape(entry.url_));
+        urls.emplace_back("<a href=\"" + entry.url_ + "\">" + entry.url_ + "</a>");
         error_messages.emplace_back(HtmlUtil::HtmlEscape(error_message));
     }
 
     std::map<std::string, std::vector<std::string>> template_variables;
+    template_variables.emplace("domain", std::vector<std::string> { "<a href=\"http://" + domain + "\">" + domain + "</a>" });
+    template_variables.emplace("error_message", std::vector<std::string> { HtmlUtil::HtmlEscape(error_message) });
     template_variables.emplace("id", ids);
     template_variables.emplace("url", urls);
-    template_variables.emplace("error_message", error_messages);
     ExpandTemplate("error_list", body, template_variables);
 }
 
@@ -189,7 +201,7 @@ int main(int argc, char *argv[]) {
         const std::string subpage(GetCGIParameterOrDefault("page"));
 
         std::string body;
-        ShowPageHeader(&body);
+        ShowPageHeader(&cache, &body);
 
         try {
             if (subpage == "id_details") {

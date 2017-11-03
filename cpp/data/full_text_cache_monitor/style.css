@@ -10,3 +10,7 @@ table td {
 .error {
     color: red;
 }
+
+.cache-info {
+    font-style: italic;
+}
