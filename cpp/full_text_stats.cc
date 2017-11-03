@@ -30,10 +30,13 @@
 #include "VuFind.h"
 
 
-static void Usage() __attribute__((noreturn));
+namespace {
 
 
-static void Usage() {
+void Usage() __attribute__((noreturn));
+
+
+void Usage() {
     std::cerr << "Usage: " << ::progname << " stats_file_path email_address\n"
               << "       A report will be sent to \"email_address\".\n\n";
     std::exit(EXIT_FAILURE);
@@ -160,6 +163,21 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
 }
 
 
+void WriteStats(const std::string &stats_filename,
+                const std::vector<std::pair<std::string, unsigned>> &domains_and_counts)
+{
+    std::string stats;
+    for (const auto &domain_and_count : domains_and_counts)
+        stats += domain_and_count.first + "|" + std::to_string(domain_and_count.second) + '\n';
+
+    if (unlikely(not FileUtil::WriteString(stats_filename, stats)))
+        logger->error("failed to write new stats to \"" + stats_filename + "\"!");
+}
+
+
+} // unnamed namespace
+
+
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
@@ -174,6 +192,8 @@ int main(int argc, char *argv[]) {
         DetermineNewStats(&new_domains_and_counts);
 
         CompareStatsAndGenerateReport(argv[2], old_domains_and_counts, new_domains_and_counts);
+        WriteStats(argv[1], new_domains_and_counts);
+
     } catch (const std::exception &e) {
         logger->error("caught exception: " + std::string(e.what()));
     }
