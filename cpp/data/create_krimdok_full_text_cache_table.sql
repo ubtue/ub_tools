@@ -8,7 +8,7 @@ CREATE TABLE full_text_cache (
 
 CREATE TABLE full_text_cache_urls (
     id VARCHAR(20) NOT NULL,
-    url VARCHAR(255) NOT NULL,
+    url VARCHAR(255) CHARACTER SET utf8 NOT NULL,
     domain VARCHAR(255) NOT NULL,
     error_message MEDIUMTEXT,
     PRIMARY KEY (id, url),
