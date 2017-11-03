@@ -86,7 +86,7 @@ void ShowPageHeader(FullTextCache * const cache, std::string * const body) {
     unsigned error_count = cache->getErrorCount();
     std::string error_rate_string("-");
     if (cache_size > 0) {
-        float error_rate(static_cast<float>(error_count) / cache_size);
+        float error_rate((static_cast<float>(error_count) / cache_size) * 100);
         error_rate_string = StringUtil::ToString(error_rate);
     }
 
