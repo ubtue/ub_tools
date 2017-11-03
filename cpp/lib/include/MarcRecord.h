@@ -44,6 +44,20 @@ class MarcRecord {
 public:
     static const size_t FIELD_NOT_FOUND = std::numeric_limits<size_t>::max() - 1;
     static const size_t MAX_FIELD_LENGTH = 9998; // Substract size of trailing 0x1E
+public:
+    class const_iterator {
+        friend class MarcRecord;
+        std::vector<DirectoryEntry>::const_iterator dir_entry_;
+        const std::string &field_data_;
+    public:
+        inline std::string operator*() const
+            { return field_data_.substr(dir_entry_->getFieldOffset(), dir_entry_->getFieldLength() - 1); }
+        inline bool operator!=(const const_iterator &rhs) const { return dir_entry_ != rhs.dir_entry_; }
+        inline void operator++() { ++dir_entry_; }
+    private:
+        const_iterator(std::vector<DirectoryEntry>::const_iterator &&iterator, const std::string &field_data)
+            : dir_entry_(iterator), field_data_(field_data) { }
+    };
 private:
     mutable Leader leader_;
     std::vector<DirectoryEntry> directory_entries_;
@@ -64,6 +78,9 @@ public:
     Leader &getLeader() { return leader_; }
     inline void setLeader(const Leader &new_leader) { leader_ = new_leader; }
 
+    const_iterator begin() const { return const_iterator(directory_entries_.begin(), field_data_); }
+    const_iterator end() const { return const_iterator(directory_entries_.end(), field_data_); }
+    
     Leader::RecordType getRecordType() const { return leader_.getRecordType(); }
     std::string getControlNumber() const { return getFieldData("001"); }
 

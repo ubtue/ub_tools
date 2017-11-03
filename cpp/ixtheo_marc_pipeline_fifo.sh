@@ -102,8 +102,15 @@ EndPhase || Abort) &
 wait
 
 
+StartPhase "Remove Unreferenced Authority Records"
+(remove_unused_authority_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                 Normdaten-"${date}".mrc \
+                                 GefilterteNormdaten-"${date}".mrc  >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
-(extract_keywords_for_translation Normdaten-"${date}".mrc >> "${log}" 2>&1 && \
+(extract_keywords_for_translation GefilterteNormdaten-"${date}".mrc >> "${log}" 2>&1 && \
 extract_vufind_translations_for_translation \
     "$VUFIND_HOME"/local/tufind/languages/de.ini \ # German terms before all others.
     $(ls -1 "$VUFIND_HOME"/local/tufind/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
@@ -112,14 +119,14 @@ EndPhase || Abort) &
 
 
 StartPhase "Augment Normdata with Keyword Translations"
-(augment_authority_data_with_translations Normdaten-"${date}".mrc \
+(augment_authority_data_with_translations GefilterteNormdaten-"${date}".mrc \
                                           Normdaten-augmented-"${date}".mrc \
                                           >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 
 
 StartPhase "Normalise URL's"
-(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
+(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -134,8 +141,8 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Add Author Synonyms from Authority Data"
-(add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
+StartPhase "Add Author Synonyms from Authority Data" 
+(add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GefilterteNormdaten-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -166,7 +173,7 @@ wait
 StartPhase "Augment Bible References"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                         Normdaten-"${date}".mrc \
+                         GefilterteNormdaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 cp pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/ && \
 EndPhase || Abort) &
