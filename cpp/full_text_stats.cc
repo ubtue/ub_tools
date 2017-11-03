@@ -63,7 +63,7 @@ void LoadOldStats(const std::string &stats_file_path,
 
         const std::string domain(line.substr(0, vertical_bar_pos));
         unsigned count;
-        if (unlikely(not StringUtil::ToUnsigned(line.substr(vertical_bar_pos + 1))))
+        if (unlikely(not StringUtil::ToUnsigned(line.substr(vertical_bar_pos + 1), &count)))
             logger->error("in LoadOldStats: line #" + std::to_string(line_no) + "in \"" + input->getPath()
                           + "\" contains junk!");
 
@@ -122,7 +122,7 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
         } else {
             if (old_iter->first == new_iter->first) {
                 report_text += old_iter->first + ", old count: " + std::to_string(old_iter->second) + ", new count: "
-                               + std::to_string(old_iter->second) + "\n";
+                               + std::to_string(new_iter->second) + "\n";
                 ++new_iter, ++old_iter;
             } else if (old_iter->first < new_iter->first) {
                 report_text += old_iter->first + " (count: " + std::to_string(old_iter->second) + ") disappeared.\n";
@@ -171,6 +171,7 @@ int main(int argc, char *argv[]) {
         CompareStatsAndGenerateReport(argv[2], old_domains_and_counts, new_domains_and_counts);
         WriteStats(argv[1], new_domains_and_counts);
 
+        logger->info("finished successfully");
     } catch (const std::exception &e) {
         logger->error("caught exception: " + std::string(e.what()));
     }
