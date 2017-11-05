@@ -1,4 +1,4 @@
-/** \brief Utility for removing unreferences authority records
+/** \brief Utility for removing unreferenced authority records
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
