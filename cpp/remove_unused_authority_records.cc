@@ -94,7 +94,7 @@ void FilterAuthorityData(MarcReader * const marc_reader, MarcWriter * const marc
         ++record_count;
 
         const std::string gnd_number(GetGNDNumber(record));
-        if (gnd_numbers.find(gnd_number) == gnd_numbers.cend()) {
+        if (not gnd_number.empty() and gnd_numbers.find(gnd_number) == gnd_numbers.cend()) {
             gnd_list_file->write(gnd_number + "\n");
             ++dropped_count;
             continue;
