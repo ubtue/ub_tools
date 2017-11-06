@@ -107,11 +107,11 @@ StartPhase "Remove Unreferenced Authority Records"
                                  Normdaten-"${date}".mrc \
                                  GefilterteNormdaten-"${date}".mrc  >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
-StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
-(extract_keywords_for_translation GefilterteNormdaten-"${date}".mrc >> "${log}" 2>&1 && \
-extract_vufind_translations_for_translation \
+StartPhase "Extract Translations and Generate Interface Translation Files"
+(extract_vufind_translations_for_translation \
     "$VUFIND_HOME"/local/languages/de.ini \ # German terms before all others.
     $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
 generate_vufind_translation_files "$VUFIND_HOME"/local/languages/ >> "${log}" 2>&1 && \
