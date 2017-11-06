@@ -89,22 +89,24 @@ void FilterAuthorityData(MarcReader * const marc_reader, MarcWriter * const marc
                          const std::unordered_set<std::string> &gnd_numbers)
 {
     std::unique_ptr<File> gnd_list_file(FileUtil::OpenOutputFileOrDie(DROPPED_GND_LIST_FILE));
-    unsigned record_count(0), dropped_count(0);
+    unsigned record_count(0), dropped_count(0), authority_records_without_gnd_numbers_count(0);
     while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
 
         const std::string gnd_number(GetGNDNumber(record));
-        if (gnd_number.empty())
-            std::cerr << "Did not find a GND number for authority record with PPN " << record.getControlNumber()
-                      << ".\n";
-        else if (gnd_numbers.find(gnd_number) != gnd_numbers.cend()) {
+        if (gnd_numbers.find(gnd_number) != gnd_numbers.cend()) {
             gnd_list_file->write(gnd_number + "\n");
             ++dropped_count;
-        } else
+        } else {
+            if (gnd_number.empty())
+                ++authority_records_without_gnd_numbers_count;
             marc_writer->write(record);
+        }
     }
 
     std::cerr << "Read " << record_count << " authority record(s) of which " << dropped_count << " were dropped.\n";
+    std::cerr << "Found and kept " << authority_records_without_gnd_numbers_count
+              << " authority records w/o a GND number.\n";
 }
 
 
