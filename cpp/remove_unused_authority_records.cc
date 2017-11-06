@@ -94,14 +94,15 @@ void FilterAuthorityData(MarcReader * const marc_reader, MarcWriter * const marc
         ++record_count;
 
         const std::string gnd_number(GetGNDNumber(record));
-        if (gnd_numbers.find(gnd_number) != gnd_numbers.cend()) {
+        if (gnd_numbers.find(gnd_number) == gnd_numbers.cend()) {
             gnd_list_file->write(gnd_number + "\n");
             ++dropped_count;
-        } else {
-            if (gnd_number.empty())
-                ++authority_records_without_gnd_numbers_count;
-            marc_writer->write(record);
+            continue;
         }
+
+        if (gnd_number.empty())
+            ++authority_records_without_gnd_numbers_count;
+        marc_writer->write(record);
     }
 
     std::cerr << "Read " << record_count << " authority record(s) of which " << dropped_count << " were dropped.\n";
