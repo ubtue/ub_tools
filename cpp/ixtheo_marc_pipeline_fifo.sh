@@ -107,6 +107,7 @@ StartPhase "Remove Unreferenced Authority Records"
                                  Normdaten-"${date}".mrc \
                                  GefilterteNormdaten-"${date}".mrc  >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Extract Translations and Generate Interface Translation Files"
