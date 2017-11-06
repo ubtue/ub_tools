@@ -196,7 +196,7 @@ void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_c
 {
     synonyms->clear();
     const std::string synonym_query("SELECT translation FROM keyword_translations WHERE gnd_code=\'" + gnd_code
-                                    + "\' AND status=\'reliable_synonym\'");
+                                    + "\' AND status=\'reliable_synonym\' AND language_code=\'ger\'");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(synonym_query, &db_connection));
     if (result_set.empty())
         return;
