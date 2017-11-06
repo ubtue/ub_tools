@@ -181,6 +181,7 @@ def GetBackupDirectoryPath(config):
 def CleanUpCumulativeCollection(config):
     backup_directory = GetBackupDirectoryPath(config)
     filename_complete_data_regex = GetFilenameRegexForSection(config, "Kompletter Abzug")
+    incremental_authority_date_regex = GetFilenameRegexForSection(config, "Normdatendifferenzabzug")
 
     # Find the latest complete data file
     try:
@@ -196,8 +197,10 @@ def CleanUpCumulativeCollection(config):
     match = filename_complete_data_regex.match(most_recent_complete_data_filename)
     if match and match.group(1):
         most_recent_complete_data_date = match.group(1)
-        DeleteAllFilesOlderThan(most_recent_complete_data_date, backup_directory)
-    
+        # Delete all older Files but skip incremental authority dumps
+        DeleteAllFilesOlderThan(most_recent_complete_data_date, backup_directory, incremental_authority_date_regex)
+        # Now explicitly delete incremental authority dumps that are too old
+        DeleteAllFilesOlderThan(ShiftDateToTenDaysBefore(most_recent_complete_data_date), backup_directory)
     return None
 
 
@@ -230,16 +233,17 @@ def CurrentIncrementalAuthorityDumpPresent(config, cutoff_date):
 
 
 # Delete all files that are older than a given date     
-def DeleteAllFilesOlderThan(date, directory):
+def DeleteAllFilesOlderThan(date, directory, exclude_pattern=""):
      filename_pattern = '\\D*?-(\\d{6}).*'
      try:
          filename_regex = re.compile(filename_pattern)
+         exclude_regex = re.compile(exclude_pattern)
      except Exception as e:
            util.Error("File name pattern \"" + filename_to_delete_pattern + "\" failed to compile! (" + str(e) + ")")
 
      for filename in CumulativeFilenameGenerator(directory):
          match = filename_regex.match(filename)
-         if match and match.group(1) < date:
+         if match and match.group(1) < date and not exclude_regex.match(filename):
             os.remove(directory + "/" +  match.group())
 
      return None
