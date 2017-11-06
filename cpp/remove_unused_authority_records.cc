@@ -82,7 +82,7 @@ std::string GetGNDNumber(const MarcRecord &record) {
 }
 
 
-const std::string DROPPED_GND_LIST_FILE("/usr/local/var/log/tuelib/dropped_gnd_numbers.list");
+const std::string DROPPED_GND_LIST_FILE("/usr/local/var/log/tufind/dropped_gnd_numbers.list");
 
 
 void FilterAuthorityData(MarcReader * const marc_reader, MarcWriter * const marc_writer,
@@ -95,7 +95,7 @@ void FilterAuthorityData(MarcReader * const marc_reader, MarcWriter * const marc
 
         const std::string gnd_number(GetGNDNumber(record));
         if (gnd_number.empty())
-            std::cerr << "Did not find a GND number for authirity record witnb PPN " << record.getControlNumber()
+            std::cerr << "Did not find a GND number for authority record with PPN " << record.getControlNumber()
                       << ".\n";
         else if (gnd_numbers.find(gnd_number) != gnd_numbers.cend()) {
             gnd_list_file->write(gnd_number + "\n");
