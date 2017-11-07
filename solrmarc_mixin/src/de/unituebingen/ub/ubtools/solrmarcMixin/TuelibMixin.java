@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1162,6 +1163,53 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
+     * Predicates for choosing only a subset of all standardized subjects
+     * In the q-Subfield of 689 standardized subjects we have "z" (time subject), "f" (genre subject), "g" (region subject)
+     */
+
+    Function<DataField, Boolean> _689IsOrdinarySubject = (DataField marcField) -> {
+        if (!marcField.getTag().equals("689"))
+            return true;
+        Subfield subfieldQ = marcField.getSubfield('q');
+        if (subfieldQ == null)
+            return true;
+        String _qData = subfieldQ.getData().toLowerCase();
+
+        return !_qData.equals("z") && !_qData.equals("f") && !_qData.equals("g");
+    };
+
+
+    Function<DataField, Boolean> _689IsTimeSubject = (DataField marcField) -> {
+        if (!marcField.getTag().equals("689"))
+            return true;
+        Subfield subfieldQ = marcField.getSubfield('q');
+        return subfieldQ != null &&  subfieldQ.getData().equals("z");
+    };
+
+
+    Function<DataField, Boolean> _689IsGenreSubject = (DataField marcField) -> {
+        if (!marcField.getTag().equals("689"))
+            return true;
+        Subfield subfieldQ = marcField.getSubfield('q');
+        return subfieldQ != null &&  subfieldQ.getData().equals("f");
+    };
+
+
+    Function<DataField, Boolean> _689IsRegionSubject = (DataField marcField) -> {
+        if (!marcField.getTag().equals("689"))
+            return true;
+        Subfield subfieldQ = marcField.getSubfield('q');
+        return subfieldQ != null &&  subfieldQ.getData().equals("g");
+    };
+
+
+
+    private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
+                                    Collection<String> collector, String langShortcut) {
+        getTopicsCollector(record, fieldSpec, separators, collector, langShortcut, null);
+    }
+
+    /**
      * Abstraction for iterating over the subfields
      */
 
@@ -1169,20 +1217,21 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Generic function for topics that abstracts from a set or list collector
      * It is based on original SolrIndex.getAllSubfieldsCollector but allows to
      * specify several different separators to concatenate the single subfields
-     * Moreover Numeric subfields are filtered our since the do not contain data
-     * to be displayed. Separators can be defined on a subfield basis as list in
-     * the format separator_spec :== separator | subfield_separator_list
-     * subfield_separator_list :== subfield_separator_spec |
-     * subfield_separator_spec ":" subfield_separator_list |
-     * subfield_separator_spec ":" separator subfield_separator_spec :==
-     * subfield_spec separator subfield_spec :== "$" character_subfield
-     * character_subfield :== A character subfield (e.g. p,n,t,x...) separator
-     * :== separator_without_control_characters+ | separator "\:" separator |
-     * separator "\$" separator separator_without_control_characters := All
-     * characters without ":" and "$" | empty_string
+     * Moreover numeric subfields are filtered out since they do not contain data
+     * to be displayed. Separators can be defined on a subfield basis as a list in
+     * the format 
+     *   separator_spec          :== separator | subfield_separator_list
+     *   subfield_separator_list :== subfield_separator_spec |  subfield_separator_spec ":" subfield_separator_list | 
+     *                               subfield_separator_spec ":" separator 
+     *   subfield_separator_spec :== subfield_spec separator subfield_spec :== "$" character_subfield
+     *   character_subfield      :== A character subfield (e.g. p,n,t,x...) 
+     *   separator               :== separator_without_control_characters+ | separator "\:" separator |
+     *                               separator "\$" separator 
+     *   separator_without_control_characters :== All characters without ":" and "$" | empty_string
      */
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
-                                    Collection<String> collector, String langShortcut)
+                                    Collection<String> collector, String langShortcut, Function<DataField, Boolean> includeFieldPredicate)
+
     {
         String[] fldTags = fieldSpec.split(":");
         String fldTag;
@@ -1218,6 +1267,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (!marcFieldList.isEmpty()) {
                     for (VariableField vf : marcFieldList) {
                         DataField marcField = (DataField) vf;
+                        // Skip fields that do not match our criteria
+                        if (includeFieldPredicate != null && !includeFieldPredicate.apply(marcField))
+                            continue;
                         StringBuffer buffer = new StringBuffer("");
                         Subfield subfield0 = marcField.getSubfield('0');
                         if (subfield0 == null || !subfield0.getData().startsWith(fldTag.substring(3, 6))) {
@@ -1273,6 +1325,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                     Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
                     for (VariableField vf : marcFieldList) {
                         DataField marcField = (DataField) vf;
+                        // Skip fields that do not match our criteria
+                        if (includeFieldPredicate != null && !includeFieldPredicate.apply(marcField))
+                            continue;
                         StringBuffer buffer = new StringBuffer("");
                         List<Subfield> subfields = marcField.getSubfields();
                         // Case 1: The separator specification is empty thus we
@@ -1316,21 +1371,21 @@ public class TuelibMixin extends SolrIndexerMixin {
         return;
     }
 
-    public Set<String> getTopics(final Record record, String fieldSpec, String separator, String langShortcut)
+    public Set<String> getTopics(final Record record, String fieldSpec, String separatorSpec, String langShortcut)
         throws FileNotFoundException
     {
         final Set<String> topics = new HashSet<String>();
         // It seems to be a general rule that in the fields that the $p fields
         // are converted to a '.'
         // $n is converted to a space if there is additional information
-        Map<String, String> separators = parseTopicSeparators(separator);
+        Map<String, String> separators = parseTopicSeparators(separatorSpec);
         getTopicsCollector(record, fieldSpec, separators, topics, langShortcut);
         return addHonourees(record, topics);
     }
 
-    public Set<String> getTopicFacet(final Record record, final String fieldSpecs) {
-        final Set<String> values = getValuesOrUnassigned(record, fieldSpecs);
-        return addHonourees(record, values);
+
+    public Set<String> getTopicFacet(final Record record, final String fieldSpecs, String separatorSpec) {
+       return getTopicFacetTranslated(record, fieldSpecs, separatorSpec, "de");
     }
 
     public Set<String> getValuesOrUnassignedTranslated(final Record record, final String fieldSpecs,
@@ -1345,8 +1400,27 @@ public class TuelibMixin extends SolrIndexerMixin {
         return valuesTranslated;
     }
 
-    public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, final String lang) {
-        final Set<String> valuesTranslated = getValuesOrUnassignedTranslated(record, fieldSpecs, lang);
+
+    public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, String separatorSpec, final String lang) {
+        final Map<String, String> separators = parseTopicSeparators(separatorSpec);
+        final Set<String> valuesTranslated = new HashSet<String>();
+        getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
+        // The topic collector generates a chain of all specified subfields for a field
+        // In some cases this is unintended behaviour since different topics are are independent
+        // To ensure that those chains are broken up again, make sure to specify a triple pipe (="|||") seperator for these
+        // subfields
+        // Rewrite slashes
+        final Set<String> toRemove = new HashSet<String>();
+        final Set<String> toAdd = new HashSet<String>();
+        valuesTranslated.forEach((entry) -> { final String[] triplePipeSeparatedStrinChain = entry.split(Pattern.quote("|||"));
+                                              if (triplePipeSeparatedStrinChain.length > 1 || entry.contains("\\/")) {
+                                                  toRemove.add(entry);
+                                                  for (final String xKeyword : triplePipeSeparatedStrinChain)
+                                                      toAdd.add(xKeyword.replace("\\/", "/"));
+                                              }
+                                            });
+        valuesTranslated.removeAll(toRemove);
+        valuesTranslated.addAll(toAdd);
         return addHonourees(record, valuesTranslated);
     }
 
@@ -1548,8 +1622,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         return iso8601_date.toString();
     }
 
-    public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String langShortcut) {
-        final Set<String> genres = getValuesOrUnassignedTranslated(record, fieldSpecs, langShortcut);
+    public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
+        Map<String, String> separators = parseTopicSeparators(separatorSpec);
+        Set<String> genres = new HashSet<String>();
+        getTopicsCollector(record, fieldSpecs, separators, genres, lang, _689IsGenreSubject);
 
         // Also try to find the code for "Festschrift" in 935$c:
         List<VariableField> _935Fields = record.getVariableFields("935");
@@ -1562,25 +1638,37 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // Also add "Formschlagwort"s from Keywordchains to genre
-        List<VariableField> _689Fields = record.getVariableFields("689");
-        for (final VariableField _689Field : _689Fields) {
-            DataField dataField = (DataField) _689Field;
-            final List<Subfield> qSubfields = dataField.getSubfields('q');
-            for (final Subfield qSubfield : qSubfields) {
-                if (qSubfield.getData().toLowerCase().equals("f")) {
-                    final List<Subfield> aSubfields = dataField.getSubfields('a');
-                    for (final Subfield aSubfield : aSubfields)
-                        genres.add(aSubfield.getData());
-                }
-            }
-        }
-
         if (genres.size() > 1)
             genres.remove(UNASSIGNED_STRING);
 
         return genres;
     }
+
+
+    public Set<String> getRegionTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
+        Map<String, String> separators = parseTopicSeparators(separatorSpec);
+        Set<String> region = new HashSet<String>();
+        getTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
+
+        if (region.size() > 1)
+            region.remove(UNASSIGNED_STRING);
+
+        return region;
+    }
+
+
+    public Set<String> getTimeTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
+        Map<String, String> separators = parseTopicSeparators(separatorSpec);
+        Set<String> time = new HashSet<String>();
+        getTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
+
+        if (time.size() > 1)
+            time.remove(UNASSIGNED_STRING);
+
+        return time;
+    }
+
+
 
     // Map used by getPhysicalType().
     private static final Map<String, String> phys_code_to_format_map;
@@ -2297,11 +2385,11 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (subfieldE == null)
                 return "0";
             final String issueString = subfieldE.getData();
-            if (issueString.matches("\\d+"))
+            if (issueString.matches("^\\d+$"))
                 return issueString;
             // Handle Some known special cases
             if (issueString.matches("[\\[]\\d+[\\]]"))
-                return issueString.replace("[]","");
+                return issueString.replaceAll("[\\[\\]]","");
             if (issueString.matches("\\d+/\\d+"))
                 return issueString.split("/")[0];
         }
