@@ -8,7 +8,7 @@ BIN=bin
 SRC=src
 PACKAGE_DIRECOTRY=de/unituebingen/ub/ubtools/solrmarcMixin
 LIB_DIRECTORY=lib/*:/usr/local/vufind/solr/lib/*:/usr/local/vufind/solr/jetty/lib/ext/*:/usr/local/vufind/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/WEB-INF/lib/*
-JAVA_VERSION=1.7
+JAVA_VERSION=1.8
 
 # Compiler
 JAVAC=javac
