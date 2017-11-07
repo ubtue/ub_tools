@@ -1409,7 +1409,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         Set<String> toRemove = new HashSet<String>();
         Set<String> toAdd = new HashSet<String>();
         valuesTranslated.forEach((entry) -> { if (entry.contains("\\/")) {
-                                                  toRemove.remove(entry);
+                                                  toRemove.add(entry);
                                                   toAdd.add(entry.replace("\\/", "/"));
                                               }
                                               final String[] nonStandardizedXKeywords = entry.split("\\|\\|\\|");
@@ -2358,7 +2358,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (subfieldE == null)
                 return "0";
             final String issueString = subfieldE.getData();
-            if (issueString.matches("\\d+"))
+            if (issueString.matches("^\\d+$"))
                 return issueString;
             // Handle Some known special cases
             if (issueString.matches("[\\[]\\d+[\\]]"))
