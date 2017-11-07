@@ -46,7 +46,7 @@ def Main():
     # Extract the GND numbers from the 035$a subfield of the MARC authority data:
     _035a_contents_filename = "/tmp/035a"
     gnd_numbers_path = "/tmp/gnd_numbers"
-    if len(sys.argv) != 4:
+    if len(sys.argv) == 4:
         util.ExecOrDie("/usr/local/bin/marc_grep",
                        [ most_recent_authority_filename, "\"035a\"", "no_label" ], _035a_contents_filename)
     else:
