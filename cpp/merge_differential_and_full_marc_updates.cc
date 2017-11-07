@@ -741,16 +741,21 @@ void MergeAuthorityAndIncrementalDumpLists(const std::vector<std::string> &incre
 std::string ShiftDateToTenDaysBefore(const std::string &cutoff_date) {
     struct tm cutoff_date_tm(TimeUtil::StringToStructTm(cutoff_date, "%y%m%d"));
     const time_t cutoff_date_time_t(TimeUtil::TimeGm(cutoff_date_tm));
+    if (unlikely(cutoff_date_time_t == TimeUtil::BAD_TIME_T))
+        logger->error("in ShiftDateToTenDaysBefore: bad time conversion! (1)");
     const time_t new_cutoff_date(TimeUtil::AddDays(cutoff_date_time_t, -10));
+    if (unlikely(new_cutoff_date == TimeUtil::BAD_TIME_T))
+        logger->error("in ShiftDateToTenDaysBefore: bad time conversion! (2)");
     return TimeUtil::TimeTToString(new_cutoff_date, "%y%m%d");
 }
 
 
-} // unnamed namespace
-
-
 const std::string EMAIL_CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/smtp_server.conf");
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
+const std::string CONF_FILE_PATH(
+    "/usr/local/var/lib/tuelib/cronjobs/merge_differential_and_full_marc_updates.conf");
+
+
+} // unnamed namespace
 
 
 int main(int argc, char *argv[]) {
@@ -785,7 +790,8 @@ int main(int argc, char *argv[]) {
         ini_file.lookup("Files", "error_list", &errors_list_pattern);
 
         const std::string complete_dump_filename(PickCompleteDumpFilename(complete_dump_pattern));
-        const std::string complete_dump_filename_date(BSZUtil::ExtractDateFromFilenameOrDie(complete_dump_filename));
+        const std::string complete_dump_filename_date(
+            BSZUtil::ExtractDateFromFilenameOrDie(complete_dump_filename));
 
         std::vector<std::string> deletion_list_filenames;
         GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
