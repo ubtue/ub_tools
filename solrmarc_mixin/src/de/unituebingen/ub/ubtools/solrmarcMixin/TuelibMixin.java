@@ -1195,7 +1195,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     };
 
 
-    Function<DataField, Boolean> _689RegionSubjectPredicate = (DataField marcField) -> {
+    Function<DataField, Boolean> _689IsRegionSubject = (DataField marcField) -> {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
@@ -1645,7 +1645,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getRegionTranslated(final Record record, final String fieldSpecs, final String separator, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separator);
         Set<String> region = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, region, lang, _689RegionSubjectPredicate);
+        getTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
 
         if (region.size() > 1)
             region.remove(UNASSIGNED_STRING);
