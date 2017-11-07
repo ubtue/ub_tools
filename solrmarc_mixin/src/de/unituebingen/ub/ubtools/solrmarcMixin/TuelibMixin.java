@@ -1167,7 +1167,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * In the q-Subfield of 689 standardized subjects we have "z" (time subject), "f" (genre subject), "g" (region subject)
      */
 
-    Function<DataField, Boolean> _689OrdinarySubjectPredicate = (DataField marcField) -> {
+    Function<DataField, Boolean> _689IsOrdinarySubject = (DataField marcField) -> {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
@@ -1179,7 +1179,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     };
 
 
-    Function<DataField, Boolean> _689TimeSubjectPredicate = (DataField marcField) -> {
+    Function<DataField, Boolean> _689IsTimeSubject = (DataField marcField) -> {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
@@ -1187,7 +1187,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     };
 
 
-    Function<DataField, Boolean> _689GenreSubjectPredicate = (DataField marcField) -> {
+    Function<DataField, Boolean> _689IsGenreSubject = (DataField marcField) -> {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
@@ -1404,7 +1404,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, String separator, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separator);
         Set<String> valuesTranslated = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689OrdinarySubjectPredicate);
+        getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
         // Make the chain of nonstandardized keywords single keywords again
         // Rewrite slashes
         Set<String> toRemove = new HashSet<String>();
@@ -1622,7 +1622,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String separator, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separator);
         Set<String> genres = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, genres, lang, _689GenreSubjectPredicate);
+        getTopicsCollector(record, fieldSpecs, separators, genres, lang, _689IsGenreSubject);
 
         // Also try to find the code for "Festschrift" in 935$c:
         List<VariableField> _935Fields = record.getVariableFields("935");
@@ -1657,7 +1657,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getTimeTranslated(final Record record, final String fieldSpecs, final String separator, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separator);
         Set<String> time = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, time, lang, _689TimeSubjectPredicate);
+        getTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
 
         if (time.size() > 1)
             time.remove(UNASSIGNED_STRING);
