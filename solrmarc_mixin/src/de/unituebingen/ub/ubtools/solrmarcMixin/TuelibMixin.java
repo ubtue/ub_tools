@@ -1402,13 +1402,13 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, String separator, final String lang) {
-        Map<String, String> separators = parseTopicSeparators(separator);
-        Set<String> valuesTranslated = new HashSet<String>();
+        final Map<String, String> separators = parseTopicSeparators(separator);
+        final Set<String> valuesTranslated = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
         // Make the chain of nonstandardized keywords single keywords again
         // Rewrite slashes
-        Set<String> toRemove = new HashSet<String>();
-        Set<String> toAdd = new HashSet<String>();
+        final Set<String> toRemove = new HashSet<String>();
+        final Set<String> toAdd = new HashSet<String>();
         valuesTranslated.forEach((entry) -> { final String[] nonStandardizedXKeywords = entry.split(Pattern.quote("|||"));
                                               if (nonStandardizedXKeywords.length > 1 || entry.contains("\\/")) {
                                                   toRemove.add(entry);
