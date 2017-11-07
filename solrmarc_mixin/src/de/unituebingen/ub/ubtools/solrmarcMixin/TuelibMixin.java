@@ -1405,14 +1405,17 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Map<String, String> separators = parseTopicSeparators(separator);
         final Set<String> valuesTranslated = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
-        // Make the chain of nonstandardized keywords single keywords again
+        // The topic collector generates a chain of all specified subfields for a field
+        // In some cases this is unintended behaviour since different topics are are independent
+        // To ensure that those chains are broken up again, make sure to specify a triple pipe (="|||") seperator for these
+        // subfields
         // Rewrite slashes
         final Set<String> toRemove = new HashSet<String>();
         final Set<String> toAdd = new HashSet<String>();
-        valuesTranslated.forEach((entry) -> { final String[] nonStandardizedXKeywords = entry.split(Pattern.quote("|||"));
-                                              if (nonStandardizedXKeywords.length > 1 || entry.contains("\\/")) {
+        valuesTranslated.forEach((entry) -> { final String[] triplePipeSeparatedStrinChain = entry.split(Pattern.quote("|||"));
+                                              if (triplePipeSeparatedStrinChain.length > 1 || entry.contains("\\/")) {
                                                   toRemove.add(entry);
-                                                  for (final String xKeyword : nonStandardizedXKeywords)
+                                                  for (final String xKeyword : triplePipeSeparatedStrinChain)
                                                       toAdd.add(xKeyword.replace("\\/", "/"));
                                               }
                                             });
