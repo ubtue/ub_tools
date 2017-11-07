@@ -1179,6 +1179,31 @@ public class TuelibMixin extends SolrIndexerMixin {
     };
 
 
+    Function<DataField, Boolean> _689TimeSubjectPredicate = (DataField marcField) -> {
+        if (!marcField.getTag().equals("689"))
+            return true;
+        Subfield subfieldQ = marcField.getSubfield('q');
+        return subfieldQ != null &&  subfieldQ.getData().toLowerCase().equals("z");
+    };
+
+
+    Function<DataField, Boolean> _689GenreSubjectPredicate = (DataField marcField) -> {
+        if (!marcField.getTag().equals("689"))
+            return true;
+        Subfield subfieldQ = marcField.getSubfield('q');
+        return subfieldQ != null &&  subfieldQ.getData().toLowerCase().equals("f");
+    };
+
+
+    Function<DataField, Boolean> _689RegionSubjectPredicate = (DataField marcField) -> {
+        if (!marcField.getTag().equals("689"))
+            return true;
+        Subfield subfieldQ = marcField.getSubfield('q');
+        return subfieldQ != null &&  subfieldQ.getData().toLowerCase().equals("g");
+    };
+
+
+
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langShortcut) {
         getTopicsCollector(record, fieldSpec, separators, collector, langShortcut, null);
@@ -1580,8 +1605,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         return iso8601_date.toString();
     }
 
-    public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String langShortcut) {
-        final Set<String> genres = getValuesOrUnassignedTranslated(record, fieldSpecs, langShortcut);
+    public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String separator, final String lang) {
+        Map<String, String> separators = parseTopicSeparators(separator);
+        Set<String> genres = new HashSet<String>();
+        getTopicsCollector(record, fieldSpecs, separators, genres, lang, _689GenreSubjectPredicate);
 
         // Also try to find the code for "Festschrift" in 935$c:
         List<VariableField> _935Fields = record.getVariableFields("935");
@@ -1594,25 +1621,37 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // Also add "Formschlagwort"s from Keywordchains to genre
-        List<VariableField> _689Fields = record.getVariableFields("689");
-        for (final VariableField _689Field : _689Fields) {
-            DataField dataField = (DataField) _689Field;
-            final List<Subfield> qSubfields = dataField.getSubfields('q');
-            for (final Subfield qSubfield : qSubfields) {
-                if (qSubfield.getData().toLowerCase().equals("f")) {
-                    final List<Subfield> aSubfields = dataField.getSubfields('a');
-                    for (final Subfield aSubfield : aSubfields)
-                        genres.add(aSubfield.getData());
-                }
-            }
-        }
-
         if (genres.size() > 1)
             genres.remove(UNASSIGNED_STRING);
 
         return genres;
     }
+
+
+    public Set<String> getRegionTranslated(final Record record, final String fieldSpecs, final String separator, final String lang) {
+        Map<String, String> separators = parseTopicSeparators(separator);
+        Set<String> region = new HashSet<String>();
+        getTopicsCollector(record, fieldSpecs, separators, region, lang, _689RegionSubjectPredicate);
+
+        if (region.size() > 1)
+            region.remove(UNASSIGNED_STRING);
+
+        return region;
+    }
+
+
+    public Set<String> getTimeTranslated(final Record record, final String fieldSpecs, final String separator, final String lang) {
+        Map<String, String> separators = parseTopicSeparators(separator);
+        Set<String> time = new HashSet<String>();
+        getTopicsCollector(record, fieldSpecs, separators, time, lang, _689TimeSubjectPredicate);
+
+        if (time.size() > 1)
+            time.remove(UNASSIGNED_STRING);
+
+        return time;
+    }
+
+
 
     // Map used by getPhysicalType().
     private static final Map<String, String> phys_code_to_format_map;
