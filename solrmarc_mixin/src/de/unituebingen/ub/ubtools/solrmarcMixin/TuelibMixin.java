@@ -1371,21 +1371,21 @@ public class TuelibMixin extends SolrIndexerMixin {
         return;
     }
 
-    public Set<String> getTopics(final Record record, String fieldSpec, String separator, String langShortcut)
+    public Set<String> getTopics(final Record record, String fieldSpec, String separatorSpec, String langShortcut)
         throws FileNotFoundException
     {
         final Set<String> topics = new HashSet<String>();
         // It seems to be a general rule that in the fields that the $p fields
         // are converted to a '.'
         // $n is converted to a space if there is additional information
-        Map<String, String> separators = parseTopicSeparators(separator);
+        Map<String, String> separators = parseTopicSeparators(separatorSpec);
         getTopicsCollector(record, fieldSpec, separators, topics, langShortcut);
         return addHonourees(record, topics);
     }
 
 
-    public Set<String> getTopicFacet(final Record record, final String fieldSpecs, String separator) {
-       return getTopicFacetTranslated(record, fieldSpecs, separator, "de");
+    public Set<String> getTopicFacet(final Record record, final String fieldSpecs, String separatorSpec) {
+       return getTopicFacetTranslated(record, fieldSpecs, separatorSpec, "de");
     }
 
     public Set<String> getValuesOrUnassignedTranslated(final Record record, final String fieldSpecs,
@@ -1401,8 +1401,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, String separator, final String lang) {
-        final Map<String, String> separators = parseTopicSeparators(separator);
+    public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, String separatorSpec, final String lang) {
+        final Map<String, String> separators = parseTopicSeparators(separatorSpec);
         final Set<String> valuesTranslated = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
         // The topic collector generates a chain of all specified subfields for a field
@@ -1622,8 +1622,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         return iso8601_date.toString();
     }
 
-    public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String separator, final String lang) {
-        Map<String, String> separators = parseTopicSeparators(separator);
+    public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
+        Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> genres = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, genres, lang, _689IsGenreSubject);
 
@@ -1645,8 +1645,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    public Set<String> getRegionTranslated(final Record record, final String fieldSpecs, final String separator, final String lang) {
-        Map<String, String> separators = parseTopicSeparators(separator);
+    public Set<String> getRegionTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
+        Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> region = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
 
@@ -1657,8 +1657,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    public Set<String> getTimeTranslated(final Record record, final String fieldSpecs, final String separator, final String lang) {
-        Map<String, String> separators = parseTopicSeparators(separator);
+    public Set<String> getTimeTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
+        Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> time = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
 
