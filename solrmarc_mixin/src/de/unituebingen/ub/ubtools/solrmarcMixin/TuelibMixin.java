@@ -1404,6 +1404,18 @@ public class TuelibMixin extends SolrIndexerMixin {
         Map<String, String> separators = parseTopicSeparators(separator);
         Set<String> valuesTranslated = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689OrdinarySubjectPredicate);
+        // Make the chain of nonstandardized keywords single keywords again
+        Set<String> toRemove = new HashSet<String>();
+        Set<String> toAdd = new HashSet<String>();
+        valuesTranslated.forEach((entry) -> { final String[] nonStandardizedXKeywords = entry.split("\\|\\|\\|");
+                                              if (nonStandardizedXKeywords.length > 1) {
+                                                  toRemove.add(entry);
+                                                  for (final String xKeyword : nonStandardizedXKeywords)
+                                                      toAdd.add(xKeyword);
+                                              }
+                                            });
+        valuesTranslated.removeAll(toRemove);
+        valuesTranslated.addAll(toAdd);
         return addHonourees(record, valuesTranslated);
     }
 
