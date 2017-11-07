@@ -1183,7 +1183,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
-        return subfieldQ != null &&  subfieldQ.getData().toLowerCase().equals("z");
+        return subfieldQ != null &&  subfieldQ.getData().equals("z");
     };
 
 
@@ -1191,7 +1191,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
-        return subfieldQ != null &&  subfieldQ.getData().toLowerCase().equals("f");
+        return subfieldQ != null &&  subfieldQ.getData().equals("f");
     };
 
 
@@ -1199,7 +1199,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
-        return subfieldQ != null &&  subfieldQ.getData().toLowerCase().equals("g");
+        return subfieldQ != null &&  subfieldQ.getData().equals("g");
     };
 
 
@@ -1218,16 +1218,16 @@ public class TuelibMixin extends SolrIndexerMixin {
      * It is based on original SolrIndex.getAllSubfieldsCollector but allows to
      * specify several different separators to concatenate the single subfields
      * Moreover numeric subfields are filtered out since they do not contain data
-     * to be displayed. Separators can be defined on a subfield basis as list in
-     * the format separator_spec :== separator | subfield_separator_list
-     * subfield_separator_list :== subfield_separator_spec |
-     * subfield_separator_spec ":" subfield_separator_list |
-     * subfield_separator_spec ":" separator subfield_separator_spec :==
-     * subfield_spec separator subfield_spec :== "$" character_subfield
-     * character_subfield :== A character subfield (e.g. p,n,t,x...) separator
-     * :== separator_without_control_characters+ | separator "\:" separator |
-     * separator "\$" separator separator_without_control_characters := All
-     * characters without ":" and "$" | empty_string
+     * to be displayed. Separators can be defined on a subfield basis as a list in
+     * the format 
+     *   separator_spec          :== separator | subfield_separator_list
+     *   subfield_separator_list :== subfield_separator_spec |  subfield_separator_spec ":" subfield_separator_list | 
+     *                               subfield_separator_spec ":" separator 
+     *   subfield_separator_spec :== subfield_spec separator subfield_spec :== "$" character_subfield
+     *   character_subfield      :== A character subfield (e.g. p,n,t,x...) 
+     *   separator               :== separator_without_control_characters+ | separator "\:" separator |
+     *                               separator "\$" separator 
+     *   separator_without_control_characters :== All characters without ":" and "$" | empty_string
      */
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langShortcut, Function<DataField, Boolean> includeFieldPredicate)
