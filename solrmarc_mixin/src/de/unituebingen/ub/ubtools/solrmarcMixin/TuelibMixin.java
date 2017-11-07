@@ -1400,6 +1400,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return valuesTranslated;
     }
 
+
     public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, String separator, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separator);
         Set<String> valuesTranslated = new HashSet<String>();
@@ -1408,15 +1409,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Rewrite slashes
         Set<String> toRemove = new HashSet<String>();
         Set<String> toAdd = new HashSet<String>();
-        valuesTranslated.forEach((entry) -> { if (entry.contains("\\/")) {
-                                                  toRemove.add(entry);
-                                                  toAdd.add(entry.replace("\\/", "/"));
-                                              }
-                                              final String[] nonStandardizedXKeywords = entry.split("\\|\\|\\|");
-                                              if (nonStandardizedXKeywords.length > 1) {
+        valuesTranslated.forEach((entry) -> { final String[] nonStandardizedXKeywords = entry.split(Pattern.quote("|||"));
+                                              if (nonStandardizedXKeywords.length > 1 || entry.contains("\\/")) {
                                                   toRemove.add(entry);
                                                   for (final String xKeyword : nonStandardizedXKeywords)
-                                                      toAdd.add(xKeyword);
+                                                      toAdd.add(xKeyword.replace("\\/", "/"));
                                               }
                                             });
         valuesTranslated.removeAll(toRemove);
@@ -2362,7 +2359,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 return issueString;
             // Handle Some known special cases
             if (issueString.matches("[\\[]\\d+[\\]]"))
-                return issueString.replace("[]","");
+                return issueString.replace("[\\[\\]]","");
             if (issueString.matches("\\d+/\\d+"))
                 return issueString.split("/")[0];
         }
