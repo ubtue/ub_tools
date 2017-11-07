@@ -28,10 +28,10 @@ def GetMostRecentBSZFile(filename_pattern):
 
 
 def Main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 4 and len(sys.argv) != 5:
         util.SendEmail(os.path.basename(sys.argv[0]),
-                       "This script needs to be called with an email address, the beacon header file and an "
-                       "output path as arguments!\n", priority=1)
+                       "This script needs to be called with an email address, the beacon header file, an output "
+                       "path and an optional ppn-filter file as arguments!\n", priority=1)
         sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
 
@@ -46,8 +46,14 @@ def Main():
     # Extract the GND numbers from the 035$a subfield of the MARC authority data:
     _035a_contents_filename = "/tmp/035a"
     gnd_numbers_path = "/tmp/gnd_numbers"
-    util.ExecOrDie("/usr/local/bin/marc_grep",
-                   [ most_recent_authority_filename, "\"035a\"", "no_label" ], _035a_contents_filename)
+    if len(sys.argv) != 4:
+        util.ExecOrDie("/usr/local/bin/marc_grep",
+                       [ most_recent_authority_filename, "\"035a\"", "no_label" ], _035a_contents_filename)
+    else:
+        util.ExecOrDie(
+            "/usr/local/bin/marc_grep",
+            [ "--control-number-list", sys.argv[4], most_recent_authority_filename, "\"035a\"", "no_label" ],
+            _035a_contents_filename)
     util.ExecOrDie("/bin/egrep", [ "^\\(DE-588\\)", _035a_contents_filename ], gnd_numbers_path)
 
     # Count GND references in the title data:
