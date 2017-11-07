@@ -2359,7 +2359,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 return issueString;
             // Handle Some known special cases
             if (issueString.matches("[\\[]\\d+[\\]]"))
-                return issueString.replace("[\\[\\]]","");
+                return issueString.replaceAll("[\\[\\]]","");
             if (issueString.matches("\\d+/\\d+"))
                 return issueString.split("/")[0];
         }
