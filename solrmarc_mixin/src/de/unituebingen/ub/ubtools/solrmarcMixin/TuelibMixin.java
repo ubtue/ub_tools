@@ -1709,7 +1709,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     static {
         Map<String, String> tempMap = new HashMap<>();
-        tempMap.put("uwlx", "Dictionary entry/article");
+        tempMap.put("uwlx", "DictionaryEntryOrArticle");
         tempMap.put("BIDL", "Microfiche");
         tempMap.put("BIST", "Microfiche");
         tempMap.put("CICO", "Microfiche");
