@@ -31,10 +31,10 @@
 namespace {
 
 
-static void Usage() __attribute__((noreturn));
+void Usage() __attribute__((noreturn));
 
 
-static void Usage() {
+void Usage() {
     std::cerr << "Usage: " << ::progname << " [--control-number-list=list_filename] gnd_number_list marc_data counts\n"
               << "       If a control-number-list filename has been specifiec only references of records\n"
               << "       matching in entries in that file will be counted.\n\n";
