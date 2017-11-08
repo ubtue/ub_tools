@@ -56,10 +56,15 @@ void LoadGNDNumbers(File * const input, std::unordered_map<std::string, unsigned
 const std::vector<std::string> GND_REFERENCE_FIELDS{ "100", "600", "689", "700" };
 
 
-void ProcessRecords(MarcReader * const marc_reader,
+void ProcessRecords(MarcReader * const marc_reader, const std::unordered_set<std::string> &filter_set,
                     std::unordered_map<std::string, unsigned> * const gnd_numbers_and_counts)
 {
     while (const MarcRecord record = marc_reader->read()) {
+        if (not filter_set.empty()) {
+            if (filter_set.find(record.getControlNumber()) == filter_set.cend())
+                continue;
+        }
+
         for (const auto &gnd_reference_field : GND_REFERENCE_FIELDS) {
             const std::string field_contents(record.getFieldData(gnd_reference_field));
             if (field_contents.empty())
@@ -126,7 +131,7 @@ int main(int argc, char *argv[]) {
         LoadGNDNumbers(gnd_numbers_and_counts_file.get(), &gnd_numbers_and_counts);
 
         std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2]));
-        ProcessRecords(marc_reader.get(), &gnd_numbers_and_counts);
+        ProcessRecords(marc_reader.get(), filter_set, &gnd_numbers_and_counts);
 
         std::unique_ptr<File> counts_file(FileUtil::OpenOutputFileOrDie(argv[3]));
         WriteCounts(gnd_numbers_and_counts, counts_file.get());
