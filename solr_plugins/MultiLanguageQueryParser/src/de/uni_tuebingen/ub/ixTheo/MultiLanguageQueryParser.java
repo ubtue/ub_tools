@@ -153,8 +153,7 @@ public class MultiLanguageQueryParser extends QParser {
           String newFieldName = field + "_" + lang;
           if (schema.getFieldOrNull(newFieldName) != null) {
               phraseQueryBuilder.add(new Term(newFieldName, term.text()));
-          }
-          else
+          } else
               phraseQueryBuilder.add(term);
       }
 
