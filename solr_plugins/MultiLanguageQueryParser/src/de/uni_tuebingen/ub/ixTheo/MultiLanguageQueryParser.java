@@ -131,9 +131,9 @@ public class MultiLanguageQueryParser extends QParser {
     protected Query processTermQuery(Query queryCandidate) {
         if (!(queryCandidate instanceof TermQuery))
             throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a TermQuery");
-        TermQuery termQuery = (TermQuery) queryCandidate;
-        String field = termQuery.getTerm().field();
-        String newFieldName = field + "_" + lang;
+        final TermQuery termQuery = (TermQuery) queryCandidate;
+        final String field = termQuery.getTerm().field();
+        final String newFieldName = field + "_" + lang;
         if (schema.getFieldOrNull(newFieldName) != null)
             queryCandidate = new TermQuery(new Term(newFieldName, termQuery.getTerm().text()));
         else
