@@ -61,8 +61,7 @@ public class MultiLanguageQueryParser extends QParser {
         if (queryType != null) {
             queryFields = newParams.getParams("qf");
             useDismax = true;
-        }
-        else {
+        } else {
             if (query.length != 1)
                throw new MultiLanguageQueryParserException("Only one q-parameter is supported");
         }
