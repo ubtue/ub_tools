@@ -190,8 +190,7 @@ public class MultiLanguageQueryParser extends QParser {
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else
+        } else
 	    throw new SolrException(ErrorCode.SERVER_ERROR, "Unable to handle " +  subquery.getClass().getName());
     }
 
