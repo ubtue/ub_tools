@@ -59,7 +59,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
             final List<String> keyWordChain = getKeyWordChain(keyWordChains, chainID);
             Collections.sort(keyWordChain);
         }
-        return concatenateKeyWordsToChains(keyWordChains);
+        return concatenateKeyWordsToChains(keyWordChains, String.CASE_INSENSITIVE_ORDER);
     }
 
     /**
