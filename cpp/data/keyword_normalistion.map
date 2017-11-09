@@ -1,3 +1,9 @@
 # Format: regex -> replacement
 ISLAM|islam->Islam
 reformation|REFORMATION->Reformation
+catholic|CATHOLIC->Catholic
+catholic church|Catholic church|CATHOLIC church->Catholic Church
+CATHOLIC bishops->Catholic Bishops
+divine violence->Divine Violence
+divine personhood|Divine personhood->Divine Personhood
+reformation|REFORMATION->Reformation
