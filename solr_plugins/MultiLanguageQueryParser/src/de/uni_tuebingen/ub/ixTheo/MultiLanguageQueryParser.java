@@ -177,7 +177,7 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     protected Query processBoostQuery(BoostQuery queryCandidate) {
-        final Query subquery = queryCandidate.getQuery();
+        Query subquery = queryCandidate.getQuery();
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
