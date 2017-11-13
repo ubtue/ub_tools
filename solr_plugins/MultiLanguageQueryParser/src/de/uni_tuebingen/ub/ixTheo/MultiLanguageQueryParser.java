@@ -9,20 +9,20 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
+import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
-import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.schema.IndexSchema;
+import org.apache.solr.search.DisMaxQParser;
 import org.apache.solr.search.ExtendedDismaxQParser;
 import org.apache.solr.search.LuceneQParser;
-import org.apache.solr.search.DisMaxQParser;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
 import org.apache.solr.servlet.SolrRequestParsers;
@@ -61,11 +61,8 @@ public class MultiLanguageQueryParser extends QParser {
         if (queryType != null) {
             queryFields = newParams.getParams("qf");
             useDismax = true;
-        }
-        else {
-            if (query.length != 1)
-               throw new MultiLanguageQueryParserException("Only one q-parameter is supported");
-        }
+        } else if (query.length != 1)
+            throw new MultiLanguageQueryParserException("Only one q-parameter is supported");
 
         String[] facetFields = newParams.getParams("facet.field");
         lang = newParams.get("lang", "de");
@@ -134,9 +131,9 @@ public class MultiLanguageQueryParser extends QParser {
     protected Query processTermQuery(Query queryCandidate) {
         if (!(queryCandidate instanceof TermQuery))
             throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a TermQuery");
-        TermQuery termQuery = (TermQuery) queryCandidate;
-        String field = termQuery.getTerm().field();
-        String newFieldName = field + "_" + lang;
+        final TermQuery termQuery = (TermQuery) queryCandidate;
+        final String field = termQuery.getTerm().field();
+        final String newFieldName = field + "_" + lang;
         if (schema.getFieldOrNull(newFieldName) != null)
             queryCandidate = new TermQuery(new Term(newFieldName, termQuery.getTerm().text()));
         else
@@ -156,8 +153,7 @@ public class MultiLanguageQueryParser extends QParser {
           String newFieldName = field + "_" + lang;
           if (schema.getFieldOrNull(newFieldName) != null) {
               phraseQueryBuilder.add(new Term(newFieldName, term.text()));
-          }
-          else
+          } else
               phraseQueryBuilder.add(term);
       }
 
@@ -194,8 +190,7 @@ public class MultiLanguageQueryParser extends QParser {
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else
+        } else
 	    throw new SolrException(ErrorCode.SERVER_ERROR, "Unable to handle " +  subquery.getClass().getName());
     }
 
