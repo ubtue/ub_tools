@@ -1480,12 +1480,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (VariableField _190VField : _190Fields) {
             final DataField _190Field = (DataField) _190VField;
             final Subfield jSubfield = _190Field.getSubfield('j');
-            if (jSubfield != null) {
+            if (jSubfield != null)
                 dates.add(jSubfield.getData());
-            }
-            else {
+            else
                 logger.severe("getDatesBasedOnRecordType [No 190j subfield for PPN " + record.getControlNumber() + "]");
-            }
+            
             return dates;
         }
 
@@ -1502,10 +1501,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Test whether we have a reasonable value
         final String year = checkValidYear(yearExtracted);
         // log error if year is empty or not a year like "19uu"
-        if (year.isEmpty() || year.length() != 4 || !VALID_YEAR_RANGE_PATTERN.matcher(year).matches())
+        if (year.isEmpty() && !VALID_YEAR_RANGE_PATTERN.matcher(yearExtracted).matches())
             logger.severe("getDatesBasedOnRecordType [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
+        else
+            dates.add(year);
 
-        dates.add(year);
         return dates;
 }
 
