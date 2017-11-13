@@ -1704,6 +1704,21 @@ public class TuelibMixin extends SolrIndexerMixin {
         phys_code_to_format_map = Collections.unmodifiableMap(tempMap);
     }
 
+    // Map used by getMultipleFormats().
+    private static final Map<String, String> _935a_to_format_map;
+
+    static {
+        Map<String, String> tempMap = new HashMap<>();
+        tempMap.put("uwlx", "DictionaryEntryOrArticle");
+        tempMap.put("BIDL", "Microfiche");
+        tempMap.put("BIST", "Microfiche");
+        tempMap.put("CICO", "Microfiche");
+        tempMap.put("EDCO", "Microfiche");
+        tempMap.put("PALA", "Microfiche");
+        tempMap.put("WABU", "Microfiche");
+        _935a_to_format_map = Collections.unmodifiableMap(tempMap);
+    }
+
     // Set used by getPhysicalType().
     private static final Set<String> electronicResourceCarrierTypes;
 
@@ -2010,9 +2025,21 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
+        // Check 935$a entries:
+        final List<VariableField> _935Fields = record.getVariableFields("935");
+        for (final VariableField variableField : _935Fields) {
+            final DataField _935Field = (DataField) variableField;
+            if (_935Field != null) {
+                for (final Subfield aSubfield : _935Field.getSubfields('a')) {
+                    final String subfieldContents = aSubfield.getData();
+                    if (_935a_to_format_map.containsKey(subfieldContents))
+                        result.add(_935a_to_format_map.get(subfieldContents));
+                }
+            }
+        }
+        
         // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
         if (!result.contains("Article")) {
-            final List<VariableField> _935Fields = record.getVariableFields("935");
             for (final VariableField variableField : _935Fields) {
                 final DataField _935Field = (DataField) variableField;
                 if (_935Field != null) {
