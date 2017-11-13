@@ -143,7 +143,7 @@ std::string GetTextFrom520a(const MarcRecord &record) {
 
 
 std::string ConvertToPlainText(const std::string &media_type, const std::string &tesseract_language_code,
-                               const std::string &document)
+                               const std::string &document, std::string * const error_message)
 {
     if (media_type == "text/plain")
         return document;
@@ -153,7 +153,8 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
         if (PdfUtil::PdfDocContainsNoText(document)) {
             std::string extracted_text;
             if (not PdfUtil::GetTextFromImagePDF(document, tesseract_language_code, &extracted_text)) {
-                std::cerr << "Warning: Failed to extract text from an image PDF!\n";
+                *error_message = "Failed to extract text from an image PDF!";
+                logger->warning("in ConvertToPlainText: " + *error_message);
                 return "";
             }
             return extracted_text;
@@ -161,7 +162,8 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
         return PdfUtil::ExtractText(document);
 
     }
-    logger->warning("in ConvertToPlainText: don't know how to handle media type: " + media_type);
+    *error_message = "Don't know how to handle media type: " + media_type;
+    logger->warning("in ConvertToPlainText: " + *error_message);
     return "";
 }
 
@@ -213,19 +215,20 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
             entry_url.domain_ = domain;
             std::string document, media_type, error_message;
             if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &error_message))) {
-                entry_url.error_message_ = "could not get document and media type!";
+                entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
                 success = false;
             } else {
                 std::string extracted_text(ConvertToPlainText(media_type, GetTesseractLanguageCode(record),
-                                                              document));
-                if (not extracted_text.empty()) {
+                                                              document, &error_message));
+
+                if (unlikely(extracted_text.empty())) {
+                    entry_url.error_message_ = "failed to extract text from the downloaded document! (" + error_message + ")";
+                    success = false;
+                } else {
                     if (combined_text.empty())
                         combined_text.swap(extracted_text);
                     else
                         combined_text += " " + extracted_text;
-                } else {
-                    entry_url.error_message_ = "failed to extract text from the downloaded document!";
-                    success = false;
                 }
             }
 
