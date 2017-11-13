@@ -39,7 +39,7 @@
 #include "Subfields.h"
 #include "util.h"
 
-
+namespace {
 // Save language code, translation, origin, status
 typedef std::tuple<std::string, std::string, std::string, std::string> OneTranslation;
 
@@ -106,33 +106,6 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
 }
 
 
-std::string MapLanguageCode(const std::string lang_code) {
-    if (lang_code == "ger")
-        return "de";
-    if (lang_code == "eng")
-        return "en";
-    if (lang_code == "fre")
-        return "fr";
-    if (lang_code == "dut")
-        return "nl";
-    if (lang_code == "ita")
-        return "it";
-    if (lang_code == "spa")
-        return "es";
-    if (lang_code == "hant")
-        return "zh-Hant";
-    if (lang_code == "hans")
-        return "zh-Hans";
-    if (lang_code == "por")
-        return "pt";
-    if (lang_code == "rus")
-        return "ru";
-    if (lang_code == "gre")
-        return "el";
-    logger->error("Unknown language code " + lang_code);
-}
-
-
 void InsertTranslation(MarcRecord * const record, const char indicator1, const char indicator2,
                        const std::string &term, const std::string &language_code, const std::string &status)
 {
@@ -155,9 +128,8 @@ size_t GetFieldIndexForExistingTranslation(const MarcRecord *record, const std::
         Subfields subfields_present(record->getSubfields(field_index));
         if (subfields_present.hasSubfieldWithValue('2', "IxTheo") and
             subfields_present.hasSubfieldWithValue('9', "L:" + language_code) and
-            subfields_present.hasSubfieldWithValue('9', "Z:AF")) {
+            subfields_present.hasSubfieldWithValue('9', "Z:AF"))
                 return field_index;
-}
     }
     return MarcRecord::FIELD_NOT_FOUND;
 }
@@ -182,7 +154,7 @@ void ProcessRecord(MarcRecord * const record,
                 or language_code == "ger")
                 continue;
 
-            // Don't touch MACS translations and leave alone alone authoritative IxTheo Translations from BSZ
+            // Don't touch MACS translations and leave alone authoritative IxTheo Translations from BSZ
             std::vector<size_t> field_indices;
             if (record->getFieldIndices("750", &field_indices) > 0) {
                 const size_t field_index(GetFieldIndexForExistingTranslation(record, field_indices, language_code,
@@ -209,6 +181,9 @@ void AugmentNormdata(MarcReader * const marc_reader, MarcWriter *marc_writer, co
 
     std::cerr << "Modified " << modified_count << " of " << record_count << " entries.\n";
 }
+
+
+} //unnamed namespace
 
 
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
