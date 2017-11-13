@@ -692,7 +692,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             return false;
         }
     }
-    
+
     /**
      * @param record
      *            the record
@@ -1091,8 +1091,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 // Get $ and the character
                 String subfield = subfieldMatcher.group(1);
                 String separatorToUse = subfieldMatcher.group(2);
-                // System.out.println("Inserting separators | subfield: " +
-                // subfield + " - text: " + separatorToUse);
                 separators.put(subfield, separatorToUse.replace(esc, ""));
             }
             // Use an expression that does not specify a subfield as default
@@ -1170,11 +1168,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     Function<DataField, Boolean> _689IsOrdinarySubject = (DataField marcField) -> {
         if (!marcField.getTag().equals("689"))
             return true;
+
         Subfield subfieldQ = marcField.getSubfield('q');
         if (subfieldQ == null)
             return true;
-        String _qData = subfieldQ.getData().toLowerCase();
 
+        String _qData = subfieldQ.getData();
         return !_qData.equals("z") && !_qData.equals("f") && !_qData.equals("g");
     };
 
@@ -1219,14 +1218,14 @@ public class TuelibMixin extends SolrIndexerMixin {
      * specify several different separators to concatenate the single subfields
      * Moreover numeric subfields are filtered out since they do not contain data
      * to be displayed. Separators can be defined on a subfield basis as a list in
-     * the format 
+     * the format
      *   separator_spec          :== separator | subfield_separator_list
-     *   subfield_separator_list :== subfield_separator_spec |  subfield_separator_spec ":" subfield_separator_list | 
-     *                               subfield_separator_spec ":" separator 
+     *   subfield_separator_list :== subfield_separator_spec |  subfield_separator_spec ":" subfield_separator_list |
+     *                               subfield_separator_spec ":" separator
      *   subfield_separator_spec :== subfield_spec separator subfield_spec :== "$" character_subfield
-     *   character_subfield      :== A character subfield (e.g. p,n,t,x...) 
+     *   character_subfield      :== A character subfield (e.g. p,n,t,x...)
      *   separator               :== separator_without_control_characters+ | separator "\:" separator |
-     *                               separator "\$" separator 
+     *                               separator "\$" separator
      *   separator_without_control_characters :== All characters without ":" and "$" | empty_string
      */
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
@@ -1276,7 +1275,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                             continue;
                         }
                         // Iterate over all given subfield codes
-                        Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
+                        Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
+                                                  : String.join("|", subfldTags.split("(?!^)")));
                         List<Subfield> subfields = marcField.getSubfields();
                         // Case 1: The separator specification is empty thus we
                         // add the subfields individually
@@ -1311,9 +1311,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                                     buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
                                 }
                             }
-                            if (buffer.length() > 0)
-                                collector.add(DataUtil.cleanData(buffer.toString()));
-                        }
+                       }
+                       if (buffer.length() > 0)
+                           collector.add(DataUtil.cleanData(buffer.toString()));
                     }
                 }
             }
@@ -1322,11 +1322,12 @@ public class TuelibMixin extends SolrIndexerMixin {
             else {
                 marcFieldList = record.getVariableFields(fldTag);
                 if (!marcFieldList.isEmpty()) {
-                    Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "." : subfldTags);
+                    Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
+                                              : String.join("|", subfldTags.split("(?!^)")));
                     for (VariableField vf : marcFieldList) {
                         DataField marcField = (DataField) vf;
                         // Skip fields that do not match our criteria
-                        if (includeFieldPredicate != null && !includeFieldPredicate.apply(marcField))
+                        if (includeFieldPredicate != null && (!includeFieldPredicate.apply(marcField)))
                             continue;
                         StringBuffer buffer = new StringBuffer("");
                         List<Subfield> subfields = marcField.getSubfields();
@@ -1349,7 +1350,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                                 if (Character.isDigit(subfield.getCode()))
                                     continue;
                                 Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                                if (matcher.matches()) {
+                                if (matcher.find()) {
                                     if (buffer.length() > 0) {
                                         String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
                                         if (separator != null) {
@@ -1360,9 +1361,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                                     buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
                                 }
                             }
-                            if (buffer.length() > 0)
-                                collector.add(DataUtil.cleanData(buffer.toString()));
                         }
+                        if (buffer.length() > 0)
+                           collector.add(DataUtil.cleanData(buffer.toString()));
                     }
                 }
             }
@@ -1407,16 +1408,16 @@ public class TuelibMixin extends SolrIndexerMixin {
         getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
         // The topic collector generates a chain of all specified subfields for a field
         // In some cases this is unintended behaviour since different topics are are independent
-        // To ensure that those chains are broken up again, make sure to specify a triple pipe (="|||") seperator for these
+        // To ensure that those chains are broken up again, make sure to specify a triple pipe (="|||") separator for these
         // subfields
         // Rewrite slashes
         final Set<String> toRemove = new HashSet<String>();
         final Set<String> toAdd = new HashSet<String>();
-        valuesTranslated.forEach((entry) -> { final String[] triplePipeSeparatedStrinChain = entry.split(Pattern.quote("|||"));
-                                              if (triplePipeSeparatedStrinChain.length > 1 || entry.contains("\\/")) {
+        valuesTranslated.forEach((entry) -> { final String[] triplePipeSeparatedStringChain = entry.split(Pattern.quote("|||"));
+                                              if (triplePipeSeparatedStringChain.length > 1 || entry.contains("\\/")) {
                                                   toRemove.add(entry);
-                                                  for (final String xKeyword : triplePipeSeparatedStrinChain)
-                                                      toAdd.add(xKeyword.replace("\\/", "/"));
+                                                  for (final String topic : triplePipeSeparatedStringChain)
+                                                      toAdd.add(topic.replace("\\/", "/"));
                                               }
                                             });
         valuesTranslated.removeAll(toRemove);
@@ -2037,7 +2038,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
         }
-        
+
         // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
         if (!result.contains("Article")) {
             for (final VariableField variableField : _935Fields) {
