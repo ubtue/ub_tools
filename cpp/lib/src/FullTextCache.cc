@@ -278,10 +278,12 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
     for (const auto &entry_url : entry_urls) {
         if (not full_text.empty()) {
             if (unlikely(not entry_url.error_message_.empty()))
-                logger->error("in FullTextCache::InsertIntoCache: when you provide the data for the full-text cache "
+                logger->error("in FullTextCache::InsertIntoCache (id " + id + "): "
+                              "when you provide the data for the full-text cache "
                               "you must not also provide an error message!");
         } else if (unlikely(entry_url.error_message_.empty()))
-            logger->error("in FullTextCache::InsertIntoCache: you must provide either data to be cached or a non-empty "
+            logger->error("in FullTextCache::InsertIntoCache (id " + id + "): "
+                          "you must provide either data to be cached or a non-empty "
                           "error message!");
 
         db_connection_->queryOrDie("INSERT INTO full_text_cache_urls "
