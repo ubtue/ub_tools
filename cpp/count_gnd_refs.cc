@@ -28,11 +28,16 @@
 #include "util.h"
 
 
-static void Usage() __attribute__((noreturn));
+namespace {
 
 
-static void Usage() {
-    std::cerr << "Usage: " << ::progname << " gnd_number_list marc_data counts\n";
+void Usage() __attribute__((noreturn));
+
+
+void Usage() {
+    std::cerr << "Usage: " << ::progname << " [--control-number-list=list_filename] gnd_number_list marc_data counts\n"
+              << "       If a control-number-list filename has been specifiec only references of records\n"
+              << "       matching in entries in that file will be counted.\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -51,10 +56,15 @@ void LoadGNDNumbers(File * const input, std::unordered_map<std::string, unsigned
 const std::vector<std::string> GND_REFERENCE_FIELDS{ "100", "600", "689", "700" };
 
 
-void ProcessRecords(MarcReader * const marc_reader,
+void ProcessRecords(MarcReader * const marc_reader, const std::unordered_set<std::string> &filter_set,
                     std::unordered_map<std::string, unsigned> * const gnd_numbers_and_counts)
 {
     while (const MarcRecord record = marc_reader->read()) {
+        if (not filter_set.empty()) {
+            if (filter_set.find(record.getControlNumber()) == filter_set.cend())
+                continue;
+        }
+
         for (const auto &gnd_reference_field : GND_REFERENCE_FIELDS) {
             const std::string field_contents(record.getFieldData(gnd_reference_field));
             if (field_contents.empty())
@@ -83,19 +93,45 @@ void WriteCounts(const std::unordered_map<std::string, unsigned> &gnd_numbers_an
 }
 
 
+void LoadFilterSet(const std::string &input_filename, std::unordered_set<std::string> * const filter_set) {
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
+    while (not input->eof()) {
+        std::string line;
+        input->getline(&line);
+        StringUtil::TrimWhite(&line);
+        if (likely(not line.empty()))
+            filter_set->emplace(line);
+    }
+
+    logger->info("loaded " + std::to_string(filter_set->size()) + " control numbers from \"" + input_filename
+                 + "\".");
+}
+
+
+} // unnamed namespace
+
+
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 4)
+    if (argc != 4 and argc != 5)
         Usage();
+
+    std::unordered_set<std::string> filter_set;
+    if (argc == 5) {
+        if (not StringUtil::StartsWith(argv[1], "--control-number-list="))
+            Usage();
+        LoadFilterSet(argv[1] + __builtin_strlen("--control-number-list="), &filter_set);
+        --argc, ++argv;
+    }
 
     try {
         std::unique_ptr<File> gnd_numbers_and_counts_file(FileUtil::OpenInputFileOrDie(argv[1]));
         std::unordered_map<std::string, unsigned> gnd_numbers_and_counts;
         LoadGNDNumbers(gnd_numbers_and_counts_file.get(), &gnd_numbers_and_counts);
-        
+
         std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2]));
-        ProcessRecords(marc_reader.get(), &gnd_numbers_and_counts);
+        ProcessRecords(marc_reader.get(), filter_set, &gnd_numbers_and_counts);
 
         std::unique_ptr<File> counts_file(FileUtil::OpenOutputFileOrDie(argv[3]));
         WriteCounts(gnd_numbers_and_counts, counts_file.get());
