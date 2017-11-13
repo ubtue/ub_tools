@@ -40,7 +40,7 @@ public class MultiLanguageQueryParser extends QParser {
     protected ModifiableSolrParams newParams;
     protected IndexSchema schema;
     protected String lang;
-    protected Query myQuery;
+    protected Query newQuery;
 
 
     public MultiLanguageQueryParser(final String searchString, final SolrParams localParams, final SolrParams params,
@@ -121,16 +121,14 @@ public class MultiLanguageQueryParser extends QParser {
          try {
              this.newRequest.setParams(newParams);
              QParser parser = getParser(this.searchString, "edismax", this.newRequest);
-             myQuery = parser.parse();
+             newQuery = parser.parse();
          } catch (SyntaxError e) {
-               throw new SolrException(ErrorCode.SERVER_ERROR, "Rewriting Lucene support for new languages failed", e);
+               throw new SolrException(ErrorCode.SERVER_ERROR, "Could not succesfully rewrite query", e);
          }
     }
 
 
-    protected Query processTermQuery(Query queryCandidate) {
-        if (!(queryCandidate instanceof TermQuery))
-            throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a TermQuery");
+    protected Query processTermQuery(TermQuery queryCandidate) {
         final TermQuery termQuery = (TermQuery) queryCandidate;
         final String field = termQuery.getTerm().field();
         final String newFieldName = field + "_" + lang;
@@ -144,9 +142,6 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     protected Query processPhraseQuery(PhraseQuery queryCandidate) {
-      if (!(queryCandidate instanceof PhraseQuery))
-         throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a PhraseQuery");
-
       PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
       for (Term term : queryCandidate.getTerms()) {
           String field = term.field();
@@ -163,9 +158,7 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     protected Query processDisjunctionMaxQuery(DisjunctionMaxQuery queryCandidate) {
-        if (!(queryCandidate instanceof DisjunctionMaxQuery))
-            throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a DisjunctionMaxQuery");
-        List<Query> queryList = new ArrayList<Query>();
+        final List<Query> queryList = new ArrayList<Query>();
         DisjunctionMaxQuery disjunctionMaxQuery = (DisjunctionMaxQuery) queryCandidate;
         for (Query currentClause : disjunctionMaxQuery.getDisjuncts()) {
              if (currentClause instanceof BoostQuery)
@@ -175,7 +168,7 @@ public class MultiLanguageQueryParser extends QParser {
              else if (currentClause instanceof BooleanQuery)
                  currentClause = processBooleanQuery((BooleanQuery)currentClause);
              else
-               throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause in DisjunctionMaxQuery");
+                 throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause in DisjunctionMaxQuery");
 
              queryList.add(currentClause);
         }
@@ -184,9 +177,7 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     protected Query processBoostQuery(BoostQuery queryCandidate) {
-        if (!(queryCandidate instanceof BoostQuery))
-	    throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a BoostQuery");
-        Query subquery = queryCandidate.getQuery();
+        final Query subquery = queryCandidate.getQuery();
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
@@ -240,21 +231,21 @@ public class MultiLanguageQueryParser extends QParser {
        if (query.length == 1) {
            try {
                QParser tmpParser = new ExtendedDismaxQParser(searchString, localParams, params, request);
-               myQuery = tmpParser.getQuery();
-               myQuery = myQuery.rewrite(request.getSearcher().getIndexReader());
-               if (myQuery instanceof BooleanQuery)
-                   myQuery = processBooleanQuery((BooleanQuery)myQuery);
-               else if (myQuery instanceof TermRangeQuery)
-                   myQuery = processTermRangeQuery((TermRangeQuery)myQuery);
-               else if (myQuery instanceof TermQuery)
-                   myQuery = processTermQuery((TermQuery)myQuery);
-               else if (myQuery instanceof DisjunctionMaxQuery)
-                   myQuery = processDisjunctionMaxQuery((DisjunctionMaxQuery)myQuery);
-               else if (myQuery instanceof BoostQuery)
-                   myQuery = processBoostQuery((BoostQuery)myQuery);
+               newQuery = tmpParser.getQuery();
+               newQuery = newQuery.rewrite(request.getSearcher().getIndexReader());
+               if (newQuery instanceof BooleanQuery)
+                   newQuery = processBooleanQuery((BooleanQuery)newQuery);
+               else if (newQuery instanceof TermRangeQuery)
+                   newQuery = processTermRangeQuery((TermRangeQuery)newQuery);
+               else if (newQuery instanceof TermQuery)
+                   newQuery = processTermQuery((TermQuery)newQuery);
+               else if (newQuery instanceof DisjunctionMaxQuery)
+                   newQuery = processDisjunctionMaxQuery((DisjunctionMaxQuery)newQuery);
+               else if (newQuery instanceof BoostQuery)
+                   newQuery = processBoostQuery((BoostQuery)newQuery);
                else
-                   logger.warn("No rewrite rule did match for " + myQuery.getClass());
-               this.searchString = myQuery.toString();
+                   logger.warn("No rewrite rule did match for " + newQuery.getClass());
+               this.searchString = newQuery.toString();
            } catch(SyntaxError|IOException e) {
                throw new SolrException(ErrorCode.SERVER_ERROR, "Rewriting Lucene support for new languages failed", e);
            }
@@ -264,12 +255,12 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     public Query parse() throws SyntaxError {
-        if (myQuery == null) {
+        if (newQuery == null) {
            this.newRequest.setParams(newParams);
            QParser parser = getParser(this.searchString, "edismax", this.newRequest);
            return parser.parse();
         }
-        return myQuery;
+        return newQuery;
     }
 }
 
