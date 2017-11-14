@@ -1292,9 +1292,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                     }
                 }
             }
+            if (buffer.length() > 0)
+                collector.add(DataUtil.cleanData(buffer.toString()));
         }
-        if (buffer.length() > 0)
-            collector.add(DataUtil.cleanData(buffer.toString()));
     } // end extractTopicsHelper
 
     /**
