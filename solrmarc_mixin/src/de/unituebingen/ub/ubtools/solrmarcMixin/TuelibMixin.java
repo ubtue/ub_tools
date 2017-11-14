@@ -1244,11 +1244,11 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     private void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
                             final  String langShortcut, final String fldTag, final String subfldTags, final Function<DataField, Boolean> includeFieldPredicate) {
-        Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
+        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
                                               : String.join("|", subfldTags.split("(?!^)")));
         final StringBuffer buffer = new StringBuffer("");
 
-        for (VariableField vf : marcFieldList) {
+        for (final VariableField vf : marcFieldList) {
             final DataField marcField = (DataField) vf;
             // Skip fields that do not match our criteria
             if (includeFieldPredicate != null && (!includeFieldPredicate.apply(marcField)))
@@ -1257,10 +1257,10 @@ public class TuelibMixin extends SolrIndexerMixin {
             // Case 1: The separator specification is empty thus we
             // add the subfields individually
             if (separators.get("default").equals("")) {
-                for (Subfield subfield : subfields) {
+                for (final Subfield subfield : subfields) {
                     if (Character.isDigit(subfield.getCode()))
                         continue;
-                    String term = subfield.getData().trim();
+                    final String term = subfield.getData().trim();
                     if (term.length() > 0)
                         collector.add(translateTopic(DataUtil.cleanData(term.replace("/", "\\/")), langShortcut));
                 }
@@ -1272,21 +1272,20 @@ public class TuelibMixin extends SolrIndexerMixin {
                     // Skip numeric fields
                     if (Character.isDigit(subfield.getCode()))
                         continue;
-                    Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                    final Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
                     if (matcher.find()) {
-                        String term = subfield.getData().trim();
+                        final String term = subfield.getData().trim();
                         if (buffer.length() > 0) {
                             String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
                             if (separator != null) {
                                 if (isBracketDirective(separator)) {
                                     
-                                    SymbolPair symbolPair = parseBracketDirective(separator);
-                                    String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
+                                    final SymbolPair symbolPair = parseBracketDirective(separator);
+                                    final String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
                                     buffer.append(" " + symbolPair.opening + translatedTerm + symbolPair.closing);
                                     continue;
-                                 }
-                                 else if (buffer.length() > 0)
-                                     buffer.append(separator);
+                                 } else if (buffer.length() > 0)
+                                    buffer.append(separator);
                             }
                          }
                          buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
