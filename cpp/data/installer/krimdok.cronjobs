@@ -4,8 +4,8 @@ BSZ_DATEN=/usr/local/ub_tools/bsz_daten
 BIN=/usr/local/bin
 EMAIL=krimdok-team@ub.uni-tuebingen.de
 VUFIND_HOME=/usr/local/vufind
-VUFIND_LOCAL_DIR=/usr/local/vufind/local/tufind/instances/krimdok
-LOG_DIR=/usr/local/var/log/tufind
+VUFIND_LOCAL_DIR=/usr/local/vufind/local/tuefind/instances/krimdok
+LOG_DIR=/usr/local/var/log/tuefind
 0 */4 * * * cd "$BSZ_DATEN" && "$BIN/black_box_monitor.py" "$EMAIL" > "$LOG_DIR/black_box_monitor.log" 2>&1
 0 0 * * * "$BIN/log_rotate" --max-rotations=4 "$LOG_DIR" "(?<!(java_mem_stats))\\.log$"
 0 0 * * * "$BIN/log_rotate" --no-of-lines-to-keep=200 "$LOG_DIR" "^java_mem_stats\\.log$"

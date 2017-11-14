@@ -4,8 +4,8 @@ BSZ_DATEN=/usr/local/ub_tools/bsz_daten
 BIN=/usr/local/bin
 EMAIL=ixtheo-team@ub.uni-tuebingen.de
 VUFIND_HOME=/usr/local/vufind
-VUFIND_LOCAL_DIR=/usr/local/vufind/local/tufind/instances/ixtheo
-LOG_DIR=/usr/local/var/log/tufind
+VUFIND_LOCAL_DIR=/usr/local/vufind/local/tuefind/instances/ixtheo
+LOG_DIR=/usr/local/var/log/tuefind
 0 */1 * * * "$BIN/java_mem_monitor.sh" > "$LOG_DIR/java_mem_monitor.log" 2>&1
 0 */4 * * * cd "$BSZ_DATEN" && "$BIN/black_box_monitor.py" "$EMAIL" > "$LOG_DIR/black_box_monitor.log" 2>&1
 0 0 * * * "$BIN/log_rotate" --max-rotations=4 "$LOG_DIR" "(?<!(java_mem_stats))\\.log$"

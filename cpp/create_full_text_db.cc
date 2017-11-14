@@ -221,7 +221,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
 
     const std::string UPDATE_DB_LOG_DIR_PATH(
-        "/usr/local/var/log/tufind/update_full_text_db");
+        "/usr/local/var/log/tuefind/update_full_text_db");
     if (not FileUtil::MakeDirectory(UPDATE_DB_LOG_DIR_PATH, /* recursive = */ true))
         logger->error("failed to create directory: " + UPDATE_DB_LOG_DIR_PATH);
 
