@@ -1061,6 +1061,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return values;
     }
 
+
     /**
      * Parse the field specifications
      */
@@ -1102,20 +1103,29 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /*
+     * Helper Class for passing symbol pairs in bracket directives
+     */
+     private class SymbolPair {
+        public char opening;
+        public char closing;
+     }
+
+
+    /*
      * Function to parse out special forms of separator specs needed to include a term bracketed in symbol pairs
      * e.g. opening and closing parentheses
      * Changes the character arguments
      */
-
-    private void parseBracketDirective(final String separator, Character opening, Character closing) {
+    private SymbolPair parseBracketDirective(final String separator) {
         final Matcher matcher = BRACKET_DIRECTIVE_PATTERN.matcher(separator);
-        if (matcher.matches()) {
-            if (matcher.group(1).length() == 1 && matcher.group(1).length() == 1) {
-                opening = matcher.group(1).charAt(0);
-                closing = matcher.group(2).charAt(0);
-            }
-        } else
+        final SymbolPair symbolPair = new SymbolPair();
+
+        if (!matcher.matches())
             throw new IllegalArgumentException("Invalid Bracket Specification");
+
+        symbolPair.opening = matcher.group(1).charAt(0);
+        symbolPair.closing = matcher.group(2).charAt(0);
+        return symbolPair;
     }
 
 
@@ -1233,9 +1243,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Abstract out topic extract from LOK and ordinary field handling
      */
-
-    private void extractTopicsHelper(List<VariableField> marcFieldList, Map<String, String> separators, Collection<String> collector,
-                               String langShortcut, String fldTag, String subfldTags, Function<DataField, Boolean> includeFieldPredicate) {
+    private void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
+                            final  String langShortcut, final String fldTag, final String subfldTags, final Function<DataField, Boolean> includeFieldPredicate) {
         Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
                                               : String.join("|", subfldTags.split("(?!^)")));
         StringBuffer buffer = new StringBuffer("");
@@ -1271,11 +1280,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                             String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
                             if (separator != null) {
                                 if (isBracketDirective(separator)) {
-                                    Character opening = '(';
-                                    Character closing = ')';
-                                    parseBracketDirective(separator, opening, closing);
+                                    
+                                    SymbolPair symbolPair = parseBracketDirective(separator);
                                     String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
-                                    buffer.append(" " + opening + translatedTerm + closing);
+                                    buffer.append(" " + symbolPair.opening + translatedTerm + symbolPair.closing);
                                     continue;
                                  }
                                  else if (buffer.length() > 0)
@@ -2294,7 +2302,6 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            MARC record
      * @return the publication date to be used for
      */
-
     public String getPublicationSortDate(final Record record) {
         final Set<String> dates = getDates(record);
         if (dates.isEmpty())
