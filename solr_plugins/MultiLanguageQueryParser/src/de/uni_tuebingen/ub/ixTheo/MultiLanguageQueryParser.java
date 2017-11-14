@@ -1,11 +1,18 @@
 package de.uni_tuebingen.ub.ixTheo.multiLanguageQuery;
 
+import java.util.ArrayList;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.List;
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BoostQuery;
+import org.apache.lucene.search.DisjunctionMaxQuery;
+import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
@@ -15,22 +22,25 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.schema.IndexSchema;
+import org.apache.solr.search.DisMaxQParser;
+import org.apache.solr.search.ExtendedDismaxQParser;
 import org.apache.solr.search.LuceneQParser;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
 import org.apache.solr.servlet.SolrRequestParsers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringUtils;
 
 
 public class MultiLanguageQueryParser extends QParser {
-    protected String searchString;
-    protected static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
-    protected String[] SUPPORTED_LANGUAGES = { "de", "en", "fr", "it", "es", "hant", "hans" };
-    protected SolrQueryRequest newRequest;
-    protected ModifiableSolrParams newParams;
+    private String searchString;
+    private static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
+    private String[] SUPPORTED_LANGUAGES = { "de", "en", "fr", "it", "es", "hant", "hans" };
+    private SolrQueryRequest newRequest;
+    private ModifiableSolrParams newParams;
+    private IndexSchema schema;
+    private String lang;
+    private Query newQuery;
 
 
     public MultiLanguageQueryParser(final String searchString, final SolrParams localParams, final SolrParams params,
@@ -41,25 +51,21 @@ public class MultiLanguageQueryParser extends QParser {
         newRequest = request;
         this.newParams = new ModifiableSolrParams();
         this.newParams.add(params);
-        IndexSchema schema = request.getSchema();
+        schema = request.getSchema();
         Boolean useDismax = false;
         String[] query = newParams.getParams("q");
-        String[] queryFields;
+        String[] queryFields = null;
 
         // Check whether we have dismax or edismax
         String[] queryType = newParams.getParams("qt");
         if (queryType != null) {
             queryFields = newParams.getParams("qf");
             useDismax = true;
-        } else {
-            if (query.length != 1)
-               throw new MultiLanguageQueryParserException("Only one q-parameter is supported");
-            final String[] separatedFields = query[0].split(":");
-            queryFields = separatedFields;
-        }
+        } else if (query.length != 1)
+            throw new MultiLanguageQueryParserException("Only one q-parameter is supported");
 
         String[] facetFields = newParams.getParams("facet.field");
-        String lang = newParams.get("lang", "de");
+        lang = newParams.get("lang", "de");
 
         // Strip language subcode
         lang = lang.split("-")[0];
@@ -94,7 +100,7 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    protected void handleDismaxParser(String[] queryFields, String lang, IndexSchema schema) {
+    private void handleDismaxParser(String[] queryFields, String lang, IndexSchema schema) {
         StringBuilder stringBuilder = new StringBuilder();
         // Only replace parameters if qf is indeed set
         if (newParams.get("qf") == null)
@@ -112,74 +118,140 @@ public class MultiLanguageQueryParser extends QParser {
             }
          }
          newParams.add("qf", stringBuilder.toString());
+         try {
+             this.newRequest.setParams(newParams);
+             QParser parser = getParser(this.searchString, "edismax", this.newRequest);
+             newQuery = parser.parse();
+         } catch (SyntaxError e) {
+               throw new SolrException(ErrorCode.SERVER_ERROR, "Could not succesfully rewrite query", e);
+         }
     }
 
 
-    protected void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
-       if (query.length == 1) {
-           try {
-              QParser tmpParser = new LuceneQParser(searchString, localParams, params, request);
-              Query myQuery = tmpParser.getQuery();
-              myQuery = myQuery.rewrite(request.getSearcher().getIndexReader());
-              if (myQuery instanceof BooleanQuery) {
-                    Iterator<BooleanClause> boolIterator = ((BooleanQuery) myQuery).iterator();
-                    BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
-                    while (boolIterator.hasNext()) {
-                        BooleanClause currentClause = boolIterator.next();
-                        Query termQueryCandidate = currentClause.getQuery();
-                        if (termQueryCandidate instanceof TermQuery){
-                            TermQuery termQuery = (TermQuery) termQueryCandidate;
-                            String field = termQuery.getTerm().field();
-                            String newFieldName = field + "_" + lang;
-                            if (schema.getFieldOrNull(newFieldName) != null) {
-                                termQueryCandidate = new TermQuery(new Term(newFieldName, "\"" +
-                                                         termQuery.getTerm().text() + "\""));
-                            } else
-                               termQueryCandidate = new TermQuery(new Term(field, "\""  +
-                                                         termQuery.getTerm().text() + "\""));
-                        } else
-                            logger.warn("No appropriate Query in BooleanClause");
-                        queryBuilder.add(termQueryCandidate, currentClause.getOccur());
-                   }
-                   myQuery = queryBuilder.build();
-              } else if (myQuery instanceof TermRangeQuery) {
-                  TermRangeQuery termRangeQuery = (TermRangeQuery) myQuery;
-                  String field = termRangeQuery.getField();
-                  String newFieldName = field + "_" + lang;
-                  if (schema.getFieldOrNull(newFieldName) != null) {
-                       termRangeQuery = new TermRangeQuery(newFieldName,
-                                                           termRangeQuery.getLowerTerm(),
-                                                           termRangeQuery.getUpperTerm(),
-                                                           termRangeQuery.includesLower(),
-                                                           termRangeQuery.includesUpper());
-                       myQuery = termRangeQuery;
-                  }
-              } else if (myQuery instanceof TermQuery) {
-                  TermQuery termQuery = (TermQuery) myQuery;
-                  String field = termQuery.getTerm().field();
-                  String newFieldName = field + "_" + lang;
-                  if (schema.getFieldOrNull(newFieldName) != null) {
-                       field = newFieldName;
-                       myQuery = new TermQuery(new Term(newFieldName, "\"" +  termQuery.getTerm().text() + "\""));
-                  } else
-                      myQuery = new TermQuery(new Term(field, "\"" +  termQuery.getTerm().text() + "\""));
-              } else
-                  logger.warn("No rewrite rule did match for " + myQuery.getClass());
-              this.searchString = myQuery.toString();
-              newParams.set("q", this.searchString);
-              newParams.set("q.op", "OR");
-           } catch(SyntaxError|IOException e) {
-               throw new SolrException(ErrorCode.SERVER_ERROR, "Rewriting Lucene support for new languages failed", e);
-           }
-       } else
+    private Query processTermQuery(TermQuery termQuery) {
+        final String field = termQuery.getTerm().field();
+        final String newFieldName = field + "_" + lang;
+        if (schema.getFieldOrNull(newFieldName) != null)
+            return new TermQuery(new Term(newFieldName, termQuery.getTerm().text()));
+        else
+            return new TermQuery(new Term(field, termQuery.getTerm().text()));
+    }
+
+
+    private Query processPhraseQuery(final PhraseQuery queryCandidate) {
+      PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
+      for (final Term term : queryCandidate.getTerms()) {
+          String newFieldName = term.field() + "_" + lang;
+          if (schema.getFieldOrNull(newFieldName) != null)
+              phraseQueryBuilder.add(new Term(newFieldName, term.text()));
+          else
+              phraseQueryBuilder.add(term);
+      }
+
+      phraseQueryBuilder.setSlop(queryCandidate.getSlop());
+      return phraseQueryBuilder.build();
+    }
+
+
+    private Query processDisjunctionMaxQuery(DisjunctionMaxQuery queryCandidate) {
+        final List<Query> queryList = new ArrayList<Query>();
+        DisjunctionMaxQuery disjunctionMaxQuery = (DisjunctionMaxQuery) queryCandidate;
+        for (Query currentClause : disjunctionMaxQuery.getDisjuncts()) {
+             if (currentClause instanceof BoostQuery)
+                 currentClause = processBoostQuery((BoostQuery)currentClause);
+             else if (currentClause instanceof TermQuery)
+                 currentClause = processTermQuery((TermQuery)currentClause);
+             else if (currentClause instanceof BooleanQuery)
+                 currentClause = processBooleanQuery((BooleanQuery)currentClause);
+             else
+                 throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause type in DisjunctionMaxQuery");
+
+             queryList.add(currentClause);
+        }
+        return new DisjunctionMaxQuery(queryList, queryCandidate.getTieBreakerMultiplier());
+    }
+
+
+    private Query processBoostQuery(final BoostQuery queryCandidate) {
+        Query subquery = queryCandidate.getQuery();
+        if (subquery instanceof TermQuery) {
+            subquery = processTermQuery((TermQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
+        }
+	throw new SolrException(ErrorCode.SERVER_ERROR, "Unable to handle " +  subquery.getClass().getName());
+    }
+
+
+    private Query processBooleanQuery(final BooleanQuery queryCandidate) {
+        if (!(queryCandidate instanceof BooleanQuery))
+             throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a BooleanQuery");
+        final BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
+        for (final BooleanClause currentClause : queryCandidate.clauses()) {
+            Query subquery = currentClause.getQuery();
+            if (subquery instanceof TermQuery) {
+                subquery = processTermQuery((TermQuery)subquery);
+            } else if (subquery instanceof DisjunctionMaxQuery) {
+                subquery = processDisjunctionMaxQuery((DisjunctionMaxQuery)subquery);
+            } else if (subquery instanceof BoostQuery) {
+                subquery = processBoostQuery((BoostQuery)subquery);
+            } else if (subquery instanceof BooleanQuery) {
+                subquery = processBooleanQuery((BooleanQuery)subquery);
+            } else
+                logger.warn("No appropriate Query in BooleanClause for " + subquery.getClass().getName());
+            queryBuilder.add(subquery, currentClause.getOccur());
+       }
+       return queryBuilder.build();
+    }
+
+
+    private Query processTermRangeQuery(final TermRangeQuery queryCandidate) {
+       String field = queryCandidate.getField();
+       String newFieldName = field + "_" + lang;
+       if (schema.getFieldOrNull(newFieldName) != null) {
+           return new TermRangeQuery(newFieldName,
+                                     queryCandidate.getLowerTerm(),
+                                     queryCandidate.getUpperTerm(),
+                                     queryCandidate.includesLower(),
+                                     queryCandidate.includesUpper());
+       }
+       return queryCandidate;
+    }
+
+
+    private void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
+        if (query.length != 1)
            throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
+
+        try {
+            QParser tmpParser = new ExtendedDismaxQParser(searchString, localParams, params, request);
+            newQuery = tmpParser.getQuery();
+            newQuery = newQuery.rewrite(request.getSearcher().getIndexReader());
+            if (newQuery instanceof BooleanQuery)
+                newQuery = processBooleanQuery((BooleanQuery)newQuery);
+            else if (newQuery instanceof TermRangeQuery)
+                newQuery = processTermRangeQuery((TermRangeQuery)newQuery);
+            else if (newQuery instanceof TermQuery)
+                newQuery = processTermQuery((TermQuery)newQuery);
+            else if (newQuery instanceof DisjunctionMaxQuery)
+                newQuery = processDisjunctionMaxQuery((DisjunctionMaxQuery)newQuery);
+            else if (newQuery instanceof BoostQuery)
+                newQuery = processBoostQuery((BoostQuery)newQuery);
+            else
+                logger.warn("No rewrite rule did match for " + newQuery.getClass());
+            this.searchString = newQuery.toString();
+        } catch (SyntaxError|IOException e) {
+            throw new SolrException(ErrorCode.SERVER_ERROR, "Rewriting Lucene support for new languages failed", e);
+        }
     }
 
 
     public Query parse() throws SyntaxError {
-        this.newRequest.setParams(newParams);
-        QParser parser = getParser(this.searchString, "edismax", this.newRequest);
-        return parser.parse();
+        if (newQuery == null) {
+           this.newRequest.setParams(newParams);
+           QParser parser = getParser(this.searchString, "edismax", this.newRequest);
+           return parser.parse();
+        }
+        return newQuery;
     }
 }
 
