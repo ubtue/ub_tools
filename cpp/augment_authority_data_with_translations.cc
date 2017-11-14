@@ -39,7 +39,10 @@
 #include "Subfields.h"
 #include "util.h"
 
+
 namespace {
+
+
 // Save language code, translation, origin, status
 typedef std::tuple<std::string, std::string, std::string, std::string> OneTranslation;
 
