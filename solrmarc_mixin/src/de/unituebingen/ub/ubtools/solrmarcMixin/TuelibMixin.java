@@ -1102,7 +1102,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /*
-     * Function to parse out special form of separator specs needed to include a term in characters
+     * Function to parse out special forms of separator specs needed to include a term bracketed in symbol pairs
+     * e.g. opening and closing parentheses
      * Changes the character arguments
      */
 
@@ -1113,9 +1114,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                 opening = matcher.group(1).charAt(0);
                 closing = matcher.group(2).charAt(0);
             }
-        }
-        else
-           throw new IllegalArgumentException("Invalid Bracket Specification");
+        } else
+            throw new IllegalArgumentException("Invalid Bracket Specification");
     }
 
 
