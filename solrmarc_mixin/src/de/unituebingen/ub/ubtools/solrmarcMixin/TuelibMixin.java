@@ -1118,11 +1118,10 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     private SymbolPair parseBracketDirective(final String separator) {
         final Matcher matcher = BRACKET_DIRECTIVE_PATTERN.matcher(separator);
-        final SymbolPair symbolPair = new SymbolPair();
-
         if (!matcher.matches())
             throw new IllegalArgumentException("Invalid Bracket Specification");
 
+        final SymbolPair symbolPair = new SymbolPair();
         symbolPair.opening = matcher.group(1).charAt(0);
         symbolPair.closing = matcher.group(2).charAt(0);
         return symbolPair;
