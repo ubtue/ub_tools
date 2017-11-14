@@ -38,7 +38,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VALID_FOUR_DIGIT_PATTERN = Pattern.compile(VALID_FOUR_DIGIT_YEAR);
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
-
+    private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[..\\]");
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
         {
@@ -1081,9 +1081,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         String[] subfieldSeparatorList = separatorSpec.split(regexColon);
         for (String s : subfieldSeparatorList) {
-            // System.out.println("separator Spec: " + s);
             // Create map of subfields and separators
-
             Matcher subfieldMatcher = SUBFIELD_PATTERN.matcher(s);
 
             // Extract the subfield
@@ -1102,6 +1100,19 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         return separators;
     }
+
+
+    private void parseBracketDirective(final String separator, char opening, char closing) {
+        opening = '(';
+        closing = ')';
+    }
+    
+    
+    private Boolean isBracketDirective(final String separator) {
+        final Matcher matcher = BRACKET_DIRECTIVE_PATTERN.matcher(separator);
+        return matcher.matches(); 
+    }
+
 
     private final static Pattern NUMBER_END_PATTERN = Pattern.compile("([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)");
 
@@ -1182,7 +1193,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
-        return subfieldQ != null &&  subfieldQ.getData().equals("z");
+        return subfieldQ != null && subfieldQ.getData().equals("z");
     };
 
 
@@ -1190,7 +1201,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
-        return subfieldQ != null &&  subfieldQ.getData().equals("f");
+        return subfieldQ != null && subfieldQ.getData().equals("f");
     };
 
 
@@ -1209,6 +1220,71 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
+     * Abstract out topic extract from LOK and ordinary field handling
+     */
+
+    private void extractTopicsHelper(List<VariableField> marcFieldList, Map<String, String> separators, Collection<String> collector, 
+                               String langShortcut, String fldTag, String subfldTags, Function<DataField, Boolean> includeFieldPredicate) {
+        Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
+                                              : String.join("|", subfldTags.split("(?!^)")));
+        StringBuffer buffer = new StringBuffer("");
+
+        for (VariableField vf : marcFieldList) {
+             DataField marcField = (DataField) vf;
+            // Skip fields that do not match our criteria
+            if (includeFieldPredicate != null && (!includeFieldPredicate.apply(marcField)))
+                continue;
+
+            List<Subfield> subfields = marcField.getSubfields();
+            // Case 1: The separator specification is empty thus we
+            // add the subfields individually
+            if (separators.get("default").equals("")) {
+                for (Subfield subfield : subfields) {
+                    if (Character.isDigit(subfield.getCode()))
+                        continue;
+                    String term = subfield.getData().trim();
+                    if (term.length() > 0)
+                        collector.add(translateTopic(DataUtil.cleanData(term.replace("/", "\\/")), langShortcut));
+                }
+            }
+            // Case 2: Generate a complex string using the
+            // separators
+            else {
+                for (Subfield subfield : subfields) {
+                    // Skip numeric fields
+                    if (Character.isDigit(subfield.getCode()))
+                        continue;
+                    Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                    if (matcher.find()) {
+                        String term = subfield.getData().trim();
+                        if (buffer.length() > 0) {
+                            String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
+                            if (separator != null) {
+                                if (isBracketDirective(separator)) {
+                                    char opening = '(';
+                                    char closing = ')';
+                                    parseBracketDirective(separator, opening, closing);
+                                    String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
+System.err.println("FOR BRACKETS WE HAVE: " + opening + translatedTerm + closing); 
+                                    buffer.append(" " + opening + translatedTerm + closing);
+                                    continue;
+                                 }
+                                 else if (buffer.length() > 0)
+                                     buffer.append(separator);
+                            }
+                         }
+                         buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
+                    }
+                }
+            }
+        }
+        if (buffer.length() > 0) {
+System.err.println("WE ARE ADDING: " + DataUtil.cleanData(buffer.toString()));
+            collector.add(DataUtil.cleanData(buffer.toString()));
+        }
+    } // end extractTopicsHelper
+
+    /**
      * Abstraction for iterating over the subfields
      */
 
@@ -1225,8 +1301,13 @@ public class TuelibMixin extends SolrIndexerMixin {
      *   subfield_separator_spec :== subfield_spec separator subfield_spec :== "$" character_subfield
      *   character_subfield      :== A character subfield (e.g. p,n,t,x...)
      *   separator               :== separator_without_control_characters+ | separator "\:" separator |
-     *                               separator "\$" separator
+     *                               separator "\$" separator | separator "\[" separator | separator "\]" separator |
+     *                               bracket_directive
      *   separator_without_control_characters :== All characters without ":" and "$" | empty_string
+     *   bracket_directive       :== [opening_character no_space closing_character]
+     *   no_space                :== ""
+     *   opening_character       :== A single character to be prepended on the left side
+     *   closing character       :== A single character to be appended on the right side
      */
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langShortcut, Function<DataField, Boolean> includeFieldPredicate)
@@ -1258,117 +1339,21 @@ public class TuelibMixin extends SolrIndexerMixin {
                 fldTag = fldTags[i].substring(0, 3);
                 subfldTags = fldTags[i].substring(3);
             }
-
             // Case 1: We have a LOK-Field
             if (fldTag.startsWith("LOK")) {
                 // Get subfield 0 since the "subtag" is saved here
                 marcFieldList = record.getVariableFields("LOK");
-                if (!marcFieldList.isEmpty()) {
-                    for (VariableField vf : marcFieldList) {
-                        DataField marcField = (DataField) vf;
-                        // Skip fields that do not match our criteria
-                        if (includeFieldPredicate != null && !includeFieldPredicate.apply(marcField))
-                            continue;
-                        StringBuffer buffer = new StringBuffer("");
-                        Subfield subfield0 = marcField.getSubfield('0');
-                        if (subfield0 == null || !subfield0.getData().startsWith(fldTag.substring(3, 6))) {
-                            continue;
-                        }
-                        // Iterate over all given subfield codes
-                        Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
-                                                  : String.join("|", subfldTags.split("(?!^)")));
-                        List<Subfield> subfields = marcField.getSubfields();
-                        // Case 1: The separator specification is empty thus we
-                        // add the subfields individually
-                        if (separators.get("default").equals("")) {
-                            for (Subfield subfield : subfields) {
-                                if (Character.isDigit(subfield.getCode()))
-                                    continue;
-                                String term = subfield.getData().trim();
-                                if (term.length() > 0)
-                                    // Escape slashes in single topics since
-                                    // they interfere with KWCs
-                                    collector.add(translateTopic(DataUtil.cleanData(term.replace("/", "\\/")),
-                                                                 langShortcut));
-                            }
-                        }
-                        // Case 2: Generate a complex string using the
-                        // separators
-                        else {
-                            for (Subfield subfield : subfields) {
-                                // Skip numeric fields
-                                if (Character.isDigit(subfield.getCode()))
-                                    continue;
-                                Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                                if (matcher.matches()) {
-                                    if (buffer.length() > 0) {
-                                        String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                                        if (separator != null) {
-                                            buffer.append(separator);
-                                        }
-                                    }
-                                    String term = subfield.getData().trim();
-                                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
-                                }
-                            }
-                       }
-                       if (buffer.length() > 0)
-                           collector.add(DataUtil.cleanData(buffer.toString()));
-                    }
-                }
+                if (!marcFieldList.isEmpty()) 
+                    extractTopicsHelper(marcFieldList, separators, collector, langShortcut, fldTag, subfldTags, includeFieldPredicate);
             }
-
             // Case 2: We have an ordinary MARC field
             else {
                 marcFieldList = record.getVariableFields(fldTag);
                 if (!marcFieldList.isEmpty()) {
-                    Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
-                                              : String.join("|", subfldTags.split("(?!^)")));
-                    for (VariableField vf : marcFieldList) {
-                        DataField marcField = (DataField) vf;
-                        // Skip fields that do not match our criteria
-                        if (includeFieldPredicate != null && (!includeFieldPredicate.apply(marcField)))
-                            continue;
-                        StringBuffer buffer = new StringBuffer("");
-                        List<Subfield> subfields = marcField.getSubfields();
-                        // Case 1: The separator specification is empty thus we
-                        // add the subfields individually
-                        if (separators.get("default").equals("")) {
-                            for (Subfield subfield : subfields) {
-                                if (Character.isDigit(subfield.getCode()))
-                                    continue;
-                                String term = subfield.getData().trim();
-                                if (term.length() > 0)
-                                    collector.add(translateTopic(DataUtil.cleanData(term.replace("/", "\\/")), langShortcut));
-                            }
-                        }
-                        // Case 2: Generate a complex string using the
-                        // separators
-                        else {
-                            for (Subfield subfield : subfields) {
-                                // Skip numeric fields
-                                if (Character.isDigit(subfield.getCode()))
-                                    continue;
-                                Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                                if (matcher.find()) {
-                                    if (buffer.length() > 0) {
-                                        String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                                        if (separator != null) {
-                                            buffer.append(separator);
-                                        }
-                                    }
-                                    String term = subfield.getData().trim();
-                                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
-                                }
-                            }
-                        }
-                        if (buffer.length() > 0)
-                           collector.add(DataUtil.cleanData(buffer.toString()));
-                    }
+                    extractTopicsHelper(marcFieldList, separators, collector, langShortcut, fldTag, subfldTags, includeFieldPredicate);
                 }
             }
         }
-
         return;
     }
 
