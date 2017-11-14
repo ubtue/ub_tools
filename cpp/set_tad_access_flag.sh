@@ -4,7 +4,7 @@ ENVIRONMENT_FILE=/etc/profile.d/vufind.sh
 source $ENVIRONMENT_FILE
 
 
-LOG_FILE=/usr/local/var/log/tufind/set_tad_access_flag.log
+LOG_FILE=/usr/local/var/log/tuefind/set_tad_access_flag.log
 
 if [[ $# != 1 ]]; then
     echo "$(date): script called with invalid argument count!" >> "$LOG_FILE"

@@ -340,8 +340,8 @@ def RemoveLinkTargetAndLink(link_name, fail_on_dangling=False):
 
 
 def GetLogDirectory():
-    if os.access("/usr/local/var/log/tufind", os.F_OK):
-        return "/usr/local/var/log/tufind"
+    if os.access("/usr/local/var/log/tuefind", os.F_OK):
+        return "/usr/local/var/log/tuefind"
     else:
         Warning("Can't find the log directory!  Logging to /tmp instead.")
         return "/tmp"

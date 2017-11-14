@@ -49,7 +49,7 @@ function EndPhase {
 
 
 # Set up the log file:
-logdir=/usr/local/var/log/tufind
+logdir=/usr/local/var/log/tuefind
 log="${logdir}/krimdok_marc_pipeline.log"
 rm -f "${log}"
 

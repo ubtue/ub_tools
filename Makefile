@@ -1,7 +1,7 @@
-TUFIND_FLAVOUR ?= "unknown"
+TUEFIND_FLAVOUR ?= "unknown"
 .PHONY: all install clean test install_configs
 
-all: 
+all:
 	$(MAKE) -C cpp/lib/mkdep;
 	$(MAKE) -C cpp;
 	$(MAKE) -C solr_plugins;
@@ -15,7 +15,7 @@ install: install_configs
 	$(MAKE) -C solrmarc_mixin install;
 	$(MAKE) -C cronjobs install
 
-clean: 
+clean:
 	$(MAKE) -C cpp/lib/mkdep clean;
 	$(MAKE) -C cpp clean;
 	$(MAKE) -C cronjobs clean;
@@ -26,13 +26,13 @@ test:
 	$(MAKE) -C cpp/tests test;
 
 install_configs:
-ifeq "$(TUFIND_FLAVOUR)" "ixtheo"
-	@echo "Installing $(TUFIND_FLAVOUR)..."
+ifeq "$(TUEFIND_FLAVOUR)" "ixtheo"
+	@echo "Installing $(TUEFIND_FLAVOUR)..."
 	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/IxTheo/ install
-else ifeq "$(TUFIND_FLAVOUR)" "krimdok"
-	@echo "Installing $(TUFIND_FLAVOUR)..."
+else ifeq "$(TUEFIND_FLAVOUR)" "krimdok"
+	@echo "Installing $(TUEFIND_FLAVOUR)..."
 	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/KrimDok/ install
 else
-	$(error TUFIND_FLAVOUR neither ixtheo nor krimdok!)
+	$(error TUEFIND_FLAVOUR neither ixtheo nor krimdok!)
 endif
 

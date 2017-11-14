@@ -15,7 +15,7 @@ RUN curl https://raw.githubusercontent.com/ubtue/ub_tools/mtrojan/cpp/data/insta
 RUN /tmp/install_ubtools.sh ixtheo --omit-cronjobs --omit-systemctl
 
 # add local config
-ADD local_overrides/* /usr/local/vufind/local/tufind/local_overrides/
+ADD local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 
 # expose solr & import example marc data
 EXPOSE 8080

@@ -64,7 +64,7 @@ function CleanUp {
 
 
 # Sets up the log file:
-logdir=/usr/local/var/log/tufind
+logdir=/usr/local/var/log/tuefind
 log="${logdir}/ixtheo_marc_pipeline_fifo.log"
 rm -f "${log}"
 
@@ -74,7 +74,7 @@ CleanUp
 OVERALL_START=$(date +%s.%N)
 
 
-StartPhase "Filter out Local Data of Other Institutions" 
+StartPhase "Filter out Local Data of Other Institutions"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (delete_unused_local_data GesamtTiteldaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -112,9 +112,9 @@ EndPhase || Abort) &
 StartPhase "Extract Translation Keywords and Generate Interface Translation Files"
 (extract_keywords_for_translation GefilterteNormdaten-"${date}".mrc >> "${log}" 2>&1 && \
 extract_vufind_translations_for_translation \
-    "$VUFIND_HOME"/local/tufind/languages/de.ini \ # German terms before all others.
-    $(ls -1 "$VUFIND_HOME"/local/tufind/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
-generate_vufind_translation_files "$VUFIND_HOME"/local/tufind/languages/ >> "${log}" 2>&1 && \
+    "$VUFIND_HOME"/local/tuefind/languages/de.ini \ # German terms before all others.
+    $(ls -1 "$VUFIND_HOME"/local/tuefind/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
+generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -141,7 +141,7 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Add Author Synonyms from Authority Data" 
+StartPhase "Add Author Synonyms from Authority Data"
 (add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GefilterteNormdaten-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &

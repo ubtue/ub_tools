@@ -2219,8 +2219,8 @@ void DownloadVuFind() {
     if (FileUtil_IsDirectory(VUFIND_DIRECTORY)) {
         Echo("VuFind directory already exists, skipping download");
     } else {
-        Echo("Downloading TuFind git repository");
-        const std::string git_url("https://github.com/ubtue/tufind.git");
+        Echo("Downloading TueFind git repository");
+        const std::string git_url("https://github.com/ubtue/tuefind.git");
         ExecOrDie(ExecUtil_Which("git"), { "clone", git_url, VUFIND_DIRECTORY });
 
         TemporaryChDir tmp(VUFIND_DIRECTORY);
@@ -2260,7 +2260,7 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
     }
 
     ExecOrDie(ExecUtil_Which("find"), {"/usr/local/vufind/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+"});
-    ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, "/usr/local/var/log/tufind" });
+    ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, "/usr/local/var/log/tuefind" });
 }
 
 
@@ -2298,8 +2298,8 @@ void ConfigureSolrUserAndService(const bool install_systemctl) {
 void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
     std::vector<std::pair<std::string, std::string>> keys_and_values {
         { "VUFIND_HOME", VUFIND_DIRECTORY },
-        { "VUFIND_LOCAL_DIR", VUFIND_DIRECTORY + "/local/tufind/instances/" + vufind_system_type_string },
-        { "TUFIND_FLAVOUR", vufind_system_type_string },
+        { "VUFIND_LOCAL_DIR", VUFIND_DIRECTORY + "/local/tuefind/instances/" + vufind_system_type_string },
+        { "TUEFIND_FLAVOUR", vufind_system_type_string },
     };
 
     std::string variables;
@@ -2320,7 +2320,7 @@ void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
  * - solrmarc settings (including VUFIND_LOCAL_DIR)
  * - alphabetical browse
  * - cronjobs
- * - create directories /usr/local/var/log/tufind and /usr/local/var/lib/tuelib
+ * - create directories /usr/local/var/log/tuefind and /usr/local/var/lib/tuelib
  *
  * Writes a file into vufind directory to save configured system type
  */
@@ -2344,7 +2344,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     const std::string filename_solrmarc_conf_local = dirname_solrmarc_conf + "/marc_local.properties";
     GitAssumeUnchanged(filename_solrmarc_conf_local);
     const std::vector<std::string> filenames_solrmarc_conf_custom{
-        dirname_solrmarc_conf + "/marc_tufind.properties",
+        dirname_solrmarc_conf + "/marc_tuefind.properties",
         dirname_solrmarc_conf + "/marc_" + vufind_system_type_string + ".properties"
     };
     FileUtil_ConcatFiles(filename_solrmarc_conf_local, filenames_solrmarc_conf_custom);
@@ -2362,7 +2362,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
 
     Echo("creating directories");
     ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/lib/tuelib" });
-    ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/log/tufind" });
+    ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/log/tuefind" });
 
     ConfigureSolrUserAndService(install_systemctl);
     ConfigureApacheUser(os_system_type);

@@ -59,9 +59,9 @@ DbConnection::~DbConnection() {
 
 bool DbConnection::query(const std::string &query_statement) {
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") == "true")
-        FileUtil::AppendString("/usr/local/var/log/tufind/sql_debug.log",
+        FileUtil::AppendString("/usr/local/var/log/tuefind/sql_debug.log",
                                std::string(::progname) + ": " +  query_statement);
-        
+
     return ::mysql_query(&mysql_, query_statement.c_str()) == 0;
 }
 
