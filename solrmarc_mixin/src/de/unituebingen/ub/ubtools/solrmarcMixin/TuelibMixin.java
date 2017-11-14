@@ -1246,14 +1246,14 @@ public class TuelibMixin extends SolrIndexerMixin {
                             final  String langShortcut, final String fldTag, final String subfldTags, final Function<DataField, Boolean> includeFieldPredicate) {
         Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
                                               : String.join("|", subfldTags.split("(?!^)")));
-        StringBuffer buffer = new StringBuffer("");
+        final StringBuffer buffer = new StringBuffer("");
 
         for (VariableField vf : marcFieldList) {
-             DataField marcField = (DataField) vf;
+            final DataField marcField = (DataField) vf;
             // Skip fields that do not match our criteria
             if (includeFieldPredicate != null && (!includeFieldPredicate.apply(marcField)))
                 continue;
-            List<Subfield> subfields = marcField.getSubfields();
+            final List<Subfield> subfields = marcField.getSubfields();
             // Case 1: The separator specification is empty thus we
             // add the subfields individually
             if (separators.get("default").equals("")) {
@@ -1268,7 +1268,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             // Case 2: Generate a complex string using the
             // separators
             else {
-                for (Subfield subfield : subfields) {
+                for (final Subfield subfield : subfields) {
                     // Skip numeric fields
                     if (Character.isDigit(subfield.getCode()))
                         continue;
