@@ -33,14 +33,14 @@ import org.apache.commons.lang.StringUtils;
 
 
 public class MultiLanguageQueryParser extends QParser {
-    protected String searchString;
-    protected static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
-    protected String[] SUPPORTED_LANGUAGES = { "de", "en", "fr", "it", "es", "hant", "hans" };
-    protected SolrQueryRequest newRequest;
-    protected ModifiableSolrParams newParams;
-    protected IndexSchema schema;
-    protected String lang;
-    protected Query newQuery;
+    private String searchString;
+    private static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
+    private String[] SUPPORTED_LANGUAGES = { "de", "en", "fr", "it", "es", "hant", "hans" };
+    private SolrQueryRequest newRequest;
+    private ModifiableSolrParams newParams;
+    private IndexSchema schema;
+    private String lang;
+    private Query newQuery;
 
 
     public MultiLanguageQueryParser(final String searchString, final SolrParams localParams, final SolrParams params,
@@ -100,7 +100,7 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    protected void handleDismaxParser(String[] queryFields, String lang, IndexSchema schema) {
+    private void handleDismaxParser(String[] queryFields, String lang, IndexSchema schema) {
         StringBuilder stringBuilder = new StringBuilder();
         // Only replace parameters if qf is indeed set
         if (newParams.get("qf") == null)
@@ -128,7 +128,7 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    protected Query processTermQuery(TermQuery queryCandidate) {
+    private Query processTermQuery(TermQuery queryCandidate) {
         final TermQuery termQuery = (TermQuery) queryCandidate;
         final String field = termQuery.getTerm().field();
         final String newFieldName = field + "_" + lang;
@@ -141,7 +141,7 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    protected Query processPhraseQuery(PhraseQuery queryCandidate) {
+    private Query processPhraseQuery(PhraseQuery queryCandidate) {
       PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
       for (Term term : queryCandidate.getTerms()) {
           String field = term.field();
@@ -157,7 +157,7 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    protected Query processDisjunctionMaxQuery(DisjunctionMaxQuery queryCandidate) {
+    private Query processDisjunctionMaxQuery(DisjunctionMaxQuery queryCandidate) {
         final List<Query> queryList = new ArrayList<Query>();
         DisjunctionMaxQuery disjunctionMaxQuery = (DisjunctionMaxQuery) queryCandidate;
         for (Query currentClause : disjunctionMaxQuery.getDisjuncts()) {
@@ -176,7 +176,7 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    protected Query processBoostQuery(BoostQuery queryCandidate) {
+    private Query processBoostQuery(BoostQuery queryCandidate) {
         Query subquery = queryCandidate.getQuery();
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
@@ -186,7 +186,7 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    protected Query processBooleanQuery(BooleanQuery queryCandidate) {
+    private Query processBooleanQuery(BooleanQuery queryCandidate) {
         if (!(queryCandidate instanceof BooleanQuery))
              throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a BooleanQuery");
         BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
@@ -208,7 +208,7 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    protected Query processTermRangeQuery(TermRangeQuery queryCandidate) {
+    private Query processTermRangeQuery(TermRangeQuery queryCandidate) {
        if (!(queryCandidate instanceof TermRangeQuery))
            throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a TermRangeQuery");
        queryCandidate = queryCandidate;
@@ -227,7 +227,7 @@ public class MultiLanguageQueryParser extends QParser {
 
 
 
-    protected void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
+    private void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
        if (query.length == 1) {
            try {
                QParser tmpParser = new ExtendedDismaxQParser(searchString, localParams, params, request);
