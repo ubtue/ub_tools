@@ -1101,8 +1101,12 @@ public class TuelibMixin extends SolrIndexerMixin {
         return separators;
     }
 
+    /*
+     * Function to parse out special form of separator specs needed to include a term in characters
+     * Changes the character arguments
+     */
 
-    private void parseBracketDirective(final String separator, char opening, char closing) {
+    private void parseBracketDirective(final String separator, Character opening, Character closing) {
         final Matcher matcher = BRACKET_DIRECTIVE_PATTERN.matcher(separator);
         if (matcher.matches()) {
             if (matcher.group(1).length() == 1 && matcher.group(1).length() == 1) {
@@ -1267,8 +1271,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                             String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
                             if (separator != null) {
                                 if (isBracketDirective(separator)) {
-                                    char opening = '(';
-                                    char closing = ')';
+                                    Character opening = '(';
+                                    Character closing = ')';
                                     parseBracketDirective(separator, opening, closing);
                                     String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
                                     buffer.append(" " + opening + translatedTerm + closing);
