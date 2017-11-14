@@ -126,12 +126,11 @@ size_t GetFieldIndexForExistingTranslation(const MarcRecord *record, const std::
     // We can have several either previously existing or already inserted synonyms, so don't replace synonyms
     if (IsReliableSynonym(status))
         return MarcRecord::FIELD_NOT_FOUND;
-
-    for (auto field_index : field_indices) {
-        const Subfields subfields(record->getSubfields(field_index));
-        if (subfields.hasSubfieldWithValue('2', "IxTheo") and
-            subfields.hasSubfieldWithValue('9', "L:" + language_code) and
-            subfields.hasSubfieldWithValue('9', "Z:AF"))
+    for (const auto field_index : field_indices) {
+        Subfields subfields_present(record->getSubfields(field_index));
+        if (subfields_present.hasSubfieldWithValue('2', "IxTheo") and
+            subfields_present.hasSubfieldWithValue('9', "L:" + language_code) and
+            subfields_present.hasSubfieldWithValue('9', "Z:AF"))
                 return field_index;
     }
     return MarcRecord::FIELD_NOT_FOUND;
