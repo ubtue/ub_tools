@@ -38,7 +38,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VALID_FOUR_DIGIT_PATTERN = Pattern.compile(VALID_FOUR_DIGIT_YEAR);
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
-    private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[..\\]");
+    private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
         {
@@ -1103,14 +1103,21 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     private void parseBracketDirective(final String separator, char opening, char closing) {
-        opening = '(';
-        closing = ')';
+        final Matcher matcher = BRACKET_DIRECTIVE_PATTERN.matcher(separator);
+        if (matcher.matches()) {
+            if (matcher.group(1).length() == 1 && matcher.group(1).length() == 1) {
+                opening = matcher.group(1).charAt(0);
+                closing = matcher.group(2).charAt(0);
+            }
+        }
+        else
+           throw new IllegalArgumentException("Invalid Bracket Specification");
     }
-    
-    
+
+
     private Boolean isBracketDirective(final String separator) {
         final Matcher matcher = BRACKET_DIRECTIVE_PATTERN.matcher(separator);
-        return matcher.matches(); 
+        return matcher.matches();
     }
 
 
@@ -1223,7 +1230,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Abstract out topic extract from LOK and ordinary field handling
      */
 
-    private void extractTopicsHelper(List<VariableField> marcFieldList, Map<String, String> separators, Collection<String> collector, 
+    private void extractTopicsHelper(List<VariableField> marcFieldList, Map<String, String> separators, Collection<String> collector,
                                String langShortcut, String fldTag, String subfldTags, Function<DataField, Boolean> includeFieldPredicate) {
         Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
                                               : String.join("|", subfldTags.split("(?!^)")));
@@ -1234,7 +1241,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             // Skip fields that do not match our criteria
             if (includeFieldPredicate != null && (!includeFieldPredicate.apply(marcField)))
                 continue;
-
             List<Subfield> subfields = marcField.getSubfields();
             // Case 1: The separator specification is empty thus we
             // add the subfields individually
@@ -1265,7 +1271,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                                     char closing = ')';
                                     parseBracketDirective(separator, opening, closing);
                                     String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
-System.err.println("FOR BRACKETS WE HAVE: " + opening + translatedTerm + closing); 
                                     buffer.append(" " + opening + translatedTerm + closing);
                                     continue;
                                  }
@@ -1278,10 +1283,8 @@ System.err.println("FOR BRACKETS WE HAVE: " + opening + translatedTerm + closing
                 }
             }
         }
-        if (buffer.length() > 0) {
-System.err.println("WE ARE ADDING: " + DataUtil.cleanData(buffer.toString()));
+        if (buffer.length() > 0)
             collector.add(DataUtil.cleanData(buffer.toString()));
-        }
     } // end extractTopicsHelper
 
     /**
@@ -1343,7 +1346,7 @@ System.err.println("WE ARE ADDING: " + DataUtil.cleanData(buffer.toString()));
             if (fldTag.startsWith("LOK")) {
                 // Get subfield 0 since the "subtag" is saved here
                 marcFieldList = record.getVariableFields("LOK");
-                if (!marcFieldList.isEmpty()) 
+                if (!marcFieldList.isEmpty())
                     extractTopicsHelper(marcFieldList, separators, collector, langShortcut, fldTag, subfldTags, includeFieldPredicate);
             }
             // Case 2: We have an ordinary MARC field
