@@ -1,10 +1,12 @@
 package de.uni_tuebingen.ub.ixTheo.multiLanguageQuery;
 
+import java.util.ArrayList;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.List;
-import java.util.ArrayList;
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -28,8 +30,6 @@ import org.apache.solr.search.SyntaxError;
 import org.apache.solr.servlet.SolrRequestParsers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringUtils;
 
 
 public class MultiLanguageQueryParser extends QParser {
@@ -128,27 +128,23 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    private Query processTermQuery(TermQuery queryCandidate) {
-        final TermQuery termQuery = (TermQuery) queryCandidate;
+    private Query processTermQuery(TermQuery termQuery) {
         final String field = termQuery.getTerm().field();
         final String newFieldName = field + "_" + lang;
         if (schema.getFieldOrNull(newFieldName) != null)
-            queryCandidate = new TermQuery(new Term(newFieldName, termQuery.getTerm().text()));
+            return new TermQuery(new Term(newFieldName, termQuery.getTerm().text()));
         else
-            queryCandidate = new TermQuery(new Term(field, termQuery.getTerm().text()));
-
-        return queryCandidate;
+            return new TermQuery(new Term(field, termQuery.getTerm().text()));
     }
 
 
-    private Query processPhraseQuery(PhraseQuery queryCandidate) {
+    private Query processPhraseQuery(final PhraseQuery queryCandidate) {
       PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
-      for (Term term : queryCandidate.getTerms()) {
-          String field = term.field();
-          String newFieldName = field + "_" + lang;
-          if (schema.getFieldOrNull(newFieldName) != null) {
+      for (final Term term : queryCandidate.getTerms()) {
+          String newFieldName = term.field() + "_" + lang;
+          if (schema.getFieldOrNull(newFieldName) != null)
               phraseQueryBuilder.add(new Term(newFieldName, term.text()));
-          } else
+          else
               phraseQueryBuilder.add(term);
       }
 
@@ -168,7 +164,7 @@ public class MultiLanguageQueryParser extends QParser {
              else if (currentClause instanceof BooleanQuery)
                  currentClause = processBooleanQuery((BooleanQuery)currentClause);
              else
-                 throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause in DisjunctionMaxQuery");
+                 throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause type in DisjunctionMaxQuery");
 
              queryList.add(currentClause);
         }
@@ -176,21 +172,21 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    private Query processBoostQuery(BoostQuery queryCandidate) {
+    private Query processBoostQuery(final BoostQuery queryCandidate) {
         Query subquery = queryCandidate.getQuery();
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        } else
-	    throw new SolrException(ErrorCode.SERVER_ERROR, "Unable to handle " +  subquery.getClass().getName());
+        }
+	throw new SolrException(ErrorCode.SERVER_ERROR, "Unable to handle " +  subquery.getClass().getName());
     }
 
 
-    private Query processBooleanQuery(BooleanQuery queryCandidate) {
+    private Query processBooleanQuery(final BooleanQuery queryCandidate) {
         if (!(queryCandidate instanceof BooleanQuery))
              throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a BooleanQuery");
-        BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
-        for (BooleanClause currentClause : queryCandidate.clauses()) {
+        final BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
+        for (final BooleanClause currentClause : queryCandidate.clauses()) {
             Query subquery = currentClause.getQuery();
             if (subquery instanceof TermQuery) {
                 subquery = processTermQuery((TermQuery)subquery);
@@ -208,10 +204,7 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    private Query processTermRangeQuery(TermRangeQuery queryCandidate) {
-       if (!(queryCandidate instanceof TermRangeQuery))
-           throw new SolrException(ErrorCode.SERVER_ERROR, "Argument is not a TermRangeQuery");
-       queryCandidate = queryCandidate;
+    private Query processTermRangeQuery(final TermRangeQuery queryCandidate) {
        String field = queryCandidate.getField();
        String newFieldName = field + "_" + lang;
        if (schema.getFieldOrNull(newFieldName) != null) {
@@ -225,32 +218,30 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-
-
     private void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
-       if (query.length == 1) {
-           try {
-               QParser tmpParser = new ExtendedDismaxQParser(searchString, localParams, params, request);
-               newQuery = tmpParser.getQuery();
-               newQuery = newQuery.rewrite(request.getSearcher().getIndexReader());
-               if (newQuery instanceof BooleanQuery)
-                   newQuery = processBooleanQuery((BooleanQuery)newQuery);
-               else if (newQuery instanceof TermRangeQuery)
-                   newQuery = processTermRangeQuery((TermRangeQuery)newQuery);
-               else if (newQuery instanceof TermQuery)
-                   newQuery = processTermQuery((TermQuery)newQuery);
-               else if (newQuery instanceof DisjunctionMaxQuery)
-                   newQuery = processDisjunctionMaxQuery((DisjunctionMaxQuery)newQuery);
-               else if (newQuery instanceof BoostQuery)
-                   newQuery = processBoostQuery((BoostQuery)newQuery);
-               else
-                   logger.warn("No rewrite rule did match for " + newQuery.getClass());
-               this.searchString = newQuery.toString();
-           } catch(SyntaxError|IOException e) {
-               throw new SolrException(ErrorCode.SERVER_ERROR, "Rewriting Lucene support for new languages failed", e);
-           }
-       } else
+        if (query.length != 1)
            throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
+
+        try {
+            QParser tmpParser = new ExtendedDismaxQParser(searchString, localParams, params, request);
+            newQuery = tmpParser.getQuery();
+            newQuery = newQuery.rewrite(request.getSearcher().getIndexReader());
+            if (newQuery instanceof BooleanQuery)
+                newQuery = processBooleanQuery((BooleanQuery)newQuery);
+            else if (newQuery instanceof TermRangeQuery)
+                newQuery = processTermRangeQuery((TermRangeQuery)newQuery);
+            else if (newQuery instanceof TermQuery)
+                newQuery = processTermQuery((TermQuery)newQuery);
+            else if (newQuery instanceof DisjunctionMaxQuery)
+                newQuery = processDisjunctionMaxQuery((DisjunctionMaxQuery)newQuery);
+            else if (newQuery instanceof BoostQuery)
+                newQuery = processBoostQuery((BoostQuery)newQuery);
+            else
+                logger.warn("No rewrite rule did match for " + newQuery.getClass());
+            this.searchString = newQuery.toString();
+        } catch (SyntaxError|IOException e) {
+            throw new SolrException(ErrorCode.SERVER_ERROR, "Rewriting Lucene support for new languages failed", e);
+        }
     }
 
 
