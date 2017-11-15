@@ -11,7 +11,7 @@ import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 public class IxTheoKeywordChains extends SolrIndexerMixin {
 
     private final static String KEYWORD_DELIMITER = "/";
-    private final static String SUBFIELD_CODES = "abctnp";
+    private final static String SUBFIELD_CODES = "abctnpz";
     private final static TuelibMixin tuelibMixin = new TuelibMixin();
 
     public Set<String> getKeyWordChain(final Record record, final String fieldSpec, final String lang) {
@@ -76,15 +76,16 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
             if (gnd_seen) {
                 if (SUBFIELD_CODES.indexOf(subfield.getCode()) != -1) {
                     if (keyword.length() > 0) {
-                        if (subfield.getCode() == 'n') {
+                        if (subfield.getCode() == 'z') {
+                            keyword.append(" (" + tuelibMixin.translateTopic(subfield.getData(), lang) + ")");
+                            continue;
+                        }
+                        else if (subfield.getCode() == 'n')
                             keyword.append(" ");
-                        }
-                        else if (subfield.getCode() == 'p') {
+                        else if (subfield.getCode() == 'p')
                             keyword.append(". ");
-                        }
-                        else {
+                        else
                             keyword.append(", ");
-                        }
                     }
                     keyword.append(tuelibMixin.translateTopic(subfield.getData(), lang));
                 } else if (subfield.getCode() == '9' && keyword.length() > 0 && subfield.getData().startsWith("g:")) {
@@ -106,6 +107,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                         keyword.append(')');
                     }
                 }
+
             } else if (subfield.getCode() == '2' && subfield.getData().equals("gnd"))
                 gnd_seen = true;
         }
