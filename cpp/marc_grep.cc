@@ -1,10 +1,10 @@
-/** \file    marc_grep2.cc
+/** \file    marc_grep.cc
  *  \brief   A tool for fancy grepping in MARC-21 datasets.
  *  \author  Dr. Johannes Ruscheinski
  */
 
 /*
-    Copyright (C) 2015, 2016, Library of the University of Tübingen
+    Copyright (C) 2015-2017, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -42,6 +42,9 @@
 #include "MarcWriter.h"
 #include "Subfields.h"
 #include "util.h"
+
+
+namespace {
 
 
 char help_text[] =
@@ -456,6 +459,9 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
     std::cerr << "Matched " << matched_count << (matched_count == 1 ? " record of " :  " records of ") << count
               << " overall records.\n";
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char *argv[]) {
