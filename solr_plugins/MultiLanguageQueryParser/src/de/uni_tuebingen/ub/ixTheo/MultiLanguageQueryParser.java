@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.index.Term;
@@ -41,6 +43,7 @@ public class MultiLanguageQueryParser extends QParser {
     private IndexSchema schema;
     private String lang;
     private Query newQuery;
+    private Pattern LOCAL_PARAMS_PATTERN = Pattern.compile("(\\{![^}]*\\})");
 
 
     public MultiLanguageQueryParser(final String searchString, final SolrParams localParams, final SolrParams params,
@@ -65,6 +68,7 @@ public class MultiLanguageQueryParser extends QParser {
             throw new MultiLanguageQueryParserException("Only one q-parameter is supported");
 
         String[] facetFields = newParams.getParams("facet.field");
+
         lang = newParams.get("lang", "de");
 
         // Strip language subcode
@@ -85,18 +89,38 @@ public class MultiLanguageQueryParser extends QParser {
         // Handle Facet Fields
         if (facetFields != null && facetFields.length > 0) {
             for (String param : facetFields) {
+                String fieldLocalParams = extractLocalParams(param);
+                String strippedParam = stripLocalParams(param);
                 // Replace field used if it exists
-                String newFieldName = param + "_" + lang;
+                String newFieldName = strippedParam + "_" + lang;
                 if (schema.getFieldOrNull(newFieldName) != null) {
                     newParams.remove("facet.field", param);
                     if (useDismax)
-                        newParams.add("facet.field", newFieldName);
+                        newParams.add("facet.field", fieldLocalParams + newFieldName);
                     else {
-                        newParams.add("facet.field", "{!key=" + param + "}" + newFieldName);
+                        String newLocalParams = fieldLocalParams.equals("") ?  "{!key=" + strippedParam + "}" :
+                                                fieldLocalParams.replace("}", " key=" + strippedParam + "}");
+                        newParams.add("facet.field", newLocalParams + newFieldName);
                     }
                 }
             }
         }
+    }
+
+
+    /*
+     * Extract LocalParams, i.e. parameters in square brackets
+     */
+    private String extractLocalParams(String param) {
+        Matcher matcher = LOCAL_PARAMS_PATTERN.matcher(param);
+        return matcher.find() ? matcher.group() : "";
+    }
+
+    /*
+     * Strip local params
+     */
+    private String stripLocalParams(String param) {
+        return LOCAL_PARAMS_PATTERN.matcher(param).replaceAll("");
     }
 
 
@@ -246,7 +270,7 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     public Query parse() throws SyntaxError {
-        if (newQuery == null) {
+        if (newQuery == null || !newParams.equals(params)) {
            this.newRequest.setParams(newParams);
            QParser parser = getParser(this.searchString, "edismax", this.newRequest);
            return parser.parse();
