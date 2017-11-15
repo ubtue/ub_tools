@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1194,44 +1194,42 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Predicates for choosing only a subset of all standardized subjects
      * In the q-Subfield of 689 standardized subjects we have "z" (time subject), "f" (genre subject), "g" (region subject)
+     * Alternatively this is in the d-Subfields
      */
-
-    Function<DataField, Boolean> _689IsOrdinarySubject = (DataField marcField) -> {
-        if (!marcField.getTag().equals("689"))
-            return true;
-
-        Subfield subfieldQ = marcField.getSubfield('q');
-        if (subfieldQ == null)
-            return true;
-
-        String _qData = subfieldQ.getData();
-        return !_qData.equals("z") && !_qData.equals("f") && !_qData.equals("g");
-    };
-
-
-    Function<DataField, Boolean> _689IsTimeSubject = (DataField marcField) -> {
+    Predicate<DataField> _689IsTimeSubject = (DataField marcField) -> {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
-        return subfieldQ != null && subfieldQ.getData().equals("z");
+        Subfield subfieldD = marcField.getSubfield('d');
+        return (subfieldQ != null && subfieldQ.getData().equals("z")) || (subfieldD != null && subfieldD.getData().equals("z"));
     };
 
 
-    Function<DataField, Boolean> _689IsGenreSubject = (DataField marcField) -> {
+    Predicate<DataField> _689IsGenreSubject = (DataField marcField) -> {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
-        return subfieldQ != null && subfieldQ.getData().equals("f");
+        Subfield subfieldD = marcField.getSubfield('d');
+        return (subfieldQ != null && subfieldQ.getData().equals("f")) || (subfieldD != null && subfieldD.getData().equals("f"));
     };
 
 
-    Function<DataField, Boolean> _689IsRegionSubject = (DataField marcField) -> {
+    Predicate<DataField> _689IsRegionSubject = (DataField marcField) -> {
+        if (!marcField.getTag().equals("689")) {
+            return true;
+}
+        Subfield subfieldQ = marcField.getSubfield('q');
+        Subfield subfieldD = marcField.getSubfield('d');
+        return (subfieldQ != null &&  subfieldQ.getData().equals("g")) || (subfieldD != null && subfieldD.getData().equals("g"));
+    };
+
+
+    Predicate<DataField> _689IsOrdinarySubject = (DataField marcField) -> {
         if (!marcField.getTag().equals("689"))
             return true;
-        Subfield subfieldQ = marcField.getSubfield('q');
-        return subfieldQ != null &&  subfieldQ.getData().equals("g");
-    };
 
+        return (!(_689IsTimeSubject.test(marcField) || _689IsGenreSubject.test(marcField) || _689IsRegionSubject.test(marcField)));
+    };
 
 
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
@@ -1243,15 +1241,15 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Abstract out topic extract from LOK and ordinary field handling
      */
     private void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
-                            final  String langShortcut, final String fldTag, final String subfldTags, final Function<DataField, Boolean> includeFieldPredicate) {
+                            final  String langShortcut, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
         final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
                                               : String.join("|", subfldTags.split("(?!^)")));
-        final StringBuffer buffer = new StringBuffer("");
 
         for (final VariableField vf : marcFieldList) {
+            final StringBuffer buffer = new StringBuffer("");
             final DataField marcField = (DataField) vf;
             // Skip fields that do not match our criteria
-            if (includeFieldPredicate != null && (!includeFieldPredicate.apply(marcField)))
+            if (includeFieldPredicate != null && (!includeFieldPredicate.test(marcField)))
                 continue;
             final List<Subfield> subfields = marcField.getSubfields();
             // Case 1: The separator specification is empty thus we
@@ -1323,7 +1321,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *   closing character       :== A single character to be appended on the right side
      */
     private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
-                                    Collection<String> collector, String langShortcut, Function<DataField, Boolean> includeFieldPredicate)
+                                    Collection<String> collector, String langShortcut, Predicate<DataField> includeFieldPredicate)
 
     {
         String[] fldTags = fieldSpec.split(":");
