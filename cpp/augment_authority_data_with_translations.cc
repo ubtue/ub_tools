@@ -40,6 +40,9 @@
 #include "util.h"
 
 
+namespace {
+
+
 // Save language code, translation, origin, status
 typedef std::tuple<std::string, std::string, std::string, std::string> OneTranslation;
 
@@ -82,52 +85,27 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
             if (not IsReliableSynonym(row["status"]) and row["language_code"] != "ger") {
                 std::string translation(row["translation"]);
                 // Handle '#'-separated synonyms appropriately
-                if (translation.find("#") == std::string::npos)
+                if (translation.find("#") == std::string::npos and not translation.empty())
                     translations.emplace_back(ReplaceAngleBracketsWithParentheses(translation),
                                               row["language_code"], row["origin"], row["status"]);
                 else {
                     std::vector<std::string> primary_and_synonyms;
                     StringUtil::SplitThenTrim(translation, "#", " \t\n", &primary_and_synonyms);
 		    // Use the first translation as non-synonmym
-                    translations.emplace_back(primary_and_synonyms[0], row["language_code"], row["origin"],
+                    if (primary_and_synonyms.size() > 0) {
+                        translations.emplace_back(primary_and_synonyms[0], row["language_code"], row["origin"],
                                               row["status"]);
-                    // Add further synonyms as derived synonyms
-                    for (auto synonyms(std::next(primary_and_synonyms.cbegin()));
-                         synonyms != primary_and_synonyms.cend(); ++synonyms)
-                        translations.emplace_back(ReplaceAngleBracketsWithParentheses(*synonyms),
+                        // Add further synonyms as derived synonyms
+                        for (auto synonyms(std::next(primary_and_synonyms.cbegin()));
+                            synonyms != primary_and_synonyms.cend(); ++synonyms)
+                            translations.emplace_back(ReplaceAngleBracketsWithParentheses(*synonyms),
                                                   row["language_code"], row["origin"], "derived_synonym");
+                    }
                 }
             }
         }
         all_translations->insert(std::make_pair(ppn, translations));
     }
-}
-
-
-std::string MapLanguageCode(const std::string lang_code) {
-    if (lang_code == "ger")
-        return "de";
-    if (lang_code == "eng")
-        return "en";
-    if (lang_code == "fre")
-        return "fr";
-    if (lang_code == "dut")
-        return "nl";
-    if (lang_code == "ita")
-        return "it";
-    if (lang_code == "spa")
-        return "es";
-    if (lang_code == "hant")
-        return "zh-Hant";
-    if (lang_code == "hans")
-        return "zh-Hans";
-    if (lang_code == "por")
-        return "pt";
-    if (lang_code == "rus")
-        return "ru";
-    if (lang_code == "gre")
-        return "el";
-    logger->error("Unknown language code " + lang_code);
 }
 
 
@@ -143,34 +121,15 @@ void InsertTranslation(MarcRecord * const record, const char indicator1, const c
 }
 
 
-char DetermineNextFreeIndicator1(MarcRecord * const record, std::vector<size_t> field_indices) {
-    char new_indicator1(' ');
-
-    for (const auto field_index : field_indices) {
-        Subfields subfields(record->getSubfields(field_index));
-        char indicator1(subfields.getIndicator1());
-        if (indicator1 == '9')
-            logger->error("Indicator1 cannot be further incremented for PPN " + record->getControlNumber());
-        if (indicator1 == ' ')
-            new_indicator1 = '1';
-        else
-            new_indicator1 = indicator1 >= new_indicator1 ? (indicator1 + 1) : new_indicator1;
-    }
-
-    return new_indicator1;
-}
-
-
 size_t GetFieldIndexForExistingTranslation(const MarcRecord *record, const std::vector<size_t> &field_indices,
                                            const std::string &language_code, const std::string &status) {
     // We can have several either previously existing or already inserted synonyms, so don't replace synonyms
     if (IsReliableSynonym(status))
         return MarcRecord::FIELD_NOT_FOUND;
-
-    for (auto field_index : field_indices) {
+    for (const auto field_index : field_indices) {
         Subfields subfields_present(record->getSubfields(field_index));
         if (subfields_present.hasSubfieldWithValue('2', "IxTheo") and
-            subfields_present.hasSubfieldWithValue('9', "L:" + MapLanguageCode(language_code)) and
+            subfields_present.hasSubfieldWithValue('9', "L:" + language_code) and
             subfields_present.hasSubfieldWithValue('9', "Z:AF"))
                 return field_index;
     }
@@ -197,16 +156,15 @@ void ProcessRecord(MarcRecord * const record,
                 or language_code == "ger")
                 continue;
 
-            // Don't touch MACS translations, but find and potentially replace IxTheo translations
+            // Don't touch MACS translations and leave alone authoritative IxTheo Translations from BSZ
             std::vector<size_t> field_indices;
             if (record->getFieldIndices("750", &field_indices) > 0) {
                 const size_t field_index(GetFieldIndexForExistingTranslation(record, field_indices, language_code,
                                                                              status));
-                if (field_index != MarcRecord::FIELD_NOT_FOUND)
-                    record->deleteField(field_index);
-            }
-            const char indicator1(DetermineNextFreeIndicator1(record, field_indices));
-            InsertTranslation(record, indicator1, ' ', term, language_code, status);
+                if (field_index == MarcRecord::FIELD_NOT_FOUND)
+                    InsertTranslation(record, ' ', '6', term, language_code, status);
+            } else
+                InsertTranslation(record, ' ', '6', term, language_code, status);
         }
         ++modified_count;
     }
@@ -225,6 +183,9 @@ void AugmentNormdata(MarcReader * const marc_reader, MarcWriter *marc_writer, co
 
     std::cerr << "Modified " << modified_count << " of " << record_count << " entries.\n";
 }
+
+
+} //unnamed namespace
 
 
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");

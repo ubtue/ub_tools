@@ -1,0 +1,8 @@
+#FORMAT: BEACON
+#PREFIX: http://d-nb.info/gnd/
+#TARGET: https://relbib.de/Search/Results?lookfor={ID}
+#NAME: RELIGIONSWISSENSCHAFTLICHE BIBLIOGRAPHIE (RelBib)
+#MESSAGE: RELIGIONSWISSENSCHAFTLICHE BIBLIOGRAPHIE: Publikationen in RelBib
+#DESCRIPTION: Die Datenbank "RelBib" (https://relbib.de) ist eine internationale, open access Bibliographie für die Allgemeine und Vergleichende Religionswissenschaft. In RelBib werden Monographien (Bücher) und Aufsätze aus rund 100 religionswissenschaftlichen und religionswissenschaftlich relevanten Zeitschriften sowie Aufsätze aus Sammelschriften (z.B. Festschriften und Kongressveröffentlichungen) indiziert. Nachgewiesen werden auch einschlägige Datenbanken, Weblogs und Internetlinks. Statistik: mehr als 90.000 Personen-GND, mehr als 360.000 Titel (Stand November 2017).
+#INSTITUTION: Universitätsbibliothek Tübingen
+#CONTACT: relbib@ub.uni-tuebingen.de

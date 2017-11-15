@@ -1,7 +1,7 @@
-/** \brief Utility for removing unreferences authority records
+/** \brief Utility for removing unreferenced authority records
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -82,20 +82,32 @@ std::string GetGNDNumber(const MarcRecord &record) {
 }
 
 
+const std::string DROPPED_GND_LIST_FILE("/usr/local/var/log/tufind/dropped_gnd_numbers.list");
+
+
 void FilterAuthorityData(MarcReader * const marc_reader, MarcWriter * const marc_writer,
                          const std::unordered_set<std::string> &gnd_numbers)
 {
-    unsigned record_count(0), dropped_count(0);
+    std::unique_ptr<File> gnd_list_file(FileUtil::OpenOutputFileOrDie(DROPPED_GND_LIST_FILE));
+    unsigned record_count(0), dropped_count(0), authority_records_without_gnd_numbers_count(0);
     while (const MarcRecord record = marc_reader->read()) {
         ++record_count;
 
-        if (gnd_numbers.find(GetGNDNumber(record)) != gnd_numbers.cend())
+        const std::string gnd_number(GetGNDNumber(record));
+        if (not gnd_number.empty() and gnd_numbers.find(gnd_number) == gnd_numbers.cend()) {
+            gnd_list_file->write(gnd_number + "\n");
             ++dropped_count;
-        else
-            marc_writer->write(record);
+            continue;
+        }
+
+        if (gnd_number.empty())
+            ++authority_records_without_gnd_numbers_count;
+        marc_writer->write(record);
     }
 
     std::cerr << "Read " << record_count << " authority record(s) of which " << dropped_count << " were dropped.\n";
+    std::cerr << "Found and kept " << authority_records_without_gnd_numbers_count
+              << " authority records w/o a GND number.\n";
 }
 
 
