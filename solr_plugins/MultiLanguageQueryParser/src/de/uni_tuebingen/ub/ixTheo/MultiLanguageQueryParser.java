@@ -271,7 +271,7 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     public Query parse() throws SyntaxError {
-         if (newQuery == null) {
+        if (newQuery == null) {
            this.newRequest.setParams(newParams);
            QParser parser = getParser(this.searchString, "edismax", this.newRequest);
            return parser.parse();
