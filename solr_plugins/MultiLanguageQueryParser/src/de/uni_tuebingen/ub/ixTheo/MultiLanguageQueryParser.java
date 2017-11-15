@@ -78,14 +78,6 @@ public class MultiLanguageQueryParser extends QParser {
         // language
         lang = ArrayUtils.contains(SUPPORTED_LANGUAGES, lang) ? lang : "de";
 
-
-        // Handling for [e]dismax
-        if (useDismax)
-            handleDismaxParser(queryFields, lang, schema);
-        // Support for Lucene parser
-        else
-            handleLuceneParser(query, request, lang, schema);
-
         // Handle Facet Fields
         if (facetFields != null && facetFields.length > 0) {
             for (String param : facetFields) {
@@ -104,7 +96,15 @@ public class MultiLanguageQueryParser extends QParser {
                     }
                 }
             }
+            this.newRequest.setParams(newParams);
         }
+
+        // Handling for [e]dismax
+        if (useDismax)
+            handleDismaxParser(queryFields, lang, schema);
+        // Support for Lucene parser
+        else
+            handleLuceneParser(query, request, lang, schema);
     }
 
 
@@ -115,6 +115,7 @@ public class MultiLanguageQueryParser extends QParser {
         Matcher matcher = LOCAL_PARAMS_PATTERN.matcher(param);
         return matcher.find() ? matcher.group() : "";
     }
+
 
     /*
      * Strip local params
@@ -247,7 +248,7 @@ public class MultiLanguageQueryParser extends QParser {
            throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
 
         try {
-            QParser tmpParser = new ExtendedDismaxQParser(searchString, localParams, params, request);
+            QParser tmpParser = new ExtendedDismaxQParser(searchString, localParams, newParams, this.newRequest);
             newQuery = tmpParser.getQuery();
             newQuery = newQuery.rewrite(request.getSearcher().getIndexReader());
             if (newQuery instanceof BooleanQuery)
@@ -270,7 +271,7 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     public Query parse() throws SyntaxError {
-        if (newQuery == null || !newParams.equals(params)) {
+        if (newQuery == null) {
            this.newRequest.setParams(newParams);
            QParser parser = getParser(this.searchString, "edismax", this.newRequest);
            return parser.parse();
