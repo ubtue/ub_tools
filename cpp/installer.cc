@@ -40,6 +40,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#ifdef HAS_SELINUX_HEADERS
+#   include <selinux/selinux.h>
+#endif
 
 
 /* Somewhere in the middle of the GCC 2.96 development cycle, a mechanism was implemented by which the user can tag likely branch directions and
@@ -164,6 +167,57 @@ bool FileUtil_ReadString(const std::string &path, std::string * const data) {
 
 bool FileUtil_Rewind(const int fd) {
     return ::lseek(fd, 0, SEEK_SET) == 0;
+}
+
+
+class FileUtil_SELinuxFileContext {
+    std::string user_;
+    std::string role_;
+    std::string type_;
+    std::string range_;
+public:
+    FileUtil_SELinuxFileContext() = default;
+    FileUtil_SELinuxFileContext(const FileUtil_SELinuxFileContext &rhs) = default;
+    FileUtil_SELinuxFileContext(FileUtil_SELinuxFileContext &&rhs) = default;
+    explicit FileUtil_SELinuxFileContext(const std::string &path);
+    inline bool empty() const { return user_.empty() and role_.empty() and type_.empty() and range_.empty(); }
+    inline const std::string &getUser() const { return user_; }
+    inline const std::string &getRole() const { return role_; }
+    inline const std::string &getType() const { return type_; }
+    inline const std::string &getRange() const { return range_; }
+    std::string toString() const { return user_ + ":" + role_ + ":" + type_ + ":" + range_; }
+};
+
+
+FileUtil_SELinuxFileContext::FileUtil_SELinuxFileContext(const std::string &path) {
+#ifndef HAS_SELINUX_HEADERS
+    (void)path;
+#else
+    char *file_context;
+    if (::getfilecon(path.c_str(), &file_context) == -1) {
+        if (errno == ENODATA or errno == ENOTSUP)
+            return;
+        throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: failed to get file context for \""
+                                 + path + "\"!");
+    }
+    if (file_context == nullptr)
+        return;
+
+    std::vector<std::string> context_as_vector;
+    const unsigned no_of_components(StringUtil_Split(file_context, ":", &context_as_vector,
+                                                      /* suppress_empty_components = */ false));
+    if (unlikely(no_of_components != 4))
+        throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: context \"" + std::string(file_context)
+                                 + "\"has unexpected no. of components (" + std::to_string(no_of_components)
+                                 + ")!");
+
+    user_  = context_as_vector[0];
+    role_  = context_as_vector[1];
+    type_  = context_as_vector[2];
+    range_ = context_as_vector[3];
+
+    ::freecon(file_context);
+#endif
 }
 
 
@@ -384,6 +438,25 @@ int ExecUtil_Exec(const std::string &command, const std::vector<std::string> &ar
 {
     return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::WAIT, timeout_in_seconds,
                   tardy_child_signal);
+}
+
+
+bool ExecUtil_ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output) {
+    stdout_output->clear();
+
+    FILE * const subcommand_stdout(::popen(command.c_str(), "r"));
+    if (subcommand_stdout == nullptr)
+        return false;
+
+    int ch;
+    while ((ch = std::getc(subcommand_stdout)) != EOF)
+        *stdout_output += static_cast<char>(ch);
+
+    const int ret_code(::pclose(subcommand_stdout));
+    if (ret_code == -1)
+        Error("pclose(3) failed: " + std::string(::strerror(errno)));
+
+    return WEXITSTATUS(ret_code) == 0;
 }
 
 
@@ -2132,6 +2205,103 @@ void MiscUtil_SetEnv(const std::string &name, const std::string &value, const bo
 }
 
 
+namespace SELinuxUtil {
+
+
+enum Mode { ENFORCING, PERMISSIVE, DISABLED };
+
+
+Mode GetMode() {
+    const std::string getenforce_binary(ExecUtil_Which("getenforce"));
+    std::string getenforce;
+    if (not getenforce_binary.empty()) {
+        if (ExecUtil_ExecSubcommandAndCaptureStdout(getenforce_binary, &getenforce)) {
+            StringUtil_TrimWhite(&getenforce);
+
+            if (getenforce == "Enforcing")
+                return ENFORCING;
+            else if (getenforce == "Permissive")
+                return PERMISSIVE;
+            else if (getenforce == "Disabled")
+                return DISABLED;
+        }
+    }
+
+    throw new std::runtime_error("in " + std::string(__func__) +": "
+                                 + " could not detemine mode via getenforce ");
+}
+
+
+bool IsAvailable() {
+    return (ExecUtil_Which("getenforce") != "");
+}
+
+
+bool IsEnabled() {
+    return (IsAvailable() && (GetMode() != DISABLED));
+}
+
+
+void AssertEnabled(const std::string &caller) {
+    if (not IsEnabled())
+        throw new std::runtime_error("in " + caller +": SElinux is disabled!");
+}
+
+
+namespace FileContext {
+
+
+void AddRecord(const std::string &type, const std::string &file_spec) {
+    AssertEnabled(std::string(__func__));
+    ExecUtil_Exec(ExecUtil_Which("semanage"), { "fcontext", "-a", "-t", type, file_spec });
+}
+
+
+void ApplyChanges(const std::string &path) {
+    AssertEnabled(std::string(__func__));
+    ExecUtil_Exec(ExecUtil_Which("restorecon"), { "-R", "-v", path });
+}
+
+
+FileUtil_SELinuxFileContext GetOrDie(const std::string &path) {
+    AssertEnabled(std::string(__func__));
+    return FileUtil_SELinuxFileContext(path);
+}
+
+
+bool HasFileType(const std::string &path, const std::string &type) {
+    FileUtil_SELinuxFileContext context(path);
+    return (context.getType() == type);
+}
+
+
+void AddRecordIfMissing(const std::string &path, const std::string &type, const std::string &file_spec) {
+    if (not HasFileType(path, type)) {
+        AddRecord(type, file_spec);
+        ApplyChanges(path);
+    }
+
+    if (not HasFileType(path, type)) {
+        throw new std::runtime_error("in " + std::string(__func__) +": "
+                                     + "could not set context \"" + type + "\" for \"" + path + "\" using " + file_spec);
+    }
+}
+
+
+void AssertFileHasType(const std::string &path, const std::string &type) {
+    if (not HasFileType(path, type)) {
+        throw new std::runtime_error("in " + std::string(__func__) +": "
+                                     + "file " + " doesn't have context type " + type);
+    }
+}
+
+
+} // namespace FileContext
+
+
+} // namespace SELinuxUtil
+
+
 void InstallCronjobs(const VuFindSystemType vufind_system_type) {
     std::map<std::string, std::vector<std::string>> names_to_values_map;
     if (vufind_system_type == IXTHEO) {
@@ -2259,8 +2429,25 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
             { "-i", "s/Group apache/Group " + username + "/", config_filename });
     }
 
-    ExecOrDie(ExecUtil_Which("find"), {"/usr/local/vufind/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+"});
+    ExecOrDie(ExecUtil_Which("find"), {VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+"});
     ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, "/usr/local/var/log/tuefind" });
+    if (SELinuxUtil::IsEnabled()) {
+        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache",
+                                                     "httpd_sys_rw_content_t",
+                                                     VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache(/.*)?");
+
+        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/relbib/cache",
+                                                     "httpd_sys_rw_content_t",
+                                                     VUFIND_DIRECTORY + "/local/tuefind/instances/relbib/cache(/.*)?");
+
+        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/bibstudies/cache",
+                                                     "httpd_sys_rw_content_t",
+                                                     VUFIND_DIRECTORY + "/local/tuefind/instances/bibstudies/cache(/.*)?");
+
+        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/krimdok/cache",
+                                                     "httpd_sys_rw_content_t",
+                                                     VUFIND_DIRECTORY + "/local/tuefind/instances/krimdok/cache(/.*)?");
+    }
 }
 
 
@@ -2363,6 +2550,11 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     Echo("creating directories");
     ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/lib/tuelib" });
     ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/log/tuefind" });
+    if (SELinuxUtil::IsEnabled()) {
+        SELinuxUtil::FileContext::AddRecordIfMissing("/usr/local/var/log/tufind",
+                                                     "httpd_sys_rw_content_t",
+                                                     "/usr/local/var/log/tufind(/.*)?");
+    }
 
     ConfigureSolrUserAndService(install_systemctl);
     ConfigureApacheUser(os_system_type);
