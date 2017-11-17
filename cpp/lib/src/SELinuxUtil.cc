@@ -49,8 +49,8 @@ Mode GetMode() {
         }
     }
 
-    throw new std::runtime_error("in " + std::string(__func__) +": "
-                                 + " could not detemine mode via getenforce ");
+    throw std::runtime_error("in " + std::string(__func__) +": "
+                             + " could not detemine mode via getenforce ");
 }
 
 
@@ -66,7 +66,7 @@ bool IsEnabled() {
 
 void AssertEnabled(const std::string &caller) {
     if (not IsEnabled())
-        throw new std::runtime_error("in " + caller +": SElinux is disabled!");
+        throw std::runtime_error("in " + caller +": SElinux is disabled!");
 }
 
 
@@ -86,8 +86,8 @@ void AddRecordIfMissing(const std::string &path, const std::string &type, const 
     }
 
     if (not HasFileType(path, type)) {
-        throw new std::runtime_error("in " + std::string(__func__) +": "
-                                     + "could not set context \"" + type + "\" for \"" + path + "\" using " + file_spec);
+        throw std::runtime_error("in " + std::string(__func__) +": "
+                                 + "could not set context \"" + type + "\" for \"" + path + "\" using " + file_spec);
     }
 }
 
@@ -100,8 +100,8 @@ void ApplyChanges(const std::string &path) {
 
 void AssertFileHasType(const std::string &path, const std::string &type) {
     if (not HasFileType(path, type)) {
-        throw new std::runtime_error("in " + std::string(__func__) +": "
-                                     + "file " + " doesn't have context type " + type);
+        throw std::runtime_error("in " + std::string(__func__) +": "
+                                 + "file " + " doesn't have context type " + type);
     }
 }
 
