@@ -2552,9 +2552,9 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/lib/tuelib" });
     ExecOrDie(ExecUtil_Which("mkdir"), { "-p", "/usr/local/var/log/tuefind" });
     if (SELinuxUtil::IsEnabled()) {
-        SELinuxUtil::FileContext::AddRecordIfMissing("/usr/local/var/log/tufind",
+        SELinuxUtil::FileContext::AddRecordIfMissing("/usr/local/var/log/tuefind",
                                                      "httpd_sys_rw_content_t",
-                                                     "/usr/local/var/log/tufind(/.*)?");
+                                                     "/usr/local/var/log/tuefind(/.*)?");
     }
 
     ConfigureSolrUserAndService(install_systemctl);

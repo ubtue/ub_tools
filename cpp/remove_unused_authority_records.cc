@@ -82,7 +82,7 @@ std::string GetGNDNumber(const MarcRecord &record) {
 }
 
 
-const std::string DROPPED_GND_LIST_FILE("/usr/local/var/log/tufind/dropped_gnd_numbers.list");
+const std::string DROPPED_GND_LIST_FILE("/usr/local/var/log/tuefind/dropped_gnd_numbers.list");
 
 
 void FilterAuthorityData(MarcReader * const marc_reader, MarcWriter * const marc_writer,
