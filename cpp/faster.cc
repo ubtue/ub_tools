@@ -31,6 +31,9 @@
 #include "util.h"
 
 
+namespace {
+
+
 static void Usage() __attribute__((noreturn));
 
 
@@ -38,6 +41,12 @@ static void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] marc_data\n";
     std::exit(EXIT_FAILURE);
 }
+
+
+} // unnamed namespace
+
+
+namespace MARC {
 
 
 class Record {
@@ -57,12 +66,15 @@ public:
     };
 private:
     friend class Reader;
+    friend class BinaryWriter;
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
 public:
-    static constexpr unsigned MAX_RECORD_LENGTH = 99999;
+    static constexpr unsigned MAX_RECORD_LENGTH          = 99999;
+    static constexpr unsigned DIRECTORY_ENTRY_LENGTH     = 12;
     static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH = 5;
+    static constexpr unsigned LEADER_LENGTH              = 24;
 
     enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
     typedef std::vector<Field>::iterator iterator;
@@ -117,9 +129,6 @@ inline unsigned ToUnsigned(const char *cp, const unsigned count) {
 
     return retval;
 }
-
-
-const unsigned LEADER_LENGTH(24);
 
 
 Record::Record(const size_t record_size, char * const record_start)
@@ -214,6 +223,70 @@ Record Reader::read() {
 }
 
 
+class BinaryWriter {
+    File &output_;
+public:
+    BinaryWriter(File * const output): output_(*output) { }
+    void write(const Record &record);
+};
+
+
+inline std::string ToStringWithLeadingZeros(const unsigned n, const unsigned width) {
+    const std::string as_string(std::to_string(n));
+    return (as_string.length() < width) ? (std::string(width - as_string.length(), '0') + as_string) : as_string;
+}
+
+
+void BinaryWriter::write(const Record &record) {
+    Record::const_iterator start(record.begin());
+    do {
+        Record::const_iterator end(start);
+        unsigned record_size(Record::LEADER_LENGTH + 2 /* end-of-directory and end-of-record */);
+        while (end != record.end()
+               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH
+                    < Record::MAX_RECORD_LENGTH))
+        {
+            record_size += end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
+            ++end;
+        }
+
+        std::string raw_record;
+        raw_record.reserve(record_size);
+        const unsigned no_of_fields(end - start);
+        raw_record += ToStringWithLeadingZeros(record_size, /* width = */ 5);
+        raw_record += record.leader_.substr(5, 12 - 5);
+        const unsigned base_address_of_data(Record::LEADER_LENGTH + no_of_fields * Record::DIRECTORY_ENTRY_LENGTH
+                                            + 1 /* end-of-directory */);
+        raw_record += ToStringWithLeadingZeros(base_address_of_data, /* width = */ 5);
+        raw_record += record.leader_.substr(17, Record::LEADER_LENGTH - 17);
+
+        // Append the directory:
+        unsigned field_start_offset(0);
+        for (Record::const_iterator entry(start); entry != end; ++entry) {
+            raw_record += entry->getTag()
+                          + ToStringWithLeadingZeros(entry->getContents().length() + 1 /* field terminator */, 4)
+                          + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
+            field_start_offset += entry->getContents().length() + 1 /* field terminator */;
+        }
+        raw_record += '\x1E'; // end-of-directory
+
+        // Now append the field data:
+        for (Record::const_iterator entry(start); entry != end; ++entry) {
+            raw_record += entry->getContents();
+            raw_record += '\x1E'; // end-of-field
+        }
+        raw_record += '\x1D'; // end-of-record
+
+        output_.write(raw_record);
+        
+        start = end;
+    } while (start != record.end());
+}
+
+
+} // namespace MARC
+
+
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
@@ -227,28 +300,31 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    Reader reader(argv[1]);
+    MARC::Reader reader(argv[1]);
+    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie("/tmp/out.mrc"));
+    MARC::BinaryWriter writer(output.get());
 
     try {
         unsigned record_count(0);
         size_t max_record_size(0), max_field_count(0), max_local_block_count(0), max_subfield_count(0);
-        std::map<Record::RecordType, unsigned> record_types_and_counts;
-        while (const Record record = reader.read()) {
+        std::map<MARC::Record::RecordType, unsigned> record_types_and_counts;
+        while (const MARC::Record record = reader.read()) {
+            writer.write(record);
             ++record_count;
             if (record.size() > max_record_size)
                 max_record_size = record.size();
             if (record.getNumberOfFields() > max_field_count)
                 max_field_count = record.getNumberOfFields();
 
-            const Record::RecordType record_type(record.getRecordType());
+            const MARC::Record::RecordType record_type(record.getRecordType());
             ++record_types_and_counts[record_type];
-            if (record_type == Record::RecordType::UNKNOWN)
+            if (record_type == MARC::Record::RecordType::UNKNOWN)
                 std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for control number "
                           << record.getControlNumber() << ".\n";
 
             for (const auto &field : record) {
                 if (field.isDataField()) {
-                    const Subfields subfields(field);
+                    const MARC::Subfields subfields(field);
                     if (unlikely(subfields.size() > max_subfield_count))
                         max_subfield_count = subfields.size();
                 }
@@ -265,10 +341,10 @@ int main(int argc, char *argv[]) {
         std::cerr << "The record with the largest number of fields contains " << max_field_count << " field(s).\n";
         std::cerr << "The record with the most local data blocks has " << max_local_block_count
                   << " local block(s).\n";
-        std::cerr << "Counted " << record_types_and_counts[Record::RecordType::BIBLIOGRAPHIC]
-                  << " bibliographic record(s), " << record_types_and_counts[Record::RecordType::AUTHORITY]
-                  << " classification record(s), " << record_types_and_counts[Record::RecordType::CLASSIFICATION]
-                  << " authority record(s), and " << record_types_and_counts[Record::RecordType::UNKNOWN]
+        std::cerr << "Counted " << record_types_and_counts[MARC::Record::RecordType::BIBLIOGRAPHIC]
+                  << " bibliographic record(s), " << record_types_and_counts[MARC::Record::RecordType::AUTHORITY]
+                  << " classification record(s), " << record_types_and_counts[MARC::Record::RecordType::CLASSIFICATION]
+                  << " authority record(s), and " << record_types_and_counts[MARC::Record::RecordType::UNKNOWN]
                   << " record(s) of unknown record type.\n";
         std::cerr << "The field with the most subfields has " << max_subfield_count << " subfield(s).\n";
     } catch (const std::exception &e) {
