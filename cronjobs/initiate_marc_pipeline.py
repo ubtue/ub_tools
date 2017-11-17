@@ -107,7 +107,7 @@ def Main():
 
         StartPipeline(pipeline_script_name, file_name_list[0], conf)
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5,
-                       attachment=[solrmarc_log_summary, import_log_summary])
+                       attachments=[solrmarc_log_summary, import_log_summary])
         util.WriteTimestamp()
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.", priority=5)
