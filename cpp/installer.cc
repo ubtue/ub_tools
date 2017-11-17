@@ -170,57 +170,6 @@ bool FileUtil_Rewind(const int fd) {
 }
 
 
-class FileUtil_SELinuxFileContext {
-    std::string user_;
-    std::string role_;
-    std::string type_;
-    std::string range_;
-public:
-    FileUtil_SELinuxFileContext() = default;
-    FileUtil_SELinuxFileContext(const FileUtil_SELinuxFileContext &rhs) = default;
-    FileUtil_SELinuxFileContext(FileUtil_SELinuxFileContext &&rhs) = default;
-    explicit FileUtil_SELinuxFileContext(const std::string &path);
-    inline bool empty() const { return user_.empty() and role_.empty() and type_.empty() and range_.empty(); }
-    inline const std::string &getUser() const { return user_; }
-    inline const std::string &getRole() const { return role_; }
-    inline const std::string &getType() const { return type_; }
-    inline const std::string &getRange() const { return range_; }
-    std::string toString() const { return user_ + ":" + role_ + ":" + type_ + ":" + range_; }
-};
-
-
-FileUtil_SELinuxFileContext::FileUtil_SELinuxFileContext(const std::string &path) {
-#ifndef HAS_SELINUX_HEADERS
-    (void)path;
-#else
-    char *file_context;
-    if (::getfilecon(path.c_str(), &file_context) == -1) {
-        if (errno == ENODATA or errno == ENOTSUP)
-            return;
-        throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: failed to get file context for \""
-                                 + path + "\"!");
-    }
-    if (file_context == nullptr)
-        return;
-
-    std::vector<std::string> context_as_vector;
-    const unsigned no_of_components(StringUtil_Split(file_context, ":", &context_as_vector,
-                                                      /* suppress_empty_components = */ false));
-    if (unlikely(no_of_components != 4))
-        throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: context \"" + std::string(file_context)
-                                 + "\"has unexpected no. of components (" + std::to_string(no_of_components)
-                                 + ")!");
-
-    user_  = context_as_vector[0];
-    role_  = context_as_vector[1];
-    type_  = context_as_vector[2];
-    range_ = context_as_vector[3];
-
-    ::freecon(file_context);
-#endif
-}
-
-
 std::string ReadStringOrDie(const std::string &path) {
     std::string file_contents;
     if (not FileUtil_ReadString(path, &file_contents))
@@ -1301,6 +1250,57 @@ size_t FileUtil_ConcatFiles(const std::string &target_path, const std::vector<st
 }
 
 
+class FileUtil_SELinuxFileContext {
+    std::string user_;
+    std::string role_;
+    std::string type_;
+    std::string range_;
+public:
+    FileUtil_SELinuxFileContext() = default;
+    FileUtil_SELinuxFileContext(const FileUtil_SELinuxFileContext &rhs) = default;
+    FileUtil_SELinuxFileContext(FileUtil_SELinuxFileContext &&rhs) = default;
+    explicit FileUtil_SELinuxFileContext(const std::string &path);
+    inline bool empty() const { return user_.empty() and role_.empty() and type_.empty() and range_.empty(); }
+    inline const std::string &getUser() const { return user_; }
+    inline const std::string &getRole() const { return role_; }
+    inline const std::string &getType() const { return type_; }
+    inline const std::string &getRange() const { return range_; }
+    std::string toString() const { return user_ + ":" + role_ + ":" + type_ + ":" + range_; }
+};
+
+
+FileUtil_SELinuxFileContext::FileUtil_SELinuxFileContext(const std::string &path) {
+#ifndef HAS_SELINUX_HEADERS
+    (void)path;
+#else
+    char *file_context;
+    if (::getfilecon(path.c_str(), &file_context) == -1) {
+        if (errno == ENODATA or errno == ENOTSUP)
+            return;
+        throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: failed to get file context for \""
+                                 + path + "\"!");
+    }
+    if (file_context == nullptr)
+        return;
+
+    std::vector<std::string> context_as_vector;
+    const unsigned no_of_components(StringUtil_Split(file_context, ":", &context_as_vector,
+                                                      /* suppress_empty_components = */ false));
+    if (unlikely(no_of_components != 4))
+        throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: context \"" + std::string(file_context)
+                                 + "\"has unexpected no. of components (" + std::to_string(no_of_components)
+                                 + ")!");
+
+    user_  = context_as_vector[0];
+    role_  = context_as_vector[1];
+    type_  = context_as_vector[2];
+    range_ = context_as_vector[3];
+
+    ::freecon(file_context);
+#endif
+}
+
+
 void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
     const std::string MOUNT_POINT("/mnt/ZE020150/");
     if (not FileUtil_MakeDirectory(MOUNT_POINT))
@@ -2228,8 +2228,8 @@ Mode GetMode() {
         }
     }
 
-    throw new std::runtime_error("in " + std::string(__func__) +": "
-                                 + " could not detemine mode via getenforce ");
+    throw std::runtime_error("in " + std::string(__func__) +": "
+                             + " could not detemine mode via getenforce ");
 }
 
 
@@ -2245,7 +2245,7 @@ bool IsEnabled() {
 
 void AssertEnabled(const std::string &caller) {
     if (not IsEnabled())
-        throw new std::runtime_error("in " + caller +": SElinux is disabled!");
+        throw std::runtime_error("in " + caller +": SElinux is disabled!");
 }
 
 
@@ -2283,16 +2283,16 @@ void AddRecordIfMissing(const std::string &path, const std::string &type, const 
     }
 
     if (not HasFileType(path, type)) {
-        throw new std::runtime_error("in " + std::string(__func__) +": "
-                                     + "could not set context \"" + type + "\" for \"" + path + "\" using " + file_spec);
+        throw std::runtime_error("in " + std::string(__func__) +": "
+                                 + "could not set context \"" + type + "\" for \"" + path + "\" using " + file_spec);
     }
 }
 
 
 void AssertFileHasType(const std::string &path, const std::string &type) {
     if (not HasFileType(path, type)) {
-        throw new std::runtime_error("in " + std::string(__func__) +": "
-                                     + "file " + " doesn't have context type " + type);
+        throw std::runtime_error("in " + std::string(__func__) +": "
+                                 + "file " + " doesn't have context type " + type);
     }
 }
 
