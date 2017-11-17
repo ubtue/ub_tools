@@ -471,6 +471,7 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &argum
 
 const std::string UB_TOOLS_DIRECTORY("/usr/local/ub_tools");
 const std::string VUFIND_DIRECTORY("/usr/local/vufind");
+const std::string TUEFIND_FLAVOUR_FILE(VUFIND_DIRECTORY + "/tuefind.instance");
 
 const std::string INSTALLER_DATA_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/installer");
 const std::string INSTALLER_SCRIPTS_DIRECTORY(INSTALLER_DATA_DIRECTORY + "/scripts");
@@ -2579,9 +2580,17 @@ int main(int argc, char **argv) {
         if (argc > 2)
             Usage();
     } else {
-        if (::strcasecmp(argv[1], "krimdok") == 0)
+        std::string type(argv[1]);
+        if (::strcasecmp(type.c_str(), "auto") == 0) {
+            if (FileUtil_ReadString(TUEFIND_FLAVOUR_FILE, &type))
+                std::cout << "using auto-detected tuefind installation type \"" + type + "\" from " + TUEFIND_FLAVOUR_FILE;
+            else
+                Error("could not auto-detect tuefind installation type from " + TUEFIND_FLAVOUR_FILE);
+        }
+
+        if (::strcasecmp(type.c_str(), "krimdok") == 0)
             vufind_system_type = KRIMDOK;
-        else if (::strcasecmp(argv[1], "ixtheo") == 0)
+        else if (::strcasecmp(type.c_str(), "ixtheo") == 0)
             vufind_system_type = IXTHEO;
         else
             Usage();
