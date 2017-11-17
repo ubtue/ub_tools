@@ -640,14 +640,17 @@ MarcRecord MarcRecord::ReadSingleRecord(File * const input) {
     // Parse directory entries.
     //
 
-    const size_t DIRECTORY_LENGTH(record.getLeader().getBaseAddressOfData() - Leader::LEADER_LENGTH);
+    const Leader &leader(record.getLeader());
+    const size_t DIRECTORY_LENGTH(leader.getBaseAddressOfData() - Leader::LEADER_LENGTH);
 #pragma GCC diagnostic ignored "-Wvla"
     char directory_buf[DIRECTORY_LENGTH];
 #pragma GCC diagnostic warning "-Wvla"
     if ((read_count = input->read(directory_buf, DIRECTORY_LENGTH)) != static_cast<ssize_t>(DIRECTORY_LENGTH))
         throw std::runtime_error("in MarcRecord::ReadSingleRecord: Short read for a directory or premature EOF in "
                                  + input->getPath() + "! (read count was " + std::to_string(read_count)
-                                 + ", record_start_pos was " + std::to_string(record_start_pos) + ")");
+                                 + ", record_start_pos was " + std::to_string(record_start_pos)
+                                 + ", record length was " + std::to_string(leader.getRecordLength())
+                                 + ", base address of data was " + std::to_string(leader.getBaseAddressOfData()));
 
     if (not DirectoryEntry::ParseDirEntries(std::string(directory_buf, DIRECTORY_LENGTH), &record.directory_entries_,
                                             &err_msg))
