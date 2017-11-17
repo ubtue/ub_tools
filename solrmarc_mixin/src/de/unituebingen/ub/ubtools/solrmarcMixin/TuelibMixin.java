@@ -37,7 +37,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
-    private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
 
     // TODO: This should be in a translation mapping file
