@@ -10,7 +10,7 @@ ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 
 # download & run ubtools installation script
 # (use curl because it's part of standard centos installation)
-RUN curl https://raw.githubusercontent.com/ubtue/ub_tools/mtrojan/cpp/data/installer/scripts/install_ubtools.sh -o /tmp/install_ubtools.sh \
+RUN curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_ubtools.sh -o /tmp/install_ubtools.sh \
     && chmod 700 /tmp/install_ubtools.sh
 RUN /tmp/install_ubtools.sh ixtheo --omit-cronjobs --omit-systemctl
 
