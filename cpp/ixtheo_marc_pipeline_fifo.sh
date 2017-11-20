@@ -64,7 +64,7 @@ function CleanUp {
 
 
 # Sets up the log file:
-logdir=/var/log/ixtheo
+logdir=/usr/local/var/log/tuefind
 log="${logdir}/ixtheo_marc_pipeline_fifo.log"
 rm -f "${log}"
 
@@ -74,7 +74,7 @@ CleanUp
 OVERALL_START=$(date +%s.%N)
 
 
-StartPhase "Filter out Local Data of Other Institutions" 
+StartPhase "Filter out Local Data of Other Institutions"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (delete_unused_local_data GesamtTiteldaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -112,9 +112,9 @@ wait
 
 StartPhase "Extract Translations and Generate Interface Translation Files"
 (extract_vufind_translations_for_translation \
-    "$VUFIND_HOME"/local/languages/de.ini \ # German terms before all others.
-    $(ls -1 "$VUFIND_HOME"/local/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
-generate_vufind_translation_files "$VUFIND_HOME"/local/languages/ >> "${log}" 2>&1 && \
+    "$VUFIND_HOME"/local/tuefind/languages/de.ini \ # German terms before all others.
+    $(ls -1 "$VUFIND_HOME"/local/tuefind/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
+generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -129,10 +129,10 @@ StartPhase "Normalise URL's"
 (normalise_urls GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-wait 
+wait
 
 
-StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items" 
+StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
 (create_superior_ppns.sh GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
 add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -141,28 +141,28 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Add Author Synonyms from Authority Data" 
+StartPhase "Add Author Synonyms from Authority Data"
 (add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GefilterteNormdaten-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
-StartPhase "Add ACO Fields to Records That Are Article Collections" 
+StartPhase "Add ACO Fields to Records That Are Article Collections"
 (flag_article_collections GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
-StartPhase "Adding of ISBN's and ISSN's to Component Parts" 
+StartPhase "Adding of ISBN's and ISSN's to Component Parts"
 (add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
-StartPhase "Extracting Keywords from Titles" 
+StartPhase "Extracting Keywords from Titles"
 (enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  ../cpp/data/stopwords.??? && \
@@ -170,7 +170,7 @@ EndPhase) &
 wait
 
 
-StartPhase "Augment Bible References" 
+StartPhase "Augment Bible References"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          GefilterteNormdaten-"${date}".mrc \
@@ -197,7 +197,7 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-StartPhase "Map DDC and RVK to IxTheo Notations" 
+StartPhase "Map DDC and RVK to IxTheo Notations"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (map_ddc_and_rvk_to_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
@@ -273,7 +273,7 @@ StartPhase "Extract Normdata Translations"
 (extract_normdata_translations Normdaten-augmented-"${date}".mrc \
      normdata_translations.txt >> "${log}" 2>&1 &&
 EndPhase || Abort) &
-wait 
+wait
 
 
 StartPhase "Cleanup of Intermediate Files"

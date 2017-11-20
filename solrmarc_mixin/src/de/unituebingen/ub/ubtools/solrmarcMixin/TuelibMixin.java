@@ -28,17 +28,17 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
-    private final static String VALID_FOUR_DIGIT_YEAR = "\\d{4}";
 
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
     private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
     private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?(-\\d+)?");
-    private final static Pattern VALID_FOUR_DIGIT_PATTERN = Pattern.compile(VALID_FOUR_DIGIT_YEAR);
+    private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
+    private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
-    private final static Pattern YEAR_PATTERN = Pattern.compile("(\\d\\d\\d\\d)");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
+
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
         {
@@ -258,7 +258,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                  else if (fieldSpec.length() == 3)
                      subfieldsToSearch = field.getSubfields();
                  else {
-                     System.err.println("in TuelibMixin.getAllSubfieldsBut: invalid field specification: " + fieldSpec);
+                     logger.severe("in TuelibMixin.getAllSubfieldsBut: invalid field specification: " + fieldSpec);
                      System.exit(1);
                  }
                  for (final Subfield subfield : subfieldsToSearch)
@@ -633,6 +633,32 @@ public class TuelibMixin extends SolrIndexerMixin {
         return isils;
     }
 
+    public Set<String> getJournalIssue(final Record record) {
+        final DataField _773Field = (DataField)record.getVariableField("773");
+        if (_773Field == null)
+            return null;
+
+        final Subfield aSubfield = _773Field.getSubfield('a');
+        if (aSubfield == null)
+            return null;
+
+        final Set<String> subfields = new LinkedHashSet<String>();
+        subfields.add(aSubfield.getData());
+
+        final Subfield gSubfield = _773Field.getSubfield('g');
+        if (gSubfield != null)
+            subfields.add(gSubfield.getData());
+
+        final List<Subfield> wSubfields = _773Field.getSubfields('w');
+        for (final Subfield wSubfield : wSubfields) {
+            final String subfieldContents = wSubfield.getData();
+            if (subfieldContents.startsWith("(DE-576)"))
+                subfields.add(subfieldContents);
+        }
+
+        return subfields;
+    }
+
     /**
      * @param record
      *            the record
@@ -735,8 +761,8 @@ public class TuelibMixin extends SolrIndexerMixin {
 
                 final String month = dataString.substring(2, 4);
                 if (!isValidMonthCode(month)) {
-                    System.err.println("in getTueLocalIndexedDate: bad month in LOK 988 field: " + month
-                                       + "! (PPN: " + record.getControlNumber() + ")");
+                    logger.severe("in getTueLocalIndexedDate: bad month in LOK 988 field: " + month
+                                  + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
                 return year + "-" + month + "-01T11:00:00.000Z";
@@ -809,7 +835,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                         translation_map.put(translations[0], translations[1]);
                 }
             } catch (IOException e) {
-                System.err.println("Could not open file: " + e.toString());
+                logger.severe("Could not open file: " + e.toString());
                 System.exit(1);
             }
         }
@@ -930,7 +956,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (field_value == null)
             return null;
 
-        final Matcher matcher = YEAR_PATTERN.matcher(field_value);
+        final Matcher matcher = VALID_FOUR_DIGIT_YEAR_PATTERN.matcher(field_value);
         return matcher.matches() ? matcher.group(1) : null;
     }
 
@@ -949,6 +975,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public Set<String> map935b(final Record record, final Map<String, String> map) {
         final Set<String> results = new TreeSet<>();
+        String last_unmappable_physical_code = null;
         for (final DataField data_field : record.getDataFields()) {
             if (!data_field.getTag().equals("935"))
                 continue;
@@ -959,9 +986,12 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (map.containsKey(physical_code))
                     results.add(map.get(physical_code));
                 else
-                    System.err.println("in TuelibMixin.getPhysicalType: can't map \"" + physical_code + "\"!");
+                    last_unmappable_physical_code = physical_code;
             }
         }
+
+        if (results.isEmpty() && last_unmappable_physical_code != null)
+            logger.severe("in TuelibMixin.getPhysicalType: can't map \"" + last_unmappable_physical_code + "\"!");
 
         return results;
     }
@@ -1277,7 +1307,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                             String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
                             if (separator != null) {
                                 if (isBracketDirective(separator)) {
-                                    
+
                                     final SymbolPair symbolPair = parseBracketDirective(separator);
                                     final String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
                                     buffer.append(" " + symbolPair.opening + translatedTerm + symbolPair.closing);
@@ -1339,7 +1369,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (fldTags[i].substring(0, 3).equals("LOK")) {
 
                 if (fldTags[i].substring(3, 6).length() < 3) {
-                    System.err.println("Invalid tag for \"Lokaldaten\": " + fldTags[i]);
+                    logger.severe("Invalid tag for \"Lokaldaten\": " + fldTags[i]);
                     continue;
                 }
                 // Save LOK-Subfield
@@ -1436,7 +1466,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     private String checkValidYear(String fourDigitYear) {
-        Matcher validFourDigitYearMatcher = VALID_FOUR_DIGIT_PATTERN.matcher(fourDigitYear);
+        Matcher validFourDigitYearMatcher = VALID_FOUR_DIGIT_YEAR_PATTERN.matcher(fourDigitYear);
         return validFourDigitYearMatcher.matches() ? fourDigitYear : "";
     }
 
@@ -1447,8 +1477,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             yearTwoDigit = Integer.parseInt(yyMMDate.substring(0, 1));
         }
         catch (NumberFormatException e) {
-            System.err.println("in yyMMDateToString: expected date in YYMM format, found \"" + yyMMDate
-                               + "\" instead! (Control number was " + controlNumber + ")");
+            logger.severe("in yyMMDateToString: expected date in YYMM format, found \"" + yyMMDate
+                          + "\" instead! (Control number was " + controlNumber + ")");
         }
         return Integer.toString(yearTwoDigit < (currentYear - 2000) ? (2000 + yearTwoDigit) : (1900 + yearTwoDigit));
     }
@@ -1456,12 +1486,12 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Get all available dates from the record.
      *
-     * @param record
-     *            MARC record
+     * @param record MARC record
+     *
      * @return set of dates
      */
 
-    public Set<String> getDates(final Record record) {
+    public Set<String> getDatesBasedOnRecordType(final Record record) {
         final Set<String> dates = new LinkedHashSet<>();
         final Set<String> format = getFormatIncludingElectronic(record);
 
@@ -1469,7 +1499,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (format.contains("Website")) {
             final ControlField _008_field = (ControlField) record.getVariableField("008");
             if (_008_field == null) {
-                System.err.println("getDates [No 008 Field for Website " + record.getControlNumber() + "]");
+                logger.severe("getDatesBasedOnRecordType [No 008 Field for Website " + record.getControlNumber() + "]");
                 return dates;
             }
             dates.add(yyMMDateToString(record.getControlNumber(), _008_field.getData()));
@@ -1510,7 +1540,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
             if (dates.isEmpty())
-                System.err.println("getDates [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
+                logger.severe("getDatesBasedOnRecordType [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
             else
                 return dates;
         }
@@ -1522,12 +1552,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (VariableField _190VField : _190Fields) {
             final DataField _190Field = (DataField) _190VField;
             final Subfield jSubfield = _190Field.getSubfield('j');
-            if (jSubfield != null) {
+            if (jSubfield != null)
                 dates.add(jSubfield.getData());
-            }
-            else {
-                System.err.println("getDates [No 190j subfield for PPN " + record.getControlNumber() + "]");
-            }
+            else
+                logger.severe("getDatesBasedOnRecordType [No 190j subfield for PPN " + record.getControlNumber() + "]");
+
             return dates;
         }
 
@@ -1536,16 +1565,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         // Use the sort date given in the 008-Field
         final ControlField _008_field = (ControlField) record.getVariableField("008");
         if (_008_field == null) {
-            System.err.println("getDates [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
+            logger.severe("getDatesBasedOnRecordType [Could not find 008 field for PPN:" + record.getControlNumber() + "]");
             return dates;
         }
         final String _008FieldContents = _008_field.getData();
         final String yearExtracted = _008FieldContents.substring(7, 11);
         // Test whether we have a reasonable value
         final String year = checkValidYear(yearExtracted);
-        if (year.isEmpty())
-            System.err.println("getDates [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
-        dates.add(year);
+        // log error if year is empty or not a year like "19uu"
+        if (year.isEmpty() && !VALID_YEAR_RANGE_PATTERN.matcher(yearExtracted).matches())
+            logger.severe("getDatesBasedOnRecordType [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
+        else
+            dates.add(year);
+
         return dates;
 }
 
@@ -2206,7 +2238,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return mediatype of the record
      */
 
-    public Set<String> getFormat(final Record record) {
+    public Set<String> getFormatsWithoutElectronic(final Record record) {
         Set<String> formats = getFormatIncludingElectronic(record);
 
         // Since we now have an additional facet mediatype we remove the
@@ -2299,7 +2331,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return the publication date to be used for
      */
     public String getPublicationSortDate(final Record record) {
-        final Set<String> dates = getDates(record);
+        final Set<String> dates = getDatesBasedOnRecordType(record);
         if (dates.isEmpty())
             return "";
 

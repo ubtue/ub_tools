@@ -40,13 +40,13 @@ public:
     virtual ~DbConnection();
 
     /** \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
-     *        logged to /usr/local/var/log/tufind/sql_debug.log.
+     *        logged to /usr/local/var/log/tuefind/sql_debug.log.
      */
     bool query(const std::string &query_statement);
 
     /** \brief Executes an SQL statement and aborts printing an error message to stderr if an error occurred.
      *  \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
-     *        logged to /usr/local/var/log/tufind/sql_debug.log.
+     *        logged to /usr/local/var/log/tuefind/sql_debug.log.
      */
     void queryOrDie(const std::string &query_statement);
 

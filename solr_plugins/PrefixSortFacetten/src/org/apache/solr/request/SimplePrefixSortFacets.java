@@ -14,7 +14,9 @@ import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.SchemaField;
 import org.apache.solr.schema.TrieField;
 import org.apache.solr.search.DocSet;
+import org.apache.solr.search.facet.FacetDebugInfo;
 import org.apache.solr.search.facet.FacetProcessor;
+import org.apache.solr.request.SimpleFacets;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -127,7 +129,7 @@ public class SimplePrefixSortFacets extends SimpleFacets {
             switch (method) {
                 case ENUM:
                     assert TrieField.getMainValuePrefix(ft) == null;
-                    counts = getFacetTermEnumCounts(searcher, docs, field, offset, limit, mincount, missing, sort, prefix, contains, ignoreCase, params);
+                    counts = getFacetTermEnumCounts(searcher, docs, field, offset, limit, mincount, missing, sort, prefix, contains, ignoreCase, false);
                     break;
                 case FCS:
                     assert !multiToken;
@@ -215,7 +217,8 @@ public class SimplePrefixSortFacets extends SimpleFacets {
                     }
                     break;
                 case FC:
-                    counts = DocValuesFacets.getCounts(searcher, docs, field, offset, limit, mincount, missing, sort, prefix, contains, ignoreCase);
+                    FacetDebugInfo info = new FacetDebugInfo();
+                    counts = DocValuesFacets.getCounts(searcher, docs, field, offset, limit, mincount, missing, sort, prefix, contains, ignoreCase, info);
                     break;
                 default:
                     throw new AssertionError();

@@ -35,6 +35,7 @@ def OptimizeSolrIndex():
 
 
 solrmarc_log_summary = "/tmp/solrmarc_log.summary"
+import_log_summary = "/tmp/import_into_vufind_log.summary"
 
 
 def ImportIntoVuFind(pattern, log_file_name):
@@ -44,11 +45,12 @@ def ImportIntoVuFind(pattern, log_file_name):
                    + " files! (Should have matched exactly 1 file!)")
     DeleteSolrIndex()
     util.ExecOrDie("/usr/local/vufind/import-marc.sh", args, log_file_name)
-    util.ExecOrDie("/usr/local/bin/summarize_logs", ["/usr/local/vufind/import/solrmarc.log", solrmarc_log_summary],
-                   log_file_name)
-    util.ExecOrDie("/usr/local/bin/log_rotate", ["/usr/local/vufind/import/", "solrmarc\\.log"], log_file_name)
+    util.ExecOrDie("/usr/local/bin/summarize_logs", ["/usr/local/vufind/import/solrmarc.log", solrmarc_log_summary])
+    util.ExecOrDie("/usr/local/bin/log_rotate", ["/usr/local/vufind/import/", "solrmarc\\.log"])
     OptimizeSolrIndex()
-    util.ExecOrDie("/usr/local/vufind/index-alphabetic-browse.sh", None, log_file_name)
+    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", "/usr/local/vufind/index-alphabetic-browse.sh"], log_file_name)
+    util.ExecOrDie("/usr/local/bin/summarize_logs", [log_file_name, import_log_summary])
+    util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(log_file_name), os.path.basename(log_file_name)])
 
 
 def StartPipeline(pipeline_script_name, marc_title, conf):
@@ -105,7 +107,7 @@ def Main():
 
         StartPipeline(pipeline_script_name, file_name_list[0], conf)
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5,
-                       attachment=solrmarc_log_summary)
+                       attachments=[solrmarc_log_summary, import_log_summary])
         util.WriteTimestamp()
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.", priority=5)
