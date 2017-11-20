@@ -58,16 +58,14 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    MARC::BinaryReader reader(argv[1]);
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie("/tmp/out.mrc"));
-    MARC::BinaryWriter writer(output.get());
 
     try {
         unsigned record_count(0);
         size_t max_record_size(0), max_field_count(0), max_local_block_count(0), max_subfield_count(0);
         std::map<MARC::Record::RecordType, unsigned> record_types_and_counts;
-        while (const MARC::Record record = reader.read()) {
-            writer.write(record);
+        while (const MARC::Record record = marc_reader->read()) {
             ++record_count;
             if (record.size() > max_record_size)
                 max_record_size = record.size();
