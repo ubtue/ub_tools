@@ -1377,9 +1377,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type) {
 }
 
 
-void InstallUBTools(const OSSystemType os_system_type, const bool make_install) {
-    InstallSoftwareDependencies(os_system_type);
-
+void InstallUBTools(const bool make_install) {
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
     ExecOrDie(ExecUtil_Which("make"), { "install" });
@@ -2615,12 +2613,16 @@ int main(int argc, char **argv) {
     const OSSystemType os_system_type(DetermineOSSystemType());
 
     try {
+        // Install dependencies before vufind
+        // correct PHP version for composer dependancies
+        InstallSoftwareDependencies(os_system_type);
+
         if (not ub_tools_only) {
             MountDeptDriveOrDie(vufind_system_type);
             DownloadVuFind();
             ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
         }
-        InstallUBTools(os_system_type, /* make_install = */ not ub_tools_only);
+        InstallUBTools(/* make_install = */ not ub_tools_only);
     } catch (const std::exception &x) {
         Error("caught exception: " + std::string(x.what()));
     }
