@@ -1239,8 +1239,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (!marcField.getTag().equals("689"))
             return true;
         Subfield subfieldQ = marcField.getSubfield('q');
-        Subfield subfieldD = marcField.getSubfield('d');
-        return (subfieldQ != null && subfieldQ.getData().equals("f")) || (subfieldD != null && subfieldD.getData().equals("f"));
+        return (subfieldQ != null && subfieldQ.getData().equals("f"));
     };
 
 
