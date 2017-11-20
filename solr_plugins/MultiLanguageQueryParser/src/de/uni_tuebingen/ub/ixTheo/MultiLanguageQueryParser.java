@@ -99,6 +99,22 @@ public class MultiLanguageQueryParser extends QParser {
             this.newRequest.setParams(newParams);
         }
 
+
+        // Handle filter queries
+        final String[] filterQueries = newParams.getParams("fq");
+        if (filterQueries != null && filterQueries.length > 0) {
+            for (String filterQuery : filterQueries) {
+                String[] fieldNameAndFilterValue = filterQuery.split(":");
+                if (fieldNameAndFilterValue.length == 2) {
+                    String newFieldName = fieldNameAndFilterValue[0] + "_" + lang;
+                    if (schema.getFieldOrNull(newFieldName) != null) {
+                        newParams.remove("fq", filterQuery);
+                        newParams.add("fq", newFieldName + ":" + fieldNameAndFilterValue[1]);
+                    }
+                }
+           }
+        }
+
         // Handling for [e]dismax
         if (useDismax)
             handleDismaxParser(queryFields, lang, schema);
