@@ -23,6 +23,7 @@
 #include <vector>
 #include "Compiler.h"
 #include "File.h"
+#include "MarcXmlWriter.h"
 #include "SimpleXmlParser.h"
 
 
@@ -185,11 +186,47 @@ private:
 };
 
 
-class BinaryWriter {
+class Writer {
+public:
+    enum WriterMode { OVERWRITE, APPEND };
+    enum WriterType { XML, BINARY, AUTO };
+public:
+    virtual ~Writer() { }
+
+    virtual void write(const Record &record) = 0;
+
+    /** \return a reference to the underlying, assocaiated file. */
+    virtual File &getFile() = 0;
+
+    /** \note If you pass in AUTO for "writer_type", "output_filename" must end in ".mrc" or ".xml"! */
+    static std::unique_ptr<Writer> Factory(const std::string &output_filename, WriterType writer_type = AUTO,
+                                           const WriterMode writer_mode = WriterMode::OVERWRITE);
+};
+
+
+class BinaryWriter: public Writer {
     File &output_;
 public:
     BinaryWriter(File * const output): output_(*output) { }
-    void write(const Record &record);
+
+    virtual void write(const Record &record) final;
+
+    /** \return a reference to the underlying, assocaiated file. */
+    virtual File &getFile() final { return output_; }
+};
+
+
+class XmlWriter: public Writer {
+    MarcXmlWriter *xml_writer_;
+public:
+    explicit XmlWriter(File * const output_file, const unsigned indent_amount = 0,
+                       const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion);
+    virtual ~XmlWriter() final { delete xml_writer_; }
+
+    virtual void write(const Record &record) final;
+
+    /** \return a reference to the underlying, assocaiated file. */
+    virtual File &getFile() final { return *xml_writer_->getAssociatedOutputFile(); }
 };
 
 
