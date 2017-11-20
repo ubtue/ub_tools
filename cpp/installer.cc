@@ -420,7 +420,6 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &argum
 
 const std::string UB_TOOLS_DIRECTORY("/usr/local/ub_tools");
 const std::string VUFIND_DIRECTORY("/usr/local/vufind");
-const std::string TUEFIND_FLAVOUR_FILE(VUFIND_DIRECTORY + "/tuefind.instance");
 
 const std::string INSTALLER_DATA_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/installer");
 const std::string INSTALLER_SCRIPTS_DIRECTORY(INSTALLER_DATA_DIRECTORY + "/scripts");
@@ -1365,6 +1364,17 @@ std::string ExecUtil_Which(const std::string &executable_candidate) {
     else {
         which_cache[executable_candidate] = executable;
         return executable;
+    }
+}
+
+
+const std::string GetTueFindFlavour() {
+    const char * const flavour(::secure_getenv("TUEFIND_FLAVOUR"));
+    if (flavour == nullptr)
+        return "";
+    else {
+        const std::string flavour_str(flavour);
+        return flavour_str;
     }
 }
 
@@ -2580,10 +2590,11 @@ int main(int argc, char **argv) {
     } else {
         std::string type(argv[1]);
         if (::strcasecmp(type.c_str(), "auto") == 0) {
-            if (FileUtil_ReadString(TUEFIND_FLAVOUR_FILE, &type))
-                std::cout << "using auto-detected tuefind installation type \"" + type + "\" from " + TUEFIND_FLAVOUR_FILE;
+            type = GetTueFindFlavour();
+            if (not type.empty())
+                std::cout << "using auto-detected tuefind installation type \"" + type + "\"\n";
             else
-                Error("could not auto-detect tuefind installation type from " + TUEFIND_FLAVOUR_FILE);
+                Error("could not auto-detect tuefind installation type");
         }
 
         if (::strcasecmp(type.c_str(), "krimdok") == 0)
