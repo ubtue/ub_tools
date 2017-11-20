@@ -23,6 +23,8 @@
 #include <vector>
 #include "Compiler.h"
 #include "File.h"
+#include "MarcXmlWriter.h"
+#include "SimpleXmlParser.h"
 
 
 namespace MARC {
@@ -45,7 +47,9 @@ public:
     };
 private:
     friend class BinaryReader;
+    friend class XmlReader;
     friend class BinaryWriter;
+    friend class XmlWriter;
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
@@ -58,6 +62,8 @@ public:
     enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
     typedef std::vector<Field>::iterator iterator;
     typedef std::vector<Field>::const_iterator const_iterator;
+private:
+    Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
     explicit Record(const size_t record_size, char * const record_start);
 
@@ -96,8 +102,6 @@ public:
      *                                 and the index of the last field + 1 of a local block in "second".
      */
     size_t findAllLocalDataBlocks(std::vector<std::pair<size_t, size_t>> * const local_block_boundaries) const;
-private:
-    Record() { }
 };
 
 
@@ -110,19 +114,119 @@ public:
 };
 
 
-class BinaryReader {
-    std::unique_ptr<File> input_;
+class Reader {
 public:
-    explicit BinaryReader(const std::string &input_filename);
-    Record read();
+    enum ReaderType { AUTO, BINARY, XML };
+protected:
+    File *input_;
+    Reader(File * const input): input_(input) { }
+public:
+    virtual ~Reader() { delete input_; }
+
+    virtual ReaderType getReaderType() = 0;
+    virtual Record read() = 0;
+
+    /** \brief Rewind the underlying file. */
+    virtual void rewind() = 0;
+
+    /** \return The path of the underlying file. */
+    inline const std::string &getPath() const { return input_->getPath(); }
+
+    /** \return The current file position of the underlying file. */
+    inline off_t tell() const { return input_->tell(); }
+
+    inline bool seek(const off_t offset, const int whence = SEEK_SET) { return input_->seek(offset, whence); }
+
+    /** \return a BinaryMarcReader or an XmlMarcReader. */
+    static std::unique_ptr<Reader> Factory(const std::string &input_filename,
+                                               ReaderType reader_type = AUTO);
+};
+
+    
+class BinaryReader: public Reader {
+public:
+    explicit BinaryReader(File * const input): Reader(input) { }
+    virtual ~BinaryReader() = default;
+    
+    virtual ReaderType getReaderType() final { return Reader::BINARY; }
+    virtual Record read() final;
+    virtual void rewind() final { input_->rewind(); }
 };
 
 
-class BinaryWriter {
+class XmlReader: public Reader {
+    SimpleXmlParser<File> *xml_parser_;
+    std::string namespace_prefix_;
+public:
+    /** \brief Initialise a XmlReader instance.
+     *  \param input                        Where to read from.
+     *  \param skip_over_start_of_document  Skips to the first marc:record tag.  Do not set this if you intend
+     *                                      to seek to an offset on \"input\" before calling this constructor.
+     */
+    explicit XmlReader(File * const input, const bool skip_over_start_of_document = true)
+        : Reader(input), xml_parser_(new SimpleXmlParser<File>(input))
+    {
+        if (skip_over_start_of_document)
+            skipOverStartOfDocument();
+    }
+    virtual ~XmlReader() = default;
+
+    virtual ReaderType getReaderType() final { return Reader::XML; }
+    virtual Record read() final;
+    virtual void rewind() final;
+private:
+    void parseLeader(const std::string &input_filename, Record * const new_record);
+    void parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record);
+    void parseDatafield(const std::string &input_filename,
+                        const std::map<std::string, std::string> &datafield_attrib_map,
+                        const std::string &tag, Record * const record);
+    void skipOverStartOfDocument();
+    bool getNext(SimpleXmlParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
+                 std::string * const data);
+};
+
+
+class Writer {
+public:
+    enum WriterMode { OVERWRITE, APPEND };
+    enum WriterType { XML, BINARY, AUTO };
+public:
+    virtual ~Writer() { }
+
+    virtual void write(const Record &record) = 0;
+
+    /** \return a reference to the underlying, assocaiated file. */
+    virtual File &getFile() = 0;
+
+    /** \note If you pass in AUTO for "writer_type", "output_filename" must end in ".mrc" or ".xml"! */
+    static std::unique_ptr<Writer> Factory(const std::string &output_filename, WriterType writer_type = AUTO,
+                                           const WriterMode writer_mode = WriterMode::OVERWRITE);
+};
+
+
+class BinaryWriter: public Writer {
     File &output_;
 public:
     BinaryWriter(File * const output): output_(*output) { }
-    void write(const Record &record);
+
+    virtual void write(const Record &record) final;
+
+    /** \return a reference to the underlying, associated file. */
+    virtual File &getFile() final { return output_; }
+};
+
+
+class XmlWriter: public Writer {
+    MarcXmlWriter *xml_writer_;
+public:
+    explicit XmlWriter(File * const output_file, const unsigned indent_amount = 0,
+                       const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion);
+    virtual ~XmlWriter() final { delete xml_writer_; }
+
+    virtual void write(const Record &record) final;
+
+    /** \return a reference to the underlying, assocaiated file. */
+    virtual File &getFile() final { return *xml_writer_->getAssociatedOutputFile(); }
 };
 
 
