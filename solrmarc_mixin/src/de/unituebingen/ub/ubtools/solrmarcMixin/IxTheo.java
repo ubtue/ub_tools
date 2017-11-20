@@ -3,6 +3,7 @@ package de.unituebingen.ub.ubtools.solrmarcMixin;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.Reader.*;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.*;
@@ -16,6 +17,7 @@ import org.solrmarc.tools.Utils;
 import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheo extends SolrIndexerMixin {
+    protected static Logger logger = Logger.getLogger(IxTheo.class.getName());
     private Set<String> ixTheoNotations = null;
 
 
@@ -44,33 +46,6 @@ public class IxTheo extends SolrIndexerMixin {
             return TuelibMixin.UNASSIGNED_SET;
         }
         return ixTheoNotations;
-    }
-
-
-    public Set<String> getJournalIssue(final Record record) {
-        final DataField _773Field = (DataField)record.getVariableField("773");
-        if (_773Field == null)
-            return null;
-
-        final Subfield aSubfield = _773Field.getSubfield('a');
-        if (aSubfield == null)
-            return null;
-
-        final Set<String> subfields = new LinkedHashSet<String>();
-        subfields.add(aSubfield.getData());
-
-        final Subfield gSubfield = _773Field.getSubfield('g');
-        if (gSubfield != null)
-            subfields.add(gSubfield.getData());
-
-        final List<Subfield> wSubfields = _773Field.getSubfields('w');
-        for (final Subfield wSubfield : wSubfields) {
-            final String subfieldContents = wSubfield.getData();
-            if (subfieldContents.startsWith("(DE-576)"))
-                subfields.add(subfieldContents);
-        }
-
-        return subfields;
     }
 
     /**

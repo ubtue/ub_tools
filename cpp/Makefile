@@ -15,10 +15,11 @@ LIBS           = -Llib -lubtue -Llib/libstemmer -lstemmer -lxml2 -lpcre -lkyotoc
                  -larchive -lboost_graph -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt \
                  -lssl -lcrypto -lpthread -ldl -luuid
 ifneq ("$(wildcard /usr/include/selinux)","")
+  CCCFLAGS += -DHAS_SELINUX_HEADERS
   LIBS += -lselinux
 endif
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
-CGI_PROGS      = full_text_lookup translate_chainer translator_ajax translator display_translate_stats
+CGI_PROGS      = full_text_cache_monitor full_text_lookup translate_chainer translator_ajax translator display_translate_stats
 INSTALL_PROGS  = $(PROGS) *.sh
 
 .PHONY: all .deps tests test install regular_install cgi_install local_clean clean
@@ -65,6 +66,7 @@ data_install: data/*.map data/*.html data/mytranslations_template.msg data/*.tem
 	mkdir --parents /usr/local/var/lib/tuelib/translate_chainer
 	cp data/done_translating.html data/translate.html data/translation_front_page.html \
            data/mytranslations_template.msg /usr/local/var/lib/tuelib/translate_chainer/
+	cp -r data/full_text_cache_monitor /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.ixtheo.template /usr/local/var/lib/tuelib/
 	cp data/subscriptions_email.relbib.template /usr/local/var/lib/tuelib/
 	cp data/zotero_crawler.conf /usr/local/var/lib/tuelib/

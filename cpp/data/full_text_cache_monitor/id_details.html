@@ -1,0 +1,25 @@
+<h2>Details for ID {id}:</h2>
+<table>
+    <tr><td>Expiration:</td><td>{expiration}</td></tr>
+    <tr><td>Link to KrimDok:</td><td>{link_sobek}&nbsp;{link_ub15}</a></td></tr>
+</table>
+
+<h2>URLs:</h2>
+<table>
+    <tr>
+        <th>URL</th>
+        <th>Domain</th>
+        <th>Error Message</th>
+    </tr>
+
+    {LOOP url, domain, error_message}
+    <tr>
+        <td>{url}</td>
+        <td>{domain}</td>
+        <td>{error_message}</td>
+    </tr>
+    {ENDLOOP}
+</table>
+
+<h2>Fulltext:</h2>
+<p>{fulltext}</p>

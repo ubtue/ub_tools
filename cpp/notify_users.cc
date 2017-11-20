@@ -44,20 +44,17 @@ database = "vufind"
 #include <XmlParser.h>
 
 
+namespace {
+
+
 void Usage() {
     std::cerr << "usage: " << ::progname << " ini_file_path\n";
     std::exit(EXIT_FAILURE);
 }
 
 
-namespace {
-
-
 enum class ParseState { ARRAY_EXPECTED, OPEN_PAREN_EXPECTED, PARAM_OR_CLOSE_PAREN_EXPECTED, PARAM_OPEN_PAREN_EXPECTED,
                         PARAM_VALUE_EXPECTED, PARAM_CLOSE_PAREN_EXPECTED };
-
-
-} // unnamed namespace
 
 
 /** Parses structures like the following:
@@ -380,6 +377,9 @@ struct UserIdAndEmail {
 public:
     UserIdAndEmail(const std::string &user_id, const std::string &email): user_id_(user_id), email_(email) { }
 };
+
+
+} // unnamed namespace
 
 
 int main(int argc, char *argv[]) {

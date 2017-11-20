@@ -1,0 +1,16 @@
+table th {
+    text-align: left;
+    border: 1px solid #CCCCCC;
+}
+
+table td {
+    border: 1px solid #CCCCCC;
+}
+
+.error {
+    color: red;
+}
+
+.cache-info {
+    font-style: italic;
+}

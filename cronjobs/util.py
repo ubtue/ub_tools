@@ -28,8 +28,8 @@ default_config_file_dir = "/usr/local/var/lib/tuelib/cronjobs/"
 
 
 # @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the highest priority.
-# @param attachment A path to the file that should be attached.
-def SendEmail(subject, msg, sender=None, recipient=None, priority=None, attachment=None):
+# @param attachment A path to the file that should be attached. Can be string or list of strings.
+def SendEmail(subject, msg, sender=None, recipient=None, priority=None, attachments=None):
     subject = os.path.basename(sys.argv[0]) +  ": " + subject + " (from: " + socket.gethostname() + ")"
     if recipient is None:
         recipient = default_email_recipient
@@ -57,11 +57,15 @@ def SendEmail(subject, msg, sender=None, recipient=None, priority=None, attachme
         message["X-Priority"] = str(priority)
     message.attach(MIMEText(msg, 'plain', 'utf-8'))
 
-    if attachment is not None:
-        with open(attachment, "rb") as file:
-            part = MIMEApplication(file.read(), Name=os.path.basename(attachment))
-        part['Content-Disposition'] = 'attachment; filename="%s"' % os.path.basename(attachment)
-        message.attach(part)
+    if attachments is not None:
+        if not type(attachments) is list:
+            attachments = [ attachments ]
+
+        for attachment in attachments:
+            with open(attachment, "rb") as file:
+                part = MIMEApplication(file.read(), Name=os.path.basename(attachment))
+            part['Content-Disposition'] = 'attachment; filename="%s"' % os.path.basename(attachment)
+            message.attach(part)
 
     server = smtplib.SMTP(server_address)
     try:
@@ -340,10 +344,8 @@ def RemoveLinkTargetAndLink(link_name, fail_on_dangling=False):
 
 
 def GetLogDirectory():
-    if os.access("/var/log/krimdok", os.F_OK):
-        return "/var/log/krimdok"
-    elif os.access("/var/log/ixtheo", os.F_OK):
-        return "/var/log/ixtheo"
+    if os.access("/usr/local/var/log/tuefind", os.F_OK):
+        return "/usr/local/var/log/tuefind"
     else:
         Warning("Can't find the log directory!  Logging to /tmp instead.")
         return "/tmp"

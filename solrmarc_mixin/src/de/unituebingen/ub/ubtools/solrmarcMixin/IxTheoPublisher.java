@@ -112,7 +112,7 @@ public class IxTheoPublisher extends SolrIndexerMixin {
      * @param record the record
      * @return publishers
      */
-    public Set<String> getPublishers(final Record record) {
+    public Set<String> getNormalizedPublishers(final Record record) {
         Set<String> publishers = new LinkedHashSet<>();
         final Set<String> rawPublishers = getRawPublishers(record);
 
@@ -130,7 +130,7 @@ public class IxTheoPublisher extends SolrIndexerMixin {
     }
 
     public Set<String> getPublishersOrUnassigned(final Record record) {
-        final Set<String> publishers = getPublishers(record);
+        final Set<String> publishers = getNormalizedPublishers(record);
         if (publishers == null || publishers.isEmpty()) {
             return TuelibMixin.UNASSIGNED_SET;
         }

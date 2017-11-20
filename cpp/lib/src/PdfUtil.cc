@@ -99,9 +99,7 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
     const std::string &output_filename(auto_temp_file2.getFilePath());
     static constexpr unsigned TIMEOUT(60); // in seconds
 
-    const std::string UPDATE_DB_LOG_PATH(
-        "/var/log/" + std::string(FileUtil::Exists("/var/log/krimdok") ? "krimdok" : "ixtheo")
-        + "/update_full_text_db/log");
+    const std::string UPDATE_DB_LOG_PATH("/usr/local/var/log/tuefind/update_full_text_db/log");
     MiscUtil::LogRotate(UPDATE_DB_LOG_PATH, /* max_count = */5);
 
     if (ExecUtil::Exec(pdf_images_script_path, { input_filename, output_filename, tesseract_language_code },

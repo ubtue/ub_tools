@@ -25,12 +25,9 @@
 #include "DbConnection.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
+#include "FullTextCache.h"
 #include "StringUtil.h"
 #include "util.h"
-#include "VuFind.h"
-
-
-namespace {
 
 
 void Usage() __attribute__((noreturn));
@@ -41,6 +38,9 @@ void Usage() {
               << "       A report will be sent to \"email_address\".\n\n";
     std::exit(EXIT_FAILURE);
 }
+
+
+namespace {
 
 
 void LoadOldStats(const std::string &stats_file_path,
@@ -63,7 +63,7 @@ void LoadOldStats(const std::string &stats_file_path,
 
         const std::string domain(line.substr(0, vertical_bar_pos));
         unsigned count;
-        if (unlikely(not StringUtil::ToUnsigned(line.substr(vertical_bar_pos + 1))))
+        if (unlikely(not StringUtil::ToUnsigned(line.substr(vertical_bar_pos + 1), &count)))
             logger->error("in LoadOldStats: line #" + std::to_string(line_no) + "in \"" + input->getPath()
                           + "\" contains junk!");
 
@@ -72,37 +72,14 @@ void LoadOldStats(const std::string &stats_file_path,
 }
 
 
-// Here we assume we only deal with HTTP and HTTPS URL's.
-std::string GetHost(const std::string &url) {
-    if (unlikely(url.length() < 9))
-        logger->error("in GetHost: we don't know how to deal with this \"URL\": \"" + url + "\"!");
-
-    const std::string::size_type first_colon_pos(url.find(':', 9));
-    if (first_colon_pos != std::string::npos)
-        return url.substr(0, first_colon_pos);
-
-    const std::string::size_type first_slash_pos(url.find('/', 9));
-    if (first_slash_pos != std::string::npos)
-        return url.substr(0, first_slash_pos);
-
-    return url;
-}
-
-
 void DetermineNewStats(std::vector<std::pair<std::string, unsigned>> * const domains_and_counts) {
     domains_and_counts->clear();
 
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
-
-    db_connection.queryOrDie("SELECT url FROM full_text_cache");
-    DbResultSet result_set(db_connection.getLastResultSet());
-
+    FullTextCache cache;
+    std::vector<std::string> domains = cache.getDomains();
     std::unordered_map<std::string, unsigned> domains_to_counts_map;
-    while (const DbRow row = result_set.getNextRow()) {
-        const std::string domain(GetHost(row["url"]));
-
+    for (std::vector<std::string>::iterator it = domains.begin(); it < domains.end(); it++) {
+        const std::string domain = *it;
         const auto domain_and_count_iter(domains_to_counts_map.find(domain));
         if (domain_and_count_iter == domains_to_counts_map.end())
             domains_to_counts_map[domain] = 1;
@@ -145,7 +122,7 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
         } else {
             if (old_iter->first == new_iter->first) {
                 report_text += old_iter->first + ", old count: " + std::to_string(old_iter->second) + ", new count: "
-                               + std::to_string(old_iter->second) + "\n";
+                               + std::to_string(new_iter->second) + "\n";
                 ++new_iter, ++old_iter;
             } else if (old_iter->first < new_iter->first) {
                 report_text += old_iter->first + " (count: " + std::to_string(old_iter->second) + ") disappeared.\n";
@@ -194,6 +171,7 @@ int main(int argc, char *argv[]) {
         CompareStatsAndGenerateReport(argv[2], old_domains_and_counts, new_domains_and_counts);
         WriteStats(argv[1], new_domains_and_counts);
 
+        logger->info("finished successfully");
     } catch (const std::exception &e) {
         logger->error("caught exception: " + std::string(e.what()));
     }

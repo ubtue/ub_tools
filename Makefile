@@ -1,6 +1,7 @@
+TUEFIND_FLAVOUR ?= "unknown"
 .PHONY: all install clean test install_configs
 
-all: 
+all:
 	$(MAKE) -C cpp/lib/mkdep;
 	$(MAKE) -C cpp;
 	$(MAKE) -C solr_plugins;
@@ -14,7 +15,7 @@ install: install_configs
 	$(MAKE) -C solrmarc_mixin install;
 	$(MAKE) -C cronjobs install
 
-clean: 
+clean:
 	$(MAKE) -C cpp/lib/mkdep clean;
 	$(MAKE) -C cpp clean;
 	$(MAKE) -C cronjobs clean;
@@ -25,13 +26,13 @@ test:
 	$(MAKE) -C cpp/tests test;
 
 install_configs:
-ifneq "$(wildcard /var/log/ixtheo/)" ""
-	@echo "We have an IxTheo installation..."
+ifeq "$(TUEFIND_FLAVOUR)" "ixtheo"
+	@echo "Installing $(TUEFIND_FLAVOUR)..."
 	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/IxTheo/ install
-else ifneq "$(wildcard /var/log/krimdok/)" ""
-	@echo "We have a KrimDok installation..."
+else ifeq "$(TUEFIND_FLAVOUR)" "krimdok"
+	@echo "Installing $(TUEFIND_FLAVOUR)..."
 	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/KrimDok/ install
 else
-	$(error Did not find /var/log/ixtheo/ nor /var/log/krimdok/.)
+	$(error TUEFIND_FLAVOUR neither ixtheo nor krimdok!)
 endif
-# DO NOT DELETE
+
