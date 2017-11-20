@@ -15,6 +15,7 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.PhraseQuery;
+import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
@@ -219,7 +220,24 @@ public class MultiLanguageQueryParser extends QParser {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
         }
-	throw new SolrException(ErrorCode.SERVER_ERROR, "Unable to handle " +  subquery.getClass().getName());
+        else if (subquery instanceof BooleanQuery) {
+            subquery = processBooleanQuery((BooleanQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
+
+        }
+        else if (subquery instanceof PrefixQuery) {
+            subquery = processPrefixQuery((PrefixQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
+        }
+        else
+	    throw new SolrException(ErrorCode.SERVER_ERROR, "Boost Query: Unable to handle " +  subquery.getClass().getName());
+    }
+
+
+    private Query processPrefixQuery(final PrefixQuery queryCandidate) {
+        Term term = queryCandidate.getPrefix();
+        TermQuery newTermQuery = (TermQuery)processTermQuery(new TermQuery(term));
+        return new PrefixQuery(new Term(newTermQuery.getTerm().field(), newTermQuery.getTerm().text()));
     }
 
 
