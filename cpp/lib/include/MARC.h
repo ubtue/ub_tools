@@ -211,7 +211,7 @@ public:
 
     virtual void write(const Record &record) final;
 
-    /** \return a reference to the underlying, assocaiated file. */
+    /** \return a reference to the underlying, associated file. */
     virtual File &getFile() final { return output_; }
 };
 
