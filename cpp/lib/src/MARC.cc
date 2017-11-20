@@ -514,6 +514,26 @@ bool XmlReader::getNext(SimpleXmlParser<File>::Type * const type,
 }
 
 
+std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, WriterType writer_type,
+                                                const WriterMode writer_mode)
+{
+    std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE
+                                 ? FileUtil::OpenOutputFileOrDie(output_filename)
+                                 : FileUtil::OpenForAppendingOrDie(output_filename));
+    if (writer_type == AUTO) {
+        if (StringUtil::EndsWith(output_filename, ".mrc") or StringUtil::EndsWith(output_filename, ".marc"))
+            writer_type = BINARY;
+        else if (StringUtil::EndsWith(output_filename, ".xml"))
+            writer_type = XML;
+        else
+            throw std::runtime_error("in MARC::Writer::Factory: WriterType is AUTO but filename \""
+                                     + output_filename + "\" does not end in \".mrc\" or \".xml\"!");
+    }
+    return (writer_type == XML) ? std::unique_ptr<Writer>(new XmlWriter(output.release()))
+                                : std::unique_ptr<Writer>(new BinaryWriter(output.release()));
+}
+
+
 void BinaryWriter::write(const Record &record) {
     Record::const_iterator start(record.begin());
     do {
@@ -558,6 +578,62 @@ void BinaryWriter::write(const Record &record) {
 
         start = end;
     } while (start != record.end());
+}
+
+
+XmlWriter::XmlWriter(File * const output_file, const unsigned indent_amount,
+                     const MarcXmlWriter::TextConversionType text_conversion_type)
+{
+    xml_writer_ = new MarcXmlWriter(output_file, indent_amount, text_conversion_type);
+}
+
+
+void XmlWriter::write(const Record &record) {
+    xml_writer_->openTag("record");
+
+    xml_writer_->writeTagsWithData("leader", record.leader_, /* suppress_newline = */ true);
+
+    for (const auto &field : record) {
+        if (field.isControlField())
+            xml_writer_->writeTagsWithData("controlfield", { std::make_pair("tag", field.getTag()) },
+                                           field.getContents(),
+                    /* suppress_newline = */ true);
+        else { // We have a data field.
+            xml_writer_->openTag("datafield",
+                                { std::make_pair("tag", field.getTag()),
+                                  std::make_pair("ind1", std::string(1, field.getContents()[0])),
+                                  std::make_pair("ind2", std::string(1, field.getContents()[1]))
+                                });
+
+            std::string::const_iterator ch(field.getContents().cbegin() + 2 /* Skip over the indicators. */);
+
+            while (ch != field.getContents().cend()) {
+                if (*ch != '\x1F')
+                    std::runtime_error("in MARC::XmlWriter::write: expected subfield code delimiter not found! "
+                                       "Found " + std::string(1, *ch) + "! (Control number is "
+                                       + record.getControlNumber() + ".)");
+
+                ++ch;
+                if (ch == field.getContents().cend())
+                    std::runtime_error("in MARC::XmlWriter::write: unexpected subfield data end while expecting a "
+                                       "subfield code!");
+                const std::string subfield_code(1, *ch++);
+
+                std::string subfield_data;
+                while (ch != field.getContents().cend() and *ch != '\x1F')
+                    subfield_data += *ch++;
+                if (subfield_data.empty())
+                    continue;
+
+                xml_writer_->writeTagsWithData("subfield", { std::make_pair("code", subfield_code) },
+                                              subfield_data, /* suppress_newline = */ true);
+            }
+
+            xml_writer_->closeTag(); // Close "datafield".
+        }
+    }
+
+    xml_writer_->closeTag(); // Close "record".
 }
 
 
