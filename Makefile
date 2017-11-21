@@ -33,6 +33,6 @@ else ifeq "$(TUEFIND_FLAVOUR)" "krimdok"
 	@echo "Installing $(TUEFIND_FLAVOUR)..."
 	$(MAKE) -C /mnt/ZE020150/FID-Entwicklung/KrimDok/ install
 else
-	$(error TUEFIND_FLAVOUR neither ixtheo nor krimdok!)
+	$(warning neither a KrimDok nor an IxTheo installation can be found!)
 endif
 
