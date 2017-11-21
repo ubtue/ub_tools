@@ -703,12 +703,6 @@
     <int name="xsltCacheLifetimeSeconds">5</int>
   </queryResponseWriter>
 
-  <queryParser class="de.uni_tuebingen.ub.ixTheo.bibleRangeSearch.BibleRangeParserPlugin" name="bibleRangeParser" />
-  <queryParser class="de.uni_tuebingen.ub.ixTheo.keywordChainSearch.KeywordChainParserParserPlugin" name="keywordChainParser" />
-
-  <queryParser class="de.uni_tuebingen.ub.ixTheo.multiLanguageQuery.MultiLanguageQueryParserPlugin" name="multiLanguageQueryParser" />
-
-
   <transformer class="de.uni_tuebingen.ub.ixTheo.MultiLanguageDocTransformerFactory" name="multiLanguageDocTransformer">
     <bool name="enabled">true</bool>
     <str name="fields">topic_standardized,topic_non_standardized</str>

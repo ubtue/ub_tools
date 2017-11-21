@@ -2,11 +2,11 @@
 set -o errexit -o nounset
 
 FILE_TO_IMPORT="$1"
-VUFIND_HOME=/usr/local/vufind
-VUFIND_SOLRMARC_HOME=$VUFIND_HOME/import/
-UB_TOOLS_HOME=/usr/local/ub_tools/
-CONFIG_FILE_DIR=$UB_TOOLS_HOME/cpp/data/refterm_solr_conf
-LOGDIR=/mnt/zram/log/ 
+export VUFIND_HOME="/usr/local/vufind"
+export VUFIND_SOLRMARC_HOME="$VUFIND_HOME/import/"
+export UB_TOOLS_HOME="/usr/local/ub_tools/"
+export CONFIG_FILE_DIR="$UB_TOOLS_HOME/cpp/data/refterm_solr_conf"
+export LOGDIR="/mnt/zram/solr/vufind/logs/"
 ZRAM_DISK_SIZE=2147483648 # Has to be in bytes in oder to compare the set value.
 
 
@@ -91,8 +91,12 @@ rsync --archive "$VUFIND_SOLRMARC_HOME"/bin /mnt/zram/import
 rsync --archive "$VUFIND_SOLRMARC_HOME"/lib_local /mnt/zram/import
 rsync --archive "$VUFIND_SOLRMARC_HOME"/index_java /mnt/zram/import
 
+#Adjust access permissions for running as solr user
+chown --recursive solr:solr "$SOLR_HOME"
+chown solr:solr "$LOGDIR"
+
 # Set up and start Solr
-/mnt/zram/solr.sh start
+sudo --preserve-env --user solr /mnt/zram/solr.sh start
 if [ $? -ne 0 ]; then
     >&2 echo "$0"': Failed to start Solr!'
     exit 1
