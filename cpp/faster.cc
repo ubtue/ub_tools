@@ -86,7 +86,8 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+            std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>>
+                local_block_boundaries;
             const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
             if (local_block_count > max_local_block_count)
                 max_local_block_count = local_block_count;
