@@ -208,14 +208,14 @@ class Subfields {
 public:
     typedef std::vector<Subfield>::const_iterator const_iterator;
 public:
-    inline explicit Subfields(const Record::Field &field) {
-        const std::string &field_contents(field.getContents());
-        if (unlikely(field_contents.length() < 4))
+    inline explicit Subfields(const std::string &field_contents) {
+        if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
             return;
 
         std::string value;
         char subfield_code(field_contents[3]);
-        for (auto ch(field_contents.cbegin() + 3 /* 2 indicators + delimiter */); ch != field_contents.cend(); ++ch)
+        for (auto ch(field_contents.cbegin() + 4 /* 2 indicators + delimiter + subfield code */);
+             ch != field_contents.cend(); ++ch)
         {
             if (unlikely(*ch == '\x1F')) {
                 subfields_.emplace_back(subfield_code, value);
@@ -232,6 +232,11 @@ public:
     inline const_iterator begin() const { return subfields_.cbegin(); }
     inline const_iterator end() const { return subfields_.cend(); }
     unsigned size() const { return subfields_.size(); }
+    inline bool hasSubfield(const char subfield_code) const {
+        return std::find_if(subfields_.cbegin(), subfields_.cend(),
+                            [subfield_code](const Subfield subfield) -> bool
+                                { return subfield.code_ == subfield_code; }) != subfields_.cend();
+    }
 };
 
 
