@@ -195,12 +195,43 @@ public:
 };
 
 
-class Subfields {
-    const std::string &field_contents_;
+struct Subfield {
+    const char code_;
+    const std::string value_;
 public:
-    explicit Subfields(const Record::Field &field): field_contents_(field.getContents()) { }
-    unsigned size() const __attribute__ ((pure))
-        { return std::count(field_contents_.cbegin(), field_contents_.cend(), '\x1F');}
+    Subfield(const char code, const std::string &value): code_(code), value_(value) { }
+};
+
+
+class Subfields {
+    std::vector<Subfield> subfields_;
+public:
+    typedef std::vector<Subfield>::const_iterator const_iterator;
+public:
+    inline explicit Subfields(const Record::Field &field) {
+        const std::string &field_contents(field.getContents());
+        if (unlikely(field_contents.length() < 4))
+            return;
+
+        std::string value;
+        char subfield_code(field_contents[3]);
+        for (auto ch(field_contents.cbegin() + 3 /* 2 indicators + delimiter */); ch != field_contents.cend(); ++ch)
+        {
+            if (unlikely(*ch == '\x1F')) {
+                subfields_.emplace_back(subfield_code, value);
+                value.clear();
+                ++ch; // Skip over the delimiter.
+                subfield_code = *ch;
+            } else
+                value += *ch;
+        }
+
+        subfields_.emplace_back(subfield_code, value);
+    }
+    
+    inline const_iterator begin() const { return subfields_.cbegin(); }
+    inline const_iterator end() const { return subfields_.cend(); }
+    unsigned size() const { return subfields_.size(); }
 };
 
 
