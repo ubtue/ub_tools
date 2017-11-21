@@ -78,7 +78,7 @@ public:
     inline const std::string to_string() const { return std::string(c_str(), 3); }
     inline uint32_t to_int() const { return htonl(tag_.as_int_); }
 
-    inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' && tag_.as_cstring_[1] == '0'; }
+    inline bool isTagOfControlField() const { return tag_.as_cstring_[0] == '0' and tag_.as_cstring_[1] == '0'; }
 };
 
 
