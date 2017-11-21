@@ -2403,7 +2403,6 @@ void DownloadVuFind() {
 
         TemporaryChDir tmp(VUFIND_DIRECTORY);
         ExecOrDie(ExecUtil_Which("composer"), { "install" });
-        ExecOrDie(ExecUtil_Which("php"), { "util/cssBuilder.php" });
     }
 }
 
