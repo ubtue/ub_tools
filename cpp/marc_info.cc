@@ -74,7 +74,7 @@ void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
             if (field.isControlField())
                 continue;
 
-            const MARC::Subfields subfields(field);
+            const MARC::Subfields subfields(field.getContents());
             const size_t subfield_count(subfields.size());
             if (unlikely(subfield_count > max_subfield_count))
                 max_subfield_count = subfield_count;
