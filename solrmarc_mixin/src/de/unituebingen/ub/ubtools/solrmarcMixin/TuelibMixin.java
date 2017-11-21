@@ -2129,7 +2129,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     /**
      * Determine Record Format(s) including the electronic tag The electronic
-     * category is filtered out in the actula getFormat function but needed to
+     * category is filtered out in the actual getFormat function but needed to
      * determine the media type
      *
      * @param record

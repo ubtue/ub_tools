@@ -120,7 +120,7 @@ fi
 ##################################################
 # Set Command Options
 ##################################################
-JAR_FILE="/mnt/zram/import/solrmarc_core.jar"
+JAR_FILE="/mnt/zram/import/solrmarc_core_tuefind.jar"
 
 #####################################################
 # Verify that JAR_FILE exists
