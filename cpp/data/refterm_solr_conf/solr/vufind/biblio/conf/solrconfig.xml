@@ -32,7 +32,7 @@
        that you fully re-index after changing this setting as it can
        affect both how text is indexed and queried.
     -->
-  <luceneMatchVersion>5.5.0</luceneMatchVersion>
+  <luceneMatchVersion>6.4.2</luceneMatchVersion>
 
   <!-- Used to specify an alternate directory to hold all index data
        other than the default ./data under the Solr home.
@@ -702,12 +702,6 @@
   <queryResponseWriter name="xslt" class="org.apache.solr.response.XSLTResponseWriter">
     <int name="xsltCacheLifetimeSeconds">5</int>
   </queryResponseWriter>
-
-  <queryParser class="de.uni_tuebingen.ub.ixTheo.bibleRangeSearch.BibleRangeParserPlugin" name="bibleRangeParser" />
-  <queryParser class="de.uni_tuebingen.ub.ixTheo.keywordChainSearch.KeywordChainParserParserPlugin" name="keywordChainParser" />
-
-  <queryParser class="de.uni_tuebingen.ub.ixTheo.multiLanguageQuery.MultiLanguageQueryParserPlugin" name="multiLanguageQueryParser" />
-
 
   <transformer class="de.uni_tuebingen.ub.ixTheo.MultiLanguageDocTransformerFactory" name="multiLanguageDocTransformer">
     <bool name="enabled">true</bool>
