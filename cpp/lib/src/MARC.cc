@@ -125,6 +125,14 @@ size_t Record::findFieldsInLocalBlock(const Tag &field_tag, const std::string &i
 }
 
 
+void Record::insertField(const Tag &new_field_tag, const std::string &new_field_value) {
+    auto insertion_location(fields_.begin());
+    while (insertion_location != fields_.end() and new_field_tag > insertion_location->getTag())
+        ++insertion_location;
+    fields_.emplace(insertion_location, new_field_tag, new_field_value);
+}
+
+
 std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, ReaderType reader_type) {
     if (reader_type == AUTO) {
         const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
