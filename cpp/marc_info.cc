@@ -26,9 +26,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "FileUtil.h"
-#include "Leader.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
+#include "MARC.h"
 #include "util.h"
 
 
@@ -41,14 +39,14 @@ static void Usage() {
 }
 
 
-void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
+void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader) {
     std::string raw_record;
     unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0),
         max_subfield_count(0), cumulative_field_count(0);
     std::unordered_set<std::string> control_numbers;
-    std::map<Leader::RecordType, unsigned> record_types_and_counts;
+    std::map<MARC::Record::RecordType, unsigned> record_types_and_counts;
 
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
         cumulative_field_count += record.getNumberOfFields();
         
@@ -60,41 +58,39 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
             logger->warning("found at least one duplicate control number: " + control_number);
         control_numbers.insert(control_number);
 
-        const Leader::RecordType record_type(record.getRecordType());
+        const MARC::Record::RecordType record_type(record.getRecordType());
         ++record_types_and_counts[record_type];
-        if (verbose and record_type == Leader::RecordType::UNKNOWN)
+        if (verbose and record_type == MARC::Record::RecordType::UNKNOWN)
             std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number
                       << ".\n";
 
-        const Leader &leader(record.getLeader());
-        const unsigned record_length(leader.getRecordLength());
+        const unsigned record_length(record.size());
         if (record_length > max_record_length)
             max_record_length = record_length;
         if (record_length >= 100000)
             ++oversized_record_count;
 
-        for (unsigned i(0); i < record.getNumberOfFields(); ++i) {
-            if (record.isControlField(i))
+        for (const auto &field : record) {
+            if (field.isControlField())
                 continue;
 
-            const Subfields subfields(record.getFieldData(i));
+            const MARC::Subfields subfields(field.getContents());
             const size_t subfield_count(subfields.size());
             if (unlikely(subfield_count > max_subfield_count))
                 max_subfield_count = subfield_count;
         }
 
-        std::vector<std::pair<size_t, size_t>> local_block_boundaries;
+        std::vector<std::pair<MARC::Record::const_iterator, MARC::Record::const_iterator>> local_block_boundaries;
         const size_t local_block_count(record.findAllLocalDataBlocks(&local_block_boundaries));
         if (local_block_count > max_local_block_count)
             max_local_block_count = local_block_count;
         for (const auto local_block_boundary : local_block_boundaries) {
-            std::vector<size_t> field_indices;
-            record.findFieldsInLocalBlock("001", "??", local_block_boundary, &field_indices);
-            if (field_indices.size() != 1)
+            std::vector<MARC::Record::const_iterator> fields;
+            if (record.findFieldsInLocalBlock("001", "??", local_block_boundary, &fields) != 1)
                 logger->error("Every local data block has to have exactly one 001 field. (Record: "
                               + record.getControlNumber() + ", Local data block: "
-                              + std::to_string(local_block_boundary.first) + " - "
-                              + std::to_string(local_block_boundary.second));
+                              + std::to_string(local_block_boundary.first - record.begin()) + " - "
+                              + std::to_string(local_block_boundary.second - record.begin()));
         }
     }
 
@@ -102,10 +98,10 @@ void ProcessRecords(const bool verbose, MarcReader * const marc_reader) {
     std::cout << "Largest record contains " << max_record_length << " bytes.\n";
     std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count
               << " local blocks.\n";
-    std::cout << "Counted " << record_types_and_counts[Leader::RecordType::BIBLIOGRAPHIC]
-              << " bibliographic record(s), " << record_types_and_counts[Leader::RecordType::AUTHORITY]
-              << " classification record(s), " << record_types_and_counts[Leader::RecordType::CLASSIFICATION]
-              << " authority record(s), and " << record_types_and_counts[Leader::RecordType::UNKNOWN]
+    std::cout << "Counted " << record_types_and_counts[MARC::Record::RecordType::BIBLIOGRAPHIC]
+              << " bibliographic record(s), " << record_types_and_counts[MARC::Record::RecordType::AUTHORITY]
+              << " classification record(s), " << record_types_and_counts[MARC::Record::RecordType::CLASSIFICATION]
+              << " authority record(s), and " << record_types_and_counts[MARC::Record::RecordType::UNKNOWN]
               << " record(s) of unknown record type.\n";
     std::cout << "Found " << oversized_record_count << " oversized records.\n";
     std::cout << "The field with the most subfields has " << max_subfield_count << " subfield(s).\n";
@@ -129,7 +125,7 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[1]));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
 
     try {
         ProcessRecords(verbose, marc_reader.get());
