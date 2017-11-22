@@ -1,5 +1,5 @@
 /** \file    extract_normdata_translations.cc
- *  \brief   Extract IxTheo and MACS translations from the normdata file and write it to 
+ *  \brief   Extract IxTheo and MACS translations from the normdata file and write it to
  *           language specific text files
  *  \author  Johannes Riedl
  */
@@ -21,7 +21,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* The German term is found in Field 150 
+/* The German term is found in Field 150
    Currently there are two different kinds of translations:
    IxTheo-Translations with the following definitions:
 
@@ -29,17 +29,17 @@
    710: Körperschaft - fremdsprachige Äquivalenz
    711: Konferenz - fremdsprachige Äquivalenz
    730: Titel - fremdsprachige Äquivalenz
-   750: Sachbegriff - fremdsprachige Äquivalenz  
-   751: Geografikum - fremdsprachige Äquivalenz    
+   750: Sachbegriff - fremdsprachige Äquivalenz
+   751: Geografikum - fremdsprachige Äquivalenz
 
    LoC/Rameau Translations:
    700: Person - Bevorzugter Name in einem anderen Datenbestand
-   710: Körperschaft - Bevorzugter Name in einem anderen Datenbestand              
+   710: Körperschaft - Bevorzugter Name in einem anderen Datenbestand
    711: Konferenz - Bevorzugte Benennung in einem anderen Datenbestand
    730: Einheitstitel - Bevorzugter Name in einem anderen Datenbestand
    750: Sachbegriff - Bevorzugte Benennung in einem anderen Datenbestand
-   751: Geografikum - Bevorzugter Name in einem anderen Datenbestand  
-*/ 
+   751: Geografikum - Bevorzugter Name in einem anderen Datenbestand
+*/
 #include <iostream>
 #include <map>
 #include <vector>
@@ -94,13 +94,9 @@ void ExtractOneTranslation(const Subfields &all_subfields, const std::string &tr
     auto lang(std::mismatch(language_prefix.cbegin(), language_prefix.cend(), language_and_type.cbegin()));
     auto type(std::mismatch(translation_type_prefix.cbegin(), translation_type_prefix.cend(), language_and_type.cbegin()));
     // Check if we matched the prefix
-    if (lang.first == language_prefix.cend())
+    if (lang.first == language_prefix.cend()) {
         language = std::string(lang.second, language_and_type.cend());
-    else if (type.first == translation_type_prefix.cend()) {
         translation_type = std::string(type.second, language_and_type.cend());
-        // We need a single translation so don't return synonyms
-        if (translation_type == "VW")
-            return;
     }
 
     if (translation_origin.size() == 1) {
@@ -128,9 +124,16 @@ void RemoveMACSIfIxTheoPresent(std::vector<std::string> * const translations) {
 }
 
 
+void InsertTranslation(std::map<std::string, std::vector<std::string>> &term_to_translations_map, std::string german_term, std::string translation) {
+     std::vector<std::string> term_translations = term_to_translations_map[german_term];
+     term_translations.push_back(translation);
+     term_to_translations_map[german_term] = term_translations;
+}
+
+
 void ExtractTranslations(MarcReader * const marc_reader, const std::string &german_term_field_spec,
                          const std::string &translation_field_spec,
-                         std::map<std::string, std::string> term_to_translation_maps[])
+                         std::map<std::string, std::vector<std::string>> term_to_translation_maps[])
 {
     std::vector<std::string> german_tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(german_term_field_spec, ':', &german_tags_and_subfield_codes) < 1))
@@ -139,10 +142,10 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
     std::vector<std::string> translation_tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(translation_field_spec, ':', &translation_tags_and_subfield_codes) < 1))
         logger->error("ExtractTranslations: Need at least one translation field");
-    
+
     if (unlikely(german_tags_and_subfield_codes.size() != translation_tags_and_subfield_codes.size()))
         logger->error("ExtractTranslations: Number of German fields and number of translation fields must be equal");
-    
+
     unsigned count(0);
     while (const MarcRecord record = marc_reader->read()) {
         std::map<std::string, std::vector<std::string>> all_translations;
@@ -204,8 +207,8 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
                 RemoveMACSIfIxTheoPresent(&translations);
                 all_translations.insert(std::make_pair(StringUtil::Join(german_terms, ' '), translations));
             }
-        }   
- 
+        }
+
         for (auto all_translations_it = all_translations.begin(); all_translations_it != all_translations.end();
              ++all_translations_it)
         {
@@ -216,28 +219,24 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
             {
                 if (translation_vector_it + 1 == all_translations_it->second.end())
                     break;
-                if (*translation_vector_it == "IxTheo_eng")
-                    term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "IxTheo_fre")
-                    term_to_translation_maps[FR].emplace(german_term, *(++translation_vector_it));
+                if (*translation_vector_it == "IxTheo_eng" or *translation_vector_it == "lcsh")
+                    InsertTranslation(term_to_translation_maps[EN], german_term, *(++translation_vector_it));
+                else if (*translation_vector_it == "IxTheo_fre" or *translation_vector_it == "ram")
+                    InsertTranslation(term_to_translation_maps[FR], german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "IxTheo_spa")
-                    term_to_translation_maps[ES].emplace(german_term, *(++translation_vector_it));
+                    InsertTranslation(term_to_translation_maps[ES], german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "IxTheo_ita")
-                    term_to_translation_maps[IT].emplace(german_term, *(++translation_vector_it));
+                    InsertTranslation(term_to_translation_maps[IT], german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "IxTheo_hans")
-                    term_to_translation_maps[HANS].emplace(german_term, *(++translation_vector_it));
+                    InsertTranslation(term_to_translation_maps[HANS], german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "IxTheo_hant")
-                    term_to_translation_maps[HANT].emplace(german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "lcsh")
-                    term_to_translation_maps[EN].emplace(german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "ram")
-                    term_to_translation_maps[FR].emplace(german_term, *(++translation_vector_it));
+                    InsertTranslation(term_to_translation_maps[HANT], german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "IxTheo_por")
-                    term_to_translation_maps[PT].emplace(german_term, *(++translation_vector_it));
+                    InsertTranslation(term_to_translation_maps[PT], german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "IxTheo_rus")
-                    term_to_translation_maps[RU].emplace(german_term, *(++translation_vector_it));
+                    InsertTranslation(term_to_translation_maps[RU], german_term, *(++translation_vector_it));
                 else if (*translation_vector_it == "IxTheo_gre")
-                    term_to_translation_maps[EL].emplace(german_term, *(++translation_vector_it));
+                    InsertTranslation(term_to_translation_maps[EL], german_term, *(++translation_vector_it));
             }
         }
         ++count;
@@ -267,14 +266,14 @@ int main(int argc, char **argv) {
         logger->error("Authority data input file name equals output file name!");
     std::unique_ptr<MarcReader> authority_data_reader(MarcReader::Factory(authority_data_marc_input_filename,
                                                                           MarcReader::BINARY));
-    
+
     // Create a file for each language
     std::vector<std::string> output_file_components;
-    if (unlikely(StringUtil::Split(extracted_translations_filename, ".", &output_file_components) < 1)) 
+    if (unlikely(StringUtil::Split(extracted_translations_filename, ".", &output_file_components) < 1))
         logger->error("extracted_translations_filename " + extracted_translations_filename + " is not valid");
-   
+
     File *lang_files[NUMBER_OF_LANGUAGES];
-  
+
     // Derive output components from given input filename
     const std::string extension = (output_file_components.size() > 1) ? output_file_components.back() : "";
     std::string basename;
@@ -295,14 +294,14 @@ int main(int argc, char **argv) {
     }
 
     try {
-        std::map<std::string, std::string> term_to_translation_maps[NUMBER_OF_LANGUAGES];
+        std::map<std::string, std::vector<std::string>> term_to_translation_maps[NUMBER_OF_LANGUAGES];
         ExtractTranslations(authority_data_reader.get(),
-                            "100a:110a:111a:130a:150a:151a", 
+                            "100a:110a:111a:130a:150a:151a",
                             "700a:710a:711a:730a:750a:751a",
                             term_to_translation_maps);
         for (int lang(0); lang < LANGUAGES_END; ++lang) {
-            for (const auto &line : term_to_translation_maps[lang]) 
-                *(lang_files[lang]) << line.first << '|' << line.second << '\n';
+            for (const auto &line : term_to_translation_maps[lang])
+                *(lang_files[lang]) << line.first << '|' << StringUtil::Join(line.second, "||") << '\n';
         }
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
