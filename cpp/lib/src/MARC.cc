@@ -143,7 +143,7 @@ void Record::insertField(const Tag &new_field_tag, const std::string &new_field_
 
 bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
     const auto field(std::find_if(fields_.begin(), fields_.end(),
-                                  [&field_tag](const Field &field) -> bool { return field.getTag() == field_tag; }));
+                                  [&field_tag](const Field &field1) -> bool { return field1.getTag() == field_tag; }));
     if (field == fields_.end())
         return false;
 
