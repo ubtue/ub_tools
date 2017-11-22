@@ -51,6 +51,14 @@ inline std::string ToStringWithLeadingZeros(const unsigned n, const unsigned wid
 namespace MARC {
 
 
+void Subfields::addSubfield(const char subfield_code, const std::string &subfield_value) {
+    auto insertion_location(subfields_.begin());
+    while (insertion_location != subfields_.end() and insertion_location->code_ < subfield_code)
+        ++insertion_location;
+    subfields_.emplace(insertion_location, subfield_code, subfield_value);
+}
+
+
 Record::Record(const size_t record_size, char * const record_start)
     : record_size_(record_size), leader_(record_start, record_size)
 {
@@ -130,6 +138,25 @@ void Record::insertField(const Tag &new_field_tag, const std::string &new_field_
     while (insertion_location != fields_.end() and new_field_tag > insertion_location->getTag())
         ++insertion_location;
     fields_.emplace(insertion_location, new_field_tag, new_field_value);
+}
+
+
+bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
+    const auto field(std::find_if(fields_.begin(), fields_.end(),
+                                  [&field_tag](const Field &field) -> bool { return field.getTag() == field_tag; }));
+    if (field == fields_.end())
+        return false;
+
+    Subfields subfields(field->getContents());
+    subfields.addSubfield(subfield_code, subfield_value);
+    
+    std::string new_field_value;
+    new_field_value += field->getIndicator1();
+    new_field_value += field->getIndicator2();
+    new_field_value += subfields.toString();
+    field->contents_ = new_field_value;
+
+    return true;
 }
 
 

@@ -100,11 +100,12 @@ namespace MARC {
 
 
 struct Subfield {
-    const char code_;
-    const std::string value_;
+    char code_;
+    std::string value_;
 public:
     Subfield(const char code, const std::string &value): code_(code), value_(value) { }
-    inline std::string toString() const __attribute__((pure)) {
+    
+    inline std::string toString() const {
         std::string as_string;
         as_string += '\x1F';
         as_string += code_;
@@ -139,7 +140,7 @@ public:
 
         subfields_.emplace_back(subfield_code, value);
     }
-    
+
     inline const_iterator begin() const { return subfields_.cbegin(); }
     inline const_iterator end() const { return subfields_.cend(); }
     unsigned size() const { return subfields_.size(); }
@@ -149,6 +150,8 @@ public:
                             [subfield_code](const Subfield subfield) -> bool
                                 { return subfield.code_ == subfield_code; }) != subfields_.cend();
     }
+
+    void addSubfield(const char subfield_code, const std::string &subfield_value);
 
     inline std::string toString() const {
         std::string as_string;
@@ -162,6 +165,7 @@ public:
 class Record {
 public:
     class Field {
+        friend class Record;
         Tag tag_;
         std::string contents_;
     public:
@@ -238,6 +242,11 @@ public:
         new_field_value += subfields.toString();
         insertField(new_field_tag, new_field_value);
     }
+
+    /** \brief  Adds a subfield to the first existing field with tag "field_tag".
+     *  \return True if a field with field tag "field_tag" existed and false if no such field was found.
+     */
+    bool addSubfield(const Tag &field_tag, const char subfield_code, const std::string &subfield_value);
 
     inline iterator begin() { return fields_.begin(); }
     inline iterator end() { return fields_.end(); }
