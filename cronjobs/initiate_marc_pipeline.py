@@ -28,7 +28,7 @@ def OptimizeSolrIndex():
     try:
         request = urllib2.Request(
             "http://localhost:8080/solr/biblio/update?optimize=true")
-        response = urllib2.urlopen(request, timeout=1200)
+        response = urllib2.urlopen(request, timeout=1800)
     except:
         util.SendEmail("MARC-21 Pipeline", "Failed to optimize the SOLR index!", priority=1)
         sys.exit(-1)
