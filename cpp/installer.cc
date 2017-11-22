@@ -1337,15 +1337,19 @@ std::string ExecUtil_Which(const std::string &executable_candidate) {
 
     const size_t last_slash_pos(executable_candidate.find_last_of('/'));
     if (last_slash_pos != std::string::npos) {
-        if (not IsExecutableFile(executable_candidate))
+        if (not IsExecutableFile(executable_candidate)) {
+            std::cout << "Warning: command not available: " << executable_candidate;
             return "";
+        }
         executable = executable_candidate;
     }
 
     if (executable.empty()) {
         const char * const PATH(::secure_getenv("PATH"));
-        if (PATH == nullptr)
+        if (PATH == nullptr) {
+            std::cout << "Warning: command not available: " << executable_candidate;
             return "";
+        }
 
         const std::string path_str(PATH);
         std::vector<std::string> path_components;
@@ -1359,9 +1363,10 @@ std::string ExecUtil_Which(const std::string &executable_candidate) {
         }
     }
 
-    if (executable.empty())
+    if (executable.empty()) {
+        std::cout << "Warning: command not available: " << executable_candidate;
         return "";
-    else {
+    } else {
         which_cache[executable_candidate] = executable;
         return executable;
     }
