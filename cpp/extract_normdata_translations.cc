@@ -63,6 +63,30 @@ void Usage() {
     std::exit(EXIT_FAILURE);
 }
 
+void ExtractSubfield9Info(const std::vector<std::string> _9Subfields,
+                          std::string * const lang, std::string * const type, std::string * const macs_tag) {
+
+    const std::string language_prefix("L:");
+    const std::string ixtheo_type_prefix("Z:");
+    const std::string macs_tag_prefix("v:");
+
+    for (auto _9Subfield: _9Subfields) {
+        if (StringUtil::StartsWith(_9Subfield, language_prefix)) {
+           *lang = _9Subfield;
+           //Strip the prefix
+           StringUtil::ExtractHead(lang, language_prefix);
+        }
+        else if (StringUtil::StartsWith(_9Subfield, ixtheo_type_prefix)) {
+           *type = _9Subfield;
+           StringUtil::ExtractHead(type, ixtheo_type_prefix);
+        }
+        else if (StringUtil::StartsWith(_9Subfield, macs_tag_prefix))
+           *macs_tag = _9Subfield;
+           StringUtil::ExtractHead(macs_tag, macs_tag_prefix);
+    }
+}
+
+
 // We would like to determine the translation, the language and the the origin (ram, lcsh, ixtheo)
 void ExtractOneTranslation(const Subfields &all_subfields, const std::string &translation_subfield_codes,
                            std::pair<std::string, std::string> * const language_translation_pair)
@@ -76,31 +100,24 @@ void ExtractOneTranslation(const Subfields &all_subfields, const std::string &tr
     std::vector<std::string> translation_vector;
     all_subfields.extractSubfields(translation_subfield_codes, &translation_vector);
 
-    const std::string language_and_type(all_subfields.getFirstSubfieldValue('9'));
-
-    // Skip entry if we do not have IxTheo or MACS Mapping
-    if (StringUtil::Join(translation_origin, ' ') != "IxTheo"
-        and (not StringUtil::StartsWith(language_and_type, "v:MACS-Mapping"))) {
-            return;
-        }
+    std::vector<std::string> _9Subfields;
+    all_subfields.extractSubfields("9", &_9Subfields);
 
     std::string language;
     std::string translation_type;
+    std::string macs_tag;
 
-    const std::string language_prefix("L:");
-    const std::string translation_type_prefix("Z:");
+    ExtractSubfield9Info(_9Subfields, &language, &translation_type, &macs_tag);
 
-    // Try to find the correct field and extract the information
-    auto lang(std::mismatch(language_prefix.cbegin(), language_prefix.cend(), language_and_type.cbegin()));
-    auto type(std::mismatch(translation_type_prefix.cbegin(), translation_type_prefix.cend(), language_and_type.cbegin()));
-    // Check if we matched the prefix
-    if (lang.first == language_prefix.cend()) {
-        language = std::string(lang.second, language_and_type.cend());
-        translation_type = std::string(type.second, language_and_type.cend());
-    }
+    // Skip entry if we do not have IxTheo or MACS Mapping
+    if (StringUtil::Join(translation_origin, ' ') != "IxTheo"
+        and (not StringUtil::StartsWith(macs_tag, "MACS")))
+            return;
 
     if (translation_origin.size() == 1) {
-        language_translation_pair->first = (translation_origin[0] == "IxTheo") ? translation_origin[0] + "_" + language : translation_origin[0];
+        language_translation_pair->first = (translation_origin[0] == "IxTheo") ?
+                                            translation_origin[0] + "_" + language + "-" + translation_type :
+                                            translation_origin[0];
         language_translation_pair->second = StringUtil::Join(translation_vector, ' ');
     } else
         logger->error("Incorrect translation origin translation " + StringUtil::Join(translation_vector, ' '));
@@ -109,25 +126,31 @@ void ExtractOneTranslation(const Subfields &all_subfields, const std::string &tr
 
 void RemoveMACSIfIxTheoPresent(std::vector<std::string> * const translations) {
 
-     if (std::find(translations->begin(), translations->end(), "IxTheo_eng") != translations->end()) {
-         auto lcsh_it(std::find(translations->begin(), translations->end(), "lcsh"));
-         if (lcsh_it != translations->end())
-             translations->erase(lcsh_it, lcsh_it + 2);
+    if (std::find(translations->begin(), translations->end(), "IxTheo_eng") != translations->end()) {
+        auto lcsh_it(std::find(translations->begin(), translations->end(), "lcsh"));
+        if (lcsh_it != translations->end())
+            translations->erase(lcsh_it, lcsh_it + 2);
 
-     }
+    }
 
-     if (std::find(translations->begin(), translations->end(), "IxTheo_fre") != translations->end()) {
-         auto ram_it(std::find(translations->begin(), translations->end(), "ram"));
-         if (ram_it != translations->end())
-             translations->erase(ram_it, ram_it + 2);
-     }
+    if (std::find(translations->begin(), translations->end(), "IxTheo_fre") != translations->end()) {
+        auto ram_it(std::find(translations->begin(), translations->end(), "ram"));
+        if (ram_it != translations->end())
+            translations->erase(ram_it, ram_it + 2);
+    }
 }
 
 
-void InsertTranslation(std::map<std::string, std::vector<std::string>> &term_to_translations_map, std::string german_term, std::string translation) {
-     std::vector<std::string> term_translations = term_to_translations_map[german_term];
-     term_translations.push_back(translation);
-     term_to_translations_map[german_term] = term_translations;
+void InsertTranslation(std::map<std::string, std::vector<std::string>>  &term_to_translations_map, std::string german_term,
+                       std::string translation, std::string type) {
+    // Determine the type of the translation and make sure the so called "Ansetzungsformen" (i.e. the primary translation
+    // in contrast to mere synonyms) are inserted in the front
+    std::vector<std::string> term_translations = term_to_translations_map[german_term];
+    if (type == "AF")
+        term_translations.insert(term_translations.cbegin(), translation);
+    else
+        term_translations.push_back(translation);
+    term_to_translations_map[german_term] = term_translations;
 }
 
 
@@ -219,24 +242,31 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
             {
                 if (translation_vector_it + 1 == all_translations_it->second.end())
                     break;
-                if (*translation_vector_it == "IxTheo_eng" or *translation_vector_it == "lcsh")
-                    InsertTranslation(term_to_translation_maps[EN], german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "IxTheo_fre" or *translation_vector_it == "ram")
-                    InsertTranslation(term_to_translation_maps[FR], german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "IxTheo_spa")
-                    InsertTranslation(term_to_translation_maps[ES], german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "IxTheo_ita")
-                    InsertTranslation(term_to_translation_maps[IT], german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "IxTheo_hans")
-                    InsertTranslation(term_to_translation_maps[HANS], german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "IxTheo_hant")
-                    InsertTranslation(term_to_translation_maps[HANT], german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "IxTheo_por")
-                    InsertTranslation(term_to_translation_maps[PT], german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "IxTheo_rus")
-                    InsertTranslation(term_to_translation_maps[RU], german_term, *(++translation_vector_it));
-                else if (*translation_vector_it == "IxTheo_gre")
-                    InsertTranslation(term_to_translation_maps[EL], german_term, *(++translation_vector_it));
+                std::vector<std::string> splitType;
+
+                // Extract the encoded type
+                StringUtil::Split((*translation_vector_it), "-", &splitType);
+                const std::string origin_and_language = splitType[0];
+                const std::string type = (splitType.size() == 2) ? splitType[1] : "";
+
+                if (origin_and_language == "IxTheo_eng" or origin_and_language == "lcsh")
+                    InsertTranslation(term_to_translation_maps[EN], german_term, *(++translation_vector_it), type);
+                else if (origin_and_language == "IxTheo_fre" or origin_and_language == "ram")
+                    InsertTranslation(term_to_translation_maps[FR], german_term, *(++translation_vector_it), type);
+                else if (origin_and_language == "IxTheo_spa")
+                    InsertTranslation(term_to_translation_maps[ES], german_term, *(++translation_vector_it), type);
+                else if (origin_and_language == "IxTheo_ita")
+                    InsertTranslation(term_to_translation_maps[IT], german_term, *(++translation_vector_it), type);
+                else if (origin_and_language == "IxTheo_hans")
+                    InsertTranslation(term_to_translation_maps[HANS], german_term, *(++translation_vector_it), type);
+                else if (origin_and_language == "IxTheo_hant")
+                    InsertTranslation(term_to_translation_maps[HANT], german_term, *(++translation_vector_it), type);
+                else if (origin_and_language == "IxTheo_por")
+                    InsertTranslation(term_to_translation_maps[PT], german_term, *(++translation_vector_it), type);
+                else if (origin_and_language == "IxTheo_rus")
+                    InsertTranslation(term_to_translation_maps[RU], german_term, *(++translation_vector_it), type);
+                else if (origin_and_language == "IxTheo_gre")
+                    InsertTranslation(term_to_translation_maps[EL], german_term, *(++translation_vector_it), type);
             }
         }
         ++count;
