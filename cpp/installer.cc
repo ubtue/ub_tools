@@ -1318,7 +1318,7 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
             FileUtil_AppendStringToFile("/etc/fstab",
                                         "//sn00.zdv.uni-tuebingen.de/ZE020150 " + MOUNT_POINT + " cifs "
                                         "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
-                                        "gid=root,auto 0 0");
+                                        "gid=root,vers=1.0,auto 0 0");
         ExecOrDie("/bin/mount", { MOUNT_POINT });
         Echo("Successfully mounted the department drive.");
     }
