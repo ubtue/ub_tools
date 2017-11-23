@@ -69,9 +69,9 @@ std::string ReplaceAngleBracketsWithParentheses(const std::string &value) {
 
 std::string CleanUpTranslation(const std::string &translation) {
     std::string new_translation = translation;
-    new_translation = StringUtil::Filter(new_translation, "\n");
-    new_translation = StringUtil::Map(new_translation, "\t", " ");
-    new_translation = StringUtil::CollapseWhitespace(new_translation);
+    new_translation = StringUtil::Map(new_translation, "\t\n\r", "   ");
+    new_translation = StringUtil::CollapseAndTrimWhitespace(new_translation);
+    new_translation = StringUtil::Trim(new_translation);
     return new_translation;
 }
 
@@ -95,11 +95,11 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
                 std::string translation(row["translation"]);
                 // Handle '#'-separated synonyms appropriately
                 if (translation.find("#") == std::string::npos and not translation.empty())
-                    translations.emplace_back(ReplaceAngleBracketsWithParentheses(translation),
+                    translations.emplace_back(ReplaceAngleBracketsWithParentheses(CleanUpTranslation(translation)),
                                               row["language_code"], row["origin"], row["status"]);
                 else {
                     std::vector<std::string> primary_and_synonyms;
-                    StringUtil::SplitThenTrim(translation, "#", " \t\n", &primary_and_synonyms);
+                    StringUtil::SplitThenTrim(translation, "#", " \t\n\r", &primary_and_synonyms);
 		    // Use the first translation as non-synonmym
                     if (primary_and_synonyms.size() > 0) {
                         translations.emplace_back(CleanUpTranslation(primary_and_synonyms[0]),
