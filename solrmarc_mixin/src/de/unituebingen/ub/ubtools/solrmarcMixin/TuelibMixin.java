@@ -830,6 +830,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                 String line;
 
                 while ((line = in.readLine()) != null) {
+                    // We now also have synonyms in the translation files
+                    // These are not relevant in this context and are thus discarded
+                    line = line.replaceAll(Pattern.quote("||") + ".*", "");
                     String[] translations = line.split("\\|");
                     if (!translations[0].isEmpty() && !translations[1].isEmpty())
                         translation_map.put(translations[0], translations[1]);
