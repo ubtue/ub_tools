@@ -153,6 +153,30 @@ public:
 
     void addSubfield(const char subfield_code, const std::string &subfield_value);
 
+    /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
+     *  \return The values of the subfields with matching codes.
+     */
+    inline std::vector<std::string> extractSubfields(const std::string &subfield_codes) const {
+        std::vector<std::string> extracted_values;
+        for (const auto &subfield : subfields_) {
+            if (subfield_codes.find(subfield.code_) != std::string::npos)
+                extracted_values.emplace_back(subfield.value_);
+        }
+        return extracted_values;
+    }
+
+    /** \brief Extracts all values from subfields with a matching subfield code.
+     *  \return The values of the subfields with matching codes.
+     */
+    inline std::vector<std::string> extractSubfields(const char subfield_code) const {
+        std::vector<std::string> extracted_values;
+        for (const auto &subfield : subfields_) {
+            if (subfield_code == subfield.code_)
+                extracted_values.emplace_back(subfield.value_);
+        }
+        return extracted_values;
+    }
+
     inline std::string toString() const {
         std::string as_string;
         for (const auto &subfield : subfields_)
@@ -188,14 +212,12 @@ public:
      *  \note  Returning this from a Record member function allows for a for-each loop.
      */
     class Range {
-        iterator begin_;
-        iterator end_;
+        const_iterator begin_;
+        const_iterator end_;
     public:
-        inline Range(iterator begin, iterator end): begin_(begin), end_(end) { }
-        inline iterator begin() const { return begin_; }
-        inline iterator end() const { return end_; }
-        inline const_iterator cbegin() const { return begin_; }
-        inline const_iterator cend() const { return end_; }
+        inline Range(const_iterator begin, const_iterator end): begin_(begin), end_(end) { }
+        inline const_iterator begin() const { return begin_; }
+        inline const_iterator end() const { return end_; }
     };
 private:
     friend class BinaryReader;
