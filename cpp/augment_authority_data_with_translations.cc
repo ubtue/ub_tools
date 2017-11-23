@@ -67,6 +67,15 @@ std::string ReplaceAngleBracketsWithParentheses(const std::string &value) {
 }
 
 
+std::string CleanUpTranslation(const std::string &translation) {
+    std::string new_translation = translation;
+    new_translation = StringUtil::Filter(new_translation, "\n");
+    new_translation = StringUtil::Map(new_translation, "\t", " ");
+    new_translation = StringUtil::CollapseWhitespace(new_translation);
+    return new_translation;
+}
+
+
 void ExtractTranslations(DbConnection * const db_connection, std::map<std::string,
                          std::vector<OneTranslation> > * const all_translations)
 {
@@ -93,13 +102,15 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
                     StringUtil::SplitThenTrim(translation, "#", " \t\n", &primary_and_synonyms);
 		    // Use the first translation as non-synonmym
                     if (primary_and_synonyms.size() > 0) {
-                        translations.emplace_back(primary_and_synonyms[0], row["language_code"], row["origin"],
-                                              row["status"]);
+                        translations.emplace_back(CleanUpTranslation(primary_and_synonyms[0]),
+                                                   row["language_code"], row["origin"], row["status"]);
                         // Add further synonyms as derived synonyms
                         for (auto synonyms(std::next(primary_and_synonyms.cbegin()));
-                            synonyms != primary_and_synonyms.cend(); ++synonyms)
-                            translations.emplace_back(ReplaceAngleBracketsWithParentheses(*synonyms),
+                            synonyms != primary_and_synonyms.cend(); ++synonyms) {
+                                const std::string synonym(CleanUpTranslation(*synonyms));
+                                translations.emplace_back(ReplaceAngleBracketsWithParentheses(synonym),
                                                   row["language_code"], row["origin"], "derived_synonym");
+                        }
                     }
                 }
             }
