@@ -32,9 +32,7 @@
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -64,7 +62,7 @@ inline std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 }
 
 
-bool FilterPasses(const MarcRecord &record, const std::map<std::string, std::pair<std::string, std::string>> &filter_specs, const std::string &field_spec) {
+bool FilterPasses(const MARC::Record &record, const std::map<std::string, std::pair<std::string, std::string>> &filter_specs, const std::string &field_spec) {
       auto filter_spec(filter_specs.find(field_spec));
       if (filter_spec == filter_specs.cend())
           return true;
@@ -76,20 +74,24 @@ bool FilterPasses(const MarcRecord &record, const std::map<std::string, std::pai
          logger->error("in FilterPasses: Invalid subfield specification "  + subfield_codes + " for filter!");
 
       std::string subfield_value;
-      if ((subfield_value = record.extractFirstSubfield(GetTag(rule.first), subfield_codes.c_str()[0])).empty())
+      const auto field(record.getFirstField(GetTag(rule.first), subfield_codes.c_str()[0]));
+      if (field == record.end())
+          return false;
+      const std::vector<std::string> subfield_values(field->getSubfields().extractSubfields(subfield_codes[0]));
+      if (subfield_values.empty())
           return false;
 
-      return subfield_value == rule.second;
+      return subfield_values[0] == rule.second;
 }
 
 
-void ExtractSynonyms(MarcReader * const authority_reader,
+void ExtractSynonyms(MARC::Reader * const authority_reader,
                      const std::vector<std::string> &primary_tags_and_subfield_codes,
                      const std::vector<std::string> &synonym_tags_and_subfield_codes,
                      std::vector<std::map<std::string, std::string>> * const synonym_maps,
                      const std::map<std::string, std::pair<std::string, std::string>> &filter_spec)
 {
-    while (const MarcRecord record = authority_reader->read()) {
+    while (const MARC::Record record = authority_reader->read()) {
         std::vector<std::string>::const_iterator primary;
         std::vector<std::string>::const_iterator synonym;
         unsigned int i(0);
@@ -126,7 +128,7 @@ inline std::vector<std::string> GetMapValueOrEmptyString(const std::map<std::str
 }
 
 
-void ProcessRecordGermanSynonyms(MarcRecord * const record, const std::vector<std::map<std::string, std::string>> &synonym_maps,
+void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<std::map<std::string, std::string>> &synonym_maps,
                    const std::vector<std::string> &primary_tags_and_subfield_codes,
                    const std::vector<std::string> &output_tags_and_subfield_codes, bool * modified_record) {
 
@@ -143,8 +145,7 @@ void ProcessRecordGermanSynonyms(MarcRecord * const record, const std::vector<st
     {
         std::vector<std::string> primary_values;
         std::vector<std::string> synonym_values;
-        std::vector<size_t> field_indices;
-        if (record->getFieldIndices(GetTag(*primary), &field_indices) != MarcRecord::FIELD_NOT_FOUND) {
+        if (record->hasTag(*primary)) {
             for (auto field_index : field_indices) {
                 primary_values.clear();
                 if (record->getSubfields(field_index).extractSubfields(GetSubfieldCodes(*primary), &primary_values)) {
@@ -164,7 +165,7 @@ void ProcessRecordGermanSynonyms(MarcRecord * const record, const std::vector<st
             // Insert synonyms
             // Abort if field is already populated
             std::string tag(GetTag(*output));
-            if (record->getFieldIndex(tag) != MarcRecord::FIELD_NOT_FOUND)
+            if (record->hasTag(tag))
                 logger->error("in ProcessRecord: Field with tag " + tag + " is not empty for PPN "
                               + record->getControlNumber() + '!');
             std::string subfield_spec(GetSubfieldCodes(*output));
@@ -181,11 +182,11 @@ void ProcessRecordGermanSynonyms(MarcRecord * const record, const std::vector<st
             {
                 if (indicator2 > 9)
                     logger->error("Currently cannot handle synonyms with total length greater than "
-                                  + std::to_string(9 * (MarcRecord::MAX_FIELD_LENGTH - FIELD_MIN_NON_DATA_SIZE))
+                                  + std::to_string(9 * (MARC::Record::MAX_FIELD_LENGTH - FIELD_MIN_NON_DATA_SIZE))
                                   + '\n');
 
                 if (current_length + synonym_it->length()
-                    < MarcRecord::MAX_FIELD_LENGTH - (FIELD_MIN_NON_DATA_SIZE + 3 /* consider " , " */))
+                    < MARC::Record::MAX_FIELD_LENGTH - (FIELD_MIN_NON_DATA_SIZE + 3 /* consider " , " */))
                 {
                      bool synonyms_empty(synonyms.empty());
                      synonyms += (synonyms_empty ? *synonym_it : " , " + *synonym_it);
@@ -214,7 +215,7 @@ void ProcessRecordGermanSynonyms(MarcRecord * const record, const std::vector<st
 
 
 // Write all occuring synonyms to the specific fields with one per language
-void ProcessRecordTranslatedSynonyms(MarcRecord * const record, const std::vector<std::string> &primary_tags_and_subfield_codes,
+void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vector<std::string> &primary_tags_and_subfield_codes,
                                      const std::vector<std::string> &translation_tags_and_subfield_codes,
                                      const std::vector<std::map<std::string, std::vector<std::string>>> &translation_maps, bool * modified_record) {
 
@@ -231,17 +232,16 @@ void ProcessRecordTranslatedSynonyms(MarcRecord * const record, const std::vecto
         {
             std::vector<std::string> primary_values;
             std::vector<size_t> field_indices;
-            if (record->getFieldIndices(GetTag(*primary), &field_indices) != MarcRecord::FIELD_NOT_FOUND) {
-               for (auto field_index : field_indices) {
-                   primary_values.clear();
-                   if (record->getSubfields(field_index).extractSubfields(GetSubfieldCodes(*primary), &primary_values)) {
-                      std::string searchterm = StringUtil::Join(primary_values, ',');
-                      // Look up translation synonym for the respective language
-                          const auto &translated_synonym(GetMapValueOrEmptyString(translation_maps[lang], searchterm));
-                              if (not translated_synonym.empty())
-                                 // Only insert "real" synonyms without the primary translation
-                                 synonym_values.emplace(StringUtil::Join(translated_synonym, ','));
-                  }
+            for (const auto &field : record->getTagRange(*primary) {
+                const Subfields subfields(field.getContents())
+                primary_values = subfields.extractSubfields(GetSubfieldCodes(*primary);
+                if (primary_values.size()) {
+                   std::string searchterm = StringUtil::Join(primary_values, ',');
+                   // Look up translation synonym for the respective language
+                       const auto &translated_synonym(GetMapValueOrEmptyString(translation_maps[lang], searchterm));
+                           if (not translated_synonym.empty())
+                              // Only insert "real" synonyms without the primary translation
+                              synonym_values.emplace(StringUtil::Join(translated_synonym, ','));
                }
             }
             if (synonym_values.empty())
@@ -250,7 +250,7 @@ void ProcessRecordTranslatedSynonyms(MarcRecord * const record, const std::vecto
         // Insert translated synonyms
         // Abort if field is already populated
         std::string tag(GetTag(*output));
-        if (record->getFieldIndex(tag) != MarcRecord::FIELD_NOT_FOUND)
+        if (record->hasTag(tag))
             logger->error("in ProcessRecord: Field with tag " + tag + " is not empty for PPN "
                           + record->getControlNumber() + '!');
         std::string subfield_spec(GetSubfieldCodes(*output));
@@ -259,7 +259,7 @@ void ProcessRecordTranslatedSynonyms(MarcRecord * const record, const std::vecto
                           "specifying " + subfield_spec + " as output subfield is not valid!");
 
         std::string synonyms(StringUtil::Join(synonym_values, ','));
-        if (synonyms.size() > MarcRecord::MAX_FIELD_LENGTH - 2)
+        if (synonyms.size() > MARC::Record::MAX_FIELD_LENGTH - 2)
             logger->error("Translated synonyms exceeded maximum length for PPN " + record->getControlNumber() +
                           ": \"" + synonyms + "\" has size " + std::to_string(synonyms.size()) + '\n');
 
@@ -273,14 +273,14 @@ void ProcessRecordTranslatedSynonyms(MarcRecord * const record, const std::vecto
 }
 
 
-void InsertSynonyms(MarcReader * const marc_reader, MarcWriter * const marc_writer,
+void InsertSynonyms(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                     const std::vector<std::string> &primary_tags_and_subfield_codes,
                     const std::vector<std::string> &output_tags_and_subfield_codes,
                     const std::vector<std::map<std::string, std::string>> &synonym_maps,
                     const std::vector<std::map<std::string, std::vector<std::string>>> &translation_maps,
                     const std::vector<std::string> &translated_tags_and_subfield_codes)
 {
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         bool modified_record(false);
         ProcessRecordGermanSynonyms(&record, synonym_maps, primary_tags_and_subfield_codes, output_tags_and_subfield_codes, &modified_record);
         ProcessRecordTranslatedSynonyms(&record, primary_tags_and_subfield_codes, translated_tags_and_subfield_codes, translation_maps, &modified_record);
@@ -361,10 +361,10 @@ int main(int argc, char **argv) {
         logger->error("Authority data input file name equals output file name!");
 
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcReader> authority_reader(MarcReader::Factory(authority_data_marc_input_filename,
-                                                                     MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::Reader::BINARY));
+    std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename,
+                                                                     MARC::Reader::BINARY));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY));
 
     try {
         // Determine possible mappings
