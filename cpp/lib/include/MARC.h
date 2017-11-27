@@ -303,6 +303,9 @@ public:
      */
     Range getTagRange(const Tag &tag) const;
 
+    /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
+    std::vector<std::string> getSubfieldValues(const Tag &tag, const char subfield_code) const;
+
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
      *                                 in "first" and the iterator pointing past the last field of a local block in
