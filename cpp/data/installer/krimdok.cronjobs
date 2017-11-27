@@ -17,3 +17,4 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 20 * * 2 "$BIN/upload_crossref_records.py" "$EMAIL" > "$LOG_DIR/upload_crossref_records.log" 2>&1
 0 20 * * 4 "$BIN/full_text_stats" "/usr/local/var/lib/tuelib/full_text_stats.txt" "$EMAIL" > "$LOG_DIR/full_text_stats.log" 2>&1
 0 21 * * 7 systemctl restart vufind
+30 21 * * 7 "$BIN/collect_solr_stats_data.py" "$EMAIL" krimdok
