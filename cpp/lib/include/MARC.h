@@ -99,13 +99,78 @@ namespace std {
 namespace MARC {
 
 
+struct Subfield {
+    char code_;
+    std::string value_;
+public:
+    Subfield(const char code, const std::string &value): code_(code), value_(value) { }
+    
+    inline std::string toString() const {
+        std::string as_string;
+        as_string += '\x1F';
+        as_string += code_;
+        as_string += value_;
+        return as_string;
+    }
+};
+
+
+class Subfields {
+    std::vector<Subfield> subfields_;
+public:
+    typedef std::vector<Subfield>::const_iterator const_iterator;
+public:
+    inline explicit Subfields(const std::string &field_contents) {
+        if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
+            return;
+
+        std::string value;
+        char subfield_code(field_contents[3]);
+        for (auto ch(field_contents.cbegin() + 4 /* 2 indicators + delimiter + subfield code */);
+             ch != field_contents.cend(); ++ch)
+        {
+            if (unlikely(*ch == '\x1F')) {
+                subfields_.emplace_back(subfield_code, value);
+                value.clear();
+                ++ch; // Skip over the delimiter.
+                subfield_code = *ch;
+            } else
+                value += *ch;
+        }
+
+        subfields_.emplace_back(subfield_code, value);
+    }
+
+    inline const_iterator begin() const { return subfields_.cbegin(); }
+    inline const_iterator end() const { return subfields_.cend(); }
+    unsigned size() const { return subfields_.size(); }
+
+    inline bool hasSubfield(const char subfield_code) const {
+        return std::find_if(subfields_.cbegin(), subfields_.cend(),
+                            [subfield_code](const Subfield subfield) -> bool
+                                { return subfield.code_ == subfield_code; }) != subfields_.cend();
+    }
+
+    void addSubfield(const char subfield_code, const std::string &subfield_value);
+
+    inline std::string toString() const {
+        std::string as_string;
+        for (const auto &subfield : subfields_)
+            as_string += subfield.toString();
+        return as_string;
+    }
+};
+
+
 class Record {
 public:
     class Field {
+        friend class Record;
         Tag tag_;
         std::string contents_;
     public:
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
+        Field(const Tag &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         inline const Tag &getTag() const { return tag_; }
         inline const std::string &getContents() const { return contents_; }
         inline std::string getContents() { return contents_; }
@@ -166,6 +231,23 @@ public:
     inline const std::string &getFieldData(const size_t field_index) const
         { return fields_[field_index].getContents(); }
 
+    void insertField(const Tag &new_field_tag, const std::string &new_field_value);
+
+    inline void insertField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
+                            const char indicator2 = ' ')
+    {
+        std::string new_field_value;
+        new_field_value += indicator1;
+        new_field_value += indicator2;
+        new_field_value += subfields.toString();
+        insertField(new_field_tag, new_field_value);
+    }
+
+    /** \brief  Adds a subfield to the first existing field with tag "field_tag".
+     *  \return True if a field with field tag "field_tag" existed and false if no such field was found.
+     */
+    bool addSubfield(const Tag &field_tag, const char subfield_code, const std::string &subfield_value);
+
     inline iterator begin() { return fields_.begin(); }
     inline iterator end() { return fields_.end(); }
     inline const_iterator begin() const { return fields_.cbegin(); }
@@ -192,51 +274,6 @@ public:
     size_t findFieldsInLocalBlock(const Tag &field_tag, const std::string &indicators,
                                   const std::pair<const_iterator, const_iterator> &block_start_and_end,
                                   std::vector<const_iterator> * const fields) const;
-};
-
-
-struct Subfield {
-    const char code_;
-    const std::string value_;
-public:
-    Subfield(const char code, const std::string &value): code_(code), value_(value) { }
-};
-
-
-class Subfields {
-    std::vector<Subfield> subfields_;
-public:
-    typedef std::vector<Subfield>::const_iterator const_iterator;
-public:
-    inline explicit Subfields(const std::string &field_contents) {
-        if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
-            return;
-
-        std::string value;
-        char subfield_code(field_contents[3]);
-        for (auto ch(field_contents.cbegin() + 4 /* 2 indicators + delimiter + subfield code */);
-             ch != field_contents.cend(); ++ch)
-        {
-            if (unlikely(*ch == '\x1F')) {
-                subfields_.emplace_back(subfield_code, value);
-                value.clear();
-                ++ch; // Skip over the delimiter.
-                subfield_code = *ch;
-            } else
-                value += *ch;
-        }
-
-        subfields_.emplace_back(subfield_code, value);
-    }
-    
-    inline const_iterator begin() const { return subfields_.cbegin(); }
-    inline const_iterator end() const { return subfields_.cend(); }
-    unsigned size() const { return subfields_.size(); }
-    inline bool hasSubfield(const char subfield_code) const {
-        return std::find_if(subfields_.cbegin(), subfields_.cend(),
-                            [subfield_code](const Subfield subfield) -> bool
-                                { return subfield.code_ == subfield_code; }) != subfields_.cend();
-    }
 };
 
 
