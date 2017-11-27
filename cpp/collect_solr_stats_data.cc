@@ -42,7 +42,8 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
                               const std::string &variable, File * const output)
 {
     std::string json_result;
-    if (not Solr::Query(query, /* fields = */"", &json_result, "localhost:8080", /* timeout in seconds = */10, Solr::JSON))
+    if (not Solr::Query(query.empty() ? "wt=json" : query + "&wt=json", /* fields = */"", &json_result, "localhost:8080",
+                        /* timeout in seconds = */10, Solr::JSON))
         logger->error("in IssueQueryAndWriteOutput: Solr query \"" + query + "\" failed!");
 
     JSON::Parser parser(json_result);
@@ -58,8 +59,7 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
 
 
 void CollectGeneralStats(const std::string &system_type, File * const output) {
-    const std::string BASE_QUERY(system_type != "relbib" ? "http://localhost:8080?wt=json"
-                                                         : "http://localhost:8080?wt=json&fq=is_religious_studies:1");
+    const std::string BASE_QUERY(system_type != "relbib" ? "" : "fq=is_religious_studies:1");
     IssueQueryAndWriteOutput(BASE_QUERY, "Gesamt", "Gesamttreffer", system_type, output);
     IssueQueryAndWriteOutput(BASE_QUERY + "&format:Book", "Format", "Buch", system_type, output);
     IssueQueryAndWriteOutput(BASE_QUERY + "&format:Article", "Format", "Artikel", system_type, output);
