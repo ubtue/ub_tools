@@ -82,6 +82,20 @@ Record::Record(const size_t record_size, char * const record_start)
 }
 
 
+Record::Range Record::getTagRange(const Tag &tag) const {
+    const auto begin(std::find_if(fields_.begin(), fields_.end(),
+                                  [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
+    if (begin == fields_.end())
+        return Range(fields_.end(), fields_.end());
+
+    auto end(begin);
+    while (end != fields_.end() and end->getTag() == tag)
+        ++end;
+
+    return Range(begin, end);
+}
+
+
 size_t Record::findAllLocalDataBlocks(
     std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
 {
@@ -149,7 +163,7 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
 
     Subfields subfields(field->getContents());
     subfields.addSubfield(subfield_code, subfield_value);
-    
+
     std::string new_field_value;
     new_field_value += field->getIndicator1();
     new_field_value += field->getIndicator2();
