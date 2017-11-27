@@ -96,6 +96,18 @@ Record::Range Record::getTagRange(const Tag &tag) const {
 }
 
 
+std::vector<std::string> Record::getSubfieldValues(const Tag &tag, const char subfield_code) const {
+    std::vector<std::string> subfield_values;
+    for (const auto &field : getTagRange(tag)) {
+        const Subfields subfields(field.getContents());
+        for (const auto &subfield_value : subfields.extractSubfields(subfield_code))
+            subfield_values.emplace_back(subfield_value);
+    }
+
+    return subfield_values;
+}
+
+
 size_t Record::findAllLocalDataBlocks(
     std::vector<std::pair<const_iterator, const_iterator>> * const local_block_boundaries) const
 {

@@ -58,21 +58,37 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
 
 
 void CollectGeneralStats(const std::string &system_type, File * const output) {
-    const std::string BASE_QUERY(system_type != "relbib" ? "http://localhost:8080?wt=json"
-                                                         : "http://localhost:8080?wt=json&fq=is_religious_studies:1");
-    IssueQueryAndWriteOutput(BASE_QUERY, "Gesamt", "Gesamttreffer", system_type, output);
-    IssueQueryAndWriteOutput(BASE_QUERY + "&format:Book", "Format", "Buch", system_type, output);
-    IssueQueryAndWriteOutput(BASE_QUERY + "&format:Article", "Format", "Artikel", system_type, output);
-    IssueQueryAndWriteOutput(BASE_QUERY + "&mediatype:Electronic", "Medientyp", "elektronisch", system_type, output);
-    IssueQueryAndWriteOutput(BASE_QUERY + "&mediatype:Non-Electronic", "Medientyp", "non-elektronisch", system_type, output);
+    const std::string EXTRA(system_type == "relbib" ? "&fq=is_religious_studies:1" : "");
+    IssueQueryAndWriteOutput("*:*" + EXTRA, system_type, "Gesamt", "Gesamttreffer", output);
+    IssueQueryAndWriteOutput("format:Book" + EXTRA, system_type, "Format", "Buch", output);
+    IssueQueryAndWriteOutput("format:Article" + EXTRA, system_type, "Format", "Artikel", output);
+    IssueQueryAndWriteOutput("mediatype:Electronic" + EXTRA, system_type, "Medientyp", "elektronisch", output);
+    IssueQueryAndWriteOutput("mediatype:Non-Electronic" + EXTRA, system_type, "Medientyp", "non-elektronisch", output);
+    IssueQueryAndWriteOutput("is_open_access:open-access" + EXTRA, system_type, "Open Access", "ja", output);
+    IssueQueryAndWriteOutput("is_open_access:non-open-access" + EXTRA, system_type, "Open Access", "nein", output);
 }
 
 
-void CollectKrimDokSpecificStats(File * const /*output*/) {
+void CollectKrimDokSpecificStats(File * const output) {
+    IssueQueryAndWriteOutput("language:German", "krimdok", "Sprache", "Deutsch", output);
+    IssueQueryAndWriteOutput("language:English", "krimdok", "Sprache", "Englisch", output);
 }
 
 
-void CollectIxTheoOrRelBibSpecificStats(const std::string &/*system_type*/, File * const /*output*/) {
+void CollectIxTheoOrRelBibSpecificStats(const std::string &system_type, File * const output) {
+    const std::string EXTRA(system_type == "relbib" ? "&fq=is_religious_studies:1" : "");
+    IssueQueryAndWriteOutput("dewey-raw:*" + EXTRA, system_type, "DDC", "Anzahl der Datensätze", output);
+    IssueQueryAndWriteOutput("rvk:*" + EXTRA, system_type, "RVK", "Anzahl der Datensätze", output);
+    IssueQueryAndWriteOutput("language:German" + EXTRA, system_type, "Sprache", "Deutsch", output);
+    IssueQueryAndWriteOutput("language:English" + EXTRA, system_type, "Sprache", "Englisch", output);
+    IssueQueryAndWriteOutput("language:French" + EXTRA, system_type, "Sprache", "Französisch", output);
+    IssueQueryAndWriteOutput("language:Italian" + EXTRA, system_type, "Sprache", "Italienisch", output);
+    IssueQueryAndWriteOutput("language:Latin" + EXTRA, system_type, "Sprache", "Latein", output);
+    IssueQueryAndWriteOutput("language:Spanish" + EXTRA, system_type, "Sprache", "Spanisch", output);
+    IssueQueryAndWriteOutput("language:Dutch" + EXTRA, system_type, "Sprache", "Holländisch", output);
+    IssueQueryAndWriteOutput("language:\"Ancient Greek\"" + EXTRA, system_type, "Sprache", "Altgriechisch", output);
+    IssueQueryAndWriteOutput("language:Hebrew" + EXTRA, system_type, "Sprache", "Hebräisch", output);
+    IssueQueryAndWriteOutput("language:Portugese" + EXTRA, system_type, "Sprache", "Portugiesisch", output);
 }
 
 
