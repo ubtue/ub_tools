@@ -75,10 +75,31 @@ void CollectKrimDokSpecificStats(File * const output) {
 }
 
 
+void EmitNotationStats(const char notation_group, const std::string &system_type, const std::string &label, File * const output) {
+    const std::string EXTRA(system_type == "relbib" ? "&fq=is_religious_studies:1" : "");
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "*+AND+publishDate:[1975+TO+2000]" + EXTRA,
+                             system_type, "IxTheo Notationen", label + "(Alle Medienarten, 1975-2000)", output);
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "*+AND+publishDate:[2001+TO+*]" + EXTRA,
+                             system_type, "IxTheo Notationen", label + "(Alle Medienarten, 2001-heute)", output);
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group)
+                             + "*+AND+publishDate:[1975+TO+2000]+AND+format:Book" + EXTRA, system_type, "IxTheo Notationen",
+                             label + "(Bücher, 1975-2000)", output);
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "*+AND+publishDate:[2001+TO+*]+AND+format:Book"
+                             + EXTRA, system_type, "IxTheo Notationen", label + "(Bücher, 2001-heute)", output);
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group)
+                             + "*+AND+publishDate:[1975+TO+2000]+AND+format:Article" + EXTRA, system_type, "IxTheo Notationen",
+                             label + "(Bücher, 1975-2000)", output);
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group)
+                             + "*+AND+publishDate:[2001+TO+*]+AND+format:Article" + EXTRA, system_type, "IxTheo Notationen",
+                             label + "(Aufsätze, 2001-heute)", output);
+}
+
+
 void CollectIxTheoOrRelBibSpecificStats(const std::string &system_type, File * const output) {
     const std::string EXTRA(system_type == "relbib" ? "&fq=is_religious_studies:1" : "");
     IssueQueryAndWriteOutput("dewey-raw:*" + EXTRA, system_type, "DDC", "Anzahl der Datensätze", output);
     IssueQueryAndWriteOutput("rvk:*" + EXTRA, system_type, "RVK", "Anzahl der Datensätze", output);
+
     IssueQueryAndWriteOutput("language:German" + EXTRA, system_type, "Sprache", "Deutsch", output);
     IssueQueryAndWriteOutput("language:English" + EXTRA, system_type, "Sprache", "Englisch", output);
     IssueQueryAndWriteOutput("language:French" + EXTRA, system_type, "Sprache", "Französisch", output);
@@ -89,6 +110,22 @@ void CollectIxTheoOrRelBibSpecificStats(const std::string &system_type, File * c
     IssueQueryAndWriteOutput("language:\"Ancient Greek\"" + EXTRA, system_type, "Sprache", "Altgriechisch", output);
     IssueQueryAndWriteOutput("language:Hebrew" + EXTRA, system_type, "Sprache", "Hebräisch", output);
     IssueQueryAndWriteOutput("language:Portugese" + EXTRA, system_type, "Sprache", "Portugiesisch", output);
+
+    IssueQueryAndWriteOutput("ixtheo_notation:*" + EXTRA, system_type, "IxTheo Notationen", "Mit Notation", output);
+    IssueQueryAndWriteOutput("-ixtheo_notation:*" + EXTRA, system_type, "IxTheo Notationen", "Ohne Notation", output);
+    EmitNotationStats('A', system_type, "Religionswissenschaft allgemein", output);
+    EmitNotationStats('B', system_type, "Einzelne Religionen", output);
+    EmitNotationStats('C', system_type, "Christentum", output);
+    EmitNotationStats('F', system_type, "Christliche Theologie", output);
+    EmitNotationStats('H', system_type, "Bibel; Bibelwissenschaft", output);
+    EmitNotationStats('K', system_type, "Kirchen- und Theologiegeschichte; Konfessionskunde", output);
+    EmitNotationStats('N', system_type, "Systematische Theologie", output);
+    EmitNotationStats('R', system_type, "Praktische Theologie", output);
+    EmitNotationStats('S', system_type, "Kirchenrecht", output);
+    EmitNotationStats('T', system_type, "(Profan-) Geschichte", output);
+    EmitNotationStats('V', system_type, "Philosophie", output);
+    EmitNotationStats('X', system_type, "Recht allgemein", output);
+    EmitNotationStats('Z', system_type, "Sozialwissenschaften", output);
 }
 
 
