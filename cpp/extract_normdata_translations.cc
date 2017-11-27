@@ -45,10 +45,8 @@
 #include <vector>
 #include <cstdlib>
 #include "Compiler.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
+#include "MARC.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "util.h"
 
 
@@ -88,20 +86,15 @@ void ExtractSubfield9Info(const std::vector<std::string> _9Subfields,
 
 
 // We would like to determine the translation, the language and the the origin (ram, lcsh, ixtheo)
-void ExtractOneTranslation(const Subfields &all_subfields, const std::string &translation_subfield_codes,
+void ExtractOneTranslation(const MARC::Subfields &all_subfields, const std::string &translation_subfield_codes,
                            std::pair<std::string, std::string> * const language_translation_pair)
 {
     language_translation_pair->first = "";
     language_translation_pair->second = "";
 
-    std::vector<std::string> translation_origin;
-    all_subfields.extractSubfields("2", &translation_origin);
-
-    std::vector<std::string> translation_vector;
-    all_subfields.extractSubfields(translation_subfield_codes, &translation_vector);
-
-    std::vector<std::string> _9Subfields;
-    all_subfields.extractSubfields("9", &_9Subfields);
+    std::vector<std::string> translation_origin(all_subfields.extractSubfields('2'));
+    std::vector<std::string> translation_vector(all_subfields.extractSubfields(translation_subfield_codes));
+    std::vector<std::string> _9Subfields(all_subfields.extractSubfields('9'));
 
     std::string language;
     std::string translation_type;
@@ -154,7 +147,7 @@ void InsertTranslation(std::map<std::string, std::vector<std::string>>  &term_to
 }
 
 
-void ExtractTranslations(MarcReader * const marc_reader, const std::string &german_term_field_spec,
+void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &german_term_field_spec,
                          const std::string &translation_field_spec,
                          std::map<std::string, std::vector<std::string>> term_to_translation_maps[])
 {
@@ -170,7 +163,7 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
         logger->error("ExtractTranslations: Number of German fields and number of translation fields must be equal");
 
     unsigned count(0);
-    while (const MarcRecord record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         std::map<std::string, std::vector<std::string>> all_translations;
 
         for (auto german_and_translations_it(std::make_pair(german_tags_and_subfield_codes.cbegin(),
@@ -188,15 +181,13 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
             for (/* empty */; german_subfield_code_iterator != german_subfields.cend();
                              ++german_subfield_code_iterator, ++translation_subfield_code_iterator)
             {
-                std::vector<std::string> german_terms;
-                record.extractSubfield(german_tag, *german_subfield_code_iterator, &german_terms);
+                std::vector<std::string> german_terms(record.getSubfieldValues(german_tag, *german_subfield_code_iterator));
                 if (german_terms.empty())
                     continue;
 
                 // Add additional specification in angle bracket if we can uniquely attribute it
                 if (german_terms.size() == 1) {
-                    std::vector<std::string> _9_subfields;
-                    record.extractSubfield(german_tag, '9', &_9_subfields);
+                    std::vector<std::string> _9_subfields(record.getSubfieldValues(german_tag, '9'));
                     for (auto _9_subfield : _9_subfields)
                         if (StringUtil::StartsWith(_9_subfield, "g:")) {
                             german_terms[0] = german_terms[0] + " <" + _9_subfield.substr(2) + ">";
@@ -204,19 +195,13 @@ void ExtractTranslations(MarcReader * const marc_reader, const std::string &germ
                 }
 
                 std::vector<std::string> translations;
-                std::vector<size_t> translation_field_indices;
-                record.getFieldIndices(translation_tag, &translation_field_indices);
 
-                for (auto translation_field_index(translation_field_indices.cbegin());
-                     translation_field_index != translation_field_indices.cend();
-                     ++translation_field_index)
-                {
-                         Subfields all_subfields(record.getSubfields(*translation_field_index));
+                for (const auto &field : record.getTagRange(translation_tag)) {
                          // Extract the translation in parameter given and subfields 2 and 9 where translation origin and translation type information
                          // is given
                          const std::string translation_subfield_codes(std::string(1, *translation_subfield_code_iterator));
                          std::pair<std::string, std::string> one_translation_and_metadata;
-                         ExtractOneTranslation(all_subfields, translation_subfield_codes, &one_translation_and_metadata);
+                         ExtractOneTranslation(field.getSubfields(), translation_subfield_codes, &one_translation_and_metadata);
                          if (not (one_translation_and_metadata.first.empty() or one_translation_and_metadata.second.empty())) {
                             translations.push_back(StringUtil::Trim(one_translation_and_metadata.first, " \t\n"));
                             translations.push_back(StringUtil::Trim(one_translation_and_metadata.second," \t\n"));
@@ -294,8 +279,8 @@ int main(int argc, char **argv) {
     const std::string extracted_translations_filename(argv[2]);
     if (unlikely(authority_data_marc_input_filename == extracted_translations_filename))
         logger->error("Authority data input file name equals output file name!");
-    std::unique_ptr<MarcReader> authority_data_reader(MarcReader::Factory(authority_data_marc_input_filename,
-                                                                          MarcReader::BINARY));
+    std::unique_ptr<MARC::Reader> authority_data_reader(MARC::Reader::Factory(authority_data_marc_input_filename,
+                                                                          MARC::Reader::BINARY));
 
     // Create a file for each language
     std::vector<std::string> output_file_components;
