@@ -64,7 +64,7 @@ void CollectGeneralStats(const std::string &system_type, File * const output) {
     IssueQueryAndWriteOutput(BASE_QUERY + "&format:Book", "Format", "Buch", system_type, output);
     IssueQueryAndWriteOutput(BASE_QUERY + "&format:Article", "Format", "Artikel", system_type, output);
     IssueQueryAndWriteOutput(BASE_QUERY + "&mediatype:Electronic", "Medientyp", "elektronisch", system_type, output);
-    IssueQueryAndWriteOutput(BASE_QUERY + "&mediatype:Non-Electronic", "Medientyp", "elektronisch", system_type, output);
+    IssueQueryAndWriteOutput(BASE_QUERY + "&mediatype:Non-Electronic", "Medientyp", "non-elektronisch", system_type, output);
 }
 
 
