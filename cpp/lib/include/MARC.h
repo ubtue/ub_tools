@@ -220,6 +220,7 @@ public:
         inline Range(const_iterator begin, const_iterator end): begin_(begin), end_(end) { }
         inline const_iterator begin() const { return begin_; }
         inline const_iterator end() const { return end_; }
+        inline bool empty() const { return begin_ == end_; }
     };
 private:
     friend class BinaryReader;
@@ -231,6 +232,7 @@ private:
     std::vector<Field> fields_;
 public:
     static constexpr unsigned MAX_RECORD_LENGTH          = 99999;
+    static constexpr unsigned MAX_FIELD_LENGTH           = 9998; // Max length without trailing terminator
     static constexpr unsigned DIRECTORY_ENTRY_LENGTH     = 12;
     static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH = 5;
     static constexpr unsigned LEADER_LENGTH              = 24;
@@ -304,6 +306,11 @@ public:
      *  }
      */
     Range getTagRange(const Tag &tag) const;
+
+    inline bool hasTag(const Tag &tag) const {
+       return std::find_if(fields_.begin(), fields_.end(),
+                           [&tag](const Field &field) -> bool { return field.getTag() == tag; }) != fields_.end();
+    }
 
     /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
     std::vector<std::string> getSubfieldValues(const Tag &tag, const char subfield_code) const;
