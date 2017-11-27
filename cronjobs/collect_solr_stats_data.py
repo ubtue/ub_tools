@@ -27,7 +27,7 @@ def Main():
     util.ExecOrDie("/usr/local/bin/collect_solr_stats_data", [ system_type, output_file ],
                    "/usr/local/var/log/tuelib/collect_solr_stats_data.log")
 
-    # Mail CSV file to Ingo for futher processing:
+    # Mail CSV file to Ingo for further processing:
     util.SendEmail(system_type + "Solr Stats", "CSV-Datei im Anhang.\n", recipient="johannes.ruscheinski@uni-tuebingen.de",
                    attachments=output_file)
 
