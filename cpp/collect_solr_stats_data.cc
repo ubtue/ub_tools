@@ -58,13 +58,12 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
 
 
 void CollectGeneralStats(const std::string &system_type, File * const output) {
-    const std::string BASE_QUERY(system_type != "relbib" ? "http://localhost:8080?wt=json"
-                                                         : "http://localhost:8080?wt=json&fq=is_religious_studies:1");
+    const std::string BASE_QUERY(system_type == "relbib" ? "fq=is_religious_studies:1" : "");
     IssueQueryAndWriteOutput(BASE_QUERY, "Gesamt", "Gesamttreffer", system_type, output);
-    IssueQueryAndWriteOutput(BASE_QUERY + "&format:Book", "Format", "Buch", system_type, output);
-    IssueQueryAndWriteOutput(BASE_QUERY + "&format:Article", "Format", "Artikel", system_type, output);
-    IssueQueryAndWriteOutput(BASE_QUERY + "&mediatype:Electronic", "Medientyp", "elektronisch", system_type, output);
-    IssueQueryAndWriteOutput(BASE_QUERY + "&mediatype:Non-Electronic", "Medientyp", "non-elektronisch", system_type, output);
+    IssueQueryAndWriteOutput(BASE_QUERY + "format:Book", "Format", "Buch", system_type, output);
+    IssueQueryAndWriteOutput(BASE_QUERY + "format:Article", "Format", "Artikel", system_type, output);
+    IssueQueryAndWriteOutput(BASE_QUERY + "mediatype:Electronic", "Medientyp", "elektronisch", system_type, output);
+    IssueQueryAndWriteOutput(BASE_QUERY + "mediatype:Non-Electronic", "Medientyp", "non-elektronisch", system_type, output);
 }
 
 
