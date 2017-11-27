@@ -140,6 +140,7 @@ public:
 
         subfields_.emplace_back(subfield_code, value);
     }
+    Subfields(Subfields &&other) = default;
 
     inline const_iterator begin() const { return subfields_.cbegin(); }
     inline const_iterator end() const { return subfields_.cend(); }
@@ -202,6 +203,7 @@ public:
         inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
+        inline Subfields getSubfields() const { return Subfields(contents_); }
     };
 
     enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
