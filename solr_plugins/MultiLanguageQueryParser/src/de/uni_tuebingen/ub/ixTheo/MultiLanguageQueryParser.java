@@ -262,6 +262,8 @@ public class MultiLanguageQueryParser extends QParser {
                 subquery = processBooleanQuery((BooleanQuery)subquery);
             } else if (subquery instanceof PrefixQuery) {
                 subquery = processPrefixQuery((PrefixQuery)subquery);
+            } else if (subquery instanceof PhraseQuery) {
+                subquery = processPhraseQuery((PhraseQuery)subquery);
             } else
                 logger.warn("No appropriate Query in BooleanClause for " + subquery.getClass().getName());
             queryBuilder.add(subquery, currentClause.getOccur());
