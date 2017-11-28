@@ -88,13 +88,13 @@ public class MultiLanguageQueryParser extends QParser {
                 String newFieldName = strippedParam + "_" + lang;
                 if (schema.getFieldOrNull(newFieldName) != null) {
                     newParams.remove("facet.field", param);
-                    if (useDismax)
-                        newParams.add("facet.field", fieldLocalParams + newFieldName);
-                    else {
-                        String newLocalParams = fieldLocalParams.equals("") ?  "{!key=" + strippedParam + "}" :
-                                                fieldLocalParams.replace("}", " key=" + strippedParam + "}");
-                        newParams.add("facet.field", newLocalParams + newFieldName);
+                    String newLocalParams = "";
+                    // Skip renaming the returned field names if we have prefix sorting for facets
+                    if (!newParams.get("facet.sort").equals("prefix")) {
+                        newLocalParams = fieldLocalParams.equals("") ?  "{!key=" + strippedParam + "}" :
+                                            fieldLocalParams.replace("}", " key=" + strippedParam + "}");
                     }
+                    newParams.add("facet.field", newLocalParams + newFieldName);
                 }
             }
             this.newRequest.setParams(newParams);
