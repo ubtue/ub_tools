@@ -74,7 +74,7 @@ bool FilterPasses(const MARC::Record &record, const std::map<std::string, std::p
          logger->error("in FilterPasses: Invalid subfield specification "  + subfield_codes + " for filter!");
 
       std::string subfield_value;
-      const auto field(record.getFirstField(GetTag(rule.first), subfield_codes.c_str()[0]));
+      const auto field(record.getFirstField(GetTag(rule.first)));
       if (field == record.end())
           return false;
       const std::vector<std::string> subfield_values(field->getSubfields().extractSubfields(subfield_codes[0]));
@@ -100,12 +100,10 @@ void ExtractSynonyms(MARC::Reader * const authority_reader,
             ++primary, ++synonym, ++i)
         {
             // Fill maps with synonyms
-            std::vector<std::string> primary_values;
-            std::vector<std::string> synonym_values;
+            std::vector<std::string> primary_values(record.getSubfieldValues(GetTag(*primary), GetSubfieldCodes(*primary)));
+            std::vector<std::string> synonym_values(record.getSubfieldValues(GetTag(*synonym), GetSubfieldCodes(*synonym)));
 
-            if (FilterPasses(record, filter_spec, *primary) and
-                record.extractSubfields(GetTag(*primary), GetSubfieldCodes(*primary), &primary_values) and
-                record.extractSubfields(GetTag(*synonym), GetSubfieldCodes(*synonym), &synonym_values))
+            if (FilterPasses(record, filter_spec, *primary) and primary_values.size() and synonym_values.size())
                     (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','),
                                                StringUtil::Join(synonym_values, ','));
         }
@@ -143,73 +141,75 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
         primary != primary_tags_and_subfield_codes.end();
         ++primary, ++output, ++i)
     {
-        std::vector<std::string> primary_values;
+        std::vector<std::string> primary_values(record->getSubfieldValues(GetTag(*primary), GetSubfieldCodes(*primary)));
         std::vector<std::string> synonym_values;
-        if (record->hasTag(*primary)) {
-            for (auto field_index : field_indices) {
-                primary_values.clear();
-                if (record->getSubfields(field_index).extractSubfields(GetSubfieldCodes(*primary), &primary_values)) {
-                   std::string searchterm = StringUtil::Join(primary_values, ',');
-                   // Look up synonyms in all categories
-                   for (auto &synonym_map : synonym_maps) {
-                       const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
-                           if (not synonym.empty())
-                              synonym_values.push_back(synonym);
-                  }
-               }
-            }
+        if (primary_values.size()) {
+            std::string searchterm = StringUtil::Join(primary_values, ',');
+            // Look up synonyms in all categories
+            for (auto &synonym_map : synonym_maps) {
+                const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
+                    if (not synonym.empty())
+                        synonym_values.push_back(synonym);
+             }
+         }
+         if (synonym_values.empty())
+             continue;
 
-            if (synonym_values.empty())
-                 continue;
+         // Insert synonyms
+         // Abort if field is already populated
+         std::string tag(GetTag(*output));
+         if (record->hasTag(tag))
+             logger->error("in ProcessRecord: Field with tag " + tag + " is not empty for PPN "
+                           + record->getControlNumber() + '!');
+         std::string subfield_spec(GetSubfieldCodes(*output));
+         if (unlikely(subfield_spec.size() != 1))
+             logger->error("in ProcessRecord: We currently only support a single subfield and thus "
+                           "specifying " + subfield_spec + " as output subfield is not valid!");
 
-            // Insert synonyms
-            // Abort if field is already populated
-            std::string tag(GetTag(*output));
-            if (record->hasTag(tag))
-                logger->error("in ProcessRecord: Field with tag " + tag + " is not empty for PPN "
-                              + record->getControlNumber() + '!');
-            std::string subfield_spec(GetSubfieldCodes(*output));
-            if (unlikely(subfield_spec.size() != 1))
-                logger->error("in ProcessRecord: We currently only support a single subfield and thus "
-                              "specifying " + subfield_spec + " as output subfield is not valid!");
+         std::string synonyms;
+         unsigned current_length(0);
+         unsigned indicator2(0);
 
-            std::string synonyms;
-            unsigned current_length(0);
-            unsigned indicator2(0);
+         for (auto synonym_it(synonym_values.cbegin()); synonym_it != synonym_values.cend();
+              /*Intentionally empty*/)
+         {
+             if (indicator2 > 9)
+                 logger->error("Currently cannot handle synonyms with total length greater than "
+                               + std::to_string(9 * (MARC::Record::MAX_FIELD_LENGTH - FIELD_MIN_NON_DATA_SIZE))
+                               + '\n');
 
-            for (auto synonym_it(synonym_values.cbegin()); synonym_it != synonym_values.cend();
-                 /*Intentionally empty*/)
-            {
-                if (indicator2 > 9)
-                    logger->error("Currently cannot handle synonyms with total length greater than "
-                                  + std::to_string(9 * (MARC::Record::MAX_FIELD_LENGTH - FIELD_MIN_NON_DATA_SIZE))
-                                  + '\n');
-
-                if (current_length + synonym_it->length()
-                    < MARC::Record::MAX_FIELD_LENGTH - (FIELD_MIN_NON_DATA_SIZE + 3 /* consider " , " */))
-                {
-                     bool synonyms_empty(synonyms.empty());
-                     synonyms += (synonyms_empty ? *synonym_it : " , " + *synonym_it);
-                     current_length += synonym_it->length() + (synonyms_empty ? 0 : 3);
-                     ++synonym_it;
-                } else {
-                    if (not(record->insertSubfield(tag, subfield_spec[0], synonyms, '0', indicator2 + '0')))
-                        logger->error("in ProcessRecord: Could not insert field " + tag + " for PPN "
-                                      + record->getControlNumber() + '!');
-                    synonyms.clear();
-                    current_length = 0;
-                    ++indicator2;
-                    *modified_record = true;
-                }
-            }
-            // Write rest of data
-            if (not synonyms.empty()) {
-                if (not(record->insertSubfield(tag, subfield_spec[0], synonyms, '0', indicator2 + '0')))
-                        logger->error("in ProcessRecord: Could not insert field " + tag + " for PPN "
-                                      + record->getControlNumber() + '!');
-                *modified_record = true;
-            }
-        }
+             if (current_length + synonym_it->length()
+                 < MARC::Record::MAX_FIELD_LENGTH - (FIELD_MIN_NON_DATA_SIZE + 3 /* consider " , " */))
+             {
+                  bool synonyms_empty(synonyms.empty());
+                  synonyms += (synonyms_empty ? *synonym_it : " , " + *synonym_it);
+                  current_length += synonym_it->length() + (synonyms_empty ? 0 : 3);
+                  ++synonym_it;
+             } else {
+                 MARC::Subfield subfield(subfield_spec[0], synonyms);
+                 MARC::Subfields subfields(subfield.toString());
+                 const char new_indicator2 = indicator2 + '0';
+                 if (record->hasTagWithIndicators(tag, '0', new_indicator2))
+                     logger->error("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
+                                    new_indicator2 + "\' for PPN "  + record->getControlNumber() + '!');
+                 record->insertField(tag, subfields, '0', new_indicator2);
+                 synonyms.clear();
+                 current_length = 0;
+                 ++indicator2;
+                 *modified_record = true;
+             }
+         }
+         // Write rest of data
+         if (not synonyms.empty()) {
+             MARC::Subfield subfield(subfield_spec[0], synonyms);
+             MARC::Subfields subfields(subfield.toString());
+             const char new_indicator2 = indicator2 + '0';
+             if (record->hasTagWithIndicators(tag, '0', new_indicator2))
+                     logger->error("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
+                                    new_indicator2 + "\' for PPN "  + record->getControlNumber() + '!');
+             record->insertField(tag, subfields, '0', new_indicator2);
+             *modified_record = true;
+         }
     }
 }
 
@@ -232,9 +232,9 @@ void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vec
         {
             std::vector<std::string> primary_values;
             std::vector<size_t> field_indices;
-            for (const auto &field : record->getTagRange(*primary) {
-                const Subfields subfields(field.getContents())
-                primary_values = subfields.extractSubfields(GetSubfieldCodes(*primary);
+            for (const auto &field : record->getTagRange(GetTag(*primary))) {
+                const MARC::Subfields subfields(field.getContents());
+                primary_values = subfields.extractSubfields(GetSubfieldCodes(*primary));
                 if (primary_values.size()) {
                    std::string searchterm = StringUtil::Join(primary_values, ',');
                    // Look up translation synonym for the respective language
@@ -264,9 +264,12 @@ void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vec
                           ": \"" + synonyms + "\" has size " + std::to_string(synonyms.size()) + '\n');
 
         if (not synonyms.empty()) {
-            if (not(record->insertSubfield(tag, subfield_spec[0], synonyms, '0', '0')))
-                    logger->error("in ProcessRecord: Could not insert field " + tag + " for PPN "
-                                  + record->getControlNumber() + '!');
+            MARC::Subfield subfield(subfield_spec[0], synonyms);
+            MARC::Subfields subfields(subfield.toString());
+            if (record->hasTagWithIndicators(tag, '0', '0'))
+                logger->error("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'0\' " +
+                              " for PPN "  + record->getControlNumber() + '!');
+            record->insertField(tag, subfields, '0', '0');
             *modified_record = true;
         }
     }
