@@ -120,6 +120,7 @@ class Subfields {
 public:
     typedef std::vector<Subfield>::const_iterator const_iterator;
 public:
+    inline Subfields(std::vector<Subfield> &&subfields): subfields_(subfields) { }
     inline explicit Subfields(const std::string &field_contents) {
         if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
             return;
@@ -193,6 +194,7 @@ public:
         friend class Record;
         Tag tag_;
         std::string contents_;
+    private:
     public:
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         Field(const Tag &tag, const std::string &contents): tag_(tag), contents_(contents) { }
