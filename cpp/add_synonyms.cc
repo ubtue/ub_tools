@@ -175,11 +175,11 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
          {
              if (indicator2 > 9)
                  logger->error("Currently cannot handle synonyms with total length greater than "
-                               + std::to_string(9 * (MARC::Record::MAX_FIELD_LENGTH - FIELD_MIN_NON_DATA_SIZE))
+                               + std::to_string(9 * (MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - FIELD_MIN_NON_DATA_SIZE))
                                + '\n');
 
              if (current_length + synonym_it->length()
-                 < MARC::Record::MAX_FIELD_LENGTH - (FIELD_MIN_NON_DATA_SIZE + 3 /* consider " , " */))
+                 < MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - (FIELD_MIN_NON_DATA_SIZE + 3 /* consider " , " */))
              {
                   bool synonyms_empty(synonyms.empty());
                   synonyms += (synonyms_empty ? *synonym_it : " , " + *synonym_it);
@@ -255,7 +255,7 @@ void ProcessRecordTranslatedSynonyms(MARC::Record * const record, const std::vec
                           "specifying " + subfield_spec + " as output subfield is not valid!");
 
         std::string synonyms(StringUtil::Join(synonym_values, ','));
-        if (synonyms.size() > MARC::Record::MAX_FIELD_LENGTH - 2)
+        if (synonyms.size() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - 2)
             logger->error("Translated synonyms exceeded maximum length for PPN " + record->getControlNumber() +
                           ": \"" + synonyms + "\" has size " + std::to_string(synonyms.size()) + '\n');
 

@@ -234,11 +234,11 @@ private:
     std::string leader_;
     std::vector<Field> fields_;
 public:
-    static constexpr unsigned MAX_RECORD_LENGTH          = 99999;
-    static constexpr unsigned MAX_FIELD_LENGTH           = 9998; // Max length without trailing terminator
-    static constexpr unsigned DIRECTORY_ENTRY_LENGTH     = 12;
-    static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH = 5;
-    static constexpr unsigned LEADER_LENGTH              = 24;
+    static constexpr unsigned MAX_RECORD_LENGTH                        = 99999;
+    static constexpr unsigned MAX_VARIABLE_FIELD_DATA_LENGTH           = 9998; // Max length without trailing terminator
+    static constexpr unsigned DIRECTORY_ENTRY_LENGTH                   = 12;
+    static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH               = 5;
+    static constexpr unsigned LEADER_LENGTH                            = 24;
 private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
