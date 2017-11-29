@@ -280,7 +280,7 @@ public:
         new_field_value += indicator1;
         new_field_value += indicator2;
 	for (const auto &subfield : subfields)
-           new_field_value += subfield.toString();
+            new_field_value += subfield.toString();
         insertField(new_field_tag, new_field_value);
     }
 
@@ -310,8 +310,8 @@ public:
 
     /** \return True if field with tag "tag" exists. */
     inline bool hasTag(const Tag &tag) const {
-       return std::find_if(fields_.begin(), fields_.end(),
-                           [&tag](const Field &field) -> bool { return field.getTag() == tag; }) != fields_.end();
+        return std::find_if(fields_.begin(), fields_.end(),
+                            [&tag](const Field &field) -> bool { return field.getTag() == tag; }) != fields_.end();
     }
 
     /** \return True if field with tag "tag" and indicators "indicator1" and "indicator2" exists. */
@@ -321,7 +321,7 @@ public:
     std::vector<std::string> getSubfieldValues(const Tag &tag, const char subfield_code) const;
 
     /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
-    std::vector<std::string> getSubfieldValues(const Tag &tag, const std::string subfield_codes) const;
+    std::vector<std::string> getSubfieldValues(const Tag &tag, const std::string &subfield_codes) const;
 
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block

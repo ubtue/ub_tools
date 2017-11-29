@@ -220,21 +220,17 @@ public class MultiLanguageQueryParser extends QParser {
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else if (subquery instanceof BooleanQuery) {
+        } else if (subquery instanceof BooleanQuery) {
             subquery = processBooleanQuery((BooleanQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
 
-        }
-        else if (subquery instanceof PrefixQuery) {
+        } else if (subquery instanceof PrefixQuery) {
             subquery = processPrefixQuery((PrefixQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else if (subquery instanceof PhraseQuery) {
+        } else if (subquery instanceof PhraseQuery) {
             subquery = processPhraseQuery((PhraseQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else
+        } else
 	    throw new SolrException(ErrorCode.SERVER_ERROR, "Boost Query: Unable to handle " +  subquery.getClass().getName());
     }
 

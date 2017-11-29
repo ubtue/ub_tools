@@ -1,4 +1,4 @@
-/** \file    extract_normdata_translations.cc
+/** \file    extract_authority_translations.cc
  *  \brief   Extract IxTheo and MACS translations from the normdata file and write it to
  *           language specific text files
  *  \author  Johannes Riedl
@@ -61,24 +61,24 @@ void Usage() {
     std::exit(EXIT_FAILURE);
 }
 
-void ExtractSubfield9Info(const std::vector<std::string> _9Subfields,
-                          std::string * const lang, std::string * const type, std::string * const macs_tag) {
 
+// Extract some translation specific information like language and primary or synonym type
+void ExtractSubfield9Info(const std::vector<std::string> &_9Subfields,
+                          std::string * const language, std::string * const type, std::string * const macs_tag)
+{
     const std::string language_prefix("L:");
     const std::string ixtheo_type_prefix("Z:");
     const std::string macs_tag_prefix("v:");
 
-    for (auto _9Subfield: _9Subfields) {
+    for (const auto &_9Subfield : _9Subfields) {
         if (StringUtil::StartsWith(_9Subfield, language_prefix)) {
-           *lang = _9Subfield;
+           *language = _9Subfield;
            //Strip the prefix
-           StringUtil::ExtractHead(lang, language_prefix);
-        }
-        else if (StringUtil::StartsWith(_9Subfield, ixtheo_type_prefix)) {
+           StringUtil::ExtractHead(language, language_prefix);
+        } else if (StringUtil::StartsWith(_9Subfield, ixtheo_type_prefix)) {
            *type = _9Subfield;
            StringUtil::ExtractHead(type, ixtheo_type_prefix);
-        }
-        else if (StringUtil::StartsWith(_9Subfield, macs_tag_prefix))
+        } else if (StringUtil::StartsWith(_9Subfield, macs_tag_prefix))
            *macs_tag = _9Subfield;
            StringUtil::ExtractHead(macs_tag, macs_tag_prefix);
     }
