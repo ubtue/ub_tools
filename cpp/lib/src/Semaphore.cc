@@ -2,7 +2,7 @@
  *  \brief  Implementation of the Semaphore class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,8 +21,9 @@
 #include <stdexcept>
 #include <cerrno>
 #include <cstring>
-#include "Compiler.h"
 #include <fcntl.h>
+#include "Compiler.h"
+#include "util.h"
 
 
 Semaphore::Semaphore(const std::string &name, const OpenMode open_mode, const int initial_value)
@@ -41,12 +42,10 @@ Semaphore::Semaphore(const std::string &name, const OpenMode open_mode, const in
 
 Semaphore::~Semaphore() {
     if (unlikely(::sem_close(semaphore_)))
-        throw std::runtime_error("in Semaphore::~Semaphore: sem_close(3) failed! ("
-                                 + std::string(std::strerror(errno)) + ")");
+        logger->error("in Semaphore::~Semaphore: sem_close(3) failed! (" + std::string(std::strerror(errno)) + ")");
     if (open_mode_ == CREATE) {
         if (unlikely(::sem_unlink(name_.c_str())))
-            throw std::runtime_error("in Semaphore::~Semaphore: sem_unlink(3) failed! ("
-                                     + std::string(std::strerror(errno)) + ")");
+            logger->error("in Semaphore::~Semaphore: sem_unlink(3) failed! (" + std::string(std::strerror(errno)) + ")");
     }
 }
 

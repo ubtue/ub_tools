@@ -57,7 +57,8 @@ Semaphore::Semaphore(char * const shared_memory, const bool init, const unsigned
 
 
 Semaphore::~Semaphore() {
-    TestAndThrowOrReturn(::sem_destroy(semaphore_) != 0, "sem_destroy(3) failed!");
+    if (::sem_destroy(semaphore_) != 0)
+        logger->error("in ThreadUtil::Semaphore::~Semaphore: sem_destroy(3) failed!");
     if (type_ == SINGLE_PROCESS)
         delete semaphore_;
 }
@@ -98,7 +99,7 @@ Spinlock::~Spinlock() {
     if (unlikely((errno = ::pthread_spin_destroy(&spinlock_)) != 0)) {
         if (std::uncaught_exception())
             return;
-        throw std::runtime_error("in ThreadUtil::Spinlock::~Spinlock: pthread_spin_destroy(3) failed!");
+        logger->error("in ThreadUtil::Spinlock::~Spinlock: pthread_spin_destroy(3) failed!");
     }
 }
 

@@ -413,7 +413,7 @@ std::istream::streampos Scope::getStartStreamPos() const {
     if (unlikely(type_ != LOOP))
         logger->error("in MiscUtil::Scope::getStartStreamPos: this should never happen!");
 
-        return start_stream_pos_;
+    return start_stream_pos_;
 }
 
 
