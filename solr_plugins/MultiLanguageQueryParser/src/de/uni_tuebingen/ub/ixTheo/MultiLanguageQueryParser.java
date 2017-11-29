@@ -14,6 +14,7 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
@@ -88,13 +89,13 @@ public class MultiLanguageQueryParser extends QParser {
                 String newFieldName = strippedParam + "_" + lang;
                 if (schema.getFieldOrNull(newFieldName) != null) {
                     newParams.remove("facet.field", param);
-                    if (useDismax)
-                        newParams.add("facet.field", fieldLocalParams + newFieldName);
-                    else {
-                        String newLocalParams = fieldLocalParams.equals("") ?  "{!key=" + strippedParam + "}" :
-                                                fieldLocalParams.replace("}", " key=" + strippedParam + "}");
-                        newParams.add("facet.field", newLocalParams + newFieldName);
+                    String newLocalParams = "";
+                    // Skip renaming the returned field names if we have prefix sorting for facets
+                    if (!newParams.get("facet.sort").equals("prefix")) {
+                        newLocalParams = fieldLocalParams.equals("") ?  "{!key=" + strippedParam + "}" :
+                                            fieldLocalParams.replace("}", " key=" + strippedParam + "}");
                     }
+                    newParams.add("facet.field", newLocalParams + newFieldName);
                 }
             }
             this.newRequest.setParams(newParams);
@@ -219,17 +220,17 @@ public class MultiLanguageQueryParser extends QParser {
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else if (subquery instanceof BooleanQuery) {
+        } else if (subquery instanceof BooleanQuery) {
             subquery = processBooleanQuery((BooleanQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
 
-        }
-        else if (subquery instanceof PrefixQuery) {
+        } else if (subquery instanceof PrefixQuery) {
             subquery = processPrefixQuery((PrefixQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else
+        } else if (subquery instanceof PhraseQuery) {
+            subquery = processPhraseQuery((PhraseQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
+        } else
 	    throw new SolrException(ErrorCode.SERVER_ERROR, "Boost Query: Unable to handle " +  subquery.getClass().getName());
     }
 
@@ -255,6 +256,10 @@ public class MultiLanguageQueryParser extends QParser {
                 subquery = processBoostQuery((BoostQuery)subquery);
             } else if (subquery instanceof BooleanQuery) {
                 subquery = processBooleanQuery((BooleanQuery)subquery);
+            } else if (subquery instanceof PrefixQuery) {
+                subquery = processPrefixQuery((PrefixQuery)subquery);
+            } else if (subquery instanceof PhraseQuery) {
+                subquery = processPhraseQuery((PhraseQuery)subquery);
             } else
                 logger.warn("No appropriate Query in BooleanClause for " + subquery.getClass().getName());
             queryBuilder.add(subquery, currentClause.getOccur());
@@ -277,6 +282,12 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
+    private Query processMatchAllDocsQuery(final MatchAllDocsQuery queryCandidate) {
+      // Currently we have nothing to do
+      return queryCandidate;
+    }
+
+
     private void handleLuceneParser(String[] query, SolrQueryRequest request, String lang, IndexSchema schema) throws MultiLanguageQueryParserException {
         if (query.length != 1)
            throw new MultiLanguageQueryParserException("Only one q-parameter is supported [1]");
@@ -295,6 +306,8 @@ public class MultiLanguageQueryParser extends QParser {
                 newQuery = processDisjunctionMaxQuery((DisjunctionMaxQuery)newQuery);
             else if (newQuery instanceof BoostQuery)
                 newQuery = processBoostQuery((BoostQuery)newQuery);
+            else if (newQuery instanceof MatchAllDocsQuery)
+                newQuery = processMatchAllDocsQuery((MatchAllDocsQuery)newQuery);
             else
                 logger.warn("No rewrite rule did match for " + newQuery.getClass());
             this.searchString = newQuery.toString();

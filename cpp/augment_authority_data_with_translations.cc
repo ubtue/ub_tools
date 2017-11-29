@@ -44,7 +44,7 @@ namespace {
 
 
 // Save language code, translation, origin, status
-typedef std::tuple<std::string, std::string, std::string, std::string> OneTranslation;
+typedef std::tuple<std::string, std::string, std::string, std::string> Translation;
 
 
 static unsigned record_count(0);
@@ -68,7 +68,7 @@ std::string ReplaceAngleBracketsWithParentheses(const std::string &value) {
 
 
 void ExtractTranslations(DbConnection * const db_connection, std::map<std::string,
-                         std::vector<OneTranslation> > * const all_translations)
+                         std::vector<Translation>> * const all_translations)
 {
     db_connection->queryOrDie("SELECT DISTINCT ppn FROM keyword_translations");
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
@@ -77,7 +77,7 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
         db_connection->queryOrDie("SELECT ppn, language_code, translation, origin, status FROM keyword_translations "
                                   "WHERE ppn='" + ppn + "'");
         DbResultSet result_set(db_connection->getLastResultSet());
-        std::vector<OneTranslation> translations;
+        std::vector<Translation> translations;
         while (const DbRow row = result_set.getNextRow()) {
             // We are not interested in synonym fields as we will directly derive synonyms from the translation field
             // Furthermore we insert keywords where the german translation is the reference and needs no further
@@ -85,21 +85,23 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
             if (not IsReliableSynonym(row["status"]) and row["language_code"] != "ger") {
                 std::string translation(row["translation"]);
                 // Handle '#'-separated synonyms appropriately
-                if (translation.find("#") == std::string::npos and not translation.empty())
-                    translations.emplace_back(ReplaceAngleBracketsWithParentheses(translation),
+                if (translation.find('#') == std::string::npos and not translation.empty())
+                    translations.emplace_back(ReplaceAngleBracketsWithParentheses(StringUtil::CollapseAndTrimWhitespace(translation)),
                                               row["language_code"], row["origin"], row["status"]);
                 else {
                     std::vector<std::string> primary_and_synonyms;
-                    StringUtil::SplitThenTrim(translation, "#", " \t\n", &primary_and_synonyms);
+                    StringUtil::SplitThenTrim(translation, "#", " \t\n\r", &primary_and_synonyms);
 		    // Use the first translation as non-synonmym
                     if (primary_and_synonyms.size() > 0) {
-                        translations.emplace_back(primary_and_synonyms[0], row["language_code"], row["origin"],
-                                              row["status"]);
+                        translations.emplace_back(StringUtil::CollapseAndTrimWhitespace(primary_and_synonyms[0]),
+                                                  row["language_code"], row["origin"], row["status"]);
                         // Add further synonyms as derived synonyms
                         for (auto synonyms(std::next(primary_and_synonyms.cbegin()));
-                            synonyms != primary_and_synonyms.cend(); ++synonyms)
-                            translations.emplace_back(ReplaceAngleBracketsWithParentheses(*synonyms),
-                                                  row["language_code"], row["origin"], "derived_synonym");
+                            synonyms != primary_and_synonyms.cend(); ++synonyms) {
+                                const std::string synonym(StringUtil::CollapseAndTrimWhitespace(*synonyms));
+                                translations.emplace_back(ReplaceAngleBracketsWithParentheses(synonym),
+                                                          row["language_code"], row["origin"], "derived_synonym");
+                        }
                     }
                 }
             }
@@ -138,7 +140,7 @@ size_t GetFieldIndexForExistingTranslation(const MarcRecord *record, const std::
 
 
 void ProcessRecord(MarcRecord * const record,
-                   const std::map<std::string, std::vector<OneTranslation> > &all_translations)
+                   const std::map<std::string, std::vector<Translation> > &all_translations)
 {
     const std::string ppn(record->getControlNumber());
     auto one_translation(all_translations.find(ppn));
@@ -172,7 +174,7 @@ void ProcessRecord(MarcRecord * const record,
 
 
 void AugmentNormdata(MarcReader * const marc_reader, MarcWriter *marc_writer, const std::map<std::string,
-                     std::vector<OneTranslation> > &all_translations)
+                     std::vector<Translation> > &all_translations)
 {
     // Read in all PPNs from authority data
     while (MarcRecord record = marc_reader->read()) {
@@ -213,7 +215,7 @@ int main(int argc, char **argv) {
         const std::string sql_password(ini_file.getString("Database", "sql_password"));
         DbConnection db_connection(sql_database, sql_username, sql_password);
 
-        std::map<std::string, std::vector<OneTranslation> > all_translations;
+        std::map<std::string, std::vector<Translation> > all_translations;
         ExtractTranslations(&db_connection, &all_translations);
 
         AugmentNormdata(marc_reader.get(), marc_writer.get(), all_translations);
