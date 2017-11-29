@@ -42,7 +42,9 @@ static void WriteString(const int fd, const std::string &msg) {
     if (unlikely(::write(fd, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
         const std::string error_message("in WriteString(util.cc): write to file descriptor " + std::to_string(fd)
                                         + " failed! (errno = " + std::to_string(errno) + ")");
+        #pragma GCC diagnostic ignored "-Wunused-result"
         ::write(STDERR_FILENO, error_message.data(), error_message.size());
+        #pragma GCC diagnostic warning "-Wunused-result"
         _exit(EXIT_FAILURE);
     }
 }

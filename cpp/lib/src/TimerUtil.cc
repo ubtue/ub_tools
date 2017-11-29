@@ -31,6 +31,7 @@
 #       define SYS_TIME_H
 #endif
 #include "Compiler.h"
+#include "util.h"
 
 
 namespace TimerUtil {
@@ -49,7 +50,7 @@ SaveAndRestorePendingTimer::SaveAndRestorePendingTimer() {
 
 SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer() {
     if (::sigaction(SIGALRM, &old_sigaction_, nullptr) == -1)
-        throw std::runtime_error("in SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer: sigaction(2) failed!");
+        logger->error("in SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer: sigaction(2) failed!");
 
     // If we have no saved timeout, bail out early:
     if (not timerisset(&saved_itimerval_.it_value))
@@ -57,8 +58,7 @@ SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer() {
 
     timeval end_time;
     if (::gettimeofday(&end_time, nullptr) == -1)
-        throw std::runtime_error("in SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer: "
-                                 "gettimeofday(2) failed!");
+        logger->error("in SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer: gettimeofday(2) failed!");
 
     // Subtract elapsed time from our saved itimer timeout value:
     timeval diff_time;
@@ -70,7 +70,7 @@ SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer() {
         saved_itimerval_.it_value.tv_sec = saved_itimerval_.it_value.tv_usec = 0;
 
     if (::setitimer(ITIMER_REAL, &saved_itimerval_, nullptr) == -1)
-        throw std::runtime_error("in SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer: setitimer(2) failed!");
+        logger->error("in SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer: setitimer(2) failed!");
 }
 
 
