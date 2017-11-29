@@ -1722,7 +1722,7 @@ inline std::string CollapseAndTrimWhitespace(const std::string &s)
  * \par
  *                              "?A" matches any single character followed by 'A'
  */
-bool Match(const char *pattern, const char *s, bool ignore_case = false) throw(std::exception);
+bool Match(const char *pattern, const char *s, bool ignore_case = false);
 
 
 /** \brief  Implements a wildcard matching function.
@@ -1731,23 +1731,20 @@ bool Match(const char *pattern, const char *s, bool ignore_case = false) throw(s
  *  \param  ignore_case  Whether to perform the scanning in a case-sensitive manner or not.
  *  \return Whether we had a successful match or not.
  */
-inline bool Match(const std::string &pattern, const std::string &s, bool ignore_case = false) throw(std::exception)
-{
-        return Match(pattern.c_str(), s.c_str(), ignore_case);
-}
+inline bool Match(const std::string &pattern, const std::string &s, bool ignore_case = false)
+    { return Match(pattern.c_str(), s.c_str(), ignore_case); }
 
 
 /** \brief  Allocate and return a new duplicate of a char* array.
  *  \param  s  String to duplicate.
  */
-inline char *strnewdup(const char * const s)
-{
-        if (s == nullptr)
-                return nullptr;
+inline char *strnewdup(const char * const s) {
+    if (s == nullptr)
+        return nullptr;
 
-        size_t len = std::strlen(s);
-        char *new_s = new char[len+1];
-        return std::strcpy(new_s, s);
+    size_t len = std::strlen(s);
+    char *new_s = new char[len+1];
+    return std::strcpy(new_s, s);
 }
 
 /** \brief Creates copy of a char* on the local stack. Fast and self destructing upon scope exit.

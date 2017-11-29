@@ -1217,7 +1217,7 @@ std::string &CollapseAndTrimWhitespace(std::string * const s) {
 //                              "*"              matches everything
 //                              "?A"             matches any single character followed by 'A'
 //
-bool Match(const char *pattern, const char *s, bool ignore_case) throw(std::exception) {
+bool Match(const char *pattern, const char *s, bool ignore_case) {
     const int MAX_ASTERISKS = 100;
     const char *back[MAX_ASTERISKS][2];
     int asterisk_index = 0;
@@ -1312,13 +1312,15 @@ bool Match(const char *pattern, const char *s, bool ignore_case) throw(std::exce
         }
         case '\\': // take next character literally!
             ++pattern;
+            #if __GNUC__ >= 7
+            [[fallthrough]];
+            #endif
         default: {
             int c1, c2;
             if (ignore_case) {
                 c1 = tolower(*s);
                 c2 = tolower(*pattern);
-            }
-            else { // case sensitive match
+            } else { // case sensitive match
                 c1 = *s;
                 c2 = *pattern;
             }
