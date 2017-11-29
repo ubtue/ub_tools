@@ -139,8 +139,8 @@ else
 fi
 
 # Import the MARC files
-#/mnt/zram/import-marc.sh -p "$IMPORT_PROPERTIES_FILE" "$FILE_TO_IMPORT" 2>&1
-#if [ $? -ne 0 ]; then
-#    >&2 echo "$0"': Failed to import MARC files!'
-#    exit 1
-#fi
+/mnt/zram/import-marc.sh -p "$IMPORT_PROPERTIES_FILE" "$FILE_TO_IMPORT" 2>&1
+if [ $? -ne 0 ]; then
+    >&2 echo "$0"': Failed to import MARC files!'
+    exit 1
+fi
