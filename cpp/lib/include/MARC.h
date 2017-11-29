@@ -120,7 +120,7 @@ class Subfields {
 public:
     typedef std::vector<Subfield>::const_iterator const_iterator;
 public:
-    inline Subfields(std::vector<Subfield> &&subfields): subfields_(subfields) { }
+    inline Subfields(std::initializer_list<Subfield> subfields): subfields_(subfields) { }
     inline explicit Subfields(const std::string &field_contents) {
         if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
             return;
@@ -278,6 +278,12 @@ public:
         new_field_value += indicator2;
         new_field_value += subfields.toString();
         insertField(new_field_tag, new_field_value);
+    }
+
+    inline void insertField(const Tag &new_field_tag, std::initializer_list<Subfield> subfields, const char indicator1 = ' ',
+                            const char indicator2 = ' ')
+    {
+        insertField(new_field_tag, Subfields(subfields), indicator1, indicator2);
     }
 
     /** \brief  Adds a subfield to the first existing field with tag "field_tag".
