@@ -74,7 +74,7 @@ public:
      *                will be returned.
      *  \throws std::out_of_range_error when "group" is greater than the 1-based index of the last substring match.
      */
-    std::string operator[](const unsigned group) const throw(std::out_of_range);
+    std::string operator[](const unsigned group) const;
 
     /** \return The number of substring matches + 1 for the full match of the last match. */
     unsigned getLastMatchCount() const { return last_match_count_; }

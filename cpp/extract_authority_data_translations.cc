@@ -78,9 +78,10 @@ void ExtractSubfield9Info(const std::vector<std::string> &_9Subfields,
         } else if (StringUtil::StartsWith(_9Subfield, ixtheo_type_prefix)) {
            *type = _9Subfield;
            StringUtil::ExtractHead(type, ixtheo_type_prefix);
-        } else if (StringUtil::StartsWith(_9Subfield, macs_tag_prefix))
+        } else if (StringUtil::StartsWith(_9Subfield, macs_tag_prefix)) {
            *macs_tag = _9Subfield;
            StringUtil::ExtractHead(macs_tag, macs_tag_prefix);
+        }
     }
 }
 

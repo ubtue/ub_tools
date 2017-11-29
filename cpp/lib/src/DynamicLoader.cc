@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DynamicLoader class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,6 +19,7 @@
  */
 #include "DynamicLoader.h"
 #include <stdexcept>
+#include "util.h"
 
 
 DynamicLoader::DynamicLoader(const std::string &library) {
@@ -31,11 +32,10 @@ DynamicLoader::DynamicLoader(const std::string &library) {
 
 DynamicLoader::~DynamicLoader() {
     if (handle_ != nullptr and ::dlclose(handle_) != 0)
-        throw std::runtime_error("in DynamicLoader::~DynamicLoader: dlclose(3) failed: " + std::string(::dlerror()));
+        logger->error("in DynamicLoader::~DynamicLoader: dlclose(3) failed: " + std::string(::dlerror()));
 }
 
 
 void *DynamicLoader::loadSymbol(const std::string &symbol_name) {
     return ::dlsym(handle_, symbol_name.c_str());
 }
-

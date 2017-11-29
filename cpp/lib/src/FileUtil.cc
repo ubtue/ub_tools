@@ -681,6 +681,7 @@ FileUtil::FileType GuessFileType(const std::string &filename) {
         case 'l':
             if (file_extension == "pl")
                 file_type = FILE_TYPE_HTML; // it might be a source code too!
+            break;
         case 'n':
             if (file_extension == "png")
                 file_type = FILE_TYPE_GRAPHIC;
@@ -861,7 +862,7 @@ void CopyOrDie(const std::string &from_path, const std::string &to_path) {
     if (unlikely(from_fd == -1))
         logger->error("in FileUtil::CopyOrDie: failed to open \"" + from_path  + "\" for reading!");
 
-    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT));
+    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT, 0600));
     if (unlikely(to_fd == -1))
         logger->error("in FileUtil::CopyOrDie: failed to open \"" + to_path  + "\" for writing!");
 

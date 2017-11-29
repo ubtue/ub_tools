@@ -2,7 +2,7 @@
  *  \brief  VuFind-related constants and utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,8 +31,7 @@ namespace VuFind {
  *  \param mysql_url                Here the MySQL authentication/access URL will be returned.
  *  \param vufind_config_file_path  If not specified, $VUFIND_HOME + "/" + VuFind::DATABASE_CONF will be used.
  */
-void GetMysqlURL(std::string * const mysql_url,
-                 const std::string &vufind_config_file_path = "") throw(std::exception);
+void GetMysqlURL(std::string * const mysql_url, const std::string &vufind_config_file_path = "");
 
 
 } // namespace VuFind
