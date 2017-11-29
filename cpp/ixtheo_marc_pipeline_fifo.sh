@@ -138,11 +138,17 @@ add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${da
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  superior_ppns >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+
+
+StartPhase "Extract Normdata Translations"
+(extract_authority_data_translations Normdaten-augmented-"${date}".mrc \
+                                     normdata_translations.txt >> "${log}" 2>&1 &&
+EndPhase || Abort) &
 wait
 
 
 StartPhase "Add Author Synonyms from Authority Data"
-(add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GefilterteNormdaten-"${date}".mrc \
+(add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GefilterteNormdaten-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -232,7 +238,7 @@ EndPhase || Abort) &
 StartPhase "Tag further potential relbib entries"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_additional_relbib_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+                               GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -266,12 +272,6 @@ StartPhase "Tag PDA candidates"
     $(ls -t gvi_ppn_list-??????.txt | head -1) \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-
-
-StartPhase "Extract Normdata Translations"
-(extract_normdata_translations Normdaten-augmented-"${date}".mrc \
-     normdata_translations.txt >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 wait
 

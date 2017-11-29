@@ -121,6 +121,7 @@ public:
     typedef std::vector<Subfield>::const_iterator const_iterator;
 public:
     inline Subfields(std::vector<Subfield> &&subfields): subfields_(subfields) { }
+    Subfields(const Subfields &other) = default;
     inline explicit Subfields(const std::string &field_contents) {
         if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
             return;
@@ -222,6 +223,7 @@ public:
         inline Range(const_iterator begin, const_iterator end): begin_(begin), end_(end) { }
         inline const_iterator begin() const { return begin_; }
         inline const_iterator end() const { return end_; }
+        inline bool empty() const { return begin_ == end_; }
     };
 private:
     friend class BinaryReader;
@@ -232,10 +234,11 @@ private:
     std::string leader_;
     std::vector<Field> fields_;
 public:
-    static constexpr unsigned MAX_RECORD_LENGTH          = 99999;
-    static constexpr unsigned DIRECTORY_ENTRY_LENGTH     = 12;
-    static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH = 5;
-    static constexpr unsigned LEADER_LENGTH              = 24;
+    static constexpr unsigned MAX_RECORD_LENGTH                        = 99999;
+    static constexpr unsigned MAX_VARIABLE_FIELD_DATA_LENGTH           = 9998; // Max length without trailing terminator
+    static constexpr unsigned DIRECTORY_ENTRY_LENGTH                   = 12;
+    static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH               = 5;
+    static constexpr unsigned LEADER_LENGTH                            = 24;
 private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
@@ -270,13 +273,14 @@ public:
 
     void insertField(const Tag &new_field_tag, const std::string &new_field_value);
 
-    inline void insertField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
+    inline void insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
     {
         std::string new_field_value;
         new_field_value += indicator1;
         new_field_value += indicator2;
-        new_field_value += subfields.toString();
+	for (const auto &subfield : subfields)
+            new_field_value += subfield.toString();
         insertField(new_field_tag, new_field_value);
     }
 
@@ -304,8 +308,20 @@ public:
      */
     Range getTagRange(const Tag &tag) const;
 
+    /** \return True if field with tag "tag" exists. */
+    inline bool hasTag(const Tag &tag) const {
+        return std::find_if(fields_.begin(), fields_.end(),
+                            [&tag](const Field &field) -> bool { return field.getTag() == tag; }) != fields_.end();
+    }
+
+    /** \return True if field with tag "tag" and indicators "indicator1" and "indicator2" exists. */
+    bool hasTagWithIndicators(const Tag &tag, const char indicator1, const char indicator2) const;
+
     /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
     std::vector<std::string> getSubfieldValues(const Tag &tag, const char subfield_code) const;
+
+    /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
+    std::vector<std::string> getSubfieldValues(const Tag &tag, const std::string &subfield_codes) const;
 
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
