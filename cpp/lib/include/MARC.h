@@ -266,9 +266,6 @@ public:
         return __builtin_strchr("acdefgijkmoprt", leader_[6]) == nullptr ? UNKNOWN : BIBLIOGRAPHIC;
     }
 
-    inline const std::string &getFieldData(const size_t field_index) const
-        { return fields_[field_index].getContents(); }
-
     void insertField(const Tag &new_field_tag, const std::string &new_field_value);
 
     inline void insertField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
