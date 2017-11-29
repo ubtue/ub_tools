@@ -273,13 +273,24 @@ public:
 
     void insertField(const Tag &new_field_tag, const std::string &new_field_value);
 
+    inline void insertField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
+                            const char indicator2 = ' ')
+    {
+        std::string new_field_value;
+        new_field_value += indicator1;
+        new_field_value += indicator2;
+        for (const auto &subfield : subfields)
+            new_field_value += subfield.toString();
+        insertField(new_field_tag, new_field_value);
+    }
+
     inline void insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
     {
         std::string new_field_value;
         new_field_value += indicator1;
         new_field_value += indicator2;
-	for (const auto &subfield : subfields)
+        for (const auto &subfield : subfields)
             new_field_value += subfield.toString();
         insertField(new_field_tag, new_field_value);
     }
