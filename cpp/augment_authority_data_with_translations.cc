@@ -68,16 +68,14 @@ std::string ReplaceAngleBracketsWithParentheses(const std::string &value) {
 
 
 std::string CleanUpTranslation(const std::string &translation) {
-    std::string new_translation = translation;
-    new_translation = StringUtil::Map(new_translation, "\t\n\r", "   ");
+    std::string new_translation(StringUtil::Map(translation, "\t\n\r", "   "));
     new_translation = StringUtil::CollapseAndTrimWhitespace(new_translation);
-    new_translation = StringUtil::Trim(new_translation);
-    return new_translation;
+    return StringUtil::Trim(new_translation);
 }
 
 
 void ExtractTranslations(DbConnection * const db_connection, std::map<std::string,
-                         std::vector<OneTranslation> > * const all_translations)
+                         std::vector<OneTranslation>> * const all_translations)
 {
     db_connection->queryOrDie("SELECT DISTINCT ppn FROM keyword_translations");
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
@@ -94,7 +92,7 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
             if (not IsReliableSynonym(row["status"]) and row["language_code"] != "ger") {
                 std::string translation(row["translation"]);
                 // Handle '#'-separated synonyms appropriately
-                if (translation.find("#") == std::string::npos and not translation.empty())
+                if (translation.find('#') == std::string::npos and not translation.empty())
                     translations.emplace_back(ReplaceAngleBracketsWithParentheses(CleanUpTranslation(translation)),
                                               row["language_code"], row["origin"], row["status"]);
                 else {
@@ -103,13 +101,13 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
 		    // Use the first translation as non-synonmym
                     if (primary_and_synonyms.size() > 0) {
                         translations.emplace_back(CleanUpTranslation(primary_and_synonyms[0]),
-                                                   row["language_code"], row["origin"], row["status"]);
+                                                  row["language_code"], row["origin"], row["status"]);
                         // Add further synonyms as derived synonyms
                         for (auto synonyms(std::next(primary_and_synonyms.cbegin()));
                             synonyms != primary_and_synonyms.cend(); ++synonyms) {
                                 const std::string synonym(CleanUpTranslation(*synonyms));
                                 translations.emplace_back(ReplaceAngleBracketsWithParentheses(synonym),
-                                                  row["language_code"], row["origin"], "derived_synonym");
+                                                          row["language_code"], row["origin"], "derived_synonym");
                         }
                     }
                 }

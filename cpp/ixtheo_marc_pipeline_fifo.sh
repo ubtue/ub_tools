@@ -141,7 +141,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Extract Normdata Translations"
-(extract_normdata_translations Normdaten-augmented-"${date}".mrc \
+(extract_authority_data_translations Normdaten-augmented-"${date}".mrc \
      normdata_translations.txt >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 wait

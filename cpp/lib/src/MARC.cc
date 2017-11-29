@@ -116,7 +116,7 @@ std::vector<std::string> Record::getSubfieldValues(const Tag &tag, const char su
 }
 
 
-std::vector<std::string> Record::getSubfieldValues(const Tag &tag, const std::string subfield_codes) const {
+std::vector<std::string> Record::getSubfieldValues(const Tag &tag, const std::string &subfield_codes) const {
     std::vector<std::string> subfield_values;
     for (const auto &field : getTagRange(tag)) {
         const Subfields subfields(field.getContents());
