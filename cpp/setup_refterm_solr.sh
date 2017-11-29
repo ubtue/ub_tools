@@ -17,7 +17,7 @@ export IMPORT_PROPERTIES_FILE="$SOLRMARC_HOME"/import.properties
 
 trap ExitHandler SIGINT
 
-Usage() {
+function Usage() {
     cat << EOF
 Sets up a a temporary Solr instance in a Ramdisk and imports the MARC21 data given as a parameter
 
@@ -37,13 +37,13 @@ fi
 
 
 # Call with a single error_msg argument.
-ErrorExit() {
+function ErrorExit() {
     >&2 echo "$0: $1"
     exit 1
 }
 
 
-SetupRamdisk() {
+function SetupRamdisk() {
     # Nothing to do?
     test -e /mnt/zram && mountpoint --quiet /mnt/zram && return
 
@@ -75,18 +75,17 @@ SetupRamdisk() {
 }
 
 
-GetSolrPingUrl() {
+function GetSolrPingUrl() {
    echo $(cat $IMPORT_PROPERTIES_FILE | grep '^solr.hosturl' | sed -e 's/.*=\s*//' | \
           sed -e 's/update$/admin\/ping/')
 }
 
 
-IsSolrAvailable() {
+function IsSolrAvailable() {
    # Use the ping request handler like solrmarc
    # https://github.com/solrmarc/solrmarc/blob/master/src/org/solrmarc/solr/SolrCoreLoader.java
    local SOLR_PING_URL=$1
-   for i in $(seq 1 5);
-   do
+   for i in $(seq 1 5); do
       SOLR_UP=$(curl --get --silent "$SOLR_PING_URL" | grep '.*status.>OK<.*')
       if [[ ! -z $SOLR_UP ]]; then
           return 0 #true
