@@ -134,13 +134,14 @@ void RemoveMACSIfIxTheoPresent(std::vector<std::string> * const translations) {
 }
 
 
-void InsertTranslation(std::map<std::string, std::vector<std::string>>  &term_to_translations_map, std::string german_term,
-                       std::string translation, std::string type) {
+void InsertTranslation(std::map<std::string, std::vector<std::string>>  &term_to_translations_map, const std::string &german_term,
+                       const std::string &translation, const std::string &type)
+{
     // Determine the type of the translation and make sure the so called "Ansetzungsformen" (i.e. the primary translation
     // in contrast to mere synonyms) are inserted in the front
-    std::vector<std::string> term_translations = term_to_translations_map[german_term];
+    std::vector<std::string> term_translations(term_to_translations_map[german_term]);
     if (type == "AF")
-        term_translations.insert(term_translations.cbegin(), translation);
+        term_translations.insert(term_translations.begin(), translation);
     else
         term_translations.push_back(translation);
     term_to_translations_map[german_term] = term_translations;
