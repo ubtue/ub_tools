@@ -662,7 +662,9 @@ bool Resolver::DecodeReply(const unsigned char * const packet_start, const size_
     case 1:
         if (verbosity >= 2)
             logger->info("in Resolver::DecodeReply: the server indicated that we sent an invalid request!");
+        #if __GNUC__ >= 7
         [[fallthrough]];
+        #endif
     default:
         /* Some kind of error condition that we ignore. */
         return false;
