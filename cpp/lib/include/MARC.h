@@ -121,6 +121,7 @@ public:
     typedef std::vector<Subfield>::const_iterator const_iterator;
 public:
     inline Subfields(std::vector<Subfield> &&subfields): subfields_(subfields) { }
+    Subfields(const Subfields &other) = default;
     inline explicit Subfields(const std::string &field_contents) {
         if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
             return;
@@ -272,13 +273,14 @@ public:
 
     void insertField(const Tag &new_field_tag, const std::string &new_field_value);
 
-    inline void insertField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
+    inline void insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
     {
         std::string new_field_value;
         new_field_value += indicator1;
         new_field_value += indicator2;
-        new_field_value += subfields.toString();
+	for (const auto &subfield : subfields)
+           new_field_value += subfield.toString();
         insertField(new_field_tag, new_field_value);
     }
 
