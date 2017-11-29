@@ -1312,7 +1312,9 @@ bool Match(const char *pattern, const char *s, bool ignore_case) {
         }
         case '\\': // take next character literally!
             ++pattern;
+            #if __GNUC__ >= 7
             [[fallthrough]];
+            #endif
         default: {
             int c1, c2;
             if (ignore_case) {
