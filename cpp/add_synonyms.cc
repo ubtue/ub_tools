@@ -186,11 +186,10 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
                   current_length += synonym_it->length() + (synonyms_empty ? 0 : 3);
                   ++synonym_it;
              } else {
-                 const char new_indicator2 = indicator2 + '0';
-                 if (record->hasTagWithIndicators(tag, '0', new_indicator2))
+                 if (record->hasTagWithIndicators(tag, '0', indicator2 + '0'))
                      logger->error("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
-                                    new_indicator2 + "\' for PPN "  + record->getControlNumber() + '!');
-                 record->insertField(tag, { MARC::Subfield(subfield_spec[0], synonyms) }, '0', new_indicator2);
+                                   std::to_string(indicator2) + "\' for PPN "  + record->getControlNumber() + '!');
+                 record->insertField(tag, { MARC::Subfield(subfield_spec[0], synonyms) }, '0', indicator2 + '0');
                  synonyms.clear();
                  current_length = 0;
                  ++indicator2;
@@ -203,7 +202,7 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
              if (record->hasTagWithIndicators(tag, '0', new_indicator2))
                      logger->error("in ProcessRecord: Could not insert field " + tag + " with indicators \'0\' and \'" +
                                     new_indicator2 + "\' for PPN "  + record->getControlNumber() + '!');
-             record->insertField(tag, {  MARC::Subfield(subfield_spec[0], synonyms) }, '0', new_indicator2);
+             record->insertField(tag, { MARC::Subfield(subfield_spec[0], synonyms) }, '0', new_indicator2);
              *modified_record = true;
          }
     }
