@@ -1,7 +1,6 @@
 #!/bin/bash
 set -o errexit -o nounset
 
-FILE_TO_IMPORT="$1"
 export VUFIND_HOME="/usr/local/vufind"
 export VUFIND_SOLRMARC_HOME="$VUFIND_HOME/import/"
 export UB_TOOLS_HOME="/usr/local/ub_tools/"
@@ -14,10 +13,11 @@ export SOLR_BIN="$VUFIND_HOME"/solr/vendor/bin/
 export SOLRMARC_HOME=/mnt/zram/import
 export SOLR_HOME=/mnt/zram/solr/vufind/
 export SOLR_PORT=8081
+export IMPORT_PROPERTIES_FILE="$SOLRMARC_HOME"/import.properties
 
 trap ExitHandler SIGINT
 
-Usage() {
+function Usage() {
     cat << EOF
 Sets up a a temporary Solr instance in a Ramdisk and imports the MARC21 data given as a parameter
 
@@ -29,16 +29,21 @@ EOF
 function ExitHandler {
    shutdown_ramdisk
 }
+if [ $# -ne 1 ]; then
+    >&2 echo -e "$0 : Invalid number of parameters\n"
+    Usage
+    exit 1
+fi
 
 
 # Call with a single error_msg argument.
-ErrorExit() {
+function ErrorExit() {
     >&2 echo "$0: $1"
     exit 1
 }
 
 
-SetupRamdisk() {
+function SetupRamdisk() {
     # Nothing to do?
     test -e /mnt/zram && mountpoint --quiet /mnt/zram && return
 
@@ -69,6 +74,28 @@ SetupRamdisk() {
     fi
 }
 
+
+function GetSolrPingUrl() {
+   echo $(cat $IMPORT_PROPERTIES_FILE | grep '^solr.hosturl' | sed -e 's/.*=\s*//' | \
+          sed -e 's/update$/admin\/ping/')
+}
+
+
+function IsSolrAvailable() {
+   # Use the ping request handler like solrmarc
+   # https://github.com/solrmarc/solrmarc/blob/master/src/org/solrmarc/solr/SolrCoreLoader.java
+   local SOLR_PING_URL=$1
+   for i in $(seq 1 5); do
+      SOLR_UP=$(curl --get --silent "$SOLR_PING_URL" | grep '.*status.>OK<.*')
+      if [[ ! -z $SOLR_UP ]]; then
+          return 0 #true
+      fi
+      sleep 3
+   done
+   return 1 #false
+}
+
+FILE_TO_IMPORT="$1"
 
 # Abort if we are not root or the parameters do not match
 test "$EUID" -eq 0 || ErrorExit 'We can only run as root!'
@@ -102,8 +129,16 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+#Make sure Solr is up and running
+if ! IsSolrAvailable $(GetSolrPingUrl); then
+    >&2 echo "$0"': Failed to ping the Solr instance!'
+    exit 1
+else
+    echo "Successfully pinged the Solr instance"
+fi
+
 # Import the MARC files
-/mnt/zram/import-marc.sh -p /mnt/zram/import/import.properties "$FILE_TO_IMPORT" 2>&1 
+/mnt/zram/import-marc.sh -p "$IMPORT_PROPERTIES_FILE" "$FILE_TO_IMPORT" 2>&1
 if [ $? -ne 0 ]; then
     >&2 echo "$0"': Failed to import MARC files!'
     exit 1
