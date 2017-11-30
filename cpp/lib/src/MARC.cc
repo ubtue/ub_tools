@@ -60,7 +60,7 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 
 
 Record::Record(const size_t record_size, char * const record_start)
-    : record_size_(record_size), leader_(record_start, record_size)
+    : record_size_(record_size), leader_(record_start, LEADER_LENGTH)
 {
     const char * const base_address_of_data(record_start + ToUnsigned(record_start + 12, 5));
 
