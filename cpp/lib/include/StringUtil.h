@@ -91,7 +91,7 @@ const std::string IVIA_STANDARD_LOCALE("en_US.UTF-8");
 #      error Your OS is not supported!
 #endif
 const std::string EmptyString;
-const std::string WHITE_SPACE(" \t\n\v\r\f\xA0");
+const std::string WHITE_SPACE(" \t\n\v\r\f");
 
 
 /** \brief  Convert a string to lowercase (modifies its argument). */
@@ -149,18 +149,16 @@ bool IsInitialCapsString(const std::string &s);
 
 
 /** \brief  Returns true if "ch" is a whitespace character.
- *  \note   Whether a character is considered to be a whitespace character is determined by isspace() and comparison against '\xA0' which is typically the
- *          encoding for a hard space and strangly not included in isspace() for Latin-1 or Latin-9 or even the default C locale.
+ *  \note   Whether a character is considered to be a whitespace character is determined by isspace()
  */
 inline bool IsWhitespace(const char ch)
 {
-        return isspace(ch) or ch == '\xA0' /* hard space */;
+        return isspace(ch);
 }
 
 
 /** \brief  Returns true if every character in "s" is a whitespace character.
- *  \note   Whether a character is considered to be a whitespace character is determined by isspace() and comparison against '\xA0' which is typically the
- *          encoding for a hard space and strangly not included in isspace() for Latin-1 or Latin-9 or even the default C locale.
+ *  \note   Whether a character is considered to be a whitespace character is determined by isspace()
  */
 bool IsWhitespace(const std::string &s);
 
@@ -2283,10 +2281,8 @@ inline bool strless(const char * const s1, const char * s2) {
 }
 
 
-/** Combines the isspace() test with comparison against the non-break space character code. */
 inline bool IsSpace(char ch) {
-        const char NO_BREAK_SPACE('\xA0');
-        return isspace(ch) or ch == NO_BREAK_SPACE;
+        return isspace(ch);
 }
 
 
