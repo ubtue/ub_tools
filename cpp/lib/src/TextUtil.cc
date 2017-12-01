@@ -948,7 +948,7 @@ static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, 
 }
 
 
-std::string CStyleUnescape(std::string * const s) {
+std::string &CStyleUnescape(std::string * const s) {
     std::string unescaped_string;
     bool slash_seen(false);
     for (auto ch(s->cbegin()); ch != s->cend(); ++ch) {
@@ -1023,7 +1023,7 @@ static std::string ToUnicodeEscape(const uint32_t code_point) {
 }
 
 
-std::string CStyleEscape(std::string * const s) {
+std::string &CStyleEscape(std::string * const s) {
     std::string escaped_string;
 
     UTF8ToUTF32Decoder utf8_to_utf32_decoder;
