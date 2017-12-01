@@ -187,19 +187,23 @@ void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
+    if (argc < 2)
+        Usage();
+    
     bool verbose(false), generate_solr_query(false);
-    if (argc == 6) {
-        if (std::strcmp(argv[1], "--debug") == 0)
-            verbose = true;
-        else if (std::strcmp(argv[1], "--query") == 0)
-            generate_solr_query = true;
-        else
-            Usage();
+    if (std::strcmp(argv[1], "--debug") == 0) {
+        verbose = true;
+        ++argv, --argc;
+    } else if (std::strcmp(argv[1], "--query") == 0) {
+        generate_solr_query = true;
         ++argv, --argc;
     }
 
+    if (argc < 2)
+        Usage();
+    
     std::string map_file_path;
-    if (argc == 6 and StringUtil::StartsWith(argv[1], "--map-file-directory=")) {
+    if (StringUtil::StartsWith(argv[1], "--map-file-directory=")) {
         map_file_path = argv[1] + __builtin_strlen("--map-file-directory=");
         map_file_path += '/';
         ++argv, --argc;
@@ -208,14 +212,14 @@ int main(int argc, char **argv) {
     if (argc != 5)
         Usage();
 
+    const std::string bible_reference_candidate(StringUtil::Trim(TextUtil::CollapseWhitespace(StringUtil::ToLower(argv[1]))));
     const std::string books_of_the_bible_to_code_map_filename(map_file_path + argv[2]);
     const std::string books_of_the_bible_to_canonical_form_map_filename(map_file_path + argv[3]);
-    std::string bible_reference_candidate(StringUtil::Trim(StringUtil::ToLower(map_file_path + argv[1])));
-    TextUtil::CollapseWhitespace(&bible_reference_candidate);
+    const std::string pericopes_to_codes_map(map_file_path + argv[4]);
 
     HandleBookRanges(verbose, generate_solr_query, books_of_the_bible_to_canonical_form_map_filename,
                      books_of_the_bible_to_code_map_filename, bible_reference_candidate);
-    HandlePericopes(verbose, generate_solr_query, bible_reference_candidate, argv[4]);
+    HandlePericopes(verbose, generate_solr_query, bible_reference_candidate, pericopes_to_codes_map);
     HandleOrdinaryReferences(verbose, generate_solr_query, bible_reference_candidate,
                              books_of_the_bible_to_code_map_filename,
                              books_of_the_bible_to_canonical_form_map_filename);
