@@ -816,6 +816,7 @@ std::string DecodeQuotedPrintable(const std::string &s) {
 }
 
 
+// See https://en.wikipedia.org/wiki/Whitespace_character for the original list.
 const std::unordered_set<uint32_t> UNICODE_WHITESPACE {
     0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x0085, 0x00A0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005,
     0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0x180E, 0x200B, 0x200C, 0x200D, 0x2060,
@@ -878,7 +879,7 @@ std::string &CollapseWhitespace(std::string * const utf8_string) {
 std::string &CollapseAndTrimWhitespace(std::string * const utf8_string) {
     CollapseWhitespaceHelper(utf8_string, /* last_char_was_whitespace_initial_state = */ true);
 
-    // String ends with a space?
+    // String ends with a space? => Remove it!
     if (not utf8_string->empty() and utf8_string->back() == ' ')
         utf8_string->resize(utf8_string->size() - 1);
 
