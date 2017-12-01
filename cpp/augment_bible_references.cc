@@ -39,6 +39,7 @@
 #include "MarcUtil.h"
 #include "StringUtil.h"
 #include "Subfields.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -93,8 +94,8 @@ bool FindPericopes(const MarcRecord &record, const std::set<std::pair<std::strin
     {
         const Subfields subfields(record.getSubfields(index));
         std::string a_subfield(subfields.getFirstSubfieldValue('a'));
-        StringUtil::ToLower(&a_subfield);
-        StringUtil::CollapseAndTrimWhitespace(&a_subfield);
+        TextUtil::UTF8ToLower(&a_subfield);
+        TextUtil::CollapseAndTrimWhitespace(&a_subfield);
         pericopes.push_back(a_subfield);
     }
 

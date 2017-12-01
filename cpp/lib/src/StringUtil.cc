@@ -47,6 +47,7 @@
 #include <sstream>
 #include <unistd.h>
 #include "Compiler.h"
+#include "TextUtil.h"
 
 
 #ifdef DIM
@@ -1124,69 +1125,6 @@ std::string &Collapse(std::string * const s, char scan_ch) {
 
     s->resize(current - s->begin());
     return *s;
-}
-
-
-// CollapseWhitespace -- Collapses multiple occurrences of whitespace into a single space
-//
-std::string &CollapseWhitespace(std::string * const s) {
-    std::string result;
-    result.reserve(s->size());
-
-    bool last_char_was_not_space(true);
-    for (std::string::const_iterator ch(s->begin()); ch != s->end(); ++ch) {
-        if (IsSpace(*ch)) {
-            // Add whitespace as a space, but only if
-            // the last char wasn't also a space.
-            if (last_char_was_not_space) {
-                result += ' ';
-                last_char_was_not_space = false;
-            }
-        }
-        else {
-            // Add any non-whitespace character unconditionally
-            result += *ch;
-            last_char_was_not_space = true;
-        }
-    }
-
-    return *s = result;
-}
-
-
-// CollapseAndTrimWhitespace -- Collapses multiple occurrences of whitespace into a single space and removes leading
-// and trailing whitespace.
-std::string &CollapseAndTrimWhitespace(std::string * const s) {
-    std::string result;
-    result.reserve(s->size());
-
-    std::string::iterator ch(s->begin());
-
-    // Skip over leading whitespace, if any:
-    while (ch != s->end() and IsSpace(*ch))
-        ++ch;
-
-    bool last_char_was_not_space(true);
-    for (/* Empty. */; ch != s->end(); ++ch) {
-        if (IsSpace(*ch)) {
-            // Add whitespace as a space, but only if
-            // the last char wasn't also a space.
-            if (last_char_was_not_space) {
-                result += ' ';
-                last_char_was_not_space = false;
-            }
-        } else {
-            // Add any non-whitespace character unconditionally
-            result += *ch;
-            last_char_was_not_space = true;
-        }
-    }
-
-    // Trim a trailing whitespace, if necessary:
-    if (not last_char_was_not_space)
-        result.resize(result.size() - 1);
-
-    return *s = result;
 }
 
 
@@ -2576,12 +2514,11 @@ std::string::size_type NthWordByteOffset(const std::string &target, const size_t
 }
 
 
-std::string Context(const std::string &text, const std::string::size_type offset, const std::string::size_type length)
-{
-    std::string::size_type start = std::max<int>(offset - (length / 2), 0);
-    std::string::size_type end = std::min<int>(offset + (length / 2), text.size());
+std::string Context(const std::string &text, const std::string::size_type offset, const std::string::size_type length) {
+    const std::string::size_type start(std::max<int>(offset - (length / 2), 0));
+    const std::string::size_type end(std::min<int>(offset + (length / 2), text.size()));
     std::string temp(text.substr(start, end - start));
-    return CollapseWhitespace(&temp);
+    return TextUtil::CollapseWhitespace(&temp);
 }
 
 

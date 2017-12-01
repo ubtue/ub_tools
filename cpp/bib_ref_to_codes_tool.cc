@@ -30,6 +30,7 @@
 #include "MapIO.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -196,7 +197,7 @@ int main(int argc, char **argv) {
     const std::string books_of_the_bible_to_code_map_filename(argv[2]);
     const std::string books_of_the_bible_to_canonical_form_map_filename(argv[3]);
     std::string bible_reference_candidate(StringUtil::Trim(StringUtil::ToLower(argv[1])));
-    StringUtil::CollapseWhitespace(&bible_reference_candidate);
+    TextUtil::CollapseWhitespace(&bible_reference_candidate);
 
     HandleBookRanges(verbose, generate_solr_query, books_of_the_bible_to_canonical_form_map_filename,
                      books_of_the_bible_to_code_map_filename, bible_reference_candidate);
