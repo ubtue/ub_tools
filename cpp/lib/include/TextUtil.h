@@ -267,7 +267,7 @@ inline std::string CollapseAndTrimWhitespace(const std::string &utf8_string) {
 
 
 /** \return True if "ch" was successfully converted to a value in the range [0..15] else false. */
-bool ToHex(const char ch, unsigned * const u);
+bool FromHex(const char ch, unsigned * const u);
 
 
 /** \brief Converts \n, \t, \b, \r, \f, \v, \a, \\, \uNNNN and \UNNNNNNNN to the corresponding byte sequences.
