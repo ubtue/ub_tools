@@ -254,7 +254,7 @@ inline std::string CollapseWhitespace(const std::string &utf8_string) {
 }
 
 
-/** \brief like CollapseWhitespace() but also removes leading and traling whitespace characters.
+/** \brief like CollapseWhitespace() but also removes leading and trailing whitespace characters.
  *  \return A reference to the modified string "*utf8_string".
  */
 std::string &CollapseAndTrimWhitespace(std::string * const utf8_string);
@@ -273,11 +273,11 @@ bool ToHex(const char ch, unsigned * const u);
 /** \brief Converts \n, \t, \b, \r, \f, \v, \a, \\, \uNNNN and \UNNNNNNNN to the corresponding byte sequences.
  *  \return The converted string.
  */
-std::string CStyleUnescape(std::string * const s);
+std::string &CStyleUnescape(std::string * const s);
 
 
 /** \brief The counterpart to CStyleUnescape(). */
-std::string CStyleEscape(std::string * const s);
+std::string &CStyleEscape(std::string * const s);
 
 
 } // namespace TextUtil
