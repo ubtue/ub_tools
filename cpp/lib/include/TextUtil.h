@@ -77,10 +77,24 @@ bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string);
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string);
 
 
+/** \brief Converts a UTF8 string to lowercase.
+ *  \return The converted string.
+ *  \note Throws an exception if an error occurred.
+ */
+std::string UTF8ToLower(std::string * const utf8_string);
+
+
 /** \brief Converts a UTF8 string to uppercase.
  *  \return True if no character set conversion error occurred, o/w false.
  */
 bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_utf8_string);
+
+
+/** \brief Converts a UTF8 string to uppercase.
+ *  \return The converted string.
+ *  \note Throws an exception if an error occurred.
+ */
+std::string UTF8ToUpper(std::string * const utf8_string);
 
 
 /** Converts UTF-32 a.k.a. UCS-4 to UTF-8. */
@@ -215,6 +229,55 @@ public:
 /* En- and decode text to and from the encoded-printable format. */
 std::string EncodeQuotedPrintable(const std::string &s);
 std::string DecodeQuotedPrintable(const std::string &s);
+
+
+extern const std::unordered_set<uint32_t> UNICODE_WHITESPACE;
+
+
+/** \return True if "utf32_char" is one of the code points listed here: https://en.wikipedia.org/wiki/Whitespace_character,
+            else false. */
+inline bool IsWhitespace(const uint32_t utf32_char) {
+    return UNICODE_WHITESPACE.find(utf32_char) != UNICODE_WHITESPACE.end();
+}
+
+
+/** \brief Replaces any sequence of "whitespace" characters listed here: https://en.wikipedia.org/wiki/Whitespace_character
+ *         to a single space (0x20) character.
+ *  \return A reference to the modified string "*utf8_string".
+ */
+std::string &CollapseWhitespace(std::string * const utf8_string);
+
+
+inline std::string CollapseWhitespace(const std::string &utf8_string) {
+    std::string temp_utf8_string(utf8_string);
+    return CollapseWhitespace(&temp_utf8_string);
+}
+
+
+/** \brief like CollapseWhitespace() but also removes leading and traling whitespace characters.
+ *  \return A reference to the modified string "*utf8_string".
+ */
+std::string &CollapseAndTrimWhitespace(std::string * const utf8_string);
+
+
+inline std::string CollapseAndTrimWhitespace(const std::string &utf8_string) {
+    std::string temp_utf8_string(utf8_string);
+    return CollapseAndTrimWhitespace(&temp_utf8_string);
+}
+
+
+/** \return True if "ch" was successfully converted to a value in the range [0..15] else false. */
+bool ToHex(const char ch, unsigned * const u);
+
+
+/** \brief Converts \n, \t, \b, \r, \f, \v, \a, \\, \uNNNN and \UNNNNNNNN to the corresponding byte sequences.
+ *  \return The converted string.
+ */
+std::string CStyleUnescape(std::string * const s);
+
+
+/** \brief The counterpart to CStyleUnescape(). */
+std::string CStyleEscape(std::string * const s);
 
 
 } // namespace TextUtil
