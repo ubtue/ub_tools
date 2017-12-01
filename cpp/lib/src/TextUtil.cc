@@ -1073,7 +1073,6 @@ std::string &CStyleEscape(std::string * const s) {
 
     s->swap(escaped_string);
     return *s;
-
 }
 
 
