@@ -886,7 +886,7 @@ std::string &CollapseAndTrimWhitespace(std::string * const utf8_string) {
 }
 
 
-bool ToHex(const char ch, unsigned * const u) {
+bool FromHex(const char ch, unsigned * const u) {
     if (ch >= '0' and ch <= '9') {
         *u = ch - '0';
         return true;
@@ -934,7 +934,7 @@ static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, 
             throw std::runtime_error("in TextUtil::DecodeUnicodeEscapeSequence: short Unicode escape!");
         wchar <<= 4u;
         unsigned nybble;
-        if (unlikely(not ToHex(*ch, &nybble)))
+        if (unlikely(not FromHex(*ch, &nybble)))
             throw std::runtime_error("in TextUtil::DecodeUnicodeEscapeSequence: invalid Unicode escape! (Not a valid nibble '"
                                      + std::string(1, *ch) + "'.)");
         wchar |= nybble;
