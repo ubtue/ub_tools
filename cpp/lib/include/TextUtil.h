@@ -211,6 +211,12 @@ class UTF8ToUTF32Decoder {
     int required_count_;
     uint32_t utf32_char_;
 public:
+    enum State {
+        NO_CHARACTER_PENDING //< getUTF32Char() should not be called.
+        CHARACTER_PENDING    //< getUTF32Char() should be called to get the next character. 
+        CHARACTER_INCOMPLETE //< addByte() must be called at least one more time to complete a character.
+    };
+public:
     UTF8ToUTF32Decoder(): required_count_(-1) { }
 
     /** Feed bytes into this until it returns false.  Then call getCodePoint() to get the translated UTF32 code
@@ -222,6 +228,10 @@ public:
      */
     bool addByte(const char ch);
 
+    inline State getState() const {
+        return (required_count_ == -1) ? NO_CHARACTER_PENDING
+                                       : ((required_count_  > 0) ? CHARACTER_INCOMPLETE : CHARACTER_PENDING);
+    }
     uint32_t getUTF32Char() { required_count_ = -1; return utf32_char_; }
 };
 
