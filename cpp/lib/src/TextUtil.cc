@@ -857,7 +857,7 @@ static std::string &CollapseWhitespaceHelper(std::string * const utf8_string,
                 } else {
                     std::string utf8;
                     if (unlikely(not WCharToUTF8String(utf32_char, &utf8)))
-                        logger->error("in TextUtil::CollapseWhitespace: WCharToUTF8String failed! (Character was "
+                        logger->error("in TextUtil::CollapseWhitespaceHelper: WCharToUTF8String failed! (Character was "
                                       + std::to_string(utf32_char) + ")");
                     collapsed_string += utf8;
                     last_char_was_whitespace = false;
@@ -865,6 +865,9 @@ static std::string &CollapseWhitespaceHelper(std::string * const utf8_string,
             }
         }
     }
+
+    if (unlikely(utf8_to_utf32_decoder.getState() == UTF8ToUTF32Decoder::CHARACTER_INCOMPLETE))
+        logger->error("in TextUtil::CollapseWhitespaceHelper: UTF8 input sequence contains an incomplete character!");
 
     utf8_string->swap(collapsed_string);
     return *utf8_string;
