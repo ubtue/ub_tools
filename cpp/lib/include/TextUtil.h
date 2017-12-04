@@ -212,9 +212,9 @@ class UTF8ToUTF32Decoder {
     uint32_t utf32_char_;
 public:
     enum State {
-        NO_CHARACTER_PENDING //< getUTF32Char() should not be called.
-        CHARACTER_PENDING    //< getUTF32Char() should be called to get the next character. 
-        CHARACTER_INCOMPLETE //< addByte() must be called at least one more time to complete a character.
+        NO_CHARACTER_PENDING, //< getUTF32Char() should not be called.
+        CHARACTER_PENDING,    //< getUTF32Char() should be called to get the next character. 
+        CHARACTER_INCOMPLETE  //< addByte() must be called at least one more time to complete a character.
     };
 public:
     UTF8ToUTF32Decoder(): required_count_(-1) { }
