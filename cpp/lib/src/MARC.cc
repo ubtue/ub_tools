@@ -60,6 +60,37 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 }
 
 
+void Record::Field::deleteFirstSubfield(const char subfield_code) {
+    std::string new_contents;
+    new_contents.reserve(contents_.length());
+    
+    auto ch(contents_.begin());
+    new_contents += *ch++; // indicator 1
+    new_contents += *ch++; // indicator 2
+    bool delimiter_seen(false);
+    for (/* Intentionally empty! */; ch != contents_.end(); ++ch) {
+        if (delimiter_seen) {
+            if (*ch == subfield_code) {
+                // Skip to end of subfield
+                while (ch != contents_.end() and *ch != '\x1F')
+                    ++ch;
+            } else {
+                delimiter_seen = false;
+                new_contents += '\x1F';
+                new_contents += *ch;
+            }
+        } else if (*ch == '\x1F')
+            delimiter_seen = true;
+        else
+            new_contents += *ch;
+        
+    }
+    new_contents += contents_.substr(ch - contents_.begin());
+    
+    contents_.swap(new_contents);
+}
+
+
 Record::Record(const size_t record_size, char * const record_start)
     : record_size_(record_size), leader_(record_start, LEADER_LENGTH)
 {
@@ -83,9 +114,23 @@ Record::Record(const size_t record_size, char * const record_start)
 }
 
 
-Record::Range Record::getTagRange(const Tag &tag) const {
+Record::ConstantRange Record::getTagRange(const Tag &tag) const {
     const auto begin(std::find_if(fields_.begin(), fields_.end(),
                                   [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
+    if (begin == fields_.end())
+        return ConstantRange(fields_.end(), fields_.end());
+
+    auto end(begin);
+    while (end != fields_.end() and end->getTag() == tag)
+        ++end;
+
+    return ConstantRange(begin, end);
+}
+
+
+Record::Range Record::getTagRange(const Tag &tag) {
+    auto begin(std::find_if(fields_.begin(), fields_.end(),
+                            [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
     if (begin == fields_.end())
         return Range(fields_.end(), fields_.end());
 
@@ -204,6 +249,13 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
     field->contents_ = new_field_value;
 
     return true;
+}
+
+
+void Record::deleteFields(std::vector<size_t> field_indices) {
+    std::sort(field_indices.begin(), field_indices.end(), std::greater<size_t>());
+    for (const auto field_index : field_indices)
+        fields_.erase(fields_.begin() + field_index);
 }
 
 
