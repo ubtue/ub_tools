@@ -667,8 +667,7 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * c
         if (unlikely(item == nullptr))
             logger->error("item is JSON \"items\" array as returned by Crossref is not an object!");
 
-        static const std::string EMPTY_STRING;
-        const std::string DOI(JSON::LookupString("/DOI", item, &EMPTY_STRING));
+        const std::string DOI(JSON::LookupString("/DOI", item, /* default_value = */ ""));
         if (unlikely(DOI.empty()))
             logger->error("No \"DOI\" for an item returned for the ISSN " + ISSN + "!");
 

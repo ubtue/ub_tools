@@ -31,6 +31,7 @@
 #include <cerrno>
 #include "Compiler.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -273,7 +274,8 @@ std::string HtmlParser::Chunk::toPlainText() const
 
 
 HtmlParser::HtmlParser(const std::string &input_string, unsigned chunk_mask, const bool header_only)
-    : input_string_(StringUtil::strnewdup(input_string.c_str())), lineno_(1), chunk_mask_(chunk_mask), header_only_(header_only), is_xhtml_(false)
+    : input_string_(StringUtil::strnewdup(input_string.c_str())), lineno_(1), chunk_mask_(chunk_mask), header_only_(header_only),
+      is_xhtml_(false)
 {
     if ((chunk_mask_ & TEXT) and (chunk_mask_ & (WORD | PUNCTUATION | WHITESPACE)))
         throw std::runtime_error("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
@@ -1114,10 +1116,8 @@ void UrlExtractorParser::notify(const Chunk &chunk) {
         else if (chunk.type_ == HtmlParser::CLOSING_TAG and opening_a_tag_seen_) {
             opening_a_tag_seen_ = false;
             if (not last_url_and_anchor_text_.url_.empty()) {
-                if (clean_up_anchor_text_) {
-                    StringUtil::TrimWhite(&last_url_and_anchor_text_.anchor_text_);
-                    StringUtil::CollapseWhitespace(&last_url_and_anchor_text_.anchor_text_);
-                }
+                if (clean_up_anchor_text_)
+                    TextUtil::CollapseAndTrimWhitespace(&last_url_and_anchor_text_.anchor_text_);
                 urls_.push_back(last_url_and_anchor_text_);
                 last_url_and_anchor_text_.clear();
             }
@@ -1135,8 +1135,7 @@ void UrlExtractorParser::notify(const Chunk &chunk) {
                     last_url_and_anchor_text_.anchor_text_.clear();
                 else {
                     std::string alt_text(alt->second);
-                    StringUtil::TrimWhite(&alt_text);
-                    StringUtil::CollapseWhitespace(&alt_text);
+                    TextUtil::CollapseAndTrimWhitespace(&alt_text);
                     last_url_and_anchor_text_.anchor_text_ = alt_text;
                 }
 
