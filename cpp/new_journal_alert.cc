@@ -97,11 +97,8 @@ std::string ConvertDateFromZuluDate(std::string date) {
 }
 
 
-static std::string EMPTY_STRING;
-
-
 std::string GetIssueId(const JSON::ObjectNode * const doc_obj) {
-    const std::string id(JSON::LookupString("/id", doc_obj, &EMPTY_STRING));
+    const std::string id(JSON::LookupString("/id", doc_obj, /* default_value = */ ""));
     if (unlikely(id.empty()))
         logger->error("Did not find 'id' node in JSON tree!");
     
@@ -111,7 +108,7 @@ std::string GetIssueId(const JSON::ObjectNode * const doc_obj) {
 
 std::string GetIssueTitle(const std::string &id, const JSON::ObjectNode * const doc_obj) {
     const std::string NO_AVAILABLE_TITLE("*No available title*");
-    const auto issue_title(JSON::LookupString("/title", doc_obj, &NO_AVAILABLE_TITLE));
+    const auto issue_title(JSON::LookupString("/title", doc_obj, /* default_value = */ NO_AVAILABLE_TITLE));
     if (unlikely(issue_title == NO_AVAILABLE_TITLE))
         logger->warning("No title found for ID " + id + "!");
     
@@ -120,7 +117,7 @@ std::string GetIssueTitle(const std::string &id, const JSON::ObjectNode * const 
 
 
 std::string GetLastModificationTime(const JSON::ObjectNode * const doc_obj) {
-    const std::string last_modification_time(JSON::LookupString("/last_modification_time", doc_obj, &EMPTY_STRING));
+    const std::string last_modification_time(JSON::LookupString("/last_modification_time", doc_obj, /* default_value = */ ""));
     if (unlikely(last_modification_time.empty()))
         logger->error("Did not find 'last_modification_time' node in JSON tree!");
     
