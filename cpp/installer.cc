@@ -2499,7 +2499,7 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     ExecOrDie(ExecUtil_Which("chown"), { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/import" });
 
     // systemctl: we do enable as well as daemon-reload and restart
-    // to achieve an indempotent installation
+    // to achieve an idempotent installation
     if (install_systemctl) {
         Echo("Activating Solr service...");
 
