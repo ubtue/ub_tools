@@ -1606,10 +1606,9 @@ std::string &Map(std::string * const s, const char old_char, const char new_char
  *  \param  new_char  The replacement character.
  *  \return A copy of the modified string.
  */
-inline std::string Map(const std::string &s, const char old_char, const char new_char)
-{
-        std::string s1(s);
-        return Map(&s1, old_char, new_char);
+inline std::string Map(const std::string &s, const char old_char, const char new_char) {
+    std::string s1(s);
+    return Map(&s1, old_char, new_char);
 }
 
 
@@ -1630,10 +1629,9 @@ std::string &Map(std::string * const s, const std::string &old_set, const std::s
  *  \return A copy of the modified string.
  *  \note  There has to be exactly one character each in new_set for every character in old_set.
  */
-inline std::string Map(const std::string &s, const std::string &old_set, const std::string &new_set)
-{
-        std::string s1(s);
-        return Map(&s1, old_set, new_set);
+inline std::string Map(const std::string &s, const std::string &old_set, const std::string &new_set) {
+    std::string s1(s);
+    return Map(&s1, old_set, new_set);
 }
 
 
@@ -1643,32 +1641,6 @@ inline std::string Map(const std::string &s, const std::string &old_set, const s
  *  \return A reference to the modified string "s".
  */
 std::string &Collapse(std::string * const s, char scan_ch = ' ');
-
-
-/** \brief  Collapses multiple occurrences of whitespace into a single space.
- *  \param  s The input string that will be "collapsed."
- *  \return A reference to the modified string "s".
- */
-std::string &CollapseWhitespace(std::string * const s);
-
-inline std::string CollapseWhitespace(const std::string &s)
-{
-        std::string temp_s(s);
-        return CollapseWhitespace(&temp_s);
-}
-
-
-/** \brief  Collapses multiple occurrences of whitespace into a single space and removes leading and trailing whitespace.
- *  \param  s The input string that will be "collapsed."
- *  \return A reference to the modified string "s".
- */
-std::string &CollapseAndTrimWhitespace(std::string * const s);
-
-inline std::string CollapseAndTrimWhitespace(const std::string &s)
-{
-        std::string temp_s(s);
-        return CollapseAndTrimWhitespace(&temp_s);
-}
 
 
 /** \brief  Implements a wildcard matching function.

@@ -37,6 +37,7 @@
 #include "MarcWriter.h"
 #include "StringUtil.h"
 #include "Subfields.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -86,19 +87,20 @@ void ExtractTranslations(DbConnection * const db_connection, std::map<std::strin
                 std::string translation(row["translation"]);
                 // Handle '#'-separated synonyms appropriately
                 if (translation.find('#') == std::string::npos and not translation.empty())
-                    translations.emplace_back(ReplaceAngleBracketsWithParentheses(StringUtil::CollapseAndTrimWhitespace(translation)),
-                                              row["language_code"], row["origin"], row["status"]);
+                    translations.emplace_back(
+                        ReplaceAngleBracketsWithParentheses(TextUtil::CollapseAndTrimWhitespace(translation)),
+                        row["language_code"], row["origin"], row["status"]);
                 else {
                     std::vector<std::string> primary_and_synonyms;
                     StringUtil::SplitThenTrim(translation, "#", " \t\n\r", &primary_and_synonyms);
 		    // Use the first translation as non-synonmym
                     if (primary_and_synonyms.size() > 0) {
-                        translations.emplace_back(StringUtil::CollapseAndTrimWhitespace(primary_and_synonyms[0]),
+                        translations.emplace_back(TextUtil::CollapseAndTrimWhitespace(primary_and_synonyms[0]),
                                                   row["language_code"], row["origin"], row["status"]);
                         // Add further synonyms as derived synonyms
                         for (auto synonyms(std::next(primary_and_synonyms.cbegin()));
                             synonyms != primary_and_synonyms.cend(); ++synonyms) {
-                                const std::string synonym(StringUtil::CollapseAndTrimWhitespace(*synonyms));
+                                const std::string synonym(TextUtil::CollapseAndTrimWhitespace(*synonyms));
                                 translations.emplace_back(ReplaceAngleBracketsWithParentheses(synonym),
                                                           row["language_code"], row["origin"], "derived_synonym");
                         }

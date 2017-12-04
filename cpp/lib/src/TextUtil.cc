@@ -31,6 +31,7 @@
 #include <exception>
 #include <iostream>
 #include <memory>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <cwctype>
@@ -51,7 +52,8 @@ class TextExtractor: public HtmlParser {
     std::string charset_;
 public:
     TextExtractor(const std::string &html, std::string * const extracted_text)
-        : HtmlParser(html, HtmlParser::TEXT | HtmlParser::OPENING_TAG | HtmlParser::END_OF_STREAM), extracted_text_(*extracted_text) { }
+        : HtmlParser(html, HtmlParser::TEXT | HtmlParser::OPENING_TAG | HtmlParser::END_OF_STREAM),
+          extracted_text_(*extracted_text) { }
     virtual void notify(const HtmlParser::Chunk &chunk);
 };
 
@@ -277,6 +279,16 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 }
 
 
+std::string UTF8ToLower(std::string * const utf8_string) {
+    std::string converted_string;
+    if (unlikely(not UTF8ToLower(*utf8_string, &converted_string)))
+        throw std::runtime_error("in TextUtil::UTF8ToLower: failed to convert a string to lowercase!");
+
+    utf8_string->swap(converted_string);
+    return *utf8_string;
+}
+
+
 bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_utf8_string) {
     std::wstring wchar_string;
     if (not UTF8toWCharString(utf8_string, &wchar_string))
@@ -292,6 +304,16 @@ bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_u
     }
 
     return WCharToUTF8String(uppercase_wide_string, uppercase_utf8_string);
+}
+
+
+std::string UTF8ToUpper(std::string * const utf8_string) {
+    std::string converted_string;
+    if (unlikely(not UTF8ToUpper(*utf8_string, &converted_string)))
+        throw std::runtime_error("in TextUtil::UTF8ToUpper: failed to convert a string to lowercase!");
+
+    utf8_string->swap(converted_string);
+    return *utf8_string;
 }
 
 
@@ -791,6 +813,266 @@ std::string DecodeQuotedPrintable(const std::string &s) {
     }
 
     return decoded_string;
+}
+
+
+// See https://en.wikipedia.org/wiki/Whitespace_character for the original list.
+const std::unordered_set<uint32_t> UNICODE_WHITESPACE {
+    0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x0085, 0x00A0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005,
+    0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0x180E, 0x200B, 0x200C, 0x200D, 0x2060,
+    0xFEFF
+};
+
+
+
+static std::string &CollapseWhitespaceHelper(std::string * const utf8_string,
+                                             const bool last_char_was_whitespace_initial_state)
+{
+    std::string collapsed_string;
+
+    UTF8ToUTF32Decoder utf8_to_utf32_decoder;
+    bool last_char_was_whitespace(last_char_was_whitespace_initial_state);
+    for (const auto ch : *utf8_string) {
+        if (IsASCIIChar(ch)) {
+            if (isspace(ch)) {
+                if (not last_char_was_whitespace) {
+                    last_char_was_whitespace = true;
+                    collapsed_string += ' ';
+                }
+            } else {
+                last_char_was_whitespace = false;
+                collapsed_string += ch;
+            }
+        } else {
+            if (not utf8_to_utf32_decoder.addByte(ch)) {
+                const uint32_t utf32_char(utf8_to_utf32_decoder.getUTF32Char());
+                if (IsWhitespace(utf32_char)) {
+                    if (not last_char_was_whitespace) {
+                        last_char_was_whitespace = true;
+                        collapsed_string += ' ';
+                    }
+                } else {
+                    std::string utf8;
+                    if (unlikely(not WCharToUTF8String(utf32_char, &utf8)))
+                        logger->error("in TextUtil::CollapseWhitespaceHelper: WCharToUTF8String failed! (Character was "
+                                      + std::to_string(utf32_char) + ")");
+                    collapsed_string += utf8;
+                    last_char_was_whitespace = false;
+                }
+            }
+        }
+    }
+
+    if (unlikely(utf8_to_utf32_decoder.getState() == UTF8ToUTF32Decoder::CHARACTER_INCOMPLETE))
+        logger->error("in TextUtil::CollapseWhitespaceHelper: UTF8 input sequence contains an incomplete character!");
+
+    utf8_string->swap(collapsed_string);
+    return *utf8_string;
+}
+
+
+std::string &CollapseWhitespace(std::string * const utf8_string) {
+    return CollapseWhitespaceHelper(utf8_string, /* last_char_was_whitespace_initial_state = */ false);
+}
+
+
+std::string &CollapseAndTrimWhitespace(std::string * const utf8_string) {
+    CollapseWhitespaceHelper(utf8_string, /* last_char_was_whitespace_initial_state = */ true);
+
+    // String ends with a space? => Remove it!
+    if (not utf8_string->empty() and utf8_string->back() == ' ')
+        utf8_string->resize(utf8_string->size() - 1);
+
+    return *utf8_string;
+}
+
+
+bool FromHex(const char ch, unsigned * const u) {
+    if (ch >= '0' and ch <= '9') {
+        *u = ch - '0';
+        return true;
+    }
+
+    switch (ch) {
+    case 'A':
+    case 'a':
+        *u = 10;
+        return true;
+    case 'B':
+    case 'b':
+        *u = 11;
+        return true;
+    case 'C':
+    case 'c':
+        *u = 12;
+        return true;
+    case 'D':
+    case 'd':
+        *u = 13;
+        return true;
+    case 'E':
+    case 'e':
+        *u = 14;
+        return true;
+    case 'F':
+    case 'f':
+        *u = 15;
+        return true;
+    }
+
+    return false;
+}
+
+
+// Helper function for CStyleUnescape().
+static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end,
+                                               const unsigned width)
+{
+    wchar_t wchar(0);
+    for (unsigned i(0); i < width; ++i) {
+        ++ch;
+        if (unlikely(ch == end))
+            throw std::runtime_error("in TextUtil::DecodeUnicodeEscapeSequence: short Unicode escape!");
+        wchar <<= 4u;
+        unsigned nybble;
+        if (unlikely(not FromHex(*ch, &nybble)))
+            throw std::runtime_error("in TextUtil::DecodeUnicodeEscapeSequence: invalid Unicode escape! (Not a valid nibble '"
+                                     + std::string(1, *ch) + "'.)");
+        wchar |= nybble;
+    }
+    std::string utf8_sequence;
+    if (unlikely(not WCharToUTF8String(wchar, &utf8_sequence)))
+        throw std::runtime_error("in TextUtil::DecodeUnicodeEscapeSequence: invalid Unicode escape \\u"
+                                 + StringUtil::ToString(wchar, 16) + "!");
+
+    return utf8_sequence;
+}
+
+
+std::string &CStyleUnescape(std::string * const s) {
+    std::string unescaped_string;
+    bool slash_seen(false);
+    for (auto ch(s->cbegin()); ch != s->cend(); ++ch) {
+        if (not slash_seen) {
+            if (*ch == '\\')
+                slash_seen = true;
+            else
+                unescaped_string += *ch;
+        } else {
+            switch (*ch) {
+            case 'n':
+                unescaped_string += '\n';
+                break;
+            case 't':
+                unescaped_string += '\t';
+                break;
+            case 'b':
+                unescaped_string += '\b';
+                break;
+            case 'r':
+                unescaped_string += '\r';
+                break;
+            case 'f':
+                unescaped_string += '\f';
+                break;
+            case 'v':
+                unescaped_string += '\v';
+                break;
+            case 'a':
+                unescaped_string += '\a';
+                break;
+            case '\\':
+                unescaped_string += '\\';
+                break;
+            case 'u':
+                unescaped_string += DecodeUnicodeEscapeSequence(ch, s->cend(), /* width = */ 4);
+                break;
+            case 'U':
+                unescaped_string += DecodeUnicodeEscapeSequence(ch, s->cend(), /* width = */ 8);
+                break;
+            default:
+                unescaped_string += *ch;
+            }
+            slash_seen = false;
+        }
+    }
+
+    if (unlikely(slash_seen))
+        throw std::runtime_error("in TextUtil::CStyleUnescape: trailing slash in input string!");
+
+    s->swap(unescaped_string);
+    return *s;
+}
+
+
+static std::string To4ByteHexString(uint16_t u16) {
+    std::string as_string;
+    for (unsigned i(0); i < 4; ++i) {
+        as_string += StringUtil::ToHex(u16 & 0xF);
+        u16 >>= 4u;
+    }
+    std::reverse(as_string.begin(), as_string.end());
+
+    return as_string;
+}
+
+
+static std::string ToUnicodeEscape(const uint32_t code_point) {
+    if (code_point <= 0xFFFFu)
+        return "\\u" + To4ByteHexString(static_cast<uint16_t>(code_point));
+    return "\\U" + To4ByteHexString(code_point >> 16u) + To4ByteHexString(static_cast<uint16_t>(code_point));
+}
+
+
+std::string &CStyleEscape(std::string * const s) {
+    std::string escaped_string;
+
+    UTF8ToUTF32Decoder utf8_to_utf32_decoder;
+    for (auto ch(s->cbegin()); ch != s->cend(); ++ch) {
+        if (IsASCIIChar(*ch)) {
+            switch (*ch) {
+            case '\n':
+                escaped_string += "\\n";
+                break;
+            case '\t':
+                escaped_string += "\\t";
+                break;
+            case '\b':
+                escaped_string += "\\b";
+                break;
+            case '\r':
+                escaped_string += "\\r";
+                break;
+            case '\f':
+                escaped_string += "\\f";
+                break;
+            case '\v':
+                escaped_string += "\\v";
+                break;
+            case '\a':
+                escaped_string += "\\a";
+                break;
+            case '\\':
+                escaped_string += "\\\\";
+                break;
+            default:
+                escaped_string += *ch;
+            }
+        } else { // We found the first byte of a UTF8 byte sequence.
+            for (;;) {
+                if (unlikely(ch == s->cend()))
+                    throw std::runtime_error("in TextUtil::CStyleEscape: invalid UTF8 sequence found!");
+                if (not utf8_to_utf32_decoder.addByte(*ch)) {
+                    escaped_string += ToUnicodeEscape(utf8_to_utf32_decoder.getUTF32Char());
+                    break;
+                }
+                ++ch;
+            }
+        }
+    }
+
+    s->swap(escaped_string);
+    return *s;
 }
 
 

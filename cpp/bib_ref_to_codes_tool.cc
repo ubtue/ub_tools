@@ -30,7 +30,27 @@
 #include "MapIO.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
+
+
+namespace {
+
+
+void Usage() __attribute__((noreturn));
+
+
+void Usage() {
+    std::cerr << "Usage: " << ::progname << " [--debug|--query] [--map-file-directory=path] bible_reference_candidate\n";
+    std::cerr << "          books_of_the_bible_to_code_map\n";
+    std::cerr << "          books_of_the_bible_to_canonical_form_map pericopes_to_codes_map\n";
+    std::cerr << '\n';
+    std::cerr << "          When --debug has been specified additional tracing output will be generated.\n";
+    std::cerr << "          When --query has been specified SOLR search queries will be output.\n";
+    std::cerr << "          If --map-file-directory=... has been specified, the provided path will be prefixed to all\n";
+    std::cerr << "          map-file arguments.\n";
+    std::exit(EXIT_FAILURE);
+}
 
 
 void HandlePericopes(const bool verbose, const bool generate_solr_query, const std::string &bible_reference_candidate,
@@ -82,10 +102,10 @@ void HandleBookRanges(const bool verbose, const bool generate_solr_query,
     BibleUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
     const std::string starting_bible_book_candidate(bible_book_canoniser.canonise(
         std::to_string(starting_volume) + non_canonical_book_name, verbose));
-                                     
+
     const std::string ending_bible_book_candidate(bible_book_canoniser.canonise(
         std::to_string(ending_volume) + non_canonical_book_name, verbose));
-                                     
+
     if (verbose) {
         std::cout << "Identified a bible book range.  Starting volume " << starting_volume << ", ending volume "
                   << ending_volume << ", book is \"" << non_canonical_book_name << "\".\n";
@@ -161,46 +181,45 @@ void HandleOrdinaryReferences(const bool verbose, const bool generate_solr_query
 }
 
 
-static void Usage() __attribute__((noreturn));
-
-
-static void Usage() {
-    std::cerr << "usage: " << progname << " [--debug|--query] bible_reference_candidate\n";
-    std::cerr << "          books_of_the_bible_to_code_map\n";
-    std::cerr << "          books_of_the_bible_to_canonical_form_map pericopes_to_codes_map\n";
-    std::cerr << '\n';
-    std::cerr << "          When --debug has been specified additional tracing output will be generated.\n";
-    std::cerr << "          When --query has been specified SOLR search queries will be output.\n";
-    std::exit(EXIT_FAILURE);
-}
+} // unnamed namespace
 
 
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
+    if (argc < 2)
+        Usage();
+    
     bool verbose(false), generate_solr_query(false);
+    if (std::strcmp(argv[1], "--debug") == 0) {
+        verbose = true;
+        ++argv, --argc;
+    } else if (std::strcmp(argv[1], "--query") == 0) {
+        generate_solr_query = true;
+        ++argv, --argc;
+    }
 
-    if (argc == 6) {
-        if (std::strcmp(argv[1], "--debug") == 0)
-            verbose = true;
-        else if (std::strcmp(argv[1], "--query") == 0)
-            generate_solr_query = true;
-        else
-            Usage();
+    if (argc < 2)
+        Usage();
+    
+    std::string map_file_path;
+    if (StringUtil::StartsWith(argv[1], "--map-file-directory=")) {
+        map_file_path = argv[1] + __builtin_strlen("--map-file-directory=");
+        map_file_path += '/';
         ++argv, --argc;
     }
 
     if (argc != 5)
         Usage();
 
-    const std::string books_of_the_bible_to_code_map_filename(argv[2]);
-    const std::string books_of_the_bible_to_canonical_form_map_filename(argv[3]);
-    std::string bible_reference_candidate(StringUtil::Trim(StringUtil::ToLower(argv[1])));
-    StringUtil::CollapseWhitespace(&bible_reference_candidate);
+    const std::string bible_reference_candidate(StringUtil::Trim(TextUtil::CollapseWhitespace(StringUtil::ToLower(argv[1]))));
+    const std::string books_of_the_bible_to_code_map_filename(map_file_path + argv[2]);
+    const std::string books_of_the_bible_to_canonical_form_map_filename(map_file_path + argv[3]);
+    const std::string pericopes_to_codes_map(map_file_path + argv[4]);
 
     HandleBookRanges(verbose, generate_solr_query, books_of_the_bible_to_canonical_form_map_filename,
                      books_of_the_bible_to_code_map_filename, bible_reference_candidate);
-    HandlePericopes(verbose, generate_solr_query, bible_reference_candidate, argv[4]);
+    HandlePericopes(verbose, generate_solr_query, bible_reference_candidate, pericopes_to_codes_map);
     HandleOrdinaryReferences(verbose, generate_solr_query, bible_reference_candidate,
                              books_of_the_bible_to_code_map_filename,
                              books_of_the_bible_to_canonical_form_map_filename);
