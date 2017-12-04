@@ -18,6 +18,7 @@
 */
 
 #include "MARC.h"
+#include <iostream>//XXX
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -61,32 +62,15 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 
 
 void Record::Field::deleteFirstSubfield(const char subfield_code) {
+    Subfields subfields(contents_);
+    subfields.deleteFirstSubfieldWithCode(subfield_code);
+
     std::string new_contents;
-    new_contents.reserve(contents_.length());
-    
-    auto ch(contents_.begin());
-    new_contents += *ch++; // indicator 1
-    new_contents += *ch++; // indicator 2
-    bool delimiter_seen(false);
-    for (/* Intentionally empty! */; ch != contents_.end(); ++ch) {
-        if (delimiter_seen) {
-            if (*ch == subfield_code) {
-                // Skip to end of subfield
-                while (ch != contents_.end() and *ch != '\x1F')
-                    ++ch;
-            } else {
-                delimiter_seen = false;
-                new_contents += '\x1F';
-                new_contents += *ch;
-            }
-        } else if (*ch == '\x1F')
-            delimiter_seen = true;
-        else
-            new_contents += *ch;
-        
-    }
-    new_contents += contents_.substr(ch - contents_.begin());
-    
+    new_contents.reserve(contents_.size());
+    new_contents += contents_[0]; // indicator 1
+    new_contents += contents_[1]; // indicator 2
+    new_contents +=subfields.toString();
+
     contents_.swap(new_contents);
 }
 
