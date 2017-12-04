@@ -243,11 +243,40 @@ bool IsEmptyEntryWithoutTranslator(const std::string &entry) {
 }
 
 
+void SetupVuFindSortLimit(DbConnection &db_connection, std::string * const create_sort_limit, const std::string &offset,
+                          const bool use_untranslated_filter)
+{
+    if (use_untranslated_filter) {
+        const std::string translator=GetTranslatorOrEmptyString();
+        if (translator.empty()) {
+            ShowErrorPage("Error - No Valid User", "Not valid user selected");
+            std::exit(0);
+        }
+        const std::string translated_by_translator("CREATE TEMPORARY TABLE translated_by_translator (INDEX (token)) AS "
+                                                   "(SELECT DISTINCT token FROM vufind_ger_sorted WHERE translator=\'" + translator + "\')");
+        db_connection.queryOrDie(translated_by_translator);
+        const std::string untranslated_by_translator_ger_sorted("CREATE TEMPORARY TABLE untranslated_by_translator_ger_sorted AS "
+                                                     "(SELECT DISTINCT l.token FROM (SELECT token FROM vufind_ger_sorted "
+                                                     "WHERE language_code='ger' ORDER BY token) AS l "
+                                                     "LEFT JOIN translated_by_translator AS r "
+                                                     "ON l.token=r.token WHERE r.token IS NULL)");
+        db_connection.queryOrDie(untranslated_by_translator_ger_sorted);
+        *create_sort_limit = "CREATE TEMPORARY TABLE vufind_sort_limit AS (SELECT DISTINCT l.token FROM vufind_ger_sorted AS l INNER JOIN "
+                             "untranslated_by_translator_ger_sorted AS r USING(token) "
+                             "ORDER BY l.token LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) +  ")";
+    } else {
+        *create_sort_limit = "CREATE TEMPORARY TABLE vufind_sort_limit AS (SELECT token FROM vufind_ger_sorted WHERE language_code='ger' "
+                             "ORDER BY token LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) +  ")";
+    }
+}
+
+
 void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
                                                  const std::string &offset, std::vector<std::string> * const rows,
                                                  std::string * const headline,
                                                  const std::vector<std::string> translator_languages,
-                                                 const std::vector<std::string> &additional_view_languages)
+                                                 const std::vector<std::string> &additional_view_languages,
+                                                 const bool filter_untranslated)
 {
     rows->clear();
 
@@ -263,8 +292,8 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
     const std::string create_vufind_ger_sorted("CREATE TEMPORARY TABLE vufind_ger_sorted AS (" + query + ")");
     db_connection.queryOrDie(create_vufind_ger_sorted);
 
-    const std::string create_sort_limit("CREATE TEMPORARY TABLE vufind_sort_limit AS (SELECT token FROM vufind_ger_sorted WHERE language_code='ger'"
-                                 " ORDER BY token LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) +  ")");
+    std::string create_sort_limit;
+    SetupVuFindSortLimit(db_connection, &create_sort_limit, offset, filter_untranslated);
     db_connection.queryOrDie(create_sort_limit);
 
 
@@ -323,10 +352,10 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 
 
 void SetupKeyWordSortLimitQuery(DbConnection &db_connection, std::string * const create_sort_limit, const std::string &offset,
-                                const bool use_untranslated_filter) {
+                                const bool use_untranslated_filter)
+{
     // The LIMIT parameter can only work with constants, but we want entries per page to be lines, i.e. german translations in our table
     // so we have to generate a dynamic limit using temporary tables
-
     if (use_untranslated_filter) {
         const std::string translator=GetTranslatorOrEmptyString();
         if (translator.empty()) {
@@ -469,7 +498,7 @@ void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum C
             <button type="submit" class="link-button">)END" + std::string(1,ch) + "</button>"
          R"END(<input type="hidden" name="lookfor" value=")END" + std::string(1,ch) + "\">"
          R"END(<input type="hidden" name="target" value=")END" + (category == VUFIND ? "vufind" : "keywords") + "\">"
-         R"END(<input type="hidden" name="filter_untranslated" value="checked")END" + (filter_untranslated ? " checked" : "") + "\">"
+         R"END(<input type="hidden" name="filter_untranslated" value=)END" + (filter_untranslated ? " checked" : "") + ">"
          "</form>");
         jump_table->emplace_back("<td style=\"border:none;\">" + post_link + "</td>");
     }
@@ -495,7 +524,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
 
     if (target == "vufind")
         GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
-                                                    translator_languages, additional_view_languages);
+                                                    translator_languages, additional_view_languages, filter_untranslated);
     else if (target == "keywords")
         GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
                                                      translator_languages, additional_view_languages, filter_untranslated);
@@ -725,6 +754,7 @@ int main(int argc, char *argv[]) {
         const std::string translation_target(GetCGIParameterOrDefault(cgi_args, "target", "keywords"));
         const std::string save_action(GetCGIParameterOrDefault(cgi_args, "save_action", ""));
         const std::string filter_untranslated(GetCGIParameterOrDefault(cgi_args, "filter_untranslated", ""));
+std::cerr << "filter_untranslated: " << filter_untranslated << '\n';
         if (save_action == "save")
  	    SaveUserState(db_connection, translator, translation_target, lookfor, offset);
         else if (save_action == "restore")
