@@ -1185,6 +1185,12 @@ bool FileUtil_WriteString(const std::string &path, const std::string &data) {
 }
 
 
+void WriteStringOrDie(const std::string &path, const std::string &data) {
+    if (not FileUtil_WriteString(path, data))
+        Error("failed to write data to \"" + path + "\"!");
+}
+
+
 std::unique_ptr<File> FileUtil_OpenForAppendingOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "a"));
     if (file->fail())
@@ -2441,7 +2447,7 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
             { "-i", "s/Group apache/Group " + username + "/", config_filename });
     }
 
-    ExecOrDie(ExecUtil_Which("find"), {VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+"});
+    ExecOrDie(ExecUtil_Which("find"), { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+" });
     ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, "/usr/local/var/log/tuefind" });
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache",
@@ -2463,33 +2469,44 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
 }
 
 
+static void InstallVuFindServiceTemplate(const VuFindSystemType system_type) {
+        const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
+        ExecOrDie(ExecUtil_Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
+        std::map<std::string, std::vector<std::string>> names_to_values_map
+            { { "SOLR_HEAP", { (system_type == KRIMDOK ? "4G" : "8G") } } };
+        const std::string vufind_service(MiscUtil_ExpandTemplate(ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+                                                                                 + "/vufind.service.template"),
+                                                                 names_to_values_map));
+        WriteStringOrDie(SYSTEMD_SERVICE_DIRECTORY + "/vufind.service", vufind_service);
+}
+
+
 /**
  * Configure Solr User
  * - Create user "solr" as system user if not exists
  * - Grant permissions on relevant directories
  * - register solr service in systemctl
  */
-void ConfigureSolrUserAndService(const bool install_systemctl) {
-    // note: if you wanna change username, dont do it only here, also check vufind.service!
-    const std::string username("solr");
-    const std::string servicename("vufind");
+void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool install_systemctl) {
+    // note: if you wanna change username, don't do it only here, also check vufind.service!
+    const std::string USER_AND_GROUP_NAME("solr");
+    const std::string SERVICENAME("vufind");
 
-    CreateUserIfNotExists(username);
+    CreateUserIfNotExists(USER_AND_GROUP_NAME);
 
-    Echo("Setting directory permissions for solr user...");
-    ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, VUFIND_DIRECTORY + "/solr" });
-    ExecOrDie(ExecUtil_Which("chown"), { "-R", username + ":" + username, VUFIND_DIRECTORY + "/import" });
+    Echo("Setting directory permissions for Solr user...");
+    ExecOrDie(ExecUtil_Which("chown"), { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/solr" });
+    ExecOrDie(ExecUtil_Which("chown"), { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/import" });
 
     // systemctl: we do enable as well as daemon-reload and restart
-    // to achieve an indepotent installation
+    // to achieve an idempotent installation
     if (install_systemctl) {
-        Echo("Activating solr service...");
-        const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
-        ExecOrDie(ExecUtil_Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
-        ExecOrDie(ExecUtil_Which("cp"), { INSTALLER_DATA_DIRECTORY + "/" + servicename + ".service", SYSTEMD_SERVICE_DIRECTORY + "/" + servicename + ".service" });
-        ExecOrDie(ExecUtil_Which("systemctl"), { "enable", servicename });
+        Echo("Activating Solr service...");
+
+        InstallVuFindServiceTemplate(system_type);
+        ExecOrDie(ExecUtil_Which("systemctl"), { "enable", SERVICENAME });
         ExecOrDie(ExecUtil_Which("systemctl"), { "daemon-reload" });
-        ExecOrDie(ExecUtil_Which("systemctl"), { "restart", servicename });
+        ExecOrDie(ExecUtil_Which("systemctl"), { "restart", SERVICENAME });
     }
 }
 
@@ -2568,7 +2585,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
                                                      "/usr/local/var/log/tuefind(/.*)?");
     }
 
-    ConfigureSolrUserAndService(install_systemctl);
+    ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
     ConfigureApacheUser(os_system_type);
 
     Echo(vufind_system_type_string + " configuration completed!");
