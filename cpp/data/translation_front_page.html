@@ -105,6 +105,7 @@
             <form action="/cgi-bin/translator" method="POST">
                 <input type="text" name="lookfor" value="{lookfor}" /><button>Search</button>
                 <input type="hidden" name="target" value="{target_translation_scope}">
+                <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
             </form>
         </div>
         <div style="clear: both;">
@@ -114,6 +115,7 @@
                     <input type="hidden" name="lookfor" value="{lookfor}">
                     <input type="hidden" name="offset" value="{prev_offset}">
                     <input type="hidden" name="target" value="{target_translation_scope}">
+                    <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
                 </form>
             </div>
             <div style="width: 50%; float: right;">
@@ -122,6 +124,7 @@
                     <input type="hidden" name="lookfor" value="{lookfor}">
                     <input type="hidden" name="offset" value="{next_offset}">
                     <input type="hidden" name="target" value="{target_translation_scope}">
+                    <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
                 </form>
             </div>
             {IF target_translation_scope == "vufind"}
@@ -145,6 +148,7 @@
                                 <input type="hidden" name="lookfor" value="{lookfor}">
                                 <input type="hidden" name="offset" value="{current_offset}">
                                 <input type="hidden" name="target" value="{target_translation_scope}">
+                                <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
                             </form>
                         </div>
                         <div style="float: left; text-align: left;">
@@ -152,6 +156,7 @@
                                 <button type="submit" class="link-button">Restore Status</button>
                                 <input type="hidden" name="save_action" value="restore">
                                 <input type="hidden" name="target" value="{target_translation_scope}">
+                                <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
                             </form>
                         </div>
                    </div>
@@ -160,6 +165,7 @@
                             <button type="submit" class="link-button">Mail my Translations</button>
                             <input type="hidden" name="target" value="{target_translation_scope}">
                             <input type="hidden" name="mail" value="mytranslations">
+                            <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
                         </form>
                    </div>
                 </div>
@@ -176,8 +182,15 @@
             </div>
             {ELSE}
             <div style="width: 90%;">
-                <h2>Keyword Translations</h2>
-                <div>
+               <h2>Keyword Translations</h2>
+               <div style="width: 15% float: right; text-align: right;">
+                   <form action="/cgi-bin/translator" method="POST">
+                       <input type="checkbox" name="filter_untranslated" value="checked" {filter_untranslated} onChange="this.form.submit()">
+                       <button type="submit" class="link-button">Filter Untranslated</button>
+                       <input type="hidden" name="target" value="{target_translation_scope}">
+                   </form>
+               </div>
+               <div>
                     <div style="width: 70%; float:left;">
                         <table style="width: 50%; border: none;">
                             <tr style="border: none;">
@@ -202,6 +215,7 @@
                                   <input type="hidden" name="lookfor" value="{lookfor}">
                                   <input type="hidden" name="offset" value="{current_offset}">
                                   <input type="hidden" name="target" value="{target_translation_scope}">
+                                  <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
                               </form>
                           </div>
                           <div style="float: left; text-align: left;">
@@ -209,6 +223,7 @@
                                   <button type="submit" class="link-button">Restore Status</button>
                                   <input type="hidden" name="save_action" value="restore">
                                   <input type="hidden" name="target" value="{target_translation_scope}">
+                                  <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
                               </form>
                           </div>
                      </div>
