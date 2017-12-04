@@ -79,7 +79,8 @@ int main(int /*argc*/, char *argv[]) {
 
         if (not lookup_path.empty())
             std::cerr << lookup_path << ": "
-                      << JSON::LookupString(lookup_path, tree, default_value.empty() ? nullptr : &default_value)
+                      << (default_value.empty() ? JSON::LookupString(lookup_path, tree)
+                                                : JSON::LookupString(lookup_path, tree), default_value)
                       << '\n';
 
         delete tree;

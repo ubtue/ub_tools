@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cstdlib>
-#include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -16,5 +16,7 @@ int main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    std::cout << '"' << StringUtil::CollapseAndTrimWhitespace(StringUtil::CStyleUnescape(argv[1])) << "\"\n";
+    std::string string_without_c_style_escapes(argv[1]);
+    TextUtil::CStyleUnescape(&string_without_c_style_escapes);
+    std::cout << '"' << TextUtil::CollapseAndTrimWhitespace(string_without_c_style_escapes) << "\"\n";
 }
