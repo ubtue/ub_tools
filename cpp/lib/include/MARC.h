@@ -183,6 +183,14 @@ public:
         return extracted_values;
     }
 
+    inline void deleteFirstSubfieldWithCode(const char subfield_code) {
+        auto location(std::find_if(subfields_.begin(), subfields_.end(),
+                                   [subfield_code](const Subfield subfield) -> bool
+                                       { return subfield.code_ == subfield_code; }));
+        if (location != subfields_.end())
+            subfields_.erase(location);
+    }
+
     inline std::string toString() const {
         std::string as_string;
         for (const auto &subfield : subfields_)
