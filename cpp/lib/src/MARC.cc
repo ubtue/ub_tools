@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "FileLocker.h"
 #include "FileUtil.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"
@@ -737,6 +738,16 @@ void XmlWriter::write(const Record &record) {
     }
 
     xml_writer_->closeTag(); // Close "record".
+}
+
+
+void FileLockedComposeAndWriteRecord(Writer * const marc_writer, Record * const record) {
+    FileLocker file_locker(&(marc_writer->getFile()), FileLocker::WRITE_ONLY);
+    if (not (marc_writer->getFile().seek(0, SEEK_END)))
+        logger->error("in FileLockedComposeAndWriteRecord: failed to seek to the end of \""
+                      + marc_writer->getFile().getPath() + "\"!");
+    marc_writer->write(*record);
+    marc_writer->getFile().flush();
 }
 
 
