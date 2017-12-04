@@ -474,4 +474,7 @@ public:
 };
 
 
+void FileLockedComposeAndWriteRecord(Writer * const marc_writer, Record * const record);
+
+
 } // namespace MARC
