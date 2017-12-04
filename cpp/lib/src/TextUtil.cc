@@ -824,9 +824,6 @@ const std::unordered_set<uint32_t> UNICODE_WHITESPACE {
 };
 
 
-inline bool IsASCIIChar(const char ch) { return (static_cast<unsigned char>(ch) & 0x80u) == 0; }
-
-
 
 static std::string &CollapseWhitespaceHelper(std::string * const utf8_string,
                                              const bool last_char_was_whitespace_initial_state)

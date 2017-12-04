@@ -241,6 +241,10 @@ inline bool IsWhitespace(const uint32_t utf32_char) {
 }
 
 
+/** \return True if "ch" is an ASCII character, i.e. if the high bit is not set, else false. */
+inline bool IsASCIIChar(const char ch) { return (static_cast<unsigned char>(ch) & 0x80u) == 0; }
+
+
 /** \brief Replaces any sequence of "whitespace" characters listed here: https://en.wikipedia.org/wiki/Whitespace_character
  *         to a single space (0x20) character.
  *  \return A reference to the modified string "*utf8_string".
