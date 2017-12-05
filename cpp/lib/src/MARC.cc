@@ -60,9 +60,9 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 }
 
 
-void Record::Field::deleteFirstSubfield(const char subfield_code) {
+void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
     Subfields subfields(contents_);
-    subfields.deleteFirstSubfieldWithCode(subfield_code);
+    subfields.deleteAllSubfieldsWithCode(subfield_code);
 
     std::string new_contents;
     new_contents.reserve(contents_.size());

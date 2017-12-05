@@ -213,7 +213,7 @@ class UTF8ToUTF32Decoder {
 public:
     enum State {
         NO_CHARACTER_PENDING, //< getUTF32Char() should not be called.
-        CHARACTER_PENDING,    //< getUTF32Char() should be called to get the next character. 
+        CHARACTER_PENDING,    //< getUTF32Char() should be called to get the next character.
         CHARACTER_INCOMPLETE  //< addByte() must be called at least one more time to complete a character.
     };
 public:
@@ -292,6 +292,12 @@ std::string &CStyleUnescape(std::string * const s);
 
 /** \brief The counterpart to CStyleUnescape(). */
 std::string &CStyleEscape(std::string * const s);
+
+
+/** \brief The counterpart to CStyleUnescape(). */
+inline std::string CStyleEscape(std::string s) {
+    return CStyleEscape(&s);
+}
 
 
 } // namespace TextUtil
