@@ -84,7 +84,7 @@ std::vector<std::string> GetLanguageCodes(DbConnection &db_connection) {
 }
 
 
-void ShowErrorPage(const std::string &title, const std::string &error_message, const std::string &description = "") {
+void ShowErrorPageAndDie(const std::string &title, const std::string &error_message, const std::string &description = "") {
     std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
     std::cout << "<!DOCTYPE html><html><head><title>" + title + "</title></head>"
               << "<body>"
@@ -92,6 +92,7 @@ void ShowErrorPage(const std::string &title, const std::string &error_message, c
               << "  <h3>" + description + "</h3>"
               << "</body>"
               << "</html>";
+    std::exit(EXIT_SUCCESS);
 }
 
 
@@ -195,8 +196,8 @@ void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_c
                            std::vector<std::string> *const synonyms)
 {
     synonyms->clear();
-    const std::string synonym_query("SELECT translation FROM keyword_translations WHERE gnd_code=\'" + gnd_code
-                                    + "\' AND status=\'reliable_synonym\' AND language_code=\'ger\'");
+    const std::string synonym_query("SELECT translation FROM keyword_translations WHERE gnd_code='" + gnd_code
+                                    + "' AND status='reliable_synonym' AND language_code='ger'");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(synonym_query, &db_connection));
     if (result_set.empty())
         return;
@@ -210,8 +211,8 @@ void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::strin
                                    std::vector<std::string> *const translations)
 {
     translations->clear();
-    const std::string macs_query("SELECT translation FROM keyword_translations WHERE gnd_code=\'" + gnd_code + "\' "
-                                 "AND origin=750 AND status=\'unreliable\'");
+    const std::string macs_query("SELECT translation FROM keyword_translations WHERE gnd_code='" + gnd_code + "' "
+                                 "AND origin=750 AND status='unreliable'");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(macs_query, &db_connection));
     if (result_set.empty())
         return;
@@ -247,13 +248,12 @@ void SetupVuFindSortLimit(DbConnection &db_connection, std::string * const creat
                           const bool use_untranslated_filter)
 {
     if (use_untranslated_filter) {
-        const std::string translator=GetTranslatorOrEmptyString();
-        if (translator.empty()) {
-            ShowErrorPage("Error - No Valid User", "Not valid user selected");
-            std::exit(0);
-        }
+        const std::string translator(GetTranslatorOrEmptyString());
+        if (translator.empty())
+            ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
+
         const std::string translated_by_translator("CREATE TEMPORARY TABLE translated_by_translator (INDEX (token)) AS "
-                                                   "(SELECT DISTINCT token FROM vufind_ger_sorted WHERE translator=\'" + translator + "\')");
+                                                   "(SELECT DISTINCT token FROM vufind_ger_sorted WHERE translator='" + translator + "')");
         db_connection.queryOrDie(translated_by_translator);
         const std::string untranslated_by_translator_ger_sorted("CREATE TEMPORARY TABLE untranslated_by_translator_ger_sorted AS "
                                                      "(SELECT DISTINCT l.token FROM (SELECT token FROM vufind_ger_sorted "
@@ -281,7 +281,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
     rows->clear();
 
     const std::string searchpattern(lookfor.size() <=
-                                    LOOKFOR_PREFIX_LIMIT ? "LIKE \'" + lookfor + "%\'" : "LIKE \'%" + lookfor + "%\'");
+                                    LOOKFOR_PREFIX_LIMIT ? "LIKE '" + lookfor + "%'" : "LIKE '%" + lookfor + "%'");
     const std::string token_where_clause(
             lookfor.empty() ? "" : "WHERE token " + searchpattern);
     const std::string token_query("SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token");
@@ -359,13 +359,11 @@ std::cerr << "SetupKeyWordSortLimitQuery: \"" << offset << "\"\n";
     // so we have to generate a dynamic limit using temporary tables
     if (use_untranslated_filter) {
         const std::string translator=GetTranslatorOrEmptyString();
-        if (translator.empty()) {
-            ShowErrorPage("Error - No Valid User", "Not valid user selected");
-            std::exit(0);
-        }
+        if (translator.empty())
+            ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
 
         const std::string translated_by_translator("CREATE TEMPORARY TABLE translated_by_translator (INDEX (ppn)) AS "
-                                                   "(SELECT DISTINCT ppn FROM keywords_ger_sorted WHERE translator=\'" + translator + "\')");
+                                                   "(SELECT DISTINCT ppn FROM keywords_ger_sorted WHERE translator='" + translator + "')");
         db_connection.queryOrDie(translated_by_translator);
 
         // Get all PPNs that are so far untouched by this translator
@@ -390,18 +388,18 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                                   const std::string &offset, std::vector<std::string> *const rows,
                                                   std::string *const headline,
                                                   const std::vector<std::string> &translator_languages,
-                                                  const std::vector<std::string> &additional_view_languages, bool use_untranslated_filter) {
+                                                  const std::vector<std::string> &additional_view_languages, const bool use_untranslated_filter) {
     rows->clear();
 
     // For short strings make a prefix search, otherwise search substring
     const std::string searchpattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ?
-                                    "AND k.translation LIKE \'" + lookfor + "%\'" :
-                                    "AND l.ppn IN (SELECT ppn from keyword_translations WHERE translation LIKE \'%" + lookfor+ "%\')");
+                                    "AND k.translation LIKE '" + lookfor + "%'" :
+                                    "AND l.ppn IN (SELECT ppn from keyword_translations WHERE translation LIKE '%" + lookfor+ "%')");
 
     const std::string search_clause(lookfor.empty() ? "" : searchpattern);
     const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator FROM keyword_translations AS k"
-                            " INNER JOIN keyword_translations AS l ON k.language_code=\'ger\' AND k.status=\'reliable\'"
-                            " AND k.ppn=l.ppn AND l.status!=\'reliable_synonym\' AND l.status != \'unreliable_synonym\'" +
+                            " INNER JOIN keyword_translations AS l ON k.language_code='ger' AND k.status='reliable'"
+                            " AND k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status != 'unreliable_synonym'" +
                             search_clause + " ORDER BY k.translation");
 
 
@@ -529,10 +527,9 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     else if (target == "keywords")
         GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
                                                      translator_languages, additional_view_languages, filter_untranslated);
-    else {
-       ShowErrorPage("Error - Invalid Target", "No valid target selected");
-       std::exit(0);
-    }
+    else
+       ShowErrorPageAndDie("Error - Invalid Target", "No valid target selected");
+
     names_to_values_map.emplace("vufind_token_row", rows);
     names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
 
@@ -547,9 +544,9 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
 
     names_to_values_map.emplace("current_offset", std::vector<std::string> {offset});
 
-    names_to_values_map.emplace("target_language_code", std::vector<std::string> {""});
-    names_to_values_map.emplace("target_translation_scope", std::vector<std::string> {target});
-    names_to_values_map.emplace("filter_untranslated", std::vector<std::string> {filter_untranslated ? "checked" : ""});
+    names_to_values_map.emplace("target_language_code", std::vector<std::string> { "" });
+    names_to_values_map.emplace("target_translation_scope", std::vector<std::string> { target });
+    names_to_values_map.emplace("filter_untranslated", std::vector<std::string> { filter_untranslated ? "checked" : "" });
 
     std::ifstream translate_html("/usr/local/var/lib/tuelib/translate_chainer/translation_front_page.html", std::ios::binary);
     MiscUtil::ExpandTemplate(translate_html, std::cout, names_to_values_map);
@@ -643,7 +640,7 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
     // Get Vufind Translations
     const std::string vufind_query("SELECT token, translation, language_code, translator FROM vufind_translations "
                                    "WHERE token IN (SELECT * FROM (SELECT token FROM vufind_translations WHERE "
-                                   "translator=\'" + translator + "\') as t) ORDER BY token, language_code;");
+                                   "translator='" + translator + "') as t) ORDER BY token, language_code;");
 
     std::vector<std::string> vufind_rows;
     GetTableForQuery(db_connection, &vufind_rows, vufind_query, display_languages, VUFIND);
@@ -652,10 +649,10 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
     // Get Keyword Translations
     const std::string keyword_query("SELECT l.ppn, l.translation, l.language_code, l.translator FROM "
                                     "keyword_translations AS k INNER JOIN keyword_translations AS l ON "
-                                    "k.language_code=\'ger\' AND k.status=\'reliable\' AND k.ppn=l.ppn AND "
-                                    "l.status!=\'reliable_synonym\' AND l.status != \'unreliable_synonym\'"
-                                    " AND l.ppn IN (SELECT ppn from keyword_translations WHERE translator=\'"
-                                    + translator + "\') ORDER BY k.translation;");
+                                    "k.language_code='ger' AND k.status='reliable' AND k.ppn=l.ppn AND "
+                                    "l.status!='reliable_synonym' AND l.status != 'unreliable_synonym'"
+                                    " AND l.ppn IN (SELECT ppn from keyword_translations WHERE translator='"
+                                    + translator + "') ORDER BY k.translation;");
 
     std::vector<std::string> keyword_rows;
     GetTableForQuery(db_connection, &keyword_rows, keyword_query, display_languages, KEYWORDS);
@@ -692,12 +689,12 @@ void SaveUserState(DbConnection &db_connection, const std::string &translator, c
    const std::string save_statement("INSERT INTO translators (translator, translation_target, " +
                                     std::string(filter_untranslated ? "filtered_offset" : "offset" ) + ", " +
                                     std::string(filter_untranslated ? "filtered_lookfor" : "lookfor") + ") " +
-                                    "VALUES (\'" + translator + "\', \'" + translation_target + "\', \'" +
-                                    offset + "\', \'" + lookfor + "\') ON DUPLICATE KEY UPDATE " +
-                                    std::string(filter_untranslated ? "filtered_lookfor" : "lookfor") + "=\'" +
-                                    lookfor + "\', " +
-                                    std::string(filter_untranslated ? "filtered_offset" : "offset" ) + "=\'" +
-                                    offset + "\';");
+                                    "VALUES ('" + translator + "', '" + translation_target + "', '" +
+                                    offset + "', '" + lookfor + "') ON DUPLICATE KEY UPDATE " +
+                                    std::string(filter_untranslated ? "filtered_lookfor" : "lookfor") + "='" +
+                                    lookfor + "', " +
+                                    std::string(filter_untranslated ? "filtered_offset" : "offset" ) + "='" +
+                                    offset + "';");
    db_connection.queryOrDie(save_statement);
 }
 
@@ -707,8 +704,8 @@ void RestoreUserState(DbConnection &db_connection, const std::string &translator
 {
    const std::string lookfor_type(filter_untranslated ? "filtered_lookfor" : "lookfor");
    const std::string offset_type(filter_untranslated ? "filtered_offset" : "offset");
-   const std::string restore_statement("SELECT " + lookfor_type + ", " + offset_type + " FROM translators WHERE translator=\'" + translator
-                                       + "\' AND translation_target=\'" + translation_target + "\';");
+   const std::string restore_statement("SELECT " + lookfor_type + ", " + offset_type + " FROM translators WHERE translator='" + translator
+                                       + "' AND translation_target='" + translation_target + "';");
    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(restore_statement, &db_connection));
    if (result_set.empty())
        return;
@@ -739,15 +736,14 @@ int main(int argc, char *argv[]) {
         const std::string translator(GetTranslatorOrEmptyString());
 
         if (translator.empty()) {
-            ShowErrorPage("Error - No Valid User", "Not valid user selected");
-            std::exit(0);
+            ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
         }
 
         // Read in the views for the respective users
         std::vector<std::string> translator_languages;
         GetTranslatorLanguages(ini_file, translator, &translator_languages);
         if (translator_languages.size() == 0)
-            ShowErrorPage("Error - No languages", "No languages specified for user " + translator ,
+            ShowErrorPageAndDie("Error - No languages", "No languages specified for user " + translator ,
                           "Contact your administrator");
         std::vector<std::string> additional_view_languages;
         GetAdditionalViewLanguages(ini_file, &additional_view_languages, translator);
@@ -760,7 +756,6 @@ int main(int argc, char *argv[]) {
 
         std::string lookfor(GetCGIParameterOrDefault(cgi_args, "lookfor", ""));
         std::string offset(GetCGIParameterOrDefault(cgi_args, "offset", "0"));
-std::cerr << "offset: " << offset << '\n';
         const std::string translation_target(GetCGIParameterOrDefault(cgi_args, "target", "keywords"));
         const std::string save_action(GetCGIParameterOrDefault(cgi_args, "save_action", ""));
         const std::string filter_untranslated_value(GetCGIParameterOrDefault(cgi_args, "filter_untranslated", ""));
