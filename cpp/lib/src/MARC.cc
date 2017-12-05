@@ -18,7 +18,6 @@
 */
 
 #include "MARC.h"
-#include <iostream>//XXX
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -69,7 +68,7 @@ void Record::Field::deleteFirstSubfield(const char subfield_code) {
     new_contents.reserve(contents_.size());
     new_contents += contents_[0]; // indicator 1
     new_contents += contents_[1]; // indicator 2
-    new_contents +=subfields.toString();
+    new_contents += subfields.toString();
 
     contents_.swap(new_contents);
 }
