@@ -19,7 +19,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <boost/lexical_cast.hpp>
+
 #include <iostream>
 #include <unordered_map>
 #include "Compiler.h"
@@ -39,6 +39,9 @@ const char POTENTIALLY_PDA_SUBFIELD('a');
 const int PDA_CUTOFF_YEAR(2014);
 
 
+namespace {
+
+    
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [--verbose] ill_list marc_input marc_output\n"
               << "       Insert an additional field for monographs published after " << PDA_CUTOFF_YEAR << "\n"
@@ -83,11 +86,11 @@ void ProcessRecord(const bool verbose, MarcRecord * const record, const std::uno
 
      // Determine publication sort year given in Bytes 7-10 of field 008
      const std::string &_008_contents(record->getFieldData(_008_index));
-     try {
-         const int publication_year(boost::lexical_cast<int>(_008_contents.substr(7, 4)));
+     int publication_year;
+     if (StringUtil::ToNumber(_008_contents.substr(7, 4), &publication_year)) {
          if (publication_year < PDA_CUTOFF_YEAR)
              return;
-     } catch (boost::bad_lexical_cast const&) {
+     } else {
          if (verbose) 
              std::cerr << "Could not determine publication year for record " << record->getControlNumber()
                    << " [ " <<  _008_contents.substr(7, 4) << " given ]\n";
@@ -114,6 +117,9 @@ void TagRelevantRecords(const bool verbose, MarcReader * const marc_reader, Marc
     }
     std::cerr << "Modified " << modified_count << " of " << record_count << " record(s).\n";
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char **argv) {
