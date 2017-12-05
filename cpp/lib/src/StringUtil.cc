@@ -59,7 +59,7 @@
 namespace {
 
 
-__attribute__((constructor)) bool InitializeLocale() {
+bool InitializeLocale() {
     // Try to force the use of the iVia standard locale:
     if (std::setlocale(LC_CTYPE, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr) {
         const std::string error_message("in InitializeLocale: setlocale(3) failed: "
@@ -81,6 +81,9 @@ __attribute__((constructor)) bool InitializeLocale() {
     return true;
 }
 
+
+bool dummy(InitializeLocale());
+    
 
 char ToHexChar(const unsigned u) {
     switch (u) {

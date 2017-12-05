@@ -247,10 +247,10 @@ private:
 
 
 CharSetTranslateMap::CharSetTranslateMap(const std::string &set1, const std::string &set2) {
-    if (unlikely(not TextUtil::UTF8toWCharString(set1, &set1_)))
+    if (unlikely(not TextUtil::UTF8ToWCharString(set1, &set1_)))
         logger->error("in CharSetTranslateMap::CharSetTranslateMap: set1 \"" + set1
                       + "\" is not a valid UTF-8 string!");
-    if (unlikely(not TextUtil::UTF8toWCharString(set2, &set2_)))
+    if (unlikely(not TextUtil::UTF8ToWCharString(set2, &set2_)))
         logger->error("in CharSetTranslateMap::CharSetTranslateMap: set2 \"" + set2
                       + "\" is not a valid UTF-8 string!");
     if (set1_.size() != set2_.size())
@@ -261,7 +261,7 @@ CharSetTranslateMap::CharSetTranslateMap(const std::string &set1, const std::str
 
 bool CharSetTranslateMap::map(std::string * const s) const {
     std::wstring ws;
-    if (unlikely(not TextUtil::UTF8toWCharString(*s, &ws)))
+    if (unlikely(not TextUtil::UTF8ToWCharString(*s, &ws)))
         logger->error("in CharSetTranslateMap::map: input \"" + *s + "\" is not a valid UTF-8 string!");
 
     bool changed(false);
@@ -295,7 +295,7 @@ public:
 
 bool UpperLowerTranslateMap::map(std::string * const s) const {
     std::wstring ws;
-    if (unlikely(not TextUtil::UTF8toWCharString(*s, &ws)))
+    if (unlikely(not TextUtil::UTF8ToWCharString(*s, &ws)))
         logger->error("in UpperLowerTranslateMap::map: input \"" + *s + "\" is not a valid UTF-8 string!");
 
     bool changed(false);
