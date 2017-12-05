@@ -28,7 +28,6 @@
 
 #include "TextUtil.h"
 #include <algorithm>
-#include <codecvt>
 #include <exception>
 #include <memory>
 #include <cctype>
