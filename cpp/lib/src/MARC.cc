@@ -61,14 +61,26 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 
 
 void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
-    Subfields subfields(contents_);
-    subfields.deleteAllSubfieldsWithCode(subfield_code);
-
     std::string new_contents;
     new_contents.reserve(contents_.size());
+    
     new_contents += contents_[0]; // indicator 1
     new_contents += contents_[1]; // indicator 2
-    new_contents += subfields.toString();
+
+    auto ch(contents_.begin() + 2 /* skip over the indicators */);
+    while  (ch != contents_.end()) {
+        if (*ch == subfield_code) {
+            while (ch != contents_.end() and *ch != '\x1F')
+                ++ch;
+        } else {
+            if (new_contents.length() > 2)
+                new_contents += '\x1F';
+            while (ch != contents_.end() and *ch != '\x1F')
+                new_contents += *ch++;
+        }
+        if (ch != contents_.end())
+            ++ch;
+    }
 
     contents_.swap(new_contents);
 }
