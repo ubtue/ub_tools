@@ -5,6 +5,9 @@
 #include "util.h"
 
 
+namespace {
+
+
 __attribute__((noreturn)) void Usage() {
     std::cerr << "usage: " << ::progname << " [--sender=sender] [-reply-to=reply_to] --recipient=recipient "
               << "--subject=subject--message-body=message_body [--priority=priority] [--format=format]\n"
@@ -77,9 +80,12 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
 }
 
 
+} // unnamed namespace
+
+
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
-    if (argc == 0)
+    if (argc == 1)
         Usage();
 
     EmailSender::Priority priority(EmailSender::DO_NOT_SET_PRIORITY);

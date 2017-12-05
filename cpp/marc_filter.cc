@@ -27,15 +27,14 @@
 #include "Compiler.h"
 #include "DirectoryEntry.h"
 #include "FileUtil.h"
-#include "MarcRecord.h"
-#include "MarcReader.h"
-#include "MarcTag.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "TextUtil.h"
 #include "util.h"
+
+
+namespace {
 
 
 void Usage() {
@@ -169,82 +168,60 @@ bool CompilePatterns(const std::vector<std::string> &patterns,
 
 
 /** Returns true if we have at least one match. */
-bool Matched(const MarcRecord &record, const std::vector<CompiledPattern *> &compiled_patterns,
+bool Matched(const MARC::Record &record, const std::vector<CompiledPattern *> &compiled_patterns,
              std::vector<size_t> * const matched_field_indices)
 {
     matched_field_indices->clear();
 
-    bool matched_at_least_one(false);
     for (const auto &compiled_pattern : compiled_patterns) {
-        for (size_t index(record.getFieldIndex(compiled_pattern->getTag()));
-             index < record.getNumberOfFields() and record.getTag(index) == compiled_pattern->getTag();
-             ++index)
-        {
+        size_t index(0);
+        for (const auto field : record.getTagRange(compiled_pattern->getTag())) {
             if (compiled_pattern->hasSubfieldCode()) {
-                const Subfields subfields(record.getSubfields(index));
-                const auto begin_end(subfields.getIterators(compiled_pattern->getSubfieldCode()));
-                for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
-                     ++subfield_code_and_value)
-                {
-                    if (compiled_pattern->subfieldMatched(subfield_code_and_value->value_)) {
+                const MARC::Subfields subfields(field.getSubfields());
+                for (const auto &subfield : subfields) {
+                    if (subfield.code_ == compiled_pattern->getSubfieldCode()
+                        and compiled_pattern->subfieldMatched(subfield.value_))
+                    {
                         matched_field_indices->emplace_back(index);
-                        matched_at_least_one = true;
+                        break;
                     }
                 }
-            } else if (compiled_pattern->fieldMatched(record.getFieldData(index))) {
+            } else if (compiled_pattern->fieldMatched(field.getContents()))
                 matched_field_indices->emplace_back(index);
-                matched_at_least_one = true;
-            }
+            ++index;
         }
     }
 
-    return matched_at_least_one;
+    return not matched_field_indices->empty();
 }
 
 
-bool MatchedSubfield(const MarcRecord &record, const std::vector<CompiledPattern *> &compiled_patterns,
-                     std::vector<std::pair<size_t,char>> * const matched_field_indices_and_subfields)
+bool MatchedSubfield(const MARC::Record &record, const std::vector<CompiledPattern *> &compiled_patterns,
+                     std::vector<std::pair<size_t, char>> * const matched_field_indices_and_subfields)
 {
     matched_field_indices_and_subfields->clear();
 
-    bool matched_at_least_one(false);
     for (const auto &compiled_pattern : compiled_patterns) {
-        ssize_t index(record.getFieldIndex(compiled_pattern->getTag()));
-        if (index == -1)
-            continue;
-
-        for (/* Intentionally empty! */;
-             static_cast<size_t>(index) < record.getNumberOfFields()
-             and record.getTag(index) == compiled_pattern->getTag(); ++index)
-        {
-            if (compiled_pattern->hasSubfieldCode()) {
-                const Subfields subfields(record.getSubfields(index));
-                const auto begin_end(subfields.getIterators(compiled_pattern->getSubfieldCode()));
-                for (auto subfield_code_and_value(begin_end.first); subfield_code_and_value != begin_end.second;
-                     ++subfield_code_and_value)
-                {
-                    if (compiled_pattern->subfieldMatched(subfield_code_and_value->value_)) {
-                        matched_field_indices_and_subfields->emplace_back(index, subfield_code_and_value->code_);
-                        matched_at_least_one = true;
-                    }
+        if (compiled_pattern->hasSubfieldCode()) {
+            const MARC::Record::ConstantRange field_range(record.getTagRange(compiled_pattern->getTag()));
+            for (auto field(field_range.begin()); field != field_range.end(); ++field) {
+                const MARC::Subfields subfields(field->getSubfields());
+                for (const auto &subfield : subfields) {
+                    if (subfield.code_ == compiled_pattern->getSubfieldCode()
+                        and compiled_pattern->subfieldMatched(subfield.value_))
+                        matched_field_indices_and_subfields->emplace_back(field - record.begin(), subfield.code_);
                 }
             }
         }
     }
 
-    return matched_at_least_one;
+    return not matched_field_indices_and_subfields->empty();
 }
-
-
-namespace {
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
 enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS,
                         REMOVE_SUBFIELDS, FILTER_CHARS, MAX_COUNT, TRANSLATE, REPLACE };
-
-
-} // unnamed namespace
 
 
 class TranslateMap {
@@ -416,8 +393,7 @@ public:
         return FilterDescriptor(FilterType::REMOVE_FIELDS, compiled_patterns);
     }
 
-    inline static FilterDescriptor MakeRemoveSubfieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns)
-    {
+    inline static FilterDescriptor MakeRemoveSubfieldsFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::REMOVE_SUBFIELDS, compiled_patterns);
     }
 
@@ -508,7 +484,7 @@ FilterDescriptor::FilterDescriptor(const std::vector<std::string> &subfield_spec
 }
 
 
-std::string GetSubfieldCodes(const MarcTag &tag, const std::vector<std::string> &subfield_specs) {
+std::string GetSubfieldCodes(const MARC::Tag &tag, const std::vector<std::string> &subfield_specs) {
     std::string subfield_codes;
 
     for (const auto &subfield_spec : subfield_specs) {
@@ -524,29 +500,28 @@ std::string GetSubfieldCodes(const MarcTag &tag, const std::vector<std::string> 
  *  \return True if at least one subfield has been modified, else false.
  */
 bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std::string &chars_to_delete,
-                      MarcRecord * const record)
+                      MARC::Record * const record)
 {
     bool modified_at_least_one_field(false);
-    for (size_t field_index(0); field_index < record->getNumberOfFields(); ++field_index) {
-        const std::string subfield_codes(GetSubfieldCodes(record->getTag(field_index), subfield_specs));
+    for (auto &field : *record) {
+        const std::string subfield_codes(GetSubfieldCodes(field.getTag(), subfield_specs));
         if (subfield_codes.empty())
             continue;
 
         bool modified_at_least_one_subfield(false);
-        Subfields subfields(record->getSubfields(field_index));
-        for (const auto subfield_code : subfield_codes) {
-            const auto begin_end(subfields.getIterators(subfield_code));
-            for (auto subfield(begin_end.first); subfield != begin_end.second; ++subfield) {
-                const auto old_length(subfield->value_.length());
-                StringUtil::RemoveChars(chars_to_delete, &(subfield->value_));
-                if (subfield->value_.length() != old_length)
+        MARC::Subfields subfields(field.getSubfields());
+        for (auto &subfield : subfields) {
+            if (subfield_codes.find(subfield.code_) != std::string::npos) {
+                const auto old_length(subfield.value_.length());
+                StringUtil::RemoveChars(chars_to_delete, &(subfield.value_));
+                if (subfield.value_.length() != old_length)
                     modified_at_least_one_subfield = true;
             }
         }
 
         if (modified_at_least_one_subfield) {
             modified_at_least_one_field = true;
-            record->updateField(field_index, subfields.toString());
+            field.setContents(subfields.toString());
         }
     }
 
@@ -558,27 +533,25 @@ bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std:
  *  \return True if at least one subfield has been modified, else false.
  */
 bool TranslateCharacters(const std::vector<std::string> &subfield_specs, const TranslateMap &translate_map,
-                         MarcRecord * const record)
+                         MARC::Record * const record)
 {
     bool modified_at_least_one_field(false);
-    for (size_t field_index(0); field_index < record->getNumberOfFields(); ++field_index) {
-        const std::string subfield_codes(GetSubfieldCodes(record->getTag(field_index), subfield_specs));
+    for (auto &field : *record) {
+        const std::string subfield_codes(GetSubfieldCodes(field.getTag(), subfield_specs));
         if (subfield_codes.empty())
             continue;
 
         bool modified_at_least_one_subfield(false);
-        Subfields subfields(record->getSubfields(field_index));
-        for (const auto subfield_code : subfield_codes) {
-            const auto begin_end(subfields.getIterators(subfield_code));
-            for (auto subfield(begin_end.first); subfield != begin_end.second; ++subfield) {
-                if (translate_map.map(&(subfield->value_)))
+        MARC::Subfields subfields(field.getSubfields());
+        for (auto &subfield : subfields) {
+            if (subfield_codes.find(subfield.code_) != std::string::npos
+                and translate_map.map(&(subfield.value_)))
                     modified_at_least_one_subfield = true;
-            }
         }
 
         if (modified_at_least_one_subfield) {
             modified_at_least_one_field = true;
-            record->updateField(field_index, subfields.toString());
+            field.setContents(subfields.toString());
         }
     }
 
@@ -588,42 +561,42 @@ bool TranslateCharacters(const std::vector<std::string> &subfield_specs, const T
 
 bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, const RegexMatcher &matcher,
                       const std::vector<StringFragmentOrBackreference> &string_fragments_and_back_references,
-                      MarcRecord * const record)
+                      MARC::Record * const record)
 {
     bool modified_at_least_one_field(false);
-    for (size_t field_index(0); field_index < record->getNumberOfFields(); ++field_index) {
-        const std::string subfield_codes(GetSubfieldCodes(record->getTag(field_index), subfield_specs));
+    for (auto &field : *record) {
+        const std::string subfield_codes(GetSubfieldCodes(field.getTag(), subfield_specs));
         if (subfield_codes.empty())
             continue;
 
         bool modified_at_least_one_subfield(false);
-        Subfields subfields(record->getSubfields(field_index));
-        for (const auto subfield_code : subfield_codes) {
-            const auto begin_end(subfields.getIterators(subfield_code));
-            for (auto subfield(begin_end.first); subfield != begin_end.second; ++subfield) {
-                if (matcher.matched(subfield->value_)) {
-                    const unsigned no_of_match_groups(matcher.getNoOfGroups());
-                    std::string replacement;
-                    for (const auto &string_fragment_or_back_reference : string_fragments_and_back_references) {
-                        if (string_fragment_or_back_reference.type_ == StringFragmentOrBackreference::STRING_FRAGMENT)
-                            replacement += string_fragment_or_back_reference.string_fragment_;
-                        else { // We're dealing w/ a back-reference.
-                            if (unlikely(string_fragment_or_back_reference.back_reference_ > no_of_match_groups))
-                                logger->error("can't satisfy back-reference \\"
-                                              + std::to_string(string_fragment_or_back_reference.back_reference_)
-                                              + "!");
-                            replacement += matcher[string_fragment_or_back_reference.back_reference_];
-                        }
+        MARC::Subfields subfields(field.getSubfields());
+        for (auto &subfield : subfields) {
+            if (subfield_codes.find(subfield.code_) == std::string::npos)
+                continue;
+            
+            if (matcher.matched(subfield.value_)) {
+                const unsigned no_of_match_groups(matcher.getNoOfGroups());
+                std::string replacement;
+                for (const auto &string_fragment_or_back_reference : string_fragments_and_back_references) {
+                    if (string_fragment_or_back_reference.type_ == StringFragmentOrBackreference::STRING_FRAGMENT)
+                        replacement += string_fragment_or_back_reference.string_fragment_;
+                    else { // We're dealing w/ a back-reference.
+                        if (unlikely(string_fragment_or_back_reference.back_reference_ > no_of_match_groups))
+                            logger->error("can't satisfy back-reference \\"
+                                          + std::to_string(string_fragment_or_back_reference.back_reference_)
+                                          + "!");
+                        replacement += matcher[string_fragment_or_back_reference.back_reference_];
                     }
-                    subfield->value_ = replacement;
-                    modified_at_least_one_subfield = true;
                 }
+                subfield.value_ = replacement;
+                modified_at_least_one_subfield = true;
             }
         }
 
         if (modified_at_least_one_subfield) {
             modified_at_least_one_field = true;
-            record->updateField(field_index, subfields.toString());
+            field.setContents(subfields.toString());
         }
     }
 
@@ -631,11 +604,11 @@ bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, const Rege
 }
 
 
-void Filter(const std::vector<FilterDescriptor> &filters, MarcReader * const marc_reader,
-            MarcWriter * const marc_writer)
+void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const marc_reader,
+            MARC::Writer * const marc_writer)
 {
     unsigned total_count(0), deleted_count(0), modified_count(0);
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         ++total_count;
         bool deleted_record(false), modified_record(false);
         for (const auto &filter : filters) {
@@ -648,14 +621,14 @@ void Filter(const std::vector<FilterDescriptor> &filters, MarcReader * const mar
                 if (FilterCharacters(filter.getSubfieldSpecs(), filter.getCharsToDelete(), &record))
                     modified_record = true;
             } else if (filter.getFilterType() == FilterType::DROP_BIBLIOGRAPHIC_LEVEL) {
-                if (std::strchr(filter.getBiblioLevels().c_str(), record.getLeader().getBibliographicLevel())
+                if (std::strchr(filter.getBiblioLevels().c_str(), record.getBibliographicLevel())
                     != nullptr)
                 {
                     deleted_record = true;
                     break;
                 }
             } else if (filter.getFilterType() == FilterType::KEEP_BIBLIOGRAPHIC_LEVEL) {
-                if (std::strchr(filter.getBiblioLevels().c_str(), record.getLeader().getBibliographicLevel())
+                if (std::strchr(filter.getBiblioLevels().c_str(), record.getBibliographicLevel())
                                 != nullptr)
                 {
                     deleted_record = true;
@@ -666,7 +639,8 @@ void Filter(const std::vector<FilterDescriptor> &filters, MarcReader * const mar
                if (MatchedSubfield(record, filter.getCompiledPatterns(), &matched_field_indices_and_subfields)) {
                    std::sort(matched_field_indices_and_subfields.begin(), matched_field_indices_and_subfields.end());
                    for (const auto field_index_and_subfield : matched_field_indices_and_subfields)
-                        record.deleteSubfield(field_index_and_subfield.first, field_index_and_subfield.second);
+                       record.getField(field_index_and_subfield.first)
+                           .deleteAllSubfieldsWithCode(field_index_and_subfield.second);
                    modified_record = true;
                    break;
                }
@@ -684,9 +658,7 @@ void Filter(const std::vector<FilterDescriptor> &filters, MarcReader * const mar
                         deleted_record = true;
                         break;
                     } else if (filter.getFilterType() == FilterType::REMOVE_FIELDS) {
-                        std::sort(matched_field_indices.begin(), matched_field_indices.end(), std::greater<size_t>());
-                        for (const auto field_index : matched_field_indices)
-                            record.deleteField(field_index);
+                        record.deleteFields(matched_field_indices);
                         modified_record = true;
                     }
                 } else if (filter.getFilterType() == FilterType::KEEP) {
@@ -889,6 +861,9 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
 }
 
 
+} // unnamed namespace
+
+
 int main(int argc, char **argv) {
     ::progname = argv[0];
     ++argv;
@@ -899,26 +874,26 @@ int main(int argc, char **argv) {
     const std::string input_filename(*argv++);
     const std::string output_filename(*argv++);
 
-    MarcReader::ReaderType reader_type(MarcReader::AUTO);
+    MARC::Reader::ReaderType reader_type(MARC::Reader::AUTO);
     if (std::strcmp("--input-format=marc-xml", *argv) == 0) {
-        reader_type = MarcReader::XML;
+        reader_type = MARC::Reader::XML;
         ++argv;
     } else if (std::strcmp("--input-format=marc-21", *argv) == 0) {
-        reader_type = MarcReader::BINARY;
+        reader_type = MARC::Reader::BINARY;
         ++argv;
     }
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(input_filename, reader_type));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename, reader_type));
 
-    MarcWriter::WriterType writer_type;
+    MARC::Writer::WriterType writer_type;
     if (std::strcmp("--output-format=marc-xml", *argv) == 0) {
-        writer_type = MarcWriter::XML;
+        writer_type = MARC::Writer::XML;
         ++argv;
     } else if (std::strcmp("--output-format=marc-21", *argv) == 0) {
-        writer_type = MarcWriter::BINARY;
+        writer_type = MARC::Writer::BINARY;
         ++argv;
     } else
-        writer_type = (marc_reader->getReaderType() == MarcReader::BINARY) ? MarcWriter::BINARY : MarcWriter::XML;
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(output_filename, writer_type));
+        writer_type = (marc_reader->getReaderType() == MARC::Reader::BINARY) ? MARC::Writer::BINARY : MARC::Writer::XML;
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename, writer_type));
 
     try {
         std::vector<FilterDescriptor> filters;
