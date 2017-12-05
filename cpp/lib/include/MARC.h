@@ -191,6 +191,12 @@ public:
             subfields_.erase(location);
     }
 
+    inline void deleteAllSubfieldsWithCode(const char subfield_code) {
+        std::remove_if(subfields_.begin(), subfields_.end(),
+                       [subfield_code](const Subfield subfield) -> bool
+                       { return subfield.code_ == subfield_code; });
+    }
+
     inline std::string toString() const {
         std::string as_string;
         for (const auto &subfield : subfields_)
@@ -221,7 +227,7 @@ public:
         inline Subfields getSubfields() const { return Subfields(contents_); }
 
         /** \note Do *not* call this on control fields! */
-        void deleteFirstSubfield(const char subfield_code);
+        void deleteAllSubfieldsWithCode(const char subfield_code);
     };
 
     enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };

@@ -282,7 +282,8 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 std::string UTF8ToLower(std::string * const utf8_string) {
     std::string converted_string;
     if (unlikely(not UTF8ToLower(*utf8_string, &converted_string)))
-        throw std::runtime_error("in TextUtil::UTF8ToLower: failed to convert a string to lowercase!");
+        throw std::runtime_error("in TextUtil::UTF8ToLower: failed to convert a string \"" + CStyleEscape(*utf8_string)
+                                 + "\"to lowercase!");
 
     utf8_string->swap(converted_string);
     return *utf8_string;
