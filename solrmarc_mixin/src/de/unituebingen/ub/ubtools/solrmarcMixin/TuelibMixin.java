@@ -774,7 +774,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     /*
      * Get day of current month
      */
-
     String getCurrentDayOfMonth() {
         return String.valueOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
     }
