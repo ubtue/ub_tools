@@ -52,7 +52,7 @@ bool IsUnsignedInteger(const std::string &s);
 
 
 /** \brief Convert UTF8 to wide characters. */
-bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_string);
+bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_string);
 
 
 /** \brief Convert between many text encodings.

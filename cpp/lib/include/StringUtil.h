@@ -84,7 +84,7 @@ namespace StringUtil {
 
 
 #if defined(__linux__)
-const std::string IVIA_STANDARD_LOCALE("en_US.UTF-8");
+const std::string IVIA_STANDARD_LOCALE("en_US.utf8");
 #elif defined(__APPLE__)
 const std::string IVIA_STANDARD_LOCALE("en_US.UTF-8");
 #else
