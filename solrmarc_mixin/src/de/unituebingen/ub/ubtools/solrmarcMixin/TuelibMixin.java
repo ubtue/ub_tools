@@ -765,7 +765,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                                   + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
-                       return year + "-" + month + "-" + getCurrentDayOfMonth() + "T11:00:00.000Z";
+                return year + "-" + month + "-" + getCurrentDayOfMonth() + "T11:00:00.000Z";
             }
         }
         return null;
@@ -776,7 +776,6 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
 
     String getCurrentDayOfMonth() {
-        // see https://stackoverflow.com/questions/7226156/how-to-get-day-of-the-month (171204)
         return String.valueOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
     }
 
