@@ -156,7 +156,7 @@
                                 <input type="hidden" name="lookfor" value="{lookfor}">
                                 <input type="hidden" name="offset" value="{current_offset}">
                                 <input type="hidden" name="target" value="{target_translation_scope}">
-                                <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
+                                <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
                             </form>
                         </div>
                         <div style="float: left; text-align: left;">
@@ -164,7 +164,7 @@
                                 <button type="submit" class="link-button">Restore Status</button>
                                 <input type="hidden" name="save_action" value="restore">
                                 <input type="hidden" name="target" value="{target_translation_scope}">
-                                <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
+                                <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
                             </form>
                         </div>
                    </div>
@@ -173,7 +173,7 @@
                             <button type="submit" class="link-button">Mail my Translations</button>
                             <input type="hidden" name="target" value="{target_translation_scope}">
                             <input type="hidden" name="mail" value="mytranslations">
-                            <input type="hidden" name="filter_untranslated" value="checked" {filter_untranslated}>
+                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
                         </form>
                    </div>
                 </div>
