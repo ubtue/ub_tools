@@ -40,6 +40,7 @@
 #include "WebUtil.h"
 
 
+const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
 const int ENTRIES_PER_PAGE(30);
 const std::string NO_GND_CODE("-1");
 const std::string LANGUAGES_SECTION("Languages");
@@ -244,6 +245,51 @@ bool IsEmptyEntryWithoutTranslator(const std::string &entry) {
 }
 
 
+void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translator,
+                            std::vector<std::string> * const translator_languages)
+{
+    // If user is an administrator all languages are open for editing, otherwise only the specified ones
+    const std::string ini_administrators(ini_file.getString(USER_SECTION, "administrators"));
+    std::vector<std::string> administrators;
+    StringUtil::Split(ini_administrators, ",", &administrators);
+    std::for_each(administrators.begin(), administrators.end(),
+                  boost::bind(&boost::trim<std::string>, _1, std::locale()));
+
+    std::string ini_translator_languages;
+    if (std::find(administrators.begin(), administrators.end(), translator) != administrators.end())
+        ini_translator_languages = ini_file.getString(LANGUAGES_SECTION, ALL_SUPPORTED_LANGUAGES);
+    else
+        ini_translator_languages = ini_file.getString(TRANSLATION_LANGUAGES_SECTION, translator);
+
+    StringUtil::Split(ini_translator_languages, ',', translator_languages);
+    std::for_each(translator_languages->begin(), translator_languages->end(),
+                   boost::bind(&boost::trim<std::string>, _1, std::locale()));
+}
+
+
+std::string GetTranslatedAllLanguagesCriterion(const std::string &translator) {
+    const IniFile ini_file(CONF_FILE_PATH);
+    std::vector<std::string> translator_languages;
+    GetTranslatorLanguages(ini_file, translator, &translator_languages);
+    std::string criterion = "translator='" + translator +"' AND language_code IN (";
+    int num_of_languages(0);
+    bool is_first(true);
+    for (const auto &translator_language : translator_languages) {
+        if (translator_language == "ger")
+            continue;
+
+        if (is_first)
+            is_first = false;
+        else
+            criterion += ", ";
+        criterion += "'" + translator_language + "'";
+        ++num_of_languages;
+    }
+    criterion += ") GROUP BY ppn HAVING COUNT(DISTINCT language_code) = " + std::to_string(num_of_languages);
+    return criterion;
+}
+
+
 void SetupVuFindSortLimit(DbConnection &db_connection, std::string * const create_sort_limit, const std::string &offset,
                           const bool use_untranslated_filter)
 {
@@ -253,7 +299,8 @@ void SetupVuFindSortLimit(DbConnection &db_connection, std::string * const creat
             ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
 
         const std::string translated_by_translator("CREATE TEMPORARY TABLE translated_by_translator (INDEX (token)) AS "
-                                                   "(SELECT DISTINCT token FROM vufind_ger_sorted WHERE translator='" + translator + "')");
+                                                   "(SELECT DISTINCT token FROM vufind_ger_sorted WHERE " +
+                                                    GetTranslatedAllLanguagesCriterion(translator) + ")");
         db_connection.queryOrDie(translated_by_translator);
         const std::string untranslated_by_translator_ger_sorted("CREATE TEMPORARY TABLE untranslated_by_translator_ger_sorted AS "
                                                      "(SELECT DISTINCT l.token FROM (SELECT token FROM vufind_ger_sorted "
@@ -351,10 +398,10 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 }
 
 
+
 void SetupKeyWordSortLimitQuery(DbConnection &db_connection, std::string * const create_sort_limit, const std::string &offset,
                                 const bool use_untranslated_filter)
 {
-std::cerr << "SetupKeyWordSortLimitQuery: \"" << offset << "\"\n";
     // The LIMIT parameter can only work with constants, but we want entries per page to be lines, i.e. german translations in our table
     // so we have to generate a dynamic limit using temporary tables
     if (use_untranslated_filter) {
@@ -363,7 +410,7 @@ std::cerr << "SetupKeyWordSortLimitQuery: \"" << offset << "\"\n";
             ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
 
         const std::string translated_by_translator("CREATE TEMPORARY TABLE translated_by_translator (INDEX (ppn)) AS "
-                                                   "(SELECT DISTINCT ppn FROM keywords_ger_sorted WHERE translator='" + translator + "')");
+                                                   "(SELECT DISTINCT ppn FROM keywords_ger_sorted WHERE " + GetTranslatedAllLanguagesCriterion(translator) + ")");
         db_connection.queryOrDie(translated_by_translator);
 
         // Get all PPNs that are so far untouched by this translator
@@ -553,26 +600,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
 }
 
 
-void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translator,
-                            std::vector<std::string> * const translator_languages)
-{
-    // If user is an administrator all languages are open for editing, otherwise only the specified ones
-    const std::string ini_administrators(ini_file.getString(USER_SECTION, "administrators"));
-    std::vector<std::string> administrators;
-    StringUtil::Split(ini_administrators, ",", &administrators);
-    std::for_each(administrators.begin(), administrators.end(),
-                  boost::bind(&boost::trim<std::string>, _1, std::locale()));
 
-    std::string ini_translator_languages;
-    if (std::find(administrators.begin(), administrators.end(), translator) != administrators.end())
-        ini_translator_languages = ini_file.getString(LANGUAGES_SECTION, ALL_SUPPORTED_LANGUAGES);
-    else
-        ini_translator_languages = ini_file.getString(TRANSLATION_LANGUAGES_SECTION, translator);
-
-    StringUtil::Split(ini_translator_languages, ',', translator_languages);
-    std::for_each(translator_languages->begin(), translator_languages->end(),
-                   boost::bind(&boost::trim<std::string>, _1, std::locale()));
-}
 
 
 void GetAdditionalViewLanguages(const IniFile &ini_file, std::vector<std::string> *const additional_view_languages,
@@ -715,9 +743,6 @@ void RestoreUserState(DbConnection &db_connection, const std::string &translator
    const std::string offset_candidate(row[offset_type]);
    *offset = (not offset_candidate.empty() ? offset_candidate : "0");
 }
-
-
-const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
 
 
 int main(int argc, char *argv[]) {
