@@ -354,6 +354,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 void SetupKeyWordSortLimitQuery(DbConnection &db_connection, std::string * const create_sort_limit, const std::string &offset,
                                 const bool use_untranslated_filter)
 {
+std::cerr << "SetupKeyWordSortLimitQuery: \"" << offset << "\"\n";
     // The LIMIT parameter can only work with constants, but we want entries per page to be lines, i.e. german translations in our table
     // so we have to generate a dynamic limit using temporary tables
     if (use_untranslated_filter) {
@@ -686,28 +687,36 @@ void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, co
 
 
 void SaveUserState(DbConnection &db_connection, const std::string &translator, const std::string &translation_target,
-                   const std::string &lookfor, const std::string &offset)
+                   const std::string &lookfor, const std::string &offset, const bool filter_untranslated)
 {
-   const std::string save_statement("REPLACE INTO translators SET translator=\'" + translator +
-                                    "\', translation_target=\'" + translation_target + "\', offset=\'" + offset
-                                    + "\', lookfor=\'" + lookfor + "\';");
-
+   const std::string save_statement("INSERT INTO translators (translator, translation_target, " +
+                                    std::string(filter_untranslated ? "filtered_offset" : "offset" ) + ", " +
+                                    std::string(filter_untranslated ? "filtered_lookfor" : "lookfor") + ") " +
+                                    "VALUES (\'" + translator + "\', \'" + translation_target + "\', \'" +
+                                    offset + "\', \'" + lookfor + "\') ON DUPLICATE KEY UPDATE " +
+                                    std::string(filter_untranslated ? "filtered_lookfor" : "lookfor") + "=\'" +
+                                    lookfor + "\', " +
+                                    std::string(filter_untranslated ? "filtered_offset" : "offset" ) + "=\'" +
+                                    offset + "\';");
    db_connection.queryOrDie(save_statement);
 }
 
 
 void RestoreUserState(DbConnection &db_connection, const std::string &translator,
-                      const std::string &translation_target, std::string * const lookfor, std::string * const offset)
+                      const std::string &translation_target, std::string * const lookfor, std::string * const offset, const bool filter_untranslated)
 {
-   const std::string restore_statement("SELECT lookfor, offset FROM translators WHERE translator=\'" + translator
+   const std::string lookfor_type(filter_untranslated ? "filtered_lookfor" : "lookfor");
+   const std::string offset_type(filter_untranslated ? "filtered_offset" : "offset");
+   const std::string restore_statement("SELECT " + lookfor_type + ", " + offset_type + " FROM translators WHERE translator=\'" + translator
                                        + "\' AND translation_target=\'" + translation_target + "\';");
    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(restore_statement, &db_connection));
    if (result_set.empty())
        return;
 
    DbRow row(result_set.getNextRow());
-   *lookfor = row["lookfor"];
-   *offset  = row["offset"];
+   *lookfor = row[lookfor_type];
+   const std::string offset_candidate(row[offset_type]);
+   *offset = (not offset_candidate.empty() ? offset_candidate : "0");
 }
 
 
@@ -751,16 +760,17 @@ int main(int argc, char *argv[]) {
 
         std::string lookfor(GetCGIParameterOrDefault(cgi_args, "lookfor", ""));
         std::string offset(GetCGIParameterOrDefault(cgi_args, "offset", "0"));
+std::cerr << "offset: " << offset << '\n';
         const std::string translation_target(GetCGIParameterOrDefault(cgi_args, "target", "keywords"));
         const std::string save_action(GetCGIParameterOrDefault(cgi_args, "save_action", ""));
-        const std::string filter_untranslated(GetCGIParameterOrDefault(cgi_args, "filter_untranslated", ""));
-std::cerr << "filter_untranslated: " << filter_untranslated << '\n';
+        const std::string filter_untranslated_value(GetCGIParameterOrDefault(cgi_args, "filter_untranslated", ""));
+        const bool filter_untranslated((filter_untranslated_value == "checked") ? true : false);
         if (save_action == "save")
- 	    SaveUserState(db_connection, translator, translation_target, lookfor, offset);
+ 	    SaveUserState(db_connection, translator, translation_target, lookfor, offset, filter_untranslated);
         else if (save_action == "restore")
-            RestoreUserState(db_connection, translator, translation_target, &lookfor, &offset);
+            RestoreUserState(db_connection, translator, translation_target, &lookfor, &offset, filter_untranslated);
         ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages,
-                      additional_view_languages, (filter_untranslated == "checked") ? true : false);
+                      additional_view_languages, filter_untranslated);
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
