@@ -688,8 +688,11 @@ std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, Writ
 void BinaryWriter::write(const Record &record) {
     Record::const_iterator start(record.begin());
     do {
+        const bool record_is_oversized(start > record.begin());
         Record::const_iterator end(start);
         unsigned record_size(Record::LEADER_LENGTH + 2 /* end-of-directory and end-of-record */);
+        if (record_is_oversized) // Include size of the 001 field.
+            record_size += record.fields_.front().getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
         while (end != record.end()
                and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH
                     < Record::MAX_RECORD_LENGTH))
@@ -710,6 +713,12 @@ void BinaryWriter::write(const Record &record) {
 
         // Append the directory:
         unsigned field_start_offset(0);
+        if (record_is_oversized) {
+            raw_record += "001" 
+                          + ToStringWithLeadingZeros(record.fields_.front().getContents().length() + 1 /* field terminator */, 4)
+                          + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
+            field_start_offset += record.fields_.front().getContents().length() + 1 /* field terminator */;
+        }
         for (Record::const_iterator entry(start); entry != end; ++entry) {
             raw_record += entry->getTag().to_string()
                           + ToStringWithLeadingZeros(entry->getContents().length() + 1 /* field terminator */, 4)
