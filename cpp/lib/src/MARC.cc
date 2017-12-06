@@ -61,20 +61,22 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 
 
 void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
+    if (contents_.size() < 4)
+        return;
+
     std::string new_contents;
     new_contents.reserve(contents_.size());
-    
+
     new_contents += contents_[0]; // indicator 1
     new_contents += contents_[1]; // indicator 2
 
-    auto ch(contents_.begin() + 2 /* skip over the indicators */);
-    while  (ch != contents_.end()) {
+    auto ch(contents_.begin() + 2 /* skip over the indicators */ + 1 /* \x1F */);
+    while (ch != contents_.end()) {
         if (*ch == subfield_code) {
             while (ch != contents_.end() and *ch != '\x1F')
                 ++ch;
         } else {
-            if (new_contents.length() > 2)
-                new_contents += '\x1F';
+            new_contents += '\x1F';
             while (ch != contents_.end() and *ch != '\x1F')
                 new_contents += *ch++;
         }
@@ -714,7 +716,7 @@ void BinaryWriter::write(const Record &record) {
         // Append the directory:
         unsigned field_start_offset(0);
         if (record_is_oversized) {
-            raw_record += "001" 
+            raw_record += "001"
                           + ToStringWithLeadingZeros(record.fields_.front().getContents().length() + 1 /* field terminator */, 4)
                           + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
             field_start_offset += record.fields_.front().getContents().length() + 1 /* field terminator */;
