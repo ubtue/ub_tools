@@ -29,7 +29,6 @@
 #include "TextUtil.h"
 #include <algorithm>
 #include <exception>
-#include <iostream>
 #include <memory>
 #include <cctype>
 #include <cstdio>
@@ -153,7 +152,7 @@ bool IsUnsignedInteger(const std::string &s) {
 }
 
 
-bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_string) {
+bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_string) {
     wchar_string->clear();
 
     const char *cp(utf8_string.c_str());
@@ -263,14 +262,14 @@ bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string) {
 
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string) {
     std::wstring wchar_string;
-    if (not UTF8toWCharString(utf8_string, &wchar_string))
+    if (not UTF8ToWCharString(utf8_string, &wchar_string))
         return false;
 
     // Lowercase the wide character string:
     std::wstring lowercase_wide_string;
     for (const auto wide_ch : wchar_string) {
-        if (std::iswupper(static_cast<wint_t>(wide_ch)))
-            lowercase_wide_string += std::towlower(static_cast<wint_t>(wide_ch));
+        if (std::iswupper(wide_ch))
+            lowercase_wide_string += std::towlower(wide_ch);
         else
             lowercase_wide_string += wide_ch;
     }
@@ -282,7 +281,8 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
 std::string UTF8ToLower(std::string * const utf8_string) {
     std::string converted_string;
     if (unlikely(not UTF8ToLower(*utf8_string, &converted_string)))
-        throw std::runtime_error("in TextUtil::UTF8ToLower: failed to convert a string to lowercase!");
+        throw std::runtime_error("in TextUtil::UTF8ToLower: failed to convert a string \"" + CStyleEscape(*utf8_string)
+                                 + "\"to lowercase!");
 
     utf8_string->swap(converted_string);
     return *utf8_string;
@@ -291,7 +291,7 @@ std::string UTF8ToLower(std::string * const utf8_string) {
 
 bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_utf8_string) {
     std::wstring wchar_string;
-    if (not UTF8toWCharString(utf8_string, &wchar_string))
+    if (not UTF8ToWCharString(utf8_string, &wchar_string))
         return false;
 
     // Uppercase the wide character string:
@@ -418,7 +418,7 @@ template<typename ContainerType> bool ChopIntoWords(const std::string &text, Con
     words->clear();
 
     std::wstring wide_text;
-    if (unlikely(not UTF8toWCharString(text, &wide_text)))
+    if (unlikely(not UTF8ToWCharString(text, &wide_text)))
         return false;
 
     std::wstring word;
