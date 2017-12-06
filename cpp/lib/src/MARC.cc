@@ -256,6 +256,48 @@ void Record::deleteFields(std::vector<size_t> field_indices) {
 }
 
 
+bool Record::isValid(std::string * const error_message) const {
+    if (fields_.empty() or fields_.front().getTag() != "001") {
+        *error_message = "001 field is missing!";
+        return false;
+    }
+
+    for (const auto &field : fields_) {
+        if (field.isDataField()) {
+            // Check subfield structure:
+            if (unlikely(field.contents_.length() < 5)) {
+                *error_message = "field contents are too small (< 5 bytes)!";
+                return false;
+            }
+
+            auto ch(field.contents_.begin() + 2 /* indicators */);
+            while (ch != field.contents_.end()) {
+                if (unlikely(*ch != '\x1F')) {
+                    *error_message = "subfield does not start with 0x1F!";
+                    return false;
+                }
+                ++ch; // Skip over 0x1F.
+                if (unlikely(ch == field.contents_.end())) {
+                    *error_message = "subfield is missing a subfield code!";
+                    return false;
+                }
+                ++ch; // Skip over the sunfield code.
+                if (unlikely(ch == field.contents_.end() or *ch == '\x1F')) {
+                    *error_message = "subfield is empty!";
+                    return false;
+                }
+
+                // Skip over the subfield contents:
+                while (ch != field.contents_.end() and *ch != '\x1F')
+                    ++ch;
+            }
+        }
+    }
+
+    return true;
+}
+
+
 std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, ReaderType reader_type) {
     if (reader_type == AUTO) {
         const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
@@ -688,6 +730,11 @@ std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, Writ
 
 
 void BinaryWriter::write(const Record &record) {
+    std::string error_message;
+    if (not record.isValid(&error_message))
+        logger->error("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber()
+                      + ")");
+
     Record::const_iterator start(record.begin());
     do {
         const bool record_is_oversized(start > record.begin());

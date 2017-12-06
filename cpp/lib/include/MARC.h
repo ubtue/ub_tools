@@ -411,6 +411,7 @@ public:
                                   std::vector<const_iterator> * const fields) const;
 
     void deleteFields(std::vector<size_t> field_indices);
+    bool isValid(std::string * const error_message) const;
 };
 
 
