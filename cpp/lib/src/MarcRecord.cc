@@ -132,8 +132,8 @@ void MarcRecord::updateField(const size_t field_index, const std::string &new_fi
 
 bool MarcRecord::insertSubfield(const MarcTag &new_field_tag, const char subfield_code,
                                 const std::string &new_subfield_value, const char indicator1, const char indicator2) {
-    return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + "\x1F"
-                                      + std::string(1, subfield_code) + new_subfield_value);
+    return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + std::string(1, subfield_code)
+                       + new_subfield_value);
 }
 
 
