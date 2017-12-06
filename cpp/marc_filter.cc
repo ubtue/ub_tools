@@ -174,21 +174,20 @@ bool Matched(const MARC::Record &record, const std::vector<CompiledPattern *> &c
     matched_field_indices->clear();
 
     for (const auto &compiled_pattern : compiled_patterns) {
-        size_t index(0);
-        for (const auto field : record.getTagRange(compiled_pattern->getTag())) {
+        const MARC::Record::ConstantRange range(record.getTagRange(compiled_pattern->getTag()));
+        for (auto field(range.begin()); field != range.end(); ++field) {
             if (compiled_pattern->hasSubfieldCode()) {
-                const MARC::Subfields subfields(field.getSubfields());
+                const MARC::Subfields subfields(field->getSubfields());
                 for (const auto &subfield : subfields) {
                     if (subfield.code_ == compiled_pattern->getSubfieldCode()
                         and compiled_pattern->subfieldMatched(subfield.value_))
                     {
-                        matched_field_indices->emplace_back(index);
+                        matched_field_indices->emplace_back(field - record.begin());
                         break;
                     }
                 }
-            } else if (compiled_pattern->fieldMatched(field.getContents()))
-                matched_field_indices->emplace_back(index);
-            ++index;
+            } else if (compiled_pattern->fieldMatched(field->getContents()))
+                matched_field_indices->emplace_back(field - record.begin());
         }
     }
 
