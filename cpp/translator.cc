@@ -767,7 +767,7 @@ int main(int argc, char *argv[]) {
         GetTranslatorLanguages(ini_file, translator, &translator_languages);
         if (translator_languages.size() == 0)
             ShowErrorPageAndDie("Error - No languages", "No languages specified for user " + translator ,
-                          "Contact your administrator");
+                                "Contact your administrator");
         std::vector<std::string> additional_view_languages;
         GetAdditionalViewLanguages(ini_file, &additional_view_languages, translator);
 
@@ -782,9 +782,9 @@ int main(int argc, char *argv[]) {
         const std::string translation_target(GetCGIParameterOrDefault(cgi_args, "target", "keywords"));
         const std::string save_action(GetCGIParameterOrDefault(cgi_args, "save_action", ""));
         const std::string filter_untranslated_value(GetCGIParameterOrDefault(cgi_args, "filter_untranslated", ""));
-        const bool filter_untranslated((filter_untranslated_value == "checked") ? true : false);
+        const bool filter_untranslated(filter_untranslated_value == "checked");
         if (save_action == "save")
- 	    SaveUserState(db_connection, translator, translation_target, lookfor, offset, filter_untranslated);
+            SaveUserState(db_connection, translator, translation_target, lookfor, offset, filter_untranslated);
         else if (save_action == "restore")
             RestoreUserState(db_connection, translator, translation_target, &lookfor, &offset, filter_untranslated);
         ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages,
