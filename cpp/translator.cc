@@ -739,7 +739,7 @@ void RestoreUserState(DbConnection &db_connection, const std::string &translator
    DbRow row(result_set.getNextRow());
    *lookfor = row[lookfor_type];
    const std::string offset_candidate(row[offset_type]);
-   *offset = (not offset_candidate.empty() ? offset_candidate : "0");
+   *offset = (not offset_candidate.empty()) ? offset_candidate : "0";
 }
 
 
