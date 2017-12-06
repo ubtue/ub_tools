@@ -765,10 +765,17 @@ public class TuelibMixin extends SolrIndexerMixin {
                                   + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
-                return year + "-" + month + "-01T11:00:00.000Z";
+                return year + "-" + month + "-" + getCurrentDayOfMonth() + "T11:00:00.000Z";
             }
         }
         return null;
+    }
+
+    /*
+     * Get day of current month
+     */
+    String getCurrentDayOfMonth() {
+        return String.valueOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
     }
 
     /*
