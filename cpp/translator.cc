@@ -573,7 +573,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
         GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
                                                      translator_languages, additional_view_languages, filter_untranslated);
     else
-       ShowErrorPageAndDie("Error - Invalid Target", "No valid target selected");
+        ShowErrorPageAndDie("Error - Invalid Target", "No valid target selected");
 
     names_to_values_map.emplace("vufind_token_row", rows);
     names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
