@@ -249,7 +249,7 @@ void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translat
     // If user is an administrator all languages are open for editing, otherwise only the specified ones
     const std::string ini_administrators(ini_file.getString(USER_SECTION, "administrators"));
     std::vector<std::string> administrators;
-    StringUtil::Split(ini_administrators, ",", &administrators);
+    StringUtil::Split(ini_administrators, ',', &administrators);
     std::for_each(administrators.begin(), administrators.end(),
                   [](std::string &administrator){ StringUtil::TrimWhite(&administrator); });
     std::string ini_translator_languages;
