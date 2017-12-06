@@ -520,7 +520,8 @@ bool FilterCharacters(const std::vector<std::string> &subfield_specs, const std:
 
         if (modified_at_least_one_subfield) {
             modified_at_least_one_field = true;
-            field.setContents(subfields.toString());
+            field.setContents(std::string(1, field.getIndicator1()) + std::string(1, field.getIndicator2())
+                              + subfields.toString());
         }
     }
 
