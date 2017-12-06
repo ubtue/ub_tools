@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "FileLocker.h"
 #include "FileUtil.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"
@@ -59,6 +60,32 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 }
 
 
+void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
+    std::string new_contents;
+    new_contents.reserve(contents_.size());
+    
+    new_contents += contents_[0]; // indicator 1
+    new_contents += contents_[1]; // indicator 2
+
+    auto ch(contents_.begin() + 2 /* skip over the indicators */);
+    while  (ch != contents_.end()) {
+        if (*ch == subfield_code) {
+            while (ch != contents_.end() and *ch != '\x1F')
+                ++ch;
+        } else {
+            if (new_contents.length() > 2)
+                new_contents += '\x1F';
+            while (ch != contents_.end() and *ch != '\x1F')
+                new_contents += *ch++;
+        }
+        if (ch != contents_.end())
+            ++ch;
+    }
+
+    contents_.swap(new_contents);
+}
+
+
 Record::Record(const size_t record_size, char * const record_start)
     : record_size_(record_size), leader_(record_start, LEADER_LENGTH)
 {
@@ -82,9 +109,23 @@ Record::Record(const size_t record_size, char * const record_start)
 }
 
 
-Record::Range Record::getTagRange(const Tag &tag) const {
+Record::ConstantRange Record::getTagRange(const Tag &tag) const {
     const auto begin(std::find_if(fields_.begin(), fields_.end(),
                                   [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
+    if (begin == fields_.end())
+        return ConstantRange(fields_.end(), fields_.end());
+
+    auto end(begin);
+    while (end != fields_.end() and end->getTag() == tag)
+        ++end;
+
+    return ConstantRange(begin, end);
+}
+
+
+Record::Range Record::getTagRange(const Tag &tag) {
+    auto begin(std::find_if(fields_.begin(), fields_.end(),
+                            [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
     if (begin == fields_.end())
         return Range(fields_.end(), fields_.end());
 
@@ -203,6 +244,13 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
     field->contents_ = new_field_value;
 
     return true;
+}
+
+
+void Record::deleteFields(std::vector<size_t> field_indices) {
+    std::sort(field_indices.begin(), field_indices.end(), std::greater<size_t>());
+    for (const auto field_index : field_indices)
+        fields_.erase(fields_.begin() + field_index);
 }
 
 
@@ -737,6 +785,16 @@ void XmlWriter::write(const Record &record) {
     }
 
     xml_writer_->closeTag(); // Close "record".
+}
+
+
+void FileLockedComposeAndWriteRecord(Writer * const marc_writer, Record * const record) {
+    FileLocker file_locker(&(marc_writer->getFile()), FileLocker::WRITE_ONLY);
+    if (not (marc_writer->getFile().seek(0, SEEK_END)))
+        logger->error("in FileLockedComposeAndWriteRecord: failed to seek to the end of \""
+                      + marc_writer->getFile().getPath() + "\"!");
+    marc_writer->write(*record);
+    marc_writer->getFile().flush();
 }
 
 
