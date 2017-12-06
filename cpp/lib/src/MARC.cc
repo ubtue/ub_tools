@@ -61,7 +61,7 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 
 
 void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
-    if (contents_.size() < 4)
+    if (contents_.size() < 5)
         return;
 
     std::string new_contents;
