@@ -266,24 +266,24 @@ bool Record::isValid(std::string * const error_message) const {
         if (field.isDataField()) {
             // Check subfield structure:
             if (unlikely(field.contents_.length() < 5)) {
-                *error_message = "field contents are too small (< 5 bytes)!";
+                *error_message = "field contents are too small (< 5 bytes)! (tag: " + field.getTag().to_string() + ")";
                 return false;
             }
 
             auto ch(field.contents_.begin() + 2 /* indicators */);
             while (ch != field.contents_.end()) {
                 if (unlikely(*ch != '\x1F')) {
-                    *error_message = "subfield does not start with 0x1F!";
+                    *error_message = "subfield does not start with 0x1F! (tag: " + field.getTag().to_string() + ")";
                     return false;
                 }
                 ++ch; // Skip over 0x1F.
                 if (unlikely(ch == field.contents_.end())) {
-                    *error_message = "subfield is missing a subfield code!";
+                    *error_message = "subfield is missing a subfield code! (tag: " + field.getTag().to_string() + ")";
                     return false;
                 }
                 ++ch; // Skip over the subfield code.
                 if (unlikely(ch == field.contents_.end() or *ch == '\x1F')) {
-                    *error_message = "subfield is empty!";
+                    *error_message = "subfield is empty! (tag: " + field.getTag().to_string() + ")";
                     return false;
                 }
 
