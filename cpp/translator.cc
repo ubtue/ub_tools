@@ -21,8 +21,6 @@
 */
 
 #include <algorithm>
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/bind.hpp>
 #include <iostream>
 #include <set>
 #include <sstream>
@@ -253,8 +251,7 @@ void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translat
     std::vector<std::string> administrators;
     StringUtil::Split(ini_administrators, ",", &administrators);
     std::for_each(administrators.begin(), administrators.end(),
-                  boost::bind(&boost::trim<std::string>, _1, std::locale()));
-
+                  [](std::string &administrator){ StringUtil::TrimWhite(&administrator); });
     std::string ini_translator_languages;
     if (std::find(administrators.begin(), administrators.end(), translator) != administrators.end())
         ini_translator_languages = ini_file.getString(LANGUAGES_SECTION, ALL_SUPPORTED_LANGUAGES);
@@ -263,7 +260,7 @@ void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translat
 
     StringUtil::Split(ini_translator_languages, ',', translator_languages);
     std::for_each(translator_languages->begin(), translator_languages->end(),
-                   boost::bind(&boost::trim<std::string>, _1, std::locale()));
+                   [](std::string &translator_language){ StringUtil::TrimWhite(&translator_language); });
 }
 
 
@@ -609,7 +606,7 @@ void GetAdditionalViewLanguages(const IniFile &ini_file, std::vector<std::string
     const std::string ini_additional_view_languages(ini_file.getString(ADDITIONAL_VIEW_LANGUAGES, translator, ""));
     StringUtil::Split(ini_additional_view_languages, ",", additional_view_languages);
     std::for_each(additional_view_languages->begin(), additional_view_languages->end(),
-                   boost::bind(&boost::trim<std::string>, _1, std::locale()));
+                  [](std::string &additional_view_language){ StringUtil::TrimWhite(&additional_view_language); });
 }
 
 
