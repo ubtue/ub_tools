@@ -728,6 +728,10 @@ void BinaryWriter::write(const Record &record) {
         raw_record += '\x1E'; // end-of-directory
 
         // Now append the field data:
+        if (record_is_oversized) {
+            raw_record += record.fields_.front().getContents();
+            raw_record += '\x1E'; // end-of-field
+        }
         for (Record::const_iterator entry(start); entry != end; ++entry) {
             raw_record += entry->getContents();
             raw_record += '\x1E'; // end-of-field
