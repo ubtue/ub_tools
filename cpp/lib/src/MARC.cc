@@ -281,7 +281,7 @@ bool Record::isValid(std::string * const error_message) const {
                     *error_message = "subfield is missing a subfield code!";
                     return false;
                 }
-                ++ch; // Skip over the sunfield code.
+                ++ch; // Skip over the subfield code.
                 if (unlikely(ch == field.contents_.end() or *ch == '\x1F')) {
                     *error_message = "subfield is empty!";
                     return false;
