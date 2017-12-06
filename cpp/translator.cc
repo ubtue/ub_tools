@@ -264,12 +264,13 @@ void GetTranslatorLanguages(const IniFile &ini_file, const std::string &translat
 }
 
 
-std::string GetTranslatedAllLanguagesCriterion(const std::string &translator) {
+std::string GetTranslatedAllLanguagesCriterion(const std::string &translator, enum Category category) {
     const IniFile ini_file(CONF_FILE_PATH);
     std::vector<std::string> translator_languages;
     GetTranslatorLanguages(ini_file, translator, &translator_languages);
     std::string criterion = "translator='" + translator +"' AND language_code IN (";
     int num_of_languages(0);
+    const std::string group_by_criterion(category == VUFIND ? "token" : "ppn");
     bool is_first(true);
     for (const auto &translator_language : translator_languages) {
         if (translator_language == "ger")
@@ -282,7 +283,7 @@ std::string GetTranslatedAllLanguagesCriterion(const std::string &translator) {
         criterion += "'" + translator_language + "'";
         ++num_of_languages;
     }
-    criterion += ") GROUP BY ppn HAVING COUNT(DISTINCT language_code) = " + std::to_string(num_of_languages);
+    criterion += ") GROUP BY " + group_by_criterion + " HAVING COUNT(DISTINCT language_code) = " + std::to_string(num_of_languages);
     return criterion;
 }
 
@@ -297,7 +298,7 @@ void SetupVuFindSortLimit(DbConnection &db_connection, std::string * const creat
 
         const std::string translated_by_translator("CREATE TEMPORARY TABLE translated_by_translator (INDEX (token)) AS "
                                                    "(SELECT DISTINCT token FROM vufind_ger_sorted WHERE " +
-                                                    GetTranslatedAllLanguagesCriterion(translator) + ")");
+                                                    GetTranslatedAllLanguagesCriterion(translator, VUFIND) + ")");
         db_connection.queryOrDie(translated_by_translator);
         const std::string untranslated_by_translator_ger_sorted("CREATE TEMPORARY TABLE untranslated_by_translator_ger_sorted AS "
                                                      "(SELECT DISTINCT l.token FROM (SELECT token FROM vufind_ger_sorted "
@@ -407,7 +408,8 @@ void SetupKeyWordSortLimitQuery(DbConnection &db_connection, std::string * const
             ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
 
         const std::string translated_by_translator("CREATE TEMPORARY TABLE translated_by_translator (INDEX (ppn)) AS "
-                                                   "(SELECT DISTINCT ppn FROM keywords_ger_sorted WHERE " + GetTranslatedAllLanguagesCriterion(translator) + ")");
+                                                   "(SELECT DISTINCT ppn FROM keywords_ger_sorted WHERE " +
+                                                   GetTranslatedAllLanguagesCriterion(translator, KEYWORDS) + ")");
         db_connection.queryOrDie(translated_by_translator);
 
         // Get all PPNs that are so far untouched by this translator
