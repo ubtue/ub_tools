@@ -268,7 +268,7 @@ std::string GetTranslatedAllLanguagesCriterion(const std::string &translator, en
     const IniFile ini_file(CONF_FILE_PATH);
     std::vector<std::string> translator_languages;
     GetTranslatorLanguages(ini_file, translator, &translator_languages);
-    std::string criterion = "translator='" + translator +"' AND language_code IN (";
+    std::string criterion("translator='" + translator +"' AND language_code IN (");
     int num_of_languages(0);
     const std::string group_by_criterion(category == VUFIND ? "token" : "ppn");
     bool is_first(true);
@@ -403,7 +403,7 @@ void SetupKeyWordSortLimitQuery(DbConnection &db_connection, std::string * const
     // The LIMIT parameter can only work with constants, but we want entries per page to be lines, i.e. german translations in our table
     // so we have to generate a dynamic limit using temporary tables
     if (use_untranslated_filter) {
-        const std::string translator=GetTranslatorOrEmptyString();
+        const std::string translator(GetTranslatorOrEmptyString());
         if (translator.empty())
             ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
 
@@ -422,11 +422,10 @@ void SetupKeyWordSortLimitQuery(DbConnection &db_connection, std::string * const
 
         *create_sort_limit = "CREATE TEMPORARY TABLE sort_limit AS (SELECT DISTINCT ppn FROM  untranslated_by_translator_ger_sorted "
                              "LIMIT " +  offset + ", " + std::to_string(ENTRIES_PER_PAGE) + ")";
-    } else {
+    } else
         *create_sort_limit = "CREATE TEMPORARY TABLE sort_limit AS (SELECT ppn FROM keywords_ger_sorted "
-                                        "WHERE language_code='ger' ORDER BY translation  LIMIT " + offset + ", "
-                                        + std::to_string(ENTRIES_PER_PAGE) +  ")";
-    }
+                             "WHERE language_code='ger' ORDER BY translation  LIMIT " + offset + ", "
+                             + std::to_string(ENTRIES_PER_PAGE) +  ")";
 }
 
 
