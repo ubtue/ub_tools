@@ -325,10 +325,10 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 {
     rows->clear();
 
-    const std::string searchpattern(lookfor.size() <=
+    const std::string search_pattern(lookfor.size() <=
                                     LOOKFOR_PREFIX_LIMIT ? "LIKE '" + lookfor + "%'" : "LIKE '%" + lookfor + "%'");
     const std::string token_where_clause(
-            lookfor.empty() ? "" : "WHERE token " + searchpattern);
+            lookfor.empty() ? "" : "WHERE token " + search_pattern);
     const std::string token_query("SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token");
     const std::string query("SELECT token, translation, language_code, translator FROM vufind_translations "
                             "WHERE token IN (SELECT * FROM (" + token_query
@@ -437,11 +437,11 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     rows->clear();
 
     // For short strings make a prefix search, otherwise search substring
-    const std::string searchpattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ?
+    const std::string search_pattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT ?
                                     "AND k.translation LIKE '" + lookfor + "%'" :
                                     "AND l.ppn IN (SELECT ppn from keyword_translations WHERE translation LIKE '%" + lookfor+ "%')");
 
-    const std::string search_clause(lookfor.empty() ? "" : searchpattern);
+    const std::string search_clause(lookfor.empty() ? "" : search_pattern);
     const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator FROM keyword_translations AS k"
                             " INNER JOIN keyword_translations AS l ON k.language_code='ger' AND k.status='reliable'"
                             " AND k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status != 'unreliable_synonym'" +
