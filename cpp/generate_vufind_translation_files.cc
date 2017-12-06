@@ -51,12 +51,16 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
         std::cerr << "Processing language code: " << _3letter_code << '\n';
 
     std::unordered_map<std::string, std::pair<unsigned, std::string>> token_to_line_no_and_other_map;
-    TranslationUtil::ReadIniFile(output_file_path, &token_to_line_no_and_other_map);
+    if (::access(output_file_path.c_str(), R_OK) != 0)
+        logger->warning("\"" + output_file_path + "\" is not readable, maybe it doesn't exist?");
+    else {
+        TranslationUtil::ReadIniFile(output_file_path, &token_to_line_no_and_other_map);
 
-    if (unlikely(not FileUtil::RenameFile(output_file_path, output_file_path + ".bak", /* remove_target = */true)))
-        logger->error("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"! ("
-                      + std::string(::strerror(errno)) + ")");
-
+        if (unlikely(not FileUtil::RenameFile(output_file_path, output_file_path + ".bak", /* remove_target = */true)))
+            logger->error("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"! ("
+                          + std::string(::strerror(errno)) + ")");
+    }
+    
     File output(output_file_path, "w");
     if (unlikely(output.fail()))
         logger->error("failed to open \"" + output_file_path + "\" for writing!");
