@@ -765,33 +765,14 @@ void XmlWriter::write(const Record &record) {
         else { // We have a data field.
             xml_writer_->openTag("datafield",
                                  { std::make_pair("tag", field.getTag().to_string()),
-                                  std::make_pair("ind1", std::string(1, field.getContents()[0])),
-                                  std::make_pair("ind2", std::string(1, field.getContents()[1]))
-                                });
+                                   std::make_pair("ind1", std::string(1, field.getIndicator1())),
+                                   std::make_pair("ind2", std::string(1, field.getIndicator2()))
+                                 });
 
-            std::string::const_iterator ch(field.getContents().cbegin() + 2 /* Skip over the indicators. */);
-
-            while (ch != field.getContents().cend()) {
-                if (*ch != '\x1F')
-                    std::runtime_error("in MARC::XmlWriter::write: expected subfield code delimiter not found! "
-                                       "Found " + std::string(1, *ch) + "! (Control number is "
-                                       + record.getControlNumber() + ".)");
-
-                ++ch;
-                if (ch == field.getContents().cend())
-                    std::runtime_error("in MARC::XmlWriter::write: unexpected subfield data end while expecting a "
-                                       "subfield code!");
-                const std::string subfield_code(1, *ch++);
-
-                std::string subfield_data;
-                while (ch != field.getContents().cend() and *ch != '\x1F')
-                    subfield_data += *ch++;
-                if (subfield_data.empty())
-                    continue;
-
-                xml_writer_->writeTagsWithData("subfield", { std::make_pair("code", subfield_code) },
-                                              subfield_data, /* suppress_newline = */ true);
-            }
+            const Subfields subfields(field.getSubfields());
+            for (const auto &subfield : subfields)
+                xml_writer_->writeTagsWithData("subfield", { std::make_pair("code", std::string(1, subfield.code_)) },
+                                               subfield.value_, /* suppress_newline = */ true);
 
             xml_writer_->closeTag(); // Close "datafield".
         }
