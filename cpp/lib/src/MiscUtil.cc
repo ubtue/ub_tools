@@ -28,10 +28,12 @@
 
 #include "MiscUtil.h"
 #include <map>
+#include <queue>
 #include <set>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
+#include <unordered_set>
 #include <cctype>
 #include <unistd.h>
 #include "Compiler.h"
@@ -932,6 +934,52 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
             logger->error("in MiscUtil::LogRotate:: failed to rename \"" + dirname + "/" + *filename + "\" to \""
                           + dirname + "/" + IncrementFile(basename, *filename) + "\"!");
     }
+}
+
+
+bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &edges, std::vector<unsigned> * const node_order) {
+    std::unordered_set<unsigned> nodes;
+    int max_node(-1);
+    for (const auto &edge : edges) {
+        nodes.emplace(edge.first);
+        if (static_cast<int>(edge.first) > max_node)
+            max_node = edge.first;
+        nodes.emplace(edge.second);
+        if (static_cast<int>(edge.second) > max_node)
+            max_node = edge.second;
+    }
+    if (max_node != static_cast<int>(nodes.size() - 1))
+        logger->error("in MiscUtil::TopologicalSort: we don't have the required 0..N-1 labelling of nodes!");
+
+    std::vector<std::vector<unsigned>> neighbours(nodes.size());
+    std::vector<unsigned> indegrees(nodes.size());
+    for (const auto &edge : edges) {
+        neighbours[edge.first].emplace_back(edge.second);
+        ++indegrees[edge.second];
+    }
+
+    // Enqueue all nodes with no incident edges:
+    std::queue<unsigned> queue;
+    for (unsigned node(0); node < nodes.size(); ++node) {
+        if (indegrees[node] == 0)
+            queue.push(node);
+    }
+
+    unsigned visited_node_count(0);
+    while (not queue.empty()) {
+        const unsigned current_node(queue.front());
+        node_order->emplace_back(current_node);
+        queue.pop();
+
+        for (auto neighbour : neighbours[current_node]) {
+            if (--indegrees[neighbour] == 0)
+                queue.push(neighbour);
+        }
+
+        ++visited_node_count;
+    }
+
+    return visited_node_count == nodes.size(); // If this is nor true we have at least one cycle!
 }
 
 
