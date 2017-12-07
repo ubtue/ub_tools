@@ -282,10 +282,9 @@ bool Record::isValid(std::string * const error_message) const {
                     return false;
                 }
                 ++ch; // Skip over the subfield code.
-                if (unlikely(ch == field.contents_.end() or *ch == '\x1F')) {
-                    *error_message = "subfield is empty! (tag: " + field.getTag().to_string() + ")";
-                    return false;
-                }
+                if (unlikely(ch == field.contents_.end() or *ch == '\x1F'))
+                    logger->warning("subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().to_string()
+                                    + ")");
 
                 // Skip over the subfield contents:
                 while (ch != field.contents_.end() and *ch != '\x1F')
