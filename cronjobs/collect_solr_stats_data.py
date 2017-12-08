@@ -23,7 +23,7 @@ def Main():
         sys.exit(-1)
 
     output_file = "/tmp/collect_solr_stats_data.csv"
-    os.unlink(output_file)
+    util.Remove(output_file)
     util.ExecOrDie("/usr/local/bin/collect_solr_stats_data", [ system_type, output_file ],
                    "/usr/local/var/log/tuefind/collect_solr_stats_data.log")
 
