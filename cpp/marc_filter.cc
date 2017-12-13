@@ -25,7 +25,6 @@
 #include <cstdlib>
 #include <cstring>
 #include "Compiler.h"
-#include "DirectoryEntry.h"
 #include "FileUtil.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
@@ -140,15 +139,15 @@ bool CompilePatterns(const std::vector<std::string> &patterns,
         if (first_colon_pos == std::string::npos) {
             *err_msg = "missing colon!";
             return false;
-        } else if (first_colon_pos == DirectoryEntry::TAG_LENGTH) {
+        } else if (first_colon_pos == MARC::Record::TAG_LENGTH) {
             tag = pattern.substr(0, 3);
             subfield_code = CompiledPattern::NO_SUBFIELD_CODE;
-        } else if (first_colon_pos == DirectoryEntry::TAG_LENGTH + 1) {
+        } else if (first_colon_pos == MARC::Record::TAG_LENGTH + 1) {
             tag = pattern.substr(0, 3);
             subfield_code = pattern[3];
         } else {
             *err_msg = "colon in wrong position (" + std::to_string(first_colon_pos) + ")! (Tag length must be "
-                       + std::to_string(DirectoryEntry::TAG_LENGTH) + ".)";
+                       + std::to_string(MARC::Record::TAG_LENGTH) + ".)";
             return false;
         }
 
@@ -487,8 +486,8 @@ std::string GetSubfieldCodes(const MARC::Tag &tag, const std::vector<std::string
     std::string subfield_codes;
 
     for (const auto &subfield_spec : subfield_specs) {
-        if (tag == subfield_spec.substr(0, DirectoryEntry::TAG_LENGTH))
-            subfield_codes += subfield_spec[DirectoryEntry::TAG_LENGTH];
+        if (tag == subfield_spec.substr(0, MARC::Record::TAG_LENGTH))
+            subfield_codes += subfield_spec[MARC::Record::TAG_LENGTH];
     }
 
     return subfield_codes;
@@ -715,7 +714,7 @@ bool ArePlausibleSubfieldSpecs(const std::vector<std::string> &subfield_specs) {
         return false;
 
     for (const auto &subfield_spec : subfield_specs) {
-        if (subfield_spec.length() != (DirectoryEntry::TAG_LENGTH + 1))
+        if (subfield_spec.length() != MARC::Record::TAG_LENGTH + 1)
             return false;
     }
 
