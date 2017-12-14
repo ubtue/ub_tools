@@ -171,6 +171,14 @@ public:
         return extracted_values;
     }
 
+    /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
+    inline std::string getFirstSubfieldWithCode(const char subfield_code) const {
+        const auto iter(std::find_if(subfields_.cbegin(), subfields_.cend(),
+                                     [subfield_code](const Subfield subfield) -> bool
+                                         { return subfield.code_ == subfield_code; }));
+        return (iter == subfields_.cend()) ? "" : iter->value_;
+    }
+
     /** \brief Extracts all values from subfields with a matching subfield code.
      *  \return The values of the subfields with matching codes.
      */
