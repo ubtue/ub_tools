@@ -28,7 +28,7 @@ def Main():
                    "/usr/local/var/log/tuefind/collect_solr_stats_data.log")
 
     # Mail CSV file to Ingo for further processing:
-    util.SendEmail(system_type + "Solr Stats", "CSV-Datei im Anhang.\n", recipient="johannes.ruscheinski@uni-tuebingen.de",
+    util.SendEmail(system_type + " Solr Stats", "CSV-Datei im Anhang.\n", recipient="ingo.rohlfs@uni-tuebingen.de",
                    attachments=output_file)
 
     util.SendEmail("Solr Stats Collector", "Successfully generated and emailed Solr statistics.", priority=5)
