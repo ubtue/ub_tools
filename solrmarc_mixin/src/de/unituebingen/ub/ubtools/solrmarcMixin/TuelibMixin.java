@@ -2436,10 +2436,9 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         for (final VariableField variableField : record.getVariableFields("936")) {
             final DataField dataField = (DataField) variableField;
-            final Subfield subfield2 = dataField.getSubfield('2');
-            if (subfield2 == null || !subfield2.getData().equals("rvk"))
-                continue;
-            result.add(dataField.getSubfield('a').getData());
+            final Subfield subfield_a = dataField.getSubfield('a');
+            if (subfield_a != null)
+                result.add(subfield_a.getData());
         }
 
         return result;
