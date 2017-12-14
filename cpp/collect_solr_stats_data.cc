@@ -77,20 +77,20 @@ void CollectKrimDokSpecificStats(File * const output) {
 
 void EmitNotationStats(const char notation_group, const std::string &system_type, const std::string &label, File * const output) {
     const std::string EXTRA(system_type == "relbib" ? "&fq=is_religious_studies:1" : "");
-    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "*+AND+publishDate:[1975+TO+2000]" + EXTRA,
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[1975 TO 2000]" + EXTRA,
                              system_type, "IxTheo Notationen", label + "(Alle Medienarten, 1975-2000)", output);
-    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "*+AND+publishDate:[2001+TO+*]" + EXTRA,
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[2001 TO *]" + EXTRA,
                              system_type, "IxTheo Notationen", label + "(Alle Medienarten, 2001-heute)", output);
     IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group)
-                             + "*+AND+publishDate:[1975+TO+2000]+AND+format:Book" + EXTRA, system_type, "IxTheo Notationen",
+                             + "* AND publishDate:[1975 TO 2000] AND format:Book" + EXTRA, system_type, "IxTheo Notationen",
                              label + "(Bücher, 1975-2000)", output);
-    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "*+AND+publishDate:[2001+TO+*]+AND+format:Book"
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[2001 TO *] AND format:Book"
                              + EXTRA, system_type, "IxTheo Notationen", label + "(Bücher, 2001-heute)", output);
     IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group)
-                             + "*+AND+publishDate:[1975+TO+2000]+AND+format:Article" + EXTRA, system_type, "IxTheo Notationen",
+                             + "* AND publishDate:[1975 TO 2000] AND format:Article" + EXTRA, system_type, "IxTheo Notationen",
                              label + "(Bücher, 1975-2000)", output);
     IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group)
-                             + "*+AND+publishDate:[2001+TO+*]+AND+format:Article" + EXTRA, system_type, "IxTheo Notationen",
+                             + "* AND publishDate:[2001 TO *] AND format:Article" + EXTRA, system_type, "IxTheo Notationen",
                              label + "(Aufsätze, 2001-heute)", output);
 }
 
