@@ -65,8 +65,11 @@ void ProcessRecords(MARC::Reader * const marc_reader) {
         ++total_count;
 
         if (IsPersonRecord(record)) {
-            std::cout << GetGNDCode(record) << '\n';
-            ++people_gnd_count;
+            const std::string gnd_code_candidate(GetGNDCode(record));
+            if (not gnd_code_candidate.empty()) {
+                std::cout << gnd_code_candidate << '\n';
+                ++people_gnd_count;
+            }
         }
     }
 
