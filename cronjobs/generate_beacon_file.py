@@ -69,7 +69,6 @@ def Main():
 
     # Cleanup of temp files:
     os.unlink(gnd_numbers_path)
-    os.unlink(_035a_contents_filename)
     os.unlink(timestamp_filename)
     os.unlink(gnd_counts_filename)
 
