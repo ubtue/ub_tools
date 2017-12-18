@@ -2,7 +2,11 @@ FROM ubuntu:latest
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # Install apache, PHP, and supplimentary programs. openssh-server, curl, and lynx-cur are for debugging the container.
-RUN apt-get update && apt-get -y upgrade && DEBIAN_FRONTEND=noninteractive apt-get -y install apache2 php7.0 php7.0-mysql libapache2-mod-php7.0 curl git lynx-cur
+RUN apt-get update && apt-get -y upgrade && DEBIAN_FRONTEND=noninteractive apt-get -y install apache2 php7.0 php7.0-mysql libapache2-mod-php7.0 curl git lynx-cur locales
+
+# Enable the iVia standard locale:
+RUN locale-gen en_US.utf8
+RUN update-locale
 
 # Enable apache mods
 RUN a2enmod php7.0

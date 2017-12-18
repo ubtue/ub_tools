@@ -146,6 +146,14 @@ inline unsigned HammingWeight(unsigned long long mask) { return static_cast<unsi
 void LogRotate(const std::string &log_file_prefix, const unsigned max_count = 0);
 
 
+/** \brief  Performs a topological sort.
+ *  \param  The sorted list of nodes will be stored here if the sort succeeded.
+ *  \return True if no cycle exists in the input graph and false o/w.
+ *  \note   Nodes must belabelled 0 to N-1 (in any order) where N is the number of nodes.
+ */
+bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &vertices, std::vector<unsigned> * const node_order);
+
+
 } // namespace MiscUtil
 
 

@@ -104,7 +104,7 @@ struct Subfield {
     std::string value_;
 public:
     Subfield(const char code, const std::string &value): code_(code), value_(value) { }
-    
+
     inline std::string toString() const {
         std::string as_string;
         as_string += '\x1F';
@@ -119,7 +119,10 @@ class Subfields {
     std::vector<Subfield> subfields_;
 public:
     typedef std::vector<Subfield>::const_iterator const_iterator;
+    typedef std::vector<Subfield>::iterator iterator;
 public:
+    inline Subfields(std::vector<Subfield> &&subfields): subfields_(subfields) { }
+    Subfields(const Subfields &other) = default;
     inline explicit Subfields(const std::string &field_contents) {
         if (unlikely(field_contents.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
             return;
@@ -140,9 +143,12 @@ public:
 
         subfields_.emplace_back(subfield_code, value);
     }
+    Subfields(Subfields &&other) = default;
 
     inline const_iterator begin() const { return subfields_.cbegin(); }
     inline const_iterator end() const { return subfields_.cend(); }
+    inline iterator begin() { return subfields_.begin(); }
+    inline iterator end() { return subfields_.end(); }
     unsigned size() const { return subfields_.size(); }
 
     inline bool hasSubfield(const char subfield_code) const {
@@ -152,6 +158,52 @@ public:
     }
 
     void addSubfield(const char subfield_code, const std::string &subfield_value);
+
+    /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
+     *  \return The values of the subfields with matching codes.
+     */
+    inline std::vector<std::string> extractSubfields(const std::string &subfield_codes) const {
+        std::vector<std::string> extracted_values;
+        for (const auto &subfield : subfields_) {
+            if (subfield_codes.find(subfield.code_) != std::string::npos)
+                extracted_values.emplace_back(subfield.value_);
+        }
+        return extracted_values;
+    }
+
+    /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
+    inline std::string getFirstSubfieldWithCode(const char subfield_code) const {
+        const auto iter(std::find_if(subfields_.cbegin(), subfields_.cend(),
+                                     [subfield_code](const Subfield subfield) -> bool
+                                         { return subfield.code_ == subfield_code; }));
+        return (iter == subfields_.cend()) ? "" : iter->value_;
+    }
+
+    /** \brief Extracts all values from subfields with a matching subfield code.
+     *  \return The values of the subfields with matching codes.
+     */
+    inline std::vector<std::string> extractSubfields(const char subfield_code) const {
+        std::vector<std::string> extracted_values;
+        for (const auto &subfield : subfields_) {
+            if (subfield_code == subfield.code_)
+                extracted_values.emplace_back(subfield.value_);
+        }
+        return extracted_values;
+    }
+
+    inline void deleteFirstSubfieldWithCode(const char subfield_code) {
+        auto location(std::find_if(subfields_.begin(), subfields_.end(),
+                                   [subfield_code](const Subfield subfield) -> bool
+                                       { return subfield.code_ == subfield_code; }));
+        if (location != subfields_.end())
+            subfields_.erase(location);
+    }
+
+    inline void deleteAllSubfieldsWithCode(const char subfield_code) {
+        std::remove_if(subfields_.begin(), subfields_.end(),
+                       [subfield_code](const Subfield subfield) -> bool
+                       { return subfield.code_ == subfield_code; });
+    }
 
     inline std::string toString() const {
         std::string as_string;
@@ -168,16 +220,52 @@ public:
         friend class Record;
         Tag tag_;
         std::string contents_;
+    private:
     public:
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         Field(const Tag &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         inline const Tag &getTag() const { return tag_; }
         inline const std::string &getContents() const { return contents_; }
         inline std::string getContents() { return contents_; }
+        inline void setContents(const std::string &new_field_contents) { contents_ = new_field_contents; }
         inline bool isControlField() const __attribute__ ((pure)) { return tag_ <= "009"; }
         inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
+        inline Subfields getSubfields() const { return Subfields(contents_); }
+
+        /** \note Do *not* call this on control fields! */
+        void deleteAllSubfieldsWithCode(const char subfield_code);
+    };
+
+    enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
+    typedef std::vector<Field>::iterator iterator;
+    typedef std::vector<Field>::const_iterator const_iterator;
+
+    /** \brief Represents a range of fields.
+     *  \note  Returning this from a Record member function allows for a for-each loop.
+     */
+    class ConstantRange {
+        const_iterator begin_;
+        const_iterator end_;
+    public:
+        inline ConstantRange(const_iterator begin, const_iterator end): begin_(begin), end_(end) { }
+        inline const_iterator begin() const { return begin_; }
+        inline const_iterator end() const { return end_; }
+        inline bool empty() const { return begin_ == end_; }
+    };
+
+    /** \brief Represents a range of fields.
+     *  \note  Returning this from a Record member function allows for a for-each loop.
+     */
+    class Range {
+        iterator begin_;
+        iterator end_;
+    public:
+        inline Range(iterator begin, iterator end): begin_(begin), end_(end) { }
+        inline iterator begin() const { return begin_; }
+        inline iterator end() const { return end_; }
+        inline bool empty() const { return begin_ == end_; }
     };
 private:
     friend class BinaryReader;
@@ -188,14 +276,12 @@ private:
     std::string leader_;
     std::vector<Field> fields_;
 public:
-    static constexpr unsigned MAX_RECORD_LENGTH          = 99999;
-    static constexpr unsigned DIRECTORY_ENTRY_LENGTH     = 12;
-    static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH = 5;
-    static constexpr unsigned LEADER_LENGTH              = 24;
-
-    enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
-    typedef std::vector<Field>::iterator iterator;
-    typedef std::vector<Field>::const_iterator const_iterator;
+    static constexpr unsigned MAX_RECORD_LENGTH                        = 99999;
+    static constexpr unsigned MAX_VARIABLE_FIELD_DATA_LENGTH           = 9998; // Max length without trailing terminator
+    static constexpr unsigned DIRECTORY_ENTRY_LENGTH                   = 12;
+    static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH               = 5;
+    static constexpr unsigned TAG_LENGTH                               = 3;
+    static constexpr unsigned LEADER_LENGTH                            = 24;
 private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
@@ -228,10 +314,13 @@ public:
         return __builtin_strchr("acdefgijkmoprt", leader_[6]) == nullptr ? UNKNOWN : BIBLIOGRAPHIC;
     }
 
-    inline const std::string &getFieldData(const size_t field_index) const
-        { return fields_[field_index].getContents(); }
+    char getBibliographicLevel() const { return leader_[7]; }
+    void setBibliographicLevel(const char new_bibliographic_level) { leader_[7] = new_bibliographic_level; }
 
     void insertField(const Tag &new_field_tag, const std::string &new_field_value);
+
+    inline Field getField(const size_t field_index) { return fields_[field_index]; }
+    inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
 
     inline void insertField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
@@ -239,7 +328,19 @@ public:
         std::string new_field_value;
         new_field_value += indicator1;
         new_field_value += indicator2;
-        new_field_value += subfields.toString();
+        for (const auto &subfield : subfields)
+            new_field_value += subfield.toString();
+        insertField(new_field_tag, new_field_value);
+    }
+
+    inline void insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
+                            const char indicator2 = ' ')
+    {
+        std::string new_field_value;
+        new_field_value += indicator1;
+        new_field_value += indicator2;
+        for (const auto &subfield : subfields)
+            new_field_value += subfield.toString();
         insertField(new_field_tag, new_field_value);
     }
 
@@ -252,6 +353,49 @@ public:
     inline iterator end() { return fields_.end(); }
     inline const_iterator begin() const { return fields_.cbegin(); }
     inline const_iterator end() const { return fields_.cend(); }
+
+    /** \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag".
+     *  \remark {
+     *     Typical usage of this function looks like this:<br />
+     *     \code{.cpp}
+     *         for (auto &field : record.getTagRange("022")) {
+     *             field.doSomething();
+     *             ...
+     *         }
+     *
+     *     \endcode
+     *  }
+     */
+    ConstantRange getTagRange(const Tag &tag) const;
+
+    /** \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag".
+     *  \remark {
+     *     Typical usage of this function looks like this:<br />
+     *     \code{.cpp}
+     *         for (auto &field : record.getTagRange("022")) {
+     *             field.doSomething();
+     *             ...
+     *         }
+     *
+     *     \endcode
+     *  }
+     */
+    Range getTagRange(const Tag &tag);
+
+    /** \return True if field with tag "tag" exists. */
+    inline bool hasTag(const Tag &tag) const {
+        return std::find_if(fields_.begin(), fields_.end(),
+                            [&tag](const Field &field) -> bool { return field.getTag() == tag; }) != fields_.end();
+    }
+
+    /** \return True if field with tag "tag" and indicators "indicator1" and "indicator2" exists. */
+    bool hasTagWithIndicators(const Tag &tag, const char indicator1, const char indicator2) const;
+
+    /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
+    std::vector<std::string> getSubfieldValues(const Tag &tag, const char subfield_code) const;
+
+    /** \return Values for all fields with tag "tag" and subfield code "subfield_code". */
+    std::vector<std::string> getSubfieldValues(const Tag &tag, const std::string &subfield_codes) const;
 
     /** \brief Finds local ("LOK") block boundaries.
      *  \param local_block_boundaries  Each entry contains the iterator pointing to the first field of a local block
@@ -274,6 +418,9 @@ public:
     size_t findFieldsInLocalBlock(const Tag &field_tag, const std::string &indicators,
                                   const std::pair<const_iterator, const_iterator> &block_start_and_end,
                                   std::vector<const_iterator> * const fields) const;
+
+    void deleteFields(std::vector<size_t> field_indices);
+    bool isValid(std::string * const error_message) const;
 };
 
 
@@ -391,6 +538,9 @@ public:
     /** \return a reference to the underlying, assocaiated file. */
     virtual File &getFile() final { return *xml_writer_->getAssociatedOutputFile(); }
 };
+
+
+void FileLockedComposeAndWriteRecord(Writer * const marc_writer, Record * const record);
 
 
 } // namespace MARC

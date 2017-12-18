@@ -31,7 +31,9 @@ CREATE TABLE translators (
   translator VARCHAR(30) NOT NULL,
   translation_target VARCHAR(20) NOT NULL,
   lookfor VARCHAR(100),
+  filtered_lookfor VARCHAR(100),
   offset VARCHAR(10),
+  filtered_offset VARCHAR(10),
   PRIMARY KEY (translator, translation_target)
 ) DEFAULT CHARSET=utf8mb4;
 

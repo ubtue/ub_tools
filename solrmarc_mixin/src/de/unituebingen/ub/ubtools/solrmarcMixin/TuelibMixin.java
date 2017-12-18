@@ -765,10 +765,17 @@ public class TuelibMixin extends SolrIndexerMixin {
                                   + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
-                return year + "-" + month + "-01T11:00:00.000Z";
+                return year + "-" + month + "-" + getCurrentDayOfMonth() + "T11:00:00.000Z";
             }
         }
         return null;
+    }
+
+    /*
+     * Get day of current month
+     */
+    String getCurrentDayOfMonth() {
+        return String.valueOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
     }
 
     /*
@@ -830,7 +837,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                 String line;
 
                 while ((line = in.readLine()) != null) {
-                    String[] translations = line.split("\\|");
+                    // We now also have synonyms in the translation files
+                    // These are not relevant in this context and are thus discarded
+                    line = line.replaceAll(Pattern.quote("||") + ".*", "");
+                    final String[] translations = line.split("\\|");
                     if (!translations[0].isEmpty() && !translations[1].isEmpty())
                         translation_map.put(translations[0], translations[1]);
                 }
@@ -2402,9 +2412,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return "non-open-access";
     }
 
-
     // Try to get a numerically sortable representation of an issue
-
     public String getIssueSort(final Record record) {
         for (final VariableField variableField : record.getVariableFields("936")) {
             final DataField dataField = (DataField) variableField;
@@ -2421,5 +2429,18 @@ public class TuelibMixin extends SolrIndexerMixin {
                 return issueString.split("/")[0];
         }
         return "0";
+    }
+
+    public Set<String> getRVKs(final Record record) {
+        final Set<String> result = new TreeSet<String>();
+
+        for (final VariableField variableField : record.getVariableFields("936")) {
+            final DataField dataField = (DataField) variableField;
+            final Subfield subfield_a = dataField.getSubfield('a');
+            if (subfield_a != null)
+                result.add(subfield_a.getData());
+        }
+
+        return result;
     }
 }

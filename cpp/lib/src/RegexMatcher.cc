@@ -151,7 +151,7 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
 }
 
 
-std::string RegexMatcher::operator[](const unsigned group) const throw(std::out_of_range) {
+std::string RegexMatcher::operator[](const unsigned group) const {
     if (unlikely(group >= last_match_count_))
         throw std::out_of_range("in RegexMatcher::operator[]: group(" + std::to_string(group) + ") >= "
                                 + std::to_string(last_match_count_) + "!");
