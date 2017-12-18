@@ -58,7 +58,7 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
 
 
 void CollectGeneralStats(const std::string &system_type, File * const output) {
-    const std::string EXTRA(system_type == "relbib" ? "&fq=is_religious_studies:1" : "");
+    const std::string EXTRA(system_type == "relbib" ? "&fq=is_probably_religious_studies:1" : "");
     IssueQueryAndWriteOutput("*:*" + EXTRA, system_type, "Gesamt", "Gesamttreffer", output);
     IssueQueryAndWriteOutput("format:Book" + EXTRA, system_type, "Format", "Buch", output);
     IssueQueryAndWriteOutput("format:Article" + EXTRA, system_type, "Format", "Artikel", output);
@@ -76,7 +76,7 @@ void CollectKrimDokSpecificStats(File * const output) {
 
 
 void EmitNotationStats(const char notation_group, const std::string &system_type, const std::string &label, File * const output) {
-    const std::string EXTRA(system_type == "relbib" ? "&fq=is_religious_studies:1" : "");
+    const std::string EXTRA(system_type == "relbib" ? "&fq=is_probably_religious_studies:1" : "");
     IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[1975 TO 2000]" + EXTRA,
                              system_type, "IxTheo Notationen", label + "(Alle Medienarten, 1975-2000)", output);
     IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[2001 TO *]" + EXTRA,
@@ -96,7 +96,7 @@ void EmitNotationStats(const char notation_group, const std::string &system_type
 
 
 void CollectIxTheoOrRelBibSpecificStats(const std::string &system_type, File * const output) {
-    const std::string EXTRA(system_type == "relbib" ? "&fq=is_religious_studies:1" : "");
+    const std::string EXTRA(system_type == "relbib" ? "&fq=is_probably_religious_studies:1" : "");
     IssueQueryAndWriteOutput("dewey-raw:*" + EXTRA, system_type, "DDC", "Anzahl der Datensätze", output);
     IssueQueryAndWriteOutput("rvk:*" + EXTRA, system_type, "RVK", "Anzahl der Datensätze", output);
 
