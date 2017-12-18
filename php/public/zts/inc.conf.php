@@ -23,7 +23,7 @@ $env_url = getenv($env_key);
 if ($env_url != '') {
     define($env_key, $env_url);
 } else {
-    define($env_key, 'http://mb028.ub.uni-tuebingen.de:1969/web');
+    define($env_key, 'http://ub28.uni-tuebingen.de:1969/web');
 }
 
 // Create own tempdir if not exists
