@@ -59,6 +59,7 @@ const std::vector<std::string> GND_REFERENCE_FIELDS{ "100", "600", "689", "700" 
 void ProcessRecords(MarcReader * const marc_reader, const std::unordered_set<std::string> &filter_set,
                     std::unordered_map<std::string, unsigned> * const gnd_numbers_and_counts)
 {
+    unsigned matched_count(0);
     while (const MarcRecord record = marc_reader->read()) {
         if (not filter_set.empty()) {
             if (filter_set.find(record.getControlNumber()) == filter_set.cend())
@@ -76,12 +77,18 @@ void ProcessRecords(MarcReader * const marc_reader, const std::unordered_set<std
                 if (not StringUtil::StartsWith(subfield0->value_, "(DE-588)"))
                     continue;
 
-                const auto gnd_number_and_count(gnd_numbers_and_counts->find(subfield0->value_));
-                if (gnd_number_and_count != gnd_numbers_and_counts->end())
+                const auto gnd_number_and_count(
+                    gnd_numbers_and_counts->find(subfield0->value_.substr(__builtin_strlen("(DE-588)"))));
+                if (gnd_number_and_count != gnd_numbers_and_counts->end()) {
                     ++gnd_number_and_count->second;
+                    ++matched_count;
+                }
             }
         }
     }
+
+    std::cerr << "Found " << matched_count << " reference(s) to " << gnd_numbers_and_counts->size()
+              << " matching GND number(s).\n";
 }
 
 

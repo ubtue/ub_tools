@@ -52,7 +52,7 @@ public:
 } // unnamed namespace
 
 
-HttpHeader::HttpHeader(const std::string &header) throw(std::exception) {
+HttpHeader::HttpHeader(const std::string &header) {
     // Assume the header is not valid until we discover otherwise:
     is_valid_ = false;
 

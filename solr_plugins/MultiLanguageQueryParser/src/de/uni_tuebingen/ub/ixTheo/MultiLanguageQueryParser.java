@@ -88,13 +88,13 @@ public class MultiLanguageQueryParser extends QParser {
                 String newFieldName = strippedParam + "_" + lang;
                 if (schema.getFieldOrNull(newFieldName) != null) {
                     newParams.remove("facet.field", param);
-                    if (useDismax)
-                        newParams.add("facet.field", fieldLocalParams + newFieldName);
-                    else {
-                        String newLocalParams = fieldLocalParams.equals("") ?  "{!key=" + strippedParam + "}" :
-                                                fieldLocalParams.replace("}", " key=" + strippedParam + "}");
-                        newParams.add("facet.field", newLocalParams + newFieldName);
+                    String newLocalParams = "";
+                    // Skip renaming the returned field names if we have prefix sorting for facets
+                    if (!newParams.get("facet.sort").equals("prefix")) {
+                        newLocalParams = fieldLocalParams.equals("") ?  "{!key=" + strippedParam + "}" :
+                                            fieldLocalParams.replace("}", " key=" + strippedParam + "}");
                     }
+                    newParams.add("facet.field", newLocalParams + newFieldName);
                 }
             }
             this.newRequest.setParams(newParams);
@@ -205,8 +205,11 @@ public class MultiLanguageQueryParser extends QParser {
                  currentClause = processTermQuery((TermQuery)currentClause);
              else if (currentClause instanceof BooleanQuery)
                  currentClause = processBooleanQuery((BooleanQuery)currentClause);
+             else if (currentClause instanceof PhraseQuery)
+                 currentClause = processPhraseQuery((PhraseQuery)currentClause);
              else
-                 throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause type in DisjunctionMaxQuery");
+                 throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown currentClause type in DisjunctionMaxQuery: " +
+                                         currentClause.getClass().getName());
 
              queryList.add(currentClause);
         }
@@ -219,17 +222,17 @@ public class MultiLanguageQueryParser extends QParser {
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else if (subquery instanceof BooleanQuery) {
+        } else if (subquery instanceof BooleanQuery) {
             subquery = processBooleanQuery((BooleanQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
 
-        }
-        else if (subquery instanceof PrefixQuery) {
+        } else if (subquery instanceof PrefixQuery) {
             subquery = processPrefixQuery((PrefixQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-        }
-        else
+        } else if (subquery instanceof PhraseQuery) {
+            subquery = processPhraseQuery((PhraseQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
+        } else
 	    throw new SolrException(ErrorCode.SERVER_ERROR, "Boost Query: Unable to handle " +  subquery.getClass().getName());
     }
 

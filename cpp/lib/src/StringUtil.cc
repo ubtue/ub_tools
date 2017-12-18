@@ -47,6 +47,7 @@
 #include <sstream>
 #include <unistd.h>
 #include "Compiler.h"
+#include "TextUtil.h"
 
 
 #ifdef DIM
@@ -58,20 +59,25 @@
 namespace {
 
 
-__attribute__((constructor)) bool InitializeLocale() {
-    // Try to force the use of the iVia standard locale:
-    if (std::setlocale(LC_CTYPE, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr) {
+bool InitializeLocale() {
+    // Try to force the use of the iVia standard or fallback locale:
+    if (std::setlocale(LC_CTYPE, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr
+        and std::setlocale(LC_CTYPE, StringUtil::IVIA_FALLBACK_LOCALE.c_str()) == nullptr)
+    {
         const std::string error_message("in InitializeLocale: setlocale(3) failed: "
-                                        + StringUtil::IVIA_STANDARD_LOCALE + "\n");
+                                        + StringUtil::IVIA_STANDARD_LOCALE + "/" + StringUtil::IVIA_FALLBACK_LOCALE + "\n");
         const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
         (void)dummy;
         ::_exit(EXIT_FAILURE);
     }
 
-    // Try to force the use of the iVia standard locale:
-    if (std::setlocale(LC_MONETARY, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr) {
+    // Try to force the use of the iVia standard or fallback locale:
+    if (std::setlocale(LC_MONETARY, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr
+        and std::setlocale(LC_MONETARY, StringUtil::IVIA_FALLBACK_LOCALE.c_str()) == nullptr)
+    {
         const std::string error_message("In InitializeLocale: setlocale(3) failed for LC_MONETARY.  Cannot "
-                                        "honour the '" + StringUtil::IVIA_STANDARD_LOCALE + "' locale!\n");
+                                        "honour the '" + StringUtil::IVIA_STANDARD_LOCALE + "/"
+                                        + StringUtil::IVIA_FALLBACK_LOCALE + "' locale!\n");
         const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
         (void)dummy;
         ::_exit(EXIT_FAILURE);
@@ -80,6 +86,9 @@ __attribute__((constructor)) bool InitializeLocale() {
     return true;
 }
 
+
+bool dummy(InitializeLocale());
+    
 
 char ToHexChar(const unsigned u) {
     switch (u) {
@@ -1127,69 +1136,6 @@ std::string &Collapse(std::string * const s, char scan_ch) {
 }
 
 
-// CollapseWhitespace -- Collapses multiple occurrences of whitespace into a single space
-//
-std::string &CollapseWhitespace(std::string * const s) {
-    std::string result;
-    result.reserve(s->size());
-
-    bool last_char_was_not_space(true);
-    for (std::string::const_iterator ch(s->begin()); ch != s->end(); ++ch) {
-        if (IsSpace(*ch)) {
-            // Add whitespace as a space, but only if
-            // the last char wasn't also a space.
-            if (last_char_was_not_space) {
-                result += ' ';
-                last_char_was_not_space = false;
-            }
-        }
-        else {
-            // Add any non-whitespace character unconditionally
-            result += *ch;
-            last_char_was_not_space = true;
-        }
-    }
-
-    return *s = result;
-}
-
-
-// CollapseAndTrimWhitespace -- Collapses multiple occurrences of whitespace into a single space and removes leading
-// and trailing whitespace.
-std::string &CollapseAndTrimWhitespace(std::string * const s) {
-    std::string result;
-    result.reserve(s->size());
-
-    std::string::iterator ch(s->begin());
-
-    // Skip over leading whitespace, if any:
-    while (ch != s->end() and IsSpace(*ch))
-        ++ch;
-
-    bool last_char_was_not_space(true);
-    for (/* Empty. */; ch != s->end(); ++ch) {
-        if (IsSpace(*ch)) {
-            // Add whitespace as a space, but only if
-            // the last char wasn't also a space.
-            if (last_char_was_not_space) {
-                result += ' ';
-                last_char_was_not_space = false;
-            }
-        } else {
-            // Add any non-whitespace character unconditionally
-            result += *ch;
-            last_char_was_not_space = true;
-        }
-    }
-
-    // Trim a trailing whitespace, if necessary:
-    if (not last_char_was_not_space)
-        result.resize(result.size() - 1);
-
-    return *s = result;
-}
-
-
 // Match -- regular expression pattern match.  '?' represents exactly one arbitrary character
 //          while '*' represents an arbitrary sequence of characters including the null sequence.
 //          Backslash '\' is the `escape' character and removes the special meaning of any following
@@ -1217,7 +1163,7 @@ std::string &CollapseAndTrimWhitespace(std::string * const s) {
 //                              "*"              matches everything
 //                              "?A"             matches any single character followed by 'A'
 //
-bool Match(const char *pattern, const char *s, bool ignore_case) throw(std::exception) {
+bool Match(const char *pattern, const char *s, bool ignore_case) {
     const int MAX_ASTERISKS = 100;
     const char *back[MAX_ASTERISKS][2];
     int asterisk_index = 0;
@@ -1312,13 +1258,15 @@ bool Match(const char *pattern, const char *s, bool ignore_case) throw(std::exce
         }
         case '\\': // take next character literally!
             ++pattern;
+            #if __GNUC__ >= 7
+            [[fallthrough]];
+            #endif
         default: {
             int c1, c2;
             if (ignore_case) {
                 c1 = tolower(*s);
                 c2 = tolower(*pattern);
-            }
-            else { // case sensitive match
+            } else { // case sensitive match
                 c1 = *s;
                 c2 = *pattern;
             }
@@ -2574,12 +2522,11 @@ std::string::size_type NthWordByteOffset(const std::string &target, const size_t
 }
 
 
-std::string Context(const std::string &text, const std::string::size_type offset, const std::string::size_type length)
-{
-    std::string::size_type start = std::max<int>(offset - (length / 2), 0);
-    std::string::size_type end = std::min<int>(offset + (length / 2), text.size());
+std::string Context(const std::string &text, const std::string::size_type offset, const std::string::size_type length) {
+    const std::string::size_type start(std::max<int>(offset - (length / 2), 0));
+    const std::string::size_type end(std::min<int>(offset + (length / 2), text.size()));
     std::string temp(text.substr(start, end - start));
-    return CollapseWhitespace(&temp);
+    return TextUtil::CollapseWhitespace(&temp);
 }
 
 

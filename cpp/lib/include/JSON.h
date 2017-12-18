@@ -2,7 +2,7 @@
  *  \brief  Interface for JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -212,14 +212,26 @@ std::string TokenTypeToString(const TokenType token);
  *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
  *                        supported.
  *  \param tree           The root of a JSON tree structure.
- *  \param default_value  If not NULL, a value which will be returned if "path" does not reference a scalar value.
  *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
- *  \throws std::runtime_error if the datum is not found and "default_value" is NULL
+ *  \throws std::runtime_error if the datum is not found.
+ *  \note Should "path" reference a scalar node that is not a string, a string representation. thereof will be
+ *        returned.
+ */
+std::string LookupString(const std::string &path, const JSONNode * const tree);
+
+
+/** \brief Extracts a string datum from a JSON tree structure.
+ *  \param path           A path of the form /X/Y/X...  Individual path components may contain slashes if they are
+ *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
+ *                        supported.
+ *  \param tree           The root of a JSON tree structure.
+ *  \param default_value  If "path" can't be found, return this.
+ *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
  *  \note Should "path" reference a scalar node that is not a string, a string representation. thereof will be
  *        returned.
  */
 std::string LookupString(const std::string &path, const JSONNode * const tree,
-                         const std::string * const default_value = nullptr);
+                         const std::string &default_value);
 
 
 /** \brief Extracts an integer datum from a JSON tree structure.
@@ -227,12 +239,22 @@ std::string LookupString(const std::string &path, const JSONNode * const tree,
  *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
  *                        supported.
  *  \param tree           The root of a JSON tree structure.
- *  \param default_value  If not NULL, a value which will be returned if "path" does not reference a scalar value.
+ *  \param default_value  If "path" can't be found, return this.
  *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
- *  \throws std::runtime_error if the datum is not found and "default_value" is NULL
+ *  \throws std::runtime_error if path refers to an existing non-integer node.
  */
-int64_t LookupInteger(const std::string &path, const JSONNode * const tree,
-                      const int64_t * const default_value = nullptr);
+int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t default_value);
+
+
+/** \brief Extracts an integer datum from a JSON tree structure.
+ *  \param path           A path of the form /X/Y/X...  Individual path components may contain slashes if they are
+ *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
+ *                        supported.
+ *  \param tree           The root of a JSON tree structure.
+ *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
+ *  \throws std::runtime_error if "path" refers to an existing non-integer node or the node "path" refers to does not exist.
+ */
+int64_t LookupInteger(const std::string &path, const JSONNode * const tree);
 
 
 } // namespace JSON

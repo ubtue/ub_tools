@@ -83,15 +83,10 @@ const std::set<char> &GetWhiteSpaceSet();
 namespace StringUtil {
 
 
-#if defined(__linux__)
-const std::string IVIA_STANDARD_LOCALE("en_US.UTF-8");
-#elif defined(__APPLE__)
-const std::string IVIA_STANDARD_LOCALE("en_US.UTF-8");
-#else
-#      error Your OS is not supported!
-#endif
+const std::string IVIA_STANDARD_LOCALE("en_US.utf8");
+const std::string IVIA_FALLBACK_LOCALE("en_US.UTF-8");
 const std::string EmptyString;
-const std::string WHITE_SPACE(" \t\n\v\r\f\xA0");
+const std::string WHITE_SPACE(" \t\n\v\r\f");
 
 
 /** \brief  Convert a string to lowercase (modifies its argument). */
@@ -149,18 +144,16 @@ bool IsInitialCapsString(const std::string &s);
 
 
 /** \brief  Returns true if "ch" is a whitespace character.
- *  \note   Whether a character is considered to be a whitespace character is determined by isspace() and comparison against '\xA0' which is typically the
- *          encoding for a hard space and strangly not included in isspace() for Latin-1 or Latin-9 or even the default C locale.
+ *  \note   Whether a character is considered to be a whitespace character is determined by isspace()
  */
 inline bool IsWhitespace(const char ch)
 {
-        return isspace(ch) or ch == '\xA0' /* hard space */;
+        return isspace(ch);
 }
 
 
 /** \brief  Returns true if every character in "s" is a whitespace character.
- *  \note   Whether a character is considered to be a whitespace character is determined by isspace() and comparison against '\xA0' which is typically the
- *          encoding for a hard space and strangly not included in isspace() for Latin-1 or Latin-9 or even the default C locale.
+ *  \note   Whether a character is considered to be a whitespace character is determined by isspace()
  */
 bool IsWhitespace(const std::string &s);
 
@@ -1608,10 +1601,9 @@ std::string &Map(std::string * const s, const char old_char, const char new_char
  *  \param  new_char  The replacement character.
  *  \return A copy of the modified string.
  */
-inline std::string Map(const std::string &s, const char old_char, const char new_char)
-{
-        std::string s1(s);
-        return Map(&s1, old_char, new_char);
+inline std::string Map(const std::string &s, const char old_char, const char new_char) {
+    std::string s1(s);
+    return Map(&s1, old_char, new_char);
 }
 
 
@@ -1632,10 +1624,9 @@ std::string &Map(std::string * const s, const std::string &old_set, const std::s
  *  \return A copy of the modified string.
  *  \note  There has to be exactly one character each in new_set for every character in old_set.
  */
-inline std::string Map(const std::string &s, const std::string &old_set, const std::string &new_set)
-{
-        std::string s1(s);
-        return Map(&s1, old_set, new_set);
+inline std::string Map(const std::string &s, const std::string &old_set, const std::string &new_set) {
+    std::string s1(s);
+    return Map(&s1, old_set, new_set);
 }
 
 
@@ -1645,32 +1636,6 @@ inline std::string Map(const std::string &s, const std::string &old_set, const s
  *  \return A reference to the modified string "s".
  */
 std::string &Collapse(std::string * const s, char scan_ch = ' ');
-
-
-/** \brief  Collapses multiple occurrences of whitespace into a single space.
- *  \param  s The input string that will be "collapsed."
- *  \return A reference to the modified string "s".
- */
-std::string &CollapseWhitespace(std::string * const s);
-
-inline std::string CollapseWhitespace(const std::string &s)
-{
-        std::string temp_s(s);
-        return CollapseWhitespace(&temp_s);
-}
-
-
-/** \brief  Collapses multiple occurrences of whitespace into a single space and removes leading and trailing whitespace.
- *  \param  s The input string that will be "collapsed."
- *  \return A reference to the modified string "s".
- */
-std::string &CollapseAndTrimWhitespace(std::string * const s);
-
-inline std::string CollapseAndTrimWhitespace(const std::string &s)
-{
-        std::string temp_s(s);
-        return CollapseAndTrimWhitespace(&temp_s);
-}
 
 
 /** \brief  Implements a wildcard matching function.
@@ -1722,7 +1687,7 @@ inline std::string CollapseAndTrimWhitespace(const std::string &s)
  * \par
  *                              "?A" matches any single character followed by 'A'
  */
-bool Match(const char *pattern, const char *s, bool ignore_case = false) throw(std::exception);
+bool Match(const char *pattern, const char *s, bool ignore_case = false);
 
 
 /** \brief  Implements a wildcard matching function.
@@ -1731,23 +1696,20 @@ bool Match(const char *pattern, const char *s, bool ignore_case = false) throw(s
  *  \param  ignore_case  Whether to perform the scanning in a case-sensitive manner or not.
  *  \return Whether we had a successful match or not.
  */
-inline bool Match(const std::string &pattern, const std::string &s, bool ignore_case = false) throw(std::exception)
-{
-        return Match(pattern.c_str(), s.c_str(), ignore_case);
-}
+inline bool Match(const std::string &pattern, const std::string &s, bool ignore_case = false)
+    { return Match(pattern.c_str(), s.c_str(), ignore_case); }
 
 
 /** \brief  Allocate and return a new duplicate of a char* array.
  *  \param  s  String to duplicate.
  */
-inline char *strnewdup(const char * const s)
-{
-        if (s == nullptr)
-                return nullptr;
+inline char *strnewdup(const char * const s) {
+    if (s == nullptr)
+        return nullptr;
 
-        size_t len = std::strlen(s);
-        char *new_s = new char[len+1];
-        return std::strcpy(new_s, s);
+    size_t len = std::strlen(s);
+    char *new_s = new char[len+1];
+    return std::strcpy(new_s, s);
 }
 
 /** \brief Creates copy of a char* on the local stack. Fast and self destructing upon scope exit.
@@ -2286,10 +2248,8 @@ inline bool strless(const char * const s1, const char * s2) {
 }
 
 
-/** Combines the isspace() test with comparison against the non-break space character code. */
 inline bool IsSpace(char ch) {
-        const char NO_BREAK_SPACE('\xA0');
-        return isspace(ch) or ch == NO_BREAK_SPACE;
+        return isspace(ch);
 }
 
 

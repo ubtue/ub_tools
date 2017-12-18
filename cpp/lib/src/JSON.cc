@@ -2,7 +2,7 @@
  *  \brief  Implementation of JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -347,7 +347,7 @@ std::string JSONNode::TypeToString(const Type type) {
     };
 }
 
-    
+
 std::string StringNode::toString() const {
     return "\"" + EscapeDoubleQuotes(value_) + "\"";
 }
@@ -676,12 +676,12 @@ static const JSONNode *GetLastPathComponent(const std::string &path, const JSONN
 }
 
 
-std::string LookupString(const std::string &path, const JSONNode * const tree,
-                         const std::string * const default_value)
+static std::string LookupString(const std::string &path, const JSONNode * const tree,
+                                const std::string &default_value, const bool use_default_value)
 {
-    const JSONNode * const bottommost_node(GetLastPathComponent(path, tree, default_value != nullptr));
+    const JSONNode * const bottommost_node(GetLastPathComponent(path, tree, use_default_value));
     if (bottommost_node == nullptr)
-        return *default_value;
+        return default_value;
 
     switch (bottommost_node->getType()) {
     case JSONNode::BOOLEAN_NODE:
@@ -708,10 +708,22 @@ std::string LookupString(const std::string &path, const JSONNode * const tree,
 }
 
 
-int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t * const default_value) {
-    const JSONNode * const bottommost_node(GetLastPathComponent(path, tree, default_value != nullptr));
+std::string LookupString(const std::string &path, const JSONNode * const tree) {
+    return LookupString(path, tree, "", /* use_default_value = */ false);
+}
+
+
+std::string LookupString(const std::string &path, const JSONNode * const tree, const std::string &default_value) {
+    return LookupString(path, tree, default_value, /* use_default_value = */ true);
+}
+
+
+static int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t default_value,
+                             const bool use_default_value)
+{
+    const JSONNode * const bottommost_node(GetLastPathComponent(path, tree, use_default_value));
     if (bottommost_node == nullptr)
-        return *default_value;
+        return default_value;
 
     switch (bottommost_node->getType()) {
     case JSONNode::BOOLEAN_NODE:
@@ -735,6 +747,16 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
             __builtin_unreachable();
         #endif
     #endif
+}
+
+
+int64_t LookupInteger(const std::string &path, const JSONNode * const tree) {
+    return LookupInteger(path, tree, 0L, /* use_default_value = */ false);
+}
+
+
+int64_t LookupInteger(const std::string &path, const JSONNode * const tree, const int64_t default_value) {
+    return LookupInteger(path, tree, default_value, /* use_default_value = */ true);
 }
 
 

@@ -93,7 +93,7 @@ ssize_t SslConnection::read(void * const data, size_t data_size) {
     if (threading_support_mode_ == SUPPORT_MULTITHREADING)
         mutex_locker.reset(new std::lock_guard<std::mutex>(SslConnection::mutex_));
 
-        return last_ret_val_ = ::SSL_read(ssl_connection_, data, data_size);
+    return last_ret_val_ = ::SSL_read(ssl_connection_, data, data_size);
 }
 
 

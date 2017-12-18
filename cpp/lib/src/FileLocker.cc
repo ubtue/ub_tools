@@ -31,6 +31,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <unistd.h>
+#include "util.h"
 
 
 FileLocker::FileLocker(const std::string &filename, const LockType &lock_type)
@@ -66,8 +67,7 @@ FileLocker::~FileLocker() {
 
     if (::fcntl(lock_fd_, F_SETLKW, &lock_struct) == -1) {                /* F_GETLK, F_SETLK, F_SETLKW */
         ::close(lock_fd_);
-        throw std::runtime_error("in FileLocker::~FileLocker: fcntl(2) failed for \""
-                                 + filename_ + "\" (" + std::to_string(errno) + ")!");
+        logger->error("in FileLocker::~FileLocker: fcntl(2) failed for \"" + filename_ + "\" (" + std::to_string(errno) + ")!");
     }
 
     ::close(lock_fd_);

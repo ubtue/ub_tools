@@ -33,16 +33,16 @@
 #include <kchashdb.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
-#include "MarcReader.h"
-#include "MarcRecord.h"
-#include "MarcUtil.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "Semaphore.h"
 #include "StringUtil.h"
 #include "Subfields.h"
 #include "util.h"
 
 
+namespace {
+
+    
 static void Usage() __attribute__((noreturn));
 
 
@@ -58,19 +58,10 @@ static void Usage() {
 }
 
 
-namespace {
-
-
-// Checks subfields "3" and "z" to see if they start w/ "Rezension".
-bool IsProbablyAReview(const Subfields &subfields) {
-    const auto &_3_begin_end(subfields.getIterators('3'));
-    if (_3_begin_end.first != _3_begin_end.second) {
-        if (StringUtil::StartsWith(_3_begin_end.first->value_, "Rezension"))
-            return true;
-    } else {
-        const auto &z_begin_end(subfields.getIterators('z'));
-        if (z_begin_end.first != z_begin_end.second
-            and StringUtil::StartsWith(z_begin_end.first->value_, "Rezension"))
+// Checks subfields "3" and "z" to see if they start w/ "Rezension" or contain "Cover".
+bool IsProbablyAReviewOrCover(const MARC::Subfields &subfields) {
+    for (const auto &subfield_contents : subfields.extractSubfields("3z")) {
+        if (StringUtil::StartsWith(subfield_contents, "Rezension") or subfield_contents == "Cover")
             return true;
     }
 
@@ -78,13 +69,13 @@ bool IsProbablyAReview(const Subfields &subfields) {
 }
 
 
-bool FoundAtLeastOneNonReviewLink(const MarcRecord &record) {
-    for (size_t _856_index(record.getFieldIndex("856")); record.getTag(_856_index) == "856"; ++_856_index) {
-        const Subfields subfields(record.getSubfields(_856_index));
-        if (subfields.getIndicator1() == '7' or not subfields.hasSubfield('u'))
+bool FoundAtLeastOneNonReviewOrCoverLink(const MARC::Record &record) {
+    for (const auto &field : record.getTagRange("856")) {
+        const MARC::Subfields subfields(field.getSubfields());
+        if (field.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;
 
-        if (not IsProbablyAReview(subfields))
+        if (not IsProbablyAReviewOrCover(subfields))
             return true;
     }
 
@@ -106,8 +97,8 @@ unsigned CleanUpZombies(const unsigned zombies_to_collect) {
 }
 
 
-void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, MarcReader * const marc_reader,
-                    MarcWriter * const marc_writer, const unsigned process_count_low_watermark,
+void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, MARC::Reader * const marc_reader,
+                    MARC::Writer * const marc_writer, const unsigned process_count_low_watermark,
                     const unsigned process_count_high_watermark)
 {
     Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
@@ -118,7 +109,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
 
     std::cout << "Skip " << skip_count << " records\n";
     off_t record_start = marc_reader->tell();
-    while (MarcRecord record = marc_reader->read()) {
+    while (MARC::Record record = marc_reader->read()) {
         if (total_record_count == max_record_count)
             break;
         ++total_record_count;
@@ -127,11 +118,11 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
             continue;
         }
 
-        const bool insert_in_cache(FoundAtLeastOneNonReviewLink(record)
-                                   or (not MarcUtil::HasTagAndSubfield(record, "856", 'u')
-                                       and MarcUtil::HasTagAndSubfield(record, "520", 'a')));
+        const bool insert_in_cache(FoundAtLeastOneNonReviewOrCoverLink(record)
+                                   or (record.getSubfieldValues("856", 'u').empty()
+                                       and not record.getSubfieldValues("520", 'a').empty()));
         if (not insert_in_cache) {
-            MarcUtil::FileLockedComposeAndWriteRecord(marc_writer, &record);
+            MARC::FileLockedComposeAndWriteRecord(marc_writer, &record);
             record_start = marc_reader->tell();
             continue;
         }
@@ -217,8 +208,8 @@ int main(int argc, char **argv) {
     if (marc_input_filename == marc_output_filename)
         logger->error("input filename must not equal output filename!");
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(marc_input_filename, MarcReader::BINARY));
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::Reader::BINARY));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY));
 
     const std::string UPDATE_DB_LOG_DIR_PATH(
         "/usr/local/var/log/tuefind/update_full_text_db");

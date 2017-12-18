@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "FileLocker.h"
 #include "FileUtil.h"
 #include "MediaTypeUtil.h"
 #include "StringUtil.h"
@@ -59,8 +60,36 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 }
 
 
+void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
+    if (contents_.size() < 5)
+        return;
+
+    std::string new_contents;
+    new_contents.reserve(contents_.size());
+
+    new_contents += contents_[0]; // indicator 1
+    new_contents += contents_[1]; // indicator 2
+
+    auto ch(contents_.begin() + 2 /* skip over the indicators */ + 1 /* \x1F */);
+    while (ch != contents_.end()) {
+        if (*ch == subfield_code) {
+            while (ch != contents_.end() and *ch != '\x1F')
+                ++ch;
+        } else {
+            new_contents += '\x1F';
+            while (ch != contents_.end() and *ch != '\x1F')
+                new_contents += *ch++;
+        }
+        if (ch != contents_.end())
+            ++ch;
+    }
+
+    contents_.swap(new_contents);
+}
+
+
 Record::Record(const size_t record_size, char * const record_start)
-    : record_size_(record_size), leader_(record_start, record_size)
+    : record_size_(record_size), leader_(record_start, LEADER_LENGTH)
 {
     const char * const base_address_of_data(record_start + ToUnsigned(record_start + 12, 5));
 
@@ -79,6 +108,66 @@ Record::Record(const size_t record_size, char * const record_start)
         fields_.emplace_back(tag, field_contents);
         directory_entry += 3 /* tag */ + 4 /* field length */ + 5 /* field offset */;
     }
+}
+
+
+Record::ConstantRange Record::getTagRange(const Tag &tag) const {
+    const auto begin(std::find_if(fields_.begin(), fields_.end(),
+                                  [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
+    if (begin == fields_.end())
+        return ConstantRange(fields_.end(), fields_.end());
+
+    auto end(begin);
+    while (end != fields_.end() and end->getTag() == tag)
+        ++end;
+
+    return ConstantRange(begin, end);
+}
+
+
+Record::Range Record::getTagRange(const Tag &tag) {
+    auto begin(std::find_if(fields_.begin(), fields_.end(),
+                            [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
+    if (begin == fields_.end())
+        return Range(fields_.end(), fields_.end());
+
+    auto end(begin);
+    while (end != fields_.end() and end->getTag() == tag)
+        ++end;
+
+    return Range(begin, end);
+}
+
+
+bool Record::hasTagWithIndicators(const Tag &tag, const char indicator1, const char indicator2) const {
+    for (const auto &field : getTagRange(tag)) {
+        if (field.getIndicator1() == indicator1 and field.getIndicator2() == indicator2)
+            return true;
+    }
+    return false;
+}
+
+std::vector<std::string> Record::getSubfieldValues(const Tag &tag, const char subfield_code) const {
+    std::vector<std::string> subfield_values;
+    for (const auto &field : getTagRange(tag)) {
+        const Subfields subfields(field.getContents());
+        for (const auto &subfield_value : subfields.extractSubfields(subfield_code))
+            subfield_values.emplace_back(subfield_value);
+    }
+
+    return subfield_values;
+}
+
+
+std::vector<std::string> Record::getSubfieldValues(const Tag &tag, const std::string &subfield_codes) const {
+    std::vector<std::string> subfield_values;
+    for (const auto &field : getTagRange(tag)) {
+        const Subfields subfields(field.getContents());
+        for (const auto &subfield_code : subfield_codes)
+            for (const auto &subfield_value : subfields.extractSubfields(subfield_code))
+                subfield_values.emplace_back(subfield_value);
+    }
+    return subfield_values;
 }
 
 
@@ -149,12 +238,60 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
 
     Subfields subfields(field->getContents());
     subfields.addSubfield(subfield_code, subfield_value);
-    
+
     std::string new_field_value;
     new_field_value += field->getIndicator1();
     new_field_value += field->getIndicator2();
     new_field_value += subfields.toString();
     field->contents_ = new_field_value;
+
+    return true;
+}
+
+
+void Record::deleteFields(std::vector<size_t> field_indices) {
+    std::sort(field_indices.begin(), field_indices.end(), std::greater<size_t>());
+    for (const auto field_index : field_indices)
+        fields_.erase(fields_.begin() + field_index);
+}
+
+
+bool Record::isValid(std::string * const error_message) const {
+    if (fields_.empty() or fields_.front().getTag() != "001") {
+        *error_message = "001 field is missing!";
+        return false;
+    }
+
+    for (const auto &field : fields_) {
+        if (field.isDataField()) {
+            // Check subfield structure:
+            if (unlikely(field.contents_.length() < 5)) {
+                *error_message = "field contents are too small (< 5 bytes)! (tag: " + field.getTag().to_string() + ")";
+                return false;
+            }
+
+            auto ch(field.contents_.begin() + 2 /* indicators */);
+            while (ch != field.contents_.end()) {
+                if (unlikely(*ch != '\x1F')) {
+                    *error_message = "subfield does not start with 0x1F! (tag: " + field.getTag().to_string() + ")";
+                    return false;
+                }
+                ++ch; // Skip over 0x1F.
+                if (unlikely(ch == field.contents_.end())) {
+                    *error_message = "subfield is missing a subfield code! (tag: " + field.getTag().to_string() + ")";
+                    return false;
+                }
+                ++ch; // Skip over the subfield code.
+                if (unlikely(ch == field.contents_.end() or *ch == '\x1F'))
+                    logger->warning("subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().to_string()
+                                    + ")");
+
+                // Skip over the subfield contents:
+                while (ch != field.contents_.end() and *ch != '\x1F')
+                    ++ch;
+            }
+        }
+    }
 
     return true;
 }
@@ -592,10 +729,18 @@ std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, Writ
 
 
 void BinaryWriter::write(const Record &record) {
+    std::string error_message;
+    if (not record.isValid(&error_message))
+        logger->error("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber()
+                      + ")");
+
     Record::const_iterator start(record.begin());
     do {
+        const bool record_is_oversized(start > record.begin());
         Record::const_iterator end(start);
         unsigned record_size(Record::LEADER_LENGTH + 2 /* end-of-directory and end-of-record */);
+        if (record_is_oversized) // Include size of the 001 field.
+            record_size += record.fields_.front().getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
         while (end != record.end()
                and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH
                     < Record::MAX_RECORD_LENGTH))
@@ -616,6 +761,12 @@ void BinaryWriter::write(const Record &record) {
 
         // Append the directory:
         unsigned field_start_offset(0);
+        if (record_is_oversized) {
+            raw_record += "001"
+                          + ToStringWithLeadingZeros(record.fields_.front().getContents().length() + 1 /* field terminator */, 4)
+                          + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
+            field_start_offset += record.fields_.front().getContents().length() + 1 /* field terminator */;
+        }
         for (Record::const_iterator entry(start); entry != end; ++entry) {
             raw_record += entry->getTag().to_string()
                           + ToStringWithLeadingZeros(entry->getContents().length() + 1 /* field terminator */, 4)
@@ -625,6 +776,10 @@ void BinaryWriter::write(const Record &record) {
         raw_record += '\x1E'; // end-of-directory
 
         // Now append the field data:
+        if (record_is_oversized) {
+            raw_record += record.fields_.front().getContents();
+            raw_record += '\x1E'; // end-of-field
+        }
         for (Record::const_iterator entry(start); entry != end; ++entry) {
             raw_record += entry->getContents();
             raw_record += '\x1E'; // end-of-field
@@ -658,39 +813,30 @@ void XmlWriter::write(const Record &record) {
         else { // We have a data field.
             xml_writer_->openTag("datafield",
                                  { std::make_pair("tag", field.getTag().to_string()),
-                                  std::make_pair("ind1", std::string(1, field.getContents()[0])),
-                                  std::make_pair("ind2", std::string(1, field.getContents()[1]))
-                                });
+                                   std::make_pair("ind1", std::string(1, field.getIndicator1())),
+                                   std::make_pair("ind2", std::string(1, field.getIndicator2()))
+                                 });
 
-            std::string::const_iterator ch(field.getContents().cbegin() + 2 /* Skip over the indicators. */);
-
-            while (ch != field.getContents().cend()) {
-                if (*ch != '\x1F')
-                    std::runtime_error("in MARC::XmlWriter::write: expected subfield code delimiter not found! "
-                                       "Found " + std::string(1, *ch) + "! (Control number is "
-                                       + record.getControlNumber() + ".)");
-
-                ++ch;
-                if (ch == field.getContents().cend())
-                    std::runtime_error("in MARC::XmlWriter::write: unexpected subfield data end while expecting a "
-                                       "subfield code!");
-                const std::string subfield_code(1, *ch++);
-
-                std::string subfield_data;
-                while (ch != field.getContents().cend() and *ch != '\x1F')
-                    subfield_data += *ch++;
-                if (subfield_data.empty())
-                    continue;
-
-                xml_writer_->writeTagsWithData("subfield", { std::make_pair("code", subfield_code) },
-                                              subfield_data, /* suppress_newline = */ true);
-            }
+            const Subfields subfields(field.getSubfields());
+            for (const auto &subfield : subfields)
+                xml_writer_->writeTagsWithData("subfield", { std::make_pair("code", std::string(1, subfield.code_)) },
+                                               subfield.value_, /* suppress_newline = */ true);
 
             xml_writer_->closeTag(); // Close "datafield".
         }
     }
 
     xml_writer_->closeTag(); // Close "record".
+}
+
+
+void FileLockedComposeAndWriteRecord(Writer * const marc_writer, Record * const record) {
+    FileLocker file_locker(&(marc_writer->getFile()), FileLocker::WRITE_ONLY);
+    if (not (marc_writer->getFile().seek(0, SEEK_END)))
+        logger->error("in FileLockedComposeAndWriteRecord: failed to seek to the end of \""
+                      + marc_writer->getFile().getPath() + "\"!");
+    marc_writer->write(*record);
+    marc_writer->getFile().flush();
 }
 
 
