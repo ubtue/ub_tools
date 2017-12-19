@@ -6,6 +6,6 @@
 # - build docker image
 rm -rf /tmp/zts
 git clone --recursive https://github.com/zotero/translation-server.git /tmp/zts
-sed -i "s,https://github.com/zotero/translators,https://github.com/ubtue/zotero-translators.git," /tmp/zts/Dockerfile
+sed --in-place "s,https://github.com/zotero/translators,https://github.com/ubtue/zotero-translators.git," /tmp/zts/Dockerfile
 
-docker build -t zts /tmp/zts
+docker build --tag=zts /tmp/zts
