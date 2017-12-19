@@ -38,6 +38,7 @@ bib_ref_to_codes_tool
 categorise_marc_xml
 cpp/full_text_cache_monitor
 cpp/installer
+cpp/zts_client
 control_number_filter
 convert_bible_references
 convert_oai_pmh_dc_to_marc21
@@ -122,7 +123,6 @@ update_full_text_db
 update_ixtheo_notations
 urlencode
 zotero_crawler
-zts_client
 
 bsz_daten
 bsz_daten_cumulated
