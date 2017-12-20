@@ -146,7 +146,7 @@ off_t GetFileSize(const std::string &path);
 class AutoTempFile {
     std::string path_;
 public:
-    explicit AutoTempFile(const std::string &path_prefix = "/tmp/AT");
+    explicit AutoTempFile(const std::string &path_prefix = "/tmp/ATF");
     ~AutoTempFile() { if (not path_.empty()) ::unlink(path_.c_str()); }
 
     const std::string &getFilePath() const { return path_; }
@@ -258,6 +258,19 @@ bool MakeDirectory(const std::string &path, const bool recursive = false, const 
  *          for the failure.
  */
 bool RemoveDirectory(const std::string &dir_name);
+
+
+/** \class AutoTempDirectory
+ *  \brief Creates a temp directory and removes it when going out of scope.
+ */
+class AutoTempDirectory {
+    std::string path_;
+public:
+    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD");
+    ~AutoTempDirectory();
+
+    const std::string &getDirectoryPath() const { return path_; }
+};
 
 
 /** \brief Removes files and possibly directories matching a regular expression pattern.
