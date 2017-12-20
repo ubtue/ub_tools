@@ -261,7 +261,7 @@ bool RemoveDirectory(const std::string &dir_name);
 
 
 /** \class AutoTempDirectory
- *  \brief Creates a temp file and removes it when going out of scope.
+ *  \brief Creates a temp directory and removes it when going out of scope.
  */
 class AutoTempDirectory {
     std::string path_;
