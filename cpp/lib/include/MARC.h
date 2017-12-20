@@ -543,4 +543,11 @@ public:
 void FileLockedComposeAndWriteRecord(Writer * const marc_writer, Record * const record);
 
 
+/** \brief  Does an in-place filtering for records with duplicate control numbers.
+ *  \return The number of dropped records.
+ *  \note   We keep the first occurrence of a record with a given control number and drop and drop any subsequent ones.
+ */
+unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename);
+
+
 } // namespace MARC
