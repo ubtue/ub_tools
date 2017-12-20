@@ -840,4 +840,28 @@ void FileLockedComposeAndWriteRecord(Writer * const marc_writer, Record * const 
 }
 
 
+unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
+    unsigned dropped_count(0);
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_filename));
+
+    const std::string temp_filename("/tmp/" + std::string(::progname) + std::to_string(::getpid())
+                                    + (marc_reader->getReaderType() == Reader::XML ? ".xml" : ".mrc"));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(temp_filename));
+
+    std::unordered_set<std::string> already_seen_control_numbers;
+    while (const Record record = marc_reader->read()) {
+        const std::string control_number(record.getControlNumber());
+        if (already_seen_control_numbers.find(control_number) == already_seen_control_numbers.end()) {
+            marc_writer->write(record);
+            already_seen_control_numbers.emplace(control_number);
+        } else
+            ++dropped_count;
+    }
+
+    FileUtil::RenameFileOrDie(temp_filename, marc_filename);
+
+    return dropped_count;
+}
+
+
 } // namespace MARC
