@@ -228,7 +228,7 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
             all_translations.insert(std::make_pair(final_german_term, translations));
         }
 
-        for (auto all_translations_it = all_translations.begin(); all_translations_it != all_translations.end();
+        for (auto all_translations_it(all_translations.begin()); all_translations_it != all_translations.end();
              ++all_translations_it)
         {
             const std::string german_term(all_translations_it->first);
