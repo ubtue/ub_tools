@@ -64,11 +64,13 @@ void Usage() {
 
 // Extract some translation specific information like language and primary or synonym type
 void ExtractSubfield9Info(const std::vector<std::string> &_9Subfields,
-                          std::string * const language, std::string * const type, std::string * const macs_tag)
+                          std::string * const language, std::string * const type, std::string * const macs_tag,
+                          std::string * const subfield_g_translation)
 {
     const std::string language_prefix("L:");
     const std::string ixtheo_type_prefix("Z:");
     const std::string macs_tag_prefix("v:");
+    const std::string translation_prefix("g:");
 
     for (const auto &_9Subfield : _9Subfields) {
         if (StringUtil::StartsWith(_9Subfield, language_prefix)) {
@@ -81,7 +83,11 @@ void ExtractSubfield9Info(const std::vector<std::string> &_9Subfields,
         } else if (StringUtil::StartsWith(_9Subfield, macs_tag_prefix)) {
            *macs_tag = _9Subfield;
            StringUtil::ExtractHead(macs_tag, macs_tag_prefix);
+        } else if (StringUtil::StartsWith(_9Subfield, translation_prefix)) {
+           *subfield_g_translation = _9Subfield;
+           StringUtil::ExtractHead(subfield_g_translation, translation_prefix);
         }
+
     }
 }
 
@@ -100,8 +106,11 @@ void ExtractOneTranslation(const MARC::Subfields &all_subfields, const std::stri
     std::string language;
     std::string translation_type;
     std::string macs_tag;
+    std::string subfield_g_translation;
 
-    ExtractSubfield9Info(_9Subfields, &language, &translation_type, &macs_tag);
+    ExtractSubfield9Info(_9Subfields, &language, &translation_type, &macs_tag, &subfield_g_translation);
+    if (not subfield_g_translation.empty())
+        translation_vector.emplace_back("(" + subfield_g_translation + ")");
 
     // Skip entry if we do not have IxTheo or MACS Mapping
     if (StringUtil::Join(translation_origin, ' ') != "IxTheo"
@@ -179,47 +188,47 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
             const std::string translation_subfields((*german_and_translations_it.second).substr(3));
 
             auto german_subfield_code_iterator(german_subfields.begin());
-            auto translation_subfield_code_iterator(translation_subfields.begin());
+            std::vector<std::string> german_terms;
             for (/* empty */; german_subfield_code_iterator != german_subfields.cend();
-                             ++german_subfield_code_iterator, ++translation_subfield_code_iterator)
+                             ++german_subfield_code_iterator)
             {
-                std::vector<std::string> german_terms(record.getSubfieldValues(german_tag, *german_subfield_code_iterator));
-                if (german_terms.empty())
-                    continue;
-
-                // Add additional specification in angle bracket if we can uniquely attribute it
-                if (german_terms.size() == 1) {
-                    std::vector<std::string> _9_subfields(record.getSubfieldValues(german_tag, '9'));
-                    for (auto _9_subfield : _9_subfields)
-                        if (StringUtil::StartsWith(_9_subfield, "g:")) {
-                            german_terms[0] = german_terms[0] + " <" + _9_subfield.substr(2) + ">";
-                        }
-                }
-
-                std::vector<std::string> translations;
-
-                for (const auto &field : record.getTagRange(translation_tag)) {
-                         // Extract the translation in parameter given and subfields 2 and 9 where translation origin and translation type information
-                         // is given
-                         const std::string translation_subfield_codes(std::string(1, *translation_subfield_code_iterator));
-                         std::pair<std::string, std::string> one_translation_and_metadata;
-                         ExtractOneTranslation(field.getSubfields(), translation_subfield_codes, &one_translation_and_metadata);
-                         if (not (one_translation_and_metadata.first.empty() or one_translation_and_metadata.second.empty())) {
-                            translations.push_back(StringUtil::Trim(one_translation_and_metadata.first, " \t\n"));
-                            translations.push_back(StringUtil::Trim(one_translation_and_metadata.second," \t\n"));
-                         }
-                }
-
-                if (translations.empty())
-                    continue;
-
-                // Make sure we use the more specific IxTheo translations if available
-                RemoveMACSIfIxTheoPresent(&translations);
-                all_translations.insert(std::make_pair(StringUtil::Join(german_terms, ' '), translations));
+                std::vector<std::string> german_term(record.getSubfieldValues(german_tag, *german_subfield_code_iterator));
+                german_terms.insert(german_terms.end(), german_term.begin(), german_term.end());
             }
+            if (german_terms.empty())
+                continue;
+
+            // Add additional specification in angle bracket if we can uniquely attribute it
+            std::vector<std::string> _9_subfields(record.getSubfieldValues(german_tag, '9'));
+            std::vector<std::string> additional_specifications;
+            for (auto _9_subfield : _9_subfields) {
+                if (StringUtil::StartsWith(_9_subfield, "g:"))
+                   additional_specifications.emplace_back("<" + _9_subfield.substr(2) + ">");
+            }
+
+            std::vector<std::string> translations;
+            for (const auto &field : record.getTagRange(translation_tag)) {
+                // Extract the translation in parameter given and subfields 2 and 9 where translation origin and translation type information
+                // is given
+                std::pair<std::string, std::string> one_translation_and_metadata;
+                ExtractOneTranslation(field.getSubfields(), translation_subfields, &one_translation_and_metadata);
+                if (not (one_translation_and_metadata.first.empty() or one_translation_and_metadata.second.empty())) {
+                   translations.push_back(StringUtil::Trim(one_translation_and_metadata.first, " \t\n"));
+                   translations.push_back(StringUtil::Trim(one_translation_and_metadata.second," \t\n"));
+                }
+            }
+
+            if (translations.empty())
+                continue;
+
+            // Make sure we use the more specific IxTheo translations if available
+            RemoveMACSIfIxTheoPresent(&translations);
+            const std::string final_german_term = StringUtil::Join(german_terms, " / ") +
+                                                  (not additional_specifications.empty() ? " " + StringUtil::Join(additional_specifications, ' ') : "");
+            all_translations[final_german_term] = translations;
         }
 
-        for (auto all_translations_it = all_translations.begin(); all_translations_it != all_translations.end();
+        for (auto all_translations_it(all_translations.begin()); all_translations_it != all_translations.end();
              ++all_translations_it)
         {
             const std::string german_term(all_translations_it->first);
@@ -313,8 +322,8 @@ int main(int argc, char **argv) {
     try {
         std::map<std::string, std::vector<std::string>> term_to_translation_maps[NUMBER_OF_LANGUAGES];
         ExtractTranslations(authority_data_reader.get(),
-                            "100a:110a:111a:130a:150a:151a",
-                            "700a:710a:711a:730a:750a:751a",
+                            "100a:110ab:111a:130a:150ax:151a",
+                            "700a:710ab:711a:730a:750a:751a",
                             term_to_translation_maps);
         for (int lang(0); lang < LANGUAGES_END; ++lang) {
             for (const auto &line : term_to_translation_maps[lang])
