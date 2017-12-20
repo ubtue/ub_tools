@@ -820,6 +820,12 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
 }
 
 
+void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target) {
+    if (not RenameFile(old_name, new_name, remove_target))
+        logger->error("in FileUtil::RenameFileOrDie failed to rename \"" + old_name + "\" to \"" + new_name + "\"!");
+}
+
+
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename) {
     std::unique_ptr<File> file(new File(filename, "r"));
     if (file->fail())
