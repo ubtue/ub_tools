@@ -748,11 +748,11 @@ std::string ExpandTemplate(const std::string &template_string,
 
 
 char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit) {
-    if (unlikely(ppn_without_checksum_digit.length() != 8))
-        throw std::runtime_error("in MiscUtil::GeneratePPNChecksumDigit: argument's length is not 8!");
+    if (unlikely(ppn_without_checksum_digit.length() != 8 and ppn_without_checksum_digit.length() != 9))
+        throw std::runtime_error("in MiscUtil::GeneratePPNChecksumDigit: argument's length is neither 8 nor 9!");
 
     unsigned checksum(0);
-    for (unsigned i(0); i < 8; ++i)
+    for (unsigned i(0); i < ppn_without_checksum_digit.length(); ++i)
         checksum += (9 - i) * (ppn_without_checksum_digit[i] - '0');
     checksum = (11 - (checksum % 11)) % 11;
 
@@ -761,15 +761,16 @@ char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit) {
 
 
 bool IsValidPPN(const std::string &ppn_candidate) {
-    if (ppn_candidate.length() != 9)
+    if (ppn_candidate.length() != 9 and ppn_candidate.length() != 10)
         return false;
 
-    for (unsigned i(0); i < 8; ++i) {
+    for (unsigned i(0); i < ppn_candidate.length() - 1; ++i) {
         if (not StringUtil::IsDigit(ppn_candidate[i]))
             return false;
     }
 
-    return ppn_candidate[8] == GeneratePPNChecksumDigit(ppn_candidate.substr(0, 8));
+    return ppn_candidate[ppn_candidate.length() - 1]
+           == GeneratePPNChecksumDigit(ppn_candidate.substr(0, ppn_candidate.length() - 1));
 }
 
 
