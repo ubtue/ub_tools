@@ -225,7 +225,7 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
             RemoveMACSIfIxTheoPresent(&translations);
             const std::string final_german_term = StringUtil::Join(german_terms, " / ") +
                                                   (not additional_specifications.empty() ? " " + StringUtil::Join(additional_specifications, ' ') : "");
-            all_translations.insert(std::make_pair(final_german_term, translations));
+            all_translations[final_german_term] = translations;
         }
 
         for (auto all_translations_it(all_translations.begin()); all_translations_it != all_translations.end();
