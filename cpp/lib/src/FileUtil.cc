@@ -560,6 +560,16 @@ bool RemoveDirectory(const std::string &dir_name) {
 }
 
 
+AutoTempDirectory::AutoTempDirectory(const std::string &path_prefix) {
+    std::string path_template(path_prefix + "XXXXXX");
+    const char * const path(::mkdtemp(const_cast<char *>(path_template.c_str())));
+    if (path == nullptr)
+        throw std::runtime_error("in AutoTempDirectory::AutoTempDirectory: mkdtemp(3) for path prefix \"" + path_prefix
+                                 + "\" failed! (" + std::string(::strerror(errno)) + ")");
+    path_ = path;
+}
+
+
 AutoTempDirectory::~AutoTempDirectory() {
     if (not path_.empty() and not RemoveDirectory(path_))
         logger->error("in FileUtil::AutoTempDirectory::~AutoTempDirectory: can't remove \"" + path_ + "\"!");
