@@ -208,14 +208,14 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
 
             std::vector<std::string> translations;
             for (const auto &field : record.getTagRange(translation_tag)) {
-                     // Extract the translation in parameter given and subfields 2 and 9 where translation origin and translation type information
-                     // is given
-                     std::pair<std::string, std::string> one_translation_and_metadata;
-                     ExtractOneTranslation(field.getSubfields(), translation_subfields, &one_translation_and_metadata);
-                     if (not (one_translation_and_metadata.first.empty() or one_translation_and_metadata.second.empty())) {
-                        translations.push_back(StringUtil::Trim(one_translation_and_metadata.first, " \t\n"));
-                        translations.push_back(StringUtil::Trim(one_translation_and_metadata.second," \t\n"));
-                     }
+                // Extract the translation in parameter given and subfields 2 and 9 where translation origin and translation type information
+                // is given
+                std::pair<std::string, std::string> one_translation_and_metadata;
+                ExtractOneTranslation(field.getSubfields(), translation_subfields, &one_translation_and_metadata);
+                if (not (one_translation_and_metadata.first.empty() or one_translation_and_metadata.second.empty())) {
+                   translations.push_back(StringUtil::Trim(one_translation_and_metadata.first, " \t\n"));
+                   translations.push_back(StringUtil::Trim(one_translation_and_metadata.second," \t\n"));
+                }
             }
 
             if (translations.empty())
