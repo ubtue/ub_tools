@@ -40,7 +40,7 @@ bool IsPersonRecord(const MARC::Record &authority_record) {
     const auto _008(authority_record.getFirstField("008"));
     if (_008 != authority_record.end()) {
         const std::string &_008_contents(_008->getContents());
-        if (_008_contents.length() > 32 and _008_contents[32] == 'a')
+        if (_008_contents.length() > 33 and _008_contents[31] == 'a' and _008_contents[32] == 'a' and _008_contents[33] == 'a')
             return true;
     }
 
