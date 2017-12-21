@@ -78,7 +78,7 @@ void ExtractGermanTerms(
     std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags)
 {
     for (size_t _150_index(record.getFieldIndex("150"));
-             _150_index < record.getNumberOfFields() and record.getTag(_150_index) == "150"; ++_150_index)
+         _150_index < record.getNumberOfFields() and record.getTag(_150_index) == "150"; ++_150_index)
     {
         const Subfields _150_subfields(record.getSubfields(_150_index));
         std::string subfield_a_contents(_150_subfields.getFirstSubfieldValue('a'));
@@ -301,7 +301,6 @@ int main(int argc, char **argv) {
         Usage();
 
     std::unique_ptr<MarcReader> authority_marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
-std::cerr << "NOW ENTERING THE PROGRAM\n";
     try {
         const IniFile ini_file(CONF_FILE_PATH);
         const std::string sql_database(ini_file.getString("Database", "sql_database"));
