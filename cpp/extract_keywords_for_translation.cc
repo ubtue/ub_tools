@@ -70,7 +70,7 @@ std::string StatusToString(const Status status) {
 }
 
 
-using TextLanguageCodeStatusAndOriginTag = std::tuple<std::string, std::string, Status, std::string>;
+using TextLanguageCodeStatusAndOriginTag = std::tuple<std::string, std::string, Status, std::string, bool>;
 
 
 void ExtractGermanTerms(
@@ -82,16 +82,23 @@ void ExtractGermanTerms(
     {
         const Subfields _150_subfields(record.getSubfields(_150_index));
         std::string subfield_a_contents(_150_subfields.getFirstSubfieldValue('a'));
+        std::string subfield_x_contents(_150_subfields.getFirstSubfieldValue('x'));
+        bool updated_german(false);
         if (likely(not subfield_a_contents.empty())) {
             std::string complete_keyword_phrase(StringUtil::RemoveChars("<>", &subfield_a_contents));
+            if (not subfield_x_contents.empty()) {
+                complete_keyword_phrase += " / " + subfield_x_contents;
+                updated_german = true;
+            }
             std::string _9_subfield(_150_subfields.getFirstSubfieldValue('9'));
             if (StringUtil::StartsWith(_9_subfield, "g:")) {
                 _9_subfield = _9_subfield.substr(2);
                 complete_keyword_phrase += " <" + StringUtil::RemoveChars("<>", &_9_subfield) + ">";
             }
+
             text_language_codes_statuses_and_origin_tags->emplace_back(
                 complete_keyword_phrase,
-                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE, "150");
+                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE, "150", updated_german);
             ++german_term_count;
         }
     }
@@ -110,7 +117,7 @@ void ExtractGermanSynonyms(
             text_language_codes_statuses_and_origin_tags->emplace_back(
                 _450_subfields.getFirstSubfieldValue('a'),
                 TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE_SYNONYM,
-                "450");
+                "450", false);
             ++synonym_count;
         }
     }
@@ -164,7 +171,7 @@ void ExtractNonGermanTranslations(
                 status = is_synonym ? UNRELIABLE_SYNONYM : UNRELIABLE;
             ++translation_count;
             text_language_codes_statuses_and_origin_tags->emplace_back(
-                _750_subfields.getFirstSubfieldValue('a'), language_code, status, "750");
+                _750_subfields.getFirstSubfieldValue('a'), language_code, status, "750", false);
         }
     }
 }
@@ -241,7 +248,7 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, MarcWriter *
     std::string gnd_system(StringUtil::Join(gnd_systems, ","));
 
     const std::string INSERT_STATEMENT_START("INSERT IGNORE INTO keyword_translations (ppn,gnd_code,language_code,"
-                                             "translation,status,origin,gnd_system) VALUES ");
+                                             "translation,status,origin,gnd_system,german_updated) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
 
     size_t row_counter(0);
@@ -255,8 +262,9 @@ bool ExtractTranslationsForASingleRecord(MarcRecord * const record, MarcWriter *
             shared_connection->escapeString(std::get<0>(text_language_code_status_and_origin)));
         const std::string status(StatusToString(std::get<2>(text_language_code_status_and_origin)));
         const std::string &origin(std::get<3>(text_language_code_status_and_origin));
+        const bool updated_german(std::get<4>(text_language_code_status_and_origin));
         insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + language_code + "', '" + translation
-                            + "', '" + status + "', '" + origin + "', '" + gnd_system  + "'), ";
+                            + "', '" + status + "', '" + origin + "', '" + gnd_system  + "', " + (updated_german ? "true" : "false") +  "), ";
         if (++row_counter > MAX_ROW_COUNT) {
             FlushToDatabase(insert_statement);
             insert_statement = INSERT_STATEMENT_START;
@@ -293,7 +301,7 @@ int main(int argc, char **argv) {
         Usage();
 
     std::unique_ptr<MarcReader> authority_marc_reader(MarcReader::Factory(argv[1], MarcReader::BINARY));
-
+std::cerr << "NOW ENTERING THE PROGRAM\n";
     try {
         const IniFile ini_file(CONF_FILE_PATH);
         const std::string sql_database(ini_file.getString("Database", "sql_database"));

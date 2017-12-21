@@ -182,12 +182,17 @@ std::string ReplaceAngleBracketsByOrdinaryBrackets(const std::string &value) {
 }
 
 
-std::string CreateNonEditableHintEntry(const std::string &value, const std::string gnd_code) {
-  return "<td style=\"background-color:lightgrey\"><a href = \"/Keywordchainsearch/Results?lookfor=" +
-                                                   HtmlUtil::HtmlEscape(ReplaceAngleBracketsByOrdinaryBrackets(value)) +
-                                                   "\" target=\"_blank\">" + HtmlUtil::HtmlEscape(value) + "</a>"
-                                                   "<a href=\"http://d-nb.info/gnd/" + HtmlUtil::HtmlEscape(gnd_code) + "\""
-                                                   " style=\"float:right\" target=\"_blank\">GND</a></td>";
+std::string CreateNonEditableHintEntry(const std::string &value, const std::string gnd_code, const std::string background_color = "lightgrey") {
+    return "<td style=\"background-color:" + background_color + "\"><a href = \"/Keywordchainsearch/Results?lookfor=" +
+           HtmlUtil::HtmlEscape(ReplaceAngleBracketsByOrdinaryBrackets(value)) +
+           "\" target=\"_blank\">" + HtmlUtil::HtmlEscape(value) + "</a>"
+           "<a href=\"http://d-nb.info/gnd/" + HtmlUtil::HtmlEscape(gnd_code) + "\""
+           " style=\"float:right\" target=\"_blank\">GND</a></td>";
+}
+
+
+std::string CreateNonEditableUpdateHintEntry(const std::string &value, const std::string gnd_code) {
+    return CreateNonEditableHintEntry(value, gnd_code, "lime");
 }
 
 
@@ -442,7 +447,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                     "AND l.ppn IN (SELECT ppn from keyword_translations WHERE translation LIKE '%" + lookfor+ "%')");
 
     const std::string search_clause(lookfor.empty() ? "" : search_pattern);
-    const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator FROM keyword_translations AS k"
+    const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated FROM keyword_translations AS k"
                             " INNER JOIN keyword_translations AS l ON k.language_code='ger' AND k.status='reliable'"
                             " AND k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status != 'unreliable_synonym'" +
                             search_clause + " ORDER BY k.translation");
@@ -455,7 +460,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     SetupKeyWordSortLimitQuery(db_connection, &create_sort_limit, offset, use_untranslated_filter);
     db_connection.queryOrDie(create_sort_limit);
 
-    const std::string create_result_with_limit("SELECT ppn, translation, language_code, gnd_code, status, translator FROM keywords_ger_sorted AS v"
+    const std::string create_result_with_limit("SELECT ppn, translation, language_code, gnd_code, status, translator, german_updated FROM keywords_ger_sorted AS v"
                                        " INNER JOIN sort_limit AS u USING (ppn)");
 
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, &db_connection));
@@ -479,6 +484,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        std::string status(db_row["status"]);
        std::string translator(db_row["translator"]);
        std::string gnd_code(db_row["gnd_code"]);
+       std::string german_updated(db_row["german_updated"]);
        if (current_ppn != ppn){
            if (not current_ppn.empty())
               rows->emplace_back(StringUtil::Join(row_values, ""));
@@ -514,24 +520,31 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        if (index == NO_INDEX)
            continue;
        if (IsTranslatorLanguage(translator_languages, language_code)) {
-          // We can have several translations in one language, i.e. from MACS, IxTheo (reliable) or translated by this tool (new)
-          // Since we are iteratring over a single column, make sure sure we select the correct translation (reliable or new)
-          if (IsEmptyEntryWithoutTranslator(row_values[index]) or status=="new" or status=="reliable")
-              row_values[index] = (language_code == "ger" || status == "reliable") ? CreateNonEditableRowEntry(translation) :
-                                  CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
-                                                     translator, gnd_code);
+           // We can have several translations in one language, i.e. from MACS, IxTheo (reliable) or translated by this tool (new)
+           // Since we are iteratring over a single column, make sure sure we select the correct translation (reliable or new)
+           if (IsEmptyEntryWithoutTranslator(row_values[index]) or status=="new" or status=="reliable") {
+               if (language_code == "ger")
+                   row_values[index] = (german_updated == "1") ? CreateNonEditableUpdateHintEntry(translation, gnd_code)
+                                                               : CreateNonEditableHintEntry(translation, gnd_code);
+               else if (status == "reliable")
+                   row_values[index] = CreateNonEditableRowEntry(translation);
+               else
+                   row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
+                                                              translator, gnd_code);
+           }
+       } else if (language_code == "ger") {
+           // Use a special display mode for values where the original german term changed
+           row_values[index] = (german_updated == "1") ? CreateNonEditableUpdateHintEntry(translation, gnd_code)
+                                                       : CreateNonEditableHintEntry(translation, gnd_code);
        } else
-           row_values[index] = (language_code == "ger") ? CreateNonEditableHintEntry(translation, gnd_code)
-                                                        : CreateNonEditableRowEntry(translation);
+           row_values[index] = CreateNonEditableRowEntry(translation);
     }
     rows->emplace_back(StringUtil::Join(row_values, ""));
     const std::string drop_get_sorted("DROP TEMPORARY TABLE keywords_ger_sorted");
     const std::string drop_sort_limit("DROP TEMPORARY TABLE sort_limit");
     db_connection.queryOrDie(drop_get_sorted);
     db_connection.queryOrDie(drop_sort_limit);
-    }
-
-
+}
 
 
 void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum Category category = KEYWORDS, const bool filter_untranslated = false) {
