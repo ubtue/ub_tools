@@ -23,7 +23,7 @@
 #include <unistd.h>
 #include "FileLocker.h"
 #include "FileUtil.h"
-#include "MediaTypeUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -297,16 +297,39 @@ bool Record::isValid(std::string * const error_message) const {
 }
 
 
+enum class MediaType { XML, MARC21, OTHER };
+
+static MediaType GetMediaType(const std::string &input_filename) {
+    File input(input_filename, "r");
+    if (input.anErrorOccurred())
+        return MediaType::OTHER;
+
+    char magic[8];
+    if (input.read(magic, sizeof(magic) - 1) != sizeof(magic) - 1)
+        return MediaType::OTHER;
+    magic[sizeof(magic) - 1] = '\0';
+
+    if (StringUtil::StartsWith(magic, "<?xml"))
+        return MediaType::XML;
+
+    static RegexMatcher *marc21_matcher;
+    if (marc21_matcher == nullptr) {
+        std::string err_msg;
+        marc21_matcher = RegexMatcher::RegexMatcherFactory("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy])", &err_msg);
+        if (marc21_matcher == nullptr)
+            logger->error("in GetMediaType(MARC.cc): failed to compile a regex! (" + err_msg + ")");
+    }
+
+    return marc21_matcher->matched(magic) ? MediaType::MARC21 : MediaType::XML;
+}
+
+
 std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, ReaderType reader_type) {
     if (reader_type == AUTO) {
-        const std::string media_type(MediaTypeUtil::GetFileMediaType(input_filename));
-        if (unlikely(media_type == "cannot"))
-            logger->error("not found or no permissions: \"" + input_filename + "\"!");
-        if (unlikely(media_type.empty()))
+        const MediaType media_type(GetMediaType(input_filename));
+        if (media_type == MediaType::OTHER)
             logger->error("can't determine media type of \"" + input_filename + "\"!");
-        if (media_type != "application/xml" and media_type != "application/marc" and media_type != "text/xml")
-            logger->error("\"" + input_filename + "\" is neither XML nor MARC-21 data!");
-        reader_type = (media_type == "application/xml" or media_type == "text/xml") ? XML : BINARY;
+        reader_type = (media_type == MediaType::XML) ? Reader::XML : Reader::BINARY;
     }
 
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(input_filename));
