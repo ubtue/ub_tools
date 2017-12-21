@@ -74,9 +74,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, const std::unordered_set<s
 
                     const std::string gnd_number(subfield0.substr(__builtin_strlen("(DE-588)")));
                     const auto gnd_number_and_count(gnd_numbers_and_counts->find(gnd_number));
-                    if (gnd_number_and_count == gnd_numbers_and_counts->end())
-                        (*gnd_numbers_and_counts)[gnd_number] = 1;
-                    else {
+                    if (gnd_number_and_count != gnd_numbers_and_counts->end()) {
                         ++gnd_number_and_count->second;
                         ++matched_count;
                     }
