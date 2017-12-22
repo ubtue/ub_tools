@@ -294,11 +294,11 @@ void CopyFileOrDie(const std::string &from, const std::string &to) {
 }
 
 
-/** \return True if all names end in "[abc].raw", else false. */
+/** \return True if all names end in "[abc]001.raw", else false. */
 bool ArchiveEntryFilenamesMeetNamingExpectations(const std::vector<std::string> &archive_entry_names) {
     for (const auto &entry_name : archive_entry_names) {
-        if (not StringUtil::EndsWith(entry_name, "a.raw") or not StringUtil::EndsWith(entry_name, "b.raw")
-            or not StringUtil::EndsWith(entry_name, "c.raw"))
+        if (not StringUtil::EndsWith(entry_name, "a001.raw") or not StringUtil::EndsWith(entry_name, "b001.raw")
+            or not StringUtil::EndsWith(entry_name, "c001.raw"))
             return false;
     }
 
@@ -340,11 +340,11 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
 
             // We can't use the usual ".raw" file name here because RemoveDuplicateControlNumberRecords requires a ".xml" or
             // a ".mrc" extension to identify the file type.
-            const std::string temp_filename(common_suffix.substr(0, 2) + "mrc");
+            const std::string temp_filename(common_suffix.substr(0, 5) + "mrc");
             
             FileUtil::ConcatFiles(temp_filename, { *local_data_filename, *no_local_data_filename });
             MARC::RemoveDuplicateControlNumberRecords(temp_filename);
-            FileUtil::RenameFileOrDie(temp_filename, common_suffix.substr(0, 2) + "raw");
+            FileUtil::RenameFileOrDie(temp_filename, common_suffix.substr(0, 5) + "raw");
             ++local_data_filename;
             ++no_local_data_filename;
         }
@@ -366,13 +366,14 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
 std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const std::string &combined_filename_prefix) {
     const std::string local_data_archive_name(filename_prefix + ".tar.gz");
     const std::string no_local_data_archive_name(filename_prefix + "_o.tar.gz");
+    const std::string combined_archive_name(combined_filename_prefix + ".tar.gz");
     if (not FileUtil::Exists(local_data_archive_name)) {
         if (not FileUtil::Exists(no_local_data_archive_name))
             logger->error("in CombineMarcBiblioArchives: neither \"" + local_data_archive_name + "\" nor \""
                           + no_local_data_archive_name + "\" can be found!");
-        CopyFileOrDie(no_local_data_archive_name, combined_filename_prefix + ".tar.gz");
+        CopyFileOrDie(no_local_data_archive_name, combined_archive_name);
     } else if (not FileUtil::Exists(no_local_data_archive_name))
-        CopyFileOrDie(local_data_archive_name, combined_filename_prefix + ".tar.gz");
+        CopyFileOrDie(local_data_archive_name, combined_archive_name);
 
     //
     // If we made it this far, both source archives exist.
@@ -394,7 +395,6 @@ std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const 
         logger->error("in CombineMarcBiblioArchives: archive \"" + no_local_data_archive_name
                       + "\" contains at least one entry that does not meet our naming expectations!");
 
-    const std::string combined_archive_name(combined_filename_prefix + ".tar.gz");
     MergeAndDedupArchiveFiles(local_data_filenames, no_local_data_filenames, combined_archive_name);
     return combined_archive_name;
 }
