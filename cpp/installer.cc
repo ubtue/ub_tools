@@ -2546,24 +2546,13 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     const std::string dirname_solr_conf = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
 
     Echo("SOLR Configuration (solrconfig.xml)");
-    const std::string filename_solr_conf_local = dirname_solr_conf + "/solrconfig.xml";
-    FileUtil_CreateSymlink(dirname_solr_conf + "/solrconfig_" + vufind_system_type_string + ".xml", filename_solr_conf_local);
-    GitAssumeUnchanged(filename_solr_conf_local);
+    ExecOrDie(dirname_solr_conf + "/make_symlinks.sh", { vufind_system_type_string });
 
     Echo("SOLR Schema (schema_local_*.xml)");
-    Echo("  (note: if you get XInclude errors, these may be ignored => fallback IS defined and working!!!)");
-    GenerateXml(dirname_solr_conf + "/schema_" + vufind_system_type_string + "_types.xml", dirname_solr_conf + "/schema_local_types.xml");
-    GenerateXml(dirname_solr_conf + "/schema_" + vufind_system_type_string + "_fields.xml", dirname_solr_conf + "/schema_local_fields.xml");
+    ExecOrDie(dirname_solr_conf + "/generate_xml.sh", { vufind_system_type_string });
 
     Echo("solrmarc (marc_local.properties)");
-    const std::string dirname_solrmarc_conf = VUFIND_DIRECTORY + "/import";
-    const std::string filename_solrmarc_conf_local = dirname_solrmarc_conf + "/marc_local.properties";
-    const std::vector<std::string> filenames_solrmarc_conf_custom{
-        dirname_solrmarc_conf + "/marc_tuefind.properties",
-        dirname_solrmarc_conf + "/marc_" + vufind_system_type_string + ".properties"
-    };
-    FileUtil_ConcatFiles(filename_solrmarc_conf_local, filenames_solrmarc_conf_custom);
-    GitAssumeUnchanged(filename_solrmarc_conf_local);
+    ExecOrDie(VUFIND_DIRECTORY + "/import/make_marc_local_properties.sh", { vufind_system_type_string });
 
     SetEnvironmentVariables(vufind_system_type_string);
 
