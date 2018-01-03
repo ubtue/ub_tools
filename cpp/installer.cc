@@ -2396,8 +2396,8 @@ void GitCheckout(const std::string &filename) {
 
 void UseCustomFileIfExists(std::string filename_custom, std::string filename_default) {
     if (FileUtil_Exists(filename_custom)) {
-        GitAssumeUnchanged(filename_default);
         FileUtil_CreateSymlink(filename_custom, filename_default);
+        GitAssumeUnchanged(filename_default);
     } else {
         GitCheckout(filename_default);
     }
@@ -2558,12 +2558,13 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     Echo("solrmarc (marc_local.properties)");
     const std::string dirname_solrmarc_conf = VUFIND_DIRECTORY + "/import";
     const std::string filename_solrmarc_conf_local = dirname_solrmarc_conf + "/marc_local.properties";
-    GitAssumeUnchanged(filename_solrmarc_conf_local);
     const std::vector<std::string> filenames_solrmarc_conf_custom{
         dirname_solrmarc_conf + "/marc_tuefind.properties",
         dirname_solrmarc_conf + "/marc_" + vufind_system_type_string + ".properties"
     };
     FileUtil_ConcatFiles(filename_solrmarc_conf_local, filenames_solrmarc_conf_custom);
+    GitAssumeUnchanged(filename_solrmarc_conf_local);
+
     SetEnvironmentVariables(vufind_system_type_string);
 
     Echo("alphabetical browse");
