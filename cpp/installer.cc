@@ -2365,7 +2365,7 @@ void CreateUserIfNotExists(const std::string &username) {
     const int user_exists(ExecUtil_Exec(ExecUtil_Which("id"), { "-u", username }));
     if (user_exists == 1) {
         Echo("Creating user " + username + "...");
-        ExecOrDie(ExecUtil_Which("adduser"), { "--system", "--group", "--no-create-home", username });
+        ExecOrDie(ExecUtil_Which("useradd"), { "--system", "--user-group", "--no-create-home", username });
     } else if (user_exists > 1)
         Error("Failed to check if user exists: " + username);
 }
