@@ -2547,8 +2547,8 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
 
     Echo("SOLR Configuration (solrconfig.xml)");
     const std::string filename_solr_conf_local = dirname_solr_conf + "/solrconfig.xml";
-    GitAssumeUnchanged(filename_solr_conf_local);
     FileUtil_CreateSymlink(dirname_solr_conf + "/solrconfig_" + vufind_system_type_string + ".xml", filename_solr_conf_local);
+    GitAssumeUnchanged(filename_solr_conf_local);
 
     Echo("SOLR Schema (schema_local_*.xml)");
     Echo("  (note: if you get XInclude errors, these may be ignored => fallback IS defined and working!!!)");
