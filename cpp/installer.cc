@@ -2473,7 +2473,7 @@ static void InstallVuFindServiceTemplate(const VuFindSystemType system_type) {
         const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
         ExecOrDie(ExecUtil_Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
         std::map<std::string, std::vector<std::string>> names_to_values_map
-            { { "SOLR_HEAP", { (system_type == KRIMDOK ? "4G" : "8G") } } };
+            { { "solr_heap", { (system_type == KRIMDOK ? "4G" : "8G") } } };
         const std::string vufind_service(MiscUtil_ExpandTemplate(ReadStringOrDie(INSTALLER_DATA_DIRECTORY
                                                                                  + "/vufind.service.template"),
                                                                  names_to_values_map));
