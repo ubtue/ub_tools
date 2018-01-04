@@ -64,8 +64,6 @@ void CollectGeneralStats(const std::string &system_type, File * const output) {
     IssueQueryAndWriteOutput("format:Article" + EXTRA, system_type, "Format", "Artikel", output);
     IssueQueryAndWriteOutput("mediatype:Electronic" + EXTRA, system_type, "Medientyp", "elektronisch", output);
     IssueQueryAndWriteOutput("mediatype:Non-Electronic" + EXTRA, system_type, "Medientyp", "non-elektronisch", output);
-    IssueQueryAndWriteOutput("is_open_access:open-access" + EXTRA, system_type, "Open Access", "ja", output);
-    IssueQueryAndWriteOutput("is_open_access:non-open-access" + EXTRA, system_type, "Open Access", "nein", output);
 }
 
 
@@ -99,6 +97,8 @@ void CollectIxTheoOrRelBibSpecificStats(const std::string &system_type, File * c
     const std::string EXTRA(system_type == "relbib" ? "&fq=is_probably_religious_studies:1" : "");
     IssueQueryAndWriteOutput("dewey-raw:*" + EXTRA, system_type, "DDC", "Anzahl der Datensätze", output);
     IssueQueryAndWriteOutput("rvk:*" + EXTRA, system_type, "RVK", "Anzahl der Datensätze", output);
+    IssueQueryAndWriteOutput("is_open_access:open-access" + EXTRA, system_type, "Open Access", "ja", output);
+    IssueQueryAndWriteOutput("is_open_access:non-open-access" + EXTRA, system_type, "Open Access", "nein", output);
 
     IssueQueryAndWriteOutput("language:German" + EXTRA, system_type, "Sprache", "Deutsch", output);
     IssueQueryAndWriteOutput("language:English" + EXTRA, system_type, "Sprache", "Englisch", output);
