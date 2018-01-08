@@ -182,7 +182,7 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     private Query processPhraseQuery(final PhraseQuery queryCandidate) {
-        PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
+        final PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
         for (final Term term : queryCandidate.getTerms()) {
             final String newFieldName = term.field() + "_" + lang;
             if (schema.getFieldOrNull(newFieldName) != null)
@@ -197,8 +197,8 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     private Query processMultiPhraseQuery(final MultiPhraseQuery queryCandidate) {
-       MultiPhraseQuery.Builder multiPhraseQueryBuilder = new MultiPhraseQuery.Builder();
-       for (Term[] termArray : queryCandidate.getTermArrays()) {
+       final MultiPhraseQuery.Builder multiPhraseQueryBuilder = new MultiPhraseQuery.Builder();
+       for (final Term[] termArray : queryCandidate.getTermArrays()) {
            int arrayOffset = 0;
            for (final Term term : termArray) {
                String newFieldName = term.field() + "_" + lang;
@@ -217,7 +217,7 @@ public class MultiLanguageQueryParser extends QParser {
 
     private Query processDisjunctionMaxQuery(DisjunctionMaxQuery queryCandidate) {
         final List<Query> queryList = new ArrayList<Query>();
-        DisjunctionMaxQuery disjunctionMaxQuery = (DisjunctionMaxQuery) queryCandidate;
+        final DisjunctionMaxQuery disjunctionMaxQuery = (DisjunctionMaxQuery) queryCandidate;
         for (Query currentClause : disjunctionMaxQuery.getDisjuncts()) {
              if (currentClause instanceof BoostQuery)
                  currentClause = processBoostQuery((BoostQuery)currentClause);
@@ -238,7 +238,7 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     private Query processBoostQuery(final BoostQuery queryCandidate) {
-        Query subquery = queryCandidate.getQuery();
+        final Query subquery = queryCandidate.getQuery();
         if (subquery instanceof TermQuery) {
             subquery = processTermQuery((TermQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
@@ -260,8 +260,8 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     private Query processPrefixQuery(final PrefixQuery queryCandidate) {
-        Term term = queryCandidate.getPrefix();
-        TermQuery newTermQuery = (TermQuery)processTermQuery(new TermQuery(term));
+        final Term term = queryCandidate.getPrefix();
+        final TermQuery newTermQuery = (TermQuery)processTermQuery(new TermQuery(term));
         return new PrefixQuery(new Term(newTermQuery.getTerm().field(), newTermQuery.getTerm().text()));
     }
 
