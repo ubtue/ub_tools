@@ -184,7 +184,7 @@ public class MultiLanguageQueryParser extends QParser {
     private Query processPhraseQuery(final PhraseQuery queryCandidate) {
         PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
         for (final Term term : queryCandidate.getTerms()) {
-            String newFieldName = term.field() + "_" + lang;
+            final String newFieldName = term.field() + "_" + lang;
             if (schema.getFieldOrNull(newFieldName) != null)
                 phraseQueryBuilder.add(new Term(newFieldName, term.text()));
             else
