@@ -14,6 +14,7 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
+import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
@@ -181,17 +182,36 @@ public class MultiLanguageQueryParser extends QParser {
 
 
     private Query processPhraseQuery(final PhraseQuery queryCandidate) {
-      PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
-      for (final Term term : queryCandidate.getTerms()) {
-          String newFieldName = term.field() + "_" + lang;
-          if (schema.getFieldOrNull(newFieldName) != null)
-              phraseQueryBuilder.add(new Term(newFieldName, term.text()));
-          else
-              phraseQueryBuilder.add(term);
-      }
+        PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
+        for (final Term term : queryCandidate.getTerms()) {
+            String newFieldName = term.field() + "_" + lang;
+            if (schema.getFieldOrNull(newFieldName) != null)
+                phraseQueryBuilder.add(new Term(newFieldName, term.text()));
+            else
+                phraseQueryBuilder.add(term);
+        }
 
-      phraseQueryBuilder.setSlop(queryCandidate.getSlop());
-      return phraseQueryBuilder.build();
+        phraseQueryBuilder.setSlop(queryCandidate.getSlop());
+        return phraseQueryBuilder.build();
+    }
+
+
+    private Query processMultiPhraseQuery(final MultiPhraseQuery queryCandidate) {
+       MultiPhraseQuery.Builder multiPhraseQueryBuilder = new MultiPhraseQuery.Builder();
+       for (Term[] termArray : queryCandidate.getTermArrays()) {
+           int arrayOffset = 0;
+           for (final Term term : termArray) {
+               String newFieldName = term.field() + "_" + lang;
+               if (schema.getFieldOrNull(newFieldName) != null)
+                  termArray[arrayOffset] = new Term(newFieldName, term.text());
+               else
+                  termArray[arrayOffset] = term;
+               ++arrayOffset;
+           }
+           multiPhraseQueryBuilder.add(termArray);
+       }
+       multiPhraseQueryBuilder.setSlop(queryCandidate.getSlop());
+       return multiPhraseQueryBuilder.build();
     }
 
 
@@ -225,12 +245,14 @@ public class MultiLanguageQueryParser extends QParser {
         } else if (subquery instanceof BooleanQuery) {
             subquery = processBooleanQuery((BooleanQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
-
         } else if (subquery instanceof PrefixQuery) {
             subquery = processPrefixQuery((PrefixQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
         } else if (subquery instanceof PhraseQuery) {
             subquery = processPhraseQuery((PhraseQuery)subquery);
+            return new BoostQuery(subquery, queryCandidate.getBoost());
+        } else if (subquery instanceof MultiPhraseQuery) {
+            subquery = processMultiPhraseQuery((MultiPhraseQuery)subquery);
             return new BoostQuery(subquery, queryCandidate.getBoost());
         } else
 	    throw new SolrException(ErrorCode.SERVER_ERROR, "Boost Query: Unable to handle " +  subquery.getClass().getName());
@@ -258,6 +280,12 @@ public class MultiLanguageQueryParser extends QParser {
                 subquery = processBoostQuery((BoostQuery)subquery);
             } else if (subquery instanceof BooleanQuery) {
                 subquery = processBooleanQuery((BooleanQuery)subquery);
+            } else if (subquery instanceof PrefixQuery) {
+                subquery = processPrefixQuery((PrefixQuery)subquery);
+            } else if (subquery instanceof PhraseQuery) {
+                subquery = processPhraseQuery((PhraseQuery)subquery);
+            } else if (subquery instanceof MultiPhraseQuery) {
+                subquery = processMultiPhraseQuery((MultiPhraseQuery)subquery);
             } else
                 logger.warn("No appropriate Query in BooleanClause for " + subquery.getClass().getName());
             queryBuilder.add(subquery, currentClause.getOccur());
