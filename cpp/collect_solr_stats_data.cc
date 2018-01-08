@@ -32,6 +32,9 @@
 namespace {
 
 
+const std::string RELBIB_EXTRA(" AND is_religious_studies:1");
+
+
 void Usage() {
     std::cerr << "Usage: " << ::progname << " system_type output_file\n";
     std::exit(EXIT_FAILURE);
@@ -58,14 +61,12 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
 
 
 void CollectGeneralStats(const std::string &system_type, File * const output) {
-    const std::string EXTRA(system_type == "relbib" ? "&fq=is_probably_religious_studies:1" : "");
+    const std::string EXTRA(system_type == "relbib" ? RELBIB_EXTRA : "");
     IssueQueryAndWriteOutput("*:*" + EXTRA, system_type, "Gesamt", "Gesamttreffer", output);
     IssueQueryAndWriteOutput("format:Book" + EXTRA, system_type, "Format", "Buch", output);
     IssueQueryAndWriteOutput("format:Article" + EXTRA, system_type, "Format", "Artikel", output);
     IssueQueryAndWriteOutput("mediatype:Electronic" + EXTRA, system_type, "Medientyp", "elektronisch", output);
     IssueQueryAndWriteOutput("mediatype:Non-Electronic" + EXTRA, system_type, "Medientyp", "non-elektronisch", output);
-    IssueQueryAndWriteOutput("is_open_access:open-access" + EXTRA, system_type, "Open Access", "ja", output);
-    IssueQueryAndWriteOutput("is_open_access:non-open-access" + EXTRA, system_type, "Open Access", "nein", output);
 }
 
 
@@ -76,7 +77,7 @@ void CollectKrimDokSpecificStats(File * const output) {
 
 
 void EmitNotationStats(const char notation_group, const std::string &system_type, const std::string &label, File * const output) {
-    const std::string EXTRA(system_type == "relbib" ? "&fq=is_probably_religious_studies:1" : "");
+    const std::string EXTRA(system_type == "relbib" ? RELBIB_EXTRA : "");
     IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[1975 TO 2000]" + EXTRA,
                              system_type, "IxTheo Notationen", label + "(Alle Medienarten, 1975-2000)", output);
     IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[2001 TO *]" + EXTRA,
@@ -96,9 +97,11 @@ void EmitNotationStats(const char notation_group, const std::string &system_type
 
 
 void CollectIxTheoOrRelBibSpecificStats(const std::string &system_type, File * const output) {
-    const std::string EXTRA(system_type == "relbib" ? "&fq=is_probably_religious_studies:1" : "");
+    const std::string EXTRA(system_type == "relbib" ? RELBIB_EXTRA : "");
     IssueQueryAndWriteOutput("dewey-raw:*" + EXTRA, system_type, "DDC", "Anzahl der Datensätze", output);
     IssueQueryAndWriteOutput("rvk:*" + EXTRA, system_type, "RVK", "Anzahl der Datensätze", output);
+    IssueQueryAndWriteOutput("is_open_access:open-access" + EXTRA, system_type, "Open Access", "ja", output);
+    IssueQueryAndWriteOutput("is_open_access:non-open-access" + EXTRA, system_type, "Open Access", "nein", output);
 
     IssueQueryAndWriteOutput("language:German" + EXTRA, system_type, "Sprache", "Deutsch", output);
     IssueQueryAndWriteOutput("language:English" + EXTRA, system_type, "Sprache", "Englisch", output);
