@@ -17,6 +17,9 @@ RUN /tmp/install_ubtools.sh ixtheo --omit-cronjobs --omit-systemctl
 # add local config
 ADD local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 
+# build css
+RUN php /usr/local/vufind/util/cssBuilder.php
+
 # expose solr & import example marc data
 EXPOSE 8080
 ADD data.mrc /usr/local/ub_tools/bsz_daten/data.mrc
