@@ -1321,11 +1321,11 @@ public class TuelibMixin extends SolrIndexerMixin {
                                     final String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
                                     buffer.append(" " + symbolPair.opening + translatedTerm + symbolPair.closing);
                                     continue;
-                                 } else if (buffer.length() > 0)
+                                } else if (buffer.length() > 0)
                                     buffer.append(separator);
                             }
-                         }
-                         buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
+                        }
+                        buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
                     }
                 }
             }
@@ -1457,7 +1457,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                                             });
         valuesTranslated.removeAll(toRemove);
         valuesTranslated.addAll(toAdd);
-        return addHonourees(record, valuesTranslated);
+        addHonourees(record, valuesTranslated);
+        if (valuesTranslated.size() == 0)
+            valuesTranslated.add(UNASSIGNED_STRING);
+        return valuesTranslated;
     }
 
     public String getFirstValueOrUnassigned(final Record record, final String fieldSpecs) {
@@ -1660,6 +1663,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return iso8601_date.toString();
     }
 
+
     public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> genres = new HashSet<String>();
@@ -1676,8 +1680,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        if (genres.size() > 1)
-            genres.remove(UNASSIGNED_STRING);
+        if (genres.size() == 0)
+            genres.add(UNASSIGNED_STRING);
 
         return genres;
     }
@@ -1688,8 +1692,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         Set<String> region = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
 
-        if (region.size() > 1)
-            region.remove(UNASSIGNED_STRING);
+        if (region.size() == 0)
+            region.add(UNASSIGNED_STRING);
 
         return region;
     }
@@ -1700,8 +1704,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         Set<String> time = new HashSet<String>();
         getTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
 
-        if (time.size() > 1)
-            time.remove(UNASSIGNED_STRING);
+        if (time.size() == 0)
+            time.add(UNASSIGNED_STRING);
 
         return time;
     }
