@@ -148,8 +148,8 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
         for (const auto &field : record->getTagRange(GetTag(*primary))) {
             const MARC::Subfields subfields(field.getSubfields());
             std::vector<std::string> primary_values(subfields.extractSubfields(GetSubfieldCodes(*primary)));
-            if (primary_values.size()) {
-                std::string searchterm = StringUtil::Join(primary_values, ',');
+            if (not primary_values.empty()) {
+                std::string searchterm(StringUtil::Join(primary_values, ','));
                 // Look up synonyms in all categories
                 for (auto &synonym_map : synonym_maps) {
                     const auto &synonym(GetMapValueOrEmptyString(synonym_map, searchterm));
@@ -164,7 +164,7 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
         // Insert synonyms
         // Abort if field is already populated
         std::string tag(GetTag(*output));
-        if (record->hasTag(tag))
+        if (unlikely(record->hasTag(tag)))
             logger->error("in ProcessRecord: Field with tag " + tag + " is not empty for PPN "
                           + record->getControlNumber() + '!');
         std::string subfield_spec(GetSubfieldCodes(*output));
@@ -188,7 +188,7 @@ void ProcessRecordGermanSynonyms(MARC::Record * const record, const std::vector<
                 < MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - (FIELD_MIN_NON_DATA_SIZE + 3 /* consider " , " */))
             {
                  bool synonyms_empty(synonyms.empty());
-                 synonyms += (synonyms_empty ? *synonym_it : " , " + *synonym_it);
+                 synonyms += synonyms_empty ? *synonym_it : " , " + *synonym_it;
                  current_length += synonym_it->length() + (synonyms_empty ? 0 : 3);
                  ++synonym_it;
             } else {
