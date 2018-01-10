@@ -9,13 +9,19 @@ class Range {
     private int lower;
     private int upper;
 
+    private static float getRangesScore(final Range[] ranges, final Range[] queryRanges) {
+        float best_individual_distance = Float.NEGATIVE_INFINITY;
+        for (final Range range : ranges) {
+            float distance = range.getBestMatchingScore(queryRanges);
+            if (distance > best_individual_distance)
+                best_individual_distance = distance;
+        }
+        return best_individual_distance;
+    }
+    
     public static float getMatchingScore(final Range[] fieldRanges, final Range[] queryRanges) {
         final Range[] mergedFieldRanges = Range.merge(fieldRanges);
-        float distance = 0;
-        for (final Range mergedFieldRange : mergedFieldRanges) {
-            distance += Math.max(0, mergedFieldRange.getBestMatchingScore(queryRanges));
-        }
-        return distance;
+        return Math.max(getRangesScore(fieldRanges, queryRanges), getRangesScore(mergedFieldRanges, queryRanges));
     }
 
     // N.B. This function assumes that the lower ends of "sourceRanges", and similarly for "targetRanges",
@@ -35,9 +41,8 @@ class Range {
     private static boolean canBeMerged(final Range[] ranges) {
         int maxUpper = ranges[0].upper;
         for (int i = 1; i < ranges.length; ++i) {
-            if (ranges[i].lower <= maxUpper + 1) {
+            if (ranges[i].lower <= maxUpper + 1)
                 return true;
-            }
             maxUpper = Math.max(maxUpper, ranges[i].upper);
         }
         
