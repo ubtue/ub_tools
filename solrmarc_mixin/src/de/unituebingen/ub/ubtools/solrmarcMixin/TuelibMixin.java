@@ -38,6 +38,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
+    private final static Pattern UNICODE_QUOTATION_MARKS_PATTERN = Pattern.compile("[«‹»›„‚“‟‘‛”’\"❛❜❟❝❞❮❯⹂〝〞〟＂]");
 
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
@@ -525,6 +526,21 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getReviewedRecords(final Record record) {
         collectReviewsAndReviewedRecords(record);
         return reviewedRecords_cache;
+    }
+
+    /**
+     * Use solrmarc default "getSortableTitle" logic.
+     * Also remove all unicode quotation marks
+     *
+     * @param record
+     *
+     * @return
+     */
+    public String getSortableTitleUnicode(final Record record) {
+        String title = SolrIndexer.instance().getSortableTitle(record);
+        final Matcher matcher = UNICODE_QUOTATION_MARKS_PATTERN.matcher(title);
+        title = matcher.replaceAll("");
+        return title;
     }
 
     /**
