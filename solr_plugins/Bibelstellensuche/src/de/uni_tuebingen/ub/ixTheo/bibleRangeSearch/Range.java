@@ -18,7 +18,7 @@ class Range {
         }
         return best_individual_distance;
     }
-    
+
     public static float getMatchingScore(final Range[] fieldRanges, final Range[] queryRanges) {
         final Range[] mergedFieldRanges = Range.merge(fieldRanges);
         return Math.max(getRangesScore(fieldRanges, queryRanges), getRangesScore(mergedFieldRanges, queryRanges));
@@ -45,10 +45,10 @@ class Range {
                 return true;
             maxUpper = Math.max(maxUpper, ranges[i].upper);
         }
-        
+
         return false;
     }
-    
+
     // N.B. This function assumes that the lower ends of the input ranges "ranges" are monotonically increasing.  This
     // will be preserved for the return value
     public static Range[] merge(final Range[] ranges) {
@@ -68,7 +68,7 @@ class Range {
             mergedRanges[targetIndex] = mergedRange;
             ++targetIndex;
         } while (sourceIndex < ranges.length);
-        
+
         if (targetIndex == mergedRanges.length) {
             return mergedRanges;
         }
