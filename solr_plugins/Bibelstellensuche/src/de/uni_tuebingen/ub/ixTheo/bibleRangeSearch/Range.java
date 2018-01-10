@@ -11,8 +11,8 @@ class Range {
 
     private static float getRangesScore(final Range[] ranges, final Range[] queryRanges) {
         float best_individual_distance = Float.NEGATIVE_INFINITY;
-        for (final Range mergedFieldRange : ranges) {
-            float distance = mergedFieldRange.getBestMatchingScore(queryRanges);
+        for (final Range range : ranges) {
+            float distance = range.getBestMatchingScore(queryRanges);
             if (distance > best_individual_distance)
                 best_individual_distance = distance;
         }
