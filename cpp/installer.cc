@@ -2541,7 +2541,7 @@ void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
  * Writes a file into vufind directory to save configured system type
  */
 void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemType os_system_type, const bool install_cronjobs, const bool install_systemctl) {
-    const std::string vufind_system_type_string = VuFindSystemTypeToString(vufind_system_type);
+    const std::string vufind_system_type_string(VuFindSystemTypeToString(vufind_system_type));
     Echo("Starting configuration for " + vufind_system_type_string);
     const std::string dirname_solr_conf = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
 
@@ -2557,9 +2557,12 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     SetEnvironmentVariables(vufind_system_type_string);
 
     Echo("alphabetical browse");
-    UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh", VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
-    UseCustomFileIfExists(VUFIND_DIRECTORY + "/import/browse-indexing_" + vufind_system_type_string + ".jar", VUFIND_DIRECTORY + "/import/browse-indexing.jar");
-    UseCustomFileIfExists(VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler_" + vufind_system_type_string + ".jar", VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler.jar");
+    UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh",
+                          VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
+    UseCustomFileIfExists(VUFIND_DIRECTORY + "/import/browse-indexing_" + vufind_system_type_string + ".jar",
+                          VUFIND_DIRECTORY + "/import/browse-indexing.jar");
+    UseCustomFileIfExists(VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler_" + vufind_system_type_string + ".jar",
+                          VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler.jar");
 
     if (install_cronjobs) {
         Echo("cronjobs");
@@ -2579,6 +2582,18 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     ConfigureApacheUser(os_system_type);
 
     Echo(vufind_system_type_string + " configuration completed!");
+}
+
+
+void CreateEtcProfileDFile(const VuFindSystemType vufind_system_type) {
+    const std::string PROFILE_DIRECTORY("/etc/profile.d");
+    if (not FileUtil_IsDirectory(PROFILE_DIRECTORY))
+        Error("\"" + PROFILE_DIRECTORY + "\" does not exist or is not a directory!");
+
+    const std::string PROFILE_SCRIPT_PATH(PROFILE_DIRECTORY + "/tuefind.sh");
+    WriteStringOrDie(PROFILE_SCRIPT_PATH, "export TUEFIND_FLAVOUR=" + VuFindSystemTypeToString(vufind_system_type) + "\n");
+
+    Echo("Successfully created \"" + PROFILE_SCRIPT_PATH + "\".");
 }
 
 
@@ -2642,6 +2657,7 @@ int main(int argc, char **argv) {
             MountDeptDriveOrDie(vufind_system_type);
             DownloadVuFind();
             ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
+            CreateEtcProfileDFile(vufind_system_type);
         }
         InstallUBTools(/* make_install = */ not ub_tools_only);
     } catch (const std::exception &x) {
