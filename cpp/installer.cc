@@ -2585,18 +2585,6 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
 }
 
 
-void CreateEtcProfileDFile(const VuFindSystemType vufind_system_type) {
-    const std::string PROFILE_DIRECTORY("/etc/profile.d");
-    if (not FileUtil_IsDirectory(PROFILE_DIRECTORY))
-        Error("\"" + PROFILE_DIRECTORY + "\" does not exist or is not a directory!");
-
-    const std::string PROFILE_SCRIPT_PATH(PROFILE_DIRECTORY + "/tuefind.sh");
-    WriteStringOrDie(PROFILE_SCRIPT_PATH, "export TUEFIND_FLAVOUR=" + VuFindSystemTypeToString(vufind_system_type) + "\n");
-
-    Echo("Successfully created \"" + PROFILE_SCRIPT_PATH + "\".");
-}
-
-
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
@@ -2657,7 +2645,6 @@ int main(int argc, char **argv) {
             MountDeptDriveOrDie(vufind_system_type);
             DownloadVuFind();
             ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
-            CreateEtcProfileDFile(vufind_system_type);
         }
         InstallUBTools(/* make_install = */ not ub_tools_only);
     } catch (const std::exception &x) {
