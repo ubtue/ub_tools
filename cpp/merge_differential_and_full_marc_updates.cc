@@ -297,8 +297,8 @@ void CopyFileOrDie(const std::string &from, const std::string &to) {
 /** \return True if all names end in "[abc]001.raw", else false. */
 bool ArchiveEntryFilenamesMeetNamingExpectations(const std::vector<std::string> &archive_entry_names) {
     for (const auto &entry_name : archive_entry_names) {
-        if (not StringUtil::EndsWith(entry_name, "a001.raw") or not StringUtil::EndsWith(entry_name, "b001.raw")
-            or not StringUtil::EndsWith(entry_name, "c001.raw"))
+        if (not StringUtil::EndsWith(entry_name, "a001.raw") and not StringUtil::EndsWith(entry_name, "b001.raw")
+            and not StringUtil::EndsWith(entry_name, "c001.raw"))
             return false;
     }
 
@@ -341,7 +341,7 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
             // We can't use the usual ".raw" file name here because RemoveDuplicateControlNumberRecords requires a ".xml" or
             // a ".mrc" extension to identify the file type.
             const std::string temp_filename(common_suffix.substr(0, 5) + "mrc");
-            
+
             FileUtil::ConcatFiles(temp_filename, { *local_data_filename, *no_local_data_filename });
             MARC::RemoveDuplicateControlNumberRecords(temp_filename);
             FileUtil::RenameFileOrDie(temp_filename, common_suffix.substr(0, 5) + "raw");
@@ -385,7 +385,8 @@ std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const 
                                 auto_temp_marc_local_data_dir.getDirectoryPath() + "/");
     if (not ArchiveEntryFilenamesMeetNamingExpectations(local_data_filenames))
         logger->error("in CombineMarcBiblioArchives: archive \"" + local_data_archive_name
-                      + "\" contains at least one entry that does not meet our naming expectations!");
+                      + "\" contains at least one entry that does not meet our naming expectations"
+                      + " in " + StringUtil::Join(local_data_filenames, ", ") + "! (1)");
 
     FileUtil::AutoTempDirectory auto_temp_marc_no_local_data_dir(".");
     std::vector<std::string> no_local_data_filenames;
@@ -393,7 +394,8 @@ std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const 
                                 auto_temp_marc_no_local_data_dir.getDirectoryPath() + "/");
     if (not ArchiveEntryFilenamesMeetNamingExpectations(no_local_data_filenames))
         logger->error("in CombineMarcBiblioArchives: archive \"" + no_local_data_archive_name
-                      + "\" contains at least one entry that does not meet our naming expectations!");
+                      + "\" contains at least one entry that does not meet our naming expectations"
+                      + " in " + StringUtil::Join(no_local_data_filenames, ", ") + "! (2)");
 
     MergeAndDedupArchiveFiles(local_data_filenames, no_local_data_filenames, combined_archive_name);
     return combined_archive_name;
