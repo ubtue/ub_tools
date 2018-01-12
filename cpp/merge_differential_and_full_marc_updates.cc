@@ -221,14 +221,19 @@ void ExtractMarcFilesFromArchive(const std::string &archive_name, std::vector<st
     std::map<std::shared_ptr<RegexMatcher>, std::string> regex_to_first_file_map;
 
     ArchiveReader reader(archive_name);
+    std::cerr << 'A' << ": " << FileUtil::GetCurrentWorkingDirectory() << '\n';
     ArchiveReader::EntryInfo file_info;
     while (reader.getNext(&file_info)) {
+    std::cerr << 'B' << ": " << FileUtil::GetCurrentWorkingDirectory() << '\n';
         if (unlikely(not file_info.isRegularFile()))
             LogSendEmailAndDie("in ExtractMarcFilesFromArchive: unexpectedly, the entry \"" + file_info.getFilename()
                                + "\" in \"" + archive_name + "\" is not a regular file!");
 
+    std::cerr << 'C' << ": " << FileUtil::GetCurrentWorkingDirectory() << '\n';
         std::string output_filename, open_mode;
+    std::cerr << 'D' << ": " << FileUtil::GetCurrentWorkingDirectory() << '\n';
         GetOutputNameAndMode(file_info.getFilename(), &regex_to_first_file_map, &output_filename, &open_mode);
+    std::cerr << 'E' << ": " << FileUtil::GetCurrentWorkingDirectory() << '\n';
         output_filename = name_prefix + output_filename + name_suffix;
         File disc_file(output_filename, open_mode);
 
@@ -242,8 +247,10 @@ void ExtractMarcFilesFromArchive(const std::string &archive_name, std::vector<st
                 LogSendEmailAndDie("in ExtractMarcFilesFromArchive: failed to write data to \"" + output_filename
                                    + "\"! (No room?)");
         }
+    std::cerr << 'F' << ": " << FileUtil::GetCurrentWorkingDirectory() << '\n';
     }
 
+    std::cerr << 'G' << ": " << FileUtil::GetCurrentWorkingDirectory() << '\n';
     std::sort(extracted_names->begin(), extracted_names->end());
 }
 
@@ -372,8 +379,11 @@ std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const 
             logger->error("in CombineMarcBiblioArchives: neither \"" + local_data_archive_name + "\" nor \""
                           + no_local_data_archive_name + "\" can be found!");
         CopyFileOrDie(no_local_data_archive_name, combined_archive_name);
-    } else if (not FileUtil::Exists(no_local_data_archive_name))
+        return combined_archive_name;
+    } else if (not FileUtil::Exists(no_local_data_archive_name)) {
         CopyFileOrDie(local_data_archive_name, combined_archive_name);
+        return combined_archive_name;
+    }
 
     //
     // If we made it this far, both source archives exist.
