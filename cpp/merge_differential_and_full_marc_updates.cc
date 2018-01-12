@@ -886,7 +886,7 @@ int main(int argc, char *argv[]) {
             DeleteFilesOrDie(deletion_list_pattern);
         }
 
-        CreateSymlink(new_complete_dump_filename, "SA-MARC-" + tuefind_flavour + "-current.tar.gz");
+        CreateSymlink(new_complete_dump_filename, "Complete-MARC-" + tuefind_flavour + "-current.tar.gz");
 
         SendEmail(std::string(::progname) + " (" + GetHostname() + ")",
                   "Succeeded in creating the new complete archive \"" + new_complete_dump_filename + "\".\n",
