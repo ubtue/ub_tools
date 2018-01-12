@@ -828,9 +828,7 @@ int main(int argc, char *argv[]) {
             ini_file.getString("Files", "incremental_authority_dump"));
 
         const std::string complete_dump_filename(GetOrGenerateCompleteDumpFile(tuefind_flavour));
-
         const std::string complete_dump_filename_date(BSZUtil::ExtractDateFromFilenameOrDie(complete_dump_filename));
-//        const std::string complete_dump_filename(PickCompleteDumpFilename("SA-MARC-" + tuefind_flavour + "-\\d{6}.tar.gz"));
 
         std::vector<std::string> deletion_list_filenames;
         GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
