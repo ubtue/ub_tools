@@ -564,14 +564,18 @@ AutoTempDirectory::AutoTempDirectory(const std::string &path_prefix) {
     std::string path_template(path_prefix + "XXXXXX");
     const char * const path(::mkdtemp(const_cast<char *>(path_template.c_str())));
     if (path == nullptr)
-        throw std::runtime_error("in AutoTempDirectory::AutoTempDirectory: mkdtemp(3) for path prefix \"" + path_prefix
-                                 + "\" failed! (" + std::string(::strerror(errno)) + ")");
-    path_ = path;
+        logger->error("in FileUtil::AutoTempDirectory::AutoTempDirectory: mkdtemp(3) for path prefix \"" + path_prefix
+                      + "\" failed! (" + std::string(::strerror(errno)) + ")");
+    char resolved_path[PATH_MAX];
+    if (unlikely(::realpath(path, resolved_path) == nullptr))
+        logger->error("in FileUtil::AutoTempDirectory::AutoTempDirectory: realpath(3) for path \"" + std::string(path)
+                      + "\" failed! (" + std::string(::strerror(errno)) + ")");
+    path_ = resolved_path;
 }
 
 
 AutoTempDirectory::~AutoTempDirectory() {
-    if (not path_.empty() and not RemoveDirectory(path_))
+    if (not IsDirectory(path_) and not RemoveDirectory(path_))
         logger->error("in FileUtil::AutoTempDirectory::~AutoTempDirectory: can't remove \"" + path_ + "\"!");
 }
 
@@ -1002,10 +1006,11 @@ void AppendStringToFile(const std::string &path, const std::string &text) {
 // Creates a symlink called "link_filename" pointing to "target_filename".
 void CreateSymlink(const std::string &target_filename, const std::string &link_filename) {
     if (unlikely(::unlink(link_filename.c_str()) == -1 and errno != ENOENT /* "No such file or directory." */))
-        throw std::runtime_error("unlink(2) of \"" + link_filename + "\" failed: " + std::string(::strerror(errno)));
+        throw std::runtime_error("in FileUtil::CreateSymlink: unlink(2) of \"" + link_filename + "\" failed: "
+				 + std::string(::strerror(errno)));
     if (unlikely(::symlink(target_filename.c_str(), link_filename.c_str()) != 0))
-        throw std::runtime_error("failed to create symlink \"" + link_filename + "\" => \"" + target_filename + "\"! ("
-                           + std::string(::strerror(errno)) + ")");
+        throw std::runtime_error("in FileUtil::CreateSymlink: failed to create symlink \"" + link_filename + "\" => \""
+				 + target_filename + "\"! (" + std::string(::strerror(errno)) + ")");
 }
 
 
