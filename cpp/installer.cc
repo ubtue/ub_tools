@@ -2412,7 +2412,12 @@ void DownloadVuFind() {
         const std::string git_url("https://github.com/ubtue/tuefind.git");
         ExecOrDie(ExecUtil_Which("git"), { "clone", git_url, VUFIND_DIRECTORY });
 
-        TemporaryChDir tmp(VUFIND_DIRECTORY);
+        Echo("Activating custom git hooks");
+        ExecOrDie("rm", { "-r", VUFIND_DIRECTORY + "/.git/hooks" });
+        TemporaryChDir tmp1(VUFIND_DIRECTORY + "/.git");
+        FileUtil_CreateSymlink("../git-config/hooks", "hooks");
+
+        TemporaryChDir tmp2(VUFIND_DIRECTORY);
         ExecOrDie(ExecUtil_Which("composer"), { "install" });
     }
 }
