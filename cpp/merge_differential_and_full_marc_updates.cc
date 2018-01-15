@@ -406,11 +406,11 @@ std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const 
 
 
 std::string GetOrGenerateCompleteDumpFile(const std::string &tuefind_flavour) {
-    const std::string complete_dump_filename_pattern("Complete-MARC-" + tuefind_flavour + "-\\d{6}.tar.gz");
+    const std::string complete_dump_filename_pattern("Complete-MARC-" + tuefind_flavour + "-\\d{6}\\.tar\\.gz");
     std::vector<std::string> complete_dump_filenames;
     GetSortedListOfRegularFiles(complete_dump_filename_pattern, &complete_dump_filenames);
 
-    const std::string SA_filename_pattern("SA-MARC-" + tuefind_flavour + "-\\d{6}.tar.gz");
+    const std::string SA_filename_pattern("SA-MARC-" + tuefind_flavour + "-\\d{6}\\.tar\\.gz");
     std::vector<std::string> SA_filenames;
     GetSortedListOfRegularFiles(SA_filename_pattern, &SA_filenames);
     if (unlikely(complete_dump_filenames.empty() and SA_filenames.empty()))
@@ -513,14 +513,14 @@ bool GetMatchingFilename(const std::string &regex, std::string * const pathname)
 void GetBasenamesOrDie(std::string * const title_marc_basename, std::string * const superior_marc_basename,
                        std::string * const authority_marc_basename, const std::string &suffix = "")
 {
-    if (unlikely(not GetMatchingFilename("a001.raw" + suffix + "$", title_marc_basename)))
-        LogSendEmailAndDie("did not find precisely one file matching \"a001.raw" + suffix + "$\"!");
+    if (unlikely(not GetMatchingFilename("a001\\.raw" + suffix + "$", title_marc_basename)))
+        LogSendEmailAndDie("did not find precisely one file matching \"a001\\.raw" + suffix + "$\"!");
 
-    if (unlikely(not GetMatchingFilename("b001.raw" + suffix + "$", superior_marc_basename)))
-        LogSendEmailAndDie("did not find precisely one file matching \"b001.raw" + suffix + "$\"!");
+    if (unlikely(not GetMatchingFilename("b001\\.raw" + suffix + "$", superior_marc_basename)))
+        LogSendEmailAndDie("did not find precisely one file matching \"b001\\.raw" + suffix + "$\"!");
 
-    if (unlikely(not GetMatchingFilename("c001.raw" + suffix + "$", authority_marc_basename)))
-        LogSendEmailAndDie("did not find precisely one file matching \"c001.raw" + suffix + "$\"!");
+    if (unlikely(not GetMatchingFilename("c001\\.raw" + suffix + "$", authority_marc_basename)))
+        LogSendEmailAndDie("did not find precisely one file matching \"c001\\.raw" + suffix + "$\"!");
 }
 
 
@@ -795,7 +795,7 @@ void MergeIncrementalDumpFiles(const std::vector<std::string> &incremental_dump_
                                std::vector<std::string> * const merged_incremental_dump_filenames)
 {
     auto incremental_dump_filename(incremental_dump_filenames.cbegin());
-    while (incremental_dump_filename != (incremental_dump_filenames.cend())) {
+    while (incremental_dump_filename != incremental_dump_filenames.cend()) {
         const std::string date(BSZUtil::ExtractDateFromFilenameOrDie(*incremental_dump_filename));
         merged_incremental_dump_filenames->emplace_back(
             CombineMarcBiblioArchives(GetFilenameWithoutExtension(*incremental_dump_filename), "Merged-" + date));
@@ -868,7 +868,7 @@ int main(int argc, char *argv[]) {
             logger->info("identified " + std::to_string(deletion_list_filenames.size())
                          + " deletion list filenames for application.");
 
-        const std::string incremental_dump_pattern("TA-MARC-" + tuefind_flavour + "(_o)?-\\d{6}.tar.gz");
+        const std::string incremental_dump_pattern("TA-MARC-" + tuefind_flavour + "(_o)?-\\d{6}\\.tar\\.gz");
         std::vector<std::string> incremental_dump_filenames;
         GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_dump_pattern, &incremental_dump_filenames);
         if (not incremental_dump_filenames.empty())
@@ -906,7 +906,7 @@ int main(int argc, char *argv[]) {
         if (not keep_intermediate_files) {
             RemoveDirectoryOrDie(GetWorkingDirectoryName());
             DeleteFilesOrDie(incremental_dump_pattern);
-            DeleteFilesOrDie("Merged-*.tar.gz");
+            DeleteFilesOrDie("^Merged-\\d{6}\\.tar\\.gz$");
             DeleteFilesOrDie(incremental_authority_dump_pattern);
             DeleteFilesOrDie(deletion_list_pattern);
         }
