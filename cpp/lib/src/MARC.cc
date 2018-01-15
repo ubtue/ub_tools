@@ -670,15 +670,15 @@ void XmlReader::parseDatafield(const std::string &input_filename,
         // 3. </subfield>
         if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CLOSING_TAG
                      or data != namespace_prefix_ + "subfield"))
-            {
-                const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
-                                     or type == SimpleXmlParser<File>::CLOSING_TAG);
-                throw std::runtime_error("in MARC::XmlReader::parseDatafield: expected </" + namespace_prefix_
-                                         + "subfield> closing tag on line "
-                                         + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
-                                         + "\"! (Found: " + SimpleXmlParser<File>::TypeToString(type)
-                                         + (tag_found ? (":" + data) : ""));
-            }
+        {
+            const bool tag_found(type == SimpleXmlParser<File>::OPENING_TAG
+                                 or type == SimpleXmlParser<File>::CLOSING_TAG);
+            throw std::runtime_error("in MARC::XmlReader::parseDatafield: expected </" + namespace_prefix_
+                                     + "subfield> closing tag on line "
+                                     + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
+                                     + "\"! (Found: " + SimpleXmlParser<File>::TypeToString(type)
+                                     + (tag_found ? (":" + data) : ""));
+        }
     }
 }
 
@@ -703,7 +703,7 @@ void XmlReader::skipOverStartOfDocument() {
 
 
 bool XmlReader::getNext(SimpleXmlParser<File>::Type * const type,
-                            std::map<std::string, std::string> * const attrib_map, std::string * const data)
+                        std::map<std::string, std::string> * const attrib_map, std::string * const data)
 {
     if (unlikely(not xml_parser_->getNext(type, attrib_map, data)))
         return false;
@@ -765,8 +765,7 @@ void BinaryWriter::write(const Record &record) {
         if (record_is_oversized) // Include size of the 001 field.
             record_size += record.fields_.front().getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
         while (end != record.end()
-               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH
-                    < Record::MAX_RECORD_LENGTH))
+               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH))
         {
             record_size += end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
             ++end;
