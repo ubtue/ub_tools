@@ -1567,7 +1567,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
             if (dates.isEmpty())
-                logger.severe("getDatesBasedOnRecordType [Could not find proper 936 field date content for: " + record.getControlNumber() + "]");
+                logger.severe("getDatesBasedOnRecordType [Could not find proper 936 field date content for: "
+                              + record.getControlNumber() + "]");
             else
                 return dates;
         }
@@ -1601,12 +1602,13 @@ public class TuelibMixin extends SolrIndexerMixin {
         final String year = checkValidYear(yearExtracted);
         // log error if year is empty or not a year like "19uu"
         if (year.isEmpty() && !VALID_YEAR_RANGE_PATTERN.matcher(yearExtracted).matches())
-            logger.severe("getDatesBasedOnRecordType [\"" + yearExtracted + "\" is not a valid year for PPN " + record.getControlNumber() + "]");
+            logger.severe("getDatesBasedOnRecordType [\"" + yearExtracted + "\" is not a valid year for PPN "
+                          + record.getControlNumber() + "]");
         else
             dates.add(year);
 
         return dates;
-}
+    }
 
 
     public String isSuperiorWork(final Record record) {
@@ -2114,6 +2116,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                 }
             }
         }
+
+        // If we classified an object as "DictionaryEntryOrArticle" we don't also want it to be classified as an article:
+        if (result.contains("Article") && result.contains("DictionaryEntryOrArticle"))
+            result.remove("Article");
 
         // Nothing worked!
         if (result.isEmpty()) {
