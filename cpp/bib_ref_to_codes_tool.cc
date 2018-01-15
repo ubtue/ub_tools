@@ -56,9 +56,14 @@ void Usage() {
 void HandlePericopes(const bool verbose, const bool generate_solr_query, const std::string &bible_reference_candidate,
                      const std::string &pericopes_to_codes_map_filename)
 {
+    if (verbose)
+        std::cout << "Entering HandlePericopes().\n";
+
     std::unordered_multimap<std::string, std::string> pericopes_to_codes_map;
     MapIO::DeserialiseMap(pericopes_to_codes_map_filename, &pericopes_to_codes_map);
 
+    if (verbose)
+        std::cout << "In HandlePericopes: looking for \"" << bible_reference_candidate << "\".\n";
     const auto begin_end(pericopes_to_codes_map.equal_range(bible_reference_candidate));
     if (begin_end.first != begin_end.second) {
         if (verbose)
@@ -189,7 +194,7 @@ int main(int argc, char **argv) {
 
     if (argc < 2)
         Usage();
-    
+
     bool verbose(false), generate_solr_query(false);
     if (std::strcmp(argv[1], "--debug") == 0) {
         verbose = true;
@@ -201,7 +206,7 @@ int main(int argc, char **argv) {
 
     if (argc < 2)
         Usage();
-    
+
     std::string map_file_path;
     if (StringUtil::StartsWith(argv[1], "--map-file-directory=")) {
         map_file_path = argv[1] + __builtin_strlen("--map-file-directory=");

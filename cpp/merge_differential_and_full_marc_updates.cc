@@ -25,11 +25,7 @@
 
 [Files]
 deletion_list              = LOEPPN(?:_m)?-\d{6}
-complete_dump              = SA-MARC-ixtheo-\d{6}.tar.gz
-incremental_dump           = (:?TA-MARC-ixtheo|SA-MARC-ixtheo_o|TA-MARC-ixtheo_o)-\d{6}.tar.gz
 incremental_authority_dump = (?:WA-MARCcomb-sekkor)-(\d{6}).tar.gz
-complete_dump_linkname     = SA-MARC-ixtheo-current.tar.gz
-errors_list                = Errors_ixtheo_\d{6}
 */
 
 #include <algorithm>
@@ -55,6 +51,8 @@ errors_list                = Errors_ixtheo_\d{6}
 #include "File.h"
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "MARC.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
@@ -127,53 +125,6 @@ unsigned GetSortedListOfRegularFiles(const std::string &filename_regex, std::vec
     std::sort(filenames->begin(), filenames->end());
 
     return filenames->size();
-}
-
-
-std::string PickCompleteDumpFilename(const std::string &complete_dump_pattern) {
-    std::vector<std::string> complete_dump_filenames;
-    GetSortedListOfRegularFiles(complete_dump_pattern, &complete_dump_filenames);
-    if (unlikely(complete_dump_filenames.empty()))
-        LogSendEmailAndDie("did not find a complete MARC dump matching \"" + complete_dump_pattern + "\"!");
-
-    const std::string &chosen_filename(complete_dump_filenames.back());
-    logger->info("picking \"" + chosen_filename + "\" as the complete MARC dump.");
-
-    return chosen_filename;
-}
-
-
-enum CompOutcome { CO_GREATER, CO_SMALLER, CO_EQUAL };
-
-
-CompOutcome DateCompare(const std::string &filename1, const std::string &filename2) {
-    const std::string date1(BSZUtil::ExtractDateFromFilenameOrDie(filename1));
-    const std::string date2(BSZUtil::ExtractDateFromFilenameOrDie(filename2));
-    if (date1 < date2)
-        return CO_SMALLER;
-    else if (date1 > date2)
-        return CO_GREATER;
-    return CO_EQUAL;
-}
-
-
-/** \brief Advances "filename_iter" to where its date is greater or equal to the date of "reference_filename".
- *  \return The date matching if "filename_iter"'s date is the same as the reference date else the empty string.
- */
-std::string AdvanceToDate(const std::string &reference_filename,
-                          const std::vector<std::string>::const_iterator &end,
-                          std::vector<std::string>::const_iterator * const filename_iter)
-{
-    while (*filename_iter != end) {
-        const CompOutcome comp_outcome(DateCompare(reference_filename, **filename_iter));
-        if (comp_outcome == CO_EQUAL)
-            return **filename_iter;
-        if (comp_outcome == CO_SMALLER)
-            return "";
-        ++*filename_iter;
-    }
-
-    return "";
 }
 
 
@@ -258,8 +209,9 @@ void GetOutputNameAndMode(const std::string &archive_entry_name,
 
 // Extracts files from a MARC archive, typically a gzipped tar file, and combines files matching the same pattern.
 // For example, if the archive contains "SA-MARC-ixtheoa001.raw" and "SA-MARC-ixtheoa002.raw",
-// "SA-MARC-ixtheoa002.raw" will be concatenated onto "SA-MARC-ixtheoa001.raw" do that only a single disc file will
+// "SA-MARC-ixtheoa002.raw" will be concatenated onto "SA-MARC-ixtheoa001.raw" so that only a single disc file will
 // result.
+// Note: The "returned" file list will be alphanumerically sorted.
 void ExtractMarcFilesFromArchive(const std::string &archive_name, std::vector<std::string> * const extracted_names,
                                  const std::string &name_prefix = "", const std::string &name_suffix = "")
 {
@@ -291,6 +243,8 @@ void ExtractMarcFilesFromArchive(const std::string &archive_name, std::vector<st
                                    + "\"! (No room?)");
         }
     }
+
+    std::sort(extracted_names->begin(), extracted_names->end());
 }
 
 
@@ -337,6 +291,152 @@ void CopyFileOrDie(const std::string &from, const std::string &to) {
 
     ::close(from_fd);
     ::close(to_fd);
+}
+
+
+/** \return True if all names end in "[abc]001.raw", else false. */
+bool ArchiveEntryFilenamesMeetNamingExpectations(const std::vector<std::string> &archive_entry_names) {
+    for (const auto &entry_name : archive_entry_names) {
+        if (not StringUtil::EndsWith(entry_name, "a001.raw") and not StringUtil::EndsWith(entry_name, "b001.raw")
+            and not StringUtil::EndsWith(entry_name, "c001.raw"))
+            return false;
+    }
+
+    return true;
+}
+
+
+// Hopefully returns strings like "a001.raw" etc.
+inline std::string GetArchiveEntrySuffix(const std::string &archive_entry_name) {
+    return archive_entry_name.substr(archive_entry_name.length() - 8 - 1);
+}
+
+
+void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filenames,
+                               const std::vector<std::string> &no_local_data_filenames,
+                               const std::string &target_archive_name)
+{
+    logger->info("merging and deduping archive files to create \"" + target_archive_name + "\".");
+
+    FileUtil::AutoTempDirectory working_dir(".");
+    ChangeDirectoryOrDie(working_dir.getDirectoryPath());
+
+    auto local_data_filename(local_data_filenames.cbegin());
+    auto no_local_data_filename(no_local_data_filenames.cbegin());
+
+    while (local_data_filename != local_data_filenames.cend() or no_local_data_filename != no_local_data_filenames.cend()) {
+        if (local_data_filename == local_data_filenames.cend()
+            or GetArchiveEntrySuffix(*no_local_data_filename) < GetArchiveEntrySuffix(*local_data_filename))
+        {
+            CopyFileOrDie("../" + *no_local_data_filename, GetArchiveEntrySuffix(*no_local_data_filename));
+            ++no_local_data_filename;
+        } else if (no_local_data_filename == no_local_data_filenames.cend()
+                   or GetArchiveEntrySuffix(*local_data_filename) < GetArchiveEntrySuffix(*no_local_data_filename))
+        {
+            CopyFileOrDie("../" + *local_data_filename, GetArchiveEntrySuffix(*local_data_filename));
+            ++local_data_filename;
+        } else { // If we end up here, local_data_filename and no_local_data_filename have the same suffix.
+            const std::string common_suffix(*local_data_filename);
+
+            // We can't use the usual ".raw" file name here because RemoveDuplicateControlNumberRecords requires a ".xml" or
+            // a ".mrc" extension to identify the file type.
+            const std::string temp_filename(common_suffix.substr(0, 5) + "mrc");
+
+            FileUtil::ConcatFiles(temp_filename, { *local_data_filename, *no_local_data_filename });
+            MARC::RemoveDuplicateControlNumberRecords(temp_filename);
+            FileUtil::RenameFileOrDie(temp_filename, common_suffix.substr(0, 5) + "raw");
+            ++local_data_filename;
+            ++no_local_data_filename;
+        }
+    }
+
+    // Create the archive with the combined entries:
+    std::vector<std::string> combined_entries;
+    FileUtil::GetFileNameList("[abc]00.\\.raw", &combined_entries);
+    ArchiveWriter archive_writer("../" + target_archive_name);
+    for (const auto &combined_entry : combined_entries)
+        archive_writer.add(combined_entry);
+
+    ChangeDirectoryOrDie("..");
+}
+
+
+// Here we combine an archive which contains local data with one that contains no local data but possibly duplicate control
+// numbers.  We return the name of the combined archive.
+std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const std::string &combined_filename_prefix) {
+    const std::string local_data_archive_name(filename_prefix + ".tar.gz");
+    const std::string no_local_data_archive_name(filename_prefix + "_o.tar.gz");
+    const std::string combined_archive_name(combined_filename_prefix + ".tar.gz");
+    if (not FileUtil::Exists(local_data_archive_name)) {
+        if (not FileUtil::Exists(no_local_data_archive_name))
+            logger->error("in CombineMarcBiblioArchives: neither \"" + local_data_archive_name + "\" nor \""
+                          + no_local_data_archive_name + "\" can be found!");
+        CopyFileOrDie(no_local_data_archive_name, combined_archive_name);
+    } else if (not FileUtil::Exists(no_local_data_archive_name))
+        CopyFileOrDie(local_data_archive_name, combined_archive_name);
+
+    //
+    // If we made it this far, both source archives exist.
+    //
+
+    FileUtil::AutoTempDirectory auto_temp_marc_local_data_dir(".");
+    std::vector<std::string> local_data_filenames;
+    ExtractMarcFilesFromArchive(local_data_archive_name, &local_data_filenames,
+                                auto_temp_marc_local_data_dir.getDirectoryPath() + "/");
+    if (not ArchiveEntryFilenamesMeetNamingExpectations(local_data_filenames))
+        logger->error("in CombineMarcBiblioArchives: archive \"" + local_data_archive_name
+                      + "\" contains at least one entry that does not meet our naming expectations"
+                      + " in " + StringUtil::Join(local_data_filenames, ", ") + "! (1)");
+
+    FileUtil::AutoTempDirectory auto_temp_marc_no_local_data_dir(".");
+    std::vector<std::string> no_local_data_filenames;
+    ExtractMarcFilesFromArchive(no_local_data_archive_name, &no_local_data_filenames,
+                                auto_temp_marc_no_local_data_dir.getDirectoryPath() + "/");
+    if (not ArchiveEntryFilenamesMeetNamingExpectations(no_local_data_filenames))
+        logger->error("in CombineMarcBiblioArchives: archive \"" + no_local_data_archive_name
+                      + "\" contains at least one entry that does not meet our naming expectations"
+                      + " in " + StringUtil::Join(no_local_data_filenames, ", ") + "! (2)");
+
+    MergeAndDedupArchiveFiles(local_data_filenames, no_local_data_filenames, combined_archive_name);
+    return combined_archive_name;
+}
+
+
+std::string GetOrGenerateCompleteDumpFile(const std::string &tuefind_flavour) {
+    const std::string complete_dump_filename_pattern("Complete-MARC-" + tuefind_flavour + "-\\d{6}.tar.gz");
+    std::vector<std::string> complete_dump_filenames;
+    GetSortedListOfRegularFiles(complete_dump_filename_pattern, &complete_dump_filenames);
+
+    const std::string SA_filename_pattern("SA-MARC-" + tuefind_flavour + "-\\d{6}.tar.gz");
+    std::vector<std::string> SA_filenames;
+    GetSortedListOfRegularFiles(SA_filename_pattern, &SA_filenames);
+    if (unlikely(complete_dump_filenames.empty() and SA_filenames.empty()))
+        LogSendEmailAndDie("did not find a complete MARC dump matching either \"" + complete_dump_filename_pattern
+                           + "\" or \"" + SA_filename_pattern + "\"!");
+
+    std::string most_recent_SA_date;
+    if (SA_filenames.empty()) {
+        const std::string &chosen_filename(complete_dump_filenames.back());
+        logger->info("picking \"" + chosen_filename + "\" as the complete MARC dump.");
+        return chosen_filename;
+    } else
+        most_recent_SA_date = BSZUtil::ExtractDateFromFilenameOrDie(SA_filenames.back());
+
+    if (not complete_dump_filenames.empty()
+        and BSZUtil::ExtractDateFromFilenameOrDie(complete_dump_filenames.back()) > most_recent_SA_date)
+    {
+        const std::string &chosen_filename(complete_dump_filenames.back());
+        logger->info("picking \"" + chosen_filename + "\" as the complete MARC dump.");
+        return chosen_filename;
+    }
+
+    // If we end up here we have to generate a new complete MARC dump:
+    const std::string new_complete_dump_filename(
+        CombineMarcBiblioArchives("SA-MARC-" + tuefind_flavour + "-" + most_recent_SA_date,
+                                  "Complete-MARC-" + tuefind_flavour + "-" + most_recent_SA_date));
+    logger->info("generated \"" + new_complete_dump_filename + "\".");
+
+    return new_complete_dump_filename;
 }
 
 
@@ -473,44 +573,14 @@ void IfNotExistsMakeEmptyOrDie(const std::string &pathname) {
 }
 
 
-const std::string APPEND_MARC_XML_CMD("/usr/local/bin/append_marc_xml");
-
-
-// Appends "source_filename" to "target_filename".
-void AppendMarcXMLOrDie(const std::string &source_filename, const std::string &target_filename) {
-    if (unlikely(ExecUtil::Exec(APPEND_MARC_XML_CMD, { source_filename, target_filename }) != 0))
-        LogSendEmailAndDie("\"" + APPEND_MARC_XML_CMD + "\" with arguments \"" + source_filename + "\" and \""
-                           + target_filename + "\" failed!");
-}
-
-
-const std::string DOWNLOAD_ERROR_RECORDS_SCRIPT("/usr/local/bin/download_error_records.sh");
-const std::string BIBLIO_ERROR_RECORDS("biblio_error_records.xml");
-const std::string AUTH_ERROR_RECORDS("auth_error_records.xml");
-
-
-void DownloadErrorRecordsOrDie(const std::string &errors_list_filename) {
-    if (errors_list_filename.empty())
-        return;
-
-    if (unlikely(ExecUtil::Exec(DOWNLOAD_ERROR_RECORDS_SCRIPT,
-                                { errors_list_filename, BIBLIO_ERROR_RECORDS, AUTH_ERROR_RECORDS }) != 0))
-        LogSendEmailAndDie("\"" + DOWNLOAD_ERROR_RECORDS_SCRIPT + "\" with arguments \"" + errors_list_filename
-                           + "\", \"" + BIBLIO_ERROR_RECORDS +"\" and \"" + AUTH_ERROR_RECORDS + "\" failed!");
-}
-
-
 void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
-                 const std::string &deletion_list_filename, const std::string &errors_list_filename,
-                 const std::string &differential_archive)
+                 const std::string &deletion_list_filename, const std::string &differential_archive)
 {
     if (not deletion_list_filename.empty())
         CopyFileOrDie("../" + deletion_list_filename, LOCAL_DELETION_LIST_FILENAME);
     else if (differential_archive.empty())
         LogSendEmailAndDie("in ApplyUpdate: both, \"deletion_list_filename\" and \"differential_archive\" are "
                            "empty strings.  This should never happen!");
-
-    DownloadErrorRecordsOrDie(errors_list_filename);
 
     // Unpack the differential archive and extract control numbers from its members appending them to the
     // deletion list file:
@@ -545,10 +615,6 @@ void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
                         + "\" which might match a file extracted from \"" + differential_archive + "\"!");
     const std::string new_title_marc_filename(ReplaceSuffix(title_marc_basename, old_name_suffix, new_name_suffix));
     UpdateOneFile(title_marc_basename, new_title_marc_filename, diff_filename);
-    if (FileUtil::Exists(BIBLIO_ERROR_RECORDS)) {
-        AppendMarcXMLOrDie(BIBLIO_ERROR_RECORDS, new_title_marc_filename);
-        logger->info("Appended \"" + BIBLIO_ERROR_RECORDS + "\" to \"" + new_title_marc_filename + "\".");
-    }
 
     // Update the superior data:
     diff_filename_pattern = "diff_.*b001.raw";
@@ -566,10 +632,6 @@ void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
     const std::string new_authority_data_marc_filename(ReplaceSuffix(authority_marc_basename, old_name_suffix,
                                                                new_name_suffix));
     UpdateOneFile(authority_marc_basename, new_authority_data_marc_filename, diff_filename);
-    if (FileUtil::Exists(AUTH_ERROR_RECORDS)) {
-        AppendMarcXMLOrDie(AUTH_ERROR_RECORDS, new_authority_data_marc_filename);
-        logger->info("Appended \"" + AUTH_ERROR_RECORDS + "\" to \"" + new_authority_data_marc_filename + "\".");
-    }
 
     if (not differential_archive.empty() and not keep_intermediate_files)
         DeleteFilesOrDie("diff_.*");
@@ -579,10 +641,6 @@ void ApplyUpdate(const bool keep_intermediate_files, const unsigned apply_count,
         DeleteFileOrDie(superior_marc_basename);
         DeleteFileOrDie(authority_marc_basename);
         DeleteFileOrDie(LOCAL_DELETION_LIST_FILENAME);
-        if (FileUtil::Exists(BIBLIO_ERROR_RECORDS))
-            DeleteFileOrDie(BIBLIO_ERROR_RECORDS);
-        if (FileUtil::Exists(AUTH_ERROR_RECORDS))
-            DeleteFileOrDie(AUTH_ERROR_RECORDS);
     }
 }
 
@@ -606,7 +664,6 @@ void CreateSymlink(const std::string &target_filename, const std::string &link_f
 std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_files,
                                                    const std::string &complete_dump_filename,
                                                    const std::vector<std::string> &deletion_list_filenames,
-                                                   const std::vector<std::string> &errors_list_filenames,
                                                    const std::vector<std::string> &incremental_dump_filenames)
 {
     std::vector<std::string> extracted_names;
@@ -615,7 +672,6 @@ std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_
 
     // Iterate over the deletion list and incremental dump filename lists and apply one or both as appropriate:
     auto deletion_list_filename(deletion_list_filenames.cbegin());
-    auto errors_list_filename(errors_list_filenames.cbegin());
     auto incremental_dump_filename(incremental_dump_filenames.cbegin());
     unsigned apply_count(0);
     while (deletion_list_filename != deletion_list_filenames.cend()
@@ -624,36 +680,22 @@ std::string ExtractAndCombineMarcFilesFromArchives(const bool keep_intermediate_
         ++apply_count;
 
         if (deletion_list_filename == deletion_list_filenames.cend()) {
-            ApplyUpdate(keep_intermediate_files, apply_count, "",
-                        AdvanceToDate(*incremental_dump_filename, errors_list_filenames.cend(),
-                                      &errors_list_filename),
-                        *incremental_dump_filename);
+            ApplyUpdate(keep_intermediate_files, apply_count, "", *incremental_dump_filename);
             ++incremental_dump_filename;
         } else if (incremental_dump_filename == incremental_dump_filenames.cend()) {
-            ApplyUpdate(keep_intermediate_files, apply_count, *deletion_list_filename,
-                        AdvanceToDate(*deletion_list_filename, errors_list_filenames.cend(), &errors_list_filename),
-                        "");
+            ApplyUpdate(keep_intermediate_files, apply_count, *deletion_list_filename, "");
             ++deletion_list_filename;
         } else {
             const std::string deletion_list_date(BSZUtil::ExtractDateFromFilenameOrDie(*deletion_list_filename));
             const std::string incremental_dump_date(BSZUtil::ExtractDateFromFilenameOrDie(*incremental_dump_filename));
             if (deletion_list_date < incremental_dump_date) {
-                ApplyUpdate(keep_intermediate_files, apply_count, *deletion_list_filename,
-                            AdvanceToDate(*deletion_list_filename, errors_list_filenames.cend(),
-                                          &errors_list_filename),
-                            "");
+                ApplyUpdate(keep_intermediate_files, apply_count, *deletion_list_filename, "");
                 ++deletion_list_filename;
             } else if (incremental_dump_date > deletion_list_date) {
-                ApplyUpdate(keep_intermediate_files, apply_count, "",
-                            AdvanceToDate(*incremental_dump_filename, errors_list_filenames.cend(),
-                                          &errors_list_filename),
-                            *incremental_dump_filename);
+                ApplyUpdate(keep_intermediate_files, apply_count, "", *incremental_dump_filename);
                 ++incremental_dump_filename;
             } else {
-                ApplyUpdate(keep_intermediate_files, apply_count, *deletion_list_filename,
-                            AdvanceToDate(*incremental_dump_filename, errors_list_filenames.cend(),
-                                          &errors_list_filename),
-                            *incremental_dump_filename);
+                ApplyUpdate(keep_intermediate_files, apply_count, *deletion_list_filename, *incremental_dump_filename);
                 ++deletion_list_filename;
                 ++incremental_dump_filename;
             }
@@ -778,20 +820,15 @@ int main(int argc, char *argv[]) {
         ::email_server_user     = email_ini_file.getString("SMTPServer", "server_user");
         ::email_server_password = email_ini_file.getString("SMTPServer", "server_password");
 
+        const std::string tuefind_flavour(MiscUtil::GetEnv("TUEFIND_FLAVOUR"));
+
         const IniFile ini_file(CONF_FILE_PATH);
         const std::string deletion_list_pattern(ini_file.getString("Files", "deletion_list"));
-        const std::string complete_dump_pattern(ini_file.getString("Files", "complete_dump"));
-        const std::string incremental_dump_pattern(ini_file.getString("Files", "incremental_dump"));
         const std::string incremental_authority_dump_pattern(
             ini_file.getString("Files", "incremental_authority_dump"));
-        const std::string complete_dump_linkname(ini_file.getString("Files", "complete_dump_linkname"));
-        // An error list is not unconditionally present
-        std::string errors_list_pattern;
-        ini_file.lookup("Files", "error_list", &errors_list_pattern);
 
-        const std::string complete_dump_filename(PickCompleteDumpFilename(complete_dump_pattern));
-        const std::string complete_dump_filename_date(
-            BSZUtil::ExtractDateFromFilenameOrDie(complete_dump_filename));
+        const std::string complete_dump_filename(GetOrGenerateCompleteDumpFile(tuefind_flavour));
+        const std::string complete_dump_filename_date(BSZUtil::ExtractDateFromFilenameOrDie(complete_dump_filename));
 
         std::vector<std::string> deletion_list_filenames;
         GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, deletion_list_pattern, &deletion_list_filenames);
@@ -799,17 +836,9 @@ int main(int argc, char *argv[]) {
             logger->info("identified " + std::to_string(deletion_list_filenames.size())
                          + " deletion list filenames for application.");
 
-        std::vector<std::string> errors_list_filenames;
-        if (not errors_list_pattern.empty()) {
-            GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, errors_list_pattern, &errors_list_filenames);
-            if (not errors_list_filenames.empty())
-                logger->info("identified " + std::to_string(errors_list_filenames.size())
-                             + " errors list filenames for application.");
-        }
-
+        const std::string incremental_dump_pattern("TA-MARC-" + tuefind_flavour + "-\\d{6}.tar.gz");
         std::vector<std::string> incremental_dump_filenames;
-        GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_dump_pattern,
-                                      &incremental_dump_filenames);
+        GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_dump_pattern, &incremental_dump_filenames);
         if (not incremental_dump_filenames.empty())
             logger->info("identified " + std::to_string(incremental_dump_filenames.size())
                          + " incremental dump filenames for application.");
@@ -826,7 +855,7 @@ int main(int argc, char *argv[]) {
         if (deletion_list_filenames.empty() and incremental_dump_filenames.empty()
             and incremental_authority_dump_filenames.empty())
         {
-            SendEmail(std::string(::progname),
+            SendEmail(::progname,
                       "No recent deletion lists, incremental dump filenames and authority dump filenames.\n"
                       "Therefore we have nothing to do!\n", EmailSender::VERY_LOW);
             return EXIT_SUCCESS;
@@ -837,8 +866,7 @@ int main(int argc, char *argv[]) {
         CreateAndChangeIntoTheWorkingDirectory();
         const std::string new_complete_dump_filename(
             ExtractAndCombineMarcFilesFromArchives(keep_intermediate_files, complete_dump_filename,
-                                                   deletion_list_filenames, errors_list_filenames,
-                                                   incremental_dump_filenames));
+                                                   deletion_list_filenames, incremental_dump_filenames));
         ChangeDirectoryOrDie(".."); // Leave the working directory again.
 
         if (not keep_intermediate_files) {
@@ -846,11 +874,9 @@ int main(int argc, char *argv[]) {
             DeleteFilesOrDie(incremental_dump_pattern);
             DeleteFilesOrDie(incremental_authority_dump_pattern);
             DeleteFilesOrDie(deletion_list_pattern);
-            if (not errors_list_pattern.empty())
-                DeleteFilesOrDie(errors_list_pattern);
         }
 
-        CreateSymlink(new_complete_dump_filename, complete_dump_linkname);
+        CreateSymlink(new_complete_dump_filename, "SA-MARC-" + tuefind_flavour + "-current.tar.gz");
 
         SendEmail(std::string(::progname) + " (" + GetHostname() + ")",
                   "Succeeded in creating the new complete archive \"" + new_complete_dump_filename + "\".\n",

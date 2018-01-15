@@ -2546,7 +2546,7 @@ void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
  * Writes a file into vufind directory to save configured system type
  */
 void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemType os_system_type, const bool install_cronjobs, const bool install_systemctl) {
-    const std::string vufind_system_type_string = VuFindSystemTypeToString(vufind_system_type);
+    const std::string vufind_system_type_string(VuFindSystemTypeToString(vufind_system_type));
     Echo("Starting configuration for " + vufind_system_type_string);
     const std::string dirname_solr_conf = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
 
@@ -2562,9 +2562,12 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     SetEnvironmentVariables(vufind_system_type_string);
 
     Echo("alphabetical browse");
-    UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh", VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
-    UseCustomFileIfExists(VUFIND_DIRECTORY + "/import/browse-indexing_" + vufind_system_type_string + ".jar", VUFIND_DIRECTORY + "/import/browse-indexing.jar");
-    UseCustomFileIfExists(VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler_" + vufind_system_type_string + ".jar", VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler.jar");
+    UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh",
+                          VUFIND_DIRECTORY + "/index-alphabetic-browse.sh");
+    UseCustomFileIfExists(VUFIND_DIRECTORY + "/import/browse-indexing_" + vufind_system_type_string + ".jar",
+                          VUFIND_DIRECTORY + "/import/browse-indexing.jar");
+    UseCustomFileIfExists(VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler_" + vufind_system_type_string + ".jar",
+                          VUFIND_DIRECTORY + "/solr/vufind/jars/browse-handler.jar");
 
     if (install_cronjobs) {
         Echo("cronjobs");
