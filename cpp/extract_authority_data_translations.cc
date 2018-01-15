@@ -50,6 +50,9 @@
 #include "util.h"
 
 
+namespace {
+
+
 // Languages to handle
 const unsigned int NUMBER_OF_LANGUAGES(9);
 const std::vector<std::string> languages_to_create{ "en", "fr", "es", "it", "hans", "hant", "pt", "ru", "el" };
@@ -280,6 +283,9 @@ void ExtractTranslations(MARC::Reader * const marc_reader, const std::string &ge
 }
 
 
+} // unnamed namespace
+
+
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
@@ -333,5 +339,3 @@ int main(int argc, char **argv) {
         logger->error("caught exception: " + std::string(x.what()));
     }
 }
-
-
