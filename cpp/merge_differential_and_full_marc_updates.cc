@@ -782,6 +782,35 @@ void MergeAuthorityAndIncrementalDumpLists(const std::vector<std::string> &incre
 }
 
 
+// Strips all extensions from "filename" and returns what is left after that.
+std::string GetFilenameWithoutExtension(const std::string &filename) {
+    const auto first_dot_pos(filename.find('.'));
+    if (unlikely(first_dot_pos == std::string::npos))
+        logger->error("in GetFilenameWithoutExtension: \"" + filename + "\" has no extension!");
+    return filename.substr(first_dot_pos);
+}
+
+
+void MergeIncrementalDumpFiles(const std::vector<std::string> &incremental_dump_filenames,
+                               std::vector<std::string> * const merged_incremental_dump_filenames)
+{
+    auto incremental_dump_filename(incremental_dump_filenames.cbegin());
+    while (incremental_dump_filename != (incremental_dump_filenames.cend())) {
+        const std::string date(BSZUtil::ExtractDateFromFilenameOrDie(*incremental_dump_filename));
+        merged_incremental_dump_filenames->emplace_back(
+            CombineMarcBiblioArchives(GetFilenameWithoutExtension(*incremental_dump_filename), "Merged-" + date));
+        ++incremental_dump_filename;
+
+        // We may have had two files that have the same date and only differ in one file having an additional "_O" in its
+        // filename.  In this case they would have been sorted together and we have to skip over the additional file with
+        // the "_o" and the same date:
+        if (incremental_dump_filename != incremental_dump_filenames.cend()
+            and BSZUtil::ExtractDateFromFilenameOrDie(*(incremental_dump_filename)) == date)
+            ++incremental_dump_filename;
+    }   
+}
+
+
 // Shift a given YYMMDD to ten days before
 std::string ShiftDateToTenDaysBefore(const std::string &cutoff_date) {
     struct tm cutoff_date_tm(TimeUtil::StringToStructTm(cutoff_date, "%y%m%d"));
@@ -839,12 +868,14 @@ int main(int argc, char *argv[]) {
             logger->info("identified " + std::to_string(deletion_list_filenames.size())
                          + " deletion list filenames for application.");
 
-        const std::string incremental_dump_pattern("TA-MARC-" + tuefind_flavour + "-\\d{6}.tar.gz");
+        const std::string incremental_dump_pattern("TA-MARC-" + tuefind_flavour + "(_o)?-\\d{6}.tar.gz");
         std::vector<std::string> incremental_dump_filenames;
         GetFilesMoreRecentThanOrEqual(complete_dump_filename_date, incremental_dump_pattern, &incremental_dump_filenames);
         if (not incremental_dump_filenames.empty())
             logger->info("identified " + std::to_string(incremental_dump_filenames.size())
                          + " incremental dump filenames for application.");
+        std::vector<std::string> merged_incremental_dump_filenames;
+        MergeIncrementalDumpFiles(incremental_dump_filenames, &merged_incremental_dump_filenames);
 
         std::vector<std::string> incremental_authority_dump_filenames;
         // incremental authority dumps are only delivered once a week and a longer span of time must
@@ -855,7 +886,7 @@ int main(int argc, char *argv[]) {
             logger->info("identified " + std::to_string(incremental_authority_dump_filenames.size())
                          + " authority dump filenames for application.");
 
-        if (deletion_list_filenames.empty() and incremental_dump_filenames.empty()
+        if (deletion_list_filenames.empty() and merged_incremental_dump_filenames.empty()
             and incremental_authority_dump_filenames.empty())
         {
             SendEmail(::progname,
@@ -864,17 +895,18 @@ int main(int argc, char *argv[]) {
             return EXIT_SUCCESS;
         }
 
-        MergeAuthorityAndIncrementalDumpLists(incremental_authority_dump_filenames, &incremental_dump_filenames);
+        MergeAuthorityAndIncrementalDumpLists(incremental_authority_dump_filenames, &merged_incremental_dump_filenames);
 
         CreateAndChangeIntoTheWorkingDirectory();
         const std::string new_complete_dump_filename(
             ExtractAndCombineMarcFilesFromArchives(keep_intermediate_files, complete_dump_filename,
-                                                   deletion_list_filenames, incremental_dump_filenames));
+                                                   deletion_list_filenames, merged_incremental_dump_filenames));
         ChangeDirectoryOrDie(".."); // Leave the working directory again.
 
         if (not keep_intermediate_files) {
             RemoveDirectoryOrDie(GetWorkingDirectoryName());
             DeleteFilesOrDie(incremental_dump_pattern);
+            DeleteFilesOrDie("Merged-*.tar.gz");
             DeleteFilesOrDie(incremental_authority_dump_pattern);
             DeleteFilesOrDie(deletion_list_pattern);
         }
