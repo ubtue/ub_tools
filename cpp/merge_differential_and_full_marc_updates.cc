@@ -787,7 +787,7 @@ std::string GetFilenameWithoutExtension(const std::string &filename) {
     const auto first_dot_pos(filename.find('.'));
     if (unlikely(first_dot_pos == std::string::npos))
         logger->error("in GetFilenameWithoutExtension: \"" + filename + "\" has no extension!");
-    return filename.substr(first_dot_pos);
+    return filename.substr(0, first_dot_pos);
 }
 
 
