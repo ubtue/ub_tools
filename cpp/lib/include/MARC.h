@@ -17,6 +17,10 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef MARC_H
+#define MARC_H
+
+
 #include <algorithm>
 #include <functional>
 #include <memory>
@@ -551,3 +555,6 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename);
 
 
 } // namespace MARC
+
+
+#endif // ifndef MARC_H
