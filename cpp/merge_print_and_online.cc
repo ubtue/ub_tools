@@ -70,9 +70,7 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
     static const std::set<std::string> UPLINK_TAGS{ "800", "810", "830", "773", "776" };
 
     bool patched(false);
-    int field_offset(-1);
     for (auto field : *record) {
-        ++field_offset;
         if (UPLINK_TAGS.find(field.getTag().to_string()) != UPLINK_TAGS.cend()) {
             MARC::Subfields subfields(field.getSubfields());
             auto subfield_w(std::find_if(subfields.begin(), subfields.end(),
@@ -100,7 +98,7 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
 
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, File * const missing_partners,
                     const std::unordered_map<std::string, std::string> &ppn_to_ppn_map,
-                    const  std::unordered_set<std::string> &merged_ppns)
+                    const std::unordered_set<std::string> &merged_ppns)
 {
     unsigned record_count(0), dropped_count(0), augmented_count(0);
     std::unordered_set<std::string> found_partners;
@@ -131,8 +129,8 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     }
 
     std::cout << "Data set contained " << record_count << " MARC record(s).\n";
-    std::cout << "Dropped " << dropped_count <<  " MARC record(s).\n";
-    std::cout << "Augmented " << augmented_count <<  " MARC record(s).\n";
+    std::cout << "Dropped " << dropped_count << " MARC record(s).\n";
+    std::cout << "Augmented " << augmented_count << " MARC record(s).\n";
     std::cout << "Wrote " << missing_partner_count << " missing partner PPN('s) to \"" << missing_partners->getPath() << "\".\n";
 }
 
