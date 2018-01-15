@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  Copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -436,6 +436,10 @@ bool IsMountPoint(const std::string &path);
 
 
 size_t CountLines(const std::string &filename);
+
+
+// Strips all extensions from "filename" and returns what is left after that.
+std::string GetFilenameWithoutExtensionOrDie(const std::string &filename);
 
 
 } // namespace FileUtil

@@ -2,7 +2,7 @@
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -1071,6 +1071,15 @@ size_t CountLines(const std::string &filename) {
     }
 
     return line_count;
+}
+
+
+// Strips all extensions from "filename" and returns what is left after that.
+std::string GetFilenameWithoutExtensionOrDie(const std::string &filename) {
+    const auto first_dot_pos(filename.find('.'));
+    if (unlikely(first_dot_pos == std::string::npos))
+        logger->error("in FileUtil::GetFilenameWithoutExtension: \"" + filename + "\" has no extension!");
+    return filename.substr(0, first_dot_pos);
 }
 
 

@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016,2017 Library of the University of Tübingen
+    Copyright (C) 2016-2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -782,15 +782,6 @@ void MergeAuthorityAndIncrementalDumpLists(const std::vector<std::string> &incre
 }
 
 
-// Strips all extensions from "filename" and returns what is left after that.
-std::string GetFilenameWithoutExtension(const std::string &filename) {
-    const auto first_dot_pos(filename.find('.'));
-    if (unlikely(first_dot_pos == std::string::npos))
-        logger->error("in GetFilenameWithoutExtension: \"" + filename + "\" has no extension!");
-    return filename.substr(0, first_dot_pos);
-}
-
-
 void MergeIncrementalDumpFiles(const std::vector<std::string> &incremental_dump_filenames,
                                std::vector<std::string> * const merged_incremental_dump_filenames)
 {
@@ -798,7 +789,7 @@ void MergeIncrementalDumpFiles(const std::vector<std::string> &incremental_dump_
     while (incremental_dump_filename != incremental_dump_filenames.cend()) {
         const std::string date(BSZUtil::ExtractDateFromFilenameOrDie(*incremental_dump_filename));
         merged_incremental_dump_filenames->emplace_back(
-            CombineMarcBiblioArchives(GetFilenameWithoutExtension(*incremental_dump_filename), "Merged-" + date));
+            CombineMarcBiblioArchives(FileUtil::GetFilenameWithoutExtensionOrDie(*incremental_dump_filename), "Merged-" + date));
         ++incremental_dump_filename;
 
         // We may have had two files that have the same date and only differ in one file having an additional "_O" in its
