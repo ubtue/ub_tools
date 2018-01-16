@@ -138,6 +138,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const ppn_candidate
 
         const std::string normalised_title(NormaliseTitle(title));
         std::string bib_ref_candidate(GetPericope(normalised_title, pericopes_to_codes_map));
+        StringUtil::TrimWhite(&bib_ref_candidate);
         if (bib_ref_candidate.empty())
             bib_ref_candidate = GetPossibleBibleReference(normalised_title, bible_book_canoniser,
                                                           bible_book_to_code_mapper);
