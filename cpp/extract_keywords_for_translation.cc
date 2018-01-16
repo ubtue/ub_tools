@@ -2,10 +2,11 @@
  *  \brief   A tool for extracting keywords that need to be translated.  The keywords and any possibly pre-existing
  *           translations will be stored in a SQL database.
  *  \author  Dr. Johannes Ruscheinski
+ *  \author  Johannes Riedl
  */
 
 /*
-    Copyright (C) 2016,2017, Library of the University of Tübingen
+    Copyright (C) 2016-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -73,8 +74,7 @@ void ExtractGermanTerms(
     std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags)
 {
     bool updated_german(false);
-    for (auto _150_field : record.getTagRange("150"))
-    {
+    for (const auto &_150_field : record.getTagRange("150")) {
         const MARC::Subfields _150_subfields(_150_field.getSubfields());
         // $a is non-repeatable in 150 and necessary
         if (likely(_150_subfields.hasSubfield('a'))) {
@@ -97,8 +97,8 @@ void ExtractGermanTerms(
             }
 
             text_language_codes_statuses_and_origin_tags->emplace_back(
-                 complete_keyword_phrase,
-                 TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE, "150", updated_german);
+                complete_keyword_phrase,
+                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE, "150", updated_german);
             ++german_term_count;
         }
     }
@@ -109,13 +109,13 @@ void ExtractGermanSynonyms(
     const MARC::Record &record,
     std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags)
 {
-    for (auto _450_field : record.getTagRange("450")) {
+    for (const auto &_450_field : record.getTagRange("450")) {
         const MARC::Subfields _450_subfields(_450_field.getSubfields());
         if (_450_subfields.hasSubfield('a')) {
             text_language_codes_statuses_and_origin_tags->emplace_back(
                 _450_subfields.getFirstSubfieldWithCode('a'),
                 TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE_SYNONYM,
-                "450", false);
+                "450", false /*updated_german*/);
             ++synonym_count;
         }
     }
@@ -123,7 +123,7 @@ void ExtractGermanSynonyms(
 
 
 bool IsSynonym(const MARC::Subfields &_750_subfields) {
-    for (auto _9_subfield : _750_subfields.extractSubfields('9')) {
+    for (const auto &_9_subfield : _750_subfields.extractSubfields('9')) {
         if (_9_subfield == "Z:VW")
             return true;
     }
@@ -135,13 +135,13 @@ void ExtractNonGermanTranslations(
     const MARC::Record &record,
     std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags)
 {
-    for (auto _750_field : record.getTagRange("750")) {
+    for (const auto &_750_field : record.getTagRange("750")) {
         const MARC::Subfields _750_subfields(_750_field.getSubfields());
-        std::vector<std::string> _9_subfields = _750_subfields.extractSubfields('9');
+        std::vector<std::string> _9_subfields(_750_subfields.extractSubfields('9'));
         if (_9_subfields.empty())
             continue;
         std::string language_code;
-        for (auto _9_subfield : _9_subfields) {
+        for (const auto &_9_subfield : _9_subfields) {
             if (StringUtil::StartsWith(_9_subfield, "L:"))
                 language_code = _9_subfield.substr(2);
         }
@@ -235,7 +235,7 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
     }
 
     std::vector<std::string> gnd_systems;
-    for (auto _065_field : record->getTagRange("065")) {
+    for (const auto &_065_field : record->getTagRange("065")) {
         std::vector<std::string> _065a_subfields(_065_field.getSubfields().extractSubfields('a'));
         gnd_systems.insert(gnd_systems.begin(), _065a_subfields.begin(), _065a_subfields.end());
     }
@@ -273,8 +273,8 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
 
 void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader) {
     while (const MARC::Record record = authority_reader->read()) {
-       if (not ExtractTranslationsForASingleRecord(&record))
-           logger->error("error while extracting translations from \"" + authority_reader->getPath() + "\"");
+        if (not ExtractTranslationsForASingleRecord(&record))
+            logger->error("error while extracting translations from \"" + authority_reader->getPath() + "\"");
     }
     std::cerr << "Added " << keyword_count << " keywords to the translation database.\n";
     std::cerr << "Found " << german_term_count << " german terms.\n";
