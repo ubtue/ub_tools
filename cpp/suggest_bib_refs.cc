@@ -25,6 +25,7 @@
 #include "BibleUtil.h"
 #include "FileUtil.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
@@ -76,20 +77,45 @@ std::string NormaliseTitle(std::string title) {
 }
 
 
-bool FoundAtLeastOnePericope(const std::string &normalised_title,
-                             const std::unordered_map<std::string, std::string> &pericopes_to_codes_map)
+std::string GetPericope(const std::string &normalised_title,
+                        const std::unordered_map<std::string, std::string> &pericopes_to_codes_map)
 {
     for (const auto &pericope_and_codes : pericopes_to_codes_map) {
         if (normalised_title.find(pericope_and_codes.first) != std::string::npos)
-            return true;
+            return pericope_and_codes.first;
     }
 
-    return false;
+    return "";
+}
+
+
+std::string GetPossibleBibleReference(const std::string &normalised_title,
+                                      const BibleUtil::BibleBookCanoniser &bible_book_canoniser,
+                                      const BibleUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
+{
+    static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
+        "((\\d*)\\s*([a-z]+)\\s*(\\d+)(?::(\\d+))?(\\s*-\\s*(\\d+)(?:\\s*([a-z]+)\\s*(\\d+))?(?::(\\d+))?)?)"));
+    if (not matcher->matched(normalised_title))
+        return "";
+
+    const std::string bible_reference_candidate((*matcher)[1]);
+    std::string book_candidate, chapters_and_verses_candidate;
+    BibleUtil::SplitIntoBookAndChaptersAndVerses(bible_reference_candidate, &book_candidate, &chapters_and_verses_candidate);
+
+    book_candidate = bible_book_canoniser.canonise(book_candidate, /* verbose = */false);
+    const std::string book_code(bible_book_to_code_mapper.mapToCode(book_candidate, /* verbose = */false));
+    if (book_code.empty() or chapters_and_verses_candidate.empty())
+        return "";
+
+    std::set<std::pair<std::string, std::string>> start_end;
+    return BibleUtil::ParseBibleReference(chapters_and_verses_candidate, book_code, &start_end) ? bible_reference_candidate : "";
 }
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, File * const ppn_candidate_list,
-                    const std::unordered_map<std::string, std::string> &pericopes_to_codes_map)
+                    const std::unordered_map<std::string, std::string> &pericopes_to_codes_map,
+                    const BibleUtil::BibleBookCanoniser &bible_book_canoniser,
+                    const BibleUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
 {
     unsigned record_count(0), ppn_candidate_count(0);
     while (const MARC::Record record = marc_reader->read()) {
@@ -98,9 +124,10 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const ppn_candidate
         if (HasBibleReference(record))
             continue;
 
+        const std::string PPN(record.getControlNumber());
         const auto title_field(record.getFirstField("245"));
         if (unlikely(title_field == record.end()))
-            logger->error("record w/ PPN " + record.getControlNumber() + " is missing a title field!");
+            logger->error("record w/ PPN " + PPN + " is missing a title field!");
 
         const MARC::Subfields _245_subfields(title_field->getSubfields());
         const std::string title(_245_subfields.getFirstSubfieldWithCode('a'));
@@ -110,9 +137,14 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const ppn_candidate
         }
 
         const std::string normalised_title(NormaliseTitle(title));
-        if (FoundAtLeastOnePericope(normalised_title, pericopes_to_codes_map)) {
+        std::string bib_ref_candidate(GetPericope(normalised_title, pericopes_to_codes_map));
+        if (bib_ref_candidate.empty())
+            bib_ref_candidate = GetPossibleBibleReference(normalised_title, bible_book_canoniser,
+                                                          bible_book_to_code_mapper);
+        if (not bib_ref_candidate.empty()) {
             ++ppn_candidate_count;
-            ppn_candidate_list->write(record.getControlNumber() + "\n");
+            ppn_candidate_list->write("\"" + PPN + "\",\"" + TextUtil::CSVEscape(bib_ref_candidate) + "\",\""
+                                      + TextUtil::CSVEscape("https://ixtheo.de/Record/" + PPN) + "\"\n");
         }
     }
 
@@ -134,9 +166,16 @@ int main(int argc, char *argv[]) {
     std::unique_ptr<File> ppn_candidate_list(FileUtil::OpenOutputFileOrDie(argv[2]));
 
     try {
+        const BibleUtil::BibleBookCanoniser bible_book_canoniser(
+            "/usr/local/var/lib/tuelib/bibleRef/books_of_the_bible_to_canonical_form.map");
+        const BibleUtil::BibleBookToCodeMapper bible_book_to_code_mapper(
+            "/usr/local/var/lib/tuelib/bibleRef/books_of_the_bible_to_code.map");
+
         std::unordered_map<std::string, std::string> pericopes_to_codes_map;
         LoadPericopes(&pericopes_to_codes_map);
-        ProcessRecords(marc_reader.get(), ppn_candidate_list.get(), pericopes_to_codes_map);
+
+        ProcessRecords(marc_reader.get(), ppn_candidate_list.get(), pericopes_to_codes_map, bible_book_canoniser,
+                       bible_book_to_code_mapper);
     } catch (const std::exception &e) {
         logger->error("Caught exception: " + std::string(e.what()));
     }
