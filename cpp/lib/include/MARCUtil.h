@@ -31,8 +31,10 @@
 namespace MARC {
 namespace Util {
 
+
 /** \brief True if a GND code was found in 035$a else false. */
-bool GetGNDCode(const MARC::Record &record, std::string *const gnd_code);
+bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
+
 
 } // namespace MARC
 } // namespace Util

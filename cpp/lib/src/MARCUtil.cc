@@ -27,9 +27,10 @@
 namespace MARC {
 namespace Util {
 
+
 bool GetGNDCode(const Record &record, std::string * const gnd_code) {
     gnd_code->clear();
-    for (auto _035_field : record.getTagRange("035")) {
+    for (const auto &_035_field : record.getTagRange("035")) {
         const Subfields _035_subfields(_035_field.getSubfields());
         const std::string _035a_field(_035_subfields.getFirstSubfieldWithCode('a'));
         if (StringUtil::StartsWith(_035a_field, "(DE-588)")) {
@@ -39,6 +40,7 @@ bool GetGNDCode(const Record &record, std::string * const gnd_code) {
     }
     return false;
 }
+
 
 } // namespace MARC
 } // namespace Util
