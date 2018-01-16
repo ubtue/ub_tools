@@ -42,6 +42,8 @@ void Usage() {
 }
 
 
+// Extracts mappings between print and electronic versions of records.  The order is arbitrary as we take the first record we
+// find in the pair.  IOW, the first record becomes the new merged record.
 void CollectMappings(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const ppn_to_ppn_map,
                      std::unordered_set<std::string> * const merged_ppns)
 {
@@ -66,6 +68,7 @@ void CollectMappings(MARC::Reader * const marc_reader, std::unordered_map<std::s
 }
 
 
+// Make inferior works point to the new merged superior parent found in "ppn_to_ppn_map".
 bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_ppn_map) {
     static const std::set<std::string> UPLINK_TAGS{ "800", "810", "830", "773", "776" };
 
