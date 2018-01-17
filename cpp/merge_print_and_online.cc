@@ -24,10 +24,13 @@
 #include <unordered_set>
 #include <vector>
 #include <cstdlib>
+#include "DbConnection.h"
+#include "DbResultSet.h"
 #include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
+#include "VuFind.h"
 
 
 namespace {
@@ -55,6 +58,8 @@ void CollectMappings(MARC::Reader * const marc_reader, std::unordered_map<std::s
                     if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
                         const std::string other_ppn(w_subfield.substr(__builtin_strlen("(DE-576)")));
                         if (merged_ppns->find(other_ppn) == merged_ppns->end()) {
+                            if (unlikely(record.getBibliographicLevel() != 's'))
+                                logger->warning("record with PPN " + record.getControlNumber() + " is not a serial!");
                             merged_ppns->emplace(record.getControlNumber());
                             (*ppn_to_ppn_map)[other_ppn] = record.getControlNumber();
                         }
@@ -138,6 +143,64 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 }
 
 
+// Here we update subscriptions.  There are 3 possible cases for each user and mapped PPN:
+// 1. The trivial case where no subscriptions exist for a mapped PPN.
+// 2. A subscription only exists for the mapped PPN.
+//    In this case we only have to swap the PPN for the subscription.
+// 3. Subscriptions exist for both, electronic and print PPNs.
+//    Here we have to delete the subscription for the mapped PPN and ensure that the max_last_modification_time of the
+//    remaining subscription is the minimum of the two previously existing subscriptions.
+void PatchSerialSubscriptions(const std::unordered_map<std::string, std::string> &ppn_to_ppn_map) {
+    std::string mysql_url;
+    VuFind::GetMysqlURL(&mysql_url);
+    DbConnection db_connection(mysql_url);
+
+    std::unordered_set<std::string> replaced_ppns;
+    for (const auto &ppn_and_ppn : ppn_to_ppn_map) {
+        db_connection.queryOrDie("FROM ixtheo_journal_subscriptions SELECT id WHERE journal_control_number='" + ppn_and_ppn.first
+                                 + "'");
+        DbResultSet id_result_set(db_connection.getLastResultSet());
+        if (id_result_set.empty())
+            continue;
+
+        while (const DbRow id_row = id_result_set.getNextRow()) {
+            const std::string user_id(id_row["id"]);
+            db_connection.queryOrDie("FROM ixtheo_journal_subscriptions SELECT journal_control_number,max_last_modification_time "
+                                     "WHERE id='" + user_id + "'");
+            DbResultSet control_number_result_set(db_connection.getLastResultSet());
+            if (control_number_result_set.empty()) {
+                db_connection.queryOrDie("UPDATE ixtheo_journal_subscriptions SET journal_control_number='"
+                                         + ppn_and_ppn.second + "' WHERE id='" + user_id + "' AND journal_control_number='"
+                                         + ppn_and_ppn.first + "'");
+                continue;
+            }
+
+            //
+            // If we get here we have subscriptions for both, the electronic and the print serial and need to merge them.
+            //
+
+            const DbRow control_number_row(control_number_result_set.getNextRow());
+            db_connection.queryOrDie("FROM ixtheo_journal_subscriptions SELECT max_last_modification_time WHERE "
+                                     "journal_control_number='" + ppn_and_ppn.second + "' AND id='" + user_id + "'");
+            DbResultSet max_last_modification_time_result_set(db_connection.getLastResultSet());
+            if (unlikely(max_last_modification_time_result_set.empty()))
+                logger->error("this should *never* happen!");
+            const DbRow max_last_modification_time_row(max_last_modification_time_result_set.getNextRow());
+            const std::string min_max_last_modification_time(
+                (max_last_modification_time_row["max_last_modification_time"] < control_number_row["max_last_modification_time"])
+                    ? max_last_modification_time_row["max_last_modification_time"]
+                    : control_number_row["max_last_modification_time"]);
+            db_connection.queryOrDie("DELETE FROM ixtheo_journal_subscriptions WHERE journal_control_number='"
+                                     + ppn_and_ppn.first + "' and id='" + user_id + "'");
+            if (max_last_modification_time_row["max_last_modification_time"] > min_max_last_modification_time)
+                db_connection.queryOrDie("UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='"
+                                         + min_max_last_modification_time + "' WHERE journal_control_number='"
+                                         + ppn_and_ppn.second + "' and id='" + user_id + "'");
+        }
+    }
+}
+
+
 } // unnamed namespace
 
 
@@ -157,6 +220,7 @@ int main(int argc, char *argv[]) {
         CollectMappings(marc_reader.get(), &ppn_to_ppn_map, &merged_ppns);
         marc_reader->rewind();
         ProcessRecords(marc_reader.get(), marc_writer.get(), missing_partners.get(), ppn_to_ppn_map, merged_ppns);
+        PatchSerialSubscriptions(ppn_to_ppn_map);
     } catch (const std::exception &e) {
         logger->error("Caught exception: " + std::string(e.what()));
     }
