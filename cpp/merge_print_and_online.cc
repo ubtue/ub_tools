@@ -157,18 +157,15 @@ void PatchSerialSubscriptions(const std::unordered_map<std::string, std::string>
 
     std::unordered_set<std::string> replaced_ppns;
     for (const auto &ppn_and_ppn : ppn_to_ppn_map) {
-        db_connection.queryOrDie("FROM ixtheo_journal_subscriptions SELECT id WHERE journal_control_number='" + ppn_and_ppn.first
+        db_connection.queryOrDie("SELECT id FROM ixtheo_journal_subscriptions,max_last_modification_time WHERE journal_control_number='" + ppn_and_ppn.first
                                  + "'");
-        DbResultSet id_result_set(db_connection.getLastResultSet());
-        if (id_result_set.empty())
-            continue;
-
-        while (const DbRow id_row = id_result_set.getNextRow()) {
-            const std::string user_id(id_row["id"]);
-            db_connection.queryOrDie("FROM ixtheo_journal_subscriptions SELECT journal_control_number,max_last_modification_time "
-                                     "WHERE id='" + user_id + "'");
-            DbResultSet control_number_result_set(db_connection.getLastResultSet());
-            if (control_number_result_set.empty()) {
+        DbResultSet ppn_first_result_set(db_connection.getLastResultSet());
+        while (const DbRow ppn_first_row = ppn_first_result_set.getNextRow()) {
+            const std::string user_id(ppn_first_row["id"]);
+            db_connection.queryOrDie("SELECT max_last_modification_time FROM ixtheo_journal_subscriptions "
+                                     "WHERE id='" + user_id + "' AND journal_control_number='" + ppn_and_ppn.second + "'");
+            DbResultSet ppn_second_result_set(db_connection.getLastResultSet());
+            if (ppn_second_result_set.empty()) {
                 db_connection.queryOrDie("UPDATE ixtheo_journal_subscriptions SET journal_control_number='"
                                          + ppn_and_ppn.second + "' WHERE id='" + user_id + "' AND journal_control_number='"
                                          + ppn_and_ppn.first + "'");
@@ -179,20 +176,14 @@ void PatchSerialSubscriptions(const std::unordered_map<std::string, std::string>
             // If we get here we have subscriptions for both, the electronic and the print serial and need to merge them.
             //
 
-            const DbRow control_number_row(control_number_result_set.getNextRow());
-            db_connection.queryOrDie("FROM ixtheo_journal_subscriptions SELECT max_last_modification_time WHERE "
-                                     "journal_control_number='" + ppn_and_ppn.second + "' AND id='" + user_id + "'");
-            DbResultSet max_last_modification_time_result_set(db_connection.getLastResultSet());
-            if (unlikely(max_last_modification_time_result_set.empty()))
-                logger->error("this should *never* happen!");
-            const DbRow max_last_modification_time_row(max_last_modification_time_result_set.getNextRow());
+            const DbRow ppn_second_row(ppn_second_result_set.getNextRow());
             const std::string min_max_last_modification_time(
-                (max_last_modification_time_row["max_last_modification_time"] < control_number_row["max_last_modification_time"])
-                    ? max_last_modification_time_row["max_last_modification_time"]
-                    : control_number_row["max_last_modification_time"]);
+                (ppn_second_row["max_last_modification_time"] < ppn_first_row["max_last_modification_time"])
+                    ? ppn_second_row["max_last_modification_time"]
+                    : ppn_first_row["max_last_modification_time"]);
             db_connection.queryOrDie("DELETE FROM ixtheo_journal_subscriptions WHERE journal_control_number='"
                                      + ppn_and_ppn.first + "' and id='" + user_id + "'");
-            if (max_last_modification_time_row["max_last_modification_time"] > min_max_last_modification_time)
+            if (ppn_first_row["max_last_modification_time"] > min_max_last_modification_time)
                 db_connection.queryOrDie("UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='"
                                          + min_max_last_modification_time + "' WHERE journal_control_number='"
                                          + ppn_and_ppn.second + "' and id='" + user_id + "'");
