@@ -2,7 +2,7 @@
  *  \brief  Declaration of bits related to our bible reference parser.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -30,6 +30,9 @@
 namespace BibleUtil {
 
 
+static const std::string BIB_REF_RANGE_TAG("801");
+
+    
 const unsigned BOOK_CODE_LENGTH(2);
 const unsigned MAX_CHAPTER_LENGTH(3);
 const unsigned MAX_VERSE_LENGTH(3);
