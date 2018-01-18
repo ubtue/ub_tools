@@ -361,11 +361,18 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
 }
 
 
+std::string GetNoLocalDataFileName(const std::string &local_data_filename) {
+    const std::string date(BSZUtil::ExtractDateFromFilenameOrDie(local_data_filename));
+    const auto date_start(local_data_filename.find(date));
+    return local_data_filename.substr(0, date_start - 1 /* skip hyphen */) + "_o-" + local_data_filename.substr(date_start);
+}
+
+
 // Here we combine an archive which contains local data with one that contains no local data but possibly duplicate control
 // numbers.  We return the name of the combined archive.
 std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const std::string &combined_filename_prefix) {
     const std::string local_data_archive_name(filename_prefix + ".tar.gz");
-    const std::string no_local_data_archive_name(filename_prefix + "_o.tar.gz");
+    const std::string no_local_data_archive_name(GetNoLocalDataFileName(local_data_archive_name));
     const std::string combined_archive_name(combined_filename_prefix + ".tar.gz");
     if (not FileUtil::Exists(local_data_archive_name)) {
         if (not FileUtil::Exists(no_local_data_archive_name))
@@ -782,9 +789,28 @@ void MergeAuthorityAndIncrementalDumpLists(const std::vector<std::string> &incre
 }
 
 
-void MergeIncrementalDumpFiles(const std::vector<std::string> &incremental_dump_filenames,
+bool MergeIncrementalDumpFiles_Comparator(const std::string &filename1, const std::string &filename2) {
+    const std::string date1(BSZUtil::ExtractDateFromFilenameOrDie(filename1));
+    const std::string date2(BSZUtil::ExtractDateFromFilenameOrDie(filename2));
+
+    if (date1 != date2)
+        return date1 < date2;
+
+    const bool file1_has_o(filename1.find("_o") != std::string::npos);
+    return not file1_has_o;
+}
+
+
+void MergeIncrementalDumpFiles_Sort(std::vector<std::string> * const incremental_dump_filenames) {
+    std::sort(incremental_dump_filenames->begin(), incremental_dump_filenames->end(), MergeIncrementalDumpFiles_Comparator);
+}
+
+
+void MergeIncrementalDumpFiles(std::vector<std::string> incremental_dump_filenames,
                                std::vector<std::string> * const merged_incremental_dump_filenames)
 {
+    MergeIncrementalDumpFiles_Sort(&incremental_dump_filenames);
+
     auto incremental_dump_filename(incremental_dump_filenames.cbegin());
     while (incremental_dump_filename != incremental_dump_filenames.cend()) {
         const std::string date(BSZUtil::ExtractDateFromFilenameOrDie(*incremental_dump_filename));
@@ -792,13 +818,13 @@ void MergeIncrementalDumpFiles(const std::vector<std::string> &incremental_dump_
             CombineMarcBiblioArchives(FileUtil::GetFilenameWithoutExtensionOrDie(*incremental_dump_filename), "Merged-" + date));
         ++incremental_dump_filename;
 
-        // We may have had two files that have the same date and only differ in one file having an additional "_O" in its
-        // filename.  In this case they would have been sorted together and we have to skip over the additional file with
+        // We may have had two files that have the same date and only differ in one file having an additional "_o" in its
+        // filename. In this case they would have been sorted together and we have to skip over the additional file with
         // the "_o" and the same date:
         if (incremental_dump_filename != incremental_dump_filenames.cend()
             and BSZUtil::ExtractDateFromFilenameOrDie(*(incremental_dump_filename)) == date)
             ++incremental_dump_filename;
-    }   
+    }
 }
 
 
