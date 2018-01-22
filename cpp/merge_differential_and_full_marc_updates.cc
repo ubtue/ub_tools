@@ -347,8 +347,11 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
             const std::string temp_filename(common_prefix + "mrc");
 
             FileUtil::ConcatFiles(temp_filename, { *local_data_filename, *no_local_data_filename });
-            MARC::RemoveDuplicateControlNumberRecords(temp_filename);
-            FileUtil::RenameFileOrDie(temp_filename, common_prefix + "raw", true /* remove_target */);
+            const unsigned dropped_count(MARC::RemoveDuplicateControlNumberRecords(temp_filename));
+            const std::string raw_filename(common_prefix.substr(0, 5) + "raw");
+            FileUtil::RenameFileOrDie(temp_filename, raw_filename, true /* remove_target */);
+            INFO("dropped " + std::to_string(dropped_count) + " records with duplicate PPN's and generated \"" + raw_filename
+                 + "\".");
 
             ++local_data_filename;
             ++no_local_data_filename;
