@@ -6,7 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2016-2017 Universitätsbibliothek Tübingen.
+ *  Copyright 2016-2018 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -149,9 +149,13 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count = 0)
 /** \brief  Performs a topological sort.
  *  \param  The sorted list of nodes will be stored here if the sort succeeded.
  *  \return True if no cycle exists in the input graph and false o/w.
- *  \note   Nodes must belabelled 0 to N-1 (in any order) where N is the number of nodes.
+ *  \note   Nodes must be labelled 0 to N-1 (in any order) where N is the number of nodes.
  */
 bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &vertices, std::vector<unsigned> * const node_order);
+
+
+// \return the list of functions that were called at the point of invocation of this function.
+std::vector<std::string> GetCallStack();
 
 
 } // namespace MiscUtil
