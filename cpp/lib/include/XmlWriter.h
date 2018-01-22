@@ -77,7 +77,7 @@ public:
                        const TextConversionType text_conversion_type = NoConversion);
 
     /** Destroyes an XmlWriter object, closing any still open tags. */
-    virtual ~XmlWriter() { closeAllTags(); }
+    virtual ~XmlWriter() { closeAllTags(), delete output_file_; }
 
     File *getAssociatedOutputFile() const { return output_file_; }
 
