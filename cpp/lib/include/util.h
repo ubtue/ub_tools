@@ -50,17 +50,27 @@ public:
 
     /** Emits "msg" and then calls exit(3). */
     void error(const std::string &msg) __attribute__((noreturn));
+    inline void error(const std::string &function_name, const std::string &msg) { error("in " + function_name + ": " + msg); }
 
     void warning(const std::string &msg);
+    inline void warning(const std::string &function_name, const std::string &msg) { warning("in " + function_name + ": " + msg); }
 
     void info(const std::string &msg);
+    inline void info(const std::string &function_name, const std::string &msg) { info("in " + function_name + ": " + msg); }
 
     /** \note Only writes actual log messages if the environment variable "UTIL_LOG_DEBUG" exists and is set
      *  to "true"!
      */
     void debug(const std::string &msg);
+    inline void debug(const std::string &function_name, const std::string &msg) { debug("in " + function_name + ": " + msg); }
 };
 extern Logger *logger;
+
+
+#define ERROR(message)   logger->error(__PRETTY_FUNCTION__, message)
+#define WARNING(message) logger->warning(__PRETTY_FUNCTION__, message)
+#define INFO(message)    logger->info(__PRETTY_FUNCTION__, message)
+#define DEBUG(message)   logger->debug(__PRETTY_FUNCTION__, message)
 
 
 // TestAndThrowOrReturn -- tests condition "cond" and, if it evaluates to "true", throws an exception unless another

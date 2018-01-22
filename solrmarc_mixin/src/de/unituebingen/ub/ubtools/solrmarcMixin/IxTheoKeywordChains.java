@@ -113,7 +113,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         }
 
         if (keyword.length() > 0) {
-            String keywordString = keyword.toString();
+            String keywordString = keyword.toString().replace("/", "\\/");
+
             keyWordChain.add(keywordString);
         }
     }

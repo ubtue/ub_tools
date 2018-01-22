@@ -442,6 +442,13 @@ size_t CountLines(const std::string &filename);
 std::string GetFilenameWithoutExtensionOrDie(const std::string &filename);
 
 
+/** \brief Nomen est omen.
+ *  \note Aborts if "path" is no path components.
+ *  \return The shortend path.
+ */
+std::string StripLastPathComponent(const std::string &path);
+
+
 } // namespace FileUtil
 
 
