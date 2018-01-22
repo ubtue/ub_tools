@@ -336,18 +336,18 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
         if (local_data_filename == local_data_filenames.cend()
             or GetArchiveEntrySuffix(*no_local_data_filename) < GetArchiveEntrySuffix(*local_data_filename))
         {
-            logger->info("in MergeAndDedupArchiveFiles: copying no-local-data file \"" + *no_local_data_filename + "\"");
+            INFO("copying no-local-data file \"" + *no_local_data_filename + "\"");
             CopyFileOrDie("../" + *no_local_data_filename, GetArchiveEntrySuffix(*no_local_data_filename));
             ++no_local_data_filename;
         } else if (no_local_data_filename == no_local_data_filenames.cend()
                    or GetArchiveEntrySuffix(*local_data_filename) < GetArchiveEntrySuffix(*no_local_data_filename))
         {
-            logger->info("in MergeAndDedupArchiveFiles: copying local-data file \"" + *local_data_filename + "\"");
+            INFO("copying local-data file \"" + *local_data_filename + "\"");
             CopyFileOrDie("../" + *local_data_filename, GetArchiveEntrySuffix(*local_data_filename));
             ++local_data_filename;
         } else { // If we end up here, local_data_filename and no_local_data_filename have the same suffix.
-            logger->info("in MergeAndDedupArchiveFiles: merging both, the local-data file \"" + *local_data_filename
-                         + "\" and the no-local-data file \"" + *no_local_data_filename + "\"");
+            INFO("merging both, the local-data file \"" + *local_data_filename
+                 + "\" and the no-local-data file \"" + *no_local_data_filename + "\"");
             const std::string common_prefix(local_data_filename->substr(0, local_data_filename->length() - 3 /* extension */));
 
             // We can't use the usual ".raw" file name here because RemoveDuplicateControlNumberRecords requires a ".xml" or
@@ -360,10 +360,10 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
             std::string common_prefix_basename;
             FileUtil::DirnameAndBasename(common_prefix, &common_prefix_dirname, &common_prefix_basename);
             common_prefix_dirname = StripLastPathComponent(common_prefix_dirname);
-            const std::string raw_filename(common_prefix_dirname + '/' + common_prefix_basename + "raw");
-            FileUtil::RenameFileOrDie(temp_filename, raw_filename, true /* remove_target */);
-            INFO("dropped " + std::to_string(dropped_count) + " records with duplicate PPN's and generated \"" + raw_filename
-                 + "\".");
+            const std::string archive_member_filename(GetArchiveEntrySuffix(*local_data_filename));
+            FileUtil::RenameFileOrDie(temp_filename, archive_member_filename, true /* remove_target */);
+            INFO("dropped " + std::to_string(dropped_count) + " records with duplicate PPN's and generated \""
+                 + archive_member_filename + "\".");
 
             ++local_data_filename;
             ++no_local_data_filename;
@@ -410,24 +410,24 @@ std::string CombineMarcBiblioArchives(const std::string &filename_prefix, const 
     //
 
     FileUtil::AutoTempDirectory auto_temp_marc_local_data_dir(".");
-    std::vector<std::string> local_data_filenames;
-    ExtractMarcFilesFromArchive(local_data_archive_name, &local_data_filenames,
+    std::vector<std::string> local_archive_member_filenames;
+    ExtractMarcFilesFromArchive(local_data_archive_name, &local_archive_member_filenames,
                                 auto_temp_marc_local_data_dir.getDirectoryPath() + "/");
-    if (not ArchiveEntryFilenamesMeetNamingExpectations(local_data_filenames))
+    if (not ArchiveEntryFilenamesMeetNamingExpectations(local_archive_member_filenames))
         logger->error("in CombineMarcBiblioArchives: archive \"" + local_data_archive_name
                       + "\" contains at least one entry that does not meet our naming expectations"
-                      + " in " + StringUtil::Join(local_data_filenames, ", ") + "! (1)");
+                      + " in " + StringUtil::Join(local_archive_member_filenames, ", ") + "! (1)");
 
     FileUtil::AutoTempDirectory auto_temp_marc_no_local_data_dir(".");
-    std::vector<std::string> no_local_data_filenames;
-    ExtractMarcFilesFromArchive(no_local_data_archive_name, &no_local_data_filenames,
+    std::vector<std::string> no_local_archive_member_filenames;
+    ExtractMarcFilesFromArchive(no_local_data_archive_name, &no_local_archive_member_filenames,
                                 auto_temp_marc_no_local_data_dir.getDirectoryPath() + "/");
-    if (not ArchiveEntryFilenamesMeetNamingExpectations(no_local_data_filenames))
+    if (not ArchiveEntryFilenamesMeetNamingExpectations(no_local_archive_member_filenames))
         logger->error("in CombineMarcBiblioArchives: archive \"" + no_local_data_archive_name
                       + "\" contains at least one entry that does not meet our naming expectations"
-                      + " in " + StringUtil::Join(no_local_data_filenames, ", ") + "! (2)");
+                      + " in " + StringUtil::Join(no_local_archive_member_filenames, ", ") + "! (2)");
 
-    MergeAndDedupArchiveFiles(local_data_filenames, no_local_data_filenames, combined_archive_name);
+    MergeAndDedupArchiveFiles(local_archive_member_filenames, no_local_archive_member_filenames, combined_archive_name);
     return combined_archive_name;
 }
 
