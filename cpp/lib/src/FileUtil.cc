@@ -1083,4 +1083,13 @@ std::string GetFilenameWithoutExtensionOrDie(const std::string &filename) {
 }
 
 
+std::string StripLastPathComponent(const std::string &path) {
+    std::vector<std::string> path_components;
+    if (StringUtil::Split(path, '/', &path_components) < 1)
+        ERROR("\"" + path + "\" has no path components");
+    path_components.pop_back();
+    return (path[0] == '/' ? "/" : "") + StringUtil::Join(path_components, '/');
+}
+
+
 } // namespace FileUtil

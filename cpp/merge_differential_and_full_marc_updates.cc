@@ -312,15 +312,6 @@ inline std::string GetArchiveEntrySuffix(const std::string &archive_entry_name) 
 }
 
 
-std::string StripLastPathComponent(const std::string &path) {
-    std::vector<std::string> path_components;
-    if (StringUtil::Split(path, '/', &path_components) < 1)
-        ERROR("\"" + path + "\" has no path components");
-    path_components.pop_back();
-    return (path[0] == '/' ? "/" : "") + StringUtil::Join(path_components, '/');
-}
-
-
 void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filenames,
                                const std::vector<std::string> &no_local_data_filenames,
                                const std::string &target_archive_name)
@@ -356,10 +347,6 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
 
             FileUtil::ConcatFiles(temp_filename, { *local_data_filename, *no_local_data_filename });
             const unsigned dropped_count(MARC::RemoveDuplicateControlNumberRecords(temp_filename));
-            std::string common_prefix_dirname;
-            std::string common_prefix_basename;
-            FileUtil::DirnameAndBasename(common_prefix, &common_prefix_dirname, &common_prefix_basename);
-            common_prefix_dirname = StripLastPathComponent(common_prefix_dirname);
             const std::string archive_member_filename(GetArchiveEntrySuffix(*local_data_filename));
             FileUtil::RenameFileOrDie(temp_filename, archive_member_filename, true /* remove_target */);
             INFO("dropped " + std::to_string(dropped_count) + " records with duplicate PPN's and generated \""
