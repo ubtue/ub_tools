@@ -539,7 +539,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public String getSortableTitleUnicode(final Record record) {
         final String title = SolrIndexer.instance().getSortableTitle(record);
         final Matcher matcher = UNICODE_QUOTATION_MARKS_PATTERN.matcher(title);
-        return matcher.replaceAll("");
+        return matcher.replaceAll("").trim();
     }
 
     /**
