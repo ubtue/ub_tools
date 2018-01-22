@@ -26,7 +26,7 @@
 #include "util.h"
 
 
-#define DEBUG 1
+#define MARC_WRITER_DEBUG 1
 
 
 static const size_t MAX_MARC_21_RECORD_LENGTH(99999);
@@ -75,7 +75,7 @@ static void inline DetermineRecordDimensions(const size_t control_number_field_l
 
 
 static void inline WriteToBuffer(char *&dest, const std::string &data) {
-    #if DEBUG
+    #if MARC_WRITER_DEBUG
     if (unlikely(dest + data.size() > write_buffer + sizeof(write_buffer)))
         logger->error("write past end of write_buffer! (1)");
     #endif
@@ -85,7 +85,7 @@ static void inline WriteToBuffer(char *&dest, const std::string &data) {
 
 
 static void inline WriteToBuffer(char *&dest, const char * const source, const size_t length) {
-    #if DEBUG
+    #if MARC_WRITER_DEBUG
     if (unlikely(dest + length > write_buffer + sizeof(write_buffer)))
         logger->error("write past end of write_buffer! (2)");
     #endif
