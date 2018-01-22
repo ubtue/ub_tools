@@ -244,6 +244,27 @@ bool Scanner::UTF16EscapeToUTF8(std::string * const utf8) {
 }
 
 
+// Helper for parseStringConstant; copies a singe Unicode codepoint from ch to s.
+// See https://en.wikipedia.org/wiki/UTF-8 in order to understand the implementation.
+inline static void UTF8Advance(std::string::const_iterator &ch, std::string * const s) {
+    if ((static_cast<unsigned char>(*ch) & 0b10000000) == 0) // High bit is not set.
+        *s += *ch++;
+    else if ((static_cast<unsigned char>(*ch) & 0b11100000) == 0b11000000) {
+        *s += *ch++;
+        *s += *ch++;
+    } else if ((static_cast<unsigned char>(*ch) & 0b11110000) == 0b11100000) {
+        *s += *ch++;
+        *s += *ch++;
+        *s += *ch++;
+    } else if ((static_cast<unsigned char>(*ch) & 0b11111000) == 0b11110000) {
+        *s += *ch++;
+        *s += *ch++;
+        *s += *ch++;
+        *s += *ch++;
+    }
+}
+
+    
 TokenType Scanner::parseStringConstant() {
     ++ch_; // Skip over initial double quote.
 
@@ -251,7 +272,7 @@ TokenType Scanner::parseStringConstant() {
     std::string string_value;
     while (ch_ != end_ and *ch_ != '"') {
         if (*ch_ != '\\')
-            string_value += *ch_++;
+            UTF8Advance(ch_, &string_value);
         else { // Deal w/ an escape sequence.
             if (unlikely(ch_ + 1 == end_)) {
                 last_error_message_ = "end-of-input encountered while parsing a string constant, starting on line "
