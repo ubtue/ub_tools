@@ -140,7 +140,7 @@ public:
     const std::string &getUserAgent() const { return params_.user_agent_; }
 
     /** \note Get HTTP response code */
-    const unsigned &getResponseCode() const;
+    unsigned getResponseCode();
 
     static unsigned GetInstanceCount() { return instance_count_; }
 

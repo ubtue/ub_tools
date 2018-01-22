@@ -218,7 +218,7 @@ const std::string &Downloader::getLastErrorMessage() const {
 }
 
 
-const unsigned &Downloader::getResponseCode() const {
+unsigned Downloader::getResponseCode() {
     std::string err_msg;
     const std::string regex_pattern("HTTP(/\\d\\.\\d)?\\s*(\\d{3})\\s*");
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
@@ -229,8 +229,7 @@ const unsigned &Downloader::getResponseCode() const {
     if (not matcher->matched(header))
         ERROR("Failed to get HTTP response code from header: " + header);
 
-    static unsigned code(StringUtil::ToUnsigned((*matcher)[2]));
-    return code;
+    return StringUtil::ToUnsigned((*matcher)[2]);
 }
 
 
