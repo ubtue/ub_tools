@@ -67,10 +67,10 @@ public:
 extern Logger *logger;
 
 
-#define ERROR(message)   logger->error(__func__, message)
-#define WARNING(message) logger->warning(__func__, message)
-#define INFO(message)    logger->info(__func__, message)
-#define DEBUG(message)   logger->debug(__func__, message)
+#define ERROR(message)   logger->error(__PRETTY_FUNCTION__, message)
+#define WARNING(message) logger->warning(__PRETTY_FUNCTION__, message)
+#define INFO(message)    logger->info(__PRETTY_FUNCTION__, message)
+#define DEBUG(message)   logger->debug(__PRETTY_FUNCTION__, message)
 
 
 // TestAndThrowOrReturn -- tests condition "cond" and, if it evaluates to "true", throws an exception unless another
