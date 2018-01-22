@@ -328,26 +328,31 @@ void MergeAndDedupArchiveFiles(const std::vector<std::string> &local_data_filena
         if (local_data_filename == local_data_filenames.cend()
             or GetArchiveEntrySuffix(*no_local_data_filename) < GetArchiveEntrySuffix(*local_data_filename))
         {
+            logger->info("in MergeAndDedupArchiveFiles: copying no-local-data file \"" + *no_local_data_filename + "\"");
             CopyFileOrDie("../" + *no_local_data_filename, GetArchiveEntrySuffix(*no_local_data_filename));
             ++no_local_data_filename;
         } else if (no_local_data_filename == no_local_data_filenames.cend()
                    or GetArchiveEntrySuffix(*local_data_filename) < GetArchiveEntrySuffix(*no_local_data_filename))
         {
+            logger->info("in MergeAndDedupArchiveFiles: copying local-data file \"" + *local_data_filename + "\"");
             CopyFileOrDie("../" + *local_data_filename, GetArchiveEntrySuffix(*local_data_filename));
             ++local_data_filename;
         } else { // If we end up here, local_data_filename and no_local_data_filename have the same suffix.
-            const std::string common_suffix(*local_data_filename);
+            logger->info("in MergeAndDedupArchiveFiles: merging both, the local-data file \"" + *local_data_filename
+                         + "\" and the no-local-data file \"" + *no_local_data_filename + "\"");
+            const std::string common_prefix(local_data_filename->substr(0, local_data_filename->length() - 3 /* extension */));
 
             // We can't use the usual ".raw" file name here because RemoveDuplicateControlNumberRecords requires a ".xml" or
             // a ".mrc" extension to identify the file type.
-            const std::string temp_filename(common_suffix.substr(0, 5) + "mrc");
+            const std::string temp_filename(common_prefix + "mrc");
 
             FileUtil::ConcatFiles(temp_filename, { *local_data_filename, *no_local_data_filename });
             const unsigned dropped_count(MARC::RemoveDuplicateControlNumberRecords(temp_filename));
-            const std::string raw_filename(common_suffix.substr(0, 5) + "raw");
-            FileUtil::RenameFileOrDie(temp_filename, raw_filename);
+            const std::string raw_filename(common_prefix.substr(0, 5) + "raw");
+            FileUtil::RenameFileOrDie(temp_filename, raw_filename, true /* remove_target */);
             INFO("dropped " + std::to_string(dropped_count) + " records with duplicate PPN's and generated \"" + raw_filename
                  + "\".");
+
             ++local_data_filename;
             ++no_local_data_filename;
         }
