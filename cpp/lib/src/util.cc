@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015,2017 Library of the University of Tübingen
+    Copyright (C) 2015,2017,2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -61,6 +61,11 @@ void Logger::error(const std::string &msg) {
         WriteString(fd_, TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + std::string(" SEVERE ")
                     + ::progname + std::string(": ") + msg
                     + (errno == 0 ? "" : " (" + std::string(::strerror(errno)) + ")") + '\n');
+    if (::getenv("BACKTRACE") != nullptr) {
+        WriteString(fd_, "Backtrace:\n");
+        for (const auto &stack_entry : MiscUtil::GetCallStack())
+            WriteString(fd_, "  " + stack_entry + "\n");
+    }
     std::exit(EXIT_FAILURE);
 }
 

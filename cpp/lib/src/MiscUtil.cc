@@ -7,7 +7,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2016,2017 Universitätsbibliothek Tübingen
+ *  Copyright 2016-2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -35,6 +35,8 @@
 #include <stdexcept>
 #include <unordered_set>
 #include <cctype>
+#include <cxxabi.h>
+#include <execinfo.h>
 #include <unistd.h>
 #include "Compiler.h"
 #include "FileUtil.h"
@@ -981,6 +983,35 @@ bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &edges, st
     }
 
     return visited_node_count == nodes.size(); // If this is nor true we have at least one cycle!
+}
+
+
+std::vector<std::string> GetCallStack() {
+    std::vector<std::string> call_stack;
+
+    const int MAX_ADDR_COUNT(100);
+    char buffer[MAX_ADDR_COUNT * sizeof(void *)];
+    const int address_count(::backtrace((void **)buffer, MAX_ADDR_COUNT));
+    char **symbols(backtrace_symbols(reinterpret_cast<void **>(buffer), address_count));
+    for (int addr_no(0); addr_no < address_count; ++addr_no) {
+        char *symbol_start(std::strchr(symbols[addr_no], '('));
+        if (symbol_start == nullptr)
+            continue;
+        ++symbol_start; // Skip over the opening parenthesis.
+        // Symbols end at a plus sign which is followed by an address.
+        char *plus(std::strchr(symbol_start, '+'));
+        if (plus == nullptr)
+            continue;
+        *plus = '\0';
+        int status;
+        char *demangled_name(abi::__cxa_demangle(symbol_start, nullptr, nullptr, &status));
+        if (status == 0)
+            call_stack.emplace_back(demangled_name);
+        ::free(reinterpret_cast<void *>(demangled_name));
+    }
+    ::free(reinterpret_cast<void *>(symbols));
+    
+    return call_stack;
 }
 
 
