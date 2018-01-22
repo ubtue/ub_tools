@@ -31,6 +31,7 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "MediaTypeUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 #include "WebUtil.h"
@@ -214,6 +215,22 @@ const std::string &Downloader::getLastErrorMessage() const {
         last_error_message_ = ::curl_easy_strerror(curl_error_code_);
 
     return last_error_message_;
+}
+
+
+const unsigned &Downloader::getResponseCode() const {
+    std::string err_msg;
+    const std::string regex_pattern("HTTP(/\\d\\.\\d)?\\s*(\\d{3})\\s*");
+    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
+    if (matcher == nullptr)
+        ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
+
+    const std::string header(getMessageHeader());
+    if (not matcher->matched(header))
+        ERROR("Failed to get HTTP response code from header: " + header);
+
+    static unsigned code(StringUtil::ToUnsigned((*matcher)[2]));
+    return code;
 }
 
 

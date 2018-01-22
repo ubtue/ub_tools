@@ -139,6 +139,9 @@ public:
     const std::string &getLastErrorMessage() const;
     const std::string &getUserAgent() const { return params_.user_agent_; }
 
+    /** \note Get HTTP response code */
+    const unsigned &getResponseCode() const;
+
     static unsigned GetInstanceCount() { return instance_count_; }
 
     /** \brief    Get's rid of all memory allocations related to Downloader instances.
