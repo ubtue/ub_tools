@@ -351,7 +351,7 @@ Record BinaryReader::read() {
     bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH,
                               record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
     if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
-        logger->error("in MARC::BinaryReader::read: failed to read a record!");
+        logger->error("in MARC::BinaryReader::read: failed to read a record from \"" + input_->getPath() + "\"!");
 
     return Record(record_length, buf);
 }
