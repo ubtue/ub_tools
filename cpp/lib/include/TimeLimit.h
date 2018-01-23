@@ -32,6 +32,7 @@
 
 #include <sys/time.h>
 #include <time.h>
+#include "TimeUtil.h"
 
 
 /** \class  TimeLimit
@@ -44,6 +45,8 @@
  */
 class TimeLimit {
     timeval expire_time_;
+    unsigned interval_;
+    void initialize(const unsigned time_limit);
 public:
  /** \brief  Construct a TimeLimit by specifying the limit.
   *  \param  time_limit  The time until expiration, in milliseconds.
@@ -71,6 +74,12 @@ public:
      *           exceeded.
      */
     unsigned getRemainingTime() const;
+
+    /** reset the TimeLimit to the interval passed at construction time (from now on) */
+    void reset();
+
+    /** Sleep until the limit is exceeded */
+    void sleepUntilExceeded() { TimeUtil::Millisleep(getRemainingTime()); }
 
     /** Equality and inequality operators. */
     bool operator==(const TimeLimit &rhs);
