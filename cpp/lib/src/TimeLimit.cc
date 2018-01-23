@@ -76,13 +76,3 @@ bool TimeLimit::limitExceeded() const {
 void TimeLimit::restart() {
     initialize(interval_);
 }
-
-
-bool TimeLimit::operator==(const TimeLimit &rhs) {
-    return TimeValToMilliseconds(expire_time_) == TimeValToMilliseconds(rhs.expire_time_);
-}
-
-
-bool TimeLimit::operator!=(const TimeLimit &rhs) {
-    return TimeValToMilliseconds(expire_time_) != TimeValToMilliseconds(rhs.expire_time_);
-}

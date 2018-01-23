@@ -79,10 +79,6 @@ public:
 
     /** Sleep until the limit is exceeded */
     void sleepUntilExpired() { TimeUtil::Millisleep(getRemainingTime()); }
-
-    /** Equality and inequality operators. */
-    bool operator==(const TimeLimit &rhs);
-    bool operator!=(const TimeLimit &rhs);
 private:
     void initialize(const unsigned time_limit);
 };
