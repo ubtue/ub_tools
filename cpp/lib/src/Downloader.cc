@@ -31,6 +31,7 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "MediaTypeUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 #include "WebUtil.h"
@@ -74,12 +75,14 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
                            const bool honour_robots_dot_txt, const TextTranslationMode text_translation_mode,
                            const PerlCompatRegExps &banned_reg_exps, const bool debugging,
                            const bool follow_redirects, bool ignore_ssl_certificates,
-                           const std::string &proxy_host_and_port, const std::vector<std::string> &additional_headers)
+                           const std::string &proxy_host_and_port, const std::vector<std::string> &additional_headers,
+                           const std::string &post_data)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
       dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt),
       text_translation_mode_(text_translation_mode), banned_reg_exps_(banned_reg_exps), debugging_(debugging),
       follow_redirects_(follow_redirects), ignore_ssl_certificates_(ignore_ssl_certificates),
-      proxy_host_and_port_(proxy_host_and_port), additional_headers_(additional_headers)
+      proxy_host_and_port_(proxy_host_and_port), additional_headers_(additional_headers),
+      post_data_(post_data)
 {
     max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0 ;
 
@@ -215,6 +218,21 @@ const std::string &Downloader::getLastErrorMessage() const {
 }
 
 
+unsigned Downloader::getResponseCode() {
+    std::string err_msg;
+    const std::string regex_pattern("HTTP(/\\d\\.\\d)?\\s*(\\d{3})\\s*");
+    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
+    if (matcher == nullptr)
+        ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
+
+    const std::string header(getMessageHeader());
+    if (not matcher->matched(header))
+        ERROR("Failed to get HTTP response code from header: " + header);
+
+    return StringUtil::ToUnsigned((*matcher)[2]);
+}
+
+
 void Downloader::init() {
     ++instance_count_;
 
@@ -254,6 +272,10 @@ void Downloader::init() {
                      != CURLE_OK))
             throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (6)!");
     }
+
+    if (not params_.post_data_.empty())
+        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_POSTFIELDS, params_.post_data_.c_str())))
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (7)!");
 }
 
 
