@@ -90,7 +90,7 @@ TokenType Scanner::getToken() {
 
 void Scanner::ungetToken(const TokenType token) {
     if (unlikely(pushed_back_))
-        throw std::runtime_error("in JSON::Scanner::ungetToken: can't push back two tokesn in a row!");
+        throw std::runtime_error("in JSON::Scanner::ungetToken: can't push back two tokens in a row!");
     pushed_back_token_ = token;
     pushed_back_ = true;
 }
@@ -247,16 +247,16 @@ bool Scanner::UTF16EscapeToUTF8(std::string * const utf8) {
 // Helper for parseStringConstant; copies a singe Unicode codepoint from ch to s.
 // See https://en.wikipedia.org/wiki/UTF-8 in order to understand the implementation.
 inline static void UTF8Advance(std::string::const_iterator &ch, std::string * const s) {
-    if ((static_cast<unsigned char>(*ch) & 0b10000000) == 0) // High bit is not set.
+    if ((static_cast<unsigned char>(*ch) & 0b10000000u) == 0) { // High bit is not set.
         *s += *ch++;
-    else if ((static_cast<unsigned char>(*ch) & 0b11100000) == 0b11000000) {
-        *s += *ch++;
-        *s += *ch++;
-    } else if ((static_cast<unsigned char>(*ch) & 0b11110000) == 0b11100000) {
+    } else if ((static_cast<unsigned char>(*ch) & 0b11100000u) == 0b11000000u) {
         *s += *ch++;
         *s += *ch++;
+    } else if ((static_cast<unsigned char>(*ch) & 0b11110000u) == 0b11100000u) {
         *s += *ch++;
-    } else if ((static_cast<unsigned char>(*ch) & 0b11111000) == 0b11110000) {
+        *s += *ch++;
+        *s += *ch++;
+    } else if ((static_cast<unsigned char>(*ch) & 0b11111000u) == 0b11110000u) {
         *s += *ch++;
         *s += *ch++;
         *s += *ch++;
@@ -264,7 +264,7 @@ inline static void UTF8Advance(std::string::const_iterator &ch, std::string * co
     }
 }
 
-    
+
 TokenType Scanner::parseStringConstant() {
     ++ch_; // Skip over initial double quote.
 

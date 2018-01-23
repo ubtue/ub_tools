@@ -519,14 +519,15 @@ public:
 
 
 class BinaryWriter: public Writer {
-    File &output_;
+    File * const output_;
 public:
-    BinaryWriter(File * const output): output_(*output) { }
+    BinaryWriter(File * const output): output_(output) { }
+    virtual ~BinaryWriter() { delete output_; }
 
     virtual void write(const Record &record) final;
 
     /** \return a reference to the underlying, associated file. */
-    virtual File &getFile() final { return output_; }
+    virtual File &getFile() final { return *output_; }
 };
 
 
@@ -552,6 +553,13 @@ void FileLockedComposeAndWriteRecord(Writer * const marc_writer, Record * const 
  *  \note   We keep the first occurrence of a record with a given control number and drop and drop any subsequent ones.
  */
 unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename);
+
+
+/** \brief Checks the validity of an entire file.
+ *  \return true if the file was a valid MARC file, else false
+ */
+bool IsValidMarcFile(const std::string &filename, std::string * const err_msg,
+                     const Reader::ReaderType reader_type = Reader::AUTO);
 
 
 } // namespace MARC

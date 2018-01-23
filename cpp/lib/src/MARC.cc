@@ -351,7 +351,7 @@ Record BinaryReader::read() {
     bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH,
                               record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
     if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
-        logger->error("in MARC::BinaryReader::read: failed to read a record from \"" + input_->getPath() + "\"!");
+        throw std::runtime_error("in MARC::BinaryReader::read: failed to read a record from \"" + input_->getPath() + "\"!");
 
     return Record(record_length, buf);
 }
@@ -732,7 +732,7 @@ bool XmlReader::getNext(SimpleXmlParser<File>::Type * const type,
 
 
 std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, WriterType writer_type,
-                                                const WriterMode writer_mode)
+                                        const WriterMode writer_mode)
 {
     std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE
                                  ? FileUtil::OpenOutputFileOrDie(output_filename)
@@ -808,7 +808,7 @@ void BinaryWriter::write(const Record &record) {
         }
         raw_record += '\x1D'; // end-of-record
 
-        output_.write(raw_record);
+        output_->write(raw_record);
 
         start = end;
     } while (start != record.end());
@@ -867,12 +867,10 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
     std::string temp_filename;
     // Open a scope because we need the MARC::Reader to go out-of-scope before we unlink the associated file.
     {
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_filename));
-        temp_filename = "/tmp/" + std::string(::progname) + std::to_string(::getpid())
+        std::unique_ptr<Reader> marc_reader(Reader::Factory(marc_filename));
+        temp_filename = "/tmp/" + std::string(::basename(::progname)) + std::to_string(::getpid())
                         + (marc_reader->getReaderType() == Reader::XML ? ".xml" : ".mrc");
-
-        std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(temp_filename));
-
+        std::unique_ptr<Writer> marc_writer(Writer::Factory(temp_filename));
         std::unordered_set<std::string> already_seen_control_numbers;
         while (const Record record = marc_reader->read()) {
             const std::string control_number(record.getControlNumber());
@@ -883,9 +881,26 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
                 ++dropped_count;
         }
     }
-
     FileUtil::RenameFileOrDie(temp_filename, marc_filename, true /* remove_target */);
     return dropped_count;
+}
+
+
+bool IsValidMarcFile(const std::string &filename, std::string * const err_msg,
+                     const Reader::ReaderType reader_type)
+{
+    try {
+      std::unique_ptr<Reader> reader(Reader::Factory(filename, reader_type));
+      while (const Record record = reader->read()) {
+          if (not record.isValid(err_msg)) {
+              return false;
+          }
+      }
+      return true;
+    } catch (const std::exception &x) {
+      *err_msg = x.what();
+      return false;
+    }
 }
 
 

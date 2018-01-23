@@ -40,12 +40,15 @@
 #include "WebUtil.h"
 
 
+namespace {
+
+
 const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--verbose] [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] [--progress-file=progress_filename] zts_server_url map_directory marc_output\n"
+              << " [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] [--progress-file=progress_filename] zts_server_url map_directory marc_output\n"
               << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
               << "        files and the file containing hashes of previously generated records.\n"
               << "        The optional \"--zotero-crawler-config-file\" flag specifies where to look for the\n"
@@ -138,89 +141,7 @@ void LoadPreviouslyDownloadedHashes(File * const input,
             previously_downloaded->emplace(TextUtil::Base64Decode(line));
     }
 
-    std::cerr << "Loaded " << previously_downloaded->size() << " hashes of previously generated records.\n";
-}
-
-
-// Returns the socket file descriptor on success or aborts if it was not possible to establish a connection.
-int TcpConnectOrDie(const std::string &server_address, const unsigned short server_port, const TimeLimit &time_limit)
-{
-   std::string tcp_connect_error_message;
-   const int socket_fd(SocketUtil::TcpConnect(server_address, server_port, time_limit, &tcp_connect_error_message,
-                                              SocketUtil::DISABLE_NAGLE));
-   if (socket_fd == -1)
-       logger->error("in TcpConnectOrDie: Could not open TCP connection to " + server_address + ", port "
-                     + std::to_string(server_port) + ": " + tcp_connect_error_message + " (Time remaining: "
-                     + std::to_string(time_limit.getRemainingTime()) + ").");
-
-   return socket_fd;
-}
-
-
-bool Download(const bool verbose, const std::string &server_address, const unsigned short server_port,
-              const std::string &server_path, const TimeLimit &time_limit, const std::string &request_headers,
-              const std::string &request_body, std::string * const returned_data, std::string * const error_message)
-{
-    returned_data->clear();
-    error_message->clear();
-
-    if (verbose)
-        logger->info("in Download: server_address: " + server_address + ", server_port: " + std::to_string(server_port));
-    const FileDescriptor socket_fd(TcpConnectOrDie(server_address, server_port, time_limit));
-
-    std::string request;
-    request += request_headers;
-    request += "\r\n";
-    request += request_body;
-
-    if (SocketUtil::TimedWrite(socket_fd, time_limit, request.data(), request.length()) == -1) {
-        *error_message = "Could not write to socket";
-        *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ")";
-        *error_message += '!';
-        return false;
-    }
-
-    char http_response_header[10240 + 1];
-    ssize_t no_of_bytes_read(SocketUtil::TimedRead(socket_fd, time_limit, http_response_header,
-                                                   sizeof(http_response_header) - 1));
-    if (no_of_bytes_read == -1) {
-        *error_message = "Could not read from socket (1).";
-        *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ").";
-        return false;
-    }
-    http_response_header[no_of_bytes_read] = '\0';
-    HttpHeader http_header(http_response_header);
-
-    // the 2xx codes indicate success:
-    if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {
-        *error_message = "Web server returned error status code ("
-                         + std::to_string(http_header.getStatusCode()) + "), address was "
-                         + server_address + ", port was " + std::to_string(server_port) + ", path was \""
-                         + server_path +"\"!";
-        return false;
-    }
-
-    // read the returned document source:
-    std::string response(http_response_header, no_of_bytes_read);
-    char buf[10240];
-    do {
-        no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf));
-        if (no_of_bytes_read == -1) {
-            *error_message = "Could not read from socket (2).";
-            *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ").";
-            return false;
-        }
-        if (no_of_bytes_read > 0)
-            response.append(buf, no_of_bytes_read);
-    } while (no_of_bytes_read > 0);
-
-    std::string::size_type pos(response.find("\r\n\r\n")); // the header ends with two cr/lf pairs!
-    if (pos != std::string::npos) {
-        pos += 4;
-        *returned_data = response.substr(pos);
-    }
-
-    return true;
+    logger->info("Loaded " + StringUtil::ToString(previously_downloaded->size()) + " hashes of previously generated records.");
 }
 
 
@@ -236,31 +157,22 @@ std::string GetNextSessionId() {
 }
 
 
-bool Download(const bool verbose, const std::string &server_address, const unsigned short server_port,
-              const std::string &server_path, const TimeLimit &time_limit, const std::string &harvest_url,
-              std::string * const json_result, std::string * const error_message)
+inline bool Download(const Url &url, const TimeLimit &time_limit, const std::string &harvest_url,
+                     std::string * const json_result, unsigned * response_code, std::string * const error_message)
 {
-        const std::string JSON_REQUEST("{\"url\":\"" + harvest_url + "\",\"sessionid\":\"" + GetNextSessionId()
-                                       + "\"}");
-        std::string headers;
-        headers += "POST " + server_path + " HTTP/1.0\r\n";
-        headers += "Host: " + server_address + "\r\n";
-        headers += "User-Agent: zts_client/1.0 ub_tools\r\n";
-        headers += "Accept: application/json\r\n";
-        headers += "Connection: close\r\n";
-        headers += "Content-Type: application/json\r\n";
-        headers += "Content-Length: " + std::to_string(JSON_REQUEST.length()) + "\r\n";
+    Downloader::Params params;
+    params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
+    params.post_data_ = "{\"url\":\"" + harvest_url + "\",\"sessionid\":\"" + GetNextSessionId() + "\"}";
 
-        return Download(verbose, server_address, server_port, server_path, time_limit, headers, JSON_REQUEST, json_result,
-                        error_message);
-}
-
-
-inline bool Download(const bool verbose, const Url &url, const TimeLimit &time_limit, const std::string &harvest_url,
-                     std::string * const json_result, std::string * const error_message)
-{
-    return Download(verbose, url.getAuthority(), url.getPort(), url.getPath(), time_limit, harvest_url, json_result,
-                    error_message);
+    Downloader downloader(url, params, time_limit);
+    if (downloader.anErrorOccurred()) {
+        *error_message = downloader.getLastErrorMessage();
+        return false;
+    } else {
+        *response_code = downloader.getResponseCode();
+        *json_result = downloader.getMessageBody();
+        return true;
+    }
 }
 
 
@@ -652,7 +564,6 @@ std::pair<unsigned, unsigned> GenerateMARC(
 
 
 std::pair<unsigned, unsigned> Harvest(
-    const bool verbose,
     const std::string &zts_server_url, const std::string &harvest_url,
     const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
@@ -662,36 +573,71 @@ std::pair<unsigned, unsigned> Harvest(
     const std::unordered_map<std::string, std::string> &ISSN_to_licence_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_SSG_map,
-    std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
+    std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer,
+    bool log = true)
 {
-    std::string json_document, error_message;
-    if (not Download(verbose, Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &json_document, &error_message)) {
-        std::cerr << "Download for harvest URL \"" + harvest_url + "\" failed: " + error_message << '\n';
+    logger->info("Harvesting URL: " + harvest_url);
+
+    std::string response_body, error_message;
+    unsigned response_code;
+    if (not Download(Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &response_body, &response_code, &error_message))
+    {
+        logger->info("Download failed: " + error_message);
+        return std::make_pair(0, 0);
+    }
+
+    if (response_code == 500) {
+        logger->info("Error: " + response_body);
+        return std::make_pair(0, 0);
+    }
+
+    if (response_code == 501) {
+        logger->debug("Skipped (" + response_body + ")");
         return std::make_pair(0, 0);
     }
 
     JSON::JSONNode *tree_root(nullptr);
     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     try {
-        JSON::Parser json_parser(json_document);
+        JSON::Parser json_parser(response_body);
         if (not (json_parser.parse(&tree_root)))
-            logger->error("failed to parse returned JSON: " + json_parser.getErrorMessage());
+            logger->error("failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
 
-        record_count_and_previously_downloaded_count =
-            GenerateMARC(tree_root, ISSN_to_physical_form_map, ISSN_to_language_code_map, ISSN_to_superior_ppn_map,
-                         language_to_language_code_map, ISSN_to_volume_map, ISSN_to_licence_map,
-                         ISSN_to_keyword_field_map, ISSN_to_SSG_map, previously_downloaded, marc_writer);
+        if (response_code == 300) {
+            // multiple matches found, try to harvest children
+            logger->info("multiple articles found => trying to harvest children");
+            if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
+                const JSON::ObjectNode * const object_node(
+                reinterpret_cast<JSON::ObjectNode *>(tree_root));
+                for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
+                    std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
+                        Harvest(zts_server_url, key_and_node->first, ISSN_to_physical_form_map, ISSN_to_language_code_map,
+                                ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map, ISSN_to_licence_map,
+                                ISSN_to_keyword_field_map, ISSN_to_SSG_map, previously_downloaded, marc_writer, false /* log */);
+
+                    record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
+                    record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
+                }
+            }
+        } else {
+            record_count_and_previously_downloaded_count =
+                GenerateMARC(tree_root, ISSN_to_physical_form_map, ISSN_to_language_code_map, ISSN_to_superior_ppn_map,
+                             language_to_language_code_map, ISSN_to_volume_map, ISSN_to_licence_map,
+                             ISSN_to_keyword_field_map, ISSN_to_SSG_map, previously_downloaded, marc_writer);
+        }
         delete tree_root;
     } catch (...) {
         delete tree_root;
         throw;
     }
 
-    std::cerr << "Harvested " << record_count_and_previously_downloaded_count.first << " record(s) from "
-              << harvest_url << '\n' << "of which "
-              << (record_count_and_previously_downloaded_count.first
-                  - record_count_and_previously_downloaded_count.second)
-              << " records were new records.\n";
+    if (log) {
+        logger->info("Harvested " + StringUtil::ToString(record_count_and_previously_downloaded_count.first) + " record(s) from "
+                  + harvest_url + '\n' + "of which "
+                  + StringUtil::ToString(record_count_and_previously_downloaded_count.first
+                      - record_count_and_previously_downloaded_count.second)
+                  + " records were new records.\n");
+    }
     return record_count_and_previously_downloaded_count;
 }
 
@@ -702,7 +648,7 @@ void StorePreviouslyDownloadedHashes(File * const output,
     for (const auto &hash : previously_downloaded)
         output->write(TextUtil::Base64Encode(hash) + '\n');
 
-    std::cerr << "Stored " << previously_downloaded.size() << " hashes of previously generated records.\n";
+    logger->info("Stored " + StringUtil::ToString(previously_downloaded.size()) + " hashes of previously generated records.");
 }
 
 
@@ -711,7 +657,7 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
 {
     harvest_urls->clear();
 
-    std::cerr << "Starting loading of harvest URL's.\n";
+    logger->info("Starting loading of harvest URL's.");
 
     const std::string COMMAND("/usr/local/bin/zotero_crawler"
                               + std::string(ignore_robots_dot_txt ? " --ignore-robots-dot-txt " : " ")
@@ -719,23 +665,20 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
 
     std::string stdout_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &stdout_output))
-        logger->error("in LoadHarvestURLs: failed to execute \"" + COMMAND + "\"!");
+        logger->error("failed to execute \"" + COMMAND + "\"!");
     if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0)
-        logger->error("in LoadHarvestURLs: no harvest URL's were read after executing \"" + COMMAND + "\"!");
-    std::cerr << "Loaded " << harvest_urls->size() << " harvest URL's.\n";
+        logger->error("no harvest URL's were read after executing \"" + COMMAND + "\"!");
+    logger->info("Loaded " + StringUtil::ToString(harvest_urls->size()) + " harvest URL's.");
 }
+
+
+} // unnamed namespace
 
 
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
     if (argc < 4 or argc > 7)
         Usage();
-
-    bool verbose(false);
-    if (std::strcmp(argv[1], "--verbose") == 0) {
-        verbose = true;
-        --argc, ++argv;
-    }
 
     bool ignore_robots_dot_txt(false);
     if (std::strcmp(argv[1], "--ignore-robots-dot-txt") == 0) {
@@ -813,10 +756,8 @@ int main(int argc, char *argv[]) {
         LoadHarvestURLs(ignore_robots_dot_txt, zotero_crawler_config_path, &harvest_urls);
         unsigned i(0);
         for (const auto &harvest_url : harvest_urls) {
-            if (verbose)
-                logger->info("Trying to harvest \"" + harvest_url + "\".");
             const auto record_count_and_previously_downloaded_count(
-                Harvest(verbose, ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
+                Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
                         ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
                         ISSN_to_licence_map, ISSN_to_keyword_field_map, ISSN_to_SSG_map, &previously_downloaded,
                         marc_writer.get()));
@@ -831,8 +772,8 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        std::cout << "Harvested a total of " << total_record_count << " records of which "
-                  << total_previously_downloaded_count << " were already previously downloaded.\n";
+        logger->info("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "
+                  + StringUtil::ToString(total_previously_downloaded_count) + " were already previously downloaded.");
 
         std::unique_ptr<File> previously_downloaded_output(
             FileUtil::OpenOutputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
