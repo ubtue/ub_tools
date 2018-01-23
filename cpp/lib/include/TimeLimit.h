@@ -46,7 +46,6 @@
 class TimeLimit {
     timeval expire_time_;
     unsigned interval_;
-    void initialize(const unsigned time_limit);
 public:
  /** \brief  Construct a TimeLimit by specifying the limit.
   *  \param  time_limit  The time until expiration, in milliseconds.
@@ -56,10 +55,10 @@ public:
     TimeLimit(const unsigned time_limit);
 
     /** TimeLimit Copy Constructor. */
-    TimeLimit(const TimeLimit &rhs): expire_time_(rhs.expire_time_) { }
+    TimeLimit(const TimeLimit &rhs): expire_time_(rhs.expire_time_), interval_(rhs.interval_) { }
 
     /** TimeLimit assignment operator. */
-    const TimeLimit operator=(const TimeLimit &rhs) { expire_time_ = rhs.expire_time_; return *this; }
+    const TimeLimit operator=(const TimeLimit &rhs) { expire_time_ = rhs.expire_time_; interval_ = rhs.interval_; return *this; }
 
     /** TimeLimit assignment operator. */
     const TimeLimit operator=(const unsigned new_time_limit);
@@ -84,6 +83,8 @@ public:
     /** Equality and inequality operators. */
     bool operator==(const TimeLimit &rhs);
     bool operator!=(const TimeLimit &rhs);
+private:
+    void initialize(const unsigned time_limit);
 };
 
 
