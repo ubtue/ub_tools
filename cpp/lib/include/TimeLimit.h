@@ -47,11 +47,11 @@ class TimeLimit {
     timeval expire_time_;
     unsigned limit_;
 public:
- /** \brief  Construct a TimeLimit by specifying the limit.
-  *  \param  time_limit  The time until expiration, in milliseconds.
-  *  \note   This constructor is deliberately not explicit, so that unsigned values can be used in place of
-  *          TimeLimit objects in function calls.
-  */
+    /** \brief  Construct a TimeLimit by specifying the limit.
+     *  \param  time_limit  The time until expiration, in milliseconds.
+     *  \note   This constructor is deliberately not explicit, so that unsigned values can be used in place of
+     *          TimeLimit objects in function calls.
+     */
     TimeLimit(const unsigned time_limit) { initialize(time_limit); }
 
     /** TimeLimit Copy Constructor. */
