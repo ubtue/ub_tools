@@ -368,6 +368,7 @@ std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename);
 bool Copy(File * const from, File * const to, const size_t no_of_bytes);
 
 
+bool Copy(const std::string &from_path, const std::string &to_path);
 void CopyOrDie(const std::string &from_path, const std::string &to_path);
 
 
