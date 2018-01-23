@@ -45,7 +45,7 @@ const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] [--progress-file=progress_filename] zts_server_url map_directory marc_output\n"
+              << " [--verbose] [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] [--progress-file=progress_filename] zts_server_url map_directory marc_output\n"
               << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
               << "        files and the file containing hashes of previously generated records.\n"
               << "        The optional \"--zotero-crawler-config-file\" flag specifies where to look for the\n"
@@ -157,13 +157,15 @@ int TcpConnectOrDie(const std::string &server_address, const unsigned short serv
 }
 
 
-bool Download(const std::string &server_address, const unsigned short server_port, const std::string &server_path,
-              const TimeLimit &time_limit, const std::string &request_headers, const std::string &request_body,
-              std::string * const returned_data, std::string * const error_message)
+bool Download(const bool verbose, const std::string &server_address, const unsigned short server_port,
+              const std::string &server_path, const TimeLimit &time_limit, const std::string &request_headers,
+              const std::string &request_body, std::string * const returned_data, std::string * const error_message)
 {
     returned_data->clear();
     error_message->clear();
 
+    if (verbose)
+        logger->info("in Download: server_address: " + server_address + ", server_port: " + std::to_string(server_port));
     const FileDescriptor socket_fd(TcpConnectOrDie(server_address, server_port, time_limit));
 
     std::string request;
@@ -234,9 +236,9 @@ std::string GetNextSessionId() {
 }
 
 
-bool Download(const std::string &server_address, const unsigned short server_port, const std::string &server_path,
-              const TimeLimit &time_limit, const std::string &harvest_url, std::string * const json_result,
-              std::string * const error_message)
+bool Download(const bool verbose, const std::string &server_address, const unsigned short server_port,
+              const std::string &server_path, const TimeLimit &time_limit, const std::string &harvest_url,
+              std::string * const json_result, std::string * const error_message)
 {
         const std::string JSON_REQUEST("{\"url\":\"" + harvest_url + "\",\"sessionid\":\"" + GetNextSessionId()
                                        + "\"}");
@@ -249,15 +251,15 @@ bool Download(const std::string &server_address, const unsigned short server_por
         headers += "Content-Type: application/json\r\n";
         headers += "Content-Length: " + std::to_string(JSON_REQUEST.length()) + "\r\n";
 
-        return Download(server_address, server_port, server_path, time_limit, headers, JSON_REQUEST, json_result,
+        return Download(verbose, server_address, server_port, server_path, time_limit, headers, JSON_REQUEST, json_result,
                         error_message);
 }
 
 
-inline bool Download(const Url &url, const TimeLimit &time_limit, const std::string &harvest_url,
+inline bool Download(const bool verbose, const Url &url, const TimeLimit &time_limit, const std::string &harvest_url,
                      std::string * const json_result, std::string * const error_message)
 {
-    return Download(url.getAuthority(), url.getPort(), url.getPath(), time_limit, harvest_url, json_result,
+    return Download(verbose, url.getAuthority(), url.getPort(), url.getPath(), time_limit, harvest_url, json_result,
                     error_message);
 }
 
@@ -650,6 +652,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
 
 
 std::pair<unsigned, unsigned> Harvest(
+    const bool verbose,
     const std::string &zts_server_url, const std::string &harvest_url,
     const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
@@ -662,7 +665,7 @@ std::pair<unsigned, unsigned> Harvest(
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     std::string json_document, error_message;
-    if (not Download(Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &json_document, &error_message)) {
+    if (not Download(verbose, Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &json_document, &error_message)) {
         std::cerr << "Download for harvest URL \"" + harvest_url + "\" failed: " + error_message << '\n';
         return std::make_pair(0, 0);
     }
@@ -727,6 +730,12 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
     if (argc < 4 or argc > 7)
         Usage();
+
+    bool verbose(false);
+    if (std::strcmp(argv[1], "--verbose") == 0) {
+        verbose = true;
+        --argc, ++argv;
+    }
 
     bool ignore_robots_dot_txt(false);
     if (std::strcmp(argv[1], "--ignore-robots-dot-txt") == 0) {
@@ -804,8 +813,10 @@ int main(int argc, char *argv[]) {
         LoadHarvestURLs(ignore_robots_dot_txt, zotero_crawler_config_path, &harvest_urls);
         unsigned i(0);
         for (const auto &harvest_url : harvest_urls) {
+            if (verbose)
+                logger->info("Trying to harvest \"" + harvest_url + "\".");
             const auto record_count_and_previously_downloaded_count(
-                Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
+                Harvest(verbose, ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
                         ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
                         ISSN_to_licence_map, ISSN_to_keyword_field_map, ISSN_to_SSG_map, &previously_downloaded,
                         marc_writer.get()));
