@@ -881,7 +881,7 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
                 ++dropped_count;
         }
     }
-    FileUtil::RenameFileOrDie(temp_filename, marc_filename, true /* remove_target */);
+    FileUtil::RenameFileOrDie(temp_filename, marc_filename, true /* remove_target */, true /* copy accros filesystems */);
     return dropped_count;
 }
 
