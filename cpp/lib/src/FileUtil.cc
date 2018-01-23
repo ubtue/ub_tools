@@ -850,8 +850,10 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
 }
 
 
-void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target) {
-    if (not RenameFile(old_name, new_name, remove_target))
+void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target,
+                     const bool copy_if_cross_device)
+{
+    if (not RenameFile(old_name, new_name, remove_target, copy_if_cross_device))
         logger->error("in FileUtil::RenameFileOrDie failed to rename \"" + old_name + "\" to \"" + new_name + "\"!");
 }
 
