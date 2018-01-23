@@ -868,7 +868,7 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
     // Open a scope because we need the MARC::Reader to go out-of-scope before we unlink the associated file.
     {
         std::unique_ptr<Reader> marc_reader(Reader::Factory(marc_filename));
-        temp_filename = "/tmp/" + std::string(::progname) + std::to_string(::getpid())
+        temp_filename = "/tmp/" + std::string(::basename(::progname)) + std::to_string(::getpid())
                         + (marc_reader->getReaderType() == Reader::XML ? ".xml" : ".mrc");
         std::unique_ptr<Writer> marc_writer(Writer::Factory(temp_filename));
         std::unordered_set<std::string> already_seen_control_numbers;
