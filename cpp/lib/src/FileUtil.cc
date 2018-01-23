@@ -575,7 +575,7 @@ AutoTempDirectory::AutoTempDirectory(const std::string &path_prefix) {
 
 
 AutoTempDirectory::~AutoTempDirectory() {
-    if (not IsDirectory(path_) and not RemoveDirectory(path_))
+    if (not IsDirectory(path_) or not RemoveDirectory(path_))
         logger->error("in FileUtil::AutoTempDirectory::~AutoTempDirectory: can't remove \"" + path_ + "\"!");
 }
 

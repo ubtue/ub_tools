@@ -87,6 +87,7 @@ public:
         bool ignore_ssl_certificates_;
         std::string proxy_host_and_port_;
         std::vector<std::string> additional_headers_;
+        std::string post_data_;
     public:
         explicit Params(const std::string &user_agent = DEFAULT_USER_AGENT_STRING,
                         const std::string &acceptable_languages = DEFAULT_ACCEPTABLE_LANGUAGES,
@@ -97,7 +98,8 @@ public:
                         const PerlCompatRegExps &banned_reg_exps = PerlCompatRegExps(), const bool debugging = false,
                         const bool follow_redirects = true, bool ignore_ssl_certificates = false,
                         const std::string &proxy_host_and_port = "",
-                        const std::vector<std::string> &additional_headers = {});
+                        const std::vector<std::string> &additional_headers = {},
+                        const std::string &post_data = "");
     } params_;
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
@@ -136,6 +138,9 @@ public:
     CURLcode getLastErrorCode() const { return curl_error_code_; }
     const std::string &getLastErrorMessage() const;
     const std::string &getUserAgent() const { return params_.user_agent_; }
+
+    /** \note Get HTTP response code */
+    unsigned getResponseCode();
 
     static unsigned GetInstanceCount() { return instance_count_; }
 
