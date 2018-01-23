@@ -820,7 +820,7 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
     struct stat stat_buf;
     if (::stat(new_name.c_str(), &stat_buf) == -1) {
         if (errno != ENOENT)
-            throw std::runtime_error("in FileUtil::: stat(2) failed: " + std::string(::strerror(errno)));
+            ERROR("stat(2) failed!");
     } else { // Target file or directory already exists!
         if (not remove_target) {
             errno = EEXIST;
@@ -830,20 +830,16 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
         if (S_ISDIR(stat_buf.st_mode)) {
             if (unlikely(not RemoveDirectory(new_name)))
                 return false;
-        } else {
-            if (unlikely(::unlink(new_name.c_str()) == -1))
-                throw std::runtime_error("in FileUtil::: unlink(2) failed: " + std::string(::strerror(errno)));
-        }
+        } else if (unlikely(::unlink(new_name.c_str()) == -1))
+            ERROR("unlink(2) failed!");
     }
 
     if (::rename(old_name.c_str(), new_name.c_str()) == 0)
         return true;
     else if (errno == EXDEV and copy_if_cross_device) {
-        if (Exists(new_name) and not remove_target)
-            return false;
         if (not Copy(old_name, new_name))
             return false;
-        return ::unlink(old_name.c_str());
+        return ::unlink(old_name.c_str()) == 0;
     } else
         return false;
 }
