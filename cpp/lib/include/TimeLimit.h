@@ -74,10 +74,10 @@ public:
      */
     unsigned getRemainingTime() const;
 
-    /** Restart by using the stored interval */
+    /** Restart by using the stored limit. */
     void restart() { initialize(limit_); }
 
-    /** Sleep until the limit is exceeded */
+    /** Sleep until the limit has been exceeded. */
     void sleepUntilExpired() { TimeUtil::Millisleep(getRemainingTime()); }
 private:
     void initialize(const unsigned time_limit);
