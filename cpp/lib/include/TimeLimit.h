@@ -68,8 +68,8 @@ public:
      */
     bool limitExceeded() const;
 
-    /** \brief   Get the time remaining before the limit is exceeded.
-     *  \return  The time remaining until the limit is exceeded (in milliseconds) or 0 if the limit is already
+    /** \brief   Get the time remaining before the limit has been reached.
+     *  \return  The time remaining until the limit has been reached (in milliseconds) or 0 if the limit is already
      *           exceeded.
      */
     unsigned getRemainingTime() const;
