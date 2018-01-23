@@ -336,15 +336,18 @@ size_t GetFileNameList(const std::string &filename_regex, std::vector<std::strin
                        const std::string &directory_to_scan = ".");
 
 /** \brief Rename a file or directory.
- *  \param old_name       The original name.
- *  \param new_name       The target name.
- *  \param remove_target  If "new_name" already exists and this is set to true we will attempt to delete the existing
- *                        renaming target before attempting to rename "old_name".
+ *  \param old_name              The original name.
+ *  \param new_name              The target name.
+ *  \param remove_target         If "new_name" already exists and this is set to true we will attempt to delete the existing
+ *                               renaming target before attempting to rename "old_name".
+ *  \param copy_if_cross_device  We will use copying if we're attempting a coss-device rename if this is set to true.
  *  \return True, upon success, else false.
  *  \note Sets errno if there was a failure.
  */
-bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target = false);
-void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target = false);
+bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target = false,
+                const bool copy_if_cross_device = false);
+void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target = false,
+                     const bool copy_if_cross_device = false);
 
 /** \brief Opens a file for reading or aborts. */
 std::unique_ptr<File> OpenInputFileOrDie(const std::string &filename);
