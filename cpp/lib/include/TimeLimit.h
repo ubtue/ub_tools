@@ -75,11 +75,11 @@ public:
      */
     unsigned getRemainingTime() const;
 
-    /** reset the TimeLimit to the interval passed at construction time (from now on) */
-    void reset();
+    /** Restart by using the stored interval */
+    void restart();
 
     /** Sleep until the limit is exceeded */
-    void sleepUntilExceeded() { TimeUtil::Millisleep(getRemainingTime()); }
+    void sleepUntilExpired() { TimeUtil::Millisleep(getRemainingTime()); }
 
     /** Equality and inequality operators. */
     bool operator==(const TimeLimit &rhs);
