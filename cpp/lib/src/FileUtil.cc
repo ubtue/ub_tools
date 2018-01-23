@@ -816,7 +816,9 @@ size_t GetFileNameList(const std::string &filename_regex, std::vector<std::strin
 }
 
 
-bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target) {
+bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target,
+                const bool copy_if_cross_device)
+{
     struct stat stat_buf;
     if (::stat(new_name.c_str(), &stat_buf) == -1) {
         if (errno != ENOENT)
@@ -836,7 +838,15 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
         }
     }
 
-    return ::rename(old_name.c_str(), new_name.c_str()) == 0;
+    if (::rename(old_name.c_str(), new_name.c_str()) == 0)
+        return true;
+    else if (errno == EXDEV and copy_if_cross_device) {
+        if (Exists(new_name) and not remove_target)
+            return false;
+        CopyOrDie(old_name, new_name);
+        return ::unlink(old_name.c_str());
+    } else
+        return false;
 }
 
 
