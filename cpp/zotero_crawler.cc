@@ -87,18 +87,18 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
                 const std::string &acceptable_languages, unsigned remaining_crawl_depth,
                 const RegexMatcher &url_regex_matcher, std::unordered_set<std::string> * const extracted_urls)
 {
-    min_url_processing_time->sleepUntilExpired();
     Downloader::Params params;
     params.user_agent_            = USER_AGENT;
     params.acceptable_languages_  = acceptable_languages;
     params.honour_robots_dot_txt_ = not ignore_robots_dot_txt;
+    min_url_processing_time->sleepUntilExpired();
     Downloader downloader(url, params, timeout);
+    min_url_processing_time->restart();
     if (downloader.anErrorOccurred()) {
         logger->warning("in ProcessURL: Failed to retrieve a Web page (" + url + "): "
                         + downloader.getLastErrorMessage());
         return;
     }
-    min_url_processing_time->restart();
 
     const std::string message_headers(downloader.getMessageHeader()), message_body(downloader.getMessageBody());
     if (print_redirects) {
