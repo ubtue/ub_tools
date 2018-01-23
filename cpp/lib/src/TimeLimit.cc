@@ -73,7 +73,7 @@ bool TimeLimit::limitExceeded() const {
 }
 
 
-void TimeLimit::reset() {
+void TimeLimit::restart() {
     initialize(interval_);
 }
 
