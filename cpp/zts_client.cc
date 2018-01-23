@@ -156,9 +156,9 @@ std::string GetNextSessionId() {
            + StringUtil::ToString(uuid[2]) + StringUtil::ToString(uuid[3]) + "_" + StringUtil::ToString(counter);
 }
 
+
 inline bool Download(const Url &url, const TimeLimit &time_limit, const std::string &harvest_url,
-                     std::string * const json_result, unsigned * response_code,
-                     std::string * const error_message)
+                     std::string * const json_result, unsigned * response_code, std::string * const error_message)
 {
     Downloader::Params params;
     params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
@@ -580,7 +580,8 @@ std::pair<unsigned, unsigned> Harvest(
 
     std::string response_body, error_message;
     unsigned response_code;
-    if (not Download(Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &response_body, &response_code, &error_message)) {
+    if (not Download(Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &response_body, &response_code, &error_message))
+    {
         logger->info("Download failed: " + error_message);
         return std::make_pair(0, 0);
     }
@@ -611,9 +612,8 @@ std::pair<unsigned, unsigned> Harvest(
                 for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
                     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
                         Harvest(zts_server_url, key_and_node->first, ISSN_to_physical_form_map, ISSN_to_language_code_map,
-                                ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
-                                ISSN_to_licence_map, ISSN_to_keyword_field_map, ISSN_to_SSG_map,
-                                previously_downloaded, marc_writer, false /* log */);
+                                ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map, ISSN_to_licence_map,
+                                ISSN_to_keyword_field_map, ISSN_to_SSG_map, previously_downloaded, marc_writer, false /* log */);
 
                     record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
                     record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
