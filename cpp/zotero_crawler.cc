@@ -36,7 +36,7 @@ namespace {
 
 // Default values in milliseconds
 const unsigned DEFAULT_TIMEOUT(5000);
-const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(50);
+const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 
 
 void Usage() {

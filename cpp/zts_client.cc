@@ -48,7 +48,7 @@ const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib
 
 // Default timeout values in milliseconds
 const unsigned DEFAULT_TIMEOUT(5000);
-const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(50);
+const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 
 
 void Usage() {
