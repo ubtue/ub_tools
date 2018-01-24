@@ -36,11 +36,11 @@ namespace {
 
 // Default values in milliseconds
 const unsigned DEFAULT_TIMEOUT(5000);
-const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(50);
+const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << "[options] config_file\n"
+    std::cerr << "Usage: " << ::progname << " [options] config_file\n"
               << "\t[ (--last-header | -l) ]\n"
               << "\t[ (--all-headers | -a) ]\n"
               << "\t[ (--ignore-robots-dot-txt | -i) ]                        Nomen est omen.\n"
@@ -139,14 +139,15 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
 
 
 static struct option options[] = {
-    { "help",                  no_argument,        nullptr, 'h'  },
-    { "all-headers",           no_argument,        nullptr, 'a'  },
-    { "last-header",           no_argument,        nullptr, 'l'  },
-    { "timeout",               required_argument,  nullptr, 't'  },
-    { "ignore-robots-dot-txt", no_argument,        nullptr, 'i'  },
-    { "print-redirects",       no_argument,        nullptr, 'p'  },
-    { "acceptable-languages",  required_argument,  nullptr, 'A'  },
-    { nullptr,                 no_argument,        nullptr, '\0' }
+    { "help",                    no_argument,              nullptr, 'h'  },
+    { "all-headers",             no_argument,              nullptr, 'a'  },
+    { "last-header",             no_argument,              nullptr, 'l'  },
+    { "timeout",                 required_argument,        nullptr, 't'  },
+    { "min_url_processing_time", required_argument,        nullptr, 'm'  },
+    { "ignore-robots-dot-txt",   no_argument,              nullptr, 'i'  },
+    { "print-redirects",         no_argument,              nullptr, 'p'  },
+    { "acceptable-languages",    required_argument,        nullptr, 'A'  },
+    { nullptr,                   no_argument,              nullptr, '\0' }
 };
 
 

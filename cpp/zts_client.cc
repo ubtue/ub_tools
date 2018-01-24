@@ -2,7 +2,7 @@
     \brief   Downloads bibliographic metadata using a Zotero Translation server.
     \author  Dr. Johannes Ruscheinski
 
-    \copyright 2017, Library of the University of Tübingen
+    \copyright 2018 Universitätsbibliothek Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,6 +35,7 @@
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "TimeLimit.h"
 #include "UrlUtil.h"
 #include "util.h"
 #include "WebUtil.h"
@@ -44,6 +45,10 @@ namespace {
 
 
 const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
+
+// Default timeout values in milliseconds
+const unsigned DEFAULT_TIMEOUT(5000);
+const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 
 
 void Usage() {
@@ -565,6 +570,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
 
 std::pair<unsigned, unsigned> Harvest(
     const std::string &zts_server_url, const std::string &harvest_url,
+    TimeLimit * const min_url_processing_time,
     const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
     const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
@@ -580,17 +586,21 @@ std::pair<unsigned, unsigned> Harvest(
 
     std::string response_body, error_message;
     unsigned response_code;
-    if (not Download(Url(zts_server_url), /* time_limit = */ 20000, harvest_url, &response_body, &response_code, &error_message))
-    {
+    min_url_processing_time->sleepUntilExpired();
+    const bool download_result(Download(Url(zts_server_url), /* time_limit = */ DEFAULT_TIMEOUT, harvest_url, &response_body, &response_code, &error_message));
+    min_url_processing_time->restart();
+    if (not download_result) {
         logger->info("Download failed: " + error_message);
         return std::make_pair(0, 0);
     }
 
+    // 500 => internal server error (e.g. error in translator))
     if (response_code == 500) {
         logger->info("Error: " + response_body);
         return std::make_pair(0, 0);
     }
 
+    // 501 => not implemented (e.g. no translator available)
     if (response_code == 501) {
         logger->debug("Skipped (" + response_body + ")");
         return std::make_pair(0, 0);
@@ -603,15 +613,16 @@ std::pair<unsigned, unsigned> Harvest(
         if (not (json_parser.parse(&tree_root)))
             logger->error("failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
 
+        // 300 => multiple matches found, try to harvest children
         if (response_code == 300) {
-            // multiple matches found, try to harvest children
             logger->info("multiple articles found => trying to harvest children");
             if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
                 const JSON::ObjectNode * const object_node(
                 reinterpret_cast<JSON::ObjectNode *>(tree_root));
                 for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
                     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                        Harvest(zts_server_url, key_and_node->first, ISSN_to_physical_form_map, ISSN_to_language_code_map,
+                        Harvest(zts_server_url, key_and_node->first, min_url_processing_time,
+                                ISSN_to_physical_form_map, ISSN_to_language_code_map,
                                 ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map, ISSN_to_licence_map,
                                 ISSN_to_keyword_field_map, ISSN_to_SSG_map, previously_downloaded, marc_writer, false /* log */);
 
@@ -661,6 +672,8 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
 
     const std::string COMMAND("/usr/local/bin/zotero_crawler"
                               + std::string(ignore_robots_dot_txt ? " --ignore-robots-dot-txt " : " ")
+                              + "--timeout " + StringUtil::ToString(DEFAULT_TIMEOUT) + " "
+                              + "--min_url_processing_time " + StringUtil::ToString(DEFAULT_MIN_URL_PROCESSING_TIME) + " "
                               + zotero_crawler_config_path);
 
     std::string stdout_output;
@@ -755,9 +768,10 @@ int main(int argc, char *argv[]) {
         std::vector<std::string> harvest_urls;
         LoadHarvestURLs(ignore_robots_dot_txt, zotero_crawler_config_path, &harvest_urls);
         unsigned i(0);
+        TimeLimit * const min_url_processing_time = (new TimeLimit(DEFAULT_MIN_URL_PROCESSING_TIME));
         for (const auto &harvest_url : harvest_urls) {
             const auto record_count_and_previously_downloaded_count(
-                Harvest(ZTS_SERVER_URL, harvest_url, ISSN_to_physical_form_map, ISSN_to_language_code_map,
+                Harvest(ZTS_SERVER_URL, harvest_url, min_url_processing_time, ISSN_to_physical_form_map, ISSN_to_language_code_map,
                         ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
                         ISSN_to_licence_map, ISSN_to_keyword_field_map, ISSN_to_SSG_map, &previously_downloaded,
                         marc_writer.get()));
