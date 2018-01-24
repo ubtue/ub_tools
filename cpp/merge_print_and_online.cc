@@ -150,25 +150,20 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 // 3. Subscriptions exist for both, electronic and print PPNs.
 //    Here we have to delete the subscription for the mapped PPN and ensure that the max_last_modification_time of the
 //    remaining subscription is the minimum of the two previously existing subscriptions.
-void PatchSerialSubscriptions(const std::unordered_map<std::string, std::string> &ppn_to_ppn_map) {
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
-
-    std::unordered_set<std::string> replaced_ppns;
+void PatchSerialSubscriptions(DbConnection * connection, const std::unordered_map<std::string, std::string> &ppn_to_ppn_map) {
     for (const auto &ppn_and_ppn : ppn_to_ppn_map) {
-        db_connection.queryOrDie("SELECT id FROM ixtheo_journal_subscriptions,max_last_modification_time WHERE journal_control_number='" + ppn_and_ppn.first
-                                 + "'");
-        DbResultSet ppn_first_result_set(db_connection.getLastResultSet());
+        connection->queryOrDie("SELECT id,max_last_modification_time FROM ixtheo_journal_subscriptions WHERE "
+                               "journal_control_number='" + ppn_and_ppn.first + "'");
+        DbResultSet ppn_first_result_set(connection->getLastResultSet());
         while (const DbRow ppn_first_row = ppn_first_result_set.getNextRow()) {
             const std::string user_id(ppn_first_row["id"]);
-            db_connection.queryOrDie("SELECT max_last_modification_time FROM ixtheo_journal_subscriptions "
-                                     "WHERE id='" + user_id + "' AND journal_control_number='" + ppn_and_ppn.second + "'");
-            DbResultSet ppn_second_result_set(db_connection.getLastResultSet());
+            connection->queryOrDie("SELECT max_last_modification_time FROM ixtheo_journal_subscriptions "
+                                   "WHERE id='" + user_id + "' AND journal_control_number='" + ppn_and_ppn.second + "'");
+            DbResultSet ppn_second_result_set(connection->getLastResultSet());
             if (ppn_second_result_set.empty()) {
-                db_connection.queryOrDie("UPDATE ixtheo_journal_subscriptions SET journal_control_number='"
-                                         + ppn_and_ppn.second + "' WHERE id='" + user_id + "' AND journal_control_number='"
-                                         + ppn_and_ppn.first + "'");
+                connection->queryOrDie("UPDATE ixtheo_journal_subscriptions SET journal_control_number='"
+                                       + ppn_and_ppn.second + "' WHERE id='" + user_id + "' AND journal_control_number='"
+                                       + ppn_and_ppn.first + "'");
                 continue;
             }
 
@@ -181,13 +176,34 @@ void PatchSerialSubscriptions(const std::unordered_map<std::string, std::string>
                 (ppn_second_row["max_last_modification_time"] < ppn_first_row["max_last_modification_time"])
                     ? ppn_second_row["max_last_modification_time"]
                     : ppn_first_row["max_last_modification_time"]);
-            db_connection.queryOrDie("DELETE FROM ixtheo_journal_subscriptions WHERE journal_control_number='"
-                                     + ppn_and_ppn.first + "' and id='" + user_id + "'");
+            connection->queryOrDie("DELETE FROM ixtheo_journal_subscriptions WHERE journal_control_number='"
+                                   + ppn_and_ppn.first + "' and id='" + user_id + "'");
             if (ppn_first_row["max_last_modification_time"] > min_max_last_modification_time)
-                db_connection.queryOrDie("UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='"
-                                         + min_max_last_modification_time + "' WHERE journal_control_number='"
-                                         + ppn_and_ppn.second + "' and id='" + user_id + "'");
+                connection->queryOrDie("UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='"
+                                       + min_max_last_modification_time + "' WHERE journal_control_number='"
+                                       + ppn_and_ppn.second + "' and id='" + user_id + "'");
         }
+    }
+}
+
+
+void PatchPDASubscriptions(DbConnection * connection, const std::unordered_map<std::string, std::string> &ppn_to_ppn_map) {
+    for (const auto &ppn_and_ppn : ppn_to_ppn_map) {
+        connection->queryOrDie("SELECT id FROM ixtheo_pda_subscriptions WHERE book_ppn='" + ppn_and_ppn.first + "'");
+        DbResultSet result_set(connection->getLastResultSet());
+        while (const DbRow row = result_set.getNextRow())
+            connection->queryOrDie("UPDATE ixtheo_pda_subscriptions SET book_ppn='" + ppn_and_ppn.first + "' WHERE id='"
+                                   + row["id"] + "' AND book_ppn='" + ppn_and_ppn.second + "'");
+    }
+}
+
+
+void PatchResourceTable(DbConnection * connection, const std::unordered_map<std::string, std::string> &ppn_to_ppn_map) {
+    for (const auto &ppn_and_ppn : ppn_to_ppn_map) {
+        connection->queryOrDie("SELECT id FROM resource WHERE record_id='" + ppn_and_ppn.first + "'");
+        DbResultSet result_set(connection->getLastResultSet());
+        while (const DbRow row = result_set.getNextRow())
+            connection->queryOrDie("UPDATE resource SET record_id='" + ppn_and_ppn.second + "' WHERE id=" + row["id"]);
     }
 }
 
@@ -211,7 +227,13 @@ int main(int argc, char *argv[]) {
         CollectMappings(marc_reader.get(), &ppn_to_ppn_map, &merged_ppns);
         marc_reader->rewind();
         ProcessRecords(marc_reader.get(), marc_writer.get(), missing_partners.get(), ppn_to_ppn_map, merged_ppns);
-        PatchSerialSubscriptions(ppn_to_ppn_map);
+
+        std::string mysql_url;
+        VuFind::GetMysqlURL(&mysql_url);
+        DbConnection db_connection(mysql_url);
+        PatchSerialSubscriptions(&db_connection, ppn_to_ppn_map);
+        PatchPDASubscriptions(&db_connection, ppn_to_ppn_map);
+        PatchResourceTable(&db_connection, ppn_to_ppn_map);
     } catch (const std::exception &e) {
         logger->error("Caught exception: " + std::string(e.what()));
     }

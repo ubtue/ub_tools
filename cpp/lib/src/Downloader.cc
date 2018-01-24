@@ -6,7 +6,7 @@
 /*
  *  Copyright 2008 Project iVia.
  *  Copyright 2008 The Regents of The University of California.
- *  Copyright 2017 Universitätsbibliothek Tübingen.
+ *  Copyright 2017,2018 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -66,7 +66,7 @@ std::mutex *Downloader::robots_dot_txt_mutex_(nullptr);
 std::unordered_map<std::string, RobotsDotTxt> Downloader::url_to_robots_dot_txt_map_;
 const std::string Downloader::DEFAULT_USER_AGENT_STRING("UB Tübingen C++ Downloader");
 const std::string Downloader::DEFAULT_ACCEPTABLE_LANGUAGES("en,eng,english");
-std::string Downloader::DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG("Disallowed by robots.txt.");
+const std::string Downloader::DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG("Disallowed by robots.txt.");
 std::string Downloader::default_user_agent_string_;
 
 
