@@ -587,19 +587,20 @@ std::pair<unsigned, unsigned> Harvest(
     std::string response_body, error_message;
     unsigned response_code;
     min_url_processing_time->sleepUntilExpired();
-    bool download_result = Download(Url(zts_server_url), /* time_limit = */ DEFAULT_TIMEOUT, harvest_url, &response_body, &response_code, &error_message);
+    const bool download_result(Download(Url(zts_server_url), /* time_limit = */ DEFAULT_TIMEOUT, harvest_url, &response_body, &response_code, &error_message));
     min_url_processing_time->restart();
-    if (not download_result)
-    {
+    if (not download_result) {
         logger->info("Download failed: " + error_message);
         return std::make_pair(0, 0);
     }
 
+    // 500 => internal server error (e.g. error in translator))
     if (response_code == 500) {
         logger->info("Error: " + response_body);
         return std::make_pair(0, 0);
     }
 
+    // 501 => not implemented (e.g. no translator available)
     if (response_code == 501) {
         logger->debug("Skipped (" + response_body + ")");
         return std::make_pair(0, 0);
@@ -612,8 +613,8 @@ std::pair<unsigned, unsigned> Harvest(
         if (not (json_parser.parse(&tree_root)))
             logger->error("failed to parse returned JSON: " + json_parser.getErrorMessage() + "\n" + response_body);
 
+        // 300 => multiple matches found, try to harvest children
         if (response_code == 300) {
-            // multiple matches found, try to harvest children
             logger->info("multiple articles found => trying to harvest children");
             if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
                 const JSON::ObjectNode * const object_node(
