@@ -61,9 +61,11 @@ void Logger::error(const std::string &msg) {
         WriteString(fd_, TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + std::string(" SEVERE ")
                     + ::progname + std::string(": ") + msg
                     + (errno == 0 ? "" : " (" + std::string(::strerror(errno)) + ")") + '\n');
-    WriteString(fd_, "Backtrace:\n");
-    for (const auto &stack_entry : MiscUtil::GetCallStack())
-        WriteString(fd_, "  " + stack_entry + "\n");
+    if (::getenv("BACKTRACE") != nullptr) {
+        WriteString(fd_, "Backtrace:\n");
+        for (const auto &stack_entry : MiscUtil::GetCallStack())
+            WriteString(fd_, "  " + stack_entry + "\n");
+    }
 
     std::exit(EXIT_FAILURE);
 }
