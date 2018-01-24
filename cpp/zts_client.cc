@@ -681,9 +681,9 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
 
     std::string stdout_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &stdout_output))
-        logger->error("zotero_crawler failed to harvest URLs: " + stdout_output);
+        logger->error("zotero_crawler failed to harvest URLs:\n" + stdout_output);
     if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0) {
-        logger->error("zotero_crawler could not find any URLs: " + stdout_output);
+        logger->error("zotero_crawler could not find any URLs:\n" + stdout_output);
     }
     logger->info("Loaded " + StringUtil::ToString(harvest_urls->size()) + " harvest URL's.");
 }

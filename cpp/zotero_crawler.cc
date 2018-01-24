@@ -34,6 +34,9 @@
 
 namespace {
 
+
+const std::string USER_AGENT("ub_tools (https://ixtheo.de/docs/user_agents)");
+
 // Default values in milliseconds
 const unsigned DEFAULT_TIMEOUT(5000);
 const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
@@ -60,9 +63,6 @@ void Usage() {
 
     std::exit(EXIT_FAILURE);
 }
-
-
-const std::string USER_AGENT("ub_tools (htts://ixtheo.de/docs/user_agents)");
 
 
 void ExtractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls) {
@@ -95,9 +95,13 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
     Downloader downloader(url, params, timeout);
     min_url_processing_time->restart();
     if (downloader.anErrorOccurred()) {
-        logger->warning("in ProcessURL: Failed to retrieve a Web page (" + url + "): "
+        if (downloader.getLastErrorMessage() == Downloader::DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG)
+            logger->error(downloader.getLastErrorMessage());
+        else {
+            logger->warning("in ProcessURL: Failed to retrieve a Web page (" + url + "): "
                         + downloader.getLastErrorMessage());
-        return;
+            return;
+        }
     }
 
     const std::string message_headers(downloader.getMessageHeader()), message_body(downloader.getMessageBody());
