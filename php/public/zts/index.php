@@ -51,7 +51,7 @@
             <td>
                 <select name="depth">
                     <?php
-                        $default = 2;
+                        $default = 1;
                         if (isset($_POST['depth'])) $default = $_POST['depth'];
                         for ($i=1;$i<=5;$i++) {
                             if ($i == $default) {
@@ -82,9 +82,8 @@
 
 <?php
 if (count($_POST) > 0) {
-    $ignoreRobots = true;
     $zotero = new Zotero\MetadataHarvester(ZOTERO_TRANSLATION_SERVER_URL);
-    $task = $zotero->start($_POST['urlBase'], $_POST['urlRegex'], $_POST['depth'], $ignoreRobots, $_POST['fileExtension']);
+    $task = $zotero->start($_POST['urlBase'], $_POST['urlRegex'], $_POST['depth'], $_POST['fileExtension']);
     ?>
     <h2>Result</h2>
     <table>
