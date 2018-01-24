@@ -53,7 +53,7 @@
                     <?php
                         $default = 1;
                         if (isset($_POST['depth'])) $default = $_POST['depth'];
-                        for ($i=1;$i<=5;$i++) {
+                        for ($i = 1; $i <= 5; $i++) {
                             if ($i == $default) {
                                 print '<option selected="selected">'.$i.'</option>';
                             } else {
