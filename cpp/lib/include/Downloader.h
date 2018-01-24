@@ -134,7 +134,7 @@ public:
     /** \note Returns \em{all} URLs encountered in downloading the last document, including the original URL. */
     const std::vector<std::string> &getRedirectUrls() const { return redirect_urls_; }
 
-    bool anErrorOccurred() const { return curl_error_code_ != CURLE_OK; }
+    bool anErrorOccurred() const { return curl_error_code_ != CURLE_OK or not getLastErrorMessage().empty(); }
     CURLcode getLastErrorCode() const { return curl_error_code_; }
     const std::string &getLastErrorMessage() const;
     const std::string &getUserAgent() const { return params_.user_agent_; }
