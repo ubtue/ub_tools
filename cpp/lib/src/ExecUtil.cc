@@ -1,5 +1,5 @@
 /** \file    ExecUtil.cc
- *  \brief   Implementation of the RegexMatcher class.
+ *  \brief   Implementation of the ExecUtil class.
  *  \author  Dr. Gordon W. Paynter
  *  \author  Dr. Johannes Ruscheinski
  */
