@@ -53,11 +53,47 @@ unsigned LoadMap(MARC::Reader * const marc_reader, std::unordered_map<std::strin
 }
 
 
-void EmitDetailedReport(const std::string &/*collection1_name*/, const std::string &/*collection2_name*/,
-                        const std::unordered_map<std::string, off_t> &/*control_number_to_offset_map1*/,
-                        const std::unordered_map<std::string, off_t> &/*control_number_to_offset_map2*/,
-                        MARC::Reader * const /*reader1*/, MARC::Reader * const /*reader2*/)
+bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2) {
+    auto field1(record1.begin());
+    auto field2(record2.begin());
+
+    while (field1 != record1.end() and field2 != record2.end()) {
+        if (unlikely(field1->getTag() != field2->getTag()))
+            return true;
+
+        if (unlikely(field1->getContents() != field2->getContents()))
+            return true;
+
+        ++field1, ++field2;
+    }
+
+    return not (field1 == record1.end() and field2 == record2.end());
+}
+
+
+void EmitDetailedReport(const std::unordered_map<std::string, off_t> &control_number_to_offset_map1,
+                        const std::unordered_map<std::string, off_t> &control_number_to_offset_map2,
+                        MARC::Reader * const reader1, MARC::Reader * const reader2)
 {
+    unsigned differ_count(0);
+    for (const auto &control_number_and_offset1 : control_number_to_offset_map1) {
+        const auto control_number_and_offset2(control_number_to_offset_map2.find(control_number_and_offset1.first));
+        if (control_number_and_offset2 == control_number_to_offset_map2.cend())
+            continue; // Control number is only in collection 1.
+
+        if (unlikely(not reader1->seek(control_number_and_offset1.second)))
+            ERROR("seek in collection 1 failed!");
+        const MARC::Record record1(reader1->read());
+
+        if (unlikely(not reader2->seek(control_number_and_offset2->second)))
+            ERROR("seek in collection 2 failed!");
+        const MARC::Record record2(reader2->read());
+
+        if (RecordsDiffer(record1, record2))
+            ++differ_count;
+    }
+
+    std::cout << differ_count << " record(s) have identical control numbers but different contents.\n";
 }
 
 
@@ -142,8 +178,8 @@ int main(int argc, char *argv[]) {
         const unsigned collection2_size(LoadMap(marc_reader2.get(), &control_number_to_offset_map2));
 
         if (verbose)
-            EmitDetailedReport(collection1_name, collection2_name, control_number_to_offset_map1, control_number_to_offset_map2,
-                               marc_reader1.get(), marc_reader2.get());
+            EmitDetailedReport(control_number_to_offset_map1, control_number_to_offset_map2, marc_reader1.get(),
+                               marc_reader2.get());
 
         EmitStandardReport(collection1_name, collection2_name, collection1_size, collection2_size, control_number_to_offset_map1,
                            control_number_to_offset_map2);
