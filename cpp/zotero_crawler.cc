@@ -35,6 +35,7 @@
 namespace {
 
 
+const std::string URL_IGNORE_PATTERN("\\.(js|css|bmp|pdf|jpg|gif|png|tif|tiff)(\\?[^?]*)?$");
 const std::string USER_AGENT("ub_tools (https://ixtheo.de/docs/user_agents)");
 
 // Default values in milliseconds
@@ -87,6 +88,17 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
                 const std::string &acceptable_languages, unsigned remaining_crawl_depth,
                 const RegexMatcher &url_regex_matcher, std::unordered_set<std::string> * const extracted_urls)
 {
+    std::string err_msg;
+    static RegexMatcher * const url_ignore_regex_matcher(RegexMatcher::RegexMatcherFactory(URL_IGNORE_PATTERN, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
+        if (url_ignore_regex_matcher == nullptr)
+            logger->error("in ProcessURL: could not initialize URL regex matcher\n"
+                          + err_msg);
+
+    if (url_ignore_regex_matcher->matched(url)) {
+        logger->warning("Skipping URL: " + url);
+        return;
+    }
+
     Downloader::Params params;
     params.user_agent_            = USER_AGENT;
     params.acceptable_languages_  = acceptable_languages;
