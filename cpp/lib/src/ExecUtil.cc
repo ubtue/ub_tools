@@ -1,3 +1,31 @@
+/** \file    ExecUtil.cc
+ *  \brief   Implementation of the RegexMatcher class.
+ *  \author  Dr. Gordon W. Paynter
+ *  \author  Dr. Johannes Ruscheinski
+ */
+
+/*
+ *  Copyright 2004-2008 Project iVia.
+ *  Copyright 2004-2008 The Regents of The University of California.
+ *  Copyright 2017-2018 Universitätsbibliothek Tübingen
+ *
+ *  This file is part of the libiViaCore package.
+ *
+ *  The libiViaCore package is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public License as published
+ *  by the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  libiViaCore is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with libiViaCore; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include "ExecUtil.h"
 #include <stdexcept>
 #include <cassert>
@@ -13,6 +41,7 @@
 #include <unistd.h>
 #include <unordered_map>
 #include "StringUtil.h"
+#include "FileUtil.h"
 #include "util.h"
 
 
@@ -272,6 +301,25 @@ bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * co
         logger->error("pclose(3) failed: " + std::string(::strerror(errno)));
 
     return WEXITSTATUS(ret_code) == 0;
+}
+
+
+bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const std::vector<std::string> &args,
+                                             std::string * const stdout_output, std::string * const stderr_output)
+{
+    FileUtil::AutoTempFile stdout_temp;
+    FileUtil::AutoTempFile stderr_temp;
+
+    const int retcode(Exec(command, args, /* new_stdin = */ "", stdout_temp.getFilePath(), stderr_temp.getFilePath()));
+    if (retcode != 0)
+        return false;
+
+    if (not FileUtil::ReadString(stdout_temp.getFilePath(), stdout_output))
+        logger->error("failed to read temporary file w/ stdout contents!");
+    if (not FileUtil::ReadString(stderr_temp.getFilePath(), stderr_output))
+        logger->error("failed to read temporary file w/ stderr contents!");
+
+    return true;
 }
 
 
