@@ -1,5 +1,5 @@
 /** \file    ExecUtil.h
- *  \brief   Declarations of MIME/media type utility functions.
+ *  \brief   The RegexMatcher interface.
  *  \author  Dr. Gordon W. Paynter
  *  \author  Dr. Johannes Ruscheinski
  */
@@ -7,6 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
+ *  Copyright 2017-2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -83,18 +84,28 @@ int Spawn(const std::string &command, const std::vector<std::string> &args = {},
 std::string Which(const std::string &executable_candidate);
 
 
-/** \brief Like Which(), only we abort if we can't find \"executable_candidate\".
+/** \brief  Like Which(), only we abort if we can't find \"executable_candidate\".
  *  \return The path where the executable can be found.
  */
 std::string LocateOrDie(const std::string &executable_candidate);
 
 
-/**  \brief Retrieve the stdout of a subcommand.
- *   \param command        A shell command.  Can include arguments. E.g. "ls -l".
- *   \param stdout_output  Where to store the output of the command.
- *   \note  The command will be executed by passing it to the standard shell interpreter: "/bin/sh -c command".
+/** \brief  Retrieve the stdout of a subcommand.
+ *  \param  command        A shell command.  Can include arguments. E.g. "ls -l".
+ *  \param  stdout_output  Where to store the output of the command.
+ *  \note   The command will be executed by passing it to the standard shell interpreter: "/bin/sh -c command".
  */
 bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output);
+
+
+/** \brief  Retrieve the stdout and stderr of a subcommand.
+ *  \param  command             The path to the command that should be executed.
+ *  \param  args                The arguments for the command, not including the command itself.
+ *  \param  stdout_output  Where to store the stdout of the command.
+ *  \param  stderr_output  Where to store the stderr of the command.
+ */
+bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const std::vector<std::string> &args,
+                                             std::string * const stdout_output, std::string * const stderr_output);
 
 
 } // namespace ExecUtil
