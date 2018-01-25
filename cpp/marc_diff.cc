@@ -105,10 +105,10 @@ void EmitStandardReport(const std::string &collection1_name, const std::string &
 
     std::cout << '"' << collection1_name << "\" contains " << collection1_size << " record(s).\n";
     std::cout << '"' << collection2_name << "\" contains " << collection2_size << " record(s).\n";
-    std::cout << in_map1_only_count << " control number(s) are only in \"" << collection1_name << "\" but not in \"" << collection2_name
-              << "\".\n";
-    std::cout << in_map2_only_count << " control number(s) are only in \"" << collection2_name << "\" but not in \"" << collection1_name
-              << "\".\n";
+    std::cout << in_map1_only_count << " control number(s) are only in \"" << collection1_name << "\" but not in \""
+              << collection2_name << "\".\n";
+    std::cout << in_map2_only_count << " control number(s) are only in \"" << collection2_name << "\" but not in \""
+              << collection1_name << "\".\n";
     std::cout << (collection1_size - in_map1_only_count) << " are in both collections.\n";
 }
 
