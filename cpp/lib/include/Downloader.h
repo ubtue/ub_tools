@@ -4,7 +4,7 @@
  *
  *  \copyright 2005-2008 Project iVia.
  *  \copyright 2005-2008 The Regents of The University of California.
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -72,7 +72,7 @@ public:
         MAP_TO_LATIN9 = 1  //< If set, attempt to convert from whatever to Latin-9.  Note: Currently only used for HTTP and HTTPS!
     };
 
-    static std::string DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG;
+    static const std::string DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG;
 
     struct Params {
         std::string user_agent_;
