@@ -672,19 +672,24 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
 
     logger->info("Starting loading of harvest URL's.");
 
-    const std::string COMMAND("/usr/local/bin/zotero_crawler"
-                              + std::string(ignore_robots_dot_txt ? " --ignore-robots-dot-txt " : " ")
-                              + "--timeout " + StringUtil::ToString(DEFAULT_TIMEOUT) + " "
-                              + "--min_url_processing_time " + StringUtil::ToString(DEFAULT_MIN_URL_PROCESSING_TIME) + " "
-                              + zotero_crawler_config_path
-                              + " 2>&1");
+    const std::string command("/usr/local/bin/zotero_crawler");
 
-    std::string stdout_output;
-    if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &stdout_output))
-        logger->error("zotero_crawler failed to harvest URLs:\n" + stdout_output);
+    std::vector<std::string> args;
+    if (ignore_robots_dot_txt)
+        args.emplace_back("--ignore-robots-dot-txt");
+    args.emplace_back("--timeout");
+    args.emplace_back(StringUtil::ToString(DEFAULT_TIMEOUT));
+    args.emplace_back("--min_url_processing_time");
+    args.emplace_back(StringUtil::ToString(DEFAULT_MIN_URL_PROCESSING_TIME));
+    args.emplace_back(zotero_crawler_config_path);
+
+    std::string stdout_output, stderr_output;
+    if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(command, args, &stdout_output, &stderr_output))
+        logger->error("zotero_crawler failed to harvest URLs:\n" + stderr_output);
     if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0) {
-        logger->error("zotero_crawler could not find any URLs:\n" + stdout_output);
+        logger->error("zotero_crawler could not find any URLs:\n" + stderr_output);
     }
+    std::cout << stderr_output;
     logger->info("Loaded " + StringUtil::ToString(harvest_urls->size()) + " harvest URL's.");
 }
 
