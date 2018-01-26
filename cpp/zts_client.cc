@@ -494,7 +494,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 else
                     logger->warning("in GenerateMARC: unknown item type: \"" + item_type + "\"!");
             } else if (key_and_node->first == "rights") {
-                std::string copyright = GetValueFromStringNode(*key_and_node);
+                const std::string copyright(GetValueFromStringNode(*key_and_node));
                 if (UrlUtil::IsValidWebUrl(copyright))
                     new_record.insertSubfield("542", 'u', copyright);
                 else
@@ -691,9 +691,9 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &simple
 
     std::string stdout_output, stderr_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(COMMAND, args, &stdout_output, &stderr_output))
-        logger->error("simple_crawler failed to harvest URLs:\n" + stderr_output);
+        logger->error("simple_crawler failed to harvest URL's:\n" + stderr_output);
     if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0)
-        logger->error("simple_crawler could not find any URLs:\n" + stderr_output);
+        logger->error("simple_crawler could not find any URL's:\n" + stderr_output);
 
     std::cout << stderr_output;
     logger->info("Loaded " + std::to_string(harvest_urls->size()) + " harvest URL's.");

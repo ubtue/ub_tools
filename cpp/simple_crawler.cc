@@ -91,9 +91,9 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
 {
     std::string err_msg;
     static RegexMatcher * const url_ignore_regex_matcher(RegexMatcher::RegexMatcherFactory(URL_IGNORE_PATTERN, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
-        if (url_ignore_regex_matcher == nullptr)
-            logger->error("in ProcessURL: could not initialize URL regex matcher\n"
-                          + err_msg);
+    if (url_ignore_regex_matcher == nullptr)
+        ERROR("could not initialize URL regex matcher\n"
+              + err_msg);
 
     if (url_ignore_regex_matcher->matched(url)) {
         logger->warning("Skipping URL: " + url);
@@ -108,13 +108,9 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
     Downloader downloader(url, params, timeout);
     min_url_processing_time->restart();
     if (downloader.anErrorOccurred()) {
-        if (downloader.getLastErrorMessage() == Downloader::DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG)
-            logger->error(downloader.getLastErrorMessage());
-        else {
-            logger->warning("in ProcessURL: Failed to retrieve a Web page (" + url + "): "
+        logger->warning("Failed to retrieve a Web page (" + url + "):\n"
                         + downloader.getLastErrorMessage());
-            return;
-        }
+        return;
     }
 
     const std::string message_headers(downloader.getMessageHeader()), message_body(downloader.getMessageBody());
