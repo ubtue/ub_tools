@@ -38,11 +38,10 @@ class MetadataHarvester {
      * @param string $urlBase
      * @param string $urlRegex
      * @param int $depth
-     * @param bool $ignoreRobots
      * @param string $fileExtension     supported extension, e.g. "xml" for MARCXML or "mrc" for MARC21
      * @return \Zotero\BackgroundTask
      */
-    public function start($urlBase, $urlRegex, $depth, $ignoreRobots, $fileExtension) {
+    public function start($urlBase, $urlRegex, $depth, $fileExtension) {
         $uniqid = uniqid('Zts_' . date('Y-m-d_H-i-s_'));
         $cfgPath = DIR_TMP . $uniqid . '.conf';
 
@@ -62,7 +61,7 @@ class MetadataHarvester {
         $outPath = DIR_TMP . $uniqid . '.' . $fileExtension;
 
         self::_writeConfigFile($cfgPath, $urlBase, $urlRegex, $depth);
-        return $this->_executeCommand($uniqid, $cfgPath, $dirMapLocal, $outPath, $ignoreRobots);
+        return $this->_executeCommand($uniqid, $cfgPath, $dirMapLocal, $outPath);
     }
 
     /**
@@ -72,16 +71,12 @@ class MetadataHarvester {
      * @param string $cfgPath
      * @param string $dirMap
      * @param string $outPath
-     * @param bool $ignoreRobots
      * @return \Zotero\BackgroundTask
      */
-    protected function _executeCommand($taskId, $cfgPath, $dirMap, $outPath, $ignoreRobots=false) {
+    protected function _executeCommand($taskId, $cfgPath, $dirMap, $outPath) {
         $progressPath = BackgroundTask::getProgressPath($taskId);
 
         $cmd = 'zts_client';
-        if ($ignoreRobots) {
-            $cmd .= ' --ignore-robots-dot-txt';
-        }
         $cmd .= ' --zotero-crawler-config-file="' . $cfgPath . '"';
         if ($progressPath != null) {
             $cmd .= ' --progress-file="' . $progressPath . '"';

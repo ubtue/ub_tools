@@ -9,7 +9,7 @@ define('DIR_LIB', '/usr/local/ub_tools/php/lib/');
 define('DIR_TMP', '/tmp/Zts/');
 
 // max script runtime in seconds
-define('MAX_SCRIPT_RUNTIME', 300);
+define('MAX_SCRIPT_RUNTIME', 600);
 ini_set('max_input_time', MAX_SCRIPT_RUNTIME);
 ini_set('max_execution_time', MAX_SCRIPT_RUNTIME);
 

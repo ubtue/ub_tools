@@ -44,6 +44,7 @@
 namespace {
 
 
+const std::string USER_AGENT("ub_tools (https://ixtheo.de/docs/user_agents)");
 const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 
 // Default timeout values in milliseconds
@@ -168,6 +169,7 @@ inline bool Download(const Url &url, const TimeLimit &time_limit, const std::str
     Downloader::Params params;
     params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
     params.post_data_ = "{\"url\":\"" + harvest_url + "\",\"sessionid\":\"" + GetNextSessionId() + "\"}";
+    params.user_agent_ = USER_AGENT;
 
     Downloader downloader(url, params, time_limit);
     if (downloader.anErrorOccurred()) {
@@ -672,15 +674,16 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
 
     const std::string COMMAND("/usr/local/bin/zotero_crawler"
                               + std::string(ignore_robots_dot_txt ? " --ignore-robots-dot-txt " : " ")
-                              + "--timeout " + StringUtil::ToString(DEFAULT_TIMEOUT) + " "
-                              + "--min-url-processing-time " + StringUtil::ToString(DEFAULT_MIN_URL_PROCESSING_TIME) + " "
-                              + zotero_crawler_config_path);
+                              + "--timeout " + std::to_string(DEFAULT_TIMEOUT) + " "
+                              + "--min-url-processing-time " + std::to_string(DEFAULT_MIN_URL_PROCESSING_TIME) + " "
+                              + zotero_crawler_config_path + " 2>&1");
 
     std::string stdout_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &stdout_output))
-        logger->error("failed to execute \"" + COMMAND + "\"!");
-    if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0)
-        logger->error("no harvest URL's were read after executing \"" + COMMAND + "\"!");
+        logger->error("zotero_crawler failed to harvest URLs: " + stdout_output);
+    if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0) {
+        logger->error("zotero_crawler could not find any URLs: " + stdout_output);
+    }
     logger->info("Loaded " + StringUtil::ToString(harvest_urls->size()) + " harvest URL's.");
 }
 
