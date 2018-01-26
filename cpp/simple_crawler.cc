@@ -1,5 +1,5 @@
-/** \file    zotero_crawler.cc
-    \brief   Identifies URL's that we can send to a Zotero Translation Server.
+/** \file    simple_crawler.cc
+    \brief   Identifies URL's that we can use for further processing..
     \author  Dr. Johannes Ruscheinski
 
     \copyright 2018 Universitätsbibliothek Tübingen

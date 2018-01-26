@@ -45,7 +45,7 @@ namespace {
 
 
 const std::string USER_AGENT("ub_tools (https://ixtheo.de/docs/user_agents)");
-const std::string DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
+const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 
 // Default timeout values in milliseconds
 const unsigned DEFAULT_TIMEOUT(5000);
@@ -54,12 +54,12 @@ const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 
 void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--ignore-robots-dot-txt] [--zotero-crawler-config-file=path] [--progress-file=progress_filename] zts_server_url map_directory marc_output\n"
+              << " [--ignore-robots-dot-txt] [--simple-crawler-config-file=path] [--progress-file=progress_filename] zts_server_url map_directory marc_output\n"
               << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
               << "        files and the file containing hashes of previously generated records.\n"
-              << "        The optional \"--zotero-crawler-config-file\" flag specifies where to look for the\n"
-              << "        config file for the \"zotero_crawler\", the default being\n"
-              << "        " << DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH << ".\n\n";
+              << "        The optional \"--simple-crawler-config-file\" flag specifies where to look for the\n"
+              << "        config file for the \"simple_crawler\", the default being\n"
+              << "        " << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << ".\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -665,14 +665,14 @@ void StorePreviouslyDownloadedHashes(File * const output,
 }
 
 
-void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero_crawler_config_path,
+void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &simple_crawler_config_path,
                      std::vector<std::string> * const harvest_urls)
 {
     harvest_urls->clear();
 
     logger->info("Starting loading of harvest URL's.");
 
-    const std::string command("/usr/local/bin/zotero_crawler");
+    const std::string command("/usr/local/bin/simple_crawler");
 
     std::vector<std::string> args;
     if (ignore_robots_dot_txt)
@@ -681,14 +681,14 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
     args.emplace_back(StringUtil::ToString(DEFAULT_TIMEOUT));
     args.emplace_back("--min_url_processing_time");
     args.emplace_back(StringUtil::ToString(DEFAULT_MIN_URL_PROCESSING_TIME));
-    args.emplace_back(zotero_crawler_config_path);
+    args.emplace_back(simple_crawler_config_path);
 
     std::string stdout_output, stderr_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(command, args, &stdout_output, &stderr_output))
-        logger->error("zotero_crawler failed to harvest URLs:\n" + stderr_output);
-    if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0) {
-        logger->error("zotero_crawler could not find any URLs:\n" + stderr_output);
-    }
+        logger->error("simple_crawler failed to harvest URLs:\n" + stderr_output);
+    if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0)
+        logger->error("simple_crawler could not find any URLs:\n" + stderr_output);
+
     std::cout << stderr_output;
     logger->info("Loaded " + StringUtil::ToString(harvest_urls->size()) + " harvest URL's.");
 }
@@ -708,13 +708,13 @@ int main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    std::string zotero_crawler_config_path;
-    const std::string CONFIG_FLAG_PREFIX("--zotero-crawler-config-file=");
+    std::string simple_crawler_config_path;
+    const std::string CONFIG_FLAG_PREFIX("--simple-crawler-config-file=");
     if (StringUtil::StartsWith(argv[1], CONFIG_FLAG_PREFIX)) {
-        zotero_crawler_config_path = argv[1] + CONFIG_FLAG_PREFIX.length();
+        simple_crawler_config_path = argv[1] + CONFIG_FLAG_PREFIX.length();
         --argc, ++argv;
     } else
-        zotero_crawler_config_path = DEFAULT_ZOTOERO_CRAWLER_CONFIG_PATH;
+        simple_crawler_config_path = DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH;
 
     std::string progress_filename;
     const std::string PROGRESS_FILE_FLAG_PREFIX("--progress-file=");
@@ -775,7 +775,7 @@ int main(int argc, char *argv[]) {
             progress_file = FileUtil::OpenOutputFileOrDie(progress_filename);
 
         std::vector<std::string> harvest_urls;
-        LoadHarvestURLs(ignore_robots_dot_txt, zotero_crawler_config_path, &harvest_urls);
+        LoadHarvestURLs(ignore_robots_dot_txt, simple_crawler_config_path, &harvest_urls);
         unsigned i(0);
         TimeLimit * const min_url_processing_time = (new TimeLimit(DEFAULT_MIN_URL_PROCESSING_TIME));
         for (const auto &harvest_url : harvest_urls) {
