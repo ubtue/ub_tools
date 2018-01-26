@@ -116,6 +116,7 @@ remove_redundant_includes
 remove_unused_authority_records
 replace_marc_records
 set_tad_access_flag
+simple_crawler
 stemwords
 string_info
 subfield_code_replacer
@@ -134,7 +135,7 @@ update_authority_data
 update_full_text_db
 update_ixtheo_notations
 urlencode
-zotero_crawler
+zts_client
 
 bsz_daten
 bsz_daten_cumulated

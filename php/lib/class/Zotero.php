@@ -77,7 +77,7 @@ class MetadataHarvester {
         $progressPath = BackgroundTask::getProgressPath($taskId);
 
         $cmd = 'zts_client';
-        $cmd .= ' --zotero-crawler-config-file="' . $cfgPath . '"';
+        $cmd .= ' --simple-crawler-config-file="' . $cfgPath . '"';
         if ($progressPath != null) {
             $cmd .= ' --progress-file="' . $progressPath . '"';
         }
