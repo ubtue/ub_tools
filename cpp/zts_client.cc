@@ -32,6 +32,7 @@
 #include "MarcWriter.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
+#include "SimpleCrawler.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -678,30 +679,26 @@ void StorePreviouslyDownloadedHashes(File * const output,
 
 
 void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &simple_crawler_config_path,
-                     std::vector<std::string> * const harvest_urls)
+                     std::unordered_set<std::string> * const harvest_urls)
 {
     harvest_urls->clear();
 
     logger->info("Starting loading of harvest URL's.");
 
-    const std::string COMMAND("/usr/local/bin/simple_crawler");
+    SimpleCrawler crawler;
+    SimpleCrawler::Params params;
+    params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
+    params.timeout_ = DEFAULT_TIMEOUT;
+    params.min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
 
-    std::vector<std::string> args;
-    if (ignore_robots_dot_txt)
-        args.emplace_back("--ignore-robots-dot-txt");
-    args.emplace_back("--timeout");
-    args.emplace_back(std::to_string(DEFAULT_TIMEOUT));
-    args.emplace_back("--min-url-processing-time");
-    args.emplace_back(std::to_string(DEFAULT_MIN_URL_PROCESSING_TIME));
-    args.emplace_back(simple_crawler_config_path);
+    std::vector<SimpleCrawler::SiteDesc> site_descs;
+    std::unique_ptr<File> config_file(FileUtil::OpenInputFileOrDie(simple_crawler_config_path));
+    crawler.ParseConfigFile(config_file.get(), &site_descs);
 
-    std::string stdout_output, stderr_output;
-    if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(COMMAND, args, &stdout_output, &stderr_output))
-        logger->error("simple_crawler failed to harvest URL's:\n" + stderr_output);
-    if (StringUtil::Split(stdout_output, '\n', harvest_urls) == 0)
-        logger->error("simple_crawler could not find any URL's:\n" + stderr_output);
+    for (const auto &site_desc : site_descs) {
+        crawler.ProcessSite(site_desc, params, harvest_urls);
+    }
 
-    std::cout << stderr_output;
     logger->info("Loaded " + std::to_string(harvest_urls->size()) + " harvest URL's.");
 }
 
@@ -786,7 +783,7 @@ int main(int argc, char *argv[]) {
         if (not progress_filename.empty())
             progress_file = FileUtil::OpenOutputFileOrDie(progress_filename);
 
-        std::vector<std::string> harvest_urls;
+        std::unordered_set<std::string> harvest_urls;
         LoadHarvestURLs(ignore_robots_dot_txt, simple_crawler_config_path, &harvest_urls);
         unsigned i(0);
         TimeLimit min_url_processing_time(DEFAULT_MIN_URL_PROCESSING_TIME);
