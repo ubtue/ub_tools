@@ -130,6 +130,18 @@ inline Logger *LoggerInstantiator() {
 Logger *logger(LoggerInstantiator());
 
 
+Logger::LogLevel Logger::StringToLogLevel(const std::string &level_candidate) {
+    if (level_candidate == "ERROR")
+        return Logger::LL_ERROR;
+    if (level_candidate == "WARNING")
+        return Logger::LL_WARNING;
+    if (level_candidate == "INFO")
+        return Logger::LL_INFO;
+    if (level_candidate == "DEBUG")
+        return Logger::LL_DEBUG;
+    ERROR("not a valid minimum log level: \"" + level_candidate + "\"! (Use ERROR, WARNING, INFO or DEBUG)");
+};
+
 
 DSVReader::DSVReader(const std::string &filename, const char field_separator, const char field_delimiter)
     : field_separator_(field_separator), field_delimiter_(field_delimiter), line_no_(0), filename_(filename)

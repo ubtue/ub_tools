@@ -153,19 +153,6 @@ static struct option options[] = {
 };
 
 
-Logger::LogLevel StringToLogLevel(const std::string &level_candidate) {
-    if (level_candidate == "ERROR")
-        return Logger::LL_ERROR;
-    if (level_candidate == "WARNING")
-        return Logger::LL_WARNING;
-    if (level_candidate == "INFO")
-        return Logger::LL_INFO;
-    if (level_candidate == "DEBUG")
-        return Logger::LL_DEBUG;
-    ERROR("not a valid minimum log level: \"" + level_candidate + "\"! (Use ERROR, WARNING, INFO or DEBUG)");
-};
-
-
 void ProcessArgs(int argc, char *argv[], Logger::LogLevel *  const min_log_level, bool * const all_headers,
                  bool * const last_header, unsigned * const timeout, TimeLimit * const min_url_processing_timer,
                  bool * const ignore_robots_dot_txt, bool * const print_redirects,
@@ -189,7 +176,7 @@ void ProcessArgs(int argc, char *argv[], Logger::LogLevel *  const min_log_level
             break;
         switch (option) {
         case 'L':
-            *min_log_level = StringToLogLevel(optarg);
+            *min_log_level = Logger::StringToLogLevel(optarg);
             break;
         case 'a':
             *all_headers = true;
