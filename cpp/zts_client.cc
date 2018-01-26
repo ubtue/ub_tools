@@ -163,14 +163,16 @@ std::string GetNextSessionId() {
 }
 
 
-inline bool Download(const Url &url, const TimeLimit &time_limit, const std::string &harvest_url,
+inline bool Download(const Url &url, const TimeLimit &time_limit, const std::string &harvest_url, const std::string &harvested_html,
                      std::string * const response_body, unsigned * response_code, std::string * const error_message)
 {
     Downloader::Params params;
     params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
     params.post_data_ = "{\"url\":\"" + JSON::EscapeString(harvest_url) + "\","
-                        + "\"sessionid\":\"" + JSON::EscapeString(GetNextSessionId()) + "\"}";
-
+                        + "\"sessionid\":\"" + JSON::EscapeString(GetNextSessionId()) + "\"";
+    if (not harvested_html.empty())
+        params.post_data_ += ",\"cachedHTML\":\"" + JSON::EscapeString(harvested_html) + "\"";
+    params.post_data_ += "}";
     params.user_agent_ = USER_AGENT;
 
     Downloader downloader(url, params, time_limit);
@@ -597,7 +599,9 @@ std::pair<unsigned, unsigned> Harvest(
     std::string response_body, error_message;
     unsigned response_code;
     min_url_processing_time->sleepUntilExpired();
-    const bool download_result(Download(Url(zts_server_url), /* time_limit = */ DEFAULT_TIMEOUT, harvest_url, &response_body, &response_code, &error_message));
+    const bool download_result(Download(Url(zts_server_url), /* time_limit = */ DEFAULT_TIMEOUT,
+                               harvest_url, "", &response_body, &response_code, &error_message));
+
     min_url_processing_time->restart();
     if (not download_result) {
         logger->info("Download failed: " + error_message);
