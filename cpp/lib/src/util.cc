@@ -72,6 +72,9 @@ void Logger::error(const std::string &msg) {
 
 
 void Logger::warning(const std::string &msg) {
+    if (min_log_level_ < LL_WARNING)
+        return;
+
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     if (unlikely(progname == nullptr)) {
@@ -85,6 +88,9 @@ void Logger::warning(const std::string &msg) {
 
 
 void Logger::info(const std::string &msg) {
+    if (min_log_level_ < LL_INFO)
+        return;
+
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     if (unlikely(progname == nullptr)) {
@@ -98,6 +104,9 @@ void Logger::info(const std::string &msg) {
 
 
 void Logger::debug(const std::string &msg) {
+    if (min_log_level_ < LL_DEBUG)
+        return;
+
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") != "true")
         return;
 

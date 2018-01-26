@@ -673,7 +673,7 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &zotero
     const std::string COMMAND("/usr/local/bin/zotero_crawler"
                               + std::string(ignore_robots_dot_txt ? " --ignore-robots-dot-txt " : " ")
                               + "--timeout " + StringUtil::ToString(DEFAULT_TIMEOUT) + " "
-                              + "--min_url_processing_time " + StringUtil::ToString(DEFAULT_MIN_URL_PROCESSING_TIME) + " "
+                              + "--min-url-processing-time " + StringUtil::ToString(DEFAULT_MIN_URL_PROCESSING_TIME) + " "
                               + zotero_crawler_config_path);
 
     std::string stdout_output;
@@ -768,11 +768,11 @@ int main(int argc, char *argv[]) {
         std::vector<std::string> harvest_urls;
         LoadHarvestURLs(ignore_robots_dot_txt, zotero_crawler_config_path, &harvest_urls);
         unsigned i(0);
-        TimeLimit * const min_url_processing_time = (new TimeLimit(DEFAULT_MIN_URL_PROCESSING_TIME));
+        TimeLimit min_url_processing_time(DEFAULT_MIN_URL_PROCESSING_TIME);
         for (const auto &harvest_url : harvest_urls) {
             const auto record_count_and_previously_downloaded_count(
-                Harvest(ZTS_SERVER_URL, harvest_url, min_url_processing_time, ISSN_to_physical_form_map, ISSN_to_language_code_map,
-                        ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
+                Harvest(ZTS_SERVER_URL, harvest_url, &min_url_processing_time, ISSN_to_physical_form_map,
+                        ISSN_to_language_code_map, ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
                         ISSN_to_licence_map, ISSN_to_keyword_field_map, ISSN_to_SSG_map, &previously_downloaded,
                         marc_writer.get()));
             total_record_count                += record_count_and_previously_downloaded_count.first;
@@ -786,13 +786,13 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        logger->info("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "
-                  + StringUtil::ToString(total_previously_downloaded_count) + " were already previously downloaded.");
+        INFO("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "
+             + StringUtil::ToString(total_previously_downloaded_count) + " were already previously downloaded.");
 
         std::unique_ptr<File> previously_downloaded_output(
             FileUtil::OpenOutputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
         StorePreviouslyDownloadedHashes(previously_downloaded_output.get(), previously_downloaded);
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        ERROR("caught exception: " + std::string(x.what()));
     }
 }

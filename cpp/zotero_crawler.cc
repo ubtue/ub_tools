@@ -41,6 +41,7 @@ const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [options] config_file\n"
+              << "\t[ (--min-log-level | -L) level]                           default is INFO.\n"
               << "\t[ (--last-header | -l) ]\n"
               << "\t[ (--all-headers | -a) ]\n"
               << "\t[ (--ignore-robots-dot-txt | -i) ]                        Nomen est omen.\n"
@@ -51,7 +52,7 @@ void Usage() {
               << "\t[ (--print-redirects | -p) ]                              Nomen est omen.\n"
               << "\t[ (--timeout | -t) milliseconds ]                         Overall time we're willing to wait\n"
               << "                                                            to download a page (default " + StringUtil::ToString(DEFAULT_TIMEOUT) + ").\n"
-              << "\t[ (--min_url_processing_time | -m) milliseconds ]         Min time between downloading 2 URLs\n"
+              << "\t[ (--min-url-processing-time | -m) milliseconds ]         Min time between downloading 2 URLs\n"
               << "                                                            to prevent DOS attacks (default " + StringUtil::ToString(DEFAULT_MIN_URL_PROCESSING_TIME) + ").\n"
               << "\n"
               << "The config file consists of lines specifying one site per line.\n"
@@ -140,10 +141,11 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
 
 static struct option options[] = {
     { "help",                    no_argument,              nullptr, 'h'  },
+    { "min-log-level",           required_argument,        nullptr, 'L'  },
     { "all-headers",             no_argument,              nullptr, 'a'  },
     { "last-header",             no_argument,              nullptr, 'l'  },
     { "timeout",                 required_argument,        nullptr, 't'  },
-    { "min_url_processing_time", required_argument,        nullptr, 'm'  },
+    { "min-url-processing-time", required_argument,        nullptr, 'm'  },
     { "ignore-robots-dot-txt",   no_argument,              nullptr, 'i'  },
     { "print-redirects",         no_argument,              nullptr, 'p'  },
     { "acceptable-languages",    required_argument,        nullptr, 'A'  },
@@ -151,12 +153,26 @@ static struct option options[] = {
 };
 
 
-void ProcessArgs(int argc, char *argv[], bool * const all_headers, bool * const last_header,
-                 unsigned * const timeout, TimeLimit * const min_url_processing_timer,
+Logger::LogLevel StringToLogLevel(const std::string &level_candidate) {
+    if (level_candidate == "ERROR")
+        return Logger::LL_ERROR;
+    if (level_candidate == "WARNING")
+        return Logger::LL_WARNING;
+    if (level_candidate == "INFO")
+        return Logger::LL_INFO;
+    if (level_candidate == "DEBUG")
+        return Logger::LL_DEBUG;
+    ERROR("not a valid minimum log level: \"" + level_candidate + "\"! (Use ERROR, WARNING, INFO or DEBUG)");
+};
+
+
+void ProcessArgs(int argc, char *argv[], Logger::LogLevel *  const min_log_level, bool * const all_headers,
+                 bool * const last_header, unsigned * const timeout, TimeLimit * const min_url_processing_timer,
                  bool * const ignore_robots_dot_txt, bool * const print_redirects,
                  std::string * const acceptable_languages, std::string * const config_filename)
 {
     // Defaults:
+    *min_log_level                   = Logger::LL_DEBUG;
     *all_headers                     = false;
     *last_header                     = false;
     *timeout                         = DEFAULT_TIMEOUT;
@@ -172,6 +188,9 @@ void ProcessArgs(int argc, char *argv[], bool * const all_headers, bool * const 
         if (option == -1)
             break;
         switch (option) {
+        case 'L':
+            *min_log_level = StringToLogLevel(optarg);
+            break;
         case 'a':
             *all_headers = true;
             break;
@@ -265,12 +284,14 @@ int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     try {
+        Logger::LogLevel min_log_level;
         bool all_headers, last_header, ignore_robots_dot_txt, print_redirects;
         unsigned timeout;
-        TimeLimit * const min_url_processing_time = (new TimeLimit(DEFAULT_MIN_URL_PROCESSING_TIME));
+        TimeLimit min_url_processing_time(DEFAULT_MIN_URL_PROCESSING_TIME);
         std::string acceptable_languages, config_filename;
-        ProcessArgs(argc, argv, &all_headers, &last_header, &timeout, min_url_processing_time,
+        ProcessArgs(argc, argv, &min_log_level, &all_headers, &last_header, &timeout, &min_url_processing_time,
                     &ignore_robots_dot_txt, &print_redirects, &acceptable_languages, &config_filename);
+        logger->setMinimumLogLevel(min_log_level);
 
         std::unique_ptr<File> config_file(FileUtil::OpenInputFileOrDie(config_filename));
         std::vector<SiteDesc> site_descs;
@@ -279,7 +300,7 @@ int main(int argc, char *argv[]) {
         for (const auto &site_desc : site_descs) {
             std::unordered_set<std::string> extracted_urls;
             ProcessURL(site_desc.start_url_, all_headers, last_header, ignore_robots_dot_txt, print_redirects,
-                       timeout, min_url_processing_time, acceptable_languages, site_desc.max_crawl_depth_,
+                       timeout, &min_url_processing_time, acceptable_languages, site_desc.max_crawl_depth_,
                        *site_desc.url_regex_matcher_, &extracted_urls);
 
             for (const auto &extracted_url : extracted_urls)
