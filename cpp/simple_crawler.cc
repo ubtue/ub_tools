@@ -1,5 +1,5 @@
-/** \file    zotero_crawler.cc
-    \brief   Identifies URL's that we can send to a Zotero Translation Server.
+/** \file    simple_crawler.cc
+    \brief   Identifies URL's that we can use for further processing..
     \author  Dr. Johannes Ruscheinski
 
     \copyright 2018 Universitätsbibliothek Tübingen
@@ -34,6 +34,10 @@
 
 namespace {
 
+
+const std::string URL_IGNORE_PATTERN("\\.(js|css|bmp|pdf|jpg|gif|png|tif|tiff)(\\?[^?]*)?$");
+const std::string USER_AGENT("ub_tools (https://ixtheo.de/docs/user_agents)");
+
 // Default values in milliseconds
 const unsigned DEFAULT_TIMEOUT(5000);
 const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
@@ -63,9 +67,6 @@ void Usage() {
 }
 
 
-const std::string USER_AGENT("ub_tools (htts://ixtheo.de/docs/user_agents)");
-
-
 void ExtractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls) {
     location_urls->clear();
 
@@ -88,6 +89,17 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
                 const std::string &acceptable_languages, unsigned remaining_crawl_depth,
                 const RegexMatcher &url_regex_matcher, std::unordered_set<std::string> * const extracted_urls)
 {
+    std::string err_msg;
+    static RegexMatcher * const url_ignore_regex_matcher(RegexMatcher::RegexMatcherFactory(URL_IGNORE_PATTERN, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
+    if (url_ignore_regex_matcher == nullptr)
+        ERROR("could not initialize URL regex matcher\n"
+              + err_msg);
+
+    if (url_ignore_regex_matcher->matched(url)) {
+        logger->warning("Skipping URL: " + url);
+        return;
+    }
+
     Downloader::Params params;
     params.user_agent_            = USER_AGENT;
     params.acceptable_languages_  = acceptable_languages;
@@ -96,7 +108,7 @@ void ProcessURL(const std::string &url, const bool all_headers, const bool last_
     Downloader downloader(url, params, timeout);
     min_url_processing_time->restart();
     if (downloader.anErrorOccurred()) {
-        logger->warning("in ProcessURL: Failed to retrieve a Web page (" + url + "): "
+        logger->warning("Failed to retrieve a Web page (" + url + "):\n"
                         + downloader.getLastErrorMessage());
         return;
     }

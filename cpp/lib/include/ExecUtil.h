@@ -1,5 +1,5 @@
 /** \file    ExecUtil.h
- *  \brief   The RegexMatcher interface.
+ *  \brief   The ExecUtil interface.
  *  \author  Dr. Gordon W. Paynter
  *  \author  Dr. Johannes Ruscheinski
  */
