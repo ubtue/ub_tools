@@ -72,6 +72,9 @@ void Logger::error(const std::string &msg) {
 
 
 void Logger::warning(const std::string &msg) {
+    if (min_log_level_ < LL_WARNING)
+        return;
+
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     if (unlikely(progname == nullptr)) {
@@ -85,6 +88,9 @@ void Logger::warning(const std::string &msg) {
 
 
 void Logger::info(const std::string &msg) {
+    if (min_log_level_ < LL_INFO)
+        return;
+
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     if (unlikely(progname == nullptr)) {
@@ -98,6 +104,9 @@ void Logger::info(const std::string &msg) {
 
 
 void Logger::debug(const std::string &msg) {
+    if (min_log_level_ < LL_DEBUG)
+        return;
+
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") != "true")
         return;
 
@@ -120,6 +129,18 @@ inline Logger *LoggerInstantiator() {
 
 Logger *logger(LoggerInstantiator());
 
+
+Logger::LogLevel Logger::StringToLogLevel(const std::string &level_candidate) {
+    if (level_candidate == "ERROR")
+        return Logger::LL_ERROR;
+    if (level_candidate == "WARNING")
+        return Logger::LL_WARNING;
+    if (level_candidate == "INFO")
+        return Logger::LL_INFO;
+    if (level_candidate == "DEBUG")
+        return Logger::LL_DEBUG;
+    ERROR("not a valid minimum log level: \"" + level_candidate + "\"! (Use ERROR, WARNING, INFO or DEBUG)");
+};
 
 
 DSVReader::DSVReader(const std::string &filename, const char field_separator, const char field_delimiter)
