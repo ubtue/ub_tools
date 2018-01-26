@@ -44,7 +44,7 @@ class Logger {
     std::mutex mutex_;
     int fd_;
 public:
-    enum LogLevel { LL_ERROR = 4, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
+    enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
 private:
     LogLevel min_log_level_;
     Logger(): fd_(STDERR_FILENO), min_log_level_(LL_INFO) { }
