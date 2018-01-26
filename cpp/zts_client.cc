@@ -493,6 +493,12 @@ std::pair<unsigned, unsigned> GenerateMARC(
                     ExtractVolumeYearIssueAndPages(*object_node, &new_record);
                 else
                     logger->warning("in GenerateMARC: unknown item type: \"" + item_type + "\"!");
+            } else if (key_and_node->first == "rights") {
+                std::string copyright = GetValueFromStringNode(*key_and_node);
+                if (UrlUtil::IsValidWebUrl(copyright))
+                    new_record.insertSubfield("542", 'u', copyright);
+                else
+                    new_record.insertSubfield("542", 'f', copyright);
             } else
                 logger->warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
                                 + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "! ("
