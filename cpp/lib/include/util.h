@@ -70,6 +70,9 @@ public:
      */
     void debug(const std::string &msg);
     inline void debug(const std::string &function_name, const std::string &msg) { debug("in " + function_name + ": " + msg); }
+
+    //* \note Aborts if ""level_candidate" is not one of "ERROR", "WARNING", "INFO" or "DEBUG".
+    static LogLevel StringToLogLevel(const std::string &level_candidate);
 };
 extern Logger *logger;
 
