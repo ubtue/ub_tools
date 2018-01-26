@@ -257,6 +257,9 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
 int64_t LookupInteger(const std::string &path, const JSONNode * const tree);
 
 
+std::string EscapeString(const std::string unescaped_string);
+
+
 } // namespace JSON
 
 
