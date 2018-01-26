@@ -164,11 +164,13 @@ std::string GetNextSessionId() {
 
 
 inline bool Download(const Url &url, const TimeLimit &time_limit, const std::string &harvest_url,
-                     std::string * const json_result, unsigned * response_code, std::string * const error_message)
+                     std::string * const response_body, unsigned * response_code, std::string * const error_message)
 {
     Downloader::Params params;
     params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
-    params.post_data_ = "{\"url\":\"" + harvest_url + "\",\"sessionid\":\"" + GetNextSessionId() + "\"}";
+    params.post_data_ = "{\"url\":\"" + JSON::EscapeString(harvest_url) + "\","
+                        + "\"sessionid\":\"" + JSON::EscapeString(GetNextSessionId()) + "\"}";
+
     params.user_agent_ = USER_AGENT;
 
     Downloader downloader(url, params, time_limit);
@@ -177,7 +179,7 @@ inline bool Download(const Url &url, const TimeLimit &time_limit, const std::str
         return false;
     } else {
         *response_code = downloader.getResponseCode();
-        *json_result = downloader.getMessageBody();
+        *response_body = downloader.getMessageBody();
         return true;
     }
 }
