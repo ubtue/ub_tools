@@ -50,8 +50,8 @@ static void Usage() {
 
 
 // \note Sets "error_message" when it returns false.
-bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
-                             std::string * const media_type, std::string * const error_message)
+bool GetDocumentMediaTypeAndCharset(const std::string &url, const unsigned timeout, std::string * const document,
+                                    std::string * const media_type, std::string * const charset, std::string * const error_message)
 {
     Downloader::Params params;
     Downloader downloader(url, params, timeout);
@@ -61,11 +61,14 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std
     }
 
     *document = downloader.getMessageBody();
+    // Get media type including enconding
     *media_type = downloader.getMediaType();
     if (media_type->empty()) {
         *error_message = "failed to determine the media type!";
         return false;
     }
+
+    *charset = downloader.getCharset();
 
     return true;
 }
@@ -138,11 +141,15 @@ std::string GetTextFrom520a(const MARC::Record &record) {
 }
 
 
-std::string ConvertToPlainText(const std::string &media_type, const std::string &tesseract_language_code,
+std::string ConvertToPlainText(const std::string &media_type, const std::string &charset,
+                               const std::string &tesseract_language_code,
                                const std::string &document, std::string * const error_message)
 {
-    if (media_type == "text/plain")
-        return document;
+    if (media_type == "text/plain") {
+        *error_message = "Unsupported charset: " + charset;
+        WARNING(*error_message);
+        return "";
+    }
     if (media_type == "text/html")
         return TextUtil::ExtractTextFromHtml(document);
     if (StringUtil::StartsWith(media_type, "application/pdf")) {
@@ -205,12 +212,12 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
             std::string domain;
             cache.getDomainFromUrl(url, domain);
             entry_url.domain_ = domain;
-            std::string document, media_type, error_message;
-            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &error_message))) {
+            std::string document, media_type, charset, error_message;
+            if ((not GetDocumentMediaTypeAndCharset(url, PER_DOC_TIMEOUT, &document, &media_type, &charset, &error_message))) {
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
                 success = false;
             } else {
-                std::string extracted_text(ConvertToPlainText(media_type, GetTesseractLanguageCode(*record),
+                std::string extracted_text(ConvertToPlainText(media_type, charset, GetTesseractLanguageCode(*record),
                                                               document, &error_message));
 
                 if (unlikely(extracted_text.empty())) {
