@@ -24,7 +24,7 @@ for filename in "$@"; do
 	gunzip < "$filename" > "$tar_filename"
 	for archive_member in $(tar --list --file "$tar_filename"); do
 	    tar --extract --file "$tar_filename" "$archive_member"
-	    marc_grep_output=$(marc_grep "$archive_member" "$marc_grep_conditional_expression" 3>&2 2>&1 1>&3)
+	    marc_grep_output=$(marc_grep --input-format=marc-21 "$archive_member" "$marc_grep_conditional_expression" 3>&2 2>&1 1>&3)
             if [[ $? -ne 0 ]]; then
                 echo "marc_grep failed ($marc_grep_output)!"
                 exit 1
