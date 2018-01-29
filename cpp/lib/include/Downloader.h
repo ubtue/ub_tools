@@ -131,6 +131,8 @@ public:
      */
     std::string getMediaType(const bool auto_simplify = true) const;
 
+    std::string getCharset() const;
+
     /** \note Returns \em{all} URLs encountered in downloading the last document, including the original URL. */
     const std::vector<std::string> &getRedirectUrls() const { return redirect_urls_; }
 
