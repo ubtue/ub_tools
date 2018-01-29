@@ -852,12 +852,12 @@ void XmlWriter::write(const Record &record) {
 }
 
 
-void FileLockedComposeAndWriteRecord(Writer * const marc_writer, Record * const record) {
+void FileLockedComposeAndWriteRecord(Writer * const marc_writer, const Record &record) {
     FileLocker file_locker(&(marc_writer->getFile()), FileLocker::WRITE_ONLY);
     if (not (marc_writer->getFile().seek(0, SEEK_END)))
         logger->error("in FileLockedComposeAndWriteRecord: failed to seek to the end of \""
                       + marc_writer->getFile().getPath() + "\"!");
-    marc_writer->write(*record);
+    marc_writer->write(record);
     marc_writer->getFile().flush();
 }
 
@@ -901,6 +901,19 @@ bool IsValidMarcFile(const std::string &filename, std::string * const err_msg,
       *err_msg = x.what();
       return false;
     }
+}
+
+
+std::string GetLanguageCode(const Record &record) {
+    const auto _008_field(record.getFirstField("008"));
+    if (_008_field == record.end())
+        return "";
+    // Language codes start at offset 35 and have a length of 3.
+    const auto _008_contents(_008_field->getContents());
+    if (_008_contents.length() < 38)
+        return "";
+
+    return _008_contents.substr(35, 3);
 }
 
 
