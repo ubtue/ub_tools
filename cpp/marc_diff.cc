@@ -56,17 +56,58 @@ unsigned LoadMap(MARC::Reader * const marc_reader, std::unordered_map<std::strin
 }
 
 
+// Helper function for RecordsDiffer.
+std::vector<std::string> ExtractRepeatedContents(MARC::Record::const_iterator &field, const MARC::Record::const_iterator &end) {
+    const MARC::Tag repeated_tag(field->getTag());
+    std::vector<std::string> contents;
+    while (field != end and field->getTag() == repeated_tag) {
+        contents.emplace_back(field->getContents());
+        ++field;
+    }
+
+    return contents;
+}
+
+
 bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std::string * const difference) {
     auto field1(record1.begin());
     auto field2(record2.begin());
 
     while (field1 != record1.end() and field2 != record2.end()) {
-        if (unlikely((field1->getTag() != field2->getTag()) or (field1->getContents() != field2->getContents()))) {
+        if (unlikely(field1->getTag() != field2->getTag())) {
             *difference = field1->getTag().to_string() + ", " + field2->getTag().to_string();
             return true;
         }
 
-        ++field1, ++field2;
+        // Handle repeated fields:
+        const MARC::Tag common_tag(field1->getTag());
+        if ((field1 + 1) == record1.end() or (field2 + 1) == record2.end() or (field1 + 1)->getTag() != common_tag
+            or (field2 + 1)->getTag() != common_tag)
+        {
+            if (field1->getContents() != field2->getContents())
+                return true;
+            ++field1, ++field2;
+        } else { // We have a repeated field.
+            std::vector<std::string> contents1(ExtractRepeatedContents(field1, record1.end()));
+            std::vector<std::string> contents2(ExtractRepeatedContents(field2, record2.end()));
+            if (contents1.size() != contents2.size()) {
+                *difference = field1->getTag().to_string() + ", " + field2->getTag().to_string();
+                return true;
+            }
+
+            // Compare the sorted contents of the two records for the current tag:
+            std::sort(contents1.begin(), contents1.end());
+            std::sort(contents2.begin(), contents2.end());
+            auto content1(contents1.cbegin());
+            auto content2(contents2.cbegin());
+            while (content1 != contents1.cend()) {
+                if (*content1 != *content2) {
+                    *difference = field1->getTag().to_string() + ", " + field2->getTag().to_string();
+                    return true;
+                }
+                ++content1, ++content2;
+            }
+        }
     }
 
     if (field1 != record1.end()) {

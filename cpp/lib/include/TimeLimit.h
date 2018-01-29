@@ -74,6 +74,8 @@ public:
      */
     unsigned getRemainingTime() const;
 
+    inline unsigned getLimit() const { return limit_; };
+
     /** Restart by using the stored limit. */
     void restart() { initialize(limit_); }
 
