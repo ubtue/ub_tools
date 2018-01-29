@@ -22,6 +22,7 @@
 #include <map>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
@@ -44,37 +45,49 @@ static void Usage() {
 
 unsigned LoadMap(MARC::Reader * const marc_reader, std::unordered_map<std::string, off_t> * const control_number_to_offset_map) {
     unsigned record_count(0);
+    off_t last_offset(marc_reader->tell());
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
-        (*control_number_to_offset_map)[record.getControlNumber()] = marc_reader->tell();
+        (*control_number_to_offset_map)[record.getControlNumber()] = last_offset;
+        last_offset = marc_reader->tell();
     }
 
     return record_count;
 }
 
 
-bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2) {
+bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std::string * const difference) {
     auto field1(record1.begin());
     auto field2(record2.begin());
 
     while (field1 != record1.end() and field2 != record2.end()) {
-        if (unlikely(field1->getTag() != field2->getTag()))
+        if (unlikely((field1->getTag() != field2->getTag()) or (field1->getContents() != field2->getContents()))) {
+            *difference = field1->getTag().to_string() + ", " + field2->getTag().to_string();
             return true;
-
-        if (unlikely(field1->getContents() != field2->getContents()))
-            return true;
+        }
 
         ++field1, ++field2;
     }
 
-    return not (field1 == record1.end() and field2 == record2.end());
+    if (field1 != record1.end()) {
+        *difference = field1->getTag().to_string() + ", END";
+        return true;
+    } else if (field2 != record2.end()) {
+        *difference = "END, " + field2->getTag().to_string();
+        return true;
+    }
+
+    return false;
 }
 
 
-void EmitDetailedReport(const std::unordered_map<std::string, off_t> &control_number_to_offset_map1,
-                        const std::unordered_map<std::string, off_t> &control_number_to_offset_map2,
-                        MARC::Reader * const reader1, MARC::Reader * const reader2)
+void EmitDifferenceReport(const bool verbose, const std::unordered_map<std::string, off_t> &control_number_to_offset_map1,
+                          const std::unordered_map<std::string, off_t> &control_number_to_offset_map2,
+                          MARC::Reader * const reader1, MARC::Reader * const reader2)
 {
+    if (verbose)
+        std::cout << "Records w/ identical control numbers but differing contents:\n";
+
     unsigned differ_count(0);
     for (const auto &control_number_and_offset1 : control_number_to_offset_map1) {
         const auto control_number_and_offset2(control_number_to_offset_map2.find(control_number_and_offset1.first));
@@ -89,8 +102,12 @@ void EmitDetailedReport(const std::unordered_map<std::string, off_t> &control_nu
             ERROR("seek in collection 2 failed!");
         const MARC::Record record2(reader2->read());
 
-        if (RecordsDiffer(record1, record2))
+        std::string difference;
+        if (RecordsDiffer(record1, record2, &difference)) {
             ++differ_count;
+            if (verbose)
+                std::cout << '\t' << record1.getControlNumber() << " (fields: " << difference << ")\n";
+        }
     }
 
     std::cout << differ_count << " record(s) have identical control numbers but different contents.\n";
@@ -108,7 +125,7 @@ inline void InitSortedControlNumbersList(const std::unordered_map<std::string, o
 }
 
 
-void EmitStandardReport(const std::string &collection1_name, const std::string &collection2_name,
+void EmitStandardReport(const bool verbose, const std::string &collection1_name, const std::string &collection2_name,
                         const unsigned collection1_size, const unsigned collection2_size,
                         const std::unordered_map<std::string, off_t> &control_number_to_offset_map1,
                         const std::unordered_map<std::string, off_t> &control_number_to_offset_map2)
@@ -119,7 +136,7 @@ void EmitStandardReport(const std::string &collection1_name, const std::string &
     std::vector<std::string> sorted_control_numbers2;
     InitSortedControlNumbersList(control_number_to_offset_map2, &sorted_control_numbers2);
 
-    unsigned in_map1_only_count(0), in_map2_only_count(0);
+    std::unordered_set<std::string> in_map1_only, in_map2_only;
 
     auto control_number1(sorted_control_numbers1.cbegin());
     auto control_number2(sorted_control_numbers2.cbegin());
@@ -128,23 +145,31 @@ void EmitStandardReport(const std::string &collection1_name, const std::string &
             ++control_number1;
             ++control_number2;
         } else if (*control_number1 < *control_number2) {
-            ++in_map1_only_count;
+            in_map1_only.emplace(*control_number1);
             ++control_number1;
         } else { // *control_number2 < *control_number1
-            ++in_map2_only_count;
+            in_map2_only.emplace(*control_number2);
             ++control_number2;
         }
     }
 
-    in_map1_only_count += sorted_control_numbers1.cend() - control_number1;
-    in_map2_only_count += sorted_control_numbers2.cend() - control_number2;
+    const unsigned in_map1_only_count(in_map1_only.size() + (sorted_control_numbers1.cend() - control_number1));
+    const unsigned in_map2_only_count(in_map2_only.size() + (sorted_control_numbers2.cend() - control_number2));
 
     std::cout << '"' << collection1_name << "\" contains " << collection1_size << " record(s).\n";
     std::cout << '"' << collection2_name << "\" contains " << collection2_size << " record(s).\n";
     std::cout << in_map1_only_count << " control number(s) are only in \"" << collection1_name << "\" but not in \""
               << collection2_name << "\".\n";
+    if (verbose) {
+        for (const auto &control_number : in_map1_only)
+            std::cout << '\t' << control_number << '\n';
+    }
     std::cout << in_map2_only_count << " control number(s) are only in \"" << collection2_name << "\" but not in \""
               << collection1_name << "\".\n";
+    if (verbose) {
+        for (const auto &control_number : in_map2_only)
+            std::cout << '\t' << control_number << '\n';
+    }
     std::cout << (collection1_size - in_map1_only_count) << " are in both collections.\n";
 }
 
@@ -177,12 +202,11 @@ int main(int argc, char *argv[]) {
         std::unordered_map<std::string, off_t> control_number_to_offset_map2;
         const unsigned collection2_size(LoadMap(marc_reader2.get(), &control_number_to_offset_map2));
 
-        if (verbose)
-            EmitDetailedReport(control_number_to_offset_map1, control_number_to_offset_map2, marc_reader1.get(),
-                               marc_reader2.get());
+        EmitDifferenceReport(verbose, control_number_to_offset_map1, control_number_to_offset_map2, marc_reader1.get(),
+                             marc_reader2.get());
 
-        EmitStandardReport(collection1_name, collection2_name, collection1_size, collection2_size, control_number_to_offset_map1,
-                           control_number_to_offset_map2);
+        EmitStandardReport(verbose, collection1_name, collection2_name, collection1_size, collection2_size,
+                           control_number_to_offset_map1, control_number_to_offset_map2);
     } catch (const std::exception &e) {
         ERROR("Caught exception: " + std::string(e.what()));
     }
