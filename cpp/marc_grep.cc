@@ -87,7 +87,7 @@ char help_text[] =
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--limit count] [--sample-rate rate] "
+    std::cerr << "Usage: " << ::progname << " [--input-format=(marc-xml|marc-21)] [--limit count] [--sample-rate rate] "
               << "[--control-number-list list_filename] marc_filename query [output_label_format]\n\n";
     std::cerr << help_text << '\n';
     std::exit(EXIT_FAILURE);
@@ -384,10 +384,9 @@ bool ProcessConditions(const ConditionDescriptor &cond_desc,
 
 
 void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
-               const std::unordered_set<std::string> &control_numbers, const std::string &input_filename,
+               const std::unordered_set<std::string> &control_numbers, MARC::Reader * const marc_reader,
                const QueryDescriptor &query_desc, const OutputLabel output_format)
 {
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename));
     std::unique_ptr<MARC::Writer> marc_writer(nullptr);
     if (output_format == MARC_BINARY or output_format == MARC_XML)
         marc_writer = MARC::Writer::Factory(
@@ -461,7 +460,18 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate,
 
 
 int main(int argc, char *argv[]) {
-    progname = argv[0];
+    ::progname = argv[0];
+
+    MARC::Reader::ReaderType reader_type(MARC::Reader::AUTO);
+    if (argc > 1 and std::strncmp(argv[1], "--input-format=", __builtin_strlen("--input-format=")) == 0) {
+        if (std::strcmp(argv[1] +  __builtin_strlen("--input-format="), "marc-xml") == 0)
+            reader_type = MARC::Reader::XML;
+        else if (std::strcmp(argv[1] +  __builtin_strlen("--input-format="), "marc-21") == 0)
+            reader_type = MARC::Reader::BINARY;
+        else
+            ERROR("input format must be \"marc-xml\" or \"marc-21\"!");
+        --argc, ++argv;
+    }
 
     // Limit the number of records that we will process:
     unsigned max_records(UINT_MAX);
@@ -500,6 +510,8 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
+        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1], reader_type));
+
         std::unordered_set<std::string> control_numbers;
         if (not control_numbers_filename.empty())
             LoadControlNumbers(control_numbers_filename, &control_numbers);
@@ -511,7 +523,7 @@ int main(int argc, char *argv[]) {
 
         const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
             : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
-        FieldGrep(max_records, sampling_rate, control_numbers, argv[1], query_desc, output_label);
+        FieldGrep(max_records, sampling_rate, control_numbers, marc_reader.get(), query_desc, output_label);
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
