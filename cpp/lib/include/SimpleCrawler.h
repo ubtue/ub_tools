@@ -1,6 +1,7 @@
 /** \file   SimpleCrawler.h
  *  \brief  Identifies URL's that we can use for further processing.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
@@ -26,6 +27,7 @@
 #include <utility>
 #include <cerrno>
 #include <cstring>
+#include <queue>
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "RegexMatcher.h"
@@ -36,6 +38,13 @@
 
 
 class SimpleCrawler {
+    std::queue<std::string> url_queue_current_depth_;
+    std::queue<std::string> url_queue_next_depth_;
+    unsigned remaining_crawl_depth_;
+    Downloader::Params *downloader_params_;
+    RegexMatcher *url_regex_matcher_;
+    RegexMatcher *url_ignore_regex_matcher_;
+    TimeLimit *min_url_processing_time_;
 public:
     static const unsigned DEFAULT_TIMEOUT = 5000;
     static const unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 5000;
@@ -71,14 +80,33 @@ public:
         SiteDesc(const std::string &start_url, const unsigned max_crawl_depth, RegexMatcher * const url_regex_matcher)
             : start_url_(start_url), max_crawl_depth_(max_crawl_depth), url_regex_matcher_(url_regex_matcher) { }
     };
-private:
-    void ExtractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls);
-    void ProcessURL(const std::string &url, unsigned remaining_crawl_depth, RegexMatcher * const url_regex_matcher,
-                    TimeLimit &min_url_processing_time, const Params &params, std::unordered_set<std::string> * const extracted_urls);
+
+    struct PageDetails {
+    public:
+        bool error_ = false;
+        std::string url_;
+        std::string header_;
+        std::string body_;
+    };
+
 public:
-    void ParseConfigFile(File * const input, std::vector<SiteDesc> * const site_descs);
-    void ProcessSite(const SiteDesc &site_desc, const Params &params, std::unordered_set<std::string> * const extracted_urls);
+    explicit SimpleCrawler(const SiteDesc &site_desc, const Params &params);
+    static void ParseConfigFile(File * const input, std::vector<SiteDesc> * const site_descs);
+
+    /** \brief  prepare site processing.
+     *          use a do ... while loop with GetNextPage afterwards
+     */
+    bool getNextPage(PageDetails * const page_details);
+
+    /** \brief  Process site and return all URL's
+     *          (simple batch function for constructor & GetNextPage)
+     */
+    static void ProcessSite(const SiteDesc &site_desc, const Params &params, std::vector<std::string> * const extracted_urls);
+    static void ProcessSites(const std::string &config_path, const Params &params, std::vector<std::string> * const extracted_urls);
+private:
+    bool checkMorePagesExist();
+    void extractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls);
 };
 
 
-#endif // ifndef JSON_H
+#endif // ifndef SIMPLE_CRAWLER_H

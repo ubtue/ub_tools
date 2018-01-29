@@ -679,25 +679,18 @@ void StorePreviouslyDownloadedHashes(File * const output,
 
 
 void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &simple_crawler_config_path,
-                     std::unordered_set<std::string> * const harvest_urls)
+                     std::vector<std::string> * const harvest_urls)
 {
     harvest_urls->clear();
 
     logger->info("Starting loading of harvest URL's.");
 
-    SimpleCrawler crawler;
     SimpleCrawler::Params params;
     params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
     params.timeout_ = DEFAULT_TIMEOUT;
     params.min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
 
-    std::vector<SimpleCrawler::SiteDesc> site_descs;
-    std::unique_ptr<File> config_file(FileUtil::OpenInputFileOrDie(simple_crawler_config_path));
-    crawler.ParseConfigFile(config_file.get(), &site_descs);
-
-    for (const auto &site_desc : site_descs) {
-        crawler.ProcessSite(site_desc, params, harvest_urls);
-    }
+    SimpleCrawler::ProcessSites(simple_crawler_config_path, params, harvest_urls);
 
     logger->info("Loaded " + std::to_string(harvest_urls->size()) + " harvest URL's.");
 }
@@ -783,7 +776,7 @@ int main(int argc, char *argv[]) {
         if (not progress_filename.empty())
             progress_file = FileUtil::OpenOutputFileOrDie(progress_filename);
 
-        std::unordered_set<std::string> harvest_urls;
+        std::vector<std::string> harvest_urls;
         LoadHarvestURLs(ignore_robots_dot_txt, simple_crawler_config_path, &harvest_urls);
         unsigned i(0);
         TimeLimit min_url_processing_time(DEFAULT_MIN_URL_PROCESSING_TIME);

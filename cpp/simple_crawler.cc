@@ -142,23 +142,14 @@ int main(int argc, char *argv[]) {
     try {
         Logger::LogLevel min_log_level;
         std::string config_filename;
-        SimpleCrawler crawler;
         SimpleCrawler::Params params;
-
         ProcessArgs(argc, argv, &min_log_level, &config_filename, &params);
+
         logger->setMinimumLogLevel(min_log_level);
-
-        std::unique_ptr<File> config_file(FileUtil::OpenInputFileOrDie(config_filename));
-        std::vector<SimpleCrawler::SiteDesc> site_descs;
-        crawler.ParseConfigFile(config_file.get(), &site_descs);
-
-        for (const auto &site_desc : site_descs) {
-            std::unordered_set<std::string> extracted_urls;
-            crawler.ProcessSite(site_desc, params, &extracted_urls);
-
-            for (const auto &extracted_url : extracted_urls)
-                std::cout << extracted_url << '\n';
-        }
+        std::vector<std::string> extracted_urls;
+        SimpleCrawler::ProcessSites(config_filename, params, &extracted_urls);
+        for (const auto &extracted_url : extracted_urls)
+            std::cout << extracted_url << '\n';
 
         return EXIT_SUCCESS;
     } catch (const std::exception &x) {
