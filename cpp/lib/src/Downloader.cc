@@ -369,12 +369,19 @@ bool Downloader::internalNewUrl(const Url &url, const TimeLimit &time_limit) {
 
     if ((curl_error_code_ = ::curl_easy_setopt(easy_handle_, CURLOPT_URL, url.c_str())) != CURLE_OK)
         return false;
-    if ((curl_error_code_ = ::curl_easy_setopt(easy_handle_, CURLOPT_TIMEOUT, time_limit.getRemainingTime())))
+    const long timeout_in_ms(time_limit.getRemainingTime());
+    if (timeout_in_ms == 0 and time_limit.getLimit() != 0) {
+        last_error_message_ = "timout exceeded";
+        return false;
+    }
+    if ((curl_error_code_ = ::curl_easy_setopt(easy_handle_, CURLOPT_TIMEOUT_MS, timeout_in_ms)))
         return false;
 
     // Add additional HTTP headers:
-    if (url.isValidWebUrl() and additional_http_headers_ != nullptr)
-        ::curl_easy_setopt(easy_handle_, CURLOPT_HTTPHEADER, additional_http_headers_);
+    if (url.isValidWebUrl() and additional_http_headers_ != nullptr) {
+        if (::curl_easy_setopt(easy_handle_, CURLOPT_HTTPHEADER, additional_http_headers_) != CURLE_OK)
+            return false;
+    }
 
     if (not multi_mode_) {
         curl_error_code_ = ::curl_easy_perform(easy_handle_);

@@ -52,7 +52,7 @@ protected:
 public:
     static const long DEFAULT_MAX_REDIRECTS     = 10;
     static const long MAX_MAX_REDIRECT_COUNT    = 20;
-    static const long DEFAULT_DNS_CACHE_TIMEOUT = 600;
+    static const long DEFAULT_DNS_CACHE_TIMEOUT = 10; // In s
     static const std::string DEFAULT_USER_AGENT_STRING;
     static const std::string DEFAULT_ACCEPTABLE_LANGUAGES;
     static const unsigned DEFAULT_TIME_LIMIT    = 20000; // In ms.
