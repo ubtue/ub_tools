@@ -210,6 +210,21 @@ std::string Downloader::getMediaType(const bool auto_simplify) const {
 }
 
 
+std::string Downloader::getCharset() const {
+    std::vector<std::string> headers;
+    SplitHttpHeaders(header_, &headers);
+    for (const auto &header : headers) {
+         const auto charset_pos(StringUtil::FindCaseInsensitive(header, "charset="));
+         if (charset_pos == std::string::npos)
+             continue;
+
+         std::string charset(header.substr(charset_pos + __builtin_strlen("charset=")));
+         return StringUtil::TrimWhite(&charset);
+    }
+    return "";
+}
+
+
 const std::string &Downloader::getLastErrorMessage() const {
     if (curl_error_code_ != CURLE_OK and last_error_message_.empty())
         last_error_message_ = ::curl_easy_strerror(curl_error_code_);

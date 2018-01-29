@@ -545,7 +545,7 @@ public:
 };
 
 
-void FileLockedComposeAndWriteRecord(Writer * const marc_writer, Record * const record);
+void FileLockedComposeAndWriteRecord(Writer * const marc_writer, const Record &record);
 
 
 /** \brief  Does an in-place filtering for records with duplicate control numbers.
@@ -560,6 +560,12 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename);
  */
 bool IsValidMarcFile(const std::string &filename, std::string * const err_msg,
                      const Reader::ReaderType reader_type = Reader::AUTO);
+
+
+/** \brief Extracts the optional language code from field 008.
+ *  \return The extracted language code or the empty string if no language code was found.
+ */
+std::string GetLanguageCode(const Record &record);
 
 
 } // namespace MARC
