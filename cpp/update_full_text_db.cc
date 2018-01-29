@@ -1,7 +1,7 @@
 /** \brief Utility for augmenting MARC records with links to a local full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -27,17 +27,16 @@
 #include "DbConnection.h"
 #include "Downloader.h"
 #include "FullTextCache.h"
-#include "MarcRecord.h"
-#include "MarcReader.h"
-#include "MarcUtil.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "PdfUtil.h"
 #include "Semaphore.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "TextUtil.h"
 #include "util.h"
 #include "VuFind.h"
+
+
+namespace {
 
 
 static void Usage() __attribute__((noreturn));
@@ -48,9 +47,6 @@ static void Usage() {
               << "       file_offset  Where to start reading a MARC data set from in marc_input.\n\n";
     std::exit(EXIT_FAILURE);
 }
-
-
-namespace {
 
 
 // \note Sets "error_message" when it returns false.
@@ -99,24 +95,26 @@ static const std::map<std::string, std::string> marc_to_tesseract_language_codes
 };
 
 
-std::string GetTesseractLanguageCode(const MarcRecord &record) {
-    const auto map_iter(marc_to_tesseract_language_codes_map.find(
-        record.getLanguageCode()));
+std::string GetTesseractLanguageCode(const MARC::Record &record) {
+    const auto map_iter(marc_to_tesseract_language_codes_map.find(MARC::GetLanguageCode(record)));
     return (map_iter == marc_to_tesseract_language_codes_map.cend()) ? "" : map_iter->second;
 }
 
 
 // Checks subfields "3" and "z" to see if they start w/ "Rezension".
-bool IsProbablyAReview(const Subfields &subfields) {
-    const auto _3_begin_end(subfields.getIterators('3'));
-    if (_3_begin_end.first != _3_begin_end.second) {
-        if (StringUtil::StartsWith(_3_begin_end.first->value_, "Rezension"))
-            return true;
+bool IsProbablyAReview(const MARC::Subfields &subfields) {
+    const std::vector<std::string> _3_subfields(subfields.extractSubfields('3'));
+    if (not _3_subfields.empty()) {
+        for (const auto &subfield_value : _3_subfields) {
+            if (StringUtil::StartsWith(subfield_value, "Rezension"))
+                return true;
+        }
     } else {
-        const auto z_begin_end(subfields.getIterators('z'));
-        if (z_begin_end.first != z_begin_end.second
-            and StringUtil::StartsWith(z_begin_end.first->value_, "Rezension"))
-            return true;
+        const std::vector<std::string> z_subfields(subfields.extractSubfields('z'));
+        for (const auto &subfield_value : z_subfields) {
+            if (StringUtil::StartsWith(subfield_value, "Rezension"))
+                return true;
+        }
     }
 
     return false;
@@ -124,17 +122,15 @@ bool IsProbablyAReview(const Subfields &subfields) {
 
 
 // \return The concatenated contents of all 520$a subfields.
-std::string GetTextFrom520a(const MarcRecord &record) {
+std::string GetTextFrom520a(const MARC::Record &record) {
     std::string concatenated_text;
 
-    std::vector<size_t> field_indices;
-    record.getFieldIndices("520", &field_indices);
-    for (const auto index : field_indices) {
-        const Subfields subfields(record.getFieldData(index));
+    for (const auto &field : record.getTagRange("520")) {
+        const MARC::Subfields subfields(field.getSubfields());
         if (subfields.hasSubfield('a')) {
             if (not concatenated_text.empty())
                 concatenated_text += ' ';
-            concatenated_text += subfields.getFirstSubfieldValue('a');
+            concatenated_text += subfields.getFirstSubfieldWithCode('a');
         }
     }
 
@@ -154,7 +150,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
             std::string extracted_text;
             if (not PdfUtil::GetTextFromImagePDF(document, tesseract_language_code, &extracted_text)) {
                 *error_message = "Failed to extract text from an image PDF!";
-                logger->warning("in ConvertToPlainText: " + *error_message);
+                WARNING(*error_message);
                 return "";
             }
             return extracted_text;
@@ -163,31 +159,27 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 
     }
     *error_message = "Don't know how to handle media type: " + media_type;
-    logger->warning("in ConvertToPlainText: " + *error_message);
+    WARNING(*error_message);
     return "";
 }
 
 
 // Returns true if text has been successfully extracted, else false.
-bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_output_filename)
-{
-    MarcRecord record(marc_reader->read());
-    const std::string ppn(record.getControlNumber());
+bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_filename) {
+    const std::string ppn(record->getControlNumber());
     std::vector<std::string> urls;
 
-    // get URLs
-    std::vector<size_t> _856_field_indices;
-    record.getFieldIndices("856", &_856_field_indices);
-    for (const size_t _856_field_index : _856_field_indices) {
-        const Subfields _856_subfields(record.getSubfields(_856_field_index));
+    // Get URL's:
+    for (const auto _856_field : record->getTagRange("856")) {
+        const MARC::Subfields _856_subfields(_856_field.getSubfields());
 
-        if (_856_subfields.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
+        if (_856_field.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
             continue;
 
         if (IsProbablyAReview(_856_subfields))
             continue;
 
-        urls.emplace_back(_856_subfields.getFirstSubfieldValue('u'));
+        urls.emplace_back(_856_subfields.getFirstSubfieldWithCode('u'));
     }
 
     // Get or create cache entry
@@ -202,7 +194,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
     } else {
         FullTextCache::Entry entry;
         std::vector<FullTextCache::EntryUrl> entry_urls;
-        std::string combined_text(GetTextFrom520a(record));
+        std::string combined_text(GetTextFrom520a(*record));
         constexpr unsigned PER_DOC_TIMEOUT(10000); // in milliseconds
         success = true;
 
@@ -218,7 +210,7 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
                 success = false;
             } else {
-                std::string extracted_text(ConvertToPlainText(media_type, GetTesseractLanguageCode(record),
+                std::string extracted_text(ConvertToPlainText(media_type, GetTesseractLanguageCode(*record),
                                                               document, &error_message));
 
                 if (unlikely(extracted_text.empty())) {
@@ -246,16 +238,26 @@ bool ProcessRecord(MarcReader * const marc_reader, const std::string &marc_outpu
         cache.insertEntry(ppn, combined_text_final, entry_urls);
     }
 
-    if (not combined_text_final.empty()) {
-        record.insertSubfield("FUL", 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn);
-    }
+    if (not combined_text_final.empty())
+        record->insertField("FUL", { { 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn } });
 
     // Safely append the modified MARC data to the MARC output file:
-    std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(marc_output_filename, MarcWriter::BINARY,
-                                                                MarcWriter::APPEND));
-    MarcUtil::FileLockedComposeAndWriteRecord(marc_writer.get(), &record);
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY,
+                                                                    MARC::Writer::APPEND));
+    MARC::FileLockedComposeAndWriteRecord(marc_writer.get(), *record);
 
     return success;
+}
+
+
+// Returns true if text has been successfully extracted, else false.
+bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_output_filename) {
+    MARC::Record record(marc_reader->read());
+    try {
+        return ProcessRecord(&record, marc_output_filename);
+    } catch (const std::exception &x) {
+        throw std::runtime_error(x.what() + std::string(" (PPN: ") + record.getControlNumber() + ")");
+    }
 }
 
 
@@ -270,17 +272,17 @@ int main(int argc, char *argv[]) {
 
     long offset;
     if (not StringUtil::ToNumber(argv[1], &offset))
-        logger->error("file offset must be a number!");
+        ERROR("file offset must be a number!");
 
-    std::unique_ptr<MarcReader> marc_reader(MarcReader::Factory(argv[2], MarcReader::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2], MARC::Reader::BINARY));
     if (not marc_reader->seek(offset, SEEK_SET))
-        logger->error("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset)
-                      + "! (" + std::to_string(errno) + ")");
+        ERROR("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset)
+              + "! (" + std::to_string(errno) + ")");
 
     try {
         return ProcessRecord(marc_reader.get(), argv[3]) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
-        logger->error("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
-                      + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));
+        ERROR("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
+              + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));
     }
 }
