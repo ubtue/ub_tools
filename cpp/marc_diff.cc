@@ -84,14 +84,16 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
         if ((field1 + 1) == record1.end() or (field2 + 1) == record2.end() or (field1 + 1)->getTag() != common_tag
             or (field2 + 1)->getTag() != common_tag)
         {
-            if (field1->getContents() != field2->getContents())
+            if (field1->getContents() != field2->getContents()) {
+                *difference = common_tag.to_string() + ", " + common_tag.to_string();
                 return true;
+            }
             ++field1, ++field2;
         } else { // We have a repeated field.
             std::vector<std::string> contents1(ExtractRepeatedContents(field1, record1.end()));
             std::vector<std::string> contents2(ExtractRepeatedContents(field2, record2.end()));
             if (contents1.size() != contents2.size()) {
-                *difference = field1->getTag().to_string() + ", " + field2->getTag().to_string();
+                *difference = common_tag.to_string() + ", " + common_tag.to_string();
                 return true;
             }
 
@@ -102,7 +104,7 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
             auto content2(contents2.cbegin());
             while (content1 != contents1.cend()) {
                 if (*content1 != *content2) {
-                    *difference = field1->getTag().to_string() + ", " + field2->getTag().to_string();
+                    *difference = common_tag.to_string() + ", " + common_tag.to_string();
                     return true;
                 }
                 ++content1, ++content2;
