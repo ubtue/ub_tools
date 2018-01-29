@@ -1,7 +1,7 @@
 /** \brief Utility for augmenting MARC records with links to a local full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -122,7 +122,7 @@ void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, 
                                    or (record.getSubfieldValues("856", 'u').empty()
                                        and not record.getSubfieldValues("520", 'a').empty()));
         if (not insert_in_cache) {
-            MARC::FileLockedComposeAndWriteRecord(marc_writer, &record);
+            MARC::FileLockedComposeAndWriteRecord(marc_writer, record);
             record_start = marc_reader->tell();
             continue;
         }
