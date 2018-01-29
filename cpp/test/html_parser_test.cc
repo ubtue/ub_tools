@@ -14,7 +14,9 @@ void Usage() {
 
 class Parser: public HtmlParser {
 public:
-    Parser(const std::string &document): HtmlParser(document) { }
+    Parser(const std::string &document)
+        : HtmlParser(document,
+                     HtmlParser::EVERYTHING & ~(HtmlParser::WORD | HtmlParser::PUNCTUATION | HtmlParser::WHITESPACE)) { }
     virtual void notify(const HtmlParser::Chunk &chunk);
 };
 
