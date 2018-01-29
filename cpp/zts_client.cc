@@ -720,13 +720,13 @@ void Main(int argc, char *argv[]) {
     if (argc != 4)
         Usage();
 
-    const std::string ZTS_SERVER_URL(argv[1]);
     std::string map_directory_path(argv[2]);
     if (not StringUtil::EndsWith(map_directory_path, '/'))
         map_directory_path += '/';
 
     try {
         ZtsClientParams zts_client_params;
+        zts_client_params.zts_server_url_ = argv[1];
         LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &zts_client_params.ISSN_to_physical_form_map_);
         LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &zts_client_params.ISSN_to_language_code_map_);
         LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &zts_client_params.ISSN_to_superior_ppn_map_);
