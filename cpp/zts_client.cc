@@ -42,7 +42,7 @@
 #include "WebUtil.h"
 
 
-namespace {
+namespace zts_client {
 
 
 const std::string USER_AGENT("ub_tools (https://ixtheo.de/docs/user_agents)");
@@ -51,6 +51,21 @@ const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/
 // Default timeout values in milliseconds
 const unsigned DEFAULT_TIMEOUT(5000);
 const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
+
+
+struct ZtsClientParams {
+public:
+    std::string zts_server_url_;
+    TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
+    std::unordered_map<std::string, std::string> ISSN_to_physical_form_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_language_code_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_superior_ppn_map_;
+    std::unordered_map<std::string, std::string> language_to_language_code_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_volume_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_licence_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map_;
+    std::unordered_map<std::string, std::string> ISSN_to_SSG_map_;
+};
 
 
 void Usage() {
@@ -167,16 +182,16 @@ std::string GetNextSessionId() {
 inline bool Download(const Url &url, const TimeLimit &time_limit, const std::string &harvest_url, const std::string &harvested_html,
                      std::string * const response_body, unsigned * response_code, std::string * const error_message)
 {
-    Downloader::Params params;
-    params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
-    params.post_data_ = "{\"url\":\"" + JSON::EscapeString(harvest_url) + "\","
+    Downloader::Params downloader_params;
+    downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
+    downloader_params.post_data_ = "{\"url\":\"" + JSON::EscapeString(harvest_url) + "\","
                         + "\"sessionid\":\"" + JSON::EscapeString(GetNextSessionId()) + "\"";
     if (not harvested_html.empty())
-        params.post_data_ += ",\"cachedHTML\":\"" + JSON::EscapeString(harvested_html) + "\"";
-    params.post_data_ += "}";
-    params.user_agent_ = USER_AGENT;
+        downloader_params.post_data_ += ",\"cachedHTML\":\"" + JSON::EscapeString(harvested_html) + "\"";
+    downloader_params.post_data_ += "}";
+    downloader_params.user_agent_ = USER_AGENT;
 
-    Downloader downloader(url, params, time_limit);
+    Downloader downloader(url, downloader_params, time_limit);
     if (downloader.anErrorOccurred()) {
         *error_message = downloader.getLastErrorMessage();
         return false;
@@ -411,14 +426,7 @@ const std::string DEFAULT_SUBFIELD_CODE("eng");
 
 
 std::pair<unsigned, unsigned> GenerateMARC(
-    const JSON::JSONNode * const tree, const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
-    const std::unordered_map<std::string, std::string> &language_to_language_code_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_volume_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_licence_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_SSG_map,
+    const JSON::JSONNode * const tree, ZtsClientParams &zts_client_params,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
 {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
@@ -445,7 +453,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
             } else if (key_and_node->first == "language")
                 new_record.insertSubfield("045", 'a',
                     OptionalMap(CastToStringNodeOrDie("language", key_and_node->second)->getValue(),
-                                language_to_language_code_map));
+                                zts_client_params.language_to_language_code_map_));
             else if (key_and_node->first == "url")
                 CreateSubfieldFromStringNode(*key_and_node, "856", 'u', &new_record);
             else if (key_and_node->first == "title")
@@ -470,8 +478,8 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 if (unlikely(not MiscUtil::NormaliseISSN(issn_candidate, &issn)))
                     logger->error("in GenerateMARC: \"" + issn_candidate + "\" is not a valid ISSN!");
 
-                const auto ISSN_and_physical_form(ISSN_to_physical_form_map.find(issn));
-                if (ISSN_and_physical_form != ISSN_to_physical_form_map.cend()) {
+                const auto ISSN_and_physical_form(zts_client_params.ISSN_to_physical_form_map_.find(issn));
+                if (ISSN_and_physical_form != zts_client_params.ISSN_to_physical_form_map_.cend()) {
                     if (ISSN_and_physical_form->second == "A")
                         new_record.insertField("007", "tu");
                     else if (ISSN_and_physical_form->second == "O")
@@ -481,12 +489,12 @@ std::pair<unsigned, unsigned> GenerateMARC(
                               + ISSN_and_physical_form->second + "\"!");
                 }
 
-                const auto ISSN_and_language(ISSN_to_language_code_map.find(issn));
-                if (ISSN_and_language != ISSN_to_language_code_map.cend())
+                const auto ISSN_and_language(zts_client_params.ISSN_to_language_code_map_.find(issn));
+                if (ISSN_and_language != zts_client_params.ISSN_to_language_code_map_.cend())
                     new_record.insertSubfield("041", 'a', ISSN_and_language->second);
 
-                const auto ISSN_and_parent_ppn(ISSN_to_superior_ppn_map.find(issn));
-                if (ISSN_and_parent_ppn != ISSN_to_superior_ppn_map.cend())
+                const auto ISSN_and_parent_ppn(zts_client_params.ISSN_to_superior_ppn_map_.find(issn));
+                if (ISSN_and_parent_ppn != zts_client_params.ISSN_to_superior_ppn_map_.cend())
                     parent_ppn = ISSN_and_parent_ppn->second;
             } else if (key_and_node->first == "itemType") {
                 const std::string item_type(GetValueFromStringNode(*key_and_node));
@@ -513,7 +521,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
         // Handle keywords:
         const JSON::JSONNode * const tags_node(object_node->getValue("tags"));
         if (tags_node != nullptr)
-            ExtractKeywords(*tags_node, issn, ISSN_to_keyword_field_map, &new_record);
+            ExtractKeywords(*tags_node, issn, zts_client_params.ISSN_to_keyword_field_map_, &new_record);
 
         // Populate 773:
         if (is_journal_article) {
@@ -534,8 +542,8 @@ std::pair<unsigned, unsigned> GenerateMARC(
 
         // If we don't have a volume, check to see if we can infer one from an ISSN:
         if (not issn.empty()) {
-            const auto ISSN_and_volume(ISSN_to_volume_map.find(issn));
-            if (ISSN_and_volume != ISSN_to_volume_map.cend()) {
+            const auto ISSN_and_volume(zts_client_params.ISSN_to_volume_map_.find(issn));
+            if (ISSN_and_volume != zts_client_params.ISSN_to_volume_map_.cend()) {
                 const std::string volume(ISSN_and_volume->second);
                 const size_t index(new_record.getFieldIndex("936"));
                 if (index == MarcRecord::FIELD_NOT_FOUND)
@@ -547,8 +555,8 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 }
             }
 
-            const auto ISSN_and_license_code(ISSN_to_licence_map.find(issn));
-            if (ISSN_and_license_code != ISSN_to_licence_map.end()) {
+            const auto ISSN_and_license_code(zts_client_params.ISSN_to_licence_map_.find(issn));
+            if (ISSN_and_license_code != zts_client_params.ISSN_to_licence_map_.end()) {
                 if (ISSN_and_license_code->second != "l")
                     logger->warning("ISSN_to_licence.map contains an ISSN that has not been mapped to an \"l\" but \""
                                     + ISSN_and_license_code->second
@@ -563,8 +571,8 @@ std::pair<unsigned, unsigned> GenerateMARC(
 
         // Add SSG numbers:
         if (not issn.empty()) {
-            const auto ISSN_and_SSGN_numbers(ISSN_to_SSG_map.find(issn));
-            if (ISSN_and_SSGN_numbers != ISSN_to_SSG_map.end())
+            const auto ISSN_and_SSGN_numbers(zts_client_params.ISSN_to_SSG_map_.find(issn));
+            if (ISSN_and_SSGN_numbers != zts_client_params.ISSN_to_SSG_map_.end())
                 new_record.addSubfield("084", 'a', ISSN_and_SSGN_numbers->second);
         }
 
@@ -582,16 +590,8 @@ std::pair<unsigned, unsigned> GenerateMARC(
 
 
 std::pair<unsigned, unsigned> Harvest(
-    const std::string &zts_server_url, const std::string &harvest_url,
-    TimeLimit * const min_url_processing_time,
-    const std::unordered_map<std::string, std::string> &ISSN_to_physical_form_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_language_code_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_superior_ppn_map,
-    const std::unordered_map<std::string, std::string> &language_to_language_code_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_volume_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_licence_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
-    const std::unordered_map<std::string, std::string> &ISSN_to_SSG_map,
+    const std::string &harvest_url,
+    ZtsClientParams &zts_client_params,
     std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer,
     bool log = true)
 {
@@ -599,11 +599,11 @@ std::pair<unsigned, unsigned> Harvest(
 
     std::string response_body, error_message;
     unsigned response_code;
-    min_url_processing_time->sleepUntilExpired();
-    const bool download_result(Download(Url(zts_server_url), /* time_limit = */ DEFAULT_TIMEOUT,
+    zts_client_params.min_url_processing_time_.sleepUntilExpired();
+    const bool download_result(Download(Url(zts_client_params.zts_server_url_), /* time_limit = */ DEFAULT_TIMEOUT,
                                harvest_url, "", &response_body, &response_code, &error_message));
 
-    min_url_processing_time->restart();
+    zts_client_params.min_url_processing_time_.restart();
     if (not download_result) {
         logger->info("Download failed: " + error_message);
         return std::make_pair(0, 0);
@@ -636,10 +636,7 @@ std::pair<unsigned, unsigned> Harvest(
                 reinterpret_cast<JSON::ObjectNode *>(tree_root));
                 for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
                     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                        Harvest(zts_server_url, key_and_node->first, min_url_processing_time,
-                                ISSN_to_physical_form_map, ISSN_to_language_code_map,
-                                ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map, ISSN_to_licence_map,
-                                ISSN_to_keyword_field_map, ISSN_to_SSG_map, previously_downloaded, marc_writer, false /* log */);
+                        Harvest(key_and_node->first, zts_client_params, previously_downloaded, marc_writer, false /* log */);
 
                     record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
                     record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
@@ -647,9 +644,7 @@ std::pair<unsigned, unsigned> Harvest(
             }
         } else {
             record_count_and_previously_downloaded_count =
-                GenerateMARC(tree_root, ISSN_to_physical_form_map, ISSN_to_language_code_map, ISSN_to_superior_ppn_map,
-                             language_to_language_code_map, ISSN_to_volume_map, ISSN_to_licence_map,
-                             ISSN_to_keyword_field_map, ISSN_to_SSG_map, previously_downloaded, marc_writer);
+                GenerateMARC(tree_root, zts_client_params, previously_downloaded, marc_writer);
         }
         delete tree_root;
     } catch (...) {
@@ -685,21 +680,18 @@ void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &simple
 
     logger->info("Starting loading of harvest URL's.");
 
-    SimpleCrawler::Params params;
-    params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
-    params.timeout_ = DEFAULT_TIMEOUT;
-    params.min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
+    SimpleCrawler::Params crawler_params;
+    crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
+    crawler_params.timeout_ = DEFAULT_TIMEOUT;
+    crawler_params.min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
 
-    SimpleCrawler::ProcessSites(simple_crawler_config_path, params, harvest_urls);
+    SimpleCrawler::ProcessSites(simple_crawler_config_path, crawler_params, harvest_urls);
 
     logger->info("Loaded " + std::to_string(harvest_urls->size()) + " harvest URL's.");
 }
 
 
-} // unnamed namespace
-
-
-int main(int argc, char *argv[]) {
+void Main(int argc, char *argv[]) {
     ::progname = argv[0];
     if (argc < 4 or argc > 7)
         Usage();
@@ -734,29 +726,15 @@ int main(int argc, char *argv[]) {
         map_directory_path += '/';
 
     try {
-        std::unordered_map<std::string, std::string> ISSN_to_physical_form_map;
-        LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &ISSN_to_physical_form_map);
-
-        std::unordered_map<std::string, std::string> ISSN_to_language_code_map;
-        LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &ISSN_to_language_code_map);
-
-        std::unordered_map<std::string, std::string> ISSN_to_superior_ppn_map;
-        LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &ISSN_to_superior_ppn_map);
-
-        std::unordered_map<std::string, std::string> language_to_language_code_map;
-        LoadMapFile(map_directory_path + "language_to_language_code.map", &language_to_language_code_map);
-
-        std::unordered_map<std::string, std::string> ISSN_to_volume_map;
-        LoadMapFile(map_directory_path + "ISSN_to_volume.map", &ISSN_to_volume_map);
-
-        std::unordered_map<std::string, std::string> ISSN_to_licence_map;
-        LoadMapFile(map_directory_path + "ISSN_to_licence.map", &ISSN_to_licence_map);
-
-        std::unordered_map<std::string, std::string> ISSN_to_keyword_field_map;
-        LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &ISSN_to_keyword_field_map);
-
-        std::unordered_map<std::string, std::string> ISSN_to_SSG_map;
-        LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &ISSN_to_SSG_map);
+        ZtsClientParams zts_client_params;
+        LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &zts_client_params.ISSN_to_physical_form_map_);
+        LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &zts_client_params.ISSN_to_language_code_map_);
+        LoadMapFile(map_directory_path + "ISSN_to_superior_ppn.map", &zts_client_params.ISSN_to_superior_ppn_map_);
+        LoadMapFile(map_directory_path + "language_to_language_code.map", &zts_client_params.language_to_language_code_map_);
+        LoadMapFile(map_directory_path + "ISSN_to_volume.map", &zts_client_params.ISSN_to_volume_map_);
+        LoadMapFile(map_directory_path + "ISSN_to_licence.map", &zts_client_params.ISSN_to_licence_map_);
+        LoadMapFile(map_directory_path + "ISSN_to_keyword_field.map", &zts_client_params.ISSN_to_keyword_field_map_);
+        LoadMapFile(map_directory_path + "ISSN_to_SSG.map", &zts_client_params.ISSN_to_SSG_map_);
 
         const RegexMatcher * const supported_urls_regex(LoadSupportedURLsRegex(map_directory_path));
         (void)supported_urls_regex;
@@ -779,12 +757,9 @@ int main(int argc, char *argv[]) {
         std::vector<std::string> harvest_urls;
         LoadHarvestURLs(ignore_robots_dot_txt, simple_crawler_config_path, &harvest_urls);
         unsigned i(0);
-        TimeLimit min_url_processing_time(DEFAULT_MIN_URL_PROCESSING_TIME);
         for (const auto &harvest_url : harvest_urls) {
             const auto record_count_and_previously_downloaded_count(
-                Harvest(ZTS_SERVER_URL, harvest_url, &min_url_processing_time, ISSN_to_physical_form_map,
-                        ISSN_to_language_code_map, ISSN_to_superior_ppn_map, language_to_language_code_map, ISSN_to_volume_map,
-                        ISSN_to_licence_map, ISSN_to_keyword_field_map, ISSN_to_SSG_map, &previously_downloaded,
+                Harvest(harvest_url, zts_client_params, &previously_downloaded,
                         marc_writer.get()));
             total_record_count                += record_count_and_previously_downloaded_count.first;
             total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
@@ -806,4 +781,12 @@ int main(int argc, char *argv[]) {
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
     }
+}
+
+
+} // namespace zts_client
+
+
+int main(int argc, char *argv[]) {
+    zts_client::Main(argc, argv);
 }
