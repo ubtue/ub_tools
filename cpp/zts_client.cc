@@ -1,6 +1,7 @@
 /** \file    zts_client.cc
     \brief   Downloads bibliographic metadata using a Zotero Translation server.
     \author  Dr. Johannes Ruscheinski
+    \author  Mario Trojan
 
     \copyright 2018 Universitätsbibliothek Tübingen
 
