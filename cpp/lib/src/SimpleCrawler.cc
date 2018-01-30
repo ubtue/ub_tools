@@ -49,7 +49,9 @@ void SimpleCrawler::extractLocationUrls(const std::string &header_blob, std::lis
 }
 
 
-void SimpleCrawler::ParseConfigFile(File * const input, std::vector<SiteDesc> * const site_descs) {
+void SimpleCrawler::ParseConfigFile(const std::string &config_path, std::vector<SiteDesc> * const site_descs) {
+    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(config_path));
+
     unsigned line_no(0);
     while (not input->eof()) {
         std::string line;
@@ -82,7 +84,9 @@ void SimpleCrawler::ParseConfigFile(File * const input, std::vector<SiteDesc> * 
 }
 
 
-SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params) {
+SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
+    : min_url_processing_time_(params.min_url_processing_time_)
+{
     // reset queues
     std::queue<std::string> url_queue_start;
     url_queue_start.push(site_desc.start_url_);
@@ -93,20 +97,18 @@ SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params) {
     // reset RegexMatchers
     std::string err_msg;
     url_regex_matcher_ = site_desc.url_regex_matcher_;
-    url_ignore_regex_matcher_ = RegexMatcher::RegexMatcherFactory(params.url_ignore_pattern_, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE);
+    url_ignore_regex_matcher_.reset(RegexMatcher::RegexMatcherFactory(params.url_ignore_pattern_, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
     if (url_ignore_regex_matcher_ == nullptr)
         ERROR("could not initialize URL ignore regex matcher\n"
               + err_msg);
 
     // reset other class variables
     remaining_crawl_depth_ = site_desc.max_crawl_depth_;
-    *min_url_processing_time_ = params.min_url_processing_time_;
     params_ = params;
-    downloader_params_                         = new Downloader::Params();
-    downloader_params_->user_agent_            = params.user_agent_;
-    downloader_params_->acceptable_languages_  = params.acceptable_languages_;
-    downloader_params_->honour_robots_dot_txt_ = not params.ignore_robots_dot_txt_;
-
+    downloader_params_                        = Downloader::Params();
+    downloader_params_.user_agent_            = params.user_agent_;
+    downloader_params_.acceptable_languages_  = params.acceptable_languages_;
+    downloader_params_.honour_robots_dot_txt_ = not params.ignore_robots_dot_txt_;
 }
 
 
@@ -145,9 +147,9 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
     }
 
     // download page
-    min_url_processing_time_->sleepUntilExpired();
-    Downloader downloader(url, *downloader_params_, params_.timeout_);
-    min_url_processing_time_->restart();
+    min_url_processing_time_.sleepUntilExpired();
+    Downloader downloader(url, downloader_params_, params_.timeout_);
+    min_url_processing_time_.restart();
     if (downloader.anErrorOccurred()) {
         page_details->error_ = true;
         logger->warning("Failed to retrieve a Web page (" + url + "):\n"
@@ -203,8 +205,7 @@ void SimpleCrawler::ProcessSite(const SiteDesc &site_desc, const Params &params,
 
 void SimpleCrawler::ProcessSites(const std::string &config_path, const SimpleCrawler::Params &params, std::vector<std::string> * const extracted_urls) {
     std::vector<SimpleCrawler::SiteDesc> site_descs;
-    std::unique_ptr<File> config_file(FileUtil::OpenInputFileOrDie(config_path));
-    SimpleCrawler::ParseConfigFile(config_file.get(), &site_descs);
+    SimpleCrawler::ParseConfigFile(config_path, &site_descs);
     for (const auto &site_desc : site_descs)
         SimpleCrawler::ProcessSite(site_desc, params, extracted_urls);
 }

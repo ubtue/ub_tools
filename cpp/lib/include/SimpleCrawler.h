@@ -25,9 +25,10 @@
 #include <iostream>
 #include <unordered_set>
 #include <utility>
+#include <memory>
+#include <queue>
 #include <cerrno>
 #include <cstring>
-#include <queue>
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "RegexMatcher.h"
@@ -41,13 +42,13 @@ class SimpleCrawler {
     std::queue<std::string> url_queue_current_depth_;
     std::queue<std::string> url_queue_next_depth_;
     unsigned remaining_crawl_depth_;
-    Downloader::Params *downloader_params_;
-    RegexMatcher *url_regex_matcher_;
-    RegexMatcher *url_ignore_regex_matcher_;
-    TimeLimit *min_url_processing_time_;
+    Downloader::Params downloader_params_;
+    std::shared_ptr<RegexMatcher> url_regex_matcher_;
+    std::shared_ptr<RegexMatcher> url_ignore_regex_matcher_;
+    TimeLimit min_url_processing_time_;
 public:
     static const unsigned DEFAULT_TIMEOUT = 5000;
-    static const unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 5000;
+    static const unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200;
 
     struct Params {
         std::string acceptable_languages_;
@@ -70,19 +71,21 @@ public:
                         const std::string &user_agent = "ub_tools (https://ixtheo.de/docs/user_agents)",
                         const std::string &url_ignore_pattern = "\\.(js|css|bmp|pdf|jpg|gif|png|tif|tiff)(\\?[^?]*)?$"
                         );
+        ~Params() = default;
     } params_;
 
     struct SiteDesc {
+        friend class SimpleCrawler;
         std::string start_url_;
         unsigned max_crawl_depth_;
-        RegexMatcher *url_regex_matcher_;
+        std::shared_ptr<RegexMatcher> url_regex_matcher_;
     public:
         SiteDesc(const std::string &start_url, const unsigned max_crawl_depth, RegexMatcher * const url_regex_matcher)
             : start_url_(start_url), max_crawl_depth_(max_crawl_depth), url_regex_matcher_(url_regex_matcher) { }
+        ~SiteDesc() = default;
     };
 
     struct PageDetails {
-    public:
         bool error_ = false;
         std::string url_;
         std::string header_;
@@ -91,12 +94,14 @@ public:
 
 public:
     explicit SimpleCrawler(const SiteDesc &site_desc, const Params &params);
-    static void ParseConfigFile(File * const input, std::vector<SiteDesc> * const site_descs);
+    ~SimpleCrawler() = default;
+    static void ParseConfigFile(const std::string &config_path, std::vector<SiteDesc> * const site_descs);
 
     /** \brief  prepare site processing.
      *          use a do ... while loop with GetNextPage afterwards
      */
     bool getNextPage(PageDetails * const page_details);
+    int getRemainingCallDepth() { return remaining_crawl_depth_; }
 
     /** \brief  Process site and return all URL's
      *          (simple batch function for constructor & GetNextPage)
