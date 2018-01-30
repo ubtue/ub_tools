@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015,2017 Universitätsbibliothek Tübingen.
+ *  Copyright 2015,2017,2018 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -29,12 +29,10 @@
 #include "TextUtil.h"
 #include <algorithm>
 #include <exception>
-#include <memory>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <cwctype>
-#include <iconv.h>
 #include "Compiler.h"
 #include "Locale.h"
 #include "HtmlParser.h"
@@ -50,8 +48,8 @@ class TextExtractor: public HtmlParser {
     std::string &extracted_text_;
     std::string charset_;
 public:
-    TextExtractor(const std::string &html, std::string * const extracted_text)
-        : HtmlParser(html, HtmlParser::TEXT | HtmlParser::OPENING_TAG | HtmlParser::END_OF_STREAM),
+    TextExtractor(const std::string &html, const std::string &initial_charset, std::string * const extracted_text)
+        : HtmlParser(html, initial_charset, HtmlParser::TEXT | HtmlParser::OPENING_TAG | HtmlParser::END_OF_STREAM),
           extracted_text_(*extracted_text) { }
     virtual void notify(const HtmlParser::Chunk &chunk);
 };
@@ -83,13 +81,6 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
             if (matcher->matched(key_and_value->second))
                 charset_ = (*matcher)[1];
         }
-    } else if (chunk.type_ == HtmlParser::END_OF_STREAM and not charset_.empty()) {
-        std::string internal_encoding = "UTF-8";
-        if (StringUtil::ToUpper(charset_) != internal_encoding) {
-            std::string converted_text;
-            if (TextUtil::ConvertEncoding(charset_, internal_encoding, extracted_text_, &converted_text))
-                extracted_text_.swap(converted_text);
-        }
     }
 }
 
@@ -100,9 +91,58 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
 namespace TextUtil {
 
 
-std::string ExtractTextFromHtml(const std::string &html) {
+std::unique_ptr<EncodingConverter> EncodingConverter::Factory(const std::string &from_encoding, const std::string &to_encoding,
+                                                              std::string * const error_message)
+{
+    const iconv_t iconv_handle(::iconv_open(to_encoding.c_str(), from_encoding.c_str()));
+    if (unlikely(iconv_handle == (iconv_t)-1)) {
+        *error_message = "can't create an encoding converter for conversion from \"" + from_encoding + "\" to \"" + to_encoding
+                         + "\"!";
+        return std::unique_ptr<EncodingConverter>(nullptr);
+    }
+
+    error_message->clear();
+    return std::unique_ptr<EncodingConverter>(new EncodingConverter(from_encoding, to_encoding, iconv_handle));
+}
+
+
+bool EncodingConverter::convert(const std::string &input, std::string * const output) {
+    char *in_bytes(new char[input.length()]);
+    const char *in_bytes_start(in_bytes);
+    ::memcpy(reinterpret_cast<void *>(in_bytes), input.data(), input.length());
+    static const size_t UTF8_SEQUENCE_MAXLEN(6);
+    const size_t OUTBYTE_COUNT(UTF8_SEQUENCE_MAXLEN * input.length());
+    char *out_bytes(new char[OUTBYTE_COUNT]);
+    const char *out_bytes_start(out_bytes);
+
+    size_t inbytes_left(input.length()), outbytes_left(OUTBYTE_COUNT);
+    const ssize_t converted_count(
+        static_cast<ssize_t>(::iconv(iconv_handle_, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
+    if (unlikely(converted_count == -1)) {
+        WARNING("iconv(3) failed! (Tyring to convert \"" + from_encoding_ + "\" to \"" + to_encoding_ + "\"!");
+        delete [] in_bytes_start;
+        delete [] out_bytes_start;
+        *output = input;
+        return false;
+    }
+
+    output->assign(out_bytes_start, OUTBYTE_COUNT - outbytes_left);
+    delete [] in_bytes_start;
+    delete [] out_bytes_start;
+
+    return true;
+}
+
+
+EncodingConverter::~EncodingConverter() {
+    if (unlikely(::iconv_close(iconv_handle_) == -1))
+        ERROR("iconv_close(3) failed!");
+}
+
+
+std::string ExtractTextFromHtml(const std::string &html, const std::string &initial_charset) {
     std::string extracted_text;
-    TextExtractor extractor(html, &extracted_text);
+    TextExtractor extractor(html, initial_charset, &extracted_text);
     extractor.parse();
 
     return extracted_text;
@@ -169,55 +209,6 @@ bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_stri
         cp += retcode;
         remainder -= retcode;
     }
-
-    return true;
-}
-
-
-static std::map<std::pair<std::string, std::string>, iconv_t> from_and_to_to_iconv_handle;
-
-
-bool ConvertEncoding(const std::string &from_encoding, const std::string &to_encoding, const std::string &input,
-                     std::string * const output)
-{
-    const std::pair<std::string, std::string> from_and_to(from_encoding, to_encoding);
-    auto from_and_to_and_iconv_handle(from_and_to_to_iconv_handle.find(from_and_to));
-    if (from_and_to_and_iconv_handle == from_and_to_to_iconv_handle.end()) {
-        const iconv_t iconv_handle(::iconv_open(to_encoding.c_str(), from_encoding.c_str()));
-        if (unlikely(iconv_handle == (iconv_t)-1)) {
-            logger->warning("in TextUtil::ConvertEncoding: iconv_open(3) failed! (Tyring to convert \""
-                            + from_encoding + "\" to \"" + to_encoding + "\"!");
-            *output = input;
-            return false;
-        }
-        from_and_to_to_iconv_handle[from_and_to] = iconv_handle;
-        from_and_to_and_iconv_handle = from_and_to_to_iconv_handle.find(from_and_to);
-    }
-
-    char *in_bytes(new char[input.length()]);
-    const char *in_bytes_start(in_bytes);
-    ::memcpy(reinterpret_cast<void *>(in_bytes), input.data(), input.length());
-    static const size_t UTF8_SEQUENCE_MAXLEN(6);
-    const size_t OUTBYTE_COUNT(UTF8_SEQUENCE_MAXLEN * input.length());
-    char *out_bytes(new char[OUTBYTE_COUNT]);
-    const char *out_bytes_start(out_bytes);
-
-    size_t inbytes_left(input.length()), outbytes_left(OUTBYTE_COUNT);
-    const ssize_t converted_count(
-        static_cast<ssize_t>(::iconv(from_and_to_and_iconv_handle->second, &in_bytes, &inbytes_left, &out_bytes,
-                                     &outbytes_left)));
-    if (unlikely(converted_count == -1)) {
-        logger->warning("in TextUtil::ConvertEncoding: iconv(3) failed! (Tyring to convert \""
-                        + from_encoding + "\" to \"" + to_encoding + "\"!");
-        delete [] in_bytes_start;
-        delete [] out_bytes_start;
-        *output = input;
-        return false;
-    }
-
-    output->assign(out_bytes_start, OUTBYTE_COUNT - outbytes_left);
-    delete [] in_bytes_start;
-    delete [] out_bytes_start;
 
     return true;
 }
