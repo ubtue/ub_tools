@@ -44,11 +44,13 @@ namespace TextUtil {
 /** \brief Converter between many text encodings.
  */
 class EncodingConverter {
+    friend class IdentityConverter;
     const std::string from_encoding_;
     const std::string to_encoding_;
+protected:
     const iconv_t iconv_handle_;
 public:
-    ~EncodingConverter();
+    virtual ~EncodingConverter();
 
     const std::string &getFromEncoding() const { return from_encoding_; }
     const std::string &getToEncoding() const { return to_encoding_; }
@@ -57,7 +59,7 @@ public:
      *  \return True if the conversion succeeded, otherwise false.
      *  \note When this function returns false "*output" contains the unmodified copy of "input"!
      */
-    bool convert(const std::string &input, std::string * const output);
+    virtual bool convert(const std::string &input, std::string * const output);
 
     /** \return Returns a nullptr if an error occurred and then sets *error_message to a non-empty string.
      *          O/w an EncodingConverter instance will be returned and *error_message will be cleared.
@@ -69,6 +71,16 @@ private:
         : from_encoding_(from_encoding), to_encoding_(to_encoding), iconv_handle_(iconv_handle) { }
 };
 
+    
+class IdentityConverter: public EncodingConverter {
+    IdentityConverter(): EncodingConverter(/* from_encoding = */"", /* to_encoding = */"", (iconv_t)-1) { }
+public:
+    virtual bool convert(const std::string &input, std::string * const output) final override { *output = input; return true; }
+
+    static std::unique_ptr<EncodingConverter> Factory()
+        { return std::unique_ptr<EncodingConverter>(new IdentityConverter()); }
+};
+
 
 /** \brief Strips HTML tags and converts entities.
  *  \param html             The HTML to process.
@@ -76,7 +88,7 @@ private:
  *  \return The extracted and converted text as UTF-8.
  */
 std::string ExtractTextFromHtml(const std::string &html, const std::string &initial_charset = "");
-
+ 
 
 /** \brief Recognises roman numerals up to a few thousand. */
 bool IsRomanNumeral(const std::string &s);
