@@ -668,7 +668,11 @@ void HtmlParser::parseText() {
             text += static_cast<char>(ch);
     }
 
-    Chunk chunk(TEXT, text, lineno_);
+    std::string utf8_text;
+    if (unlikely(not encoding_converter_->convert(text, &utf8_text)))
+        WARNING("invalid " + encoding_converter_->getFromEncoding()
+                + " encoded text; returned non-converted text as probably invalid \"UTF-8\"!");
+    Chunk chunk(TEXT, utf8_text, lineno_);
     preNotify(&chunk);
 }
 
