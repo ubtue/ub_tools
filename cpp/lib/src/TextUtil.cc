@@ -135,7 +135,7 @@ bool EncodingConverter::convert(const std::string &input, std::string * const ou
 
 
 EncodingConverter::~EncodingConverter() {
-    if (unlikely(::iconv_close(iconv_handle_) == -1))
+    if (iconv_handle_ != (iconv_t)-1 and unlikely(::iconv_close(iconv_handle_) == -1))
         ERROR("iconv_close(3) failed!");
 }
 
