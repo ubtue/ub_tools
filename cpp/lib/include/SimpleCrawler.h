@@ -27,6 +27,7 @@
 #include <utility>
 #include <memory>
 #include <queue>
+#include <string>
 #include <cerrno>
 #include <cstring>
 #include "Downloader.h"

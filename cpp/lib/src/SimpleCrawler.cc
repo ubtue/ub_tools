@@ -85,7 +85,8 @@ void SimpleCrawler::ParseConfigFile(const std::string &config_path, std::vector<
 
 
 SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
-    : min_url_processing_time_(params.min_url_processing_time_)
+    : remaining_crawl_depth_(site_desc.max_crawl_depth_), url_regex_matcher_(site_desc.url_regex_matcher_),
+      min_url_processing_time_(params.min_url_processing_time_), params_(params)
 {
     // reset queues
     std::queue<std::string> url_queue_start;
@@ -96,15 +97,12 @@ SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
 
     // reset RegexMatchers
     std::string err_msg;
-    url_regex_matcher_ = site_desc.url_regex_matcher_;
     url_ignore_regex_matcher_.reset(RegexMatcher::RegexMatcherFactory(params.url_ignore_pattern_, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
     if (url_ignore_regex_matcher_ == nullptr)
         ERROR("could not initialize URL ignore regex matcher\n"
               + err_msg);
 
     // reset other class variables
-    remaining_crawl_depth_ = site_desc.max_crawl_depth_;
-    params_ = params;
     downloader_params_                        = Downloader::Params();
     downloader_params_.user_agent_            = params.user_agent_;
     downloader_params_.acceptable_languages_  = params.acceptable_languages_;
