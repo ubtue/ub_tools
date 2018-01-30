@@ -1104,6 +1104,12 @@ std::string GetFilenameWithoutExtensionOrDie(const std::string &filename) {
 }
 
 
+std::string GetExtension(const std::string &filename) {
+    const std::string::size_type last_dot_pos(filename.rfind('.'));
+    return (last_dot_pos == std::string::npos) ? "" : filename.substr(last_dot_pos);
+}
+
+
 std::string StripLastPathComponent(const std::string &path) {
     std::vector<std::string> path_components;
     if (StringUtil::Split(path, '/', &path_components) < 1)
