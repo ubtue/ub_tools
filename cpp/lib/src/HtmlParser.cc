@@ -486,19 +486,50 @@ void HtmlParser::skipWhiteSpace() {
 }
 
 
-// HtmlParser::skipDoctype -- assumes that at this point we have read "<!DOCTYPE" and
+// HtmlParser::processDoctype -- assumes that at this point we have read "<!DOCTYPE" and
 //                            skips over all input up to and including ">".
 //
-void HtmlParser::skipDoctype() {
+void HtmlParser::processDoctype() {
+    std::string doctype;
     int ch;
     do
-        ch = getChar();
+        doctype += static_cast<char>(ch = getChar());
     while (ch != '>' and ch != EOF);
-    if (ch == EOF) {
+    if (unlikely(ch == EOF)) {
         Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
                                    "unexpected end of HTML while skipping over a DOCTYPE");
         preNotify(&unexpected_eof_chunk);
     }
+
+    if (not http_header_charset_.empty())
+        return; // We don't care about the document-local encoding because the HTTP header's has precedence!
+    
+    doctype.resize(doctype.size() - 1); // Strip off trailing '>'.
+    StringUtil::TrimWhite(&doctype);
+
+    if (::strcasecmp(doctype.c_str(), "html") == 0)
+        return;
+    if (::strcasecmp(doctype.c_str(), "HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\" \"http://www.w3.org/TR/html4/frameset.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\"") == 0)
+    {
+        document_local_charset_ = "Latin-1 but using ANSI";
+        std::string error_message;
+        encoding_converter_ = TextUtil::EncodingConverter::Factory("ANSI", "UTF8", &error_message);
+        if (unlikely(encoding_converter_.get() == nullptr))
+            ERROR("failed to create an encoding converter: " + error_message);
+    } else
+        WARNING("unknown doctype: " + doctype);
 }
 
 
@@ -950,7 +981,7 @@ void HtmlParser::parse() {
                             skipToEndOfMalformedTag("!" + doctype, start_lineno);
                             continue;
                         }
-                        skipDoctype();
+                        processDoctype();
                     } else { // we assume we have a comment
                         ch = getChar();
                         if (unlikely(ch != '-'))
