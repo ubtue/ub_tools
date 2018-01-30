@@ -49,6 +49,8 @@ int main(int argc, char *argv[]) {
 
         Parser parser(html_document, http_header_charset);
         parser.parse();
+        std::cout << "Used HTTP header charset \"" << parser.getHttpHeaderCharset() << "\".\n";
+        std::cout << "Used document local charset \"" << parser.getDocumentLocalCharset() << "\".\n";
     } catch (const std::exception &x) {
         ERROR(x.what());
     }

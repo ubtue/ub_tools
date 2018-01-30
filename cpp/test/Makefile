@@ -5,7 +5,7 @@ CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=nat
                  -I../lib/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
                  -DETC_DIR='"/usr/local/var/lib/tuelib"'
 ifeq ($(CCC),clang++)
-  CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
+  CCCFLAGS += -std=gnu++14 -Wno-vla-extension -Wno-c++1y-extensions
 else
   CCCFLAGS += -std=gnu++14
 endif
