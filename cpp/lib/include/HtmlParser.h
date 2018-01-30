@@ -160,7 +160,7 @@ private:
     void skipJavaScriptDoubleSlashComment();
     void skipJavaScriptCStyleComment();
     void skipWhiteSpace();
-    void skipDoctype();
+    void processDoctype();
     void skipComment();
     void skipToEndOfTag(const std::string &tag_name, const unsigned tag_start_lineno);
     void skipToEndOfMalformedTag(const std::string &tag_name, const unsigned tag_start_lineno);
