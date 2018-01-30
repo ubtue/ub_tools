@@ -3,19 +3,20 @@
 #include <cstdlib>
 #include "FileUtil.h"
 #include "HtmlParser.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " html_filename\n";
+    std::cerr << "Usage: " << ::progname << " [--http-header-charset=charset] html_filename\n";
     std::exit(EXIT_FAILURE);
 }
 
 
 class Parser: public HtmlParser {
 public:
-    Parser(const std::string &document)
-        : HtmlParser(document,
+    Parser(const std::string &document, const std::string &http_header_charset)
+        : HtmlParser(document, http_header_charset,
                      HtmlParser::EVERYTHING & ~(HtmlParser::WORD | HtmlParser::PUNCTUATION | HtmlParser::WHITESPACE)) { }
     virtual void notify(const HtmlParser::Chunk &chunk);
 };
@@ -28,6 +29,15 @@ void Parser::notify(const HtmlParser::Chunk &chunk) {
 
 int main(int argc, char *argv[]) {
     ::progname = argv[1];
+
+    std::string http_header_charset;
+    if (argc == 3) {
+        if (not StringUtil::StartsWith(argv[1], "--http-header-charset="))
+            Usage();
+        http_header_charset = argv[1] + __builtin_strlen("--http-header-charset=");
+        --argc, ++argv;
+    }
+
     if (argc != 2)
         Usage();
 
@@ -37,7 +47,7 @@ int main(int argc, char *argv[]) {
         if (not FileUtil::ReadString(input_filename, &html_document))
             ERROR("failed to read an HTML document from \"" + input_filename + "\"!");
 
-        Parser parser(html_document);
+        Parser parser(html_document, http_header_charset);
         parser.parse();
     } catch (const std::exception &x) {
         ERROR(x.what());
