@@ -32,6 +32,7 @@
 #include <stdexcept>
 #include <string>
 #include <set>
+#include "TextUtil.h"
 
 
 /** \class  HtmlParser
@@ -57,6 +58,7 @@ class HtmlParser {
     const bool header_only_;
     bool is_xhtml_, end_of_stream_;
     std::set<char *> angle_bracket_entity_positions_;
+    std::unique_ptr<TextUtil::EncodingConverter> encoding_converter_;
 public:
     // The different Chunk types:
     static const unsigned OPENING_TAG              = 1u << 0u;

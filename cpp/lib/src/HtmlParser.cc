@@ -276,13 +276,22 @@ HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_
       chunk_mask_(chunk_mask), header_only_(header_only), is_xhtml_(false)
 {
     if ((chunk_mask_ & TEXT) and (chunk_mask_ & (WORD | PUNCTUATION | WHITESPACE)))
-        throw std::runtime_error("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
+        ERROR("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
 
     cp_ = cp_start_ = input_string_;
     end_of_stream_ = *cp_ == '\0';
 
     if (likely(not end_of_stream_))
         replaceEntitiesInString();
+
+    if (not http_header_charset.empty()) {
+        std::string error_message;
+        encoding_converter_ = TextUtil::EncodingConverter::Factory(http_header_charset, "utf8", &error_message);
+        if (encoding_converter_.get() == nullptr)
+            WARNING(error_message);
+    }
+    if (encoding_converter_.get() == nullptr)
+        encoding_converter_ = TextUtil::IdentityConverter::Factory();
 }
 
 
