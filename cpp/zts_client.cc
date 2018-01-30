@@ -57,6 +57,8 @@ struct ZtsClientParams {
 public:
     std::string zts_server_url_;
     TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
+    MarcWriter * marc_writer_;
+    std::unordered_set<std::string> previously_downloaded_;
     std::unordered_map<std::string, std::string> ISSN_to_physical_form_map_;
     std::unordered_map<std::string, std::string> ISSN_to_language_code_map_;
     std::unordered_map<std::string, std::string> ISSN_to_superior_ppn_map_;
@@ -426,8 +428,7 @@ const std::string DEFAULT_SUBFIELD_CODE("eng");
 
 
 std::pair<unsigned, unsigned> GenerateMARC(
-    const JSON::JSONNode * const tree, ZtsClientParams &zts_client_params,
-    std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer)
+    const JSON::JSONNode * const tree, ZtsClientParams &zts_client_params)
 {
     if (tree->getType() != JSON::JSONNode::ARRAY_NODE)
         logger->error("in GenerateMARC: expected top-level JSON to be an array!");
@@ -577,9 +578,9 @@ std::pair<unsigned, unsigned> GenerateMARC(
         }
 
         const std::string checksum(new_record.calcChecksum(/* exclude_001 = */ true));
-        if (previously_downloaded->find(checksum) == previously_downloaded->cend()) {
-            previously_downloaded->emplace(checksum);
-            marc_writer->write(new_record);
+        if (zts_client_params.previously_downloaded_.find(checksum) == zts_client_params.previously_downloaded_.cend()) {
+            zts_client_params.previously_downloaded_.emplace(checksum);
+            zts_client_params.marc_writer_->write(new_record);
         } else
             ++previously_downloaded_count;
         ++record_count;
@@ -589,11 +590,9 @@ std::pair<unsigned, unsigned> GenerateMARC(
 }
 
 
-std::pair<unsigned, unsigned> Harvest(
-    const std::string &harvest_url,
-    ZtsClientParams &zts_client_params,
-    std::unordered_set<std::string> * const previously_downloaded, MarcWriter * const marc_writer,
-    bool log = true)
+std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
+                                      ZtsClientParams &zts_client_params,
+                                      bool log = true)
 {
     logger->info("Harvesting URL: " + harvest_url);
 
@@ -636,7 +635,7 @@ std::pair<unsigned, unsigned> Harvest(
                 reinterpret_cast<JSON::ObjectNode *>(tree_root));
                 for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
                     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                        Harvest(key_and_node->first, zts_client_params, previously_downloaded, marc_writer, false /* log */);
+                        Harvest(key_and_node->first, zts_client_params, false /* log */);
 
                     record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
                     record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
@@ -644,7 +643,7 @@ std::pair<unsigned, unsigned> Harvest(
             }
         } else {
             record_count_and_previously_downloaded_count =
-                GenerateMARC(tree_root, zts_client_params, previously_downloaded, marc_writer);
+                GenerateMARC(tree_root, zts_client_params);
         }
         delete tree_root;
     } catch (...) {
@@ -673,21 +672,40 @@ void StorePreviouslyDownloadedHashes(File * const output,
 }
 
 
-void LoadHarvestURLs(const bool ignore_robots_dot_txt, const std::string &simple_crawler_config_path,
-                     std::vector<std::string> * const harvest_urls)
+void StartHarvesting(const bool ignore_robots_dot_txt, const std::string &simple_crawler_config_path,
+                     ZtsClientParams &zts_client_params, std::unique_ptr<File> &progress_file,
+                     unsigned * const total_record_count, unsigned * const total_previously_downloaded_count)
 {
-    harvest_urls->clear();
-
-    logger->info("Starting loading of harvest URL's.");
-
     SimpleCrawler::Params crawler_params;
     crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
     crawler_params.timeout_ = DEFAULT_TIMEOUT;
     crawler_params.min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
 
-    SimpleCrawler::ProcessSites(simple_crawler_config_path, crawler_params, harvest_urls);
+    std::vector<SimpleCrawler::SiteDesc> site_descs;
+    SimpleCrawler::ParseConfigFile(simple_crawler_config_path, &site_descs);
 
-    logger->info("Loaded " + std::to_string(harvest_urls->size()) + " harvest URL's.");
+    unsigned processed_url_count(0);
+    for (const auto &site_desc : site_descs) {
+        logger->info("Start crawling for base URL: " +  site_desc.start_url_);
+        SimpleCrawler crawler(site_desc, crawler_params);
+        SimpleCrawler::PageDetails page_details;
+        while (crawler.getNextPage(&page_details)) {
+            ++processed_url_count;
+            const auto record_count_and_previously_downloaded_count(
+                Harvest(page_details.url_, zts_client_params)
+            );
+            *total_record_count                += record_count_and_previously_downloaded_count.first;
+            *total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
+            if (progress_file != nullptr) {
+                progress_file->rewind();
+                if (unlikely(not progress_file->write(
+                        std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth()) + ";" + page_details.url_)))
+                    logger->error("failed to write progress to \"" + progress_file->getPath());
+            }
+        }
+    }
+
+    logger->info("Processed " + std::to_string(processed_url_count) + " URL's.");
 }
 
 
@@ -739,45 +757,31 @@ void Main(int argc, char *argv[]) {
         const RegexMatcher * const supported_urls_regex(LoadSupportedURLsRegex(map_directory_path));
         (void)supported_urls_regex;
 
-        std::unordered_set<std::string> previously_downloaded;
         const std::string PREVIOUSLY_DOWNLOADED_HASHES_PATH(map_directory_path + "previously_downloaded.hashes");
         if (FileUtil::Exists(PREVIOUSLY_DOWNLOADED_HASHES_PATH)) {
             std::unique_ptr<File> previously_downloaded_input(
                 FileUtil::OpenInputFileOrDie(PREVIOUSLY_DOWNLOADED_HASHES_PATH));
-            LoadPreviouslyDownloadedHashes(previously_downloaded_input.get(), &previously_downloaded);
+            LoadPreviouslyDownloadedHashes(previously_downloaded_input.get(), &zts_client_params.previously_downloaded_);
         }
 
         std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
+        zts_client_params.marc_writer_ = marc_writer.get();;
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
         std::unique_ptr<File> progress_file;
         if (not progress_filename.empty())
             progress_file = FileUtil::OpenOutputFileOrDie(progress_filename);
 
-        std::vector<std::string> harvest_urls;
-        LoadHarvestURLs(ignore_robots_dot_txt, simple_crawler_config_path, &harvest_urls);
-        unsigned i(0);
-        for (const auto &harvest_url : harvest_urls) {
-            const auto record_count_and_previously_downloaded_count(
-                Harvest(harvest_url, zts_client_params, &previously_downloaded,
-                        marc_writer.get()));
-            total_record_count                += record_count_and_previously_downloaded_count.first;
-            total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
-            if (progress_file != nullptr) {
-                progress_file->rewind();
-                ++i;
-                if (unlikely(not progress_file->write(
-                        StringUtil::Format("%06f", static_cast<double>(i) / harvest_urls.size()))))
-                    logger->error("failed to write progress to \"" + progress_file->getPath());
-            }
-        }
+        StartHarvesting(ignore_robots_dot_txt, simple_crawler_config_path,
+                        zts_client_params, progress_file,
+                        &total_record_count, &total_previously_downloaded_count);
 
         INFO("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "
              + StringUtil::ToString(total_previously_downloaded_count) + " were already previously downloaded.");
 
         std::unique_ptr<File> previously_downloaded_output(
             FileUtil::OpenOutputFileOrDie(map_directory_path + "previously_downloaded.hashes"));
-        StorePreviouslyDownloadedHashes(previously_downloaded_output.get(), previously_downloaded);
+        StorePreviouslyDownloadedHashes(previously_downloaded_output.get(), zts_client_params.previously_downloaded_);
     } catch (const std::exception &x) {
         ERROR("caught exception: " + std::string(x.what()));
     }
