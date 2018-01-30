@@ -503,7 +503,7 @@ void HtmlParser::processDoctype() {
 
     if (not http_header_charset_.empty())
         return; // We don't care about the document-local encoding because the HTTP header's has precedence!
-    
+
     doctype.resize(doctype.size() - 1); // Strip off trailing '>'.
     StringUtil::TrimWhite(&doctype);
 
@@ -868,8 +868,7 @@ bool HtmlParser::parseTag() {
                 preNotify(&chunk);
             }
             skipToEndOfTag(tag_name, start_lineno);
-        }
-        else {
+        } else {
             if (chunk_mask_ & OPENING_TAG) {
                 Chunk chunk(OPENING_TAG, tag_name, start_lineno, &attribute_map);
                 preNotify(&chunk);
@@ -924,6 +923,37 @@ bool HtmlParser::parseTag() {
     else { // We have an opening tag.
         if (header_only_ and tag_name == "body")
             return false;
+
+        if (http_header_charset_.empty() and tag_name == "meta") {
+            // See https://www.w3.org/International/questions/qa-html-encoding-declarations in order to understand
+            // the following code.
+
+            std::string charset;
+            const auto charset_attrib(attribute_map.find("charset"));
+            if (charset_attrib != attribute_map.end())
+                charset = charset_attrib->second;
+            else {
+                const auto http_equiv_attrib(attribute_map.find("http-equiv"));
+                if (http_equiv_attrib != attribute_map.end()) {
+                    const auto charset_pos(http_equiv_attrib->second.find("charset="));
+                    if (charset_pos != std::string::npos)
+                        charset = http_equiv_attrib->second.substr(charset_pos + __builtin_strlen("charset="));
+                }
+            }
+
+            StringUtil::TrimWhite(&charset);
+            if (not charset.empty()) {
+                std::string error_message;
+                encoding_converter_ = TextUtil::EncodingConverter::Factory(charset, "UTF8", &error_message);
+                if (encoding_converter_.get() != nullptr)
+                    document_local_charset_ = charset;
+                else {
+                    WARNING("failed to establish an encoding converter (using identity mapping)" + error_message);
+                    encoding_converter_ = TextUtil::IdentityConverter::Factory();
+                }
+            }
+        }
+
         if (chunk_mask_ & OPENING_TAG) {
             Chunk chunk(OPENING_TAG, tag_name, start_lineno, &attribute_map);
             preNotify(&chunk);
