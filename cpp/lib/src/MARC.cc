@@ -310,7 +310,7 @@ static MediaType GetMediaType(const std::string &input_filename) {
     if (read_count != sizeof(magic) - 1) {
         if (read_count == 0) {
             WARNING("empty input file \"" + input_filename + "\"!");
-            const std::string extension(input_filename);
+            const std::string extension(FileUtil::GetExtension(input_filename));
             if (::strcasecmp(extension.c_str(), "mrc") == 0 or ::strcasecmp(extension.c_str(), "marc") == 0
                 or ::strcasecmp(extension.c_str(), "raw") == 0)
                 return MediaType::MARC21;
