@@ -446,6 +446,10 @@ size_t CountLines(const std::string &filename);
 std::string GetFilenameWithoutExtensionOrDie(const std::string &filename);
 
 
+// If "filename" has at least one period in its name, we return everything after the last period.  O/w we return an empty string.
+std::string GetExtension(const std::string &filename);
+
+
 /** \brief Nomen est omen.
  *  \note Aborts if "path" is no path components.
  *  \return The shortend path.

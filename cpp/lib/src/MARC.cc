@@ -299,14 +299,25 @@ bool Record::isValid(std::string * const error_message) const {
 
 enum class MediaType { XML, MARC21, OTHER };
 
+
 static MediaType GetMediaType(const std::string &input_filename) {
     File input(input_filename, "r");
     if (input.anErrorOccurred())
         return MediaType::OTHER;
 
     char magic[8];
-    if (input.read(magic, sizeof(magic) - 1) != sizeof(magic) - 1)
+    const size_t read_count(input.read(magic, sizeof(magic) - 1));
+    if (read_count != sizeof(magic) - 1) {
+        if (read_count == 0) {
+            const std::string extension(input_filename);
+            if (::strcasecmp(extension.c_str(), "xml") == 0)
+                return XML;
+            else if (::strcasecmp(extension, "mrc") == 0 or ::strcasecmp(extension, "marc") == 0
+                     or ::strcasecmp(extension, "raw") == 0)
+                return MARC21;
+        }
         return MediaType::OTHER;
+    }
     magic[sizeof(magic) - 1] = '\0';
 
     if (StringUtil::StartsWith(magic, "<?xml"))
