@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015,2017 Universitätsbibliothek Tübingen.
+ *  Copyright 2015,2017,2018 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -30,17 +30,52 @@
 #define TEXT_UTIL_H
 
 
+#include <memory>
 #include <string>
 #include <unordered_set>
 #include <vector>
 #include <cwchar>
+#include <iconv.h>
 
 
 namespace TextUtil {
 
 
-/** \brief Strips HTML tags and converts entities. */
-std::string ExtractTextFromHtml(const std::string &html);
+/** \brief Converter between many text encodings.
+ */
+class EncodingConverter {
+    const std::string from_encoding_;
+    const std::string to_encoding_;
+    const iconv_t iconv_handle_;
+public:
+    ~EncodingConverter();
+
+    const std::string &getFromEncoding() const { return from_encoding_; }
+    const std::string &getToEncoding() const { return to_encoding_; }
+
+    /** \brief Converts "input" to "output".
+     *  \return True if the conversion succeeded, otherwise false.
+     *  \note When this function returns false "*output" contains the unmodified copy of "input"!
+     */
+    bool convert(const std::string &input, std::string * const output);
+
+    /** \return Returns a nullptr if an error occurred and then sets *error_message to a non-empty string.
+     *          O/w an EncodingConverter instance will be returned and *error_message will be cleared.
+     */
+    static std::unique_ptr<EncodingConverter> Factory(const std::string &from_encoding, const std::string &to_encoding,
+                                                      std::string * const error_message);
+private:
+    explicit EncodingConverter(const std::string &from_encoding, const std::string to_encoding, const iconv_t iconv_handle)
+        : from_encoding_(from_encoding), to_encoding_(to_encoding), iconv_handle_(iconv_handle) { }
+};
+
+
+/** \brief Strips HTML tags and converts entities.
+ *  \param html             The HTML to process.
+ *  \param initial_charset  Typically the content-type header's charset, if any.
+ *  \return The extracted and converted text as UTF-8.
+ */
+std::string ExtractTextFromHtml(const std::string &html, const std::string &initial_charset = "");
 
 
 /** \brief Recognises roman numerals up to a few thousand. */
@@ -53,14 +88,6 @@ bool IsUnsignedInteger(const std::string &s);
 
 /** \brief Convert UTF8 to wide characters. */
 bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_string);
-
-
-/** \brief Convert between many text encodings.
- *  \return True if the conversion succeeded, otherwise false.
- *  \note When this function returns false "*output" contains the unmodified copy of "input"!
- */
-bool ConvertEncoding(const std::string &from_encoding, const std::string &to_encoding, const std::string &input,
-                     std::string * const output);
 
 
 /** \brief Convert wide characters to UTF8. */
