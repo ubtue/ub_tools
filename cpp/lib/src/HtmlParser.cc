@@ -270,9 +270,10 @@ std::string HtmlParser::Chunk::toPlainText() const {
 }
 
 
-HtmlParser::HtmlParser(const std::string &input_string, unsigned chunk_mask, const bool header_only)
-    : input_string_(StringUtil::strnewdup(input_string.c_str())), lineno_(1), chunk_mask_(chunk_mask), header_only_(header_only),
-      is_xhtml_(false)
+HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_header_charset, const unsigned chunk_mask,
+                       const bool header_only)
+    : input_string_(StringUtil::strnewdup(input_string.c_str())), http_header_charset_(http_header_charset), lineno_(1),
+      chunk_mask_(chunk_mask), header_only_(header_only), is_xhtml_(false)
 {
     if ((chunk_mask_ & TEXT) and (chunk_mask_ & (WORD | PUNCTUATION | WHITESPACE)))
         throw std::runtime_error("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
