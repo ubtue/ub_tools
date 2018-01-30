@@ -11,9 +11,9 @@ CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native 
              -DETC_DIR='"/usr/local/var/lib/tuelib"'
 ifeq ($(CCC),clang++)
   ifeq ("$(wildcard /etc/centos-release)","") # Not on CentOS!
-    CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -Wno-c++1z-extensions
+    CCCFLAGS += -std=gnu++14 -Wno-vla-extension -Wno-c++1y-extensions -Wno-c++1z-extensions
   else
-    CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
+    CCCFLAGS += -std=gnu++14 -Wno-vla-extension -Wno-c++1y-extensions
   endif
 else
   CCCFLAGS += -std=gnu++14
