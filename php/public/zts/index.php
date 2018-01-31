@@ -1,7 +1,7 @@
 <?php
 
     /**
-     * Test site for Zotero Translation Server, using c++ zts_client and zotero_crawler
+     * Test site for Zotero Translation Server, using c++ zts_client
      */
     require('inc.php');
 
@@ -42,8 +42,8 @@
 <h2>Parameters</h2>
 <form method="post" action="index.php">
     <table>
-        <tr><td>Base Url</td><td><input name="urlBase" type="text" value="<?= isset($_POST['urlBase']) ? $_POST['urlBase'] : 'https://www.nationalarchives.gov.uk/first-world-war' ?>"></input></td><td>e.g. http://allafrica.com/books/</td></tr>
-        <tr><td>Regex</td><td><input name="urlRegex" type="text" value="<?= isset($_POST['urlRegex']) ? $_POST['urlRegex'] : '.*/first-world-war/.*' ?>"></input></td><td>e.g. .*/books/.*</td></tr>
+        <tr><td>Base Url</td><td><input name="urlBase" type="text" size="60" value="<?= isset($_POST['urlBase']) ? $_POST['urlBase'] : 'https://www.nationalarchives.gov.uk/first-world-war' ?>"></input></td><td>e.g. https://www.nationalarchives.gov.uk/first-world-war</td></tr>
+        <tr><td>Regex</td><td><input name="urlRegex" type="text" size="60" value="<?= isset($_POST['urlRegex']) ? $_POST['urlRegex'] : '.*/first-world-war/.*' ?>"></input></td><td>e.g. .*/first-world-war/.*</td></tr>
         <tr>
             <td>Depth</td>
             <td>
@@ -67,8 +67,10 @@
             <td>Format</td>
             <td>
                 <select name="fileExtension">
-                    <option value="xml">MARCXML</option>
                     <!--<option value="mrc" <?= (isset($_POST['fileExtension']) && $_POST['fileExtension'] == 'mrc') ? 'selected' : '' ?>>MARC21</option>-->
+                    <option value="xml" <?= (isset($_POST['fileExtension']) && $_POST['fileExtension'] == 'xml') ? 'selected' : '' ?>>MARCXML</option>
+                    <option value="json" <?= (isset($_POST['fileExtension']) && $_POST['fileExtension'] == 'json') ? 'selected' : '' ?>>JSON</option>
+
                 </select>
             </td>
             <td>MARC21 currently disabled due to problems with zts_client</td>
