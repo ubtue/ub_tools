@@ -1236,6 +1236,9 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     /**
      * Generate Separator according to specification
+     * For some subfields there are standards how the values extracted must be attached to the resulting keyword string
+     * Examples are $p must be separated y ".". We must also examine the term itself since there a constructions like
+     * $9g:
      */
     public String getSubfieldBasedSeparator(Map<String, String> separators, char subfieldCodeChar, String term) {
         String subfieldCodeString = Character.toString(subfieldCodeChar);
