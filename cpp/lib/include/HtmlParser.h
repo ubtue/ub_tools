@@ -32,6 +32,7 @@
 #include <stdexcept>
 #include <string>
 #include <set>
+#include "TextUtil.h"
 
 
 /** \class  HtmlParser
@@ -47,12 +48,17 @@
  */
 class HtmlParser {
     char *input_string_;
+    const std::string http_header_charset_; // If non-empty, this has precedence over document_local_charset_.
+                                            // See https://www.w3.org/International/questions/qa-html-encoding-declarations
+                                            // for an explanation.
+    std::string document_local_charset_;
     const char *cp_, *cp_start_;
     unsigned lineno_;
     const unsigned chunk_mask_;
     const bool header_only_;
     bool is_xhtml_, end_of_stream_;
     std::set<char *> angle_bracket_entity_positions_;
+    std::unique_ptr<TextUtil::EncodingConverter> encoding_converter_;
 public:
     // The different Chunk types:
     static const unsigned OPENING_TAG              = 1u << 0u;
@@ -66,6 +72,7 @@ public:
     static const unsigned TEXT                     = 1u << 8u;  // Incompatible w/ WORD, PUNCTUATION, WHITESPACE!
     static const unsigned END_OF_STREAM            = 1u << 9u;
     static const unsigned UNEXPECTED_END_OF_STREAM = 1u << 10u;
+    static const unsigned DOCTYPE                  = 1u << 11u;
     static const unsigned EVERYTHING               = 0xFFFFu;
 
     /** \class  AttributeMap
@@ -129,8 +136,8 @@ public:
         std::string toPlainText() const;
     };
 public:
-    explicit HtmlParser(const std::string &input_string, unsigned chunk_mask = EVERYTHING,
-                        const bool header_only = false);
+    explicit HtmlParser(const std::string &input_string, const std::string &http_header_charset = "",
+                        const unsigned chunk_mask = EVERYTHING, const bool header_only = false);
     virtual ~HtmlParser() { delete [] input_string_; }
     virtual void parse();
     virtual void notify(const Chunk &chunk) = 0;
@@ -153,7 +160,7 @@ private:
     void skipJavaScriptDoubleSlashComment();
     void skipJavaScriptCStyleComment();
     void skipWhiteSpace();
-    void skipDoctype();
+    void processDoctype();
     void skipComment();
     void skipToEndOfTag(const std::string &tag_name, const unsigned tag_start_lineno);
     void skipToEndOfMalformedTag(const std::string &tag_name, const unsigned tag_start_lineno);
@@ -174,12 +181,12 @@ class MetaTagExtractor: public HtmlParser {
 public:
     MetaTagExtractor(const std::string &document_source, const std::string &meta_tag_name,
                      std::list< std::pair<std::string, std::string> > * const extracted_data)
-        : HtmlParser(document_source, HtmlParser::OPENING_TAG, /* header_only = */true),
+        : HtmlParser(document_source, /* http_header_charset = */"", HtmlParser::OPENING_TAG, /* header_only = */true),
           extracted_data_(*extracted_data)
         { meta_tag_names_.push_back(meta_tag_name); }
     MetaTagExtractor(const std::string &document_source, const std::list<std::string> &meta_tag_names,
                      std::list< std::pair<std::string, std::string> > * const extracted_data)
-        : HtmlParser(document_source, HtmlParser::OPENING_TAG), meta_tag_names_(meta_tag_names),
+        : HtmlParser(document_source, /* http_header_charset = */"", HtmlParser::OPENING_TAG), meta_tag_names_(meta_tag_names),
           extracted_data_(*extracted_data)
         { }
     virtual void notify(const Chunk &chunk);
@@ -192,12 +199,12 @@ class HttpEquivExtractor: public HtmlParser {
 public:
     HttpEquivExtractor(const std::string &document_source, const std::string &meta_tag_name,
                        std::list< std::pair<std::string, std::string> > * const extracted_data)
-        : HtmlParser(document_source, HtmlParser::OPENING_TAG, /* header_only = */true),
+        : HtmlParser(document_source, /* http_header_charset = */"", HtmlParser::OPENING_TAG, /* header_only = */true),
           extracted_data_(*extracted_data)
         { meta_tag_names_.push_back(meta_tag_name); }
     HttpEquivExtractor(const std::string &document_source, const std::list<std::string> &meta_tag_names,
                        std::list< std::pair<std::string, std::string> > * const extracted_data)
-        : HtmlParser(document_source, HtmlParser::OPENING_TAG), meta_tag_names_(meta_tag_names),
+        : HtmlParser(document_source, /* http_header_charset = */"", HtmlParser::OPENING_TAG), meta_tag_names_(meta_tag_names),
           extracted_data_(*extracted_data)
         { }
     virtual void notify(const Chunk &chunk);
@@ -263,8 +270,9 @@ public:
     UrlExtractorParser(const std::string &document_source, const bool accept_frame_tags,
                        const bool ignore_image_tags, const bool clean_up_anchor_text,
                        std::list<UrlAndAnchorText> * const urls, std::string * const base_url)
-        : HtmlParser(document_source, HtmlParser::OPENING_TAG | HtmlParser::CLOSING_TAG | HtmlParser::WORD
-                     | HtmlParser::PUNCTUATION | HtmlParser::WHITESPACE),
+        : HtmlParser(document_source, /* http_header_charset = */"",
+                     HtmlParser::OPENING_TAG | HtmlParser::CLOSING_TAG | HtmlParser::WORD | HtmlParser::PUNCTUATION
+                                             | HtmlParser::WHITESPACE),
           accept_frame_tags_(accept_frame_tags), ignore_image_tags_(ignore_image_tags),
           clean_up_anchor_text_(clean_up_anchor_text), urls_(*urls),
           base_url_(*base_url), opening_a_tag_seen_(false) { }

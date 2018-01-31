@@ -216,8 +216,7 @@ inline bool IsAsciiLetterOrDigit(const int ch) {
 
 // HtmlParser::AttributeMap::toString -- Construct a string representation of an attribute map.
 //
-std::string HtmlParser::AttributeMap::toString() const
-{
+std::string HtmlParser::AttributeMap::toString() const {
     std::string result;
     for (std::map<std::string, std::string>::const_iterator pair(map_.begin()); pair != map_.end(); ++pair)
         result += " " + pair->first + "=\"" + pair->second + "\"";
@@ -228,8 +227,7 @@ std::string HtmlParser::AttributeMap::toString() const
 
 // HtmlParser::Chunk::toString -- Construct a string representation of a chunk.
 //
-std::string HtmlParser::Chunk::toString() const
-{
+std::string HtmlParser::Chunk::toString() const {
     switch (type_) {
     case OPENING_TAG:
     case MALFORMED_TAG:
@@ -259,8 +257,7 @@ std::string HtmlParser::Chunk::toString() const
 
 // HtmlParser::Chunk::toPlainText -- Return the "plain text" embodied by this HTML fragment.
 //
-std::string HtmlParser::Chunk::toPlainText() const
-{
+std::string HtmlParser::Chunk::toPlainText() const {
     switch (type_) {
     case WORD:
     case PUNCTUATION:
@@ -273,23 +270,32 @@ std::string HtmlParser::Chunk::toPlainText() const
 }
 
 
-HtmlParser::HtmlParser(const std::string &input_string, unsigned chunk_mask, const bool header_only)
-    : input_string_(StringUtil::strnewdup(input_string.c_str())), lineno_(1), chunk_mask_(chunk_mask), header_only_(header_only),
-      is_xhtml_(false)
+HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_header_charset, const unsigned chunk_mask,
+                       const bool header_only)
+    : input_string_(StringUtil::strnewdup(input_string.c_str())), http_header_charset_(http_header_charset), lineno_(1),
+      chunk_mask_(chunk_mask), header_only_(header_only), is_xhtml_(false)
 {
     if ((chunk_mask_ & TEXT) and (chunk_mask_ & (WORD | PUNCTUATION | WHITESPACE)))
-        throw std::runtime_error("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
+        ERROR("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
 
     cp_ = cp_start_ = input_string_;
     end_of_stream_ = *cp_ == '\0';
 
     if (likely(not end_of_stream_))
         replaceEntitiesInString();
+
+    if (not http_header_charset.empty()) {
+        std::string error_message;
+        encoding_converter_ = TextUtil::EncodingConverter::Factory(http_header_charset, "utf8", &error_message);
+        if (encoding_converter_.get() == nullptr)
+            WARNING(error_message);
+    }
+    if (encoding_converter_.get() == nullptr)
+        encoding_converter_ = TextUtil::IdentityConverter::Factory();
 }
 
 
-bool HtmlParser::AttributeMap::insert(const std::string &name, const std::string &value)
-{
+bool HtmlParser::AttributeMap::insert(const std::string &name, const std::string &value) {
     const const_iterator iter = find(name);
     if (iter != end())
         return false;
@@ -299,8 +305,7 @@ bool HtmlParser::AttributeMap::insert(const std::string &name, const std::string
 }
 
 
-void HtmlParser::replaceEntitiesInString()
-{
+void HtmlParser::replaceEntitiesInString() {
     char *read_ptr = input_string_;
     char *write_ptr = read_ptr;
 
@@ -367,8 +372,7 @@ void HtmlParser::replaceEntitiesInString()
 }
 
 
-int HtmlParser::getChar(bool * const is_entity)
-{
+int HtmlParser::getChar(bool * const is_entity) {
     if (unlikely(is_entity != nullptr))
         *is_entity = false;
 
@@ -390,8 +394,7 @@ int HtmlParser::getChar(bool * const is_entity)
 }
 
 
-void HtmlParser::ungetChar()
-{
+void HtmlParser::ungetChar() {
     if (unlikely(cp_ == cp_start_))
         logger->error("in HtmlParser::ungetChar: trying to push back at beginning of input!");
 
@@ -401,8 +404,7 @@ void HtmlParser::ungetChar()
 }
 
 
-void HtmlParser::skipJavaScriptStringConstant(const int start_quote)
-{
+void HtmlParser::skipJavaScriptStringConstant(const int start_quote) {
     const unsigned start_lineno(lineno_);
     bool escaped(false); // Have we seen a backslash?
     for (;;) {
@@ -424,8 +426,7 @@ void HtmlParser::skipJavaScriptStringConstant(const int start_quote)
 // HtmlParser::skipJavaScriptDoubleSlashComment -- skips over a JavaScript "//" comment and trailing lineends assuming
 //                                                 we've already seen "//".
 //
-void HtmlParser::skipJavaScriptDoubleSlashComment()
-{
+void HtmlParser::skipJavaScriptDoubleSlashComment() {
     int ch;
     do {
         ch = getChar();
@@ -443,8 +444,7 @@ void HtmlParser::skipJavaScriptDoubleSlashComment()
 
 // HtmlParser::skipJavaScriptCStyleComment -- skips over a JavaScript C-style comment assuming we've already "/*".
 //
-void HtmlParser::skipJavaScriptCStyleComment()
-{
+void HtmlParser::skipJavaScriptCStyleComment() {
     int ch;
     const unsigned start_lineno(lineno_);
     for (;;) {
@@ -474,8 +474,7 @@ void HtmlParser::skipJavaScriptCStyleComment()
 }
 
 
-void HtmlParser::skipWhiteSpace()
-{
+void HtmlParser::skipWhiteSpace() {
     for (;;) {
         int ch = getChar();
         if (not isspace(ch)) {
@@ -487,28 +486,57 @@ void HtmlParser::skipWhiteSpace()
 }
 
 
-// HtmlParser::skipDoctype -- assumes that at this point we have read "<!DOCTYPE" and
+// HtmlParser::processDoctype -- assumes that at this point we have read "<!DOCTYPE" and
 //                            skips over all input up to and including ">".
 //
-void HtmlParser::skipDoctype()
-{
+void HtmlParser::processDoctype() {
+    std::string doctype;
     int ch;
     do
-        ch = getChar();
+        doctype += static_cast<char>(ch = getChar());
     while (ch != '>' and ch != EOF);
-    if (ch == EOF) {
+    if (unlikely(ch == EOF)) {
         Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
                                    "unexpected end of HTML while skipping over a DOCTYPE");
         preNotify(&unexpected_eof_chunk);
     }
+
+    if (not http_header_charset_.empty())
+        return; // We don't care about the document-local encoding because the HTTP header's has precedence!
+
+    doctype.resize(doctype.size() - 1); // Strip off trailing '>'.
+    StringUtil::TrimWhite(&doctype);
+
+    if (::strcasecmp(doctype.c_str(), "html") == 0)
+        return;
+    if (::strcasecmp(doctype.c_str(), "HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\" \"http://www.w3.org/TR/html4/frameset.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\"") == 0)
+    {
+        document_local_charset_ = "Latin-1 but using ANSI";
+        std::string error_message;
+        encoding_converter_ = TextUtil::EncodingConverter::Factory("ANSI", "UTF8", &error_message);
+        if (unlikely(encoding_converter_.get() == nullptr))
+            ERROR("failed to create an encoding converter: " + error_message);
+    } else
+        WARNING("unknown doctype: " + doctype);
 }
 
 
 // HtmlParser::skipComment -- assumes that at this point we have read "<!--" and
 //                            skips over all input up to and including "-->".
 //
-void HtmlParser::skipComment()
-{
+void HtmlParser::skipComment() {
     const unsigned start_lineno(lineno_);
     std::string comment_text;
     unsigned hyphen_count = 0;
@@ -528,8 +556,7 @@ void HtmlParser::skipComment()
             if (hyphen_count >= 2)
                 break;
             hyphen_count = 0;
-        }
-        else if (ch != '-')
+        } else if (ch != '-')
             hyphen_count = 0;
         else
             ++hyphen_count;
@@ -545,8 +572,7 @@ void HtmlParser::skipComment()
 
 // HtmlParser::skipToEndOfTag -- attempts to skip until the closing '>' of a tag or a '<'.
 //
-void HtmlParser::skipToEndOfTag(const std::string &tag_name, const unsigned tag_start_lineno)
-{
+void HtmlParser::skipToEndOfTag(const std::string &tag_name, const unsigned tag_start_lineno) {
     int ch;
     bool is_entity;
     do {
@@ -568,8 +594,7 @@ void HtmlParser::skipToEndOfTag(const std::string &tag_name, const unsigned tag_
 //                                 skip to the position just past "</table>". Ignores everything up to the ending
 //                                 tag of "tag_name".
 //
-bool HtmlParser::skipToEndOfScriptOrStyle(const std::string &tag_name, const unsigned tag_start_lineno)
-{
+bool HtmlParser::skipToEndOfScriptOrStyle(const std::string &tag_name, const unsigned tag_start_lineno) {
     int ch;
     for (;;) {
         ch = getChar();
@@ -610,8 +635,7 @@ bool HtmlParser::skipToEndOfScriptOrStyle(const std::string &tag_name, const uns
 //                                        the caller should probably immedeately return after
 //                                        invoking this function.
 //
-void HtmlParser::skipToEndOfMalformedTag(const std::string &tag_name, const unsigned tag_start_lineno)
-{
+void HtmlParser::skipToEndOfMalformedTag(const std::string &tag_name, const unsigned tag_start_lineno) {
     skipToEndOfTag(tag_name, tag_start_lineno);
 
     if (chunk_mask_ & MALFORMED_TAG) {
@@ -621,8 +645,7 @@ void HtmlParser::skipToEndOfMalformedTag(const std::string &tag_name, const unsi
 }
 
 
-void HtmlParser::parseWord()
-{
+void HtmlParser::parseWord() {
     bool hyphen_seen(false);
 
     std::string word;
@@ -634,8 +657,7 @@ void HtmlParser::parseWord()
         if (isalnum(ch)) {
             hyphen_seen = false;
             word += static_cast<char>(ch);
-        }
-        else if (ch == '-') {
+        } else if (ch == '-') {
             if (hyphen_seen) { // Two dashes in a row.
                 ungetChar();
                 break;
@@ -643,8 +665,7 @@ void HtmlParser::parseWord()
 
             hyphen_seen = true;
             word += '-';
-        }
-        else { // Some character that we don't know how to handle.
+        } else { // Some character that we don't know how to handle.
             ungetChar();
             break;
         }
@@ -663,8 +684,7 @@ void HtmlParser::parseWord()
 }
 
 
-void HtmlParser::parseText()
-{
+void HtmlParser::parseText() {
     std::string text;
     for (;;) {
         bool is_entity;
@@ -675,18 +695,20 @@ void HtmlParser::parseText()
         if (unlikely(ch == '<') and not is_entity) {
             ungetChar();
             break;
-        }
-        else
+        } else
             text += static_cast<char>(ch);
     }
 
-    Chunk chunk(TEXT, text, lineno_);
+    std::string utf8_text;
+    if (unlikely(not encoding_converter_->convert(text, &utf8_text)))
+        WARNING("invalid " + encoding_converter_->getFromEncoding()
+                + " encoded text; returned non-converted text as probably invalid \"UTF-8\"!");
+    Chunk chunk(TEXT, utf8_text, lineno_);
     preNotify(&chunk);
 }
 
 
-std::string HtmlParser::extractTagName()
-{
+std::string HtmlParser::extractTagName() {
     std::string tag_name;
     bool is_entity;
     int ch = getChar(&is_entity);
@@ -776,8 +798,7 @@ bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * con
             preNotify(&unexpected_eof_chunk);
             return false;
         }
-    }
-    else { // unquoted attribute_value
+    } else { // unquoted attribute_value
         do {
             *attribute_value += static_cast<char>(ch);
             ch = getChar();
@@ -800,8 +821,7 @@ bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * con
 
 // HtmlParser::parseTag -- parse HTML tags.  Returns false if we want to abort parsing, else true.
 //
-bool HtmlParser::parseTag()
-{
+bool HtmlParser::parseTag() {
     const unsigned start_lineno(lineno_);
 
     skipWhiteSpace();
@@ -848,8 +868,7 @@ bool HtmlParser::parseTag()
                 preNotify(&chunk);
             }
             skipToEndOfTag(tag_name, start_lineno);
-        }
-        else {
+        } else {
             if (chunk_mask_ & OPENING_TAG) {
                 Chunk chunk(OPENING_TAG, tag_name, start_lineno, &attribute_map);
                 preNotify(&chunk);
@@ -904,6 +923,37 @@ bool HtmlParser::parseTag()
     else { // We have an opening tag.
         if (header_only_ and tag_name == "body")
             return false;
+
+        if (http_header_charset_.empty() and tag_name == "meta") {
+            // See https://www.w3.org/International/questions/qa-html-encoding-declarations in order to understand
+            // the following code.
+
+            std::string charset;
+            const auto charset_attrib(attribute_map.find("charset"));
+            if (charset_attrib != attribute_map.end())
+                charset = charset_attrib->second;
+            else {
+                const auto http_equiv_attrib(attribute_map.find("http-equiv"));
+                if (http_equiv_attrib != attribute_map.end()) {
+                    const auto charset_pos(http_equiv_attrib->second.find("charset="));
+                    if (charset_pos != std::string::npos)
+                        charset = http_equiv_attrib->second.substr(charset_pos + __builtin_strlen("charset="));
+                }
+            }
+
+            StringUtil::TrimWhite(&charset);
+            if (not charset.empty()) {
+                std::string error_message;
+                encoding_converter_ = TextUtil::EncodingConverter::Factory(charset, "UTF8", &error_message);
+                if (encoding_converter_.get() != nullptr)
+                    document_local_charset_ = charset;
+                else {
+                    WARNING("failed to establish an encoding converter (using identity mapping)" + error_message);
+                    encoding_converter_ = TextUtil::IdentityConverter::Factory();
+                }
+            }
+        }
+
         if (chunk_mask_ & OPENING_TAG) {
             Chunk chunk(OPENING_TAG, tag_name, start_lineno, &attribute_map);
             preNotify(&chunk);
@@ -918,8 +968,7 @@ bool HtmlParser::parseTag()
 }
 
 
-void HtmlParser::parse()
-{
+void HtmlParser::parse() {
     const unsigned NBSP(0xA0); // Non-breaking space.
 
     try {
@@ -939,8 +988,7 @@ void HtmlParser::parse()
                     ungetChar();
                     if (unlikely(not parseTag()))
                         return;
-                }
-                else { // must be a comment or DOCTYPE
+                } else { // must be a comment or DOCTYPE
                     ch = getChar();
                     if (ch != '-') { // We assume that we have a DOCTYPE
                         unsigned start_lineno(lineno_);
@@ -963,9 +1011,8 @@ void HtmlParser::parse()
                             skipToEndOfMalformedTag("!" + doctype, start_lineno);
                             continue;
                         }
-                        skipDoctype();
-                    }
-                    else { // we assume we have a comment
+                        processDoctype();
+                    } else { // we assume we have a comment
                         ch = getChar();
                         if (unlikely(ch != '-'))
                             Throw("possibly malformed comment on line %u!", lineno_);
@@ -973,31 +1020,26 @@ void HtmlParser::parse()
                         skipComment();
                     }
                 }
-            }
-            else if (chunk_mask_ & TEXT) {
+            } else if (chunk_mask_ & TEXT) {
                 ungetChar();
                 parseText();
-            }
-            else if ((isspace(ch) or static_cast<unsigned char>(ch) == NBSP) and (chunk_mask_ & WHITESPACE)) {
+            } else if ((isspace(ch) or static_cast<unsigned char>(ch) == NBSP) and (chunk_mask_ & WHITESPACE)) {
                 char s[1 + 1];
                 s[0] = static_cast<char>(ch);
                 s[1] = '\0';
                 Chunk whitespace_chunk(WHITESPACE, s, ch == '\n' ? lineno_ - 1 : lineno_);
                 preNotify(&whitespace_chunk);
-            }
-            else if (isalnum(ch)) {
+            } else if (isalnum(ch)) {
                 ungetChar();
                 parseWord();
-            }
-            else if (ispunct(ch) and (chunk_mask_ & PUNCTUATION)) {
+            } else if (ispunct(ch) and (chunk_mask_ & PUNCTUATION)) {
                 std::string punctuation;
                 punctuation += static_cast<char>(ch);
                 Chunk chunk(PUNCTUATION, punctuation, lineno_);
                 preNotify(&chunk);
             }
         }
-    }
-    catch (const std::exception &x) {
+    } catch (const std::exception &x) {
         if (chunk_mask_ & UNEXPECTED_END_OF_STREAM) {
             Chunk unexpected_eos_chunk(UNEXPECTED_END_OF_STREAM, x.what(), lineno_);
             preNotify(&unexpected_eos_chunk);
@@ -1006,8 +1048,7 @@ void HtmlParser::parse()
 }
 
 
-void MetaTagExtractor::notify(const Chunk &chunk)
-{
+void MetaTagExtractor::notify(const Chunk &chunk) {
     if (chunk.text_ == "meta") {
         // Read the current tag
         AttributeMap::const_iterator name_attrib = chunk.attribute_map_->find("name");
@@ -1038,8 +1079,7 @@ void MetaTagExtractor::notify(const Chunk &chunk)
 }
 
 
-void HttpEquivExtractor::notify(const Chunk &chunk)
-{
+void HttpEquivExtractor::notify(const Chunk &chunk) {
     if (chunk.text_ == "meta") {
         // Read the current tag
         AttributeMap::const_iterator name_attrib = chunk.attribute_map_->find("http-equiv");
@@ -1190,8 +1230,7 @@ public:
 
 
 SentenceCounter::SentenceCounter(std::istream &input)
-    : HtmlParser(input, HtmlParser::PUNCTUATION | HtmlParser::WORD), no_of_sentences_(0),
-      current_sentence_word_count_(0)
+    : HtmlParser(input, HtmlParser::PUNCTUATION | HtmlParser::WORD), no_of_sentences_(0), current_sentence_word_count_(0)
 {
     for (unsigned i = 0; i < MAX_SENTENCE_LENGTH; ++i)
         count_[i] = 0;
@@ -1215,8 +1254,7 @@ void SentenceCounter::notify(const Chunk &chunk)
 }
 
 
-void SentenceCounter::report(std::ostream &output) const
-{
+void SentenceCounter::report(std::ostream &output) const {
     for (unsigned i = 0; i < MAX_SENTENCE_LENGTH - 1; ++i) {
         if (count_[i] > 0)
             output << i << '\t' << count_[i] << '\n';
@@ -1235,8 +1273,7 @@ public:
 };
 
 
-void TestParser::notify(const Chunk &chunk)
-{
+void TestParser::notify(const Chunk &chunk) {
     if (chunk.type_ == HtmlParser::OPENING_TAG)
         std::cerr << "Found opening tag: " << chunk.text_ << '\n';
     else if (chunk.type_ == HtmlParser::CLOSING_TAG)
@@ -1248,8 +1285,7 @@ void TestParser::notify(const Chunk &chunk)
 }
 
 
-int main()
-{
+int main() {
     try {
         MiscUtil::Locale locale("en_US.ISO-8859-1", LC_CTYPE);
 #if 0
