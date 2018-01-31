@@ -49,33 +49,11 @@ static void Usage() {
 }
 
 
-void ExtractCharsetFromHeader(const std::string &header_blob, std::string * const http_header_charset) {
-    http_header_charset->clear();
-
-    std::vector<std::string> header_lines;
-    StringUtil::SplitThenTrimWhite(header_blob, "\r\n", &header_lines);
-    for (const auto header_line : header_lines) {
-        if (StringUtil::StartsWith(header_line, "Content-Type:", /* ignore_case = */ true)) {
-            std::string content_type(header_line.substr(__builtin_strlen("Content-Type:")));
-            StringUtil::Trim(&content_type);
-            if (not content_type.empty()) {
-                const auto charset_start(content_type.find("charset="));
-                if (charset_start != std::string::npos) {
-                    *http_header_charset = content_type.substr(__builtin_strlen("charset="));
-                    StringUtil::Trim(http_header_charset);
-                    return;
-                }
-            }
-        }
-    }
-}
-
-
 // \note Sets "error_message" when it returns false.
 bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
                              std::string * const media_type, std::string * const http_header_charset,
-                             std::string * const error_message){
-
+                             std::string * const error_message)
+{
     Downloader::Params params;
     Downloader downloader(url, params, timeout);
     if (downloader.anErrorOccurred()) {
@@ -84,14 +62,14 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std
     }
 
     *document = downloader.getMessageBody();
+    // Get media type including enconding
     *media_type = downloader.getMediaType();
     if (media_type->empty()) {
         *error_message = "failed to determine the media type!";
         return false;
     }
 
-    std::string message_header(downloader.getMessageHeader());
-    ExtractCharsetFromHeader(message_header, http_header_charset);
+    *http_header_charset = downloader.getCharset();
 
     return true;
 }
