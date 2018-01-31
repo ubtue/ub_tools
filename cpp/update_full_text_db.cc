@@ -50,8 +50,9 @@ static void Usage() {
 
 
 // \note Sets "error_message" when it returns false.
-bool GetDocumentMediaTypeAndCharset(const std::string &url, const unsigned timeout, std::string * const document,
-                                    std::string * const media_type, std::string * const charset, std::string * const error_message)
+bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
+                             std::string * const media_type, std::string * const http_header_charset,
+                             std::string * const error_message)
 {
     Downloader::Params params;
     Downloader downloader(url, params, timeout);
@@ -68,7 +69,7 @@ bool GetDocumentMediaTypeAndCharset(const std::string &url, const unsigned timeo
         return false;
     }
 
-    *charset = downloader.getCharset();
+    *http_header_charset = downloader.getCharset();
 
     return true;
 }
@@ -141,17 +142,36 @@ std::string GetTextFrom520a(const MARC::Record &record) {
 }
 
 
-std::string ConvertToPlainText(const std::string &media_type, const std::string &charset,
-                               const std::string &tesseract_language_code,
-                               const std::string &document, std::string * const error_message)
+bool IsUTF8(const std::string &charset) {
+    return charset == "utf-8" or charset == "utf8" or charset == "UFT-8" or charset == "UTF8";
+}
+
+
+std::string ConvertToPlainText(const std::string &media_type, const std::string &http_header_charset,
+                               const std::string &tesseract_language_code, const std::string &document,
+                               std::string * const error_message)
 {
     if (media_type == "text/plain") {
-        *error_message = "Unsupported charset: " + charset;
-        WARNING(*error_message);
-        return "";
+        if (IsUTF8(http_header_charset))
+            return document;
+
+        std::string error_msg;
+        std::unique_ptr<TextUtil::EncodingConverter> encoding_converter(TextUtil::EncodingConverter::Factory(http_header_charset,
+                                                                                                             "utf8", &error_msg));
+        if (encoding_converter.get() == nullptr) {
+            WARNING("can't convert from \"" + http_header_charset + "\" to UTF-8! (" + error_msg + ")");
+            return document;
+        }
+
+        std::string utf8_document;
+        if (unlikely(not encoding_converter->convert(document, &utf8_document)))
+            WARNING("conversion error while converting text from \"" + http_header_charset + "\" to UTF-8!");
+        return utf8_document;
     }
+
     if (media_type == "text/html")
-        return TextUtil::ExtractTextFromHtml(document);
+        return TextUtil::ExtractTextFromHtml(document, http_header_charset);
+
     if (StringUtil::StartsWith(media_type, "application/pdf")) {
         if (PdfUtil::PdfDocContainsNoText(document)) {
             std::string extracted_text;
@@ -212,12 +232,13 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
             std::string domain;
             cache.getDomainFromUrl(url, domain);
             entry_url.domain_ = domain;
-            std::string document, media_type, charset, error_message;
-            if ((not GetDocumentMediaTypeAndCharset(url, PER_DOC_TIMEOUT, &document, &media_type, &charset, &error_message))) {
+            std::string document, media_type, http_header_charset, error_message;
+            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &http_header_charset,
+                                             &error_message))) {
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
                 success = false;
             } else {
-                std::string extracted_text(ConvertToPlainText(media_type, charset, GetTesseractLanguageCode(*record),
+                std::string extracted_text(ConvertToPlainText(media_type, http_header_charset, GetTesseractLanguageCode(*record),
                                                               document, &error_message));
 
                 if (unlikely(extracted_text.empty())) {

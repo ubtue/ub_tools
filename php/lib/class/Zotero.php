@@ -167,19 +167,23 @@ class BackgroundTask {
     }
 
     /**
-     * Get progress (in percent)
-     * Might also be false, if the subprocess didnt write the progress file yet.
-     * So it is recommended to treat false as 0 percent, and not as error.
+     * Get progress information.
      *
-     * @return mixed        int (percentage) or false (error)
+     * Might also be false, if the subprocess didnt write the progress file yet.
+     * So it is recommended to treat false as no progress, and not as error.
+     *
+     * @return array ['processed_url_count' => int, 'remaining_depth' => int, 'current_url' => string] or false (error)
      */
     public function getProgress() {
         $path = self::getProgressPath($this->taskId);
         if (is_file($path)) {
             $progressRaw = file_get_contents($path);
             if ($progressRaw !== false && $progressRaw !== '') {
-                $progressPercent = intval($progressRaw * 100);
-                return $progressPercent;
+                $progress = explode(';', $progressRaw);
+                return ['processed_url_count' => intval($progress[0]),
+                        'remaining_depth'     => intval($progress[1]),
+                        'current_url'         => $progress[2],
+                ];
             } else {
                 return false;
             }

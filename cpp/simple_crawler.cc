@@ -26,21 +26,12 @@
 #include <getopt.h>
 #include "Downloader.h"
 #include "FileUtil.h"
-#include "RegexMatcher.h"
+#include "SimpleCrawler.h"
 #include "StringUtil.h"
 #include "util.h"
-#include "WebUtil.h"
 
 
 namespace {
-
-
-const std::string URL_IGNORE_PATTERN("\\.(js|css|bmp|pdf|jpg|gif|png|tif|tiff)(\\?[^?]*)?$");
-const std::string USER_AGENT("ub_tools (https://ixtheo.de/docs/user_agents)");
-
-// Default values in milliseconds
-const unsigned DEFAULT_TIMEOUT(5000);
-const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 
 
 void Usage() {
@@ -55,99 +46,15 @@ void Usage() {
               << "                                                            codes with commas.\n"
               << "\t[ (--print-redirects | -p) ]                              Nomen est omen.\n"
               << "\t[ (--timeout | -t) milliseconds ]                         Overall time we're willing to wait\n"
-              << "                                                            to download a page (default " + StringUtil::ToString(DEFAULT_TIMEOUT) + ").\n"
-              << "\t[ (--min-url-processing-time | -m) milliseconds ]         Min time between downloading 2 URLs\n"
-              << "                                                            to prevent DOS attacks (default " + StringUtil::ToString(DEFAULT_MIN_URL_PROCESSING_TIME) + ").\n"
+              << "                                                            to download a page (default " + std::to_string(SimpleCrawler::DEFAULT_TIMEOUT) + ").\n"
+              << "\t[ (--min-url-processing-time | -m) milliseconds ]         Min time between downloading 2 URL's\n"
+              << "                                                            to prevent accidental DOS attacks (default " + std::to_string(SimpleCrawler::DEFAULT_MIN_URL_PROCESSING_TIME) + ").\n"
               << "\n"
               << "The config file consists of lines specifying one site per line.\n"
-              << "Each line must have a start URL, a maximum crawl depth and a PCRE URL pattern.\n"
+              << "Each line must have a start URL, a maximum crawl depth and a PCRE URL pattern, that each sub-url must match.\n"
               << "Any encountered URL that matches a URL pattern will be echoed on stdout.\n\n";
 
     std::exit(EXIT_FAILURE);
-}
-
-
-void ExtractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls) {
-    location_urls->clear();
-
-    std::vector<std::string> header_lines;
-    StringUtil::SplitThenTrimWhite(header_blob, "\r\n", &header_lines);
-    for (const auto header_line : header_lines) {
-        if (StringUtil::StartsWith(header_line, "Location:", /* ignore_case = */ true)) {
-            std::string location(header_line.substr(9));
-            StringUtil::Trim(&location);
-            if (not location.empty())
-                location_urls->push_back(location);
-        }
-    }
-}
-
-
-void ProcessURL(const std::string &url, const bool all_headers, const bool last_header,
-                const bool ignore_robots_dot_txt, const bool print_redirects, const unsigned timeout,
-                TimeLimit * const min_url_processing_time,
-                const std::string &acceptable_languages, unsigned remaining_crawl_depth,
-                const RegexMatcher &url_regex_matcher, std::unordered_set<std::string> * const extracted_urls)
-{
-    std::string err_msg;
-    static RegexMatcher * const url_ignore_regex_matcher(RegexMatcher::RegexMatcherFactory(URL_IGNORE_PATTERN, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
-    if (url_ignore_regex_matcher == nullptr)
-        ERROR("could not initialize URL regex matcher\n"
-              + err_msg);
-
-    if (url_ignore_regex_matcher->matched(url)) {
-        logger->warning("Skipping URL: " + url);
-        return;
-    }
-
-    Downloader::Params params;
-    params.user_agent_            = USER_AGENT;
-    params.acceptable_languages_  = acceptable_languages;
-    params.honour_robots_dot_txt_ = not ignore_robots_dot_txt;
-    min_url_processing_time->sleepUntilExpired();
-    Downloader downloader(url, params, timeout);
-    min_url_processing_time->restart();
-    if (downloader.anErrorOccurred()) {
-        logger->warning("Failed to retrieve a Web page (" + url + "):\n"
-                        + downloader.getLastErrorMessage());
-        return;
-    }
-
-    const std::string message_headers(downloader.getMessageHeader()), message_body(downloader.getMessageBody());
-    if (print_redirects) {
-        std::list<std::string> location_urls;
-        ExtractLocationUrls(message_headers, &location_urls);
-        for (const auto &location_url : location_urls)
-            std::cout << "Location: " << location_url << '\n';
-        std::cout << "\n\n";
-    }
-
-    if (all_headers or last_header) {
-        if (all_headers or last_header)
-            std::cout << StringUtil::ReplaceString("\r\n", "\n", message_headers) << '\n';
-    }
-
-    static const unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
-                                            | WebUtil::REMOVE_DOCUMENT_RELATIVE_ANCHORS
-                                            | WebUtil::CLEAN_UP_ANCHOR_TEXT
-                                            | WebUtil::KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY
-                                            | WebUtil::ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
-
-    std::vector<WebUtil::UrlAndAnchorTexts> urls_and_anchor_texts;
-    WebUtil::ExtractURLs(message_body, url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
-    for (const auto &url_and_anchor_texts : urls_and_anchor_texts) {
-        const std::string extracted_url(url_and_anchor_texts.getUrl());
-        if (url_regex_matcher.matched(extracted_url))
-            extracted_urls->emplace(extracted_url);
-    }
-
-    --remaining_crawl_depth;
-    if (remaining_crawl_depth > 0) {
-        for (const auto &url_and_anchor_texts : urls_and_anchor_texts)
-            ProcessURL(url_and_anchor_texts.getUrl(), all_headers, last_header, ignore_robots_dot_txt,
-                       print_redirects, timeout, min_url_processing_time, acceptable_languages, remaining_crawl_depth,
-                       url_regex_matcher, extracted_urls);
-    }
 }
 
 
@@ -165,20 +72,12 @@ static struct option options[] = {
 };
 
 
-void ProcessArgs(int argc, char *argv[], Logger::LogLevel *  const min_log_level, bool * const all_headers,
-                 bool * const last_header, unsigned * const timeout, TimeLimit * const min_url_processing_timer,
-                 bool * const ignore_robots_dot_txt, bool * const print_redirects,
-                 std::string * const acceptable_languages, std::string * const config_filename)
+void ProcessArgs(int argc, char *argv[], Logger::LogLevel * const min_log_level, std::string * const config_filename, SimpleCrawler::Params * params)
 {
     // Defaults:
-    *min_log_level                   = Logger::LL_DEBUG;
-    *all_headers                     = false;
-    *last_header                     = false;
-    *timeout                         = DEFAULT_TIMEOUT;
-    unsigned min_url_processing_time = DEFAULT_MIN_URL_PROCESSING_TIME;
-    *ignore_robots_dot_txt           = false;
-    *print_redirects                 = false;
-    acceptable_languages->clear();
+    *min_log_level = Logger::LL_DEBUG;
+    unsigned min_url_processing_time;
+    unsigned timeout;
 
     for (;;) {
         char *endptr;
@@ -191,18 +90,19 @@ void ProcessArgs(int argc, char *argv[], Logger::LogLevel *  const min_log_level
             *min_log_level = Logger::StringToLogLevel(optarg);
             break;
         case 'a':
-            *all_headers = true;
+            params->print_all_http_headers_ = true;
             break;
         case 'l':
-            *last_header = true;
+            params->print_last_http_header_ = true;
             break;
         case 't':
             errno = 0;
-            *timeout = std::strtoul(optarg, &endptr, 10);
-            if (errno != 0 or *endptr != '\0' or *timeout == 0) {
+            timeout =std::strtoul(optarg, &endptr, 10);
+            if (errno != 0 or *endptr != '\0' or timeout == 0) {
                 std::cerr << ::progname << " invalid timeout \"" << optarg << "\"!\n";
                 Usage();
             }
+            params->timeout_ = timeout;
             break;
         case 'm':
             errno = 0;
@@ -210,17 +110,17 @@ void ProcessArgs(int argc, char *argv[], Logger::LogLevel *  const min_log_level
             if (errno != 0 or *endptr != '\0' or min_url_processing_time == 0) {
                 std::cerr << ::progname << " invalid min_url_processing_time \"" << optarg << "\"!\n";
                 Usage();
-            } else
-                *min_url_processing_timer = min_url_processing_time;
+            }
+            params->min_url_processing_time_ = min_url_processing_time;
             break;
         case 'i':
-            *ignore_robots_dot_txt = true;
+            params->ignore_robots_dot_txt_ = true;
             break;
         case 'p':
-            *print_redirects = true;
+            params->print_redirects_ = true;
             break;
         case 'A':
-            *acceptable_languages = optarg;
+            params->acceptable_languages_ = optarg;
             break;
         default:
             Usage();
@@ -233,49 +133,6 @@ void ProcessArgs(int argc, char *argv[], Logger::LogLevel *  const min_log_level
 }
 
 
-struct SiteDesc {
-    std::string start_url_;
-    unsigned max_crawl_depth_;
-    RegexMatcher *url_regex_matcher_;
-public:
-    SiteDesc(const std::string &start_url, const unsigned max_crawl_depth, RegexMatcher * const url_regex_matcher)
-        : start_url_(start_url), max_crawl_depth_(max_crawl_depth), url_regex_matcher_(url_regex_matcher) { }
-};
-
-
-void ParseConfigFile(File * const input, std::vector<SiteDesc> * const site_descs) {
-    unsigned line_no(0);
-    while (not input->eof()) {
-        std::string line;
-        input->getline(&line);
-        ++line_no;
-        const std::string::size_type hash_pos(line.find('#'));
-        if (hash_pos != std::string::npos)
-            line = line.substr(0, hash_pos);
-        StringUtil::Trim(&line);
-        if (line.empty())
-            continue;
-
-        std::vector<std::string> line_parts;
-        if (StringUtil::SplitThenTrimWhite(line, ' ', &line_parts) != 3)
-            logger->error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \""
-                          + input->getPath() + "\"!");
-
-        unsigned max_crawl_depth;
-        if (not StringUtil::ToUnsigned(line_parts[1], &max_crawl_depth))
-            logger->error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \""
-                          + input->getPath() + "\"! (Invalid max. crawl depth: \"" + line_parts[1] + "\")");
-
-        std::string err_msg;
-        RegexMatcher * const url_regex_matcher(RegexMatcher::RegexMatcherFactory(line_parts[2], &err_msg));
-        if (url_regex_matcher == nullptr)
-            logger->error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \""
-                          + input->getPath() + "\", regex is faulty! (" + err_msg + ")");
-        site_descs->emplace_back(line_parts[0], max_crawl_depth, url_regex_matcher);
-    }
-}
-
-
 } // unnamed namespace
 
 
@@ -284,27 +141,15 @@ int main(int argc, char *argv[]) {
 
     try {
         Logger::LogLevel min_log_level;
-        bool all_headers, last_header, ignore_robots_dot_txt, print_redirects;
-        unsigned timeout;
-        TimeLimit min_url_processing_time(DEFAULT_MIN_URL_PROCESSING_TIME);
-        std::string acceptable_languages, config_filename;
-        ProcessArgs(argc, argv, &min_log_level, &all_headers, &last_header, &timeout, &min_url_processing_time,
-                    &ignore_robots_dot_txt, &print_redirects, &acceptable_languages, &config_filename);
+        std::string config_filename;
+        SimpleCrawler::Params params;
+        ProcessArgs(argc, argv, &min_log_level, &config_filename, &params);
+
         logger->setMinimumLogLevel(min_log_level);
-
-        std::unique_ptr<File> config_file(FileUtil::OpenInputFileOrDie(config_filename));
-        std::vector<SiteDesc> site_descs;
-        ParseConfigFile(config_file.get(), &site_descs);
-
-        for (const auto &site_desc : site_descs) {
-            std::unordered_set<std::string> extracted_urls;
-            ProcessURL(site_desc.start_url_, all_headers, last_header, ignore_robots_dot_txt, print_redirects,
-                       timeout, &min_url_processing_time, acceptable_languages, site_desc.max_crawl_depth_,
-                       *site_desc.url_regex_matcher_, &extracted_urls);
-
-            for (const auto &extracted_url : extracted_urls)
-                std::cout << extracted_url << '\n';
-        }
+        std::vector<std::string> extracted_urls;
+        SimpleCrawler::ProcessSites(config_filename, params, &extracted_urls);
+        for (const auto &extracted_url : extracted_urls)
+            std::cout << extracted_url << '\n';
 
         return EXIT_SUCCESS;
     } catch (const std::exception &x) {
