@@ -19,8 +19,8 @@
  */
 #include "JSON.h"
 #include <stdexcept>
-#include <string>
 #include <sstream>
+#include <string>
 #include <cctype>
 #include "Compiler.h"
 #include "StringUtil.h"
@@ -783,10 +783,10 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
 }
 
 
-std::string EscapeString(const std::string unescaped_string) {
+std::string EscapeString(const std::string &unescaped_string) {
     std::ostringstream escaped_string;
-    for (auto iter = unescaped_string.begin(); iter != unescaped_string.end(); iter++) {
-        switch (*iter) {
+    for (const char &ch : unescaped_string) {
+        switch (ch) {
             case '\\': escaped_string << "\\\\"; break;
             case '"': escaped_string << "\\\""; break;
             case '/': escaped_string << "\\/"; break;
@@ -795,7 +795,7 @@ std::string EscapeString(const std::string unescaped_string) {
             case '\n': escaped_string << "\\n"; break;
             case '\r': escaped_string << "\\r"; break;
             case '\t': escaped_string << "\\t"; break;
-            default: escaped_string << *iter; break;
+            default: escaped_string << ch; break;
         }
     }
     return escaped_string.str();
