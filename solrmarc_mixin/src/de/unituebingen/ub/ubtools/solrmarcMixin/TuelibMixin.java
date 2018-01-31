@@ -1305,7 +1305,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return String.join("|", normalizedTokenStream.toArray(String[]::new));
     }
 
-   
+
     /**
      * Strip subSubfield-Codes from the value part of a field
      */
