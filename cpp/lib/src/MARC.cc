@@ -299,14 +299,24 @@ bool Record::isValid(std::string * const error_message) const {
 
 enum class MediaType { XML, MARC21, OTHER };
 
+
 static MediaType GetMediaType(const std::string &input_filename) {
     File input(input_filename, "r");
     if (input.anErrorOccurred())
         return MediaType::OTHER;
 
     char magic[8];
-    if (input.read(magic, sizeof(magic) - 1) != sizeof(magic) - 1)
+    const size_t read_count(input.read(magic, sizeof(magic) - 1));
+    if (read_count != sizeof(magic) - 1) {
+        if (read_count == 0) {
+            WARNING("empty input file \"" + input_filename + "\"!");
+            const std::string extension(FileUtil::GetExtension(input_filename));
+            if (::strcasecmp(extension.c_str(), "mrc") == 0 or ::strcasecmp(extension.c_str(), "marc") == 0
+                or ::strcasecmp(extension.c_str(), "raw") == 0)
+                return MediaType::MARC21;
+        }
         return MediaType::OTHER;
+    }
     magic[sizeof(magic) - 1] = '\0';
 
     if (StringUtil::StartsWith(magic, "<?xml"))
@@ -317,7 +327,7 @@ static MediaType GetMediaType(const std::string &input_filename) {
         std::string err_msg;
         marc21_matcher = RegexMatcher::RegexMatcherFactory("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy])", &err_msg);
         if (marc21_matcher == nullptr)
-            logger->error("in GetMediaType(MARC.cc): failed to compile a regex! (" + err_msg + ")");
+            ERROR("failed to compile a regex! (" + err_msg + ")");
     }
 
     return marc21_matcher->matched(magic) ? MediaType::MARC21 : MediaType::XML;
