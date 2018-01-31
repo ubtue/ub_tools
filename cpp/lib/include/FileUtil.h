@@ -447,7 +447,7 @@ std::string GetFilenameWithoutExtensionOrDie(const std::string &filename);
 
 
 // If "filename" has at least one period in its name, we return everything after the last period.  O/w we return an empty string.
-std::string GetExtension(const std::string &filename);
+std::string GetExtension(const std::string &filename, const bool to_lowercase = false);
 
 
 /** \brief Nomen est omen.

@@ -6,13 +6,13 @@
     require('inc.php');
 
     // Helper functions for javascript
-    function updateProgressBar($progress) {
-        print '<script type="text/javascript">updateProgressBar('.$progress.');</script>';
+    function updateProgress($progress) {
+        print '<script type="text/javascript">updateProgress(atob("'.base64_encode($progress).'"));</script>' . PHP_EOL;
         ob_flush_real();
     }
 
     function updateRuntime($seconds) {
-        print '<script type="text/javascript">updateRuntime('.$seconds.');</script>';
+        print '<script type="text/javascript">updateRuntime('.$seconds.');</script>' . PHP_EOL;
         ob_flush_real();
     }
 
@@ -24,11 +24,9 @@
     <link rel="stylesheet" href="style.css"/>
     <script type="text/javascript" src="../res/jquery/jquery-3.2.1.min.js"></script>
     <script type="text/javascript">
-        function updateProgressBar(percent) {
-            var progressBar = document.getElementById('progress-bar');
-            progressBar.setAttribute('aria-valuenow', percent);
-            progressBar.style.width = percent + '%';
-            progressBar.innerHTML = percent + '% Complete';
+        function updateProgress(progress) {
+            var div_progress = document.getElementById('progress');
+            div_progress.innerHTML = progress;
         }
 
         function updateRuntime(seconds) {
@@ -53,7 +51,7 @@
                     <?php
                         $default = 1;
                         if (isset($_POST['depth'])) $default = $_POST['depth'];
-                        for ($i = 1; $i <= 5; $i++) {
+                        for ($i = 1; $i <= 3; $i++) {
                             if ($i == $default) {
                                 print '<option selected="selected">'.$i.'</option>';
                             } else {
@@ -89,7 +87,7 @@ if (count($_POST) > 0) {
     <table>
         <tr><td>Command</td><td><?= $task->cmd ?></td></tr>
         <tr><td>Runtime</td><td id="runtime"></td></tr>
-        <tr><td>Progress</td><td><div class="progress"><div id="progress-bar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%">0% Complete</div></div></td></tr>
+        <tr><td>Progress</td><td><div id="progress">Harvesting...</div></td></tr>
 
     <?php
 
@@ -107,15 +105,20 @@ if (count($_POST) > 0) {
         updateRuntime(time() - $starttime);
         $progress = $task->getProgress();
         if ($progress !== false && $progress !== $progressOld) {
-            updateProgressBar($progress);
+            $progress_string = 'Current URL: ' . $progress['current_url'] . '<br/>';
+            $progress_string .= 'Current Depth: ' . ($_POST['depth'] - $progress['remaining_depth']) . '<br/>';
+            $progress_string .= 'Processed URL count: ' . $progress['processed_url_count'] . '<br/>';
+            updateProgress($progress_string);
             $progressOld = $progress;
         }
         $status = $task->getStatus();
     } while ($status['running']);
 
     if ($status['exitcode'] == 0) {
+        updateProgress('Finished');
         print '<tr><td>Download</td><td><a target="_blank" href="getresult.php?id=' . basename($task->marcPath) . '">Result file</a></td></tr>';
     } else {
+        updateProgress('Aborted');
         print '<tr><td>ERROR</td><td>Exitcode: '.$status['exitcode'].'</td></tr>';
     }
 
