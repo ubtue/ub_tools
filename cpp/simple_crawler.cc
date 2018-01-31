@@ -47,11 +47,11 @@ void Usage() {
               << "\t[ (--print-redirects | -p) ]                              Nomen est omen.\n"
               << "\t[ (--timeout | -t) milliseconds ]                         Overall time we're willing to wait\n"
               << "                                                            to download a page (default " + std::to_string(SimpleCrawler::DEFAULT_TIMEOUT) + ").\n"
-              << "\t[ (--min-url-processing-time | -m) milliseconds ]         Min time between downloading 2 URLs\n"
-              << "                                                            to prevent DOS attacks (default " + std::to_string(SimpleCrawler::DEFAULT_MIN_URL_PROCESSING_TIME) + ").\n"
+              << "\t[ (--min-url-processing-time | -m) milliseconds ]         Min time between downloading 2 URL's\n"
+              << "                                                            to prevent accidental DOS attacks (default " + std::to_string(SimpleCrawler::DEFAULT_MIN_URL_PROCESSING_TIME) + ").\n"
               << "\n"
               << "The config file consists of lines specifying one site per line.\n"
-              << "Each line must have a start URL, a maximum crawl depth and a PCRE URL pattern.\n"
+              << "Each line must have a start URL, a maximum crawl depth and a PCRE URL pattern, that each sub-url must match.\n"
               << "Any encountered URL that matches a URL pattern will be echoed on stdout.\n\n";
 
     std::exit(EXIT_FAILURE);
@@ -90,10 +90,10 @@ void ProcessArgs(int argc, char *argv[], Logger::LogLevel * const min_log_level,
             *min_log_level = Logger::StringToLogLevel(optarg);
             break;
         case 'a':
-            params->all_headers_ = true;
+            params->print_all_http_headers_ = true;
             break;
         case 'l':
-            params->last_header_ = true;
+            params->print_last_http_header_ = true;
             break;
         case 't':
             errno = 0;

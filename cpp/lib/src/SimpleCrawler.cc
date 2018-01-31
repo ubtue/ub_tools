@@ -22,13 +22,13 @@
 
 
 SimpleCrawler::Params::Params(const std::string &acceptable_languages, const unsigned timeout,
-                              const unsigned min_url_processing_time, const bool all_headers,
-                              const bool last_header, const bool ignore_robots_dot_txt,
+                              const unsigned min_url_processing_time, const bool print_all_http_headers,
+                              const bool print_last_http_header, const bool ignore_robots_dot_txt,
                               const bool print_redirects, const std::string &user_agent,
                               const std::string &url_ignore_pattern)
     : acceptable_languages_(acceptable_languages), timeout_(timeout),
-      min_url_processing_time_(min_url_processing_time), all_headers_(all_headers),
-      last_header_(last_header), ignore_robots_dot_txt_(ignore_robots_dot_txt),
+      min_url_processing_time_(min_url_processing_time), print_all_http_headers_(print_all_http_headers),
+      print_last_http_header_(print_last_http_header), ignore_robots_dot_txt_(ignore_robots_dot_txt),
       print_redirects_(print_redirects), user_agent_(user_agent),
       url_ignore_pattern_(url_ignore_pattern) {}
 
@@ -38,7 +38,7 @@ void SimpleCrawler::extractLocationUrls(const std::string &header_blob, std::lis
 
     std::vector<std::string> header_lines;
     StringUtil::SplitThenTrimWhite(header_blob, "\r\n", &header_lines);
-    for (const auto header_line : header_lines) {
+    for (const auto &header_line : header_lines) {
         if (StringUtil::StartsWith(header_line, "Location:", /* ignore_case = */ true)) {
             std::string location(header_line.substr(9));
             StringUtil::Trim(&location);
@@ -66,19 +66,19 @@ void SimpleCrawler::ParseConfigFile(const std::string &config_path, std::vector<
 
         std::vector<std::string> line_parts;
         if (StringUtil::SplitThenTrimWhite(line, ' ', &line_parts) != 3)
-            logger->error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \""
-                          + input->getPath() + "\"!");
+            ERROR("bad input line #" + std::to_string(line_no) + " in \""
+                   + input->getPath() + "\"!");
 
         unsigned max_crawl_depth;
         if (not StringUtil::ToUnsigned(line_parts[1], &max_crawl_depth))
-            logger->error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \""
-                          + input->getPath() + "\"! (Invalid max. crawl depth: \"" + line_parts[1] + "\")");
+            ERROR("bad input line #" + std::to_string(line_no) + " in \""
+                   + input->getPath() + "\"! (Invalid max. crawl depth: \"" + line_parts[1] + "\")");
 
         std::string err_msg;
         RegexMatcher * const url_regex_matcher(RegexMatcher::RegexMatcherFactory(line_parts[2], &err_msg));
         if (url_regex_matcher == nullptr)
-            logger->error("in ParseConfigFile: bad input line #" + std::to_string(line_no) + " in \""
-                          + input->getPath() + "\", regex is faulty! (" + err_msg + ")");
+            ERROR("bad input line #" + std::to_string(line_no) + " in \""
+                   + input->getPath() + "\", regex is faulty! (" + err_msg + ")");
         site_descs->emplace_back(line_parts[0], max_crawl_depth, url_regex_matcher);
     }
 }
@@ -88,30 +88,25 @@ SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
     : remaining_crawl_depth_(site_desc.max_crawl_depth_), url_regex_matcher_(site_desc.url_regex_matcher_),
       min_url_processing_time_(params.min_url_processing_time_), params_(params)
 {
-    // reset queues
     std::queue<std::string> url_queue_start;
     url_queue_start.push(site_desc.start_url_);
     url_queue_current_depth_.swap(url_queue_start);
     std::queue<std::string> url_queue_empty;
     url_queue_next_depth_.swap(url_queue_empty);
 
-    // reset RegexMatchers
     std::string err_msg;
     url_ignore_regex_matcher_.reset(RegexMatcher::RegexMatcherFactory(params.url_ignore_pattern_, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
     if (url_ignore_regex_matcher_ == nullptr)
-        ERROR("could not initialize URL ignore regex matcher\n"
-              + err_msg);
+        ERROR("could not initialize URL ignore regex matcher: " + err_msg);
 
-    // reset other class variables
-    downloader_params_                        = Downloader::Params();
-    downloader_params_.user_agent_            = params.user_agent_;
-    downloader_params_.acceptable_languages_  = params.acceptable_languages_;
-    downloader_params_.honour_robots_dot_txt_ = not params.ignore_robots_dot_txt_;
+    downloader_.params_.user_agent_            = params.user_agent_;
+    downloader_.params_.acceptable_languages_  = params.acceptable_languages_;
+    downloader_.params_.honour_robots_dot_txt_ = not params.ignore_robots_dot_txt_;
 }
 
 
-bool SimpleCrawler::checkMorePagesExist() {
-    // continue if more URL's exist on current depth
+bool SimpleCrawler::continueCrawling() {
+    // stay on current depth if more URL's exist here
     if (not url_queue_current_depth_.empty())
         return true;
 
@@ -125,7 +120,7 @@ bool SimpleCrawler::checkMorePagesExist() {
             return false;
         else {
             --remaining_crawl_depth_;
-            url_queue_current_depth_ = url_queue_next_depth_;
+            url_queue_current_depth_.swap(url_queue_next_depth_);
             url_queue_next_depth_ = {};
         }
     }
@@ -134,36 +129,35 @@ bool SimpleCrawler::checkMorePagesExist() {
 
 
 bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
-
     // get next URL and check if it can be processed
     const std::string url(url_queue_current_depth_.front());
     url_queue_current_depth_.pop();
     if (url_ignore_regex_matcher_->matched(url)) {
-        page_details->error_ = true;
+        page_details->error_message_ = "URL contains ignorable data (e.g. CSS file) and will be skipped";
         logger->warning("Skipping URL: " + url);
-        return SimpleCrawler::checkMorePagesExist();
+        return SimpleCrawler::continueCrawling();
     }
 
     // download page
     min_url_processing_time_.sleepUntilExpired();
-    Downloader downloader(url, downloader_params_, params_.timeout_);
+    downloader_.newUrl(url, params_.timeout_);
     min_url_processing_time_.restart();
-    if (downloader.anErrorOccurred()) {
-        page_details->error_ = true;
+    if (downloader_.anErrorOccurred()) {
+        page_details->error_message_ = "Download failed: " + downloader_.getLastErrorMessage();
         logger->warning("Failed to retrieve a Web page (" + url + "):\n"
-                        + downloader.getLastErrorMessage());
-        return SimpleCrawler::checkMorePagesExist();
+                        + downloader_.getLastErrorMessage());
+        return SimpleCrawler::continueCrawling();
     }
 
     // print message headers if necessary
-    const std::string message_headers(downloader.getMessageHeader()), message_body(downloader.getMessageBody());
+    const std::string message_headers(downloader_.getMessageHeader()), message_body(downloader_.getMessageBody());
     if (params_.print_redirects_) {
         std::list<std::string> location_urls;
         extractLocationUrls(message_headers, &location_urls);
         for (const auto &location_url : location_urls)
             logger->info("Location: " + location_url);
     }
-    if (params_.all_headers_ or params_.last_header_)
+    if (params_.print_all_http_headers_ or params_.print_last_http_header_)
         logger->info(StringUtil::ReplaceString("\r\n", "\n", message_headers) + "\n");
 
     // fill result
@@ -173,11 +167,11 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
 
     // extract deeper level URL's
     if (remaining_crawl_depth_ > 0) {
-        static const unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
-                                                | WebUtil::REMOVE_DOCUMENT_RELATIVE_ANCHORS
-                                                | WebUtil::CLEAN_UP_ANCHOR_TEXT
-                                                | WebUtil::KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY
-                                                | WebUtil::ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
+        constexpr unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
+                                           | WebUtil::REMOVE_DOCUMENT_RELATIVE_ANCHORS
+                                           | WebUtil::CLEAN_UP_ANCHOR_TEXT
+                                           | WebUtil::KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY
+                                           | WebUtil::ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
 
         std::vector<WebUtil::UrlAndAnchorTexts> urls_and_anchor_texts;
         WebUtil::ExtractURLs(message_body, url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
@@ -188,7 +182,7 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
         }
     }
 
-    return SimpleCrawler::checkMorePagesExist();
+    return SimpleCrawler::continueCrawling();
 }
 
 
@@ -196,7 +190,7 @@ void SimpleCrawler::ProcessSite(const SiteDesc &site_desc, const Params &params,
     SimpleCrawler crawler(site_desc, params);
     PageDetails page_details;
     while (crawler.getNextPage(&page_details))
-        if (not page_details.error_)
+        if (page_details.error_message_.empty())
             extracted_urls->emplace_back(page_details.url_);
 }
 

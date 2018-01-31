@@ -692,16 +692,18 @@ void StartHarvesting(const bool ignore_robots_dot_txt, const std::string &simple
         SimpleCrawler::PageDetails page_details;
         while (crawler.getNextPage(&page_details)) {
             ++processed_url_count;
-            const auto record_count_and_previously_downloaded_count(
-                Harvest(page_details.url_, zts_client_params)
-            );
-            *total_record_count                += record_count_and_previously_downloaded_count.first;
-            *total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
-            if (progress_file != nullptr) {
-                progress_file->rewind();
-                if (unlikely(not progress_file->write(
-                        std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth()) + ";" + page_details.url_)))
-                    logger->error("failed to write progress to \"" + progress_file->getPath());
+            if (page_details.error_message_.empty()) {
+                const auto record_count_and_previously_downloaded_count(
+                    Harvest(page_details.url_, zts_client_params)
+                );
+                *total_record_count                += record_count_and_previously_downloaded_count.first;
+                *total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
+                if (progress_file != nullptr) {
+                    progress_file->rewind();
+                    if (unlikely(not progress_file->write(
+                            std::to_string(processed_url_count) + ";" + std::to_string(crawler.getRemainingCallDepth()) + ";" + page_details.url_)))
+                        logger->error("failed to write progress to \"" + progress_file->getPath());
+                }
             }
         }
     }
