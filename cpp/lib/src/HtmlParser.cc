@@ -525,7 +525,7 @@ void HtmlParser::processDoctype() {
     {
         document_local_charset_ = "Latin-1 but using ANSI";
         std::string error_message;
-        encoding_converter_ = TextUtil::EncodingConverter::Factory("ANSI", "UTF8", &error_message);
+        encoding_converter_ = TextUtil::EncodingConverter::Factory("MS-ANSI", "UTF8", &error_message);
         if (unlikely(encoding_converter_.get() == nullptr))
             ERROR("failed to create an encoding converter: " + error_message);
     } else
