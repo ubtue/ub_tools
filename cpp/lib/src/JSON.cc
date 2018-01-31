@@ -785,17 +785,34 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
 
 std::string EscapeString(const std::string &unescaped_string) {
     std::ostringstream escaped_string;
-    for (const char &ch : unescaped_string) {
+    for (const char ch : unescaped_string) {
         switch (ch) {
-            case '\\': escaped_string << "\\\\"; break;
-            case '"': escaped_string << "\\\""; break;
-            case '/': escaped_string << "\\/"; break;
-            case '\b': escaped_string << "\\b"; break;
-            case '\f': escaped_string << "\\f"; break;
-            case '\n': escaped_string << "\\n"; break;
-            case '\r': escaped_string << "\\r"; break;
-            case '\t': escaped_string << "\\t"; break;
-            default: escaped_string << ch; break;
+        case '\\':
+            escaped_string << "\\\\";
+            break;
+        case '"':
+            escaped_string << "\\\"";
+            break;
+        case '/':
+            escaped_string << "\\/";
+            break;
+        case '\b':
+            escaped_string << "\\b";
+            break;
+        case '\f':
+            escaped_string << "\\f";
+            break;
+        case '\n':
+            escaped_string << "\\n";
+            break;
+        case '\r':
+            escaped_string << "\\r";
+            break;
+        case '\t':
+            escaped_string << "\\t";
+            break;
+        default:
+            escaped_string << ch;
         }
     }
     return escaped_string.str();
