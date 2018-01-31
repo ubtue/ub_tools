@@ -486,6 +486,26 @@ void HtmlParser::skipWhiteSpace() {
 }
 
 
+const std::vector<std::string> HTML4_DOCTYPES = {
+    "HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\"",
+    "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"",
+    "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\"",
+    "html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"",
+    "html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"",
+    "html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\"",
+    "html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\""
+};
+
+
+bool IsHTML4Doctype(const std::string &doctype) {
+    for (const auto &html4_doctype : HTML4_DOCTYPES) {
+        if (StringUtil::StartsWith(doctype, html4_doctype, /* ignore_case */ true))
+            return true;
+    }
+    return false;
+}
+
+
 // HtmlParser::processDoctype -- assumes that at this point we have read "<!DOCTYPE" and
 //                            skips over all input up to and including ">".
 //
@@ -509,20 +529,7 @@ void HtmlParser::processDoctype() {
 
     if (::strcasecmp(doctype.c_str(), "html") == 0)
         return;
-    if (::strcasecmp(doctype.c_str(), "HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"") == 0
-        or ::strcasecmp(doctype.c_str(),
-                        "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"") == 0
-        or ::strcasecmp(doctype.c_str(),
-                        "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\" \"http://www.w3.org/TR/html4/frameset.dtd\"") == 0
-        or ::strcasecmp(doctype.c_str(),
-                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"") == 0
-        or ::strcasecmp(doctype.c_str(),
-                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"") == 0
-        or ::strcasecmp(doctype.c_str(),
-                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\"") == 0
-        or ::strcasecmp(doctype.c_str(),
-                        "html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\"") == 0)
-    {
+    if (IsHTML4Doctype(doctype)) {
         document_local_charset_ = "Latin-1 but using ANSI";
         std::string error_message;
         encoding_converter_ = TextUtil::EncodingConverter::Factory("ANSI", "UTF8", &error_message);
