@@ -276,13 +276,22 @@ HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_
       chunk_mask_(chunk_mask), header_only_(header_only), is_xhtml_(false)
 {
     if ((chunk_mask_ & TEXT) and (chunk_mask_ & (WORD | PUNCTUATION | WHITESPACE)))
-        throw std::runtime_error("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
+        ERROR("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
 
     cp_ = cp_start_ = input_string_;
     end_of_stream_ = *cp_ == '\0';
 
     if (likely(not end_of_stream_))
         replaceEntitiesInString();
+
+    if (not http_header_charset.empty()) {
+        std::string error_message;
+        encoding_converter_ = TextUtil::EncodingConverter::Factory(http_header_charset, "utf8", &error_message);
+        if (encoding_converter_.get() == nullptr)
+            WARNING(error_message);
+    }
+    if (encoding_converter_.get() == nullptr)
+        encoding_converter_ = TextUtil::IdentityConverter::Factory();
 }
 
 
@@ -477,19 +486,50 @@ void HtmlParser::skipWhiteSpace() {
 }
 
 
-// HtmlParser::skipDoctype -- assumes that at this point we have read "<!DOCTYPE" and
+// HtmlParser::processDoctype -- assumes that at this point we have read "<!DOCTYPE" and
 //                            skips over all input up to and including ">".
 //
-void HtmlParser::skipDoctype() {
+void HtmlParser::processDoctype() {
+    std::string doctype;
     int ch;
     do
-        ch = getChar();
+        doctype += static_cast<char>(ch = getChar());
     while (ch != '>' and ch != EOF);
-    if (ch == EOF) {
+    if (unlikely(ch == EOF)) {
         Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
                                    "unexpected end of HTML while skipping over a DOCTYPE");
         preNotify(&unexpected_eof_chunk);
     }
+
+    if (not http_header_charset_.empty())
+        return; // We don't care about the document-local encoding because the HTTP header's has precedence!
+
+    doctype.resize(doctype.size() - 1); // Strip off trailing '>'.
+    StringUtil::TrimWhite(&doctype);
+
+    if (::strcasecmp(doctype.c_str(), "html") == 0)
+        return;
+    if (::strcasecmp(doctype.c_str(), "HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\" \"http://www.w3.org/TR/html4/frameset.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\"") == 0
+        or ::strcasecmp(doctype.c_str(),
+                        "html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\"") == 0)
+    {
+        document_local_charset_ = "Latin-1 but using ANSI";
+        std::string error_message;
+        encoding_converter_ = TextUtil::EncodingConverter::Factory("ANSI", "UTF8", &error_message);
+        if (unlikely(encoding_converter_.get() == nullptr))
+            ERROR("failed to create an encoding converter: " + error_message);
+    } else
+        WARNING("unknown doctype: " + doctype);
 }
 
 
@@ -659,7 +699,11 @@ void HtmlParser::parseText() {
             text += static_cast<char>(ch);
     }
 
-    Chunk chunk(TEXT, text, lineno_);
+    std::string utf8_text;
+    if (unlikely(not encoding_converter_->convert(text, &utf8_text)))
+        WARNING("invalid " + encoding_converter_->getFromEncoding()
+                + " encoded text; returned non-converted text as probably invalid \"UTF-8\"!");
+    Chunk chunk(TEXT, utf8_text, lineno_);
     preNotify(&chunk);
 }
 
@@ -824,8 +868,7 @@ bool HtmlParser::parseTag() {
                 preNotify(&chunk);
             }
             skipToEndOfTag(tag_name, start_lineno);
-        }
-        else {
+        } else {
             if (chunk_mask_ & OPENING_TAG) {
                 Chunk chunk(OPENING_TAG, tag_name, start_lineno, &attribute_map);
                 preNotify(&chunk);
@@ -880,6 +923,37 @@ bool HtmlParser::parseTag() {
     else { // We have an opening tag.
         if (header_only_ and tag_name == "body")
             return false;
+
+        if (http_header_charset_.empty() and tag_name == "meta") {
+            // See https://www.w3.org/International/questions/qa-html-encoding-declarations in order to understand
+            // the following code.
+
+            std::string charset;
+            const auto charset_attrib(attribute_map.find("charset"));
+            if (charset_attrib != attribute_map.end())
+                charset = charset_attrib->second;
+            else {
+                const auto http_equiv_attrib(attribute_map.find("http-equiv"));
+                if (http_equiv_attrib != attribute_map.end()) {
+                    const auto charset_pos(http_equiv_attrib->second.find("charset="));
+                    if (charset_pos != std::string::npos)
+                        charset = http_equiv_attrib->second.substr(charset_pos + __builtin_strlen("charset="));
+                }
+            }
+
+            StringUtil::TrimWhite(&charset);
+            if (not charset.empty()) {
+                std::string error_message;
+                encoding_converter_ = TextUtil::EncodingConverter::Factory(charset, "UTF8", &error_message);
+                if (encoding_converter_.get() != nullptr)
+                    document_local_charset_ = charset;
+                else {
+                    WARNING("failed to establish an encoding converter (using identity mapping)" + error_message);
+                    encoding_converter_ = TextUtil::IdentityConverter::Factory();
+                }
+            }
+        }
+
         if (chunk_mask_ & OPENING_TAG) {
             Chunk chunk(OPENING_TAG, tag_name, start_lineno, &attribute_map);
             preNotify(&chunk);
@@ -937,7 +1011,7 @@ void HtmlParser::parse() {
                             skipToEndOfMalformedTag("!" + doctype, start_lineno);
                             continue;
                         }
-                        skipDoctype();
+                        processDoctype();
                     } else { // we assume we have a comment
                         ch = getChar();
                         if (unlikely(ch != '-'))
