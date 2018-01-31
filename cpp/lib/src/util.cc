@@ -24,6 +24,7 @@
 #include <iterator>
 #include <stdexcept>
 #include <cctype>
+#include <cstdlib>
 #include <execinfo.h>
 #include <signal.h>
 #include "Compiler.h"
@@ -36,6 +37,13 @@
 
 
 char *progname; // Must be set in main() with "progname = argv[0];";
+
+
+Logger::Logger(): fd_(STDERR_FILENO), min_log_level_(LL_INFO) {
+    const char * const min_log_level(::getenv("MIN_LOG_LEVEL"));
+    if (min_log_level != nullptr)
+        min_log_level_ = Logger::StringToLogLevel(min_log_level);
+}
 
 
 static void WriteString(const int fd, const std::string &msg) {
