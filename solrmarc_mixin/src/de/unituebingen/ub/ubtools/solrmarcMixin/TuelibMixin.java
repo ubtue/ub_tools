@@ -12,6 +12,7 @@ import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
@@ -1132,9 +1133,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         final String subfieldDelim = "$";
         final String esc = "\\";
         final String regexColon = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(fieldDelim);
-        final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim) + "([a-zA-Z])(.*)";
+        final String regexSubfield = "(?<!" + Pattern.quote(esc) + ")" + Pattern.quote(subfieldDelim) + "([0-9][a-z]|[a-zA-Z])(.*)";
         final Pattern SUBFIELD_PATTERN = Pattern.compile(regexSubfield);
-
         String[] subfieldSeparatorList = separatorSpec.split(regexColon);
         for (String s : subfieldSeparatorList) {
             // Create map of subfields and separators
@@ -1153,7 +1153,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 separators.put("default", s.replace(esc, ""));
             }
         }
-
         return separators;
     }
 
@@ -1237,9 +1236,15 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     /**
      * Generate Separator according to specification
+     * For some subfields there are standards how the values extracted must be attached to the resulting keyword string
+     * Examples are $p must be separated y ".". We must also examine the term itself since there a constructions like
+     * $9g:
      */
-    public String getSubfieldBasedSeparator(Map<String, String> separators, char subfieldCodeChar) {
+    public String getSubfieldBasedSeparator(Map<String, String> separators, char subfieldCodeChar, String term) {
         String subfieldCodeString = Character.toString(subfieldCodeChar);
+        // In some cases of numeric Subfields we have ':'-delimited subfield of a subfield to remove complexity ;-)
+        // i.e. $9 g:xxxx
+        subfieldCodeString += Character.isDigit(subfieldCodeChar) ? term.split(":")[0] : "";
         String separator = separators.get(subfieldCodeString) != null ? separators.get(subfieldCodeString)
                                                                       : separators.get("default");
 
@@ -1291,14 +1296,33 @@ public class TuelibMixin extends SolrIndexerMixin {
         getTopicsCollector(record, fieldSpec, separators, collector, langShortcut, null);
     }
 
+
+    /**
+     * Construct a regular expression from the subfield tags where all character subfields are extracted and for number
+     * subfields the subsequent character subSubfield-Code is skipped (e.g. abctnpz9g => a|b|c|t|n|p|z|9 (without the g)
+     */
+    private String extractNormalizedSubfieldPatternHelper(final String subfldTags) {
+        String[] tokens =  subfldTags.split("(?<=[0-9]?[a-z])");
+        Stream<String> tokenStream = Arrays.stream(tokens);
+        Stream<String> normalizedTokenStream = tokenStream.map(t -> "" + t.charAt(0)); // extract only first character
+        return String.join("|", normalizedTokenStream.toArray(String[]::new));
+    }
+
+
+    /**
+     * Strip subSubfield-Codes from the value part of a field
+     */
+    private String stripSubSubfieldCode(final String term) {
+        return term.replaceAll("^[a-z]:", "");
+    }
+
+
     /**
      * Abstract out topic extract from LOK and ordinary field handling
      */
     private void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
                             final  String langShortcut, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
-        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*"
-                                              : String.join("|", subfldTags.split("(?!^)")));
-
+        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
             final StringBuffer buffer = new StringBuffer("");
             final DataField marcField = (DataField) vf;
@@ -1321,32 +1345,34 @@ public class TuelibMixin extends SolrIndexerMixin {
             // separators
             else {
                 for (final Subfield subfield : subfields) {
-                    // Skip numeric fields
-                    if (Character.isDigit(subfield.getCode()))
-                        continue;
+                    char subfieldCode = subfield.getCode();
                     final Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
-                    if (matcher.find()) {
-                        final String term = subfield.getData().trim();
-                        if (buffer.length() > 0) {
-                            String separator = getSubfieldBasedSeparator(separators, subfield.getCode());
-                            if (separator != null) {
-                                if (isBracketDirective(separator)) {
-
-                                    final SymbolPair symbolPair = parseBracketDirective(separator);
-                                    final String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
-                                    buffer.append(" " + symbolPair.opening + translatedTerm + symbolPair.closing);
-                                    continue;
-                                } else if (buffer.length() > 0)
-                                    buffer.append(separator);
-                            }
+                    if (!matcher.matches())
+                        continue;
+                    String term = subfield.getData().trim();
+                    if (buffer.length() > 0) {
+                        String separator = getSubfieldBasedSeparator(separators, subfield.getCode(), term);
+                        // Make sure we strip the subSubfield code from our term
+                        if (Character.isDigit(subfieldCode))
+                            term = stripSubSubfieldCode(term);
+                        if (separator != null) {
+                            if (isBracketDirective(separator)) {
+                                final SymbolPair symbolPair = parseBracketDirective(separator);
+                                final String translatedTerm = translateTopic(term.replace("/", "\\/"), langShortcut);
+                                buffer.append(" " + symbolPair.opening + translatedTerm + symbolPair.closing);
+                                continue;
+                            } else if (buffer.length() > 0)
+                                buffer.append(separator);
                         }
-                        buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
+
                     }
+                    buffer.append(translateTopic(term.replace("/", "\\/"), langShortcut));
                 }
             }
             if (buffer.length() > 0)
                 collector.add(DataUtil.cleanData(buffer.toString()));
         }
+
     } // end extractTopicsHelper
 
     /**
@@ -1357,8 +1383,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Generic function for topics that abstracts from a set or list collector
      * It is based on original SolrIndex.getAllSubfieldsCollector but allows to
      * specify several different separators to concatenate the single subfields
-     * Moreover numeric subfields are filtered out since they do not contain data
-     * to be displayed. Separators can be defined on a subfield basis as a list in
+     * Separators can be defined on a subfield basis as a list in
      * the format
      *   separator_spec          :== separator | subfield_separator_list
      *   subfield_separator_list :== subfield_separator_spec |  subfield_separator_spec ":" subfield_separator_list |
