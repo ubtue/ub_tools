@@ -96,10 +96,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                     if (germanASubfield != null) {
                         final String translationCandidate = germanASubfield.getData() + " <" + specification + ">";
                         final String translation = tuelibMixin.translateTopic(translationCandidate, lang);
-                        if (translation != translationCandidate) {
-                            keyword.setLength(0);
-                            keyword.append(translation.replaceAll("<", "(").replaceAll(">", ")"));
-                        }
+                        keyword.setLength(0);
+                        keyword.append(translation.replaceAll("<", "(").replaceAll(">", ")"));
                     }
                     else {
                         keyword.append(" (");
@@ -114,7 +112,6 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 
         if (keyword.length() > 0) {
             String keywordString = keyword.toString().replace("/", "\\/");
-
             keyWordChain.add(keywordString);
         }
     }

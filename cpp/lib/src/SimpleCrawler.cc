@@ -121,7 +121,7 @@ bool SimpleCrawler::continueCrawling() {
         else {
             --remaining_crawl_depth_;
             url_queue_current_depth_.swap(url_queue_next_depth_);
-            url_queue_next_depth_ = {};
+            url_queue_next_depth_ = std::queue<std::string>();
         }
     }
     return true;
