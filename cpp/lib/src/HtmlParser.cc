@@ -499,7 +499,7 @@ const std::vector<std::string> HTML4_DOCTYPES = {
 
 bool IsHTML4Doctype(const std::string &doctype) {
     for (const auto &html4_doctype : HTML4_DOCTYPES) {
-        if (StringUtil::StartsWith(doctype, html4_doctype, /* ignore_case */ true))
+        if (StringUtil::StartsWith(doctype, html4_doctype, /* ignore_case = */ true))
             return true;
     }
     return false;
@@ -507,7 +507,7 @@ bool IsHTML4Doctype(const std::string &doctype) {
 
 
 // HtmlParser::processDoctype -- assumes that at this point we have read "<!DOCTYPE" and
-//                            skips over all input up to and including ">".
+//                               skips over all input up to and including ">".
 //
 void HtmlParser::processDoctype() {
     std::string doctype;
@@ -530,7 +530,7 @@ void HtmlParser::processDoctype() {
     if (::strcasecmp(doctype.c_str(), "html") == 0)
         return;
     if (IsHTML4Doctype(doctype)) {
-        document_local_charset_ = "Latin-1 but using ANSI";
+        document_local_charset_ = "Latin-1 but using ANSI"; // See https://www.w3schools.com/charsets/default.asp for a rationale!
         std::string error_message;
         encoding_converter_ = TextUtil::EncodingConverter::Factory("MS-ANSI", "UTF8", &error_message);
         if (unlikely(encoding_converter_.get() == nullptr))
@@ -826,6 +826,23 @@ bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * con
 }
 
 
+static const std::vector<std::string> LATIN1_CHARSETS {
+    "Latin-1",
+    "Latin1",
+    "ISO-8859-1"
+};
+
+
+bool IsLatin1Charset(const std::string &charset) {
+    for (const auto &latin1_charset : LATIN1_CHARSETS) {
+        if (::strcasecmp(charset.c_str(), latin1_charset.c_str()) == 0)
+            return true;
+    }
+
+    return false;
+}
+
+
 // HtmlParser::parseTag -- parse HTML tags.  Returns false if we want to abort parsing, else true.
 //
 bool HtmlParser::parseTag() {
@@ -926,8 +943,7 @@ bool HtmlParser::parseTag() {
             Chunk chunk(CLOSING_TAG, tag_name, start_lineno);
             preNotify(&chunk);
         }
-    }
-    else { // We have an opening tag.
+    } else { // We have an opening tag.
         if (header_only_ and tag_name == "body")
             return false;
 
@@ -950,6 +966,8 @@ bool HtmlParser::parseTag() {
 
             StringUtil::TrimWhite(&charset);
             if (not charset.empty()) {
+                if (IsLatin1Charset(charset) or ::strcasecmp(charset.c_str(), "Windows-1252") == 0)
+                    charset = "MS-ANSI"; // See https://www.w3schools.com/charsets/default.asp for a rationale!
                 std::string error_message;
                 encoding_converter_ = TextUtil::EncodingConverter::Factory(charset, "UTF8", &error_message);
                 if (encoding_converter_.get() != nullptr)
