@@ -58,7 +58,10 @@ struct ZtsClientParams {
 public:
     std::string zts_server_url_;
     TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
-    MarcWriter * marc_writer_;
+    std::string output_file_;
+    std::string output_format_;
+    std::unique_ptr<MarcWriter> marc_writer_;
+    unsigned harvested_url_count_ = 0;
     std::unordered_set<std::string> previously_downloaded_;
     std::unordered_map<std::string, std::string> ISSN_to_physical_form_map_;
     std::unordered_map<std::string, std::string> ISSN_to_language_code_map_;
@@ -642,9 +645,14 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                     record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
                 }
             }
-        } else {
+        } else if (zts_client_params.marc_writer_ != nullptr) {
             record_count_and_previously_downloaded_count =
                 GenerateMARC(tree_root, zts_client_params);
+        } else {
+            if (zts_client_params.harvested_url_count_ > 0)
+                FileUtil::AppendString(zts_client_params.output_file_, ",");
+            FileUtil::AppendString(zts_client_params.output_file_, response_body);
+            ++zts_client_params.harvested_url_count_;
         }
         delete tree_root;
     } catch (...) {
@@ -767,8 +775,12 @@ void Main(int argc, char *argv[]) {
             LoadPreviouslyDownloadedHashes(previously_downloaded_input.get(), &zts_client_params.previously_downloaded_);
         }
 
-        std::unique_ptr<MarcWriter> marc_writer(MarcWriter::Factory(argv[3]));
-        zts_client_params.marc_writer_ = marc_writer.get();;
+        zts_client_params.output_file_ = argv[3];
+        zts_client_params.output_format_ = FileUtil::GetExtension(zts_client_params.output_file_, true);
+        if (zts_client_params.output_format_ == "json")
+            FileUtil::AppendString(zts_client_params.output_file_, "[");
+        else
+            zts_client_params.marc_writer_ = MarcWriter::Factory(zts_client_params.output_file_);
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
         std::unique_ptr<File> progress_file;
@@ -778,6 +790,9 @@ void Main(int argc, char *argv[]) {
         StartHarvesting(ignore_robots_dot_txt, simple_crawler_config_path,
                         zts_client_params, progress_file,
                         &total_record_count, &total_previously_downloaded_count);
+
+        if (zts_client_params.output_format_ == "json")
+            FileUtil::AppendString(zts_client_params.output_file_, "]");
 
         INFO("Harvested a total of " + StringUtil::ToString(total_record_count) + " records of which "
              + StringUtil::ToString(total_previously_downloaded_count) + " were already previously downloaded.");
