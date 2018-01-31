@@ -49,10 +49,33 @@ static void Usage() {
 }
 
 
+void ExtractCharsetFromHeader(const std::string &header_blob, std::string * const http_header_charset) {
+    http_header_charset->clear();
+
+    std::vector<std::string> header_lines;
+    StringUtil::SplitThenTrimWhite(header_blob, "\r\n", &header_lines);
+    for (const auto header_line : header_lines) {
+        if (StringUtil::StartsWith(header_line, "Content-Type:", /* ignore_case = */ true)) {
+            std::string content_type(header_line.substr(__builtin_strlen("Content-Type:")));
+            StringUtil::Trim(&content_type);
+            if (not content_type.empty()) {
+                const auto charset_start(content_type.find("charset="));
+                if (charset_start != std::string::npos) {
+                    *http_header_charset = content_type.substr(__builtin_strlen("charset="));
+                    StringUtil::Trim(http_header_charset);
+                    return;
+                }
+            }
+        }
+    }
+}
+
+
 // \note Sets "error_message" when it returns false.
 bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
-                             std::string * const media_type, std::string * const error_message)
-{
+                             std::string * const media_type, std::string * const http_header_charset,
+                             std::string * const error_message){
+
     Downloader::Params params;
     Downloader downloader(url, params, timeout);
     if (downloader.anErrorOccurred()) {
@@ -66,6 +89,9 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std
         *error_message = "failed to determine the media type!";
         return false;
     }
+
+    std::string message_header(downloader.getMessageHeader());
+    ExtractCharsetFromHeader(message_header, http_header_charset);
 
     return true;
 }
@@ -138,13 +164,36 @@ std::string GetTextFrom520a(const MARC::Record &record) {
 }
 
 
-std::string ConvertToPlainText(const std::string &media_type, const std::string &tesseract_language_code,
-                               const std::string &document, std::string * const error_message)
+bool IsUTF8(const std::string &charset) {
+    return charset == "utf-8" or charset == "utf8" or charset == "UFT-8" or charset == "UTF8";
+}
+
+
+std::string ConvertToPlainText(const std::string &media_type, const std::string &http_header_charset,
+                               const std::string &tesseract_language_code, const std::string &document,
+                               std::string * const error_message)
 {
-    if (media_type == "text/plain")
-        return document;
+    if (media_type == "text/plain") {
+        if (IsUTF8(http_header_charset))
+            return document;
+
+        std::string error_msg;
+        std::unique_ptr<TextUtil::EncodingConverter> encoding_converter(TextUtil::EncodingConverter::Factory(http_header_charset,
+                                                                                                             "utf8", &error_msg));
+        if (encoding_converter.get() == nullptr) {
+            WARNING("can't convert from \"" + http_header_charset + "\" to UTF-8! (" + error_msg + ")");
+            return document;
+        }
+
+        std::string utf8_document;
+        if (unlikely(not encoding_converter->convert(document, &utf8_document)))
+            WARNING("conversion error while converting text from \"" + http_header_charset + "\" to UTF-8!");
+        return utf8_document;
+    }
+
     if (media_type == "text/html")
-        return TextUtil::ExtractTextFromHtml(document);
+        return TextUtil::ExtractTextFromHtml(document, http_header_charset);
+
     if (StringUtil::StartsWith(media_type, "application/pdf")) {
         if (PdfUtil::PdfDocContainsNoText(document)) {
             std::string extracted_text;
@@ -205,12 +254,13 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
             std::string domain;
             cache.getDomainFromUrl(url, domain);
             entry_url.domain_ = domain;
-            std::string document, media_type, error_message;
-            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &error_message))) {
+            std::string document, media_type, http_header_charset, error_message;
+            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &http_header_charset,
+                                             &error_message))) {
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
                 success = false;
             } else {
-                std::string extracted_text(ConvertToPlainText(media_type, GetTesseractLanguageCode(*record),
+                std::string extracted_text(ConvertToPlainText(media_type, http_header_charset, GetTesseractLanguageCode(*record),
                                                               document, &error_message));
 
                 if (unlikely(extracted_text.empty())) {
