@@ -1104,9 +1104,16 @@ std::string GetFilenameWithoutExtensionOrDie(const std::string &filename) {
 }
 
 
-std::string GetExtension(const std::string &filename) {
+std::string GetExtension(const std::string &filename, const bool to_lowercase) {
     const std::string::size_type last_dot_pos(filename.rfind('.'));
-    return (last_dot_pos == std::string::npos) ? "" : filename.substr(last_dot_pos + 1);
+
+    if (last_dot_pos == std::string::npos)
+        return "";
+    else if (not to_lowercase)
+        return filename.substr(last_dot_pos + 1);
+    else
+        return StringUtil::ToLower(filename.substr(last_dot_pos + 1));
+
 }
 
 
