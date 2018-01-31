@@ -142,6 +142,9 @@ public:
     virtual void parse();
     virtual void notify(const Chunk &chunk) = 0;
 
+    inline const std::string getHttpHeaderCharset() const { return http_header_charset_; }
+    inline const std::string getDocumentLocalCharset() const { return document_local_charset_; }
+
     static std::string ChunkTypeToString(const unsigned chunk_type);
 protected:
 
