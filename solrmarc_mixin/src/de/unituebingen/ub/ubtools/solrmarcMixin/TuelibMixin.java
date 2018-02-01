@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
@@ -781,7 +782,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                                   + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
-                return year + "-" + month + "-" + getCurrentDayOfMonth() + "T11:00:00.000Z";
+                return year + "-" + month + "-" +
+                       YearMonth.of(Integer.valueOf(year), Integer.valueOf(month)).atEndOfMonth().getDayOfMonth()
+                       + "T11:00:00.000Z";
             }
         }
         return null;
