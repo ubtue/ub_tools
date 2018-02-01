@@ -276,6 +276,7 @@ private:
     friend class XmlReader;
     friend class BinaryWriter;
     friend class XmlWriter;
+    friend std::string CalcChecksum(const Record &record, const bool exclude_001);
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
@@ -581,6 +582,16 @@ std::string GetLanguageCode(const Record &record);
 
 /** \brief True if a GND code was found in 035$a else false. */
 bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
+
+    
+/** \brief Generates a reproducible SHA-1 hash over our internal data.
+ *  \param exclude_001  If true, do not include the contents of the 001 control field in the generation of the
+ *                      hash.
+ *  \return the hash
+ *  \note Equivalent records with different field order generate the same hash.  (This can only happen if at least one tag
+ *        has been repeated.)
+ */
+std::string CalcChecksum(const Record &record, const bool exclude_001 = false);
 
 
 } // namespace MARC
