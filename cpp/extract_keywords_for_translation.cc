@@ -33,7 +33,6 @@
 #include "DbConnection.h"
 #include "IniFile.h"
 #include "MARC.h"
-#include "MARCUtil.h"
 #include "StringUtil.h"
 #include "TranslationUtil.h"
 #include "util.h"
@@ -210,7 +209,7 @@ static unsigned no_gnd_code_count;
 bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
     // Skip records that are not GND records:
     std::string gnd_code;
-    if (not MARC::Util::GetGNDCode(*record, &gnd_code))
+    if (not MARC::GetGNDCode(*record, &gnd_code))
         return true;
 
     // Extract all synonyms and translations:
@@ -229,7 +228,7 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
                                   + "translator IS NULL AND "
                                   + GenerateLanguageCodeWhereClause(text_language_codes_statuses_and_origin_tags));
 
-    if (not MARC::Util::GetGNDCode(*record, &gnd_code)) {
+    if (not MARC::GetGNDCode(*record, &gnd_code)) {
         ++no_gnd_code_count;
         gnd_code = "0";
     }
