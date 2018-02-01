@@ -539,9 +539,12 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return
      */
     public String getSortableTitleUnicode(final Record record) {
-        final String title = SolrIndexer.instance().getSortableTitle(record);
+        String title = SolrIndexer.instance().getSortableTitle(record);
         final Matcher matcher = UNICODE_QUOTATION_MARKS_PATTERN.matcher(title);
-        return matcher.replaceAll("").trim();
+        title = matcher.replaceAll("");
+        // Remove all Unicode control characters
+        // (cf. https://stackoverflow.com/questions/3438854/replace-unicode-control-characters/3439206#3439206) (180201)
+        return title.replaceAll("\\p{Cc}", "").trim();
     }
 
     /**
