@@ -96,9 +96,7 @@ std::string GetNextControlNumber() {
     static unsigned last_control_number;
     ++last_control_number;
     static const std::string prefix("ZTS");
-    std::string number(std::to_string(last_control_number));
-    number = StringUtil::PadLeading(number, 7, '0');
-    return prefix + number;
+    return prefix + StringUtil::PadLeading(std::to_string(last_control_number), 7, '0');
 }
 
 
