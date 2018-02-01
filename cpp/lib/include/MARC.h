@@ -389,11 +389,19 @@ public:
      */
     Range getTagRange(const Tag &tag);
 
-    /** \return True if field with tag "tag" exists. */
-    inline bool hasTag(const Tag &tag) const {
-        return std::find_if(fields_.begin(), fields_.end(),
-                            [&tag](const Field &field) -> bool { return field.getTag() == tag; }) != fields_.end();
+    /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
+    inline iterator findTag(const Tag &tag) {
+        return std::find_if(fields_.begin(), fields_.end(), [&tag](const Field &field) -> bool { return field.getTag() == tag; });
     }
+
+    /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
+    const_iterator findTag(const Tag &tag) const {
+        return std::find_if(fields_.cbegin(), fields_.cend(),
+                            [&tag](const Field &field) -> bool { return field.getTag() == tag; });
+    }
+
+    /** \return True if field with tag "tag" exists. */
+    inline bool hasTag(const Tag &tag) const { return findTag(tag) != fields_.cend(); }
 
     /** \return True if field with tag "tag" and indicators "indicator1" and "indicator2" exists. */
     bool hasTagWithIndicators(const Tag &tag, const char indicator1, const char indicator2) const;
@@ -569,6 +577,10 @@ bool IsValidMarcFile(const std::string &filename, std::string * const err_msg,
  *  \return The extracted language code or the empty string if no language code was found.
  */
 std::string GetLanguageCode(const Record &record);
+
+
+/** \brief True if a GND code was found in 035$a else false. */
+bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
 
 
 } // namespace MARC
