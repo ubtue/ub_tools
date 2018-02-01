@@ -19,6 +19,15 @@ class MetadataHarvester {
     const FILE_CRAWLER_EXAMPLE = '/usr/local/ub_tools/cpp/data/zotero_crawler.conf';
 
     /**
+     * Mapping of format to file extension
+     */
+    const OUTPUT_FORMATS = [
+        'json'      => 'json',
+        'marc21'    => 'mrc',
+        'marcxml'   => 'xml',
+    ];
+
+    /**
      * URL of Server
      * @var string
      */
@@ -38,10 +47,10 @@ class MetadataHarvester {
      * @param string $urlBase
      * @param string $urlRegex
      * @param int $depth
-     * @param string $fileExtension     supported extension, e.g. "xml" for MARCXML or "mrc" for MARC21
+     * @param string $format     see zts_client for valid formats (e.g. json)
      * @return \Zotero\BackgroundTask
      */
-    public function start($urlBase, $urlRegex, $depth, $fileExtension) {
+    public function start($urlBase, $urlRegex, $depth, $format) {
         $uniqid = uniqid('Zts_' . date('Y-m-d_H-i-s_'));
         $cfgPath = DIR_TMP . $uniqid . '.conf';
 
@@ -57,11 +66,11 @@ class MetadataHarvester {
             symlink('/dev/null', $filePrevDownloaded);
         }
 
-        // only .mrc or .xml (type will be auto detected)
+        $fileExtension = MetadataHarvester::OUTPUT_FORMATS[$format];
         $outPath = DIR_TMP . $uniqid . '.' . $fileExtension;
 
         self::_writeConfigFile($cfgPath, $urlBase, $urlRegex, $depth);
-        return $this->_executeCommand($uniqid, $cfgPath, $dirMapLocal, $outPath);
+        return $this->_executeCommand($uniqid, $cfgPath, $dirMapLocal, $format, $outPath);
     }
 
     /**
@@ -70,10 +79,11 @@ class MetadataHarvester {
      * @param string $taskId
      * @param string $cfgPath
      * @param string $dirMap
+     * @param string $outFormat
      * @param string $outPath
      * @return \Zotero\BackgroundTask
      */
-    protected function _executeCommand($taskId, $cfgPath, $dirMap, $outPath) {
+    protected function _executeCommand($taskId, $cfgPath, $dirMap, $outFormat, $outPath) {
         $progressPath = BackgroundTask::getProgressPath($taskId);
 
         $cmd = 'zts_client';
@@ -81,6 +91,7 @@ class MetadataHarvester {
         if ($progressPath != null) {
             $cmd .= ' --progress-file="' . $progressPath . '"';
         }
+        $cmd .= ' --output-format=' . $outFormat;
         $cmd .= ' ' . $this->url . ' ' . $dirMap . ' "' . $outPath . '"';
         $cmd .= ' 2>&1';
 

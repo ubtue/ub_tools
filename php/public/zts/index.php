@@ -66,11 +66,14 @@
         <tr>
             <td>Format</td>
             <td>
-                <select name="fileExtension">
-                    <!--<option value="mrc" <?= (isset($_POST['fileExtension']) && $_POST['fileExtension'] == 'mrc') ? 'selected' : '' ?>>MARC21</option>-->
-                    <option value="xml" <?= (isset($_POST['fileExtension']) && $_POST['fileExtension'] == 'xml') ? 'selected' : '' ?>>MARCXML</option>
-                    <option value="json" <?= (isset($_POST['fileExtension']) && $_POST['fileExtension'] == 'json') ? 'selected' : '' ?>>JSON</option>
-
+                <select name="outputFormat">
+                    <?php
+                        foreach (\Zotero\MetadataHarvester::OUTPUT_FORMATS as $format_key => $format_extension) {
+                            print '<option value="'.$format_key.'" ';
+                            if (isset($_POST['outputFormat']) && $_POST['outputFormat'] == $format_key) print 'selected';
+                            print '>' . mb_strtoupper($format_key) . '</option>';
+                        }
+                    ?>
                 </select>
             </td>
             <td>MARC21 currently disabled due to problems with zts_client</td>
@@ -83,7 +86,7 @@
 <?php
 if (count($_POST) > 0) {
     $zotero = new Zotero\MetadataHarvester(ZOTERO_TRANSLATION_SERVER_URL);
-    $task = $zotero->start($_POST['urlBase'], $_POST['urlRegex'], $_POST['depth'], $_POST['fileExtension']);
+    $task = $zotero->start($_POST['urlBase'], $_POST['urlRegex'], $_POST['depth'], $_POST['outputFormat']);
     ?>
     <h2>Result</h2>
     <table>
@@ -124,7 +127,7 @@ if (count($_POST) > 0) {
         print '<tr><td>ERROR</td><td>Exitcode: '.$status['exitcode'].'</td></tr>';
     }
 
-    print '<tr><td>CLI output:</td><td>'.nl2br($task->getOutput()).'</td></tr>';
+    print '<tr><td>CLI output:</td><td>'.nl2br(htmlspecialchars($task->getOutput())).'</td></tr>';
 
     ?>
     </table>
