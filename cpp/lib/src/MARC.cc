@@ -111,6 +111,70 @@ Record::Record(const size_t record_size, char * const record_start)
 }
 
 
+static std::string TypeOfRecordToSTring(const Record::TypeOfRecord type_of_record) {
+    switch (type_of_record) {
+    case Record::LANGUAGE_MATERIAL:
+        return std::string(1, 'a');
+    case Record::NOTATED_MUSIC:
+        return std::string(1, 'c');
+    case Record::MANUSCRIPT_NOTATED_MUSIC:
+        return std::string(1, 'd');
+    case Record::CARTOGRAPHIC_MATERIAL:
+        return std::string(1, 'e');
+    case Record::MANUSCRIPT_CARTOGRAPHIC_MATERIAL:
+        return std::string(1, 'f');
+    case Record::PROJECTED_MEDIUM:
+        return std::string(1, 'g');
+    case Record::NONMUSICAL_SOUND_RECORDING:
+        return std::string(1, 'i');
+    case Record::MUSICAL_SOUND_RECORDING:
+        return std::string(1, 'j');
+    case Record::TWO_DIMENSIONAL_NONPROJECTABLE_GRAPHIC:
+        return std::string(1, 'k');
+    case Record::COMPUTER_FILE:
+        return std::string(1, 'm');
+    case Record::KIT:
+        return std::string(1, 'o');
+    case Record::MIXED_MATERIALS:
+        return std::string(1, 'p');
+    case Record::THREE_DIMENSIONAL_ARTIFACT_OR_NATURALLY_OCCURRING_OBJECT:
+        return std::string(1, 'r');
+    case Record::MANUSCRIPT_LANGUAGE_MATERIAL:
+        return std::string(1, 't');
+    default:
+        ERROR("unknown type-of-record: " + std::to_string(type_of_record) + "!");
+    }
+}
+
+
+static std::string BibliographicLevelToString(const Record::BibliographicLevel bibliographic_level) {
+    switch (bibliographic_level) {
+    case Record::MONOGRAPHIC_COMPONENT_PART:
+        return std::string(1, 'a');
+    case Record::SERIAL_COMPONENT_PART:
+        return std::string(1, 'b');
+    case Record::COLLECTION:
+        return std::string(1, 'c');
+    case Record::SUBUNIT:
+        return std::string(1, 'd');
+    case Record::INTEGRATING_RESOURCE:
+        return std::string(1, 'i');
+    case Record::MONOGRAPH_OR_ITEM:
+        return std::string(1, 'm');
+    case Record::SERIAL:
+        return std::string(1, 's');
+    default:
+        ERROR("unknown bibliographic level: " + std::to_string(bibliographic_level) + "!");
+    }
+}
+
+
+Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level) {
+    leader_ = "00000" "n" + TypeOfRecordToSTring(type_of_record) + BibliographicLevelToString(bibliographic_level)
+              + " a22004452  4500";
+}
+
+
 Record::ConstantRange Record::getTagRange(const Tag &tag) const {
     const auto begin(std::find_if(fields_.begin(), fields_.end(),
                                   [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
