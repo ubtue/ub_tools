@@ -926,4 +926,18 @@ std::string GetLanguageCode(const Record &record) {
 }
 
 
+bool GetGNDCode(const Record &record, std::string * const gnd_code) {
+    gnd_code->clear();
+    for (const auto &_035_field : record.getTagRange("035")) {
+        const Subfields _035_subfields(_035_field.getSubfields());
+        const std::string _035a_field(_035_subfields.getFirstSubfieldWithCode('a'));
+        if (StringUtil::StartsWith(_035a_field, "(DE-588)")) {
+            *gnd_code = _035a_field.substr(8);
+            return not gnd_code->empty();
+        }
+    }
+    return false;
+}
+
+
 } // namespace MARC
