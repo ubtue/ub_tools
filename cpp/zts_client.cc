@@ -55,6 +55,9 @@ const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 const std::vector<std::string> allowed_output_formats({ "marcxml", "marc21", "json" });
 
 
+unsigned last_control_number(0);
+
+
 struct ZtsClientParams {
 public:
     std::string zts_server_url_;
@@ -89,6 +92,15 @@ void Usage() {
               << "\toutput_file                                               Nomen est omen.\n"
               << "\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+std::string GetNextControlNumber() {
+    const std::string prefix("ZTS");
+    last_control_number++;
+    std::string number(std::to_string(last_control_number));
+    number.insert(0, 7 - number.size(), '0');
+    return prefix + number;
 }
 
 
@@ -448,8 +460,9 @@ std::pair<unsigned, unsigned> GenerateMARC(
         "^issue|pages|publicationTitle|volume|date|tags|libraryCatalog|itemVersion|accessDate$"));
     unsigned record_count(0), previously_downloaded_count(0);
     for (auto entry(top_level_array->cbegin()); entry != top_level_array->cend(); ++entry) {
-        MARC::Record new_record(MARC::Record::TypeOfRecord::COMPUTER_FILE,
-                                MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM);
+        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
+                                MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
+                                GetNextControlNumber());
         bool is_journal_article(false);
         std::string publication_title, parent_ppn, parent_isdn, issn;
         if ((*entry)->getType() != JSON::JSONNode::OBJECT_NODE)
@@ -459,10 +472,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
             if (ignore_fields->matched(key_and_node->first))
                 continue;
 
-            if (key_and_node->first == "itemKey") {
-                const JSON::StringNode * const item_key(CastToStringNodeOrDie("itemKey", key_and_node->second));
-                new_record.insertField("001", item_key->getValue());
-            } else if (key_and_node->first == "language")
+            if (key_and_node->first == "language")
                 new_record.insertField("045", { { 'a',
                     OptionalMap(CastToStringNodeOrDie("language", key_and_node->second)->getValue(),
                                 zts_client_params.language_to_language_code_map_) } });

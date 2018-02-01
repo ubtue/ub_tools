@@ -169,9 +169,12 @@ static std::string BibliographicLevelToString(const Record::BibliographicLevel b
 }
 
 
-Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level) {
+Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level, const std::string &control_number) {
     leader_ = "00000" "n" + TypeOfRecordToSTring(type_of_record) + BibliographicLevelToString(bibliographic_level)
               + " a22004452  4500";
+
+    if (not control_number.empty())
+        insertField("001", control_number);
 }
 
 
