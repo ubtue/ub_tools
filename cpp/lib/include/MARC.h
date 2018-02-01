@@ -301,6 +301,9 @@ public:
     inline size_t size() const { return record_size_; }
     inline size_t getNumberOfFields() const { return fields_.size(); }
     inline const std::string &getLeader() const { return leader_; }
+    inline bool isMonograph() const { return leader_[7] == 'm'; }
+    inline bool isSerial() const { return leader_[7] == 's'; }
+    inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
     inline std::string getControlNumber() const
         { return likely(fields_.front().getTag() == "001") ? fields_.front().getContents() : ""; }
 
