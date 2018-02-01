@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
@@ -781,7 +782,9 @@ public class TuelibMixin extends SolrIndexerMixin {
                                   + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
-                return year + "-" + month + "-" + getCurrentDayOfMonth() + "T11:00:00:000Z";
+                return year + "-" + month + "-" +
+                       YearMonth.of(Integer.valueOf(year), Integer.valueOf(month)).atEndOfMonth().getDayOfMonth()
+                       + "T11:00:00.000Z";
             }
         }
         return null;
@@ -1322,7 +1325,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     private void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
                             final  String langShortcut, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
-        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*" : extractNormalizedSubfieldPatternHelper(subfldTags));
+        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
             final StringBuffer buffer = new StringBuffer("");
             final DataField marcField = (DataField) vf;

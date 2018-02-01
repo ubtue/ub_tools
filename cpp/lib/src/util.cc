@@ -28,6 +28,7 @@
 #include <execinfo.h>
 #include <signal.h>
 #include "Compiler.h"
+#include "FileLocker.h"
 #include "MiscUtil.h"
 #include "TimeUtil.h"
 
@@ -47,6 +48,7 @@ Logger::Logger(): fd_(STDERR_FILENO), min_log_level_(LL_INFO) {
 
 
 static void WriteString(const int fd, const std::string &msg) {
+    FileLocker write_locker(fd, FileLocker::WRITE_ONLY);
     if (unlikely(::write(fd, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
         const std::string error_message("in WriteString(util.cc): write to file descriptor " + std::to_string(fd)
                                         + " failed! (errno = " + std::to_string(errno) + ")");
