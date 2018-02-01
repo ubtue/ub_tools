@@ -29,8 +29,7 @@
 #include "FileUtil.h"
 #include "HttpHeader.h"
 #include "JSON.h"
-#include "MarcRecord.h"
-#include "MarcWriter.h"
+#include "MARC.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "SimpleCrawler.h"
@@ -53,14 +52,16 @@ const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/
 const unsigned DEFAULT_TIMEOUT(5000);
 const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 
+const std::vector<std::string> allowed_output_formats({ "marcxml", "marc21", "json" });
+
 
 struct ZtsClientParams {
 public:
     std::string zts_server_url_;
     TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
     std::string output_file_;
-    std::string output_format_;
-    std::unique_ptr<MarcWriter> marc_writer_;
+    std::string output_format_ = "marcxml";
+    std::unique_ptr<MARC::Writer> marc_writer_;
     unsigned harvested_url_count_ = 0;
     std::unordered_set<std::string> previously_downloaded_;
     std::unordered_map<std::string, std::string> ISSN_to_physical_form_map_;
@@ -75,14 +76,27 @@ public:
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--ignore-robots-dot-txt] [--simple-crawler-config-file=path] [--progress-file=progress_filename] zts_server_url map_directory marc_output\n"
-              << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
-              << "        files and the file containing hashes of previously generated records.\n"
-              << "        The optional \"--simple-crawler-config-file\" flag specifies where to look for the\n"
-              << "        config file for the \"simple_crawler\", the default being\n"
-              << "        " << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << ".\n\n";
+    std::cerr << "Usage: " << ::progname << " [options] zts_server_url map_directory output_file\n"
+              << "\t[ --ignore-robots-dot-txt)                                Nomen est omen.\n"
+              << "\t[ --simple-crawler-config-file=<path> ]                   Nomen est omen, default: " << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
+              << "\t[ --progress-file=<path> ]                                Nomen est omen.\n"
+              << "\t[ --output-format=<format> ]                              marcxml (default), marc21 or json.\n"
+              << "\n"
+              << "\tzts_server_url                                            URL for Zotero Translation Server.\n"
+              << "\tmap_directory                                             path to a subdirectory containing all required\n"
+              << "\t                                                          map files and the file containing hashes of\n"
+              << "\t                                                          previously generated records.\n"
+              << "\toutput_file                                               Nomen est omen.\n"
+              << "\n";
     std::exit(EXIT_FAILURE);
+}
+
+
+std::string GetNextControlNumber() {
+    static unsigned last_control_number;
+    ++last_control_number;
+    static const std::string prefix("ZTS");
+    return prefix + StringUtil::PadLeading(std::to_string(last_control_number), 7, '0');
 }
 
 
@@ -219,20 +233,20 @@ inline std::string GetValueFromStringNode(const std::pair<std::string, JSON::JSO
 
 inline std::string CreateSubfieldFromStringNode(const std::string &key, const JSON::JSONNode * const node,
                                                 const std::string &tag, const char subfield_code,
-                                                MarcRecord * const marc_record, const char indicator1 = ' ',
+                                                MARC::Record * const marc_record, const char indicator1 = ' ',
                                                 const char indicator2 = ' ')
 {
     if (node->getType() != JSON::JSONNode::STRING_NODE)
         logger->error("in CreateSubfieldFromStringNode: \"" + key + "\" is not a string node!");
     const std::string value(reinterpret_cast<const JSON::StringNode * const>(node)->getValue());
-    marc_record->insertSubfield(tag, subfield_code, value, indicator1, indicator2);
+    marc_record->insertField(tag, { { subfield_code, value } }, indicator1, indicator2);
     return value;
 }
 
 
 inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node,
                                                 const std::string &tag, const char subfield_code,
-                                                MarcRecord * const marc_record, const char indicator1 = ' ',
+                                                MARC::Record * const marc_record, const char indicator1 = ' ',
                                                 const char indicator2 = ' ')
 {
     return CreateSubfieldFromStringNode(key_and_node.first, key_and_node.second, tag, subfield_code, marc_record,
@@ -279,7 +293,7 @@ std::string DownloadAuthorPPN(const std::string &author) {
 }
 
 
-void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MarcRecord * const marc_record) {
+void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MARC::Record * const marc_record) {
     if (creators_node->getType() != JSON::JSONNode::ARRAY_NODE)
         logger->error("in CreateCreatorFields: expected \"creators\" to have a array node!");
     const JSON::ArrayNode * const array(reinterpret_cast<const JSON::ArrayNode * const>(creators_node));
@@ -314,14 +328,14 @@ void CreateCreatorFields(const JSON::JSONNode *  const creators_node, MarcRecord
 
         if (creator_node == array->cbegin()) {
             if (creator_role.empty())
-                marc_record->insertSubfield("100", 'a', name);
+                marc_record->insertField("100", { { 'a', name } });
             else
-                marc_record->insertSubfields("100", { { 'a', name }, { 'e', creator_role } });
+                marc_record->insertField("100", { { 'a', name }, { 'e', creator_role } });
         } else { // Not the first creator!
             if (creator_role.empty())
-                marc_record->insertSubfield("700", 'a', name);
+                marc_record->insertField("700", { { 'a', name } });
             else
-                marc_record->insertSubfields("700", { { 'a', name }, { 'e', creator_role } });
+                marc_record->insertField("700", { { 'a', name }, { 'e', creator_role } });
         }
     }
 }
@@ -362,36 +376,36 @@ Date StringToDate(const std::string &date_str) {
 }
 
 
-void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MarcRecord * const new_record) {
-    std::vector<std::pair<char, std::string>> subfield_codes_and_values;
+void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record) {
+    std::vector<MARC::Subfield> subfields;
 
     const std::string date_str(GetOptionalStringValue(object_node, "date"));
     if (not date_str.empty()) {
         const Date date(StringToDate(date_str));
         if (date.year_ != Date::INVALID)
-            subfield_codes_and_values.emplace_back(std::make_pair('j', std::to_string(date.year_)));
+            subfields.emplace_back('j', std::to_string(date.year_));
     }
 
     const std::string issue(GetOptionalStringValue(object_node, "issue"));
     if (not issue.empty())
-        subfield_codes_and_values.emplace_back(std::make_pair('e', issue));
+        subfields.emplace_back('e', issue);
 
     const std::string pages(GetOptionalStringValue(object_node, "pages"));
     if (not pages.empty())
-        subfield_codes_and_values.emplace_back(std::make_pair('h', pages));
+        subfields.emplace_back('h', pages);
 
     const std::string volume(GetOptionalStringValue(object_node, "volume"));
     if (not volume.empty())
-        subfield_codes_and_values.emplace_back(std::make_pair('d', volume));
+        subfields.emplace_back('d', volume);
 
-    if (not subfield_codes_and_values.empty())
-        new_record->insertSubfields("936", subfield_codes_and_values);
+    if (not subfields.empty())
+        new_record->insertField("936", subfields);
 }
 
 
 void ExtractKeywords(const JSON::JSONNode &tags_node, const std::string &issn,
                      const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
-                     MarcRecord * const new_record)
+                     MARC::Record * const new_record)
 {
     if (unlikely(tags_node.getType() != JSON::JSONNode::ARRAY_NODE))
         logger->error("in ExtractKeywords: expected the tags node to be an array node!");
@@ -442,7 +456,9 @@ std::pair<unsigned, unsigned> GenerateMARC(
         "^issue|pages|publicationTitle|volume|date|tags|libraryCatalog|itemVersion|accessDate$"));
     unsigned record_count(0), previously_downloaded_count(0);
     for (auto entry(top_level_array->cbegin()); entry != top_level_array->cend(); ++entry) {
-        MarcRecord new_record;
+        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
+                                MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
+                                GetNextControlNumber());
         bool is_journal_article(false);
         std::string publication_title, parent_ppn, parent_isdn, issn;
         if ((*entry)->getType() != JSON::JSONNode::OBJECT_NODE)
@@ -452,13 +468,10 @@ std::pair<unsigned, unsigned> GenerateMARC(
             if (ignore_fields->matched(key_and_node->first))
                 continue;
 
-            if (key_and_node->first == "itemKey") {
-                const JSON::StringNode * const item_key(CastToStringNodeOrDie("itemKey", key_and_node->second));
-                new_record.insertField("001", item_key->getValue());
-            } else if (key_and_node->first == "language")
-                new_record.insertSubfield("045", 'a',
+            if (key_and_node->first == "language")
+                new_record.insertField("045", { { 'a',
                     OptionalMap(CastToStringNodeOrDie("language", key_and_node->second)->getValue(),
-                                zts_client_params.language_to_language_code_map_));
+                                zts_client_params.language_to_language_code_map_) } });
             else if (key_and_node->first == "url")
                 CreateSubfieldFromStringNode(*key_and_node, "856", 'u', &new_record);
             else if (key_and_node->first == "title")
@@ -470,8 +483,8 @@ std::pair<unsigned, unsigned> GenerateMARC(
             else if (key_and_node->first == "DOI") {
                 if (unlikely(key_and_node->second->getType() != JSON::JSONNode::STRING_NODE))
                     logger->error("in GenerateMARC: expected DOI node to be a string node!");
-                new_record.insertSubfield(
-                    "856", 'u', "urn:doi:" + reinterpret_cast<JSON::StringNode *>(key_and_node->second)->getValue());
+                new_record.insertField(
+                    "856", { { 'u', "urn:doi:" + reinterpret_cast<JSON::StringNode *>(key_and_node->second)->getValue()} });
             } else if (key_and_node->first == "shortTitle")
                 CreateSubfieldFromStringNode(*key_and_node, "246", 'a', &new_record);
             else if (key_and_node->first == "creators")
@@ -496,7 +509,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
 
                 const auto ISSN_and_language(zts_client_params.ISSN_to_language_code_map_.find(issn));
                 if (ISSN_and_language != zts_client_params.ISSN_to_language_code_map_.cend())
-                    new_record.insertSubfield("041", 'a', ISSN_and_language->second);
+                    new_record.insertField("041", { {'a', ISSN_and_language->second } });
 
                 const auto ISSN_and_parent_ppn(zts_client_params.ISSN_to_superior_ppn_map_.find(issn));
                 if (ISSN_and_parent_ppn != zts_client_params.ISSN_to_superior_ppn_map_.cend())
@@ -514,9 +527,9 @@ std::pair<unsigned, unsigned> GenerateMARC(
             } else if (key_and_node->first == "rights") {
                 const std::string copyright(GetValueFromStringNode(*key_and_node));
                 if (UrlUtil::IsValidWebUrl(copyright))
-                    new_record.insertSubfield("542", 'u', copyright);
+                    new_record.insertField("542", { { 'u', copyright } });
                 else
-                    new_record.insertSubfield("542", 'f', copyright);
+                    new_record.insertField("542", { { 'f', copyright } });
             } else
                 logger->warning("in GenerateMARC: unknown key \"" + key_and_node->first + "\" with node type "
                                 + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "! ("
@@ -530,34 +543,31 @@ std::pair<unsigned, unsigned> GenerateMARC(
 
         // Populate 773:
         if (is_journal_article) {
-            std::vector<std::pair<char, std::string>> subfield_codes_and_values;
+            std::vector<MARC::Subfield> subfields;
             if (not publication_title.empty())
-                subfield_codes_and_values.emplace_back('a', publication_title);
+                subfields.emplace_back('a', publication_title);
             if (not parent_isdn.empty())
-                subfield_codes_and_values.emplace_back('x', parent_isdn);
+                subfields.emplace_back('x', parent_isdn);
             if (not parent_ppn.empty())
-                subfield_codes_and_values.emplace_back('w', "(DE-576))" + parent_ppn);
-            if (not subfield_codes_and_values.empty())
-                new_record.insertSubfields("773", subfield_codes_and_values);
+                subfields.emplace_back('w', "(DE-576))" + parent_ppn);
+            if (not subfields.empty())
+                new_record.insertField("773", subfields);
         }
 
         // Make sure we always have a language code:
-        if (new_record.getFieldIndex("041") == MarcRecord::FIELD_NOT_FOUND)
-            new_record.insertSubfield("041", 'a', DEFAULT_SUBFIELD_CODE);
+        if (not new_record.hasTag("041"))
+            new_record.insertField("041", { { 'a', DEFAULT_SUBFIELD_CODE } });
 
         // If we don't have a volume, check to see if we can infer one from an ISSN:
         if (not issn.empty()) {
             const auto ISSN_and_volume(zts_client_params.ISSN_to_volume_map_.find(issn));
             if (ISSN_and_volume != zts_client_params.ISSN_to_volume_map_.cend()) {
                 const std::string volume(ISSN_and_volume->second);
-                const size_t index(new_record.getFieldIndex("936"));
-                if (index == MarcRecord::FIELD_NOT_FOUND)
-                    new_record.insertSubfield("936", 'v', volume);
-                else {
-                    const Subfields subfields(new_record.getFieldData(index));
-                    if (not subfields.hasSubfield('v'))
-                        new_record.addSubfield("936", 'v', volume);
-                }
+                const auto field_it(new_record.findTag("936"));
+                if (field_it == new_record.end())
+                    new_record.insertField("936", { { 'v', volume } });
+                else
+                    field_it->getSubfields().addSubfield('v', volume);
             }
 
             const auto ISSN_and_license_code(zts_client_params.ISSN_to_licence_map_.find(issn));
@@ -567,9 +577,9 @@ std::pair<unsigned, unsigned> GenerateMARC(
                                     + ISSN_and_license_code->second
                                     + "\" instead and we don't know what to do with it!");
                 else {
-                    const size_t _856_index(new_record.getFieldIndex("856"));
-                    if (_856_index != MarcRecord::FIELD_NOT_FOUND)
-                        new_record.addSubfield("856", 'z', "Kostenfrei");
+                    const auto field_it(new_record.findTag("936"));
+                    if (field_it != new_record.end())
+                        field_it->getSubfields().addSubfield('z', "Kostenfrei");
                 }
             }
         }
@@ -581,7 +591,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
                 new_record.addSubfield("084", 'a', ISSN_and_SSGN_numbers->second);
         }
 
-        const std::string checksum(new_record.calcChecksum(/* exclude_001 = */ true));
+        const std::string checksum(MARC::CalcChecksum(new_record, /* exclude_001 = */ true));
         if (zts_client_params.previously_downloaded_.find(checksum) == zts_client_params.previously_downloaded_.cend()) {
             zts_client_params.previously_downloaded_.emplace(checksum);
             zts_client_params.marc_writer_->write(new_record);
@@ -746,6 +756,18 @@ void Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
+    ZtsClientParams zts_client_params;
+    const std::string OUTPUT_FORMAT_FLAG_PREFIX("--output-format=");
+    if (StringUtil::StartsWith(argv[1], OUTPUT_FORMAT_FLAG_PREFIX)) {
+        zts_client_params.output_format_ = argv[1] + OUTPUT_FORMAT_FLAG_PREFIX.length();
+        if (std::find(allowed_output_formats.begin(), allowed_output_formats.end(), zts_client_params.output_format_) == allowed_output_formats.end()) {
+            INFO("invalid output format");
+            Usage();
+        }
+        --argc, ++argv;
+    }
+
+
     if (argc != 4)
         Usage();
 
@@ -754,7 +776,6 @@ void Main(int argc, char *argv[]) {
         map_directory_path += '/';
 
     try {
-        ZtsClientParams zts_client_params;
         zts_client_params.zts_server_url_ = argv[1];
         LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &zts_client_params.ISSN_to_physical_form_map_);
         LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &zts_client_params.ISSN_to_language_code_map_);
@@ -780,7 +801,7 @@ void Main(int argc, char *argv[]) {
         if (zts_client_params.output_format_ == "json")
             FileUtil::AppendString(zts_client_params.output_file_, "[");
         else
-            zts_client_params.marc_writer_ = MarcWriter::Factory(zts_client_params.output_file_);
+            zts_client_params.marc_writer_ = MARC::Writer::Factory(zts_client_params.output_file_);
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
         std::unique_ptr<File> progress_file;

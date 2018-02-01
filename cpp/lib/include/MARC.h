@@ -300,7 +300,8 @@ private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
     explicit Record(const size_t record_size, char * const record_start);
-    Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level);
+    Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
+           const std::string &control_number = "");
 
     inline Record(Record &&other) {
         std::swap(record_size_, other.record_size_);
@@ -593,7 +594,7 @@ std::string GetLanguageCode(const Record &record);
 /** \brief True if a GND code was found in 035$a else false. */
 bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
 
-    
+
 /** \brief Generates a reproducible SHA-1 hash over our internal data.
  *  \param exclude_001  If true, do not include the contents of the 001 control field in the generation of the
  *                      hash.
