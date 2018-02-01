@@ -71,7 +71,7 @@ private:
         : from_encoding_(from_encoding), to_encoding_(to_encoding), iconv_handle_(iconv_handle) { }
 };
 
-    
+
 class IdentityConverter: public EncodingConverter {
     IdentityConverter(): EncodingConverter(/* from_encoding = */"", /* to_encoding = */"", (iconv_t)-1) { }
 public:
@@ -88,7 +88,7 @@ public:
  *  \return The extracted and converted text as UTF-8.
  */
 std::string ExtractTextFromHtml(const std::string &html, const std::string &initial_charset = "");
- 
+
 
 /** \brief Recognises roman numerals up to a few thousand. */
 bool IsRomanNumeral(const std::string &s);
@@ -327,6 +327,9 @@ bool FromHex(const char ch, unsigned * const u);
  *  \return The converted string.
  */
 std::string &CStyleUnescape(std::string * const s);
+inline std::string CStyleUnescape(std::string s) {
+    return CStyleUnescape(&s);
+}
 
 
 /** \brief The counterpart to CStyleUnescape(). */
