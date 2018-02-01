@@ -97,7 +97,7 @@ Record::Record(const size_t record_size, char * const record_start)
     const char *directory_entry(record_start + LEADER_LENGTH);
     while (directory_entry != base_address_of_data - 1) {
         if (unlikely(directory_entry > base_address_of_data))
-            logger->error("in MARC::Record::Record: directory_entry > base_address_of_data!");
+            ERROR("directory_entry > base_address_of_data!");
         std::string tag;
         tag += directory_entry[0];
         tag += directory_entry[1];
@@ -273,7 +273,7 @@ size_t Record::findFieldsInLocalBlock(const Tag &field_tag, const std::string &i
 {
     fields->clear();
     if (unlikely(indicators.length() != 2))
-        logger->error("in MARC::Record::findFieldInLocalBlock: indicators must be precisely 2 characters long!");
+        ERROR("indicators must be precisely 2 characters long!");
 
     const std::string FIELD_PREFIX("  ""\x1F""0" + field_tag.to_string());
     for (auto field(block_start_and_end.first); field < block_start_and_end.second; ++field) {
@@ -347,8 +347,7 @@ bool Record::isValid(std::string * const error_message) const {
                 }
                 ++ch; // Skip over the subfield code.
                 if (unlikely(ch == field.contents_.end() or *ch == '\x1F'))
-                    logger->warning("subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().to_string()
-                                    + ")");
+                    WARNING("subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().to_string() + ")");
 
                 // Skip over the subfield contents:
                 while (ch != field.contents_.end() and *ch != '\x1F')
@@ -402,7 +401,7 @@ std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, Reade
     if (reader_type == AUTO) {
         const MediaType media_type(GetMediaType(input_filename));
         if (media_type == MediaType::OTHER)
-            logger->error("can't determine media type of \"" + input_filename + "\"!");
+            ERROR("can't determine media type of \"" + input_filename + "\"!");
         reader_type = (media_type == MediaType::XML) ? Reader::XML : Reader::BINARY;
     }
 
@@ -419,7 +418,7 @@ Record BinaryReader::read() {
         return Record();
 
     if (unlikely(bytes_read != Record::RECORD_LENGTH_FIELD_LENGTH))
-        logger->error("in MARC::BinaryReader::read: failed to read record length!");
+        ERROR("failed to read record length!");
     const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
 
     bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH,
@@ -513,7 +512,7 @@ void XmlReader::rewind() {
     // We can't handle FIFO's here:
     struct stat stat_buf;
     if (unlikely(fstat(input_->getFileDescriptor(), &stat_buf) and S_ISFIFO(stat_buf.st_mode)))
-        logger->error("in XmlReader::rewind: can't rewind a FIFO!");
+        ERROR("can't rewind a FIFO!");
 
     input_->rewind();
 
@@ -560,16 +559,15 @@ bool ParseLeader(const std::string &leader_string, std::string * const leader, s
 
     // Check indicator count:
     if (leader_string[10] != '2')
-        logger->warning("in ParseLeader(MARC.cc): Invalid indicator count '" + leader_string.substr(10, 1) + "'!");
+        WARNING("invalid indicator count '" + leader_string.substr(10, 1) + "'!");
 
     // Check subfield code length:
     if (leader_string[11] != '2')
-        logger->warning("in ParseLeader(MARC.cc): Invalid subfield code length! (Leader bytes are "
-                        + StringUtil:: CStyleEscape(leader_string) + ")");
+        WARNING("invalid subfield code length! (Leader bytes are " + StringUtil:: CStyleEscape(leader_string) + ")");
 
     // Check entry map:
     if (leader_string.substr(20, 3) != "450")
-        logger->warning("in Leader::ParseLeader: Invalid entry map!");
+        WARNING("invalid entry map!");
 
     *leader = leader_string;
 
@@ -597,8 +595,7 @@ void XmlReader::parseLeader(const std::string &input_filename, Record * const ne
                                  + xml_parser_->getLastErrorMessage() + " on line "
                                  + std::to_string(xml_parser_->getLineNo()) + ".");
     if (unlikely(type != SimpleXmlParser<File>::CHARACTERS or data.length() != Record::LEADER_LENGTH)) {
-        logger->warning("in XmlReader::ParseLeader: leader data expected while parsing \"" + input_filename
-                        + "\" on line "
+        WARNING("leader data expected while parsing \"" + input_filename + "\" on line "
                 + std::to_string(xml_parser_->getLineNo()) + ".");
         if (unlikely(not getNext(&type, &attrib_map, &data)))
             throw std::runtime_error("in MARC::XmlReader::ParseLeader: error while skipping to </"
@@ -651,8 +648,8 @@ void XmlReader::parseControlfield(const std::string &input_filename, const std::
 
         // Do we have an empty control field?
     if (unlikely(type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "controlfield")) {
-        logger->warning("in MARC::XmlReader::parseControlfield: empty \"" + tag + "\" control field on line "
-                        + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
+        WARNING("empty \"" + tag + "\" control field on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
+                + input_filename + "\"!");
         return;
     }
 
@@ -728,9 +725,8 @@ void XmlReader::parseDatafield(const std::string &input_filename,
         // 2. Subfield data.
         if (unlikely(not getNext(&type, &attrib_map, &data) or type != SimpleXmlParser<File>::CHARACTERS)) {
             if (type == SimpleXmlParser<File>::CLOSING_TAG and data == namespace_prefix_ + "subfield") {
-                logger->warning("in MARC::XmlReader::parseDatafield: lFound an empty subfield on line "
-                                + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
-                                + "\"!");
+                WARNING("found an empty subfield on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
+                        + input_filename + "\"!");
                 field_data.resize(field_data.length() - 2); // Remove subfield delimiter and code.
                 continue;
             }
@@ -828,8 +824,7 @@ std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, Writ
 void BinaryWriter::write(const Record &record) {
     std::string error_message;
     if (not record.isValid(&error_message))
-        logger->error("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber()
-                      + ")");
+        ERROR("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber() + ")");
 
     Record::const_iterator start(record.begin());
     do {
