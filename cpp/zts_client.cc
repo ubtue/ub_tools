@@ -55,9 +55,6 @@ const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 const std::vector<std::string> allowed_output_formats({ "marcxml", "marc21", "json" });
 
 
-unsigned last_control_number(0);
-
-
 struct ZtsClientParams {
 public:
     std::string zts_server_url_;
@@ -96,10 +93,11 @@ void Usage() {
 
 
 std::string GetNextControlNumber() {
-    const std::string prefix("ZTS");
-    last_control_number++;
+    static unsigned last_control_number;
+    ++last_control_number;
+    static const std::string prefix("ZTS");
     std::string number(std::to_string(last_control_number));
-    number.insert(0, 7 - number.size(), '0');
+    number = StringUtil::PadLeading(number, 7, '0');
     return prefix + number;
 }
 
@@ -567,8 +565,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
             const auto ISSN_and_volume(zts_client_params.ISSN_to_volume_map_.find(issn));
             if (ISSN_and_volume != zts_client_params.ISSN_to_volume_map_.cend()) {
                 const std::string volume(ISSN_and_volume->second);
-
-                std::vector<MARC::Record::Field>::iterator field_it = new_record.findTag("936");
+                const auto field_it(new_record.findTag("936"));
                 if (field_it == new_record.end())
                     new_record.insertField("936", { { 'v', volume } });
                 else
@@ -582,7 +579,7 @@ std::pair<unsigned, unsigned> GenerateMARC(
                                     + ISSN_and_license_code->second
                                     + "\" instead and we don't know what to do with it!");
                 else {
-                    std::vector<MARC::Record::Field>::iterator field_it = new_record.findTag("936");
+                    const auto field_it(new_record.findTag("936"));
                     if (field_it != new_record.end())
                         field_it->getSubfields().addSubfield('z', "Kostenfrei");
                 }
