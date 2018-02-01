@@ -1322,7 +1322,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     private void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
                             final  String langShortcut, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
-        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? ".*" : extractNormalizedSubfieldPatternHelper(subfldTags));
+        final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
             final StringBuffer buffer = new StringBuffer("");
             final DataField marcField = (DataField) vf;
