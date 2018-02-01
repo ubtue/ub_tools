@@ -243,6 +243,15 @@ public:
     };
 
     enum RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
+    enum TypeOfRecord {
+        LANGUAGE_MATERIAL, NOTATED_MUSIC, MANUSCRIPT_NOTATED_MUSIC, CARTOGRAPHIC_MATERIAL, MANUSCRIPT_CARTOGRAPHIC_MATERIAL,
+        PROJECTED_MEDIUM, NONMUSICAL_SOUND_RECORDING, MUSICAL_SOUND_RECORDING, TWO_DIMENSIONAL_NONPROJECTABLE_GRAPHIC,
+        COMPUTER_FILE, KIT, MIXED_MATERIALS, THREE_DIMENSIONAL_ARTIFACT_OR_NATURALLY_OCCURRING_OBJECT,
+        MANUSCRIPT_LANGUAGE_MATERIAL
+    };
+    enum BibliographicLevel {
+        MONOGRAPHIC_COMPONENT_PART, SERIAL_COMPONENT_PART, COLLECTION, SUBUNIT, INTEGRATING_RESOURCE, MONOGRAPH_OR_ITEM, SERIAL
+    };
     typedef std::vector<Field>::iterator iterator;
     typedef std::vector<Field>::const_iterator const_iterator;
 
@@ -276,6 +285,7 @@ private:
     friend class XmlReader;
     friend class BinaryWriter;
     friend class XmlWriter;
+    friend std::string CalcChecksum(const Record &record, const bool exclude_001);
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
@@ -290,6 +300,7 @@ private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
     explicit Record(const size_t record_size, char * const record_start);
+    Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level);
 
     inline Record(Record &&other) {
         std::swap(record_size_, other.record_size_);
@@ -581,6 +592,16 @@ std::string GetLanguageCode(const Record &record);
 
 /** \brief True if a GND code was found in 035$a else false. */
 bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
+
+    
+/** \brief Generates a reproducible SHA-1 hash over our internal data.
+ *  \param exclude_001  If true, do not include the contents of the 001 control field in the generation of the
+ *                      hash.
+ *  \return the hash
+ *  \note Equivalent records with different field order generate the same hash.  (This can only happen if at least one tag
+ *        has been repeated.)
+ */
+std::string CalcChecksum(const Record &record, const bool exclude_001 = false);
 
 
 } // namespace MARC
