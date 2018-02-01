@@ -301,7 +301,7 @@ private:
 public:
     explicit Record(const size_t record_size, char * const record_start);
     Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
-           const std::string &control_number="");
+           const std::string &control_number = "");
 
     inline Record(Record &&other) {
         std::swap(record_size_, other.record_size_);
