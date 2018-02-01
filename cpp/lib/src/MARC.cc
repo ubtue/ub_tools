@@ -940,4 +940,38 @@ bool GetGNDCode(const Record &record, std::string * const gnd_code) {
 }
 
 
+static inline bool CompareField(const Record::Field * const field1, const Record::Field * const field2) {
+    if (field1->getTag() < field2->getTag())
+        return true;
+    if (field1->getTag() > field2->getTag())
+        return false;
+    return field1->getContents() < field2->getContents();
+};
+
+
+std::string CalcChecksum(const Record &record, const bool exclude_001) {
+    std::vector<const Record::Field *> field_refs;
+    field_refs.reserve(record.fields_.size());
+
+    // Our Strategy here is it to sort references to fields based on tags and contents and then to create a blob using the
+    // sorted order.  This allows us to generate checksums that are identical for non-equal but equivalent records.
+
+    for (const auto &field : record.fields_) {
+        if (not exclude_001 or likely(field.getTag().to_string() != "001"))
+            field_refs.emplace_back(&field);
+    }
+
+    std::sort(field_refs.begin(), field_refs.end(), CompareField);
+
+    std::string blob;
+    blob.reserve(200000); // Roughly twice the maximum size of a single MARC-21 record.
+    blob += record.leader_;
+
+    for (const auto &field_ref : field_refs)
+        blob += field_ref->getTag().to_string() + field_ref->getContents();
+
+    return StringUtil::Sha1(blob);
+}
+
+
 } // namespace MARC
