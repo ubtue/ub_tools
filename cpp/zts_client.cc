@@ -53,13 +53,15 @@ const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/
 const unsigned DEFAULT_TIMEOUT(5000);
 const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
 
+const std::vector<std::string> allowed_output_formats({ "marcxml", "marc21", "json" });
+
 
 struct ZtsClientParams {
 public:
     std::string zts_server_url_;
     TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
     std::string output_file_;
-    std::string output_format_;
+    std::string output_format_ = "marcxml";
     std::unique_ptr<MarcWriter> marc_writer_;
     unsigned harvested_url_count_ = 0;
     std::unordered_set<std::string> previously_downloaded_;
@@ -75,13 +77,18 @@ public:
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--ignore-robots-dot-txt] [--simple-crawler-config-file=path] [--progress-file=progress_filename] zts_server_url map_directory marc_output\n"
-              << "        Where \"map_directory\" is a path to a subdirectory containing all required map\n"
-              << "        files and the file containing hashes of previously generated records.\n"
-              << "        The optional \"--simple-crawler-config-file\" flag specifies where to look for the\n"
-              << "        config file for the \"simple_crawler\", the default being\n"
-              << "        " << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << ".\n\n";
+    std::cerr << "Usage: " << ::progname << " [options] zts_server_url map_directory output_file\n"
+              << "\t[ --ignore-robots-dot-txt)                                Nomen est omen.\n"
+              << "\t[ --simple-crawler-config-file=<path> ]                   Nomen est omen, default: " << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
+              << "\t[ --progress-file=<path> ]                                Nomen est omen.\n"
+              << "\t[ --output-format=<format> ]                              marcxml (default), marc21 or json.\n"
+              << "\n"
+              << "\tzts_server_url                                            URL for Zotero Translation Server.\n"
+              << "\tmap_directory                                             path to a subdirectory containing all required\n"
+              << "\t                                                          map files and the file containing hashes of\n"
+              << "\t                                                          previously generated records.\n"
+              << "\toutput_file                                               Nomen est omen.\n"
+              << "\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -746,6 +753,18 @@ void Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
+    ZtsClientParams zts_client_params;
+    const std::string OUTPUT_FORMAT_FLAG_PREFIX("--output-format=");
+    if (StringUtil::StartsWith(argv[1], OUTPUT_FORMAT_FLAG_PREFIX)) {
+        zts_client_params.output_format_ = argv[1] + OUTPUT_FORMAT_FLAG_PREFIX.length();
+        if (std::find(allowed_output_formats.begin(), allowed_output_formats.end(), zts_client_params.output_format_) == allowed_output_formats.end()) {
+            INFO("invalid output format");
+            Usage();
+        }
+        --argc, ++argv;
+    }
+
+
     if (argc != 4)
         Usage();
 
@@ -754,7 +773,6 @@ void Main(int argc, char *argv[]) {
         map_directory_path += '/';
 
     try {
-        ZtsClientParams zts_client_params;
         zts_client_params.zts_server_url_ = argv[1];
         LoadMapFile(map_directory_path + "ISSN_to_physical_form.map", &zts_client_params.ISSN_to_physical_form_map_);
         LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &zts_client_params.ISSN_to_language_code_map_);
