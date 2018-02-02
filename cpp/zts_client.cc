@@ -21,7 +21,6 @@
 #include <iostream>
 #include <unordered_map>
 #include <cinttypes>
-#include <uuid/uuid.h>
 #include "Compiler.h"
 #include "Downloader.h"
 #include "ExecUtil.h"
@@ -40,6 +39,7 @@
 #include "UrlUtil.h"
 #include "util.h"
 #include "WebUtil.h"
+#include "Zotero.h"
 
 
 namespace zts_client {
@@ -632,42 +632,6 @@ void LoadPreviouslyDownloadedHashes(File * const input,
 }
 
 
-// We try to be unique for the machine we're on.  Beyond that we may have a problem.
-std::string GetNextSessionId() {
-    static unsigned counter;
-    static uint32_t uuid[4];
-    if (unlikely(counter == 0))
-        ::uuid_generate(reinterpret_cast<unsigned char *>(uuid));
-    ++counter;
-    return "ub_tools_zts_client_" + StringUtil::ToString(uuid[0]) + StringUtil::ToString(uuid[1])
-           + StringUtil::ToString(uuid[2]) + StringUtil::ToString(uuid[3]) + "_" + StringUtil::ToString(counter);
-}
-
-
-inline bool Download(const Url &url, const TimeLimit &time_limit, const std::string &harvest_url, const std::string &harvested_html,
-                     std::string * const response_body, unsigned * response_code, std::string * const error_message)
-{
-    Downloader::Params downloader_params;
-    downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
-    downloader_params.post_data_ = "{\"url\":\"" + JSON::EscapeString(harvest_url) + "\","
-                        + "\"sessionid\":\"" + JSON::EscapeString(GetNextSessionId()) + "\"";
-    if (not harvested_html.empty())
-        downloader_params.post_data_ += ",\"cachedHTML\":\"" + JSON::EscapeString(harvested_html) + "\"";
-    downloader_params.post_data_ += "}";
-    downloader_params.user_agent_ = USER_AGENT;
-
-    Downloader downloader(url, downloader_params, time_limit);
-    if (downloader.anErrorOccurred()) {
-        *error_message = downloader.getLastErrorMessage();
-        return false;
-    } else {
-        *response_code = downloader.getResponseCode();
-        *response_body = downloader.getMessageBody();
-        return true;
-    }
-}
-
-
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                                       ZtsClientParams &zts_client_params,
                                       bool log = true)
@@ -677,8 +641,9 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
     std::string response_body, error_message;
     unsigned response_code;
     zts_client_params.min_url_processing_time_.sleepUntilExpired();
-    const bool download_result(Download(Url(zts_client_params.zts_server_url_), /* time_limit = */ DEFAULT_TIMEOUT,
-                               harvest_url, "", &response_body, &response_code, &error_message));
+    Downloader::Params downloader_params;
+    const bool download_result(Zotero::Web(Url(zts_client_params.zts_server_url_), /* time_limit = */ DEFAULT_TIMEOUT, &downloader_params,
+                               Url(harvest_url), "", &response_body, &response_code, &error_message));
 
     zts_client_params.min_url_processing_time_.restart();
     if (not download_result) {
