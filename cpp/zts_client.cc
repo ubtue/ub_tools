@@ -25,7 +25,7 @@
 #include "Compiler.h"
 #include "Downloader.h"
 #include "ExecUtil.h"
-#include "FileDescriptor.h"
+#include "File.h"
 #include "FileUtil.h"
 #include "HttpHeader.h"
 #include "JSON.h"
@@ -289,23 +289,26 @@ public:
 
 class JsonFormatHandler : public FormatHandler {
     unsigned record_count_ = 0;
+    File *output_file_object_;
 public:
     using FormatHandler::FormatHandler;
 
     void prepareProcessing() {
-        FileUtil::AppendString(output_file_, "[");
+        output_file_object_ = new File(output_file_, "w");
+        output_file_object_->write("[");
     }
 
     std::pair<unsigned, unsigned> processRecord(const JSON::ObjectNode * const object_node) {
         if (record_count_ > 0)
-            FileUtil::AppendString(output_file_, ",");
-        FileUtil::AppendString(output_file_, object_node->toString());
+            output_file_object_->write(",");
+        output_file_object_->write(object_node->toString());
         ++record_count_;
         return std::make_pair(0, 0);
     }
 
     void finishProcessing() {
-        FileUtil::AppendString(output_file_, "]");
+        output_file_object_->write("]");
+        output_file_object_->close();
     }
 };
 
