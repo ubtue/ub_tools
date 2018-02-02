@@ -1,4 +1,6 @@
 /** \brief Interaction with Zotero Translation Server
+ *         public functions are named like endpoints
+ *         see https://github.com/zotero/translation-server
  *  \author Mario Trojan
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -28,6 +30,15 @@
 class Zotero {
     static std::string GetNextSessionId();
 public:
+    // native supported formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
+    static const std::vector<std::string> ExportFormats;
+
+    /** \brief Use builtin translator to convert JSON to output format. */
+    static bool Export(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params * const downloader_params,
+                       const std::string &format, const std::string &json,
+                       std::string * const response_body, std::string * const error_message);
+
+    /** \brief Download URL and return as JSON. (If harvested_html is given, URL is not downloaded again. ) */
     static bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params * const downloader_params,
                     const Url &harvest_url, const std::string &harvested_html,
                     std::string * const response_body, unsigned * response_code, std::string * const error_message);

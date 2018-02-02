@@ -49,8 +49,9 @@ const std::string USER_AGENT("ub_tools (https://ixtheo.de/docs/user_agents)");
 const std::string DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH("/usr/local/var/lib/tuelib/zotero_crawler.conf");
 
 // Default timeout values in milliseconds
-const unsigned DEFAULT_TIMEOUT(5000);
+const unsigned DEFAULT_TIMEOUT(10000);
 const unsigned DEFAULT_MIN_URL_PROCESSING_TIME(200);
+const unsigned DEFAULT_ZOTERO_CONVERSION_TIMEOUT(60000);
 
 
 void Usage() {
@@ -176,17 +177,21 @@ public:
 
 const std::string DEFAULT_SUBFIELD_CODE("eng");
 
+// forward declaration
+struct ZtsClientParams;
+
 
 class FormatHandler {
 protected:
     std::string output_format_;
     std::string output_file_;
     ZtsClientMaps &zts_client_maps_;
+    ZtsClientParams &zts_client_params_;
 public:
     FormatHandler(const std::string &output_format, const std::string &output_file,
-                  ZtsClientMaps * const zts_client_maps) :
+                  ZtsClientMaps * const zts_client_maps, ZtsClientParams * const zts_client_params) :
                   output_format_(output_format), output_file_(output_file),
-                  zts_client_maps_(*zts_client_maps) {}
+                  zts_client_maps_(*zts_client_maps), zts_client_params_(*zts_client_params) {}
     virtual ~FormatHandler() {}
 
     virtual void prepareProcessing() = 0;
@@ -195,7 +200,8 @@ public:
 
     static std::unique_ptr<FormatHandler> Factory(const std::string &output_format,
                                                   const std::string &output_file,
-                                                  ZtsClientMaps * const zts_client_maps);
+                                                  ZtsClientMaps * const zts_client_maps,
+                                                  ZtsClientParams * const zts_client_params);
 };
 
 
@@ -222,6 +228,29 @@ public:
         output_file_object_->write("]");
         output_file_object_->close();
     }
+};
+
+
+class ZoteroFormatHandler : public FormatHandler {
+    unsigned record_count_ = 0;
+    std::string json_buffer_;
+public:
+    using FormatHandler::FormatHandler;
+
+    void prepareProcessing() {
+        json_buffer_ = "[";
+    }
+
+    std::pair<unsigned, unsigned> processRecord(const JSON::ObjectNode * const object_node) {
+        if (record_count_ > 0)
+            json_buffer_ += ",";
+        json_buffer_ += object_node->toString();
+        ++record_count_;
+        return std::make_pair(0, 0);
+    }
+
+    // needs full definition for ZtsClientParams
+    void finishProcessing();
 };
 
 
@@ -525,12 +554,15 @@ public:
 
 std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_format,
                                                       const std::string &output_file,
-                                                      ZtsClientMaps * const zts_client_maps)
+                                                      ZtsClientMaps * const zts_client_maps,
+                                                      ZtsClientParams * const zts_client_params)
 {
     if (output_format == "marcxml" or output_format == "marc21")
-        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_format, output_file, zts_client_maps));
+        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_format, output_file, zts_client_maps, zts_client_params));
     else if (output_format == "json")
-        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(output_format, output_file, zts_client_maps));
+        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(output_format, output_file, zts_client_maps, zts_client_params));
+    else if (std::find(Zotero::ExportFormats.begin(), Zotero::ExportFormats.end(), output_format) != Zotero::ExportFormats.end())
+        return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(output_format, output_file, zts_client_maps, zts_client_params));
     else
         ERROR("invalid output-format: " + output_format);
 }
@@ -543,6 +575,21 @@ public:
     unsigned harvested_url_count_ = 0;
     std::unique_ptr<FormatHandler> format_handler_;
 };
+
+
+void ZoteroFormatHandler::finishProcessing() {
+    json_buffer_ += "]";
+
+    Downloader::Params downloader_params;
+    std::string response_body;
+    std::string error_message;
+
+    if (not Zotero::Export(Url(zts_client_params_.zts_server_url_), DEFAULT_ZOTERO_CONVERSION_TIMEOUT, &downloader_params,
+                           output_format_, json_buffer_, &response_body, &error_message))
+        ERROR("converting to target format failed: " + error_message);
+    else
+        FileUtil::WriteString(output_file_, response_body);
+}
 
 
 bool ParseLine(const std::string &line, std::string * const key, std::string * const value) {
@@ -827,7 +874,7 @@ void Main(int argc, char *argv[]) {
         }
 
         const std::string output_file(argv[3]);
-        zts_client_params.format_handler_ = FormatHandler::Factory(output_format, output_file, &zts_client_maps);
+        zts_client_params.format_handler_ = FormatHandler::Factory(output_format, output_file, &zts_client_maps, &zts_client_params);
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
         std::unique_ptr<File> progress_file;
