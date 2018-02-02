@@ -175,8 +175,8 @@ public:
     const JSONNode *getValue(const size_t index) const { return values_[index]; }
     JSONNode *getValue(const size_t index) { return values_[index]; }
     size_t size() const { return values_.size(); }
-    const_iterator cbegin() const { return values_.cbegin(); }
-    const_iterator cend() const { return values_.cend(); }
+    const_iterator begin() const { return values_.cbegin(); }
+    const_iterator end() const { return values_.cend(); }
     void push_back(JSONNode * const node) { values_.push_back(node); }
 };
 
