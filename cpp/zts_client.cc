@@ -280,6 +280,10 @@ public:
     virtual void prepareProcessing() = 0;
     virtual std::pair<unsigned, unsigned> processRecord(const JSON::ObjectNode * const object_node) = 0;
     virtual void finishProcessing() = 0;
+
+    static std::unique_ptr<FormatHandler> Factory(const std::string &output_format,
+                                                  const std::string &output_file,
+                                                  ZtsClientMaps * const zts_client_maps);
 };
 
 
@@ -515,12 +519,25 @@ public:
 };
 
 
+std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_format,
+                                                      const std::string &output_file,
+                                                      ZtsClientMaps * const zts_client_maps)
+{
+    if (output_format == "marcxml" or output_format == "marc21")
+        return std::unique_ptr<FormatHandler>(new MarcFormatHandler(output_format, output_file, zts_client_maps));
+    else if (output_format == "json")
+        return std::unique_ptr<FormatHandler>(new JsonFormatHandler(output_format, output_file, zts_client_maps));
+    else
+        ERROR("invalid output-format: " + output_format);
+}
+
+
 struct ZtsClientParams {
 public:
     std::string zts_server_url_;
     TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
     unsigned harvested_url_count_ = 0;
-    FormatHandler *format_handler_;
+    std::unique_ptr<FormatHandler> format_handler_;
 };
 
 
@@ -811,7 +828,6 @@ void Main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-
     if (argc != 4)
         Usage();
 
@@ -842,15 +858,7 @@ void Main(int argc, char *argv[]) {
         }
 
         const std::string output_file(argv[3]);
-        if (output_format == "marcxml" or output_format == "marc21")
-            zts_client_params.format_handler_ = new MarcFormatHandler(output_format, output_file, &zts_client_maps);
-        else if (output_format == "json")
-            zts_client_params.format_handler_ = new JsonFormatHandler(output_format, output_file, &zts_client_maps);
-        else {
-            INFO("invalid --output-format: " + output_format);
-            Usage();
-        }
-
+        zts_client_params.format_handler_ = FormatHandler::Factory(output_format, output_file, &zts_client_maps);
         unsigned total_record_count(0), total_previously_downloaded_count(0);
 
         std::unique_ptr<File> progress_file;
