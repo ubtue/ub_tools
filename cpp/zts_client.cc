@@ -221,7 +221,7 @@ public:
             output_file_object_->write(",");
         output_file_object_->write(object_node->toString());
         ++record_count_;
-        return std::make_pair(0, 0);
+        return std::make_pair(1, 0);
     }
 
     void finishProcessing() {
@@ -246,7 +246,7 @@ public:
             json_buffer_ += ",";
         json_buffer_ += object_node->toString();
         ++record_count_;
-        return std::make_pair(0, 0);
+        return std::make_pair(1, 0);
     }
 
     // needs full definition for ZtsClientParams
@@ -570,7 +570,7 @@ std::unique_ptr<FormatHandler> FormatHandler::Factory(const std::string &output_
 
 struct ZtsClientParams {
 public:
-    std::string zts_server_url_;
+    Url zts_server_url_;
     TimeLimit min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
     unsigned harvested_url_count_ = 0;
     std::unique_ptr<FormatHandler> format_handler_;
@@ -584,7 +584,7 @@ void ZoteroFormatHandler::finishProcessing() {
     std::string response_body;
     std::string error_message;
 
-    if (not Zotero::Export(Url(zts_client_params_.zts_server_url_), DEFAULT_ZOTERO_CONVERSION_TIMEOUT, &downloader_params,
+    if (not Zotero::Export(zts_client_params_.zts_server_url_, DEFAULT_ZOTERO_CONVERSION_TIMEOUT, &downloader_params,
                            output_format_, json_buffer_, &response_body, &error_message))
         ERROR("converting to target format failed: " + error_message);
     else
@@ -680,17 +680,26 @@ void LoadPreviouslyDownloadedHashes(File * const input,
 
 
 std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
+                                      const std::string &harvested_html,
                                       ZtsClientParams &zts_client_params,
                                       bool log = true)
 {
+    std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
+    static std::unordered_set<std::string> already_harvested_urls;
+    if (already_harvested_urls.find(harvest_url) != already_harvested_urls.end()) {
+        logger->info("Skipping URL (already harvested): " + harvest_url);
+        return record_count_and_previously_downloaded_count;
+    }
+    already_harvested_urls.emplace(harvest_url);
+
     logger->info("Harvesting URL: " + harvest_url);
 
     std::string response_body, error_message;
     unsigned response_code;
     zts_client_params.min_url_processing_time_.sleepUntilExpired();
     Downloader::Params downloader_params;
-    const bool download_result(Zotero::Web(Url(zts_client_params.zts_server_url_), /* time_limit = */ DEFAULT_TIMEOUT, &downloader_params,
-                               Url(harvest_url), "", &response_body, &response_code, &error_message));
+    const bool download_result(Zotero::Web(zts_client_params.zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT, &downloader_params,
+                               Url(harvest_url), harvested_html, &response_body, &response_code, &error_message));
 
     zts_client_params.min_url_processing_time_.restart();
     if (not download_result) {
@@ -711,7 +720,6 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
     }
 
     JSON::JSONNode *tree_root(nullptr);
-    std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count;
     try {
         JSON::Parser json_parser(response_body);
         if (not (json_parser.parse(&tree_root)))
@@ -725,7 +733,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                 reinterpret_cast<JSON::ObjectNode *>(tree_root));
                 for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
                     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                        Harvest(key_and_node->first, zts_client_params, false /* log */);
+                        Harvest(key_and_node->first, "", zts_client_params, false /* log */);
 
                     record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
                     record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
@@ -740,7 +748,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                     logger->error("expected JSON array element to be object");
 
                 const JSON::ObjectNode * const json_object(reinterpret_cast<const JSON::ObjectNode * const>(entry));
-                zts_client_params.format_handler_->processRecord(json_object);
+                record_count_and_previously_downloaded_count = zts_client_params.format_handler_->processRecord(json_object);
             }
         }
         ++zts_client_params.harvested_url_count_;
@@ -755,7 +763,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                   + harvest_url + '\n' + "of which "
                   + StringUtil::ToString(record_count_and_previously_downloaded_count.first
                       - record_count_and_previously_downloaded_count.second)
-                  + " records were new records.\n");
+                  + " records were new records.");
     }
     return record_count_and_previously_downloaded_count;
 }
@@ -792,7 +800,7 @@ void StartHarvesting(const bool ignore_robots_dot_txt, const std::string &simple
             ++processed_url_count;
             if (page_details.error_message_.empty()) {
                 const auto record_count_and_previously_downloaded_count(
-                    Harvest(page_details.url_, zts_client_params)
+                    Harvest(page_details.url_, page_details.body_, zts_client_params)
                 );
                 *total_record_count                += record_count_and_previously_downloaded_count.first;
                 *total_previously_downloaded_count += record_count_and_previously_downloaded_count.second;
@@ -852,7 +860,7 @@ void Main(int argc, char *argv[]) {
         map_directory_path += '/';
 
     try {
-        zts_client_params.zts_server_url_ = argv[1];
+        zts_client_params.zts_server_url_ = Url(argv[1]);
         ZtsClientMaps zts_client_maps;
         LoadMapFile(map_directory_path + "language_to_language_code.map", &zts_client_maps.language_to_language_code_map_);
         LoadMapFile(map_directory_path + "ISSN_to_language_code.map", &zts_client_maps.ISSN_to_language_code_map_);
