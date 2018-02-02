@@ -134,29 +134,6 @@ inline std::string GetValueFromStringNode(const std::pair<std::string, JSON::JSO
 }
 
 
-inline std::string CreateSubfieldFromStringNode(const std::string &key, const JSON::JSONNode * const node,
-                                                const std::string &tag, const char subfield_code,
-                                                MARC::Record * const marc_record, const char indicator1 = ' ',
-                                                const char indicator2 = ' ')
-{
-    if (node->getType() != JSON::JSONNode::STRING_NODE)
-        logger->error("in CreateSubfieldFromStringNode: \"" + key + "\" is not a string node!");
-    const std::string value(reinterpret_cast<const JSON::StringNode * const>(node)->getValue());
-    marc_record->insertField(tag, { { subfield_code, value } }, indicator1, indicator2);
-    return value;
-}
-
-
-inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node,
-                                                const std::string &tag, const char subfield_code,
-                                                MARC::Record * const marc_record, const char indicator1 = ' ',
-                                                const char indicator2 = ' ')
-{
-    return CreateSubfieldFromStringNode(key_and_node.first, key_and_node.second, tag, subfield_code, marc_record,
-                                        indicator1, indicator2);
-}
-
-
 // If "key" is in "map", then return the mapped value, o/w return "key".
 inline std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map) {
     const auto &key_and_value(map.find(key));
@@ -180,71 +157,6 @@ std::string DownloadAuthorPPN(const std::string &author) {
     else if (matcher->matched(downloader.getMessageBody()))
         return (*matcher)[1];
     return "";
-}
-
-
-void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record) {
-    std::vector<MARC::Subfield> subfields;
-
-    const std::string date_str(GetOptionalStringValue(object_node, "date"));
-    if (not date_str.empty()) {
-        const Date date(StringToDate(date_str));
-        if (date.year_ != Date::INVALID)
-            subfields.emplace_back('j', std::to_string(date.year_));
-    }
-
-    const std::string issue(GetOptionalStringValue(object_node, "issue"));
-    if (not issue.empty())
-        subfields.emplace_back('e', issue);
-
-    const std::string pages(GetOptionalStringValue(object_node, "pages"));
-    if (not pages.empty())
-        subfields.emplace_back('h', pages);
-
-    const std::string volume(GetOptionalStringValue(object_node, "volume"));
-    if (not volume.empty())
-        subfields.emplace_back('d', volume);
-
-    if (not subfields.empty())
-        new_record->insertField("936", subfields);
-}
-
-
-void ExtractKeywords(const JSON::JSONNode &tags_node, const std::string &issn,
-                     const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
-                     MARC::Record * const new_record)
-{
-    if (unlikely(tags_node.getType() != JSON::JSONNode::ARRAY_NODE))
-        logger->error("in ExtractKeywords: expected the tags node to be an array node!");
-    const JSON::ArrayNode &tags(reinterpret_cast<const JSON::ArrayNode &>(tags_node));
-
-    // Where to stuff the data:
-    std::string marc_field("653");
-    char marc_subfield('a');
-    if (not issn.empty()) {
-        const auto issn_and_field_tag_and_subfield_code(ISSN_to_keyword_field_map.find(issn));
-        if (issn_and_field_tag_and_subfield_code != ISSN_to_keyword_field_map.end()) {
-            if (unlikely(issn_and_field_tag_and_subfield_code->second.length() != 3 + 1))
-                logger->error("in ExtractKeywords: \"" + issn_and_field_tag_and_subfield_code->second
-                      + "\" is not a valid MARC tag + subfield code! (Error in \"ISSN_to_keyword_field.map\"!)");
-            marc_field    = issn_and_field_tag_and_subfield_code->second.substr(0, 3);
-            marc_subfield =  issn_and_field_tag_and_subfield_code->second[3];
-        }
-    }
-
-    for (auto tag : tags) {
-        if (tag->getType() != JSON::JSONNode::OBJECT_NODE)
-            logger->error("in ExtractKeywords: expected tag node to be an object node but found a(n) "
-                  + JSON::JSONNode::TypeToString(tag->getType()) + " node instead!");
-        const JSON::ObjectNode * const tag_object(reinterpret_cast<const JSON::ObjectNode * const>(tag));
-        const JSON::JSONNode * const tag_node(tag_object->getValue("tag"));
-        if (tag_node == nullptr)
-            logger->warning("in ExtractKeywords: unexpected: tag object does not contain a \"tag\" entry!");
-        else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
-            logger->error("in ExtractKeywords: unexpected: tag object's \"tag\" entry is not a string node!");
-        else
-            CreateSubfieldFromStringNode("tag", tag_node, marc_field, marc_subfield, new_record);
-    }
 }
 
 
@@ -315,6 +227,95 @@ public:
 
 class MarcFormatHandler : public FormatHandler {
     std::unique_ptr<MARC::Writer> marc_writer_;
+
+
+    inline std::string CreateSubfieldFromStringNode(const std::string &key, const JSON::JSONNode * const node,
+                                                const std::string &tag, const char subfield_code,
+                                                MARC::Record * const marc_record, const char indicator1 = ' ',
+                                                const char indicator2 = ' ')
+    {
+        if (node->getType() != JSON::JSONNode::STRING_NODE)
+            logger->error("in CreateSubfieldFromStringNode: \"" + key + "\" is not a string node!");
+        const std::string value(reinterpret_cast<const JSON::StringNode * const>(node)->getValue());
+        marc_record->insertField(tag, { { subfield_code, value } }, indicator1, indicator2);
+        return value;
+    }
+
+
+    inline std::string CreateSubfieldFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node,
+                                                    const std::string &tag, const char subfield_code,
+                                                    MARC::Record * const marc_record, const char indicator1 = ' ',
+                                                    const char indicator2 = ' ')
+    {
+        return CreateSubfieldFromStringNode(key_and_node.first, key_and_node.second, tag, subfield_code, marc_record,
+                                            indicator1, indicator2);
+    }
+
+
+    void ExtractKeywords(const JSON::JSONNode &tags_node, const std::string &issn,
+                     const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
+                     MARC::Record * const new_record)
+    {
+        if (unlikely(tags_node.getType() != JSON::JSONNode::ARRAY_NODE))
+            logger->error("in ExtractKeywords: expected the tags node to be an array node!");
+        const JSON::ArrayNode &tags(reinterpret_cast<const JSON::ArrayNode &>(tags_node));
+
+        // Where to stuff the data:
+        std::string marc_field("653");
+        char marc_subfield('a');
+        if (not issn.empty()) {
+            const auto issn_and_field_tag_and_subfield_code(ISSN_to_keyword_field_map.find(issn));
+            if (issn_and_field_tag_and_subfield_code != ISSN_to_keyword_field_map.end()) {
+                if (unlikely(issn_and_field_tag_and_subfield_code->second.length() != 3 + 1))
+                    logger->error("in ExtractKeywords: \"" + issn_and_field_tag_and_subfield_code->second
+                          + "\" is not a valid MARC tag + subfield code! (Error in \"ISSN_to_keyword_field.map\"!)");
+                marc_field    = issn_and_field_tag_and_subfield_code->second.substr(0, 3);
+                marc_subfield =  issn_and_field_tag_and_subfield_code->second[3];
+            }
+        }
+
+        for (auto tag : tags) {
+            if (tag->getType() != JSON::JSONNode::OBJECT_NODE)
+                logger->error("in ExtractKeywords: expected tag node to be an object node but found a(n) "
+                      + JSON::JSONNode::TypeToString(tag->getType()) + " node instead!");
+            const JSON::ObjectNode * const tag_object(reinterpret_cast<const JSON::ObjectNode * const>(tag));
+            const JSON::JSONNode * const tag_node(tag_object->getValue("tag"));
+            if (tag_node == nullptr)
+                logger->warning("in ExtractKeywords: unexpected: tag object does not contain a \"tag\" entry!");
+            else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
+                logger->error("in ExtractKeywords: unexpected: tag object's \"tag\" entry is not a string node!");
+            else
+                CreateSubfieldFromStringNode("tag", tag_node, marc_field, marc_subfield, new_record);
+        }
+    }
+
+
+    void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record) {
+        std::vector<MARC::Subfield> subfields;
+
+        const std::string date_str(GetOptionalStringValue(object_node, "date"));
+        if (not date_str.empty()) {
+            const Date date(StringToDate(date_str));
+            if (date.year_ != Date::INVALID)
+                subfields.emplace_back('j', std::to_string(date.year_));
+        }
+
+        const std::string issue(GetOptionalStringValue(object_node, "issue"));
+        if (not issue.empty())
+            subfields.emplace_back('e', issue);
+
+        const std::string pages(GetOptionalStringValue(object_node, "pages"));
+        if (not pages.empty())
+            subfields.emplace_back('h', pages);
+
+        const std::string volume(GetOptionalStringValue(object_node, "volume"));
+        if (not volume.empty())
+            subfields.emplace_back('d', volume);
+
+        if (not subfields.empty())
+            new_record->insertField("936", subfields);
+    }
+
 
     void CreateCreatorFields(const JSON::JSONNode * const creators_node, MARC::Record * const marc_record) {
         if (creators_node->getType() != JSON::JSONNode::ARRAY_NODE)
