@@ -101,7 +101,7 @@ std::string GetIssueId(const JSON::ObjectNode * const doc_obj) {
     const std::string id(JSON::LookupString("/id", doc_obj, /* default_value = */ ""));
     if (unlikely(id.empty()))
         logger->error("Did not find 'id' node in JSON tree!");
-    
+
     return id;
 }
 
@@ -111,7 +111,7 @@ std::string GetIssueTitle(const std::string &id, const JSON::ObjectNode * const 
     const auto issue_title(JSON::LookupString("/title", doc_obj, /* default_value = */ NO_AVAILABLE_TITLE));
     if (unlikely(issue_title == NO_AVAILABLE_TITLE))
         logger->warning("No title found for ID " + id + "!");
-    
+
     return issue_title;
 }
 
@@ -120,7 +120,7 @@ std::string GetLastModificationTime(const JSON::ObjectNode * const doc_obj) {
     const std::string last_modification_time(JSON::LookupString("/last_modification_time", doc_obj, /* default_value = */ ""));
     if (unlikely(last_modification_time.empty()))
         logger->error("Did not find 'last_modification_time' node in JSON tree!");
-    
+
     return last_modification_time;
 }
 
@@ -132,9 +132,9 @@ std::string GetSeriesTitle(const JSON::ObjectNode * const doc_obj) {
         logger->warning("\"container_ids_and_titles\" is null");
         return NO_SERIES_TITLE;
     }
-        
+
     const JSON::ArrayNode * const container_ids_and_titles_array(dynamic_cast<const JSON::ArrayNode *>(container_ids_and_titles));
-    
+
     if (unlikely(container_ids_and_titles_array == nullptr))
         logger->error("\"container_ids_and_titles\" is not a JSON array!");
     if (container_ids_and_titles_array->empty()) {
@@ -146,13 +146,13 @@ std::string GetSeriesTitle(const JSON::ObjectNode * const doc_obj) {
     if (first_id_and_title_string == nullptr)
         logger->error("first entry in container_ids_and_titles is not a JSON string!");
     std::string first_id_and_title_string_value(first_id_and_title_string->getValue());
-    
+
     StringUtil::ReplaceString("#31;", "\x1F", &first_id_and_title_string_value);
     std::vector<std::string> parts;
     StringUtil::Split(first_id_and_title_string_value, '\x1F', &parts);
     if (unlikely(parts.size() < 2))
         logger->error("strange id and title value \"" + first_id_and_title_string_value + "\"!");
-    
+
     return parts[1];
 }
 
@@ -164,7 +164,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
                           std::string * const max_last_modification_time)
 {
     bool found_at_least_one_new_issue(false);
-    
+
     JSON::Parser parser(json_document);
     JSON::JSONNode *tree;
     if (not parser.parse(&tree))
@@ -173,30 +173,30 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
     const JSON::ObjectNode * const tree_obj(dynamic_cast<const JSON::ObjectNode *>(tree));
     if (unlikely(tree_obj == nullptr))
         logger->error("in " + std::string(__FUNCTION__) + ": top level JSON entity is not an object type!");
-    
+
     const JSON::ObjectNode * const response(dynamic_cast<const JSON::ObjectNode *>(tree_obj->getValue("response")));
     if (unlikely(response == nullptr))
         logger->error("in " + std::string(__FUNCTION__) + ": top level node \"response\" in JSON tree is missing!");
-    
+
     const JSON::ArrayNode * const docs(dynamic_cast<const JSON::ArrayNode *>(response->getValue("docs")));
     if (unlikely(docs == nullptr))
         logger->error("in " + std::string(__FUNCTION__) + ": array node \"docs\" in JSON tree is missing!");
-    
-    for (auto doc(docs->cbegin()); doc != docs->cend(); ++doc) {
-        const JSON::ObjectNode * const doc_obj(dynamic_cast<const JSON::ObjectNode *>(*doc));
+
+    for (auto doc : *docs) {
+        const JSON::ObjectNode * const doc_obj(dynamic_cast<const JSON::ObjectNode *>(doc));
         if (unlikely(doc_obj == nullptr))
             logger->error("in " + std::string(__FUNCTION__) + ": document object is missing!");
-        
+
         const std::string id(GetIssueId(doc_obj));
         if (notified_db->check(id) > 0)
             continue; // We sent a notification for this issue.
         new_notification_ids->insert(id);
-        
+
         const std::string issue_title(GetIssueTitle(id, doc_obj));
         const std::string series_title(GetSeriesTitle(doc_obj));
-        
+
         new_issue_infos->emplace_back(id, series_title, issue_title);
-        
+
         const std::string last_modification_time(GetLastModificationTime(doc_obj));
         if (last_modification_time > *max_last_modification_time) {
             *max_last_modification_time = last_modification_time;
@@ -211,10 +211,10 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
 std::string GetEmailTemplate(const std::string user_type) {
     std::string result;
     const std::string EMAIL_TEMPLATE_PATH("/usr/local/var/lib/tuelib/subscriptions_email." + user_type + ".template");
-    
+
     if (unlikely(!FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
         logger->error("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
-    
+
     return result;
 }
 
@@ -230,7 +230,7 @@ bool GetNewIssues(const std::unique_ptr<kyotocabinet::HashDB> &notified_db,
                             + " AND last_modification_time:{" + last_modification_time + " TO *}"
                             + " AND year:[" + std::to_string(year_min) + " TO " + std::to_string(year_current) + "]"
     );
-    
+
     std::string json_result;
     if (unlikely(not Solr::Query(QUERY, "id,title,last_modification_time,container_ids_and_titles", &json_result,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
@@ -283,7 +283,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
     db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id='"
                               + user_id + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
-    
+
     if (result_set.empty())
         logger->error("found no user attributes in table \"user\" for ID \"" + user_id + "\"!");
     if (result_set.size() > 1)
@@ -322,7 +322,7 @@ void ProcessSingleUser(const bool verbose, DbConnection * const db_connection,
     for (const auto &control_number_and_last_modification_time : control_numbers_and_last_modification_times) {
         if (not control_number_and_last_modification_time.changed())
             continue;
-        
+
         db_connection->queryOrDie(
             "UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='"
             + ConvertDateFromZuluDate(control_number_and_last_modification_time.last_modification_time_)
@@ -405,7 +405,7 @@ int main(int argc, char **argv) {
         --argc, ++argv;
     } else
         verbose = false;
-    
+
     std::string solr_host_and_port;
     if (argc == 5)
         solr_host_and_port = "localhost:8080";
@@ -414,11 +414,11 @@ int main(int argc, char **argv) {
         --argc, ++argv;
     } else
         Usage();
-    
+
     const std::string user_type(argv[1]);
     if (user_type != "ixtheo" and user_type != "relbib")
         logger->error("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
-    
+
     const std::string hostname(argv[2]);
     const std::string sender_email(argv[3]);
     const std::string email_subject(argv[4]);
