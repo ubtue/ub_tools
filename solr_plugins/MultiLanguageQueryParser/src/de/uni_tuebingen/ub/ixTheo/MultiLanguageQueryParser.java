@@ -106,8 +106,8 @@ public class MultiLanguageQueryParser extends QParser {
         // Handle filter queries
         final String[] filterQueries = newParams.getParams("fq");
         if (filterQueries != null && filterQueries.length > 0) {
-            for (String filterQuery : filterQueries) {
-                String[] fieldNameAndFilterValues = filterQuery.split(":");
+            for (final String filterQuery : filterQueries) {
+                final String[] fieldNameAndFilterValues = filterQuery.split(":");
                 final int fieldNameAndFilterValuesLength = fieldNameAndFilterValues.length;
                 // The usual case is an ordinary expression made up of a field + ":" + query
                 // Moreover, we can have complex (i.e. parenthesized) expressions on the right hand side
@@ -120,15 +120,15 @@ public class MultiLanguageQueryParser extends QParser {
                          final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\()", "");
                          if (schema.getFieldOrNull(newFieldName) != null)
                              newFilterQuery += newFieldExpression + ":";
-                         else throw new MultiLanguageQueryParserException("Cannot rewrite \"" +
+                         else
+                             throw new MultiLanguageQueryParserException("Cannot rewrite \"" +
                                            fieldNameAndFilterValues[i] + "\" to \"" +
                                            newFieldName + "\" [No such field]");
                     }
                     newFilterQuery += fieldNameAndFilterValues[fieldNameAndFilterValuesLength - 1];
                     newParams.remove("fq", filterQuery);
                     newParams.add("fq", newFilterQuery);
-                }
-                else
+                } else
                     throw new MultiLanguageQueryParserException("Cannot appropriately rewrite " + filterQuery);
            }
         }
