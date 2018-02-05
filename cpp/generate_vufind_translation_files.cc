@@ -34,6 +34,7 @@
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "IniFile.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -91,7 +92,7 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
         const std::string token(std::get<1>(line_no_token_and_translation));
         const std::string translation(std::get<2>(line_no_token_and_translation));
         if (not translation.empty())
-            output << token << " = \"" << translation << "\"\n";
+            output << token << " = \"" << StringUtil::TrimWhite(translation) << "\"\n";
     }
 
     if (verbose)
