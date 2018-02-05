@@ -22,9 +22,25 @@ class MetadataHarvester {
      * Mapping of format to file extension
      */
     const OUTPUT_FORMATS = [
-        'json'      => 'json',
-        'marc21'    => 'mrc',
-        'marcxml'   => 'xml',
+        // custom formats
+        'json'              => 'json',
+        'marc21'            => 'mrc',
+        'marcxml'           => 'xml',
+
+        // native zotero formats, see https://github.com/zotero/translation-server/blob/master/src/server_translation.js#L31-43
+        'bibtex'            => 'bibtex',
+        'biblatex'          => 'biblatex',
+        'bookmarks'         => 'bookmarks',
+        'coins'             => 'coins',
+        'csljson'           => 'csljson',
+        'mods'              => 'mods',
+        'refer'             => 'refer',
+        'rdf_bibliontology' => 'rdf_bib',
+        'rdf_dc'            => 'rdf_dc',
+        'rdf_zotero'        => 'rdf_zotero',
+        'ris'               => 'ris',
+        'tei'               => 'tei',
+        'wikipedia'         => 'wikipedia',
     ];
 
     /**
