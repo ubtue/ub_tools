@@ -1,7 +1,7 @@
 <?php
 
     /**
-     * Test site for Zotero Translation Server, using c++ zts_client and zotero_crawler
+     * Test site for Zotero Translation Server, using c++ zts_client
      */
     require('inc.php');
 
@@ -42,8 +42,8 @@
 <h2>Parameters</h2>
 <form method="post" action="index.php">
     <table>
-        <tr><td>Base Url</td><td><input name="urlBase" type="text" value="<?= isset($_POST['urlBase']) ? $_POST['urlBase'] : 'https://www.nationalarchives.gov.uk/first-world-war' ?>"></input></td><td>e.g. http://allafrica.com/books/</td></tr>
-        <tr><td>Regex</td><td><input name="urlRegex" type="text" value="<?= isset($_POST['urlRegex']) ? $_POST['urlRegex'] : '.*/first-world-war/.*' ?>"></input></td><td>e.g. .*/books/.*</td></tr>
+        <tr><td>Base Url</td><td><input name="urlBase" type="text" size="60" value="<?= isset($_POST['urlBase']) ? $_POST['urlBase'] : 'https://www.nationalarchives.gov.uk/first-world-war' ?>"></input></td><td>e.g. https://www.nationalarchives.gov.uk/first-world-war</td></tr>
+        <tr><td>Regex</td><td><input name="urlRegex" type="text" size="60" value="<?= isset($_POST['urlRegex']) ? $_POST['urlRegex'] : '.*/first-world-war/.*' ?>"></input></td><td>e.g. .*/first-world-war/.*</td></tr>
         <tr>
             <td>Depth</td>
             <td>
@@ -66,9 +66,14 @@
         <tr>
             <td>Format</td>
             <td>
-                <select name="fileExtension">
-                    <option value="xml">MARCXML</option>
-                    <!--<option value="mrc" <?= (isset($_POST['fileExtension']) && $_POST['fileExtension'] == 'mrc') ? 'selected' : '' ?>>MARC21</option>-->
+                <select name="outputFormat">
+                    <?php
+                        foreach (\Zotero\MetadataHarvester::OUTPUT_FORMATS as $format_key => $format_extension) {
+                            print '<option value="'.$format_key.'" ';
+                            if (isset($_POST['outputFormat']) && $_POST['outputFormat'] == $format_key) print 'selected';
+                            print '>' . mb_strtoupper($format_key) . '</option>';
+                        }
+                    ?>
                 </select>
             </td>
             <td>MARC21 currently disabled due to problems with zts_client</td>
@@ -81,7 +86,7 @@
 <?php
 if (count($_POST) > 0) {
     $zotero = new Zotero\MetadataHarvester(ZOTERO_TRANSLATION_SERVER_URL);
-    $task = $zotero->start($_POST['urlBase'], $_POST['urlRegex'], $_POST['depth'], $_POST['fileExtension']);
+    $task = $zotero->start($_POST['urlBase'], $_POST['urlRegex'], $_POST['depth'], $_POST['outputFormat']);
     ?>
     <h2>Result</h2>
     <table>
@@ -122,7 +127,7 @@ if (count($_POST) > 0) {
         print '<tr><td>ERROR</td><td>Exitcode: '.$status['exitcode'].'</td></tr>';
     }
 
-    print '<tr><td>CLI output:</td><td>'.nl2br($task->getOutput()).'</td></tr>';
+    print '<tr><td>CLI output:</td><td>'.nl2br(htmlspecialchars($task->getOutput())).'</td></tr>';
 
     ?>
     </table>

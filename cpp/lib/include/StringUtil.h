@@ -93,7 +93,7 @@ const std::string WHITE_SPACE(" \t\n\v\r\f");
 std::string ToLower(std::string * const s);
 
 
-/** \brief  Convert a string to lowercase (does not modify its agrument). */
+/** \brief  Convert a string to lowercase (does not modify its argument). */
 std::string ToLower(const std::string &s);
 
 
