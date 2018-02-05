@@ -26,7 +26,7 @@
  */
 
 #include "Downloader.h"
-#include <iostream>
+#include <algorithm>
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -53,6 +53,34 @@ int GlobalInit() {
 
 
 } // unnamed namespace
+
+
+class UploadBuffer {
+    std::string data_;
+    std::string::const_iterator start_;
+public:
+    UploadBuffer(const std::string &data): data_(data), start_(data_.cbegin()) { }
+    inline void reset(const std::string &data) { data_ = data; start_ = data_.cbegin(); }
+    size_t read(char * const buffer, const size_t size);
+};
+
+
+inline size_t UploadBuffer::read(char * const buffer, const size_t size) {
+    if (start_ >= data_.cend())
+        return 0;
+
+    const size_t actual(std::min(size, static_cast<size_t>(data_.cend() - start_)));
+    std::memcpy(buffer, data_.data() + (start_ - data_.cbegin()), actual);
+    start_ += actual;
+
+    return actual;
+}
+
+
+size_t UploadCallback(char *buffer, size_t size, size_t nitems, void *instream) {
+    UploadBuffer * const upload_buffer(reinterpret_cast<UploadBuffer * const>(instream));
+    return upload_buffer->read(buffer, size * nitems);
+}
 
 
 int dummy(GlobalInit());
@@ -94,7 +122,7 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
 
 
 Downloader::Downloader(const Url &url, const Params &params, const TimeLimit &time_limit)
-    : multi_mode_(false), additional_http_headers_(nullptr), params_(params)
+    : multi_mode_(false), additional_http_headers_(nullptr), upload_buffer_(nullptr), params_(params)
 {
     init();
     newUrl(url, time_limit);
@@ -102,7 +130,7 @@ Downloader::Downloader(const Url &url, const Params &params, const TimeLimit &ti
 
 
 Downloader::Downloader(const std::string &url, const Params &params, const TimeLimit &time_limit, bool multimode)
-    : multi_mode_(multimode), additional_http_headers_(nullptr), params_(params)
+    : multi_mode_(multimode), additional_http_headers_(nullptr), upload_buffer_(nullptr), params_(params)
 {
     init();
     newUrl(url, time_limit);
@@ -116,6 +144,7 @@ Downloader::~Downloader() {
         ::curl_slist_free_all(additional_http_headers_);
     if (likely(easy_handle_ != nullptr))
         ::curl_easy_cleanup(easy_handle_);
+    delete upload_buffer_;
 }
 
 
@@ -192,6 +221,23 @@ bool Downloader::newUrl(const Url &url, const TimeLimit &time_limit) {
 
         return true;
     }
+}
+
+
+bool Downloader::putData(const Url &url, const std::string &data, const TimeLimit &time_limit) {
+    if (::curl_easy_setopt(easy_handle_, CURLOPT_UPLOAD, 1L) != CURLE_OK)
+        throw std::runtime_error("in Downloader::putData: curl_easy_setopt() failed! (1)");
+    if (::curl_easy_setopt(easy_handle_, CURLOPT_READFUNCTION, UploadCallback) != CURLE_OK)
+        throw std::runtime_error("in Downloader::putData: curl_easy_setopt() failed! (2)");
+
+    if (upload_buffer_ == nullptr)
+        upload_buffer_ = new UploadBuffer(data);
+    else
+        upload_buffer_->reset(data);
+    if (::curl_easy_setopt(easy_handle_, CURLOPT_READDATA, upload_buffer_) != CURLE_OK)
+        throw std::runtime_error("in Downloader::putData: curl_easy_setopt() failed! (3)");
+
+    return newUrl(url, time_limit);
 }
 
 
@@ -466,10 +512,10 @@ size_t Downloader::HeaderFunction(void *data, size_t size, size_t nmemb, void *t
 void Downloader::debugFunction(CURL */* handle */, curl_infotype infotype, char *data, size_t size) {
     switch (infotype) {
     case CURLINFO_TEXT:
-        std::cerr << "Informational text:\n" << std::string(data, size) << std::endl;
+        INFO("informational text: " + std::string(data, size));
         break;
     case CURLINFO_HEADER_OUT:
-        std::cerr << "Sent header:\n" << std::string(data, size) << std::endl;
+        INFO("sent header:\n" + std::string(data, size));
         break;
     default:
         break;
