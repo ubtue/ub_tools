@@ -106,14 +106,28 @@ public class MultiLanguageQueryParser extends QParser {
         final String[] filterQueries = newParams.getParams("fq");
         if (filterQueries != null && filterQueries.length > 0) {
             for (String filterQuery : filterQueries) {
-                String[] fieldNameAndFilterValue = filterQuery.split(":");
-                if (fieldNameAndFilterValue.length == 2) {
-                    String newFieldName = fieldNameAndFilterValue[0] + "_" + lang;
-                    if (schema.getFieldOrNull(newFieldName) != null) {
-                        newParams.remove("fq", filterQuery);
-                        newParams.add("fq", newFieldName + ":" + fieldNameAndFilterValue[1]);
+                String[] fieldNameAndFilterValues = filterQuery.split(":");
+                final int fieldNameAndFilterValuesLength = fieldNameAndFilterValues.length;
+                // The usual case is an ordinary expression made up of a field + ":" + query
+                // Besides, we can have complex (i.e. parenthesized) expressions on the right hand side
+                // so we try to replace any field left to a colon
+                if (fieldNameAndFilterValuesLength >= 2 && fieldNameAndFilterValuesLength <= 3) {
+                    String newFilterQuery = new String();
+                    for (int i = 0; i < fieldNameAndFilterValuesLength - 1; ++i) {
+                         final String newFieldExpression = fieldNameAndFilterValues[i] + "_" + lang;
+                         //Strip potential local parameters or a leading opening bracket
+                         final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\()", "");
+                         if (schema.getFieldOrNull(newFieldName) != null)
+                             newFilterQuery += newFieldExpression + ":";
+                         else throw new MultiLanguageQueryParserException("Cannot rewrite \"" +
+                                           fieldNameAndFilterValues[i] + "\" to \"" +
+                                           newFieldName + "\" [No such field]");
                     }
+                    newFilterQuery += fieldNameAndFilterValues[fieldNameAndFilterValuesLength - 1];
+                    newParams.remove("fq", filterQuery);
+                    newParams.add("fq", newFilterQuery);
                 }
+                else throw new MultiLanguageQueryParserException("Cannot appropriately rewrite " + filterQuery);
            }
         }
 
