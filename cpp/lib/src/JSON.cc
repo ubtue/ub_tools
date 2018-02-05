@@ -785,7 +785,7 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
 std::string EscapeString(const std::string &unescaped_string) {
     std::string escaped_string;
     for (const char ch : unescaped_string) {
-        if (static_cast<unsigned char>(ch) <= 0x1Fu) { // Escapecontrol characters.
+        if (static_cast<unsigned char>(ch) <= 0x1Fu) { // Escape control characters.
             escaped_string += "\\x";
             escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) >> 4u);
             escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) & 0xFu);
