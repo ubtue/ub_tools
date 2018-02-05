@@ -110,7 +110,7 @@ public class MultiLanguageQueryParser extends QParser {
                 String[] fieldNameAndFilterValues = filterQuery.split(":");
                 final int fieldNameAndFilterValuesLength = fieldNameAndFilterValues.length;
                 // The usual case is an ordinary expression made up of a field + ":" + query
-                // Besides, we can have complex (i.e. parenthesized) expressions on the right hand side
+                // Moreover, we can have complex (i.e. parenthesized) expressions on the right hand side
                 // so we try to replace any field left to a colon
                 if (fieldNameAndFilterValuesLength >= 2 && fieldNameAndFilterValuesLength <= 3) {
                     String newFilterQuery = new String();
@@ -128,7 +128,8 @@ public class MultiLanguageQueryParser extends QParser {
                     newParams.remove("fq", filterQuery);
                     newParams.add("fq", newFilterQuery);
                 }
-                else throw new MultiLanguageQueryParserException("Cannot appropriately rewrite " + filterQuery);
+                else
+                    throw new MultiLanguageQueryParserException("Cannot appropriately rewrite " + filterQuery);
            }
         }
 
