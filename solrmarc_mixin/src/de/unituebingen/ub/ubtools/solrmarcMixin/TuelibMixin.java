@@ -820,6 +820,9 @@ public class TuelibMixin extends SolrIndexerMixin {
     static private Map<String, String> translation_map_es = new HashMap<String, String>();
     static private Map<String, String> translation_map_hant = new HashMap<String, String>();
     static private Map<String, String> translation_map_hans = new HashMap<String, String>();
+    static private Map<String, String> translation_map_pt = new HashMap<String, String>();
+    static private Map<String, String> translation_map_ru = new HashMap<String, String>();
+    static private Map<String, String> translation_map_el = new HashMap<String, String>();
 
     /**
      * get translation map for normdata translations
@@ -852,6 +855,15 @@ public class TuelibMixin extends SolrIndexerMixin {
             break;
         case "hans":
             translation_map = translation_map_hans;
+            break;
+        case "pt":
+            translation_map = translation_map_pt;
+            break;
+        case "ru":
+            translation_map = translation_map_ru;
+            break;
+        case "el":
+            translation_map = translation_map_el;
             break;
         default:
             throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
