@@ -584,7 +584,7 @@ void ZoteroFormatHandler::finishProcessing() {
     std::string response_body;
     std::string error_message;
 
-    if (not Zotero::Export(zts_client_params_.zts_server_url_, DEFAULT_ZOTERO_CONVERSION_TIMEOUT, &downloader_params,
+    if (not Zotero::Export(zts_client_params_.zts_server_url_, DEFAULT_ZOTERO_CONVERSION_TIMEOUT, downloader_params,
                            output_format_, json_buffer_, &response_body, &error_message))
         ERROR("converting to target format failed: " + error_message);
     else
@@ -698,7 +698,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
     unsigned response_code;
     zts_client_params.min_url_processing_time_.sleepUntilExpired();
     Downloader::Params downloader_params;
-    const bool download_result(Zotero::Web(zts_client_params.zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT, &downloader_params,
+    const bool download_result(Zotero::Web(zts_client_params.zts_server_url_, /* time_limit = */ DEFAULT_TIMEOUT, downloader_params,
                                Url(harvest_url), harvested_html, &response_body, &response_code, &error_message));
 
     zts_client_params.min_url_processing_time_.restart();
