@@ -122,15 +122,15 @@ public class MultiLanguageQueryParser extends QParser {
                              newFilterQuery += newFieldExpression + ":";
                          else
                              throw new MultiLanguageQueryParserException("Cannot rewrite \"" +
-                                           fieldNameAndFilterValues[i] + "\" to \"" +
-                                           newFieldName + "\" [No such field]");
+                                       fieldNameAndFilterValues[i] + "\" to \"" +
+                                       newFieldName + "\" [No such field]");
                     }
                     newFilterQuery += fieldNameAndFilterValues[fieldNameAndFilterValuesLength - 1];
                     newParams.remove("fq", filterQuery);
                     newParams.add("fq", newFilterQuery);
                 } else
                     throw new MultiLanguageQueryParserException("Cannot appropriately rewrite " + filterQuery);
-           }
+            }
         }
 
         // Handling for [e]dismax
