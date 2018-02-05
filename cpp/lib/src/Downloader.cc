@@ -26,7 +26,6 @@
  */
 
 #include "Downloader.h"
-#include <algorithm>
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "IniFile.h"
