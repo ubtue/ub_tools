@@ -31,7 +31,7 @@ namespace {
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_authority_file\n";
+    std::cerr << "Usage: " << ::progname << " [--use-articles-only] marc_authority_file\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -59,10 +59,13 @@ std::string GetGNDCode(const MARC::Record &authority_record) {
     return "";
 }
 
-void ProcessRecords(MARC::Reader * const marc_reader) {
+void ProcessRecords(const bool use_articles_only, MARC::Reader * const marc_reader) {
     unsigned total_count(0), people_gnd_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++total_count;
+
+        if (use_articles_only and not record.isArticle())
+            continue;
 
         if (IsPersonRecord(record)) {
             const std::string gnd_code_candidate(GetGNDCode(record));
@@ -84,12 +87,22 @@ void ProcessRecords(MARC::Reader * const marc_reader) {
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
+    if (argc < 2)
+        Usage();
+
+    bool use_articles_only(false);
+    if (argc == 3) {
+        if (std::strcmp(argv[1], "--use-articles-only") != 0)
+            Usage();
+        --argc, ++argv;
+    }
+
     if (argc != 2)
         Usage();
 
     try {
         std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
-        ProcessRecords(marc_reader.get());
+        ProcessRecords(use_articles_only, marc_reader.get());
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }

@@ -47,7 +47,7 @@ public:
     enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
 private:
     LogLevel min_log_level_;
-    Logger(): fd_(STDERR_FILENO), min_log_level_(LL_INFO) { }
+    Logger();
 public:
     void redirectOutput(const int new_fd) { fd_ = new_fd; }
 

@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2017, Library of the University of Tübingen
+    Copyright (C) 2015-2018, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -51,10 +51,6 @@ void Usage() {
               << " [--verbose] ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
     std::exit(EXIT_FAILURE);
 }
-
-
-const std::string BIB_REF_RANGE_TAG("801");
-const std::string BIB_BROWSE_TAG("802");
 
 
 void LoadBibleOrderMap(const bool verbose, File * const input,
@@ -446,14 +442,12 @@ void AugmentBibleRefs(const bool verbose, MarcReader * const marc_reader, MarcWr
 
             // Make sure that we don't use a bible reference tag that is already in use for another
             // purpose:
-            const size_t bib_ref_index(record.getFieldIndex(BIB_REF_RANGE_TAG));
+            const size_t bib_ref_index(record.getFieldIndex(BibleUtil::BIB_REF_RANGE_TAG));
             if (bib_ref_index != MarcRecord::FIELD_NOT_FOUND)
-                logger->error("We need another bible reference tag than \"" + BIB_REF_RANGE_TAG + "\"!");
+                logger->error("We need another bible reference tag than \"" + BibleUtil::BIB_REF_RANGE_TAG + "\"!");
 
             std::set<std::string> ranges;
-            if (FindGndCodes(verbose, "600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map,
-                             &ranges))
-            {
+            if (FindGndCodes(verbose, "600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map, &ranges)) {
                 ++augment_count;
                 std::string range_string;
                 for (auto &range : ranges) {
@@ -463,7 +457,7 @@ void AugmentBibleRefs(const bool verbose, MarcReader * const marc_reader, MarcWr
                 }
 
                 // Put the data into the $a subfield:
-                record.insertSubfield(BIB_REF_RANGE_TAG, 'a', range_string);
+                record.insertSubfield(BibleUtil::BIB_REF_RANGE_TAG, 'a', range_string);
             }
 
             marc_writer->write(record);
@@ -473,7 +467,7 @@ void AugmentBibleRefs(const bool verbose, MarcReader * const marc_reader, MarcWr
     }
 
     if (verbose)
-        logger->info("Augmented the " + BIB_REF_RANGE_TAG + "$a field of " + std::to_string(augment_count)
+        logger->info("Augmented the " + BibleUtil::BIB_REF_RANGE_TAG + "$a field of " + std::to_string(augment_count)
                      + " records of a total of " + std::to_string(total_count) + " records.");
 }
 
