@@ -788,11 +788,22 @@ public class TuelibMixin extends SolrIndexerMixin {
                 // If we use a fixed day we underrun a plausible span of time for the new items
                 // but we have to make sure that no invalid date is generated that leads to an import problem
                 return year + "-" + month + "-" +
-                       String.format("%02d", Math.min(getCurrentDayOfMonth(), getLastDayForYearAndMonth(year, month)))
+                       String.format("%02d",
+                       isCurrentYearAndMonth(year, month) ? getCurrentDayOfMonth() : getLastDayForYearAndMonth(year, month))
                        + "T11:00:00.000Z";
             }
         }
         return null;
+    }
+
+
+    /*
+     * Check whether given year and date is equivalent to current year and date
+     */
+    boolean isCurrentYearAndMonth(final String year, final String month) {
+        Calendar calendar = Calendar.getInstance();
+        return (Integer.valueOf(year) == calendar.get(Calendar.YEAR)) && 
+               (Integer.valueOf(month) == calendar.get(Calendar.MONTH));
     }
 
 
