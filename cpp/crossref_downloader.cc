@@ -75,8 +75,8 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
     if (unlikely(array_node2 == nullptr))
         logger->error("in CrossrefDate::CrossrefDate: inner nested child of \"" + field + "\" is not a JSON array!");
 
-    auto date_component_iter(array_node2->cbegin());
-    const auto &date_end(array_node2->cend());
+    auto date_component_iter(array_node2->begin());
+    const auto &date_end(array_node2->end());
     if (unlikely(date_component_iter == date_end))
         logger->error("in CrossrefDate::CrossrefDate: year is missing for the \"" + field + "\" date field!");
 
@@ -319,10 +319,8 @@ std::vector<std::string> ExtractAuthorVector(const JSON::ObjectNode &object_node
     if (array_node == nullptr)
         return extracted_values;
 
-    for (JSON::ArrayNode::const_iterator array_entry(array_node->cbegin()); array_entry != array_node->cend();
-         ++array_entry)
-    {
-        const JSON::ObjectNode *author_node(dynamic_cast<const JSON::ObjectNode *>(*array_entry));
+    for (auto array_entry : *array_node) {
+        const JSON::ObjectNode *author_node(dynamic_cast<const JSON::ObjectNode *>(array_entry));
         if (author_node != nullptr)
             extracted_values.emplace_back(ExtractAuthor(*author_node));
     }
@@ -340,10 +338,8 @@ std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node
     if (array_node == nullptr)
         return extracted_values;
 
-    for (JSON::ArrayNode::const_iterator array_entry(array_node->cbegin()); array_entry != array_node->cend();
-         ++array_entry)
-    {
-        const JSON::StringNode *string_node(dynamic_cast<const JSON::StringNode *>(*array_entry));
+    for (auto array_entry : *array_node) {
+        const JSON::StringNode *string_node(dynamic_cast<const JSON::StringNode *>(array_entry));
         if (unlikely(string_node == nullptr))
             logger->error("in ExtractStringVector: expected a string node!");
         extracted_values.emplace_back(string_node->getValue());
@@ -396,8 +392,8 @@ void AddAuthors(const std::string &DOI, const std::string &ISSN, const JSON::Obj
     }
 
     bool first(true);
-    for (auto author(authors->cbegin()); author != authors->cend(); ++author) {
-        const JSON::ObjectNode * const author_node(dynamic_cast<const JSON::ObjectNode *>(*author));
+    for (auto author : *authors) {
+        const JSON::ObjectNode * const author_node(dynamic_cast<const JSON::ObjectNode *>(author));
         if (unlikely(author_node == nullptr))
             logger->error("weird author node is not a JSON object!");
 
@@ -419,8 +415,8 @@ void AddEditors(const JSON::ObjectNode &message_tree, MarcRecord * const marc_re
     if (editors == nullptr)
         return;
 
-    for (auto editor(editors->cbegin()); editor != editors->cend(); ++editor) {
-        const JSON::ObjectNode * const editor_node(dynamic_cast<const JSON::ObjectNode *>(*editor));
+    for (auto editor : *editors) {
+        const JSON::ObjectNode * const editor_node(dynamic_cast<const JSON::ObjectNode *>(editor));
         if (unlikely(editor_node == nullptr))
             logger->error("weird editor node is not a JSON object!");
 
@@ -471,8 +467,8 @@ void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_recor
         dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("issn-type")));
     if (issn_types != nullptr) {
         std::string issn;
-        for (auto issn_type(issn_types->cbegin()); issn_type != issn_types->cend(); ++issn_type) {
-            const JSON::ObjectNode * const issn_type_node(dynamic_cast<const JSON::ObjectNode *>(*issn_type));
+        for (auto issn_type : *issn_types) {
+            const JSON::ObjectNode * const issn_type_node(dynamic_cast<const JSON::ObjectNode *>(issn_type));
             if (unlikely(issn_type_node == nullptr)) {
                 logger->warning("in AddISSN: strange, issn-type entry is not a JSON object!");
                 continue;
@@ -662,8 +658,8 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * c
     if (unlikely(items == nullptr))
         return;
 
-    for (auto item_iter(items->cbegin()); item_iter != items->cend(); ++item_iter) {
-        const JSON::ObjectNode * const item(dynamic_cast<JSON::ObjectNode *>(*item_iter));
+    for (auto item_iter : *items) {
+        const JSON::ObjectNode * const item(dynamic_cast<JSON::ObjectNode *>(item_iter));
         if (unlikely(item == nullptr))
             logger->error("item is JSON \"items\" array as returned by Crossref is not an object!");
 
