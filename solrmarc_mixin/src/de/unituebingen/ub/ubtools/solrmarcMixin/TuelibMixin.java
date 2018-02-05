@@ -785,19 +785,30 @@ public class TuelibMixin extends SolrIndexerMixin {
                                   + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
+                // If we use a fixed day we underrun a plausible span of time for the new items
+                // but we have to make sure that no invalid date is generated that leads to an import problem
                 return year + "-" + month + "-" +
-                       YearMonth.of(Integer.valueOf(year), Integer.valueOf(month)).atEndOfMonth().getDayOfMonth()
+                       String.format("%02d", Math.min(getCurrentDayOfMonth(), getLastDayForYearAndMonth(year, month)))
                        + "T11:00:00.000Z";
             }
         }
         return null;
     }
 
+
     /*
      * Get day of current month
      */
-    String getCurrentDayOfMonth() {
-        return String.valueOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
+    int getCurrentDayOfMonth() {
+        return Calendar.getInstance().get(Calendar.DAY_OF_MONTH);
+    }
+
+
+    /*
+     * Get last day of a given month for a given year
+     */
+    int getLastDayForYearAndMonth(final String year, final String month) {
+        return YearMonth.of(Integer.valueOf(year), Integer.valueOf(month)).atEndOfMonth().getDayOfMonth();
     }
 
     /*
