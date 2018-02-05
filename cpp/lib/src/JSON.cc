@@ -2,7 +2,7 @@
  *  \brief  Implementation of JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,7 +19,6 @@
  */
 #include "JSON.h"
 #include <stdexcept>
-#include <sstream>
 #include <string>
 #include <cctype>
 #include "Compiler.h"
@@ -784,38 +783,45 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
 
 
 std::string EscapeString(const std::string &unescaped_string) {
-    std::ostringstream escaped_string;
+    std::string escaped_string;
     for (const char ch : unescaped_string) {
-        switch (ch) {
-        case '\\':
-            escaped_string << "\\\\";
-            break;
-        case '"':
-            escaped_string << "\\\"";
-            break;
-        case '/':
-            escaped_string << "\\/";
-            break;
-        case '\b':
-            escaped_string << "\\b";
-            break;
-        case '\f':
-            escaped_string << "\\f";
-            break;
-        case '\n':
-            escaped_string << "\\n";
-            break;
-        case '\r':
-            escaped_string << "\\r";
-            break;
-        case '\t':
-            escaped_string << "\\t";
-            break;
-        default:
-            escaped_string << ch;
+        if (static_cast<unsigned char>(ch) <= 0x1Fu) { // Escapecontrol characters.
+            escaped_string += "\\x";
+            escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) >> 4u);
+            escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) & 0xFu);
+        } else {
+            switch (ch) {
+            case '\\':
+                escaped_string += "\\\\";
+                break;
+            case '"':
+                escaped_string += "\\\"";
+                break;
+            case '/':
+                escaped_string += "\\/";
+                break;
+            case '\b':
+                escaped_string += "\\b";
+                break;
+            case '\f':
+                escaped_string += "\\f";
+                break;
+            case '\n':
+                escaped_string += "\\n";
+                break;
+            case '\r':
+                escaped_string += "\\r";
+                break;
+            case '\t':
+                escaped_string += "\\t";
+                break;
+            default:
+                escaped_string += ch;
+            }
         }
     }
-    return escaped_string.str();
+
+    return escaped_string;
 }
 
 
