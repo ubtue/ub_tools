@@ -74,6 +74,9 @@ private:
 
 // Forward declarations:
 class ArrayNode;
+class BooleanNode;
+class DoubleNode;
+class IntegerNode;
 class ObjectNode;
 class StringNode;
 
@@ -90,6 +93,12 @@ public:
 
     static const ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, const JSONNode * const node);
     static ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, JSONNode * const node);
+    static const BooleanNode *CastToBooleanNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static BooleanNode *CastToBooleanNodeOrDie(const std::string &node_name, JSONNode * const node);
+    static const DoubleNode *CastToDoubleNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static DoubleNode *CastToDoubleNodeOrDie(const std::string &node_name, JSONNode * const node);
+    static const IntegerNode *CastToIntegerNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static IntegerNode *CastToIntegerNodeOrDie(const std::string &node_name, JSONNode * const node);
     static const ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, const JSONNode * const node);
     static ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, JSONNode * const node);
     static const StringNode *CastToStringNodeOrDie(const std::string &node_name, const JSONNode * const node);
