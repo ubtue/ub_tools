@@ -371,6 +371,48 @@ std::string JSONNode::TypeToString(const Type type) {
 }
 
 
+const ArrayNode *JSONNode::CastToArrayNodeOrDie(const std::string &node_name, const JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::ARRAY_NODE))
+        ERROR("expected \"" + node_name + "\" to be an array node!");
+    return reinterpret_cast<const ArrayNode * const>(node);
+}
+
+
+ArrayNode *JSONNode::CastToArrayNodeOrDie(const std::string &node_name, JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::ARRAY_NODE))
+        ERROR("expected \"" + node_name + "\" to be an array node!");
+    return reinterpret_cast<ArrayNode * const>(node);
+}
+
+
+const ObjectNode *JSONNode::CastToObjectNodeOrDie(const std::string &node_name, const JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::OBJECT_NODE))
+        ERROR("expected \"" + node_name + "\" to be an object node!");
+    return reinterpret_cast<const ObjectNode * const>(node);
+}
+
+
+ObjectNode *JSONNode::CastToObjectNodeOrDie(const std::string &node_name, JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::OBJECT_NODE))
+        ERROR("expected \"" + node_name + "\" to be an object node!");
+    return reinterpret_cast<ObjectNode * const>(node);
+}
+
+
+const StringNode *JSONNode::CastToStringNodeOrDie(const std::string &node_name, const JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::STRING_NODE))
+        ERROR("expected \"" + node_name + "\" to be a string node!");
+    return reinterpret_cast<const StringNode * const>(node);
+}
+
+
+StringNode *JSONNode::CastToStringNodeOrDie(const std::string &node_name, JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::STRING_NODE))
+        ERROR("expected \"" + node_name + "\" to be a string node!");
+    return reinterpret_cast<StringNode * const>(node);
+}
+
+
 std::string StringNode::toString() const {
     return "\"" + EscapeDoubleQuotes(value_) + "\"";
 }
