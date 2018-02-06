@@ -160,14 +160,18 @@ public:
     const JSONNode *getValue(const std::string &label) const;
     JSONNode *getValue(const std::string &label);
 
-    // Atomatic cast value retrieval.  If the requested type is not applicable, the functions abort.
+    // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
+    bool getBooleanValue(const std::string &label) const;
     std::string getStringValue(const std::string &label) const;
     int64_t getIntegerValue(const std::string &label) const;
     double getDoubleValue(const std::string &label) const;
     const ObjectNode *getObjectNodeValue(const std::string &label) const;
     ObjectNode *getObjectNodeValue(const std::string &label);
+    const StringNode *getStringNodeValue(const std::string &label) const;
+    StringNode *getStringNodeValue(const std::string &label);
     const ArrayNode *getArrayNodeValue(const std::string &label) const;
     ArrayNode *getArrayNodeValue(const std::string &label);
+    bool isNullNode(const std::string &label) const;
 
     const_iterator cbegin() const { return entries_.cbegin(); }
     const_iterator cend() const { return entries_.cend(); }
@@ -188,14 +192,18 @@ public:
     const JSONNode *getValue(const size_t index) const { return values_[index]; }
     JSONNode *getValue(const size_t index) { return values_[index]; }
 
-    // Atomatic cast value retrieval.  If the requested type is not applicable, the functions abort.
+    // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
+    bool getBooleanValue(const size_t index) const;
     std::string getStringValue(const size_t index) const;
     int64_t getIntegerValue(const size_t index) const;
     double getDoubleValue(const size_t index) const;
     const ObjectNode *getObjectNodeValue(const size_t index) const;
     ObjectNode *getObjectNodeValue(const size_t index);
+    const StringNode *getStringNodeValue(const size_t index) const;
+    StringNode *getStringNodeValue(const size_t index);
     const ArrayNode *getArrayNodeValue(const size_t index) const;
     ArrayNode *getArrayNodeValue(const size_t index);
+    bool isNullNode(const size_t index) const;
 
     size_t size() const { return values_.size(); }
     const_iterator cbegin() const { return values_.cbegin(); }
