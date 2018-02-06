@@ -162,9 +162,13 @@ public:
 
     // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
     bool getBooleanValue(const std::string &label) const;
+    bool getOptionalBooleanValue(const std::string &label, const bool default_value) const;
     std::string getStringValue(const std::string &label) const;
+    std::string getOptionalStringValue(const std::string &label, const std::string &default_value = "") const;
     int64_t getIntegerValue(const std::string &label) const;
+    int64_t getOptionalIntegerValue(const std::string &label, const int64_t default_value) const;
     double getDoubleValue(const std::string &label) const;
+    double getOptionalDoubleValue(const std::string &label, const double default_value) const;
     const ObjectNode *getObjectNodeValue(const std::string &label) const;
     ObjectNode *getObjectNodeValue(const std::string &label);
     const StringNode *getStringNodeValue(const std::string &label) const;
