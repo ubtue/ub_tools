@@ -135,6 +135,10 @@ public:
 };
 
 
+// Forward declaration:
+class ArrayNode;
+
+
 class ObjectNode final : public JSONNode {
     std::unordered_map<std::string, JSONNode *> entries_;
 public:
@@ -156,6 +160,15 @@ public:
     const JSONNode *getValue(const std::string &label) const;
     JSONNode *getValue(const std::string &label);
 
+    // Atomatic cast value retrieval.  If the requested type is not applicable, the functions abort.
+    std::string getStringValue(const std::string &label) const;
+    int64_t getIntegerValue(const std::string &label) const;
+    double getDoubleValue(const std::string &label) const;
+    const ObjectNode *getObjectNodeValue(const std::string &label) const;
+    ObjectNode *getObjectNodeValue(const std::string &label);
+    const ArrayNode *getArrayNodeValue(const std::string &label) const;
+    ArrayNode *getArrayNodeValue(const std::string &label);
+
     const_iterator cbegin() const { return entries_.cbegin(); }
     const_iterator cend() const { return entries_.cend(); }
 };
@@ -174,6 +187,16 @@ public:
     bool empty() const { return values_.empty(); }
     const JSONNode *getValue(const size_t index) const { return values_[index]; }
     JSONNode *getValue(const size_t index) { return values_[index]; }
+
+    // Atomatic cast value retrieval.  If the requested type is not applicable, the functions abort.
+    std::string getStringValue(const size_t index) const;
+    int64_t getIntegerValue(const size_t index) const;
+    double getDoubleValue(const size_t index) const;
+    const ObjectNode *getObjectNodeValue(const size_t index) const;
+    ObjectNode *getObjectNodeValue(const size_t index);
+    const ArrayNode *getArrayNodeValue(const size_t index) const;
+    ArrayNode *getArrayNodeValue(const size_t index);
+
     size_t size() const { return values_.size(); }
     const_iterator cbegin() const { return values_.cbegin(); }
     const_iterator cend() const { return values_.cend(); }
