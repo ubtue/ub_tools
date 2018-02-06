@@ -593,7 +593,7 @@ std::string GetLanguageCode(const Record &record);
 /** \brief True if a GND code was found in 035$a else false. */
 bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
 
-    
+
 /** \brief Generates a reproducible SHA-1 hash over our internal data.
  *  \param exclude_001  If true, do not include the contents of the 001 control field in the generation of the
  *                      hash.
@@ -602,6 +602,9 @@ bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
  *        has been repeated.)
  */
 std::string CalcChecksum(const Record &record, const bool exclude_001 = false);
+
+
+bool IsRepeatableField(const Tag &tag);
 
 
 } // namespace MARC
