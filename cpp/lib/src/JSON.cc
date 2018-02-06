@@ -429,11 +429,21 @@ JSONNode *ObjectNode::getValue(const std::string &label) {
 }
 
 
+bool ObjectNode::getBooleanValue(const std::string &label) const {
+    const auto entry(entries_.find(label));
+    if (unlikely(entry == entries_.cend()))
+        ERROR("label \"" + label + "\" not found!");
+    if (unlikely(entry->second->getType() != BOOLEAN_NODE))
+        ERROR("entry for label \"" + label + "\" is not a string node!");
+    return reinterpret_cast<const BooleanNode *>(entry->second)->getValue();
+}
+
+
 std::string ObjectNode::getStringValue(const std::string &label) const {
     const auto entry(entries_.find(label));
     if (unlikely(entry == entries_.cend()))
         ERROR("label \"" + label + "\" not found!");
-    if (entry->second->getType() != STRING_NODE)
+    if (unlikely(entry->second->getType() != STRING_NODE))
         ERROR("entry for label \"" + label + "\" is not a string node!");
     return reinterpret_cast<const StringNode *>(entry->second)->getValue();
 }
@@ -443,7 +453,7 @@ int64_t ObjectNode::getIntegerValue(const std::string &label) const {
     const auto entry(entries_.find(label));
     if (unlikely(entry == entries_.cend()))
         ERROR("label \"" + label + "\" not found!");
-    if (entry->second->getType() != INT64_NODE)
+    if (unlikely(entry->second->getType() != INT64_NODE))
         ERROR("entry for label \"" + label + "\" is not an integer node!");
     return reinterpret_cast<const IntegerNode *>(entry->second)->getValue();
 }
@@ -453,7 +463,7 @@ double ObjectNode::getDoubleValue(const std::string &label) const {
     const auto entry(entries_.find(label));
     if (unlikely(entry == entries_.cend()))
         ERROR("label \"" + label + "\" not found!");
-    if (entry->second->getType() != DOUBLE_NODE)
+    if (unlikely(entry->second->getType() != DOUBLE_NODE))
         ERROR("entry for label \"" + label + "\" is not a double node!");
     return reinterpret_cast<const DoubleNode *>(entry->second)->getValue();
 }
@@ -463,7 +473,7 @@ const ObjectNode *ObjectNode::getObjectNodeValue(const std::string &label) const
     const auto entry(entries_.find(label));
     if (unlikely(entry == entries_.cend()))
         ERROR("label \"" + label + "\" not found!");
-    if (entry->second->getType() != OBJECT_NODE)
+    if (unlikely(entry->second->getType() != OBJECT_NODE))
         ERROR("entry for label \"" + label + "\" is not an object node!");
     return reinterpret_cast<const ObjectNode *>(entry->second);
 }
@@ -473,9 +483,29 @@ ObjectNode *ObjectNode::getObjectNodeValue(const std::string &label) {
     const auto entry(entries_.find(label));
     if (unlikely(entry == entries_.cend()))
         ERROR("label \"" + label + "\" not found!");
-    if (entry->second->getType() != OBJECT_NODE)
+    if (unlikely(entry->second->getType() != OBJECT_NODE))
         ERROR("entry for label \"" + label + "\" is not an object node!");
     return reinterpret_cast<ObjectNode *>(entry->second);
+}
+
+
+const StringNode *ObjectNode::getStringNodeValue(const std::string &label) const {
+    const auto entry(entries_.find(label));
+    if (unlikely(entry == entries_.cend()))
+        ERROR("label \"" + label + "\" not found!");
+    if (unlikely(entry->second->getType() != STRING_NODE))
+        ERROR("entry for label \"" + label + "\" is not a string node!");
+    return reinterpret_cast<const StringNode *>(entry->second);
+}
+
+
+StringNode *ObjectNode::getStringNodeValue(const std::string &label) {
+    const auto entry(entries_.find(label));
+    if (unlikely(entry == entries_.cend()))
+        ERROR("label \"" + label + "\" not found!");
+    if (unlikely(entry->second->getType() != STRING_NODE))
+        ERROR("entry for label \"" + label + "\" is not a string node!");
+    return reinterpret_cast<StringNode *>(entry->second);
 }
 
 
@@ -483,7 +513,7 @@ const ArrayNode *ObjectNode::getArrayNodeValue(const std::string &label) const {
     const auto entry(entries_.find(label));
     if (unlikely(entry == entries_.cend()))
         ERROR("label \"" + label + "\" not found!");
-    if (entry->second->getType() != ARRAY_NODE)
+    if (unlikely(entry->second->getType() != ARRAY_NODE))
         ERROR("entry for label \"" + label + "\" is not an array node!");
     return reinterpret_cast<const ArrayNode *>(entry->second);
 }
@@ -493,9 +523,17 @@ ArrayNode *ObjectNode::getArrayNodeValue(const std::string &label) {
     const auto entry(entries_.find(label));
     if (unlikely(entry == entries_.cend()))
         ERROR("label \"" + label + "\" not found!");
-    if (entry->second->getType() != ARRAY_NODE)
+    if (unlikely(entry->second->getType() != ARRAY_NODE))
         ERROR("entry for label \"" + label + "\" is not an array node!");
     return reinterpret_cast<ArrayNode *>(entry->second);
+}
+
+
+bool ObjectNode::isNullNode(const std::string &label) const {
+    const auto entry(entries_.find(label));
+    if (unlikely(entry == entries_.cend()))
+        ERROR("label \"" + label + "\" not found!");
+    return entry->second->getType() == NULL_NODE;
 }
 
 
@@ -520,10 +558,19 @@ std::string ArrayNode::toString() const {
 }
 
 
+bool ArrayNode::getBooleanValue(const size_t index) const {
+    if (unlikely(index >= values_.size()))
+        ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
+    if (unlikely(values_[index]->getType() != BOOLEAN_NODE))
+        ERROR("entry with index \"" + std::to_string(index) + "\" is not a boolean node!");
+    return reinterpret_cast<const BooleanNode *>(values_[index])->getValue();
+}
+
+
 std::string ArrayNode::getStringValue(const size_t index) const {
     if (unlikely(index >= values_.size()))
         ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
-    if (values_[index]->getType() != STRING_NODE)
+    if (unlikely(values_[index]->getType() != STRING_NODE))
         ERROR("entry with index \"" + std::to_string(index) + "\" is not a string node!");
     return reinterpret_cast<const StringNode *>(values_[index])->getValue();
 }
@@ -532,7 +579,7 @@ std::string ArrayNode::getStringValue(const size_t index) const {
 int64_t ArrayNode::getIntegerValue(const size_t index) const {
     if (unlikely(index >= values_.size()))
         ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
-    if (values_[index]->getType() != INT64_NODE)
+    if (unlikely(values_[index]->getType() != INT64_NODE))
         ERROR("entry with index \"" + std::to_string(index) + "\" is not an integer node!");
     return reinterpret_cast<const IntegerNode *>(values_[index])->getValue();
 }
@@ -541,7 +588,7 @@ int64_t ArrayNode::getIntegerValue(const size_t index) const {
 double ArrayNode::getDoubleValue(const size_t index) const {
     if (unlikely(index >= values_.size()))
         ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
-    if (values_[index]->getType() != DOUBLE_NODE)
+    if (unlikely(values_[index]->getType() != DOUBLE_NODE))
         ERROR("entry with index \"" + std::to_string(index) + "\" is not a double node!");
     return reinterpret_cast<const DoubleNode *>(values_[index])->getValue();
 }
@@ -550,7 +597,7 @@ double ArrayNode::getDoubleValue(const size_t index) const {
 const ObjectNode *ArrayNode::getObjectNodeValue(const size_t index) const {
     if (unlikely(index >= values_.size()))
         ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
-    if (values_[index]->getType() != OBJECT_NODE)
+    if (unlikely(values_[index]->getType() != OBJECT_NODE))
         ERROR("entry with index \"" + std::to_string(index) + "\" is not an object node!");
     return reinterpret_cast<const ObjectNode *>(values_[index]);
 }
@@ -559,16 +606,34 @@ const ObjectNode *ArrayNode::getObjectNodeValue(const size_t index) const {
 ObjectNode *ArrayNode::getObjectNodeValue(const size_t index) {
     if (unlikely(index >= values_.size()))
         ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
-    if (values_[index]->getType() != OBJECT_NODE)
+    if (unlikely(values_[index]->getType() != OBJECT_NODE))
         ERROR("entry with index \"" + std::to_string(index) + "\" is not an object node!");
     return reinterpret_cast<ObjectNode *>(values_[index]);
+}
+
+
+const StringNode *ArrayNode::getStringNodeValue(const size_t index) const {
+    if (unlikely(index >= values_.size()))
+        ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
+    if (values_[index]->getType() != STRING_NODE)
+        ERROR("entry with index \"" + std::to_string(index) + "\" is not a string node!");
+    return reinterpret_cast<const StringNode *>(values_[index]);
+}
+
+
+StringNode *ArrayNode::getStringNodeValue(const size_t index) {
+    if (unlikely(index >= values_.size()))
+        ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
+    if (values_[index]->getType() != STRING_NODE)
+        ERROR("entry with index \"" + std::to_string(index) + "\" is not a string node!");
+    return reinterpret_cast<StringNode *>(values_[index]);
 }
 
 
 const ArrayNode *ArrayNode::getArrayNodeValue(const size_t index) const {
     if (unlikely(index >= values_.size()))
         ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
-    if (values_[index]->getType() != ARRAY_NODE)
+    if (unlikely(values_[index]->getType() != ARRAY_NODE))
         ERROR("entry with index \"" + std::to_string(index) + "\" is not an array node!");
     return reinterpret_cast<const ArrayNode *>(values_[index]);
 }
@@ -577,9 +642,16 @@ const ArrayNode *ArrayNode::getArrayNodeValue(const size_t index) const {
 ArrayNode *ArrayNode::getArrayNodeValue(const size_t index) {
     if (unlikely(index >= values_.size()))
         ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
-    if (values_[index]->getType() != ARRAY_NODE)
+    if (unlikely(values_[index]->getType() != ARRAY_NODE))
         ERROR("entry with index \"" + std::to_string(index) + "\" is not an array node!");
     return reinterpret_cast<ArrayNode *>(values_[index]);
+}
+
+
+bool ArrayNode::isNullNode(const size_t index) const {
+    if (unlikely(index >= values_.size()))
+        ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
+    return values_[index]->getType() == NULL_NODE;
 }
 
 
