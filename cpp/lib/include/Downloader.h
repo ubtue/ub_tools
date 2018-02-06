@@ -65,8 +65,10 @@ private:
     char error_buffer_[CURL_ERROR_SIZE];
     Url current_url_;
     curl_slist *additional_http_headers_;
+    class UploadBuffer *upload_buffer_;
     static std::string default_user_agent_string_;
 public:
+
     enum TextTranslationMode {
         TRANSPARENT   = 0, //< If set, perform no character set translations.
         MAP_TO_LATIN9 = 1  //< If set, attempt to convert from whatever to Latin-9.  Note: Currently only used for HTTP and HTTPS!
@@ -109,7 +111,7 @@ public:
     typedef int (*DebugFunc)(CURL *handle, curl_infotype infotype, char *data, size_t size, void *this_pointer);
 public:
     explicit Downloader(const Params &params = Params()): multi_mode_(false), additional_http_headers_(nullptr),
-                                                          params_(params) { init(); }
+                                                          upload_buffer_(nullptr), params_(params) { init(); }
     explicit Downloader(const Url &url, const Params &params = Params(),
                         const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
     explicit Downloader(const std::string &url, const Params &params = Params(),
@@ -120,6 +122,10 @@ public:
     bool newUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
         { return newUrl(Url(url), time_limit); }
 
+    bool putData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
+    bool putData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
+        { return putData(Url(url), data, time_limit); }
+    
     std::string getMessageHeader() const;
     const std::string &getMessageBody() const { return body_; }
 

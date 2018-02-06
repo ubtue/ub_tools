@@ -45,8 +45,7 @@ def Main():
 
     # Extract the GND numbers from the 035$a subfield of the MARC authority data for authors:
     gnd_numbers_path = "/tmp/gnd_numbers"
-    util.ExecOrDie("/usr/local/bin/extract_person_gnd_numbers", [ "--use-articles-only", most_recent_authority_filename ],
-                   gnd_numbers_path)
+    util.ExecOrDie("/usr/local/bin/extract_person_gnd_numbers", [ most_recent_authority_filename ], gnd_numbers_path)
 
     # Count GND references in the title data:
     gnd_counts_filename = "/tmp/gnd_counts"

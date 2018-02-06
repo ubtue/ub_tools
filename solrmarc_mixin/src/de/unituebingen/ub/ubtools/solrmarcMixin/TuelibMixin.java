@@ -785,19 +785,41 @@ public class TuelibMixin extends SolrIndexerMixin {
                                   + "! (PPN: " + record.getControlNumber() + ")");
                     return null;
                 }
+                // If we use a fixed day we underrun a plausible span of time for the new items
+                // but we have to make sure that no invalid date is generated that leads to an import problem
                 return year + "-" + month + "-" +
-                       YearMonth.of(Integer.valueOf(year), Integer.valueOf(month)).atEndOfMonth().getDayOfMonth()
+                       String.format("%02d",
+                       isCurrentYearAndMonth(year, month) ? getCurrentDayOfMonth() : getLastDayForYearAndMonth(year, month))
                        + "T11:00:00.000Z";
             }
         }
         return null;
     }
 
+
+    /*
+     * Check whether given year and date is equivalent to current year and date
+     */
+    boolean isCurrentYearAndMonth(final String year, final String month) {
+        Calendar calendar = Calendar.getInstance();
+        return (Integer.valueOf(year) == calendar.get(Calendar.YEAR)) && 
+               (Integer.valueOf(month) == calendar.get(Calendar.MONTH));
+    }
+
+
     /*
      * Get day of current month
      */
-    String getCurrentDayOfMonth() {
-        return String.valueOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
+    int getCurrentDayOfMonth() {
+        return Calendar.getInstance().get(Calendar.DAY_OF_MONTH);
+    }
+
+
+    /*
+     * Get last day of a given month for a given year
+     */
+    int getLastDayForYearAndMonth(final String year, final String month) {
+        return YearMonth.of(Integer.valueOf(year), Integer.valueOf(month)).atEndOfMonth().getDayOfMonth();
     }
 
     /*
@@ -809,6 +831,9 @@ public class TuelibMixin extends SolrIndexerMixin {
     static private Map<String, String> translation_map_es = new HashMap<String, String>();
     static private Map<String, String> translation_map_hant = new HashMap<String, String>();
     static private Map<String, String> translation_map_hans = new HashMap<String, String>();
+    static private Map<String, String> translation_map_pt = new HashMap<String, String>();
+    static private Map<String, String> translation_map_ru = new HashMap<String, String>();
+    static private Map<String, String> translation_map_el = new HashMap<String, String>();
 
     /**
      * get translation map for normdata translations
@@ -841,6 +866,15 @@ public class TuelibMixin extends SolrIndexerMixin {
             break;
         case "hans":
             translation_map = translation_map_hans;
+            break;
+        case "pt":
+            translation_map = translation_map_pt;
+            break;
+        case "ru":
+            translation_map = translation_map_ru;
+            break;
+        case "el":
+            translation_map = translation_map_el;
             break;
         default:
             throw new IllegalArgumentException("Invalid language shortcut: " + langShortcut);
