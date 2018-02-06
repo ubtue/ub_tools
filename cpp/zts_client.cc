@@ -93,7 +93,7 @@ Date StringToDate(const std::string &date_str) {
         date.month_ = tm->tm_mon;
         date.year_  = tm->tm_year;
     } else
-        logger->warning("don't know how to convert \"" + date_str + "\" to a Date instance!");
+        WARNING("don't know how to convert \"" + date_str + "\" to a Date instance!");
 
     return date;
 }
@@ -117,6 +117,34 @@ inline std::string GetOptionalStringValue(const JSON::ObjectNode &object, const 
         ERROR("expected \"" + key + "\" to have a string node!");
     const JSON::StringNode * const string_node(reinterpret_cast<const JSON::StringNode * const>(value_node));
     return string_node->getValue();
+}
+
+
+const JSON::ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, const JSON::JSONNode * const node) {
+    if (unlikely(node->getType() != JSON::JSONNode::ARRAY_NODE))
+        ERROR("expected \"" + node_name + "\" to be an array node!");
+    return reinterpret_cast<const JSON::ArrayNode * const>(node);
+}
+
+
+JSON::ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, JSON::JSONNode * const node) {
+    if (unlikely(node->getType() != JSON::JSONNode::ARRAY_NODE))
+        ERROR("expected \"" + node_name + "\" to be an array node!");
+    return reinterpret_cast<JSON::ArrayNode * const>(node);
+}
+
+
+const JSON::ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, const JSON::JSONNode * const node) {
+    if (unlikely(node->getType() != JSON::JSONNode::OBJECT_NODE))
+        ERROR("expected \"" + node_name + "\" to be an object node!");
+    return reinterpret_cast<const JSON::ObjectNode * const>(node);
+}
+
+
+JSON::ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, JSON::JSONNode * const node) {
+    if (unlikely(node->getType() != JSON::JSONNode::OBJECT_NODE))
+        ERROR("expected \"" + node_name + "\" to be an object node!");
+    return reinterpret_cast<JSON::ObjectNode * const>(node);
 }
 
 
@@ -185,14 +213,9 @@ public:
 void AugmentJsonCreators(JSON::JSONNode * const creators_node,
                          std::vector<std::string> * const comments)
 {
-    if (creators_node->getType() != JSON::JSONNode::ARRAY_NODE)
-        ERROR("expected \"creators\" to have a array node!");
-    const JSON::ArrayNode * const array(reinterpret_cast<const JSON::ArrayNode * const>(creators_node));
-    for (auto creator_node : *array) {
-        if (creator_node->getType() != JSON::JSONNode::OBJECT_NODE)
-            ERROR("expected creator node to be an object node!");
-        JSON::ObjectNode * const creator_object(
-            reinterpret_cast<JSON::ObjectNode * const>(creator_node));
+    const JSON::ArrayNode * const creators_array(CastToArrayNodeOrDie("creators", creators_node));
+    for (auto &creator_node : *creators_array) {
+        JSON::ObjectNode * const creator_object(CastToObjectNodeOrDie("creator", creator_node));
 
         const JSON::JSONNode * const last_name_node(creator_object->getValue("lastName"));
         if (last_name_node == nullptr)
@@ -230,7 +253,7 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
             const std::string language_mapped(OptionalMap(CastToStringNodeOrDie("language", key_and_node->second)->getValue(),
                             zts_client_maps.language_to_language_code_map_));
             if (language_json != language_mapped) {
-                reinterpret_cast<JSON::StringNode *>(key_and_node->second)->setValue(language_mapped);
+                language_node->setValue(language_mapped);
                 comments.emplace_back("changed \"language\" from \"" + language_json + "\" to \"" + language_mapped + "\"");
             }
         }
@@ -281,10 +304,18 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
         }
 
         // volume
-        const auto ISSN_and_volume(zts_client_maps.ISSN_to_volume_map_.find(issn_normalized));
-        if (ISSN_and_volume != zts_client_maps.ISSN_to_volume_map_.cend()) {
-            const std::string volume(ISSN_and_volume->second);
-            custom_fields.emplace(std::pair<std::string, std::string>("volume", ISSN_and_volume->second));
+        const std::string volume(GetOptionalStringValue(*object_node, "volume"));
+        if (volume == "") {
+            const auto ISSN_and_volume(zts_client_maps.ISSN_to_volume_map_.find(issn_normalized));
+            if (ISSN_and_volume != zts_client_maps.ISSN_to_volume_map_.cend()) {
+                if (volume == "") {
+                    JSON::JSONNode * const volume_node = object_node->getValue("volume");
+                    reinterpret_cast<JSON::StringNode *>(volume_node)->setValue(ISSN_and_volume->second);
+                } else {
+                    JSON::StringNode *volume_node(new JSON::StringNode(ISSN_and_volume->second));
+                    object_node->insert("volume", volume_node);
+                }
+            }
         }
 
         // license code
@@ -295,7 +326,7 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
                         + ISSN_and_license_code->second
                         + "\" instead and we don't know what to do with it!");
             else
-                custom_fields.emplace(std::pair<std::string, std::string>("licenseCode", ISSN_and_volume->second));
+                custom_fields.emplace(std::pair<std::string, std::string>("licenseCode", ISSN_and_license_code->second));
         }
 
         // SSG numbers:
@@ -408,9 +439,8 @@ class MarcFormatHandler : public FormatHandler {
                                                 MARC::Record * const marc_record, const char indicator1 = ' ',
                                                 const char indicator2 = ' ')
     {
-        if (node->getType() != JSON::JSONNode::STRING_NODE)
-            ERROR("\"" + key + "\" is not a string node!");
-        const std::string value(reinterpret_cast<const JSON::StringNode * const>(node)->getValue());
+        const JSON::StringNode * const string_node(CastToStringNodeOrDie(key, node));
+        const std::string value(string_node->getValue());
         marc_record->insertField(tag, { { subfield_code, value } }, indicator1, indicator2);
         return value;
     }
@@ -426,13 +456,11 @@ class MarcFormatHandler : public FormatHandler {
     }
 
 
-    void ExtractKeywords(const JSON::JSONNode &tags_node, const std::string &issn,
+    void ExtractKeywords(const JSON::JSONNode * tags_node, const std::string &issn,
                      const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
                      MARC::Record * const new_record)
     {
-        if (unlikely(tags_node.getType() != JSON::JSONNode::ARRAY_NODE))
-            ERROR("expected the tags node to be an array node!");
-        const JSON::ArrayNode &tags(reinterpret_cast<const JSON::ArrayNode &>(tags_node));
+        const JSON::ArrayNode * const tags(CastToArrayNodeOrDie("tags", tags_node));
 
         // Where to stuff the data:
         std::string marc_field("653");
@@ -448,11 +476,8 @@ class MarcFormatHandler : public FormatHandler {
             }
         }
 
-        for (auto tag : tags) {
-            if (tag->getType() != JSON::JSONNode::OBJECT_NODE)
-                ERROR("expected tag node to be an object node but found a(n) "
-                      + JSON::JSONNode::TypeToString(tag->getType()) + " node instead!");
-            const JSON::ObjectNode * const tag_object(reinterpret_cast<const JSON::ObjectNode * const>(tag));
+        for (auto tag : *tags) {
+            const JSON::ObjectNode * const tag_object(CastToObjectNodeOrDie("tag", tag));
             const JSON::JSONNode * const tag_node(tag_object->getValue("tag"));
             if (tag_node == nullptr)
                 WARNING("unexpected: tag object does not contain a \"tag\" entry!");
@@ -492,14 +517,9 @@ class MarcFormatHandler : public FormatHandler {
 
 
     void CreateCreatorFields(const JSON::JSONNode * const creators_node, MARC::Record * const marc_record) {
-        if (creators_node->getType() != JSON::JSONNode::ARRAY_NODE)
-            ERROR("expected \"creators\" to have a array node!");
-        const JSON::ArrayNode * const array(reinterpret_cast<const JSON::ArrayNode * const>(creators_node));
-        for (auto creator_node : *array) {
-            if (creator_node->getType() != JSON::JSONNode::OBJECT_NODE)
-                ERROR("expected creator node to be an object node!");
-            const JSON::ObjectNode * const creator_object(
-                reinterpret_cast<const JSON::ObjectNode * const>(creator_node));
+        const JSON::ArrayNode * const creators_array(CastToArrayNodeOrDie("creators", creators_node));
+        for (auto creator_node : *creators_array) {
+            const JSON::ObjectNode * const creator_object(CastToObjectNodeOrDie("creator", creator_node));
 
             const JSON::JSONNode * const last_name_node(creator_object->getValue("lastName"));
             if (last_name_node == nullptr)
@@ -528,7 +548,7 @@ class MarcFormatHandler : public FormatHandler {
                 creator_role = creator_role_node->getValue();
             }
 
-            if (creator_node == *(array->begin())) {
+            if (creator_node == *(creators_array->begin())) {
                 if (creator_role.empty())
                     marc_record->insertField("100", { { 'a', name } });
                 else
@@ -603,9 +623,9 @@ public:
                                 + key_and_node->second->toString() + ")");
         }
 
-        const JSON::JSONNode * custom_node = object_node->getValue("ubtue");
-        const JSON::ObjectNode * const custom_object = reinterpret_cast<const JSON::ObjectNode * const>(custom_node);
-        if (custom_object != nullptr) {
+        const JSON::JSONNode * custom_node(object_node->getValue("ubtue"));
+        if (custom_node != nullptr) {
+            const JSON::ObjectNode * const custom_object(CastToObjectNodeOrDie("ubtue", custom_node));
             parent_issn = GetOptionalStringValue(*custom_object, "issnRaw");
             issn = GetOptionalStringValue(*custom_object, "issnNormalized");
 
@@ -648,7 +668,7 @@ public:
         // keywords:
         const JSON::JSONNode * const tags_node(object_node->getValue("tags"));
         if (tags_node != nullptr)
-            ExtractKeywords(*tags_node, issn, zts_client_maps_.ISSN_to_keyword_field_map_, &new_record);
+            ExtractKeywords(tags_node, issn, zts_client_maps_.ISSN_to_keyword_field_map_, &new_record);
 
         // Populate 773:
         if (is_journal_article) {
@@ -863,8 +883,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
         if (response_code == 300) {
             logger->info("multiple articles found => trying to harvest children");
             if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
-                const JSON::ObjectNode * const object_node(
-                reinterpret_cast<JSON::ObjectNode *>(tree_root));
+                const JSON::ObjectNode * const object_node(CastToObjectNodeOrDie("tree_root", tree_root));
                 for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
                     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
                         Harvest(key_and_node->first, "", zts_client_params, zts_client_maps, false /* log */);
@@ -873,15 +892,10 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                     record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
                 }
             }
-        } else if (tree_root->getType() != JSON::JSONNode::ARRAY_NODE)
-            ERROR("expected top-level JSON to be an array!");
-        else {
-            const JSON::ArrayNode * const json_array(reinterpret_cast<const JSON::ArrayNode * const>(tree_root));
+        } else {
+            const JSON::ArrayNode * const json_array(CastToArrayNodeOrDie("tree_root", tree_root));
             for (const auto entry : *json_array) {
-                if (entry->getType() != JSON::ArrayNode::OBJECT_NODE)
-                    ERROR("expected JSON array element to be object");
-
-                JSON::ObjectNode * const json_object(reinterpret_cast<JSON::ObjectNode * const>(entry));
+                JSON::ObjectNode * const json_object(CastToObjectNodeOrDie("entry", entry));
                 AugmentJson(json_object, zts_client_maps);
                 record_count_and_previously_downloaded_count = zts_client_params.format_handler_->processRecord(json_object);
             }
