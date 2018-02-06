@@ -246,21 +246,21 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
     std::vector<std::string> comments;
     std::string issn_raw, issn_normalized;
     JSON::StringNode *language_node(nullptr);
-    for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
-        if (key_and_node->first == "language") {
-            language_node = CastToStringNodeOrDie("language", key_and_node->second);
+    for (auto &key_and_node : *object_node) {
+        if (key_and_node.first == "language") {
+            language_node = CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());
-            const std::string language_mapped(OptionalMap(CastToStringNodeOrDie("language", key_and_node->second)->getValue(),
+            const std::string language_mapped(OptionalMap(CastToStringNodeOrDie("language", key_and_node.second)->getValue(),
                             zts_client_maps.language_to_language_code_map_));
             if (language_json != language_mapped) {
                 language_node->setValue(language_mapped);
                 comments.emplace_back("changed \"language\" from \"" + language_json + "\" to \"" + language_mapped + "\"");
             }
         }
-        else if (key_and_node->first == "creators")
-            AugmentJsonCreators(key_and_node->second, &comments);
-        else if (key_and_node->first == "ISSN") {
-            issn_raw = GetValueFromStringNode(*key_and_node);
+        else if (key_and_node.first == "creators")
+            AugmentJsonCreators(key_and_node.second, &comments);
+        else if (key_and_node.first == "ISSN") {
+            issn_raw = GetValueFromStringNode(key_and_node);
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized)))
                 ERROR("\"" + issn_raw + "\" is not a valid ISSN!");
 
@@ -577,32 +577,32 @@ public:
                                 GetNextControlNumber());
         bool is_journal_article(false);
         std::string publication_title, parent_ppn, parent_issn, issn;
-        for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
-            if (ignore_fields->matched(key_and_node->first))
+        for (const auto &key_and_node : *object_node) {
+            if (ignore_fields->matched(key_and_node.first))
                 continue;
 
-            if (key_and_node->first == "language")
+            if (key_and_node.first == "language")
                 new_record.insertField("041", { { 'a',
-                    CastToStringNodeOrDie("language", key_and_node->second)->getValue() } });
-            else if (key_and_node->first == "url")
-                CreateSubfieldFromStringNode(*key_and_node, "856", 'u', &new_record);
-            else if (key_and_node->first == "title")
-                CreateSubfieldFromStringNode(*key_and_node, "245", 'a', &new_record);
-            else if (key_and_node->first == "abstractNote")
-                CreateSubfieldFromStringNode(*key_and_node, "520", 'a', &new_record, /* indicator1 = */ '3');
-            else if (key_and_node->first == "date")
-                CreateSubfieldFromStringNode(*key_and_node, "362", 'a', &new_record, /* indicator1 = */ '0');
-            else if (key_and_node->first == "DOI") {
-                if (unlikely(key_and_node->second->getType() != JSON::JSONNode::STRING_NODE))
+                    CastToStringNodeOrDie("language", key_and_node.second)->getValue() } });
+            else if (key_and_node.first == "url")
+                CreateSubfieldFromStringNode(key_and_node, "856", 'u', &new_record);
+            else if (key_and_node.first == "title")
+                CreateSubfieldFromStringNode(key_and_node, "245", 'a', &new_record);
+            else if (key_and_node.first == "abstractNote")
+                CreateSubfieldFromStringNode(key_and_node, "520", 'a', &new_record, /* indicator1 = */ '3');
+            else if (key_and_node.first == "date")
+                CreateSubfieldFromStringNode(key_and_node, "362", 'a', &new_record, /* indicator1 = */ '0');
+            else if (key_and_node.first == "DOI") {
+                if (unlikely(key_and_node.second->getType() != JSON::JSONNode::STRING_NODE))
                     ERROR("expected DOI node to be a string node!");
                 new_record.insertField(
-                    "856", { { 'u', "urn:doi:" + reinterpret_cast<JSON::StringNode *>(key_and_node->second)->getValue()} });
-            } else if (key_and_node->first == "shortTitle")
-                CreateSubfieldFromStringNode(*key_and_node, "246", 'a', &new_record);
-            else if (key_and_node->first == "creators")
-                CreateCreatorFields(key_and_node->second, &new_record);
-            else if (key_and_node->first == "itemType") {
-                const std::string item_type(GetValueFromStringNode(*key_and_node));
+                    "856", { { 'u', "urn:doi:" + reinterpret_cast<JSON::StringNode *>(key_and_node.second)->getValue()} });
+            } else if (key_and_node.first == "shortTitle")
+                CreateSubfieldFromStringNode(key_and_node, "246", 'a', &new_record);
+            else if (key_and_node.first == "creators")
+                CreateCreatorFields(key_and_node.second, &new_record);
+            else if (key_and_node.first == "itemType") {
+                const std::string item_type(GetValueFromStringNode(key_and_node));
                 if (item_type == "journalArticle") {
                     is_journal_article = true;
                     publication_title = GetOptionalStringValue(*object_node, "publicationTitle");
@@ -611,16 +611,16 @@ public:
                     ExtractVolumeYearIssueAndPages(*object_node, &new_record);
                 else
                     WARNING("unknown item type: \"" + item_type + "\"!");
-            } else if (key_and_node->first == "rights") {
-                const std::string copyright(GetValueFromStringNode(*key_and_node));
+            } else if (key_and_node.first == "rights") {
+                const std::string copyright(GetValueFromStringNode(key_and_node));
                 if (UrlUtil::IsValidWebUrl(copyright))
                     new_record.insertField("542", { { 'u', copyright } });
                 else
                     new_record.insertField("542", { { 'f', copyright } });
             } else
-                WARNING("unknown key \"" + key_and_node->first + "\" with node type "
-                                + JSON::JSONNode::TypeToString(key_and_node->second->getType()) + "! ("
-                                + key_and_node->second->toString() + ")");
+                WARNING("unknown key \"" + key_and_node.first + "\" with node type "
+                                + JSON::JSONNode::TypeToString(key_and_node.second->getType()) + "! ("
+                                + key_and_node.second->toString() + ")");
         }
 
         const JSON::JSONNode * custom_node(object_node->getValue("ubtue"));
@@ -884,9 +884,9 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
             logger->info("multiple articles found => trying to harvest children");
             if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
                 const JSON::ObjectNode * const object_node(CastToObjectNodeOrDie("tree_root", tree_root));
-                for (auto key_and_node(object_node->cbegin()); key_and_node != object_node->cend(); ++key_and_node) {
+                for (const auto &key_and_node : *object_node) {
                     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
-                        Harvest(key_and_node->first, "", zts_client_params, zts_client_maps, false /* log */);
+                        Harvest(key_and_node.first, "", zts_client_params, zts_client_maps, false /* log */);
 
                     record_count_and_previously_downloaded_count.first += record_count_and_previously_downloaded_count2.first;
                     record_count_and_previously_downloaded_count.second += record_count_and_previously_downloaded_count2.second;
