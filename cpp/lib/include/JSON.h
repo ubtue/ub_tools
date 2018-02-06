@@ -2,7 +2,7 @@
  *  \brief  Interface for JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -261,6 +261,7 @@ int64_t LookupInteger(const std::string &path, const JSONNode * const tree, cons
 int64_t LookupInteger(const std::string &path, const JSONNode * const tree);
 
 
+// Escapes control codes, backslashes, double quotes, form feeds, newlines, carriage returns, and tab characters.
 std::string EscapeString(const std::string &unescaped_string);
 
 
