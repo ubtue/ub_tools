@@ -107,19 +107,6 @@ std::string GetNextControlNumber() {
 }
 
 
-// Returns the value for "key", if key exists in "object", o/w returns the empty string.
-inline std::string GetOptionalStringValue(const JSON::ObjectNode &object, const std::string &key) {
-    const JSON::JSONNode * const value_node(object.getValue(key));
-    if (value_node == nullptr)
-        return "";
-
-    if (value_node->getType() != JSON::JSONNode::STRING_NODE)
-        ERROR("expected \"" + key + "\" to have a string node!");
-    const JSON::StringNode * const string_node(reinterpret_cast<const JSON::StringNode * const>(value_node));
-    return string_node->getValue();
-}
-
-
 inline std::string GetValueFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node) {
     if (key_and_node.second->getType() != JSON::JSONNode::STRING_NODE)
         ERROR("expected \"" + key_and_node.first + "\" to have a string node!");
@@ -203,7 +190,7 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
         if (key_and_node.first == "language") {
             language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());
-            const std::string language_mapped(OptionalMap(JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second)->getValue(),
+            const std::string language_mapped(OptionalMap(language_json,
                             zts_client_maps.language_to_language_code_map_));
             if (language_json != language_mapped) {
                 language_node->setValue(language_mapped);
@@ -259,11 +246,11 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
         }
 
         // volume
-        const std::string volume(GetOptionalStringValue(*object_node, "volume"));
-        if (volume == "") {
+        const std::string volume(object_node->getOptionalStringValue("volume"));
+        if (volume.empty()) {
             const auto ISSN_and_volume(zts_client_maps.ISSN_to_volume_map_.find(issn_normalized));
             if (ISSN_and_volume != zts_client_maps.ISSN_to_volume_map_.cend()) {
-                if (volume == "") {
+                if (volume.empty()) {
                     JSON::JSONNode * const volume_node = object_node->getValue("volume");
                     reinterpret_cast<JSON::StringNode *>(volume_node)->setValue(ISSN_and_volume->second);
                 } else {
@@ -447,22 +434,22 @@ class MarcFormatHandler : public FormatHandler {
     void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record) {
         std::vector<MARC::Subfield> subfields;
 
-        const std::string date_str(GetOptionalStringValue(object_node, "date"));
+        const std::string date_str(object_node.getOptionalStringValue("date"));
         if (not date_str.empty()) {
             const Date date(StringToDate(date_str));
             if (date.year_ != Date::INVALID)
                 subfields.emplace_back('j', std::to_string(date.year_));
         }
 
-        const std::string issue(GetOptionalStringValue(object_node, "issue"));
+        const std::string issue(object_node.getOptionalStringValue("issue"));
         if (not issue.empty())
             subfields.emplace_back('e', issue);
 
-        const std::string pages(GetOptionalStringValue(object_node, "pages"));
+        const std::string pages(object_node.getOptionalStringValue("pages"));
         if (not pages.empty())
             subfields.emplace_back('h', pages);
 
-        const std::string volume(GetOptionalStringValue(object_node, "volume"));
+        const std::string volume(object_node.getOptionalStringValue("volume"));
         if (not volume.empty())
             subfields.emplace_back('d', volume);
 
@@ -560,7 +547,7 @@ public:
                 const std::string item_type(GetValueFromStringNode(key_and_node));
                 if (item_type == "journalArticle") {
                     is_journal_article = true;
-                    publication_title = GetOptionalStringValue(*object_node, "publicationTitle");
+                    publication_title = object_node->getOptionalStringValue("publicationTitle");
                     ExtractVolumeYearIssueAndPages(*object_node, &new_record);
                 } else if (item_type == "magazineArticle")
                     ExtractVolumeYearIssueAndPages(*object_node, &new_record);
@@ -581,11 +568,11 @@ public:
         const JSON::JSONNode * custom_node(object_node->getValue("ubtue"));
         if (custom_node != nullptr) {
             const JSON::ObjectNode * const custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
-            parent_issn = GetOptionalStringValue(*custom_object, "issnRaw");
-            issn = GetOptionalStringValue(*custom_object, "issnNormalized");
+            parent_issn = custom_object->getOptionalStringValue("issnRaw");
+            issn = custom_object->getOptionalStringValue("issnNormalized");
 
             // physical form
-            const std::string physical_form(GetOptionalStringValue(*custom_object, "physicalForm"));
+            const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
             if (not physical_form.empty()) {
                 if (physical_form == "A")
                     new_record.insertField("007", "tu");
@@ -597,7 +584,7 @@ public:
             }
 
             // volume
-            const std::string volume(GetOptionalStringValue(*custom_object, "volume"));
+            const std::string volume(custom_object->getOptionalStringValue("volume"));
             if (not volume.empty()) {
                 const auto field_it(new_record.findTag("936"));
                 if (field_it == new_record.end())
@@ -607,7 +594,7 @@ public:
             }
 
             // license code
-            const std::string license(GetOptionalStringValue(*custom_object, "licenseCode"));
+            const std::string license(custom_object->getOptionalStringValue("licenseCode"));
             if (license == "l") {
                 const auto field_it(new_record.findTag("936"));
                 if (field_it != new_record.end())
@@ -615,7 +602,7 @@ public:
             }
 
             // SSG numbers:
-            const std::string ssg_numbers(GetOptionalStringValue(*custom_object, "ssgNumbers"));
+            const std::string ssg_numbers(custom_object->getOptionalStringValue("ssgNumbers"));
             if (not ssg_numbers.empty())
                 new_record.addSubfield("084", 'a', ssg_numbers);
         }
