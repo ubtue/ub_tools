@@ -72,6 +72,12 @@ private:
 };
 
 
+// Forward declarations:
+class ArrayNode;
+class ObjectNode;
+class StringNode;
+
+
 class JSONNode {
 public:
     enum Type { BOOLEAN_NODE, NULL_NODE, STRING_NODE, INT64_NODE, DOUBLE_NODE, OBJECT_NODE, ARRAY_NODE };
@@ -81,6 +87,13 @@ public:
     virtual Type getType() const = 0;
     virtual std::string toString() const = 0;
     static std::string TypeToString(const Type type);
+
+    static const ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, JSONNode * const node);
+    static const ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, JSONNode * const node);
+    static const StringNode *CastToStringNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static StringNode *CastToStringNodeOrDie(const std::string &node_name, JSONNode * const node);
 };
 
 
@@ -137,10 +150,6 @@ public:
     double getValue() const { return value_; }
     void setValue(const double value) { value_ = value; }
 };
-
-
-// Forward declaration:
-class ArrayNode;
 
 
 class ObjectNode final : public JSONNode {
