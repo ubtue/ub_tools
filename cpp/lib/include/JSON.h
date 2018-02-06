@@ -92,6 +92,7 @@ public:
     virtual Type getType() const { return BOOLEAN_NODE; }
     virtual std::string toString() const { return value_ ? "true" : "false"; }
     bool getValue() const { return value_; }
+    void setValue(const bool value) { value_ = value; }
 };
 
 
@@ -111,7 +112,8 @@ public:
 
     virtual Type getType() const { return STRING_NODE; }
     virtual std::string toString() const;
-    const std::string &getValue() const { return value_; }
+    std::string getValue() const { return value_; }
+    void setValue(const std::string &value) { value_ = value; }
 };
 
 
@@ -122,6 +124,7 @@ public:
     virtual Type getType() const { return INT64_NODE; }
     virtual std::string toString() const { return std::to_string(value_); }
     int64_t getValue() const { return value_; }
+    void setValue(const int64_t value) { value_ = value; }
 };
 
 
@@ -132,6 +135,7 @@ public:
     virtual Type getType() const { return DOUBLE_NODE; }
     virtual std::string toString() const { return std::to_string(value_); }
     double getValue() const { return value_; }
+    void setValue(const double value) { value_ = value; }
 };
 
 
