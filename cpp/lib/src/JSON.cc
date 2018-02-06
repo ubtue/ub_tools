@@ -439,10 +439,30 @@ bool ObjectNode::getBooleanValue(const std::string &label) const {
 }
 
 
+bool ObjectNode::getOptionalBooleanValue(const std::string &label, const bool default_value) const {
+    const auto entry(entries_.find(label));
+    if (entry == entries_.cend())
+        return default_value;
+    if (unlikely(entry->second->getType() != BOOLEAN_NODE))
+        ERROR("entry for label \"" + label + "\" is not a string node!");
+    return reinterpret_cast<const BooleanNode *>(entry->second)->getValue();
+}
+
+
 std::string ObjectNode::getStringValue(const std::string &label) const {
     const auto entry(entries_.find(label));
     if (unlikely(entry == entries_.cend()))
         ERROR("label \"" + label + "\" not found!");
+    if (unlikely(entry->second->getType() != STRING_NODE))
+        ERROR("entry for label \"" + label + "\" is not a string node!");
+    return reinterpret_cast<const StringNode *>(entry->second)->getValue();
+}
+
+
+std::string ObjectNode::getOptionalStringValue(const std::string &label, const std::string &default_value) const {
+    const auto entry(entries_.find(label));
+    if (entry == entries_.cend())
+        return default_value;
     if (unlikely(entry->second->getType() != STRING_NODE))
         ERROR("entry for label \"" + label + "\" is not a string node!");
     return reinterpret_cast<const StringNode *>(entry->second)->getValue();
@@ -459,10 +479,30 @@ int64_t ObjectNode::getIntegerValue(const std::string &label) const {
 }
 
 
+int64_t ObjectNode::getOptionalIntegerValue(const std::string &label, const int64_t default_value) const {
+    const auto entry(entries_.find(label));
+    if (entry == entries_.cend())
+        return default_value;
+    if (unlikely(entry->second->getType() != INT64_NODE))
+        ERROR("entry for label \"" + label + "\" is not an integer node!");
+    return reinterpret_cast<const IntegerNode *>(entry->second)->getValue();
+}
+
+
 double ObjectNode::getDoubleValue(const std::string &label) const {
     const auto entry(entries_.find(label));
     if (unlikely(entry == entries_.cend()))
         ERROR("label \"" + label + "\" not found!");
+    if (unlikely(entry->second->getType() != DOUBLE_NODE))
+        ERROR("entry for label \"" + label + "\" is not a double node!");
+    return reinterpret_cast<const DoubleNode *>(entry->second)->getValue();
+}
+
+
+double ObjectNode::getOptionalDoubleValue(const std::string &label, const double default_value) const {
+    const auto entry(entries_.find(label));
+    if (entry == entries_.cend())
+        return default_value;
     if (unlikely(entry->second->getType() != DOUBLE_NODE))
         ERROR("entry for label \"" + label + "\" is not a double node!");
     return reinterpret_cast<const DoubleNode *>(entry->second)->getValue();
