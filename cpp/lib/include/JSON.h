@@ -177,8 +177,8 @@ public:
     ArrayNode *getArrayNodeValue(const std::string &label);
     bool isNullNode(const std::string &label) const;
 
-    const_iterator cbegin() const { return entries_.cbegin(); }
-    const_iterator cend() const { return entries_.cend(); }
+    const_iterator begin() const { return entries_.cbegin(); }
+    const_iterator end() const { return entries_.cend(); }
 };
 
 
