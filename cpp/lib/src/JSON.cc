@@ -385,6 +385,48 @@ ArrayNode *JSONNode::CastToArrayNodeOrDie(const std::string &node_name, JSONNode
 }
 
 
+const BooleanNode *JSONNode::CastToBooleanNodeOrDie(const std::string &node_name, const JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::BOOLEAN_NODE))
+        ERROR("expected \"" + node_name + "\" to be a boolean node!");
+    return reinterpret_cast<const BooleanNode * const>(node);
+}
+
+
+BooleanNode *JSONNode::CastToBooleanNodeOrDie(const std::string &node_name, JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::BOOLEAN_NODE))
+        ERROR("expected \"" + node_name + "\" to be a boolean node!");
+    return reinterpret_cast<BooleanNode * const>(node);
+}
+
+
+const DoubleNode *JSONNode::CastToDoubleNodeOrDie(const std::string &node_name, const JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::DOUBLE_NODE))
+        ERROR("expected \"" + node_name + "\" to be a double node!");
+    return reinterpret_cast<const DoubleNode * const>(node);
+}
+
+
+DoubleNode *JSONNode::CastToDoubleNodeOrDie(const std::string &node_name, JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::DOUBLE_NODE))
+        ERROR("expected \"" + node_name + "\" to be a double node!");
+    return reinterpret_cast<DoubleNode * const>(node);
+}
+
+
+const IntegerNode *JSONNode::CastToIntegerNodeOrDie(const std::string &node_name, const JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::INT64_NODE))
+        ERROR("expected \"" + node_name + "\" to be an integer node!");
+    return reinterpret_cast<const IntegerNode * const>(node);
+}
+
+
+IntegerNode *JSONNode::CastToIntegerNodeOrDie(const std::string &node_name, JSONNode * const node) {
+    if (unlikely(node->getType() != JSONNode::INT64_NODE))
+        ERROR("expected \"" + node_name + "\" to be an integer node!");
+    return reinterpret_cast<IntegerNode * const>(node);
+}
+
+
 const ObjectNode *JSONNode::CastToObjectNodeOrDie(const std::string &node_name, const JSONNode * const node) {
     if (unlikely(node->getType() != JSONNode::OBJECT_NODE))
         ERROR("expected \"" + node_name + "\" to be an object node!");
