@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 public class MultiLanguageQueryParser extends QParser {
     private String searchString;
     private static Logger logger = LoggerFactory.getLogger(MultiLanguageQueryParser.class);
-    private String[] SUPPORTED_LANGUAGES = { "de", "en", "fr", "it", "es", "hant", "hans" };
+    private String[] SUPPORTED_LANGUAGES = { "de", "en", "fr", "it", "es", "hant", "hans", "pt", "ru", "el" };
     private SolrQueryRequest newRequest;
     private ModifiableSolrParams newParams;
     private IndexSchema schema;
