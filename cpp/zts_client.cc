@@ -107,69 +107,6 @@ std::string GetNextControlNumber() {
 }
 
 
-// Returns the value for "key", if key exists in "object", o/w returns the empty string.
-inline std::string GetOptionalStringValue(const JSON::ObjectNode &object, const std::string &key) {
-    const JSON::JSONNode * const value_node(object.getValue(key));
-    if (value_node == nullptr)
-        return "";
-
-    if (value_node->getType() != JSON::JSONNode::STRING_NODE)
-        ERROR("expected \"" + key + "\" to have a string node!");
-    const JSON::StringNode * const string_node(reinterpret_cast<const JSON::StringNode * const>(value_node));
-    return string_node->getValue();
-}
-
-
-const JSON::ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, const JSON::JSONNode * const node) {
-    if (unlikely(node->getType() != JSON::JSONNode::ARRAY_NODE))
-        ERROR("expected \"" + node_name + "\" to be an array node!");
-    return reinterpret_cast<const JSON::ArrayNode * const>(node);
-}
-
-
-JSON::ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, JSON::JSONNode * const node) {
-    if (unlikely(node->getType() != JSON::JSONNode::ARRAY_NODE))
-        ERROR("expected \"" + node_name + "\" to be an array node!");
-    return reinterpret_cast<JSON::ArrayNode * const>(node);
-}
-
-
-const JSON::ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, const JSON::JSONNode * const node) {
-    if (unlikely(node->getType() != JSON::JSONNode::OBJECT_NODE))
-        ERROR("expected \"" + node_name + "\" to be an object node!");
-    return reinterpret_cast<const JSON::ObjectNode * const>(node);
-}
-
-
-JSON::ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, JSON::JSONNode * const node) {
-    if (unlikely(node->getType() != JSON::JSONNode::OBJECT_NODE))
-        ERROR("expected \"" + node_name + "\" to be an object node!");
-    return reinterpret_cast<JSON::ObjectNode * const>(node);
-}
-
-
-const JSON::StringNode *CastToStringNodeOrDie(const std::string &node_name, const JSON::JSONNode * const node) {
-    if (unlikely(node->getType() != JSON::JSONNode::STRING_NODE))
-        ERROR("expected \"" + node_name + "\" to be a string node!");
-    return reinterpret_cast<const JSON::StringNode * const>(node);
-}
-
-
-JSON::StringNode *CastToStringNodeOrDie(const std::string &node_name, JSON::JSONNode * const node) {
-    if (unlikely(node->getType() != JSON::JSONNode::STRING_NODE))
-        ERROR("expected \"" + node_name + "\" to be a string node!");
-    return reinterpret_cast<JSON::StringNode * const>(node);
-}
-
-
-inline std::string GetValueFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node) {
-    if (key_and_node.second->getType() != JSON::JSONNode::STRING_NODE)
-        ERROR("expected \"" + key_and_node.first + "\" to have a string node!");
-    const JSON::StringNode * const node(reinterpret_cast<const JSON::StringNode * const>(key_and_node.second));
-    return node->getValue();
-}
-
-
 // If "key" is in "map", then return the mapped value, o/w return "key".
 inline std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map) {
     const auto &key_and_value(map.find(key));
@@ -210,30 +147,25 @@ public:
 };
 
 
-void AugmentJsonCreators(JSON::JSONNode * const creators_node,
+void AugmentJsonCreators(JSON::ArrayNode * const creators_array,
                          std::vector<std::string> * const comments)
 {
-    const JSON::ArrayNode * const creators_array(CastToArrayNodeOrDie("creators", creators_node));
-    for (auto &creator_node : *creators_array) {
-        JSON::ObjectNode * const creator_object(CastToObjectNodeOrDie("creator", creator_node));
+    for (size_t i(0); i < creators_array->size(); ++i) {
+        JSON::ObjectNode * const creator_object(creators_array->getObjectNodeValue(i));
 
         const JSON::JSONNode * const last_name_node(creator_object->getValue("lastName"));
         if (last_name_node == nullptr)
             ERROR("creator is missing a last name!");
-        const JSON::StringNode * const last_name(CastToStringNodeOrDie("lastName", last_name_node));
-        std::string name(last_name->getValue());
+        std::string name(creator_object->getStringValue("lastName"));
 
         const JSON::JSONNode * const first_name_node(creator_object->getValue("firstName"));
-        if (first_name_node != nullptr) {
-            const JSON::StringNode * const first_name(CastToStringNodeOrDie("firstName", first_name_node));
-            name += ", " + first_name->getValue();
-        }
+        if (first_name_node != nullptr)
+            name += ", " + creator_object->getStringValue("firstName");
 
         const std::string PPN(DownloadAuthorPPN(name));
         if (not PPN.empty()) {
             comments->emplace_back("Added author PPN " + PPN + " for author " + name);
-            JSON::StringNode ppn_node(PPN);
-            creator_object->insert("ppn", &ppn_node);
+            creator_object->insert("ppn", new JSON::StringNode(PPN));
         }
     }
 }
@@ -248,19 +180,21 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
     JSON::StringNode *language_node(nullptr);
     for (auto &key_and_node : *object_node) {
         if (key_and_node.first == "language") {
-            language_node = CastToStringNodeOrDie("language", key_and_node.second);
+            language_node = JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second);
             const std::string language_json(language_node->getValue());
-            const std::string language_mapped(OptionalMap(CastToStringNodeOrDie("language", key_and_node.second)->getValue(),
+            const std::string language_mapped(OptionalMap(language_json,
                             zts_client_maps.language_to_language_code_map_));
             if (language_json != language_mapped) {
                 language_node->setValue(language_mapped);
                 comments.emplace_back("changed \"language\" from \"" + language_json + "\" to \"" + language_mapped + "\"");
             }
         }
-        else if (key_and_node.first == "creators")
-            AugmentJsonCreators(key_and_node.second, &comments);
+        else if (key_and_node.first == "creators") {
+            JSON::ArrayNode * creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", key_and_node.second));
+            AugmentJsonCreators(creators_array, &comments);
+        }
         else if (key_and_node.first == "ISSN") {
-            issn_raw = GetValueFromStringNode(key_and_node);
+            issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized)))
                 ERROR("\"" + issn_raw + "\" is not a valid ISSN!");
 
@@ -304,11 +238,11 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
         }
 
         // volume
-        const std::string volume(GetOptionalStringValue(*object_node, "volume"));
-        if (volume == "") {
+        const std::string volume(object_node->getOptionalStringValue("volume"));
+        if (volume.empty()) {
             const auto ISSN_and_volume(zts_client_maps.ISSN_to_volume_map_.find(issn_normalized));
             if (ISSN_and_volume != zts_client_maps.ISSN_to_volume_map_.cend()) {
-                if (volume == "") {
+                if (volume.empty()) {
                     JSON::JSONNode * const volume_node = object_node->getValue("volume");
                     reinterpret_cast<JSON::StringNode *>(volume_node)->setValue(ISSN_and_volume->second);
                 } else {
@@ -439,7 +373,7 @@ class MarcFormatHandler : public FormatHandler {
                                                 MARC::Record * const marc_record, const char indicator1 = ' ',
                                                 const char indicator2 = ' ')
     {
-        const JSON::StringNode * const string_node(CastToStringNodeOrDie(key, node));
+        const JSON::StringNode * const string_node(JSON::JSONNode::CastToStringNodeOrDie(key, node));
         const std::string value(string_node->getValue());
         marc_record->insertField(tag, { { subfield_code, value } }, indicator1, indicator2);
         return value;
@@ -460,7 +394,7 @@ class MarcFormatHandler : public FormatHandler {
                      const std::unordered_map<std::string, std::string> &ISSN_to_keyword_field_map,
                      MARC::Record * const new_record)
     {
-        const JSON::ArrayNode * const tags(CastToArrayNodeOrDie("tags", tags_node));
+        const JSON::ArrayNode * const tags(JSON::JSONNode::CastToArrayNodeOrDie("tags", tags_node));
 
         // Where to stuff the data:
         std::string marc_field("653");
@@ -477,7 +411,7 @@ class MarcFormatHandler : public FormatHandler {
         }
 
         for (auto tag : *tags) {
-            const JSON::ObjectNode * const tag_object(CastToObjectNodeOrDie("tag", tag));
+            const JSON::ObjectNode * const tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
             const JSON::JSONNode * const tag_node(tag_object->getValue("tag"));
             if (tag_node == nullptr)
                 WARNING("unexpected: tag object does not contain a \"tag\" entry!");
@@ -492,22 +426,22 @@ class MarcFormatHandler : public FormatHandler {
     void ExtractVolumeYearIssueAndPages(const JSON::ObjectNode &object_node, MARC::Record * const new_record) {
         std::vector<MARC::Subfield> subfields;
 
-        const std::string date_str(GetOptionalStringValue(object_node, "date"));
+        const std::string date_str(object_node.getOptionalStringValue("date"));
         if (not date_str.empty()) {
             const Date date(StringToDate(date_str));
             if (date.year_ != Date::INVALID)
                 subfields.emplace_back('j', std::to_string(date.year_));
         }
 
-        const std::string issue(GetOptionalStringValue(object_node, "issue"));
+        const std::string issue(object_node.getOptionalStringValue("issue"));
         if (not issue.empty())
             subfields.emplace_back('e', issue);
 
-        const std::string pages(GetOptionalStringValue(object_node, "pages"));
+        const std::string pages(object_node.getOptionalStringValue("pages"));
         if (not pages.empty())
             subfields.emplace_back('h', pages);
 
-        const std::string volume(GetOptionalStringValue(object_node, "volume"));
+        const std::string volume(object_node.getOptionalStringValue("volume"));
         if (not volume.empty())
             subfields.emplace_back('d', volume);
 
@@ -517,26 +451,26 @@ class MarcFormatHandler : public FormatHandler {
 
 
     void CreateCreatorFields(const JSON::JSONNode * const creators_node, MARC::Record * const marc_record) {
-        const JSON::ArrayNode * const creators_array(CastToArrayNodeOrDie("creators", creators_node));
+        const JSON::ArrayNode * const creators_array(JSON::JSONNode::CastToArrayNodeOrDie("creators", creators_node));
         for (auto creator_node : *creators_array) {
-            const JSON::ObjectNode * const creator_object(CastToObjectNodeOrDie("creator", creator_node));
+            const JSON::ObjectNode * const creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator", creator_node));
 
             const JSON::JSONNode * const last_name_node(creator_object->getValue("lastName"));
             if (last_name_node == nullptr)
                 ERROR("creator is missing a last name!");
-            const JSON::StringNode * const last_name(CastToStringNodeOrDie("lastName", last_name_node));
+            const JSON::StringNode * const last_name(JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node));
             std::string name(last_name->getValue());
 
             const JSON::JSONNode * const first_name_node(creator_object->getValue("firstName"));
             if (first_name_node != nullptr) {
-                const JSON::StringNode * const first_name(CastToStringNodeOrDie("firstName", first_name_node));
+                const JSON::StringNode * const first_name(JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node));
                 name += ", " + first_name->getValue();
             }
 
             std::string PPN;
             const JSON::JSONNode * const ppn_node(creator_object->getValue("ppn"));
             if (ppn_node != nullptr) {
-                const JSON::StringNode * const ppn_string_node(CastToStringNodeOrDie("ppn", first_name_node));
+                const JSON::StringNode * const ppn_string_node(JSON::JSONNode::CastToStringNodeOrDie("ppn", first_name_node));
                 PPN = ppn_string_node->getValue();
                 name = "!" + PPN + "!";
             }
@@ -544,7 +478,7 @@ class MarcFormatHandler : public FormatHandler {
             const JSON::JSONNode * const creator_type(creator_object->getValue("creatorType"));
             std::string creator_role;
             if (creator_type != nullptr) {
-                const JSON::StringNode * const creator_role_node(CastToStringNodeOrDie("creatorType", creator_type));
+                const JSON::StringNode * const creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType", creator_type));
                 creator_role = creator_role_node->getValue();
             }
 
@@ -583,7 +517,7 @@ public:
 
             if (key_and_node.first == "language")
                 new_record.insertField("041", { { 'a',
-                    CastToStringNodeOrDie("language", key_and_node.second)->getValue() } });
+                    JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue() } });
             else if (key_and_node.first == "url")
                 CreateSubfieldFromStringNode(key_and_node, "856", 'u', &new_record);
             else if (key_and_node.first == "title")
@@ -602,17 +536,17 @@ public:
             else if (key_and_node.first == "creators")
                 CreateCreatorFields(key_and_node.second, &new_record);
             else if (key_and_node.first == "itemType") {
-                const std::string item_type(GetValueFromStringNode(key_and_node));
+                const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
                 if (item_type == "journalArticle") {
                     is_journal_article = true;
-                    publication_title = GetOptionalStringValue(*object_node, "publicationTitle");
+                    publication_title = object_node->getOptionalStringValue("publicationTitle");
                     ExtractVolumeYearIssueAndPages(*object_node, &new_record);
                 } else if (item_type == "magazineArticle")
                     ExtractVolumeYearIssueAndPages(*object_node, &new_record);
                 else
                     WARNING("unknown item type: \"" + item_type + "\"!");
             } else if (key_and_node.first == "rights") {
-                const std::string copyright(GetValueFromStringNode(key_and_node));
+                const std::string copyright(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
                 if (UrlUtil::IsValidWebUrl(copyright))
                     new_record.insertField("542", { { 'u', copyright } });
                 else
@@ -625,12 +559,12 @@ public:
 
         const JSON::JSONNode * custom_node(object_node->getValue("ubtue"));
         if (custom_node != nullptr) {
-            const JSON::ObjectNode * const custom_object(CastToObjectNodeOrDie("ubtue", custom_node));
-            parent_issn = GetOptionalStringValue(*custom_object, "issnRaw");
-            issn = GetOptionalStringValue(*custom_object, "issnNormalized");
+            const JSON::ObjectNode * const custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
+            parent_issn = custom_object->getOptionalStringValue("issnRaw");
+            issn = custom_object->getOptionalStringValue("issnNormalized");
 
             // physical form
-            const std::string physical_form(GetOptionalStringValue(*custom_object, "physicalForm"));
+            const std::string physical_form(custom_object->getOptionalStringValue("physicalForm"));
             if (not physical_form.empty()) {
                 if (physical_form == "A")
                     new_record.insertField("007", "tu");
@@ -642,7 +576,7 @@ public:
             }
 
             // volume
-            const std::string volume(GetOptionalStringValue(*custom_object, "volume"));
+            const std::string volume(custom_object->getOptionalStringValue("volume"));
             if (not volume.empty()) {
                 const auto field_it(new_record.findTag("936"));
                 if (field_it == new_record.end())
@@ -652,7 +586,7 @@ public:
             }
 
             // license code
-            const std::string license(GetOptionalStringValue(*custom_object, "licenseCode"));
+            const std::string license(custom_object->getOptionalStringValue("licenseCode"));
             if (license == "l") {
                 const auto field_it(new_record.findTag("936"));
                 if (field_it != new_record.end())
@@ -660,7 +594,7 @@ public:
             }
 
             // SSG numbers:
-            const std::string ssg_numbers(GetOptionalStringValue(*custom_object, "ssgNumbers"));
+            const std::string ssg_numbers(custom_object->getOptionalStringValue("ssgNumbers"));
             if (not ssg_numbers.empty())
                 new_record.addSubfield("084", 'a', ssg_numbers);
         }
@@ -883,7 +817,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
         if (response_code == 300) {
             logger->info("multiple articles found => trying to harvest children");
             if (tree_root->getType() == JSON::ArrayNode::OBJECT_NODE) {
-                const JSON::ObjectNode * const object_node(CastToObjectNodeOrDie("tree_root", tree_root));
+                const JSON::ObjectNode * const object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
                 for (const auto &key_and_node : *object_node) {
                     std::pair<unsigned, unsigned> record_count_and_previously_downloaded_count2 =
                         Harvest(key_and_node.first, "", zts_client_params, zts_client_maps, false /* log */);
@@ -893,9 +827,9 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url,
                 }
             }
         } else {
-            const JSON::ArrayNode * const json_array(CastToArrayNodeOrDie("tree_root", tree_root));
+            const JSON::ArrayNode * const json_array(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
             for (const auto entry : *json_array) {
-                JSON::ObjectNode * const json_object(CastToObjectNodeOrDie("entry", entry));
+                JSON::ObjectNode * const json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
                 AugmentJson(json_object, zts_client_maps);
                 record_count_and_previously_downloaded_count = zts_client_params.format_handler_->processRecord(json_object);
             }
