@@ -107,14 +107,6 @@ std::string GetNextControlNumber() {
 }
 
 
-inline std::string GetValueFromStringNode(const std::pair<std::string, JSON::JSONNode *> &key_and_node) {
-    if (key_and_node.second->getType() != JSON::JSONNode::STRING_NODE)
-        ERROR("expected \"" + key_and_node.first + "\" to have a string node!");
-    const JSON::StringNode * const node(reinterpret_cast<const JSON::StringNode * const>(key_and_node.second));
-    return node->getValue();
-}
-
-
 // If "key" is in "map", then return the mapped value, o/w return "key".
 inline std::string OptionalMap(const std::string &key, const std::unordered_map<std::string, std::string> &map) {
     const auto &key_and_value(map.find(key));
@@ -202,7 +194,7 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
             AugmentJsonCreators(creators_array, &comments);
         }
         else if (key_and_node.first == "ISSN") {
-            issn_raw = GetValueFromStringNode(key_and_node);
+            issn_raw = JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue();
             if (unlikely(not MiscUtil::NormaliseISSN(issn_raw, &issn_normalized)))
                 ERROR("\"" + issn_raw + "\" is not a valid ISSN!");
 
@@ -525,7 +517,7 @@ public:
 
             if (key_and_node.first == "language")
                 new_record.insertField("041", { { 'a',
-                    JSON::JSONNode::CastToStringNodeOrDie("language", key_and_node.second)->getValue() } });
+                    JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue() } });
             else if (key_and_node.first == "url")
                 CreateSubfieldFromStringNode(key_and_node, "856", 'u', &new_record);
             else if (key_and_node.first == "title")
@@ -544,7 +536,7 @@ public:
             else if (key_and_node.first == "creators")
                 CreateCreatorFields(key_and_node.second, &new_record);
             else if (key_and_node.first == "itemType") {
-                const std::string item_type(GetValueFromStringNode(key_and_node));
+                const std::string item_type(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
                 if (item_type == "journalArticle") {
                     is_journal_article = true;
                     publication_title = object_node->getOptionalStringValue("publicationTitle");
@@ -554,7 +546,7 @@ public:
                 else
                     WARNING("unknown item type: \"" + item_type + "\"!");
             } else if (key_and_node.first == "rights") {
-                const std::string copyright(GetValueFromStringNode(key_and_node));
+                const std::string copyright(JSON::JSONNode::CastToStringNodeOrDie(key_and_node.first, key_and_node.second)->getValue());
                 if (UrlUtil::IsValidWebUrl(copyright))
                     new_record.insertField("542", { { 'u', copyright } });
                 else

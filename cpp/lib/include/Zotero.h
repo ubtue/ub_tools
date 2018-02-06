@@ -1,6 +1,8 @@
 /** \brief Interaction with Zotero Translation Server
- *         public functions are named like endpoints
- *         see https://github.com/zotero/translation-server
+ *         - public functions are named like endpoints, see
+ *           https://github.com/zotero/translation-server
+ *         - For List of Zotero Field Types ("itemFields") in JSON, see
+ *           https://github.com/zotero/zotero/blob/master/chrome/locale/de/zotero/zotero.properties#L409
  *  \author Mario Trojan
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
