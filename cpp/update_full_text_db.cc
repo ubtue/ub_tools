@@ -250,7 +250,7 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
                         combined_text += " " + extracted_text;
                 }
             }
-            at_least_one_error = at_least_one_error ? at_least_one_error : entry_url.error_message_.empty();
+            at_least_one_error = at_least_one_error ? at_least_one_error : not entry_url.error_message_.empty();
             entry_urls.push_back(entry_url);
         }
 
