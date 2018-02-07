@@ -231,7 +231,7 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
             entry_url.id_ = ppn;
             entry_url.url_ = url;
             std::string domain;
-            cache.getDomainFromUrl(url, domain);
+            cache.getDomainFromUrl(url, &domain);
             entry_url.domain_ = domain;
             std::string document, media_type, http_header_charset, error_message;
             if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &http_header_charset,
