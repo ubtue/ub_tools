@@ -259,7 +259,7 @@ const std::unordered_map<std::string, std::string> entity_map_utf8 = {
 };
 
 
-bool DecodeEntity(const char *entity_string, std::string * const ch, const std::unordered_map<std::string, std::string> &entity_map) {
+bool DecodeEntity(const char * const entity_string, std::string * const ch, const bool is_utf8) {
     // numeric entity?
     if (entity_string[0] == '#') { // Yes!
         errno = 0;
@@ -271,13 +271,32 @@ bool DecodeEntity(const char *entity_string, std::string * const ch, const std::
         else // We are dealing with the decimal version.
             code = std::strtoul(entity_string + 1, nullptr, 10);
 
-        if (errno != 0 or code > 255)
+        if (errno != 0 or code > 0xffff) {
+            errno = 0;
             return false;
+        }
 
-        *ch = static_cast<char>(code);
-        return true;
+        std::string utf8;
+        const bool conversion_succeeded(TextUtil::WCharToUTF8String(code, &utf8));
+        if (is_utf8) {
+            *ch = conversion_succeeded ? utf8 : "?";
+            return conversion_succeeded;
+        } else {
+            static std::unique_ptr<TextUtil::EncodingConverter> to_ansi_converter;
+            if (to_ansi_converter.get() == nullptr) {
+                std::string err_msg;
+                to_ansi_converter = TextUtil::EncodingConverter::Factory(TextUtil::EncodingConverter::CANONICAL_UTF8_NAME, "MS-ANSI", &err_msg);
+                if (not err_msg.empty())
+                    ERROR(err_msg);
+            }
+            if (to_ansi_converter->convert(utf8, ch))
+                return true;
+            *ch = "?";
+            return false;
+        }
     }
 
+    const std::unordered_map<std::string, std::string> &entity_map(is_utf8 ? entity_map_utf8 : entity_map_ansi);
     const auto from_to(entity_map.find(entity_string));
     if (from_to != entity_map.end()) {
         *ch = from_to->second;
@@ -457,7 +476,7 @@ void HtmlParser::replaceEntitiesInString() {
 
         std::string expanded_entity;
         const bool using_utf8((encoding_converter_.get() == nullptr) or (encoding_converter_->getFromEncoding() == TextUtil::EncodingConverter::CANONICAL_UTF8_NAME));
-        if (likely(DecodeEntity(entity, &expanded_entity, using_utf8 ? entity_map_utf8 : entity_map_ansi))) {
+        if (likely(DecodeEntity(entity, &expanded_entity, using_utf8))) {
             for (const char &ch : expanded_entity)
                 *write_ptr++ = ch;
              --write_ptr;
