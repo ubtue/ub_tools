@@ -31,8 +31,10 @@
 #include "VuFind.h"
 
 
-const unsigned MIN_CACHE_EXPIRE_TIME(84600 *  60); // About 2 months in seconds.
-const unsigned MAX_CACHE_EXPIRE_TIME(84600 * 120); // About 4 months in seconds.
+const unsigned MIN_CACHE_EXPIRE_TIME(42300 * 60 * 2); // About 2 months in seconds.
+const unsigned MAX_CACHE_EXPIRE_TIME(42300 * 60 * 4); // About 4 months in seconds.
+const unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month in seconds.
+const unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
 
 
 FullTextCache::FullTextCache() {
@@ -267,7 +269,16 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
 {
     const time_t now(std::time(nullptr));
     Random::Rand rand(now);
-    const time_t expiration(now + MIN_CACHE_EXPIRE_TIME + rand(MAX_CACHE_EXPIRE_TIME - MIN_CACHE_EXPIRE_TIME));
+    time_t expiration(now + MIN_CACHE_EXPIRE_TIME + rand(MAX_CACHE_EXPIRE_TIME - MIN_CACHE_EXPIRE_TIME));
+    for (const auto &entry_url : entry_urls) {
+        if (full_text.empty() and entry_url.error_message_.empty())
+            logger->error("in FullTextCache::InsertIntoCache (id " + id + "): "
+                          "you must provide either data to be cached or a non-empty "
+                          "error message!");
+
+        if (not entry_url.error_message_.empty())
+            expiration = now + MIN_CACHE_EXPIRE_TIME_ON_ERROR + rand(MAX_CACHE_EXPIRE_TIME_ON_ERROR - MIN_CACHE_EXPIRE_TIME_ON_ERROR);
+    }
 
     const std::string escaped_id(db_connection_->escapeString(id));
     db_connection_->queryOrDie("INSERT INTO full_text_cache "
@@ -276,11 +287,6 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
                                "full_text=\"" + db_connection_->escapeString(full_text) + "\"");
 
     for (const auto &entry_url : entry_urls) {
-        if (full_text.empty() and entry_url.error_message_.empty())
-            logger->error("in FullTextCache::InsertIntoCache (id " + id + "): "
-                          "you must provide either data to be cached or a non-empty "
-                          "error message!");
-
         db_connection_->queryOrDie("INSERT INTO full_text_cache_urls "
                                "SET id=\"" + escaped_id + "\","
                                "url=\"" + db_connection_->escapeString(entry_url.url_) + "\","
