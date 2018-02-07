@@ -57,9 +57,8 @@ public:
 
 void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
     if (chunk.type_ == HtmlParser::TEXT) {
-        if (not StringUtil::EndsWith(chunk.text_, " ") and not StringUtil::EndsWith(chunk.text_, "\n")) {
+        if (not StringUtil::EndsWith(chunk.text_, " ") and not StringUtil::EndsWith(chunk.text_, "\n"))
             extracted_text_ += " ";
-        }
         extracted_text_ += chunk.text_;
     } else if (charset_.empty() and chunk.type_ == HtmlParser::OPENING_TAG
              and StringUtil::ToLower(chunk.text_) == "meta") {
