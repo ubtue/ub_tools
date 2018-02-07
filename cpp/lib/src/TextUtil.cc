@@ -56,9 +56,12 @@ public:
 
 
 void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
-    if (chunk.type_ == HtmlParser::TEXT)
+    if (chunk.type_ == HtmlParser::TEXT) {
+        if (not StringUtil::EndsWith(chunk.text_, " ") and not StringUtil::EndsWith(chunk.text_, "\n")) {
+            extracted_text_ += " ";
+        }
         extracted_text_ += chunk.text_;
-    else if (charset_.empty() and chunk.type_ == HtmlParser::OPENING_TAG
+    } else if (charset_.empty() and chunk.type_ == HtmlParser::OPENING_TAG
              and StringUtil::ToLower(chunk.text_) == "meta") {
 
         auto key_and_value(chunk.attribute_map_->find("charset"));
@@ -155,7 +158,7 @@ std::string ExtractTextFromHtml(const std::string &html, const std::string &init
     TextExtractor extractor(html, initial_charset, &extracted_text);
     extractor.parse();
 
-    return extracted_text;
+    return StringUtil::TrimWhite(extracted_text);
 }
 
 
