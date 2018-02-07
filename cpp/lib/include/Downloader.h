@@ -59,7 +59,7 @@ public:
 private:
     CURLcode curl_error_code_;
     mutable std::string last_error_message_;
-    std::string header_;
+    std::string concatenated_headers_;
     std::string body_;
     std::vector<std::string> redirect_urls_;
     char error_buffer_[CURL_ERROR_SIZE];
@@ -125,7 +125,7 @@ public:
     bool putData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
     bool putData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
         { return putData(Url(url), data, time_limit); }
-    
+
     std::string getMessageHeader() const;
     const std::string &getMessageBody() const { return body_; }
 

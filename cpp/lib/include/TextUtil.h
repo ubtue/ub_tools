@@ -50,6 +50,8 @@ class EncodingConverter {
 protected:
     const iconv_t iconv_handle_;
 public:
+    static const std::string CANONICAL_UTF8_NAME;
+public:
     virtual ~EncodingConverter();
 
     const std::string &getFromEncoding() const { return from_encoding_; }
@@ -73,6 +75,8 @@ private:
 
 
 class IdentityConverter: public EncodingConverter {
+    friend std::unique_ptr<EncodingConverter> EncodingConverter::Factory(const std::string &from_encoding, const std::string &to_encoding,
+                                                                         std::string * const error_message);
     IdentityConverter(): EncodingConverter(/* from_encoding = */"", /* to_encoding = */"", (iconv_t)-1) { }
 public:
     virtual bool convert(const std::string &input, std::string * const output) final override { *output = input; return true; }

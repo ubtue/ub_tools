@@ -25,6 +25,7 @@
 
 #include "HtmlParser.h"
 #include <stdexcept>
+#include <unordered_map>
 #include <cctype>
 #include <cstdarg>
 #include <cstdio>
@@ -48,115 +49,217 @@
 namespace {
 
 
-struct EntityMapEntry {
-    const char *entity_;
-    unsigned char code_;
-} entity_map[] = {
-    { "quot",   '"'    },
-    { "apos",   '\''   },
-    { "amp",    '&'    },
-    { "lt",     '<'    },
-    { "gt",     '>'    },
-    { "nbsp",   static_cast<unsigned char>('\xA0') },
-    { "iexcl",  161u    },
-    { "cent",   162u    },
-    { "pound",  163u    },
-    { "curren", 164u    },
-    { "yen",    165u    },
-    { "brvbar", 166u    },
-    { "sect",   167u    },
-    { "uml",    168u    },
-    { "copy",   169u    },
-    { "ordf",   170u    },
-    { "laquo",  171u    },
-    { "not",    172u    },
-    { "shy",    173u    },
-    { "reg",    174u    },
-    { "macr",   175u    },
-    { "deg",    176u    },
-    { "plusmn", 177u    },
-    { "sup2",   178u    },
-    { "sup3",   179u    },
-    { "acute",  180u    },
-    { "micro",  181u    },
-    { "para",   182u    },
-    { "middot", 183u    },
-    { "cedil",  184u    },
-    { "sup1",   185u    },
-    { "ordm",   186u    },
-    { "raquo",  187u    },
-    { "fraq14", 188u    },
-    { "fraq12", 189u    },
-    { "fraq34", 190u    },
-    { "iquest", 191u    },
-    { "Agrave", 192u    },
-    { "Aacute", 193u    },
-    { "Acirc",  194u    },
-    { "Atilde", 195u    },
-    { "Auml",   196u    },
-    { "Aring",  197u    },
-    { "AElig",  198u    },
-    { "Ccedil", 199u    },
-    { "Egrave", 200u    },
-    { "Eacute", 201u    },
-    { "Ecirc",  202u    },
-    { "Euml",   203u    },
-    { "Igrave", 204u    },
-    { "Iacute", 205u    },
-    { "Icirc",  206u    },
-    { "Iuml",   207u    },
-    { "ETH",    208u    },
-    { "Ntilde", 209u    },
-    { "Ograve", 210u    },
-    { "Oacute", 211u    },
-    { "Ocirc",  212u    },
-    { "Otilde", 213u    },
-    { "Ouml",   214u    },
-    { "times",  215u    },
-    { "Oslash", 216u    },
-    { "Ugrave", 217u    },
-    { "Uacute", 218u    },
-    { "Ucirc",  219u    },
-    { "Uuml",   220u    },
-    { "Yacute", 221u    },
-    { "THORN",  222u    },
-    { "szlig",  223u    },
-    { "agrave", 224u    },
-    { "aacute", 225u    },
-    { "acirc",  226u    },
-    { "atilde", 227u    },
-    { "auml",   228u    },
-    { "aring",  229u    },
-    { "aelig",  230u    },
-    { "ccedil", 231u    },
-    { "egrave", 232u    },
-    { "eacute", 233u    },
-    { "ecirc",  234u    },
-    { "euml",   235u    },
-    { "igrave", 236u    },
-    { "iacute", 237u    },
-    { "icirc",  238u    },
-    { "iuml",   239u    },
-    { "eth",    240u    },
-    { "ntilde", 241u    },
-    { "ograve", 242u    },
-    { "oacute", 243u    },
-    { "ocirc",  244u    },
-    { "otilde", 245u    },
-    { "ouml",   246u    },
-    { "divide", 247u    },
-    { "oslash", 248u    },
-    { "ugrave", 249u    },
-    { "uacute", 250u    },
-    { "ucirc",  251u    },
-    { "uuml",   252u    },
-    { "yacute", 253u    },
-    { "thorn",  254u    },
-    { "yuml",   255u    },
+const std::unordered_map<std::string, std::string> entity_map_ansi = {
+    { "quot",   "\""   },
+    { "apos",   "'"    },
+    { "amp",    "&"    },
+    { "lt",     "<"    },
+    { "gt",     ">"    },
+    { "nbsp",   "\xA0" },
+    { "iexcl",  "\xA1" },
+    { "cent",   "\xA2"    },
+    { "pound",  "\xA3"    },
+    { "curren", "\xA4"    },
+    { "yen",    "\xA5"    },
+    { "brvbar", "\xA6"    },
+    { "sect",   "\xA7"    },
+    { "uml",    "\xA8"    },
+    { "copy",   "\xA9"    },
+    { "ordf",   "\xAA"    },
+    { "laquo",  "\xAB"    },
+    { "not",    "\xAC"    },
+    { "shy",    "\xAD"    },
+    { "reg",    "\xAE"    },
+    { "macr",   "\xAF"    },
+    { "deg",    "\xB0"    },
+    { "plusmn", "\xB1"    },
+    { "sup2",   "\xB2"    },
+    { "sup3",   "\xB3"    },
+    { "acute",  "\xB4"    },
+    { "micro",  "\xB5"    },
+    { "para",   "\xB6"    },
+    { "middot", "\xB7"    },
+    { "cedil",  "\xB8"    },
+    { "sup1",   "\xB9"    },
+    { "ordm",   "\xBA"    },
+    { "raquo",  "\xBB"    },
+    { "fraq14", "\xBC"    },
+    { "fraq12", "\xBD"    },
+    { "fraq34", "\xBE"    },
+    { "iquest", "\xBF"    },
+    { "Agrave", "\xC0"    },
+    { "Aacute", "\xC1"    },
+    { "Acirc",  "\xC2"    },
+    { "Atilde", "\xC3"    },
+    { "Auml",   "\xC4"    },
+    { "Aring",  "\xC5"    },
+    { "AElig",  "\xC6"    },
+    { "Ccedil", "\xC7"    },
+    { "Egrave", "\xC8"    },
+    { "Eacute", "\xC9"    },
+    { "Ecirc",  "\xCA"    },
+    { "Euml",   "\xCB"    },
+    { "Igrave", "\xCC"    },
+    { "Iacute", "\xCD"    },
+    { "Icirc",  "\xCE"    },
+    { "Iuml",   "\xCF"    },
+    { "ETH",    "\xD0"    },
+    { "Ntilde", "\xD1"    },
+    { "Ograve", "\xD2"    },
+    { "Oacute", "\xD3"    },
+    { "Ocirc",  "\xD4"    },
+    { "Otilde", "\xD5"    },
+    { "Ouml",   "\xD6"    },
+    { "times",  "\xD7"    },
+    { "Oslash", "\xD8"    },
+    { "Ugrave", "\xD9"    },
+    { "Uacute", "\xDA"    },
+    { "Ucirc",  "\xDB"    },
+    { "Uuml",   "\xDC"    },
+    { "Yacute", "\xDD"    },
+    { "THORN",  "\xDE"    },
+    { "szlig",  "\xDF"    },
+    { "agrave", "\xE0"    },
+    { "aacute", "\xE1"    },
+    { "acirc",  "\xE2"    },
+    { "atilde", "\xE3"    },
+    { "auml",   "\xE4"    },
+    { "aring",  "\xE5"    },
+    { "aelig",  "\xE6"    },
+    { "ccedil", "\xE7"    },
+    { "egrave", "\xE8"    },
+    { "eacute", "\xE9"    },
+    { "ecirc",  "\xEA"    },
+    { "euml",   "\xEB"    },
+    { "igrave", "\xEC"    },
+    { "iacute", "\xED"    },
+    { "icirc",  "\xEE"    },
+    { "iuml",   "\xEF"    },
+    { "eth",    "\xF0"    },
+    { "ntilde", "\xF1"    },
+    { "ograve", "\xF2"    },
+    { "oacute", "\xF3"    },
+    { "ocirc",  "\xF4"    },
+    { "otilde", "\xF5"    },
+    { "ouml",   "\xF6"    },
+    { "divide", "\xF7"    },
+    { "oslash", "\xF8"    },
+    { "ugrave", "\xF9"    },
+    { "uacute", "\xFA"    },
+    { "ucirc",  "\xFB"    },
+    { "uuml",   "\xFC"    },
+    { "yacute", "\xFD"    },
+    { "thorn",  "\xFE"    },
+    { "yuml",   "\xFF"    },
 };
 
 
-bool DecodeEntity(const char *entity_string, char * const ch) {
+const std::unordered_map<std::string, std::string> entity_map_utf8 = {
+    { "quot",   "\""   },
+    { "apos",   "'"    },
+    { "amp",    "&"    },
+    { "lt",     "<"    },
+    { "gt",     ">"    },
+    { "nbsp",   "\u00A0" },
+    { "iexcl",  "¡"    },
+    { "cent",   "¢"    },
+    { "pound",  "£"    },
+    { "curren", "¤"    },
+    { "yen",    "¥"    },
+    { "brvbar", "¦"    },
+    { "sect",   "§"    },
+    { "uml",    "¨"    },
+    { "copy",   "©"    },
+    { "ordf",   "ª"    },
+    { "laquo",  "«"    },
+    { "not",    "¬"    },
+    { "shy",    "\u00AD" },
+    { "reg",    "®"    },
+    { "macr",   "¯"    },
+    { "deg",    "°"    },
+    { "plusmn", "±"    },
+    { "sup2",   "²"    },
+    { "sup3",   "³"    },
+    { "acute",  "´"    },
+    { "micro",  "µ"    },
+    { "para",   "¶"    },
+    { "middot", "·"    },
+    { "cedil",  "¸"    },
+    { "sup1",   "¹"    },
+    { "ordm",   "º"    },
+    { "raquo",  "»"    },
+    { "fraq14", "¼"    },
+    { "fraq12", "½"    },
+    { "fraq34", "¾"    },
+    { "iquest", "¿"    },
+    { "Agrave", "À"    },
+    { "Aacute", "Á"    },
+    { "Acirc",  "Â"    },
+    { "Atilde", "Ã"    },
+    { "Auml",   "Ä"    },
+    { "Aring",  "Å"    },
+    { "AElig",  "Æ"    },
+    { "Ccedil", "Ç"    },
+    { "Egrave", "È"    },
+    { "Eacute", "É"    },
+    { "Ecirc",  "Ê"    },
+    { "Euml",   "Ë"    },
+    { "Igrave", "Ì"    },
+    { "Iacute", "Í"    },
+    { "Icirc",  "Î"    },
+    { "Iuml",   "Ï"    },
+    { "ETH",    "Ð"    },
+    { "Ntilde", "Ñ"    },
+    { "Ograve", "Ò"    },
+    { "Oacute", "Ó"    },
+    { "Ocirc",  "Ô"    },
+    { "Otilde", "Õ"    },
+    { "Ouml",   "Ö"    },
+    { "times",  "×"    },
+    { "Oslash", "Ø"    },
+    { "Ugrave", "Ù"    },
+    { "Uacute", "Ú"    },
+    { "Ucirc",  "Û"    },
+    { "Uuml",   "Ü"    },
+    { "Yacute", "Ý"    },
+    { "THORN",  "Þ"    },
+    { "szlig",  "ß"    },
+    { "agrave", "à"    },
+    { "aacute", "á"    },
+    { "acirc",  "â"    },
+    { "atilde", "ã"    },
+    { "auml",   "ä"    },
+    { "aring",  "å"    },
+    { "aelig",  "æ"    },
+    { "ccedil", "ç"    },
+    { "egrave", "è"    },
+    { "eacute", "é"    },
+    { "ecirc",  "ê"    },
+    { "euml",   "ë"    },
+    { "igrave", "ì"    },
+    { "iacute", "í"    },
+    { "icirc",  "î"    },
+    { "iuml",   "ï"    },
+    { "eth",    "ð"    },
+    { "ntilde", "ñ"    },
+    { "ograve", "ò"    },
+    { "oacute", "ó"    },
+    { "ocirc",  "ô"    },
+    { "otilde", "õ"    },
+    { "ouml",   "ö"    },
+    { "divide", "÷"    },
+    { "oslash", "ø"    },
+    { "ugrave", "ù"    },
+    { "uacute", "ú"    },
+    { "ucirc",  "û"    },
+    { "uuml",   "ü"    },
+    { "yacute", "ý"    },
+    { "thorn",  "þ"    },
+    { "yuml",   "ÿ"    },
+};
+
+
+bool DecodeEntity(const char *entity_string, std::string * const ch, const std::unordered_map<std::string, std::string> &entity_map) {
     // numeric entity?
     if (entity_string[0] == '#') { // Yes!
         errno = 0;
@@ -175,14 +278,12 @@ bool DecodeEntity(const char *entity_string, char * const ch) {
         return true;
     }
 
-    for (unsigned i = 0; i < DIM(entity_map); ++i) {
-        if (std::strcmp(entity_string, entity_map[i].entity_) == 0) {
-            *ch = entity_map[i].code_;
-            return true;
-        }
+    const auto from_to(entity_map.find(entity_string));
+    if (from_to != entity_map.end()) {
+        *ch = from_to->second;
+        return true;
     }
 
-    *ch = '\0';
     return false;
 }
 
@@ -286,7 +387,7 @@ HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_
 
     if (not http_header_charset.empty()) {
         std::string error_message;
-        encoding_converter_ = TextUtil::EncodingConverter::Factory(http_header_charset, "utf8", &error_message);
+        encoding_converter_ = TextUtil::EncodingConverter::Factory(http_header_charset, TextUtil::EncodingConverter::CANONICAL_UTF8_NAME, &error_message);
         if (encoding_converter_.get() == nullptr)
             WARNING(error_message);
     }
@@ -354,14 +455,16 @@ void HtmlParser::replaceEntitiesInString() {
             }
         }
 
-        char code('\0');
-        if (likely(DecodeEntity(entity, &code))) {
-            *write_ptr = code;
+        std::string expanded_entity;
+        const bool using_utf8((encoding_converter_.get() == nullptr) or (encoding_converter_->getFromEncoding() == TextUtil::EncodingConverter::CANONICAL_UTF8_NAME));
+        if (likely(DecodeEntity(entity, &expanded_entity, using_utf8 ? entity_map_utf8 : entity_map_ansi))) {
+            for (const char &ch : expanded_entity)
+                *write_ptr++ = ch;
+             --write_ptr;
             read_ptr += entity_length + 2; // 2 for '&' and ';'
-            if (code == '<' or code == '>')
+            if (expanded_entity == "<" or expanded_entity == ">")
                 angle_bracket_entity_positions_.insert(write_ptr);
-        }
-        else {
+        } else {
             *write_ptr = '&';
             ++read_ptr;
         }
@@ -488,8 +591,11 @@ void HtmlParser::skipWhiteSpace() {
 
 const std::vector<std::string> HTML4_DOCTYPES = {
     "HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\"",
+    "HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\"",
     "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"",
+    "HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\"",
     "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\"",
+    "HTML PUBLIC \"-//W3C//DTD HTML 4.0 Frameset//EN\"",
     "html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"",
     "html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"",
     "html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\"",
@@ -525,7 +631,7 @@ void HtmlParser::processDoctype() {
         return; // We don't care about the document-local encoding because the HTTP header's has precedence!
 
     doctype.resize(doctype.size() - 1); // Strip off trailing '>'.
-    StringUtil::TrimWhite(&doctype);
+    TextUtil::CollapseAndTrimWhitespace(&doctype);
 
     if (::strcasecmp(doctype.c_str(), "html") == 0)
         return;
