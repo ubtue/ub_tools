@@ -434,6 +434,10 @@ std::string HttpHeader::GetCharsetFromContentType(const std::string &content_typ
         return "";
 
     std::string charset(start + 8);
+    auto first_semicolon_pos(charset.find(';'));
+    if (first_semicolon_pos != std::string::npos)
+        charset.resize(first_semicolon_pos);
+
     return StringUtil::TrimWhite(charset);
 }
 
