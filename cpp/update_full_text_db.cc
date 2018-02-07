@@ -223,7 +223,7 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
         std::vector<FullTextCache::EntryUrl> entry_urls;
         std::string combined_text(GetTextFrom520a(*record));
         constexpr unsigned PER_DOC_TIMEOUT(10000); // in milliseconds
-        success = true;
+        bool at_least_one_error(false);
 
         for (const auto &url : urls) {
             DEBUG("processing URL: \"" + url + "\".");
@@ -237,14 +237,12 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
             if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &http_header_charset,
                                              &error_message))) {
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
-                success = false;
             } else {
                 std::string extracted_text(ConvertToPlainText(media_type, http_header_charset, GetTesseractLanguageCode(*record),
                                                               document, &error_message));
 
                 if (unlikely(extracted_text.empty())) {
                     entry_url.error_message_ = "failed to extract text from the downloaded document! (" + error_message + ")";
-                    success = false;
                 } else {
                     if (combined_text.empty())
                         combined_text.swap(extracted_text);
@@ -252,19 +250,18 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
                         combined_text += " " + extracted_text;
                 }
             }
-
-            if (success == true)
-                success = entry_url.error_message_.empty();
-
+            at_least_one_error = at_least_one_error ? at_least_one_error : entry_url.error_message_.empty();
             entry_urls.push_back(entry_url);
         }
+
+        success = not at_least_one_error;
 
         if (success) {
             combined_text_final = combined_text;
             TextUtil::CollapseAndTrimWhitespace(&combined_text_final);
+            cache.insertEntry(ppn, combined_text_final, entry_urls);
         }
 
-        cache.insertEntry(ppn, combined_text_final, entry_urls);
     }
 
     if (not combined_text_final.empty())
