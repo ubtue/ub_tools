@@ -24,7 +24,7 @@
  *  along with libiViaCore; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
+#include <iostream>
 #include "Downloader.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
@@ -256,15 +256,15 @@ std::string Downloader::getMediaType(const bool auto_simplify) const {
 
 
 std::string Downloader::getCharset() const {
+    static RegexMatcher *matcher(RegexMatcher::RegexMatcherFactory("charset=([^ ;]+)"));
+
     std::vector<std::string> headers;
     SplitHttpHeaders(header_, &headers);
     for (const auto &header : headers) {
-         const auto charset_pos(StringUtil::FindCaseInsensitive(header, "charset="));
-         if (charset_pos == std::string::npos)
-             continue;
-
-         std::string charset(header.substr(charset_pos + __builtin_strlen("charset=")));
-         return StringUtil::TrimWhite(&charset);
+        if (matcher->matched(header)) {
+            std::string charset((*matcher)[1]);
+            return StringUtil::TrimWhite(&charset);
+        }
     }
     return "";
 }
