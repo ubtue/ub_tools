@@ -56,9 +56,11 @@ public:
 
 
 void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
-    if (chunk.type_ == HtmlParser::TEXT)
+    if (chunk.type_ == HtmlParser::TEXT) {
+        if (not StringUtil::EndsWith(chunk.text_, " ") and not StringUtil::EndsWith(chunk.text_, "\n"))
+            extracted_text_ += " ";
         extracted_text_ += chunk.text_;
-    else if (charset_.empty() and chunk.type_ == HtmlParser::OPENING_TAG
+    } else if (charset_.empty() and chunk.type_ == HtmlParser::OPENING_TAG
              and StringUtil::ToLower(chunk.text_) == "meta") {
 
         auto key_and_value(chunk.attribute_map_->find("charset"));
@@ -85,15 +87,28 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
 }
 
 
-} // unnamned namespace
+std::string CanonizeCharset(std::string charset) {
+    StringUtil::ToLower(&charset);
+    StringUtil::RemoveChars("- ", &charset);
+    return charset;
+}
+
+
+} // unnamed namespace
 
 
 namespace TextUtil {
 
 
+const std::string EncodingConverter::CANONICAL_UTF8_NAME("utf8");
+
+
 std::unique_ptr<EncodingConverter> EncodingConverter::Factory(const std::string &from_encoding, const std::string &to_encoding,
                                                               std::string * const error_message)
 {
+    if (CanonizeCharset(from_encoding) == CanonizeCharset(to_encoding))
+        return std::unique_ptr<IdentityConverter>(new IdentityConverter());
+
     const iconv_t iconv_handle(::iconv_open(to_encoding.c_str(), from_encoding.c_str()));
     if (unlikely(iconv_handle == (iconv_t)-1)) {
         *error_message = "can't create an encoding converter for conversion from \"" + from_encoding + "\" to \"" + to_encoding
@@ -119,7 +134,7 @@ bool EncodingConverter::convert(const std::string &input, std::string * const ou
     const ssize_t converted_count(
         static_cast<ssize_t>(::iconv(iconv_handle_, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
     if (unlikely(converted_count == -1)) {
-        WARNING("iconv(3) failed! (Tyring to convert \"" + from_encoding_ + "\" to \"" + to_encoding_ + "\"!");
+        WARNING("iconv(3) failed! (Trying to convert \"" + from_encoding_ + "\" to \"" + to_encoding_ + "\"!");
         delete [] in_bytes_start;
         delete [] out_bytes_start;
         *output = input;
@@ -145,7 +160,8 @@ std::string ExtractTextFromHtml(const std::string &html, const std::string &init
     TextExtractor extractor(html, initial_charset, &extracted_text);
     extractor.parse();
 
-    return extracted_text;
+    CollapseWhitespace(&extracted_text);
+    return StringUtil::TrimWhite(extracted_text);
 }
 
 
