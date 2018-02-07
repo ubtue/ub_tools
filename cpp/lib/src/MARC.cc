@@ -18,6 +18,7 @@
 */
 
 #include "MARC.h"
+#include <unordered_map>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -88,6 +89,12 @@ void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
 }
 
 
+Record::Record(const std::string &leader): leader_(leader) {
+    if (unlikely(leader_.length() != LEADER_LENGTH))
+        ERROR("supposed leader has invalid length!");
+}
+
+    
 Record::Record(const size_t record_size, char * const record_start)
     : record_size_(record_size), leader_(record_start, LEADER_LENGTH)
 {
@@ -1033,6 +1040,21 @@ std::string CalcChecksum(const Record &record, const bool exclude_001) {
         blob += field_ref->getTag().to_string() + field_ref->getContents();
 
     return StringUtil::Sha1(blob);
+}
+
+
+// See https://www.loc.gov/marc/bibliographic/ for how to construct this map:
+static std::unordered_map<Tag, bool> tag_to_repeatable_map{
+    { Tag("100"), false },
+    { Tag("210"), true  },
+};
+
+
+bool IsRepeatableField(const Tag &tag) {
+    const auto tag_and_repeatable(tag_to_repeatable_map.find(tag));
+    if (unlikely(tag_and_repeatable == tag_to_repeatable_map.end()))
+        ERROR(tag.to_string() + " is not in our map!");
+    return tag_and_repeatable->second;
 }
 
 
