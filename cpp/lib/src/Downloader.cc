@@ -150,23 +150,18 @@ Downloader::~Downloader() {
 namespace {
 
 
-void SplitHttpHeaders(const std::string &possible_combo_header, std::vector<std::string> * const headers) {
-    headers->clear();
-    if (possible_combo_header.empty())
+void SplitHttpHeaders(std::string possible_combo_headers, std::vector<std::string> * const individual_headers) {
+    individual_headers->clear();
+    if (possible_combo_headers.empty())
         return;
-
-    // First we try CR/LF/CR/LF sequences as per spec:
-    StringUtil::Split(possible_combo_header, "\r\n\r\n", headers);
-    if (not headers->empty()) {
-        for (std::vector<std::string>::iterator header(headers->begin()); header != headers->end(); ++header)
-            *header += "\r\n\r\n";
-        return;
-    }
 
     // Sometimes we get HTTP headers that end in LF/LF sequences:
-    StringUtil::Split(possible_combo_header, "\n\n", headers);
-    for (std::vector<std::string>::iterator header(headers->begin()); header != headers->end(); ++header)
-        *header += "\n\n";
+    StringUtil::ReplaceString("\r\n", "\n", &possible_combo_headers);
+    StringUtil::ReplaceString("\n", "\r\n", &possible_combo_headers);
+
+    StringUtil::Split(possible_combo_headers, "\r\n\r\n", individual_headers);
+    for (auto &individual_header : *individual_headers)
+        individual_header += "\r\n\r\n";
 }
 
 
@@ -182,7 +177,7 @@ bool Downloader::newUrl(const Url &url, const TimeLimit &time_limit) {
         return false;
     }
 
-    header_.clear();
+    concatenated_headers_.clear();
     body_.clear();
 
     for (;;) {
@@ -211,11 +206,8 @@ bool Downloader::newUrl(const Url &url, const TimeLimit &time_limit) {
             }
 
             // If we have a Web page we attempt a translation to Latin-9 if requested:
-            if (params_.text_translation_mode_ == MAP_TO_LATIN9 and not header_.empty()) {
-                std::vector<std::string> headers;
-                SplitHttpHeaders(header_, &headers);
-                body_ = WebUtil::ConvertToLatin9(HttpHeader(headers.back()), body_);
-            }
+            if (params_.text_translation_mode_ == MAP_TO_LATIN9 and not concatenated_headers_.empty())
+                body_ = WebUtil::ConvertToLatin9(HttpHeader(getMessageHeader()), body_);
         }
 
         return true;
@@ -241,11 +233,11 @@ bool Downloader::putData(const Url &url, const std::string &data, const TimeLimi
 
 
 std::string Downloader::getMessageHeader() const {
-    if (header_.empty())
+    if (concatenated_headers_.empty())
         return "";
 
     std::vector<std::string> headers;
-    SplitHttpHeaders(header_, &headers);
+    SplitHttpHeaders(concatenated_headers_, &headers);
     return headers.back();
 }
 
@@ -257,16 +249,11 @@ std::string Downloader::getMediaType(const bool auto_simplify) const {
 
 std::string Downloader::getCharset() const {
     std::vector<std::string> headers;
-    SplitHttpHeaders(header_, &headers);
-    for (const auto &header : headers) {
-         const auto charset_pos(StringUtil::FindCaseInsensitive(header, "charset="));
-         if (charset_pos == std::string::npos)
-             continue;
-
-         std::string charset(header.substr(charset_pos + __builtin_strlen("charset=")));
-         return StringUtil::TrimWhite(&charset);
-    }
-    return "";
+    SplitHttpHeaders(concatenated_headers_, &headers);
+    if (headers.empty())
+        return "";
+    HttpHeader http_header(headers.back());
+    return http_header.getCharset();
 }
 
 
@@ -485,7 +472,7 @@ void Downloader::UnlockFunction(CURL */* handle */, curl_lock_data data, void */
 size_t Downloader::headerFunction(void *data, size_t size, size_t nmemb) {
     const size_t total_size(size * nmemb);
     const std::string chunk(reinterpret_cast<char *>(data), total_size);
-    header_ += chunk;
+    concatenated_headers_ += chunk;
 
     // Look for "Location:" fields when dealing with HTTP or HTTPS:
     if (current_url_.isValidWebUrl()) {
@@ -615,11 +602,11 @@ const std::string &Downloader::GetDefaultUserAgentString() {
 bool Downloader::getHttpEquivRedirect(std::string * const redirect_url) const {
     redirect_url->clear();
 
-    if (not current_url_.isValidWebUrl() or header_.empty())
+    if (not current_url_.isValidWebUrl() or concatenated_headers_.empty())
         return false;
 
     std::vector<std::string> headers;
-    SplitHttpHeaders(header_, &headers);
+    SplitHttpHeaders(concatenated_headers_, &headers);
 
     // Only look for redirects in Web pages:
     const std::string media_type(MediaTypeUtil::GetMediaType(HttpHeader(headers.back()), body_));
