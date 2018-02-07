@@ -73,6 +73,8 @@ private:
 
 
 class IdentityConverter: public EncodingConverter {
+    friend std::unique_ptr<EncodingConverter> EncodingConverter::Factory(const std::string &from_encoding, const std::string &to_encoding,
+                                                                         std::string * const error_message);
     IdentityConverter(): EncodingConverter(/* from_encoding = */"", /* to_encoding = */"", (iconv_t)-1) { }
 public:
     virtual bool convert(const std::string &input, std::string * const output) final override { *output = input; return true; }

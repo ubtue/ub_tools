@@ -85,7 +85,14 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
 }
 
 
-} // unnamned namespace
+std::string CanonizeCharset(std::string charset) {
+    StringUtil::ToLower(&charset);
+    StringUtil::RemoveChars("- ", &charset);
+    return charset;
+}
+
+
+} // unnamed namespace
 
 
 namespace TextUtil {
@@ -94,6 +101,9 @@ namespace TextUtil {
 std::unique_ptr<EncodingConverter> EncodingConverter::Factory(const std::string &from_encoding, const std::string &to_encoding,
                                                               std::string * const error_message)
 {
+    if (CanonizeCharset(from_encoding) == CanonizeCharset(to_encoding))
+        return std::unique_ptr<IdentityConverter>(new IdentityConverter());
+
     const iconv_t iconv_handle(::iconv_open(to_encoding.c_str(), from_encoding.c_str()));
     if (unlikely(iconv_handle == (iconv_t)-1)) {
         *error_message = "can't create an encoding converter for conversion from \"" + from_encoding + "\" to \"" + to_encoding
@@ -119,7 +129,7 @@ bool EncodingConverter::convert(const std::string &input, std::string * const ou
     const ssize_t converted_count(
         static_cast<ssize_t>(::iconv(iconv_handle_, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
     if (unlikely(converted_count == -1)) {
-        WARNING("iconv(3) failed! (Tyring to convert \"" + from_encoding_ + "\" to \"" + to_encoding_ + "\"!");
+        WARNING("iconv(3) failed! (Trying to convert \"" + from_encoding_ + "\" to \"" + to_encoding_ + "\"!");
         delete [] in_bytes_start;
         delete [] out_bytes_start;
         *output = input;
