@@ -1,7 +1,7 @@
 /** \brief Various classes, functions etc. having to do with the Library of Congress MARC bibliographic format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -299,15 +299,20 @@ public:
 private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
+    explicit Record(const std::string &leader); // Make an empty record that only has a leader.
     explicit Record(const size_t record_size, char * const record_start);
     Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
            const std::string &control_number = "");
+    Record(const Record &other) = default;
 
     inline Record(Record &&other) {
         std::swap(record_size_, other.record_size_);
         leader_.swap(other.leader_);
         fields_.swap(other.fields_);
     }
+
+    // Copy-assignment operator.
+    Record &operator=(const Record &rhs) = default;
 
     operator bool () const { return not fields_.empty(); }
     inline size_t size() const { return record_size_; }
@@ -603,6 +608,9 @@ bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
  *        has been repeated.)
  */
 std::string CalcChecksum(const Record &record, const bool exclude_001 = false);
+
+
+bool IsRepeatableField(const Tag &tag);
 
 
 } // namespace MARC
