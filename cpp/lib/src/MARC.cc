@@ -61,6 +61,15 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 }
 
 
+bool Record::Field::operator<(const Record::Field &rhs) {
+    if (tag_ < rhs.tag_)
+        return true;
+    if (tag_ > rhs.tag_)
+        return false;
+    return contents_ < rhs.contents_;
+}
+
+
 void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
     if (contents_.size() < 5)
         return;
@@ -94,7 +103,7 @@ Record::Record(const std::string &leader): leader_(leader) {
         ERROR("supposed leader has invalid length!");
 }
 
-    
+
 Record::Record(const size_t record_size, char * const record_start)
     : record_size_(record_size), leader_(record_start, LEADER_LENGTH)
 {
@@ -176,7 +185,9 @@ static std::string BibliographicLevelToString(const Record::BibliographicLevel b
 }
 
 
-Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level, const std::string &control_number) {
+Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
+               const std::string &control_number)
+{
     leader_ = "00000" "n" + TypeOfRecordToSTring(type_of_record) + BibliographicLevelToString(bibliographic_level)
               + " a22004452  4500";
 
