@@ -72,6 +72,15 @@ private:
 };
 
 
+// Forward declarations:
+class ArrayNode;
+class BooleanNode;
+class DoubleNode;
+class IntegerNode;
+class ObjectNode;
+class StringNode;
+
+
 class JSONNode {
 public:
     enum Type { BOOLEAN_NODE, NULL_NODE, STRING_NODE, INT64_NODE, DOUBLE_NODE, OBJECT_NODE, ARRAY_NODE };
@@ -81,6 +90,19 @@ public:
     virtual Type getType() const = 0;
     virtual std::string toString() const = 0;
     static std::string TypeToString(const Type type);
+
+    static const ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, JSONNode * const node);
+    static const BooleanNode *CastToBooleanNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static BooleanNode *CastToBooleanNodeOrDie(const std::string &node_name, JSONNode * const node);
+    static const DoubleNode *CastToDoubleNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static DoubleNode *CastToDoubleNodeOrDie(const std::string &node_name, JSONNode * const node);
+    static const IntegerNode *CastToIntegerNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static IntegerNode *CastToIntegerNodeOrDie(const std::string &node_name, JSONNode * const node);
+    static const ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static ObjectNode *CastToObjectNodeOrDie(const std::string &node_name, JSONNode * const node);
+    static const StringNode *CastToStringNodeOrDie(const std::string &node_name, const JSONNode * const node);
+    static StringNode *CastToStringNodeOrDie(const std::string &node_name, JSONNode * const node);
 };
 
 
@@ -92,6 +114,7 @@ public:
     virtual Type getType() const { return BOOLEAN_NODE; }
     virtual std::string toString() const { return value_ ? "true" : "false"; }
     bool getValue() const { return value_; }
+    void setValue(const bool value) { value_ = value; }
 };
 
 
@@ -111,7 +134,8 @@ public:
 
     virtual Type getType() const { return STRING_NODE; }
     virtual std::string toString() const;
-    const std::string &getValue() const { return value_; }
+    std::string getValue() const { return value_; }
+    void setValue(const std::string &value) { value_ = value; }
 };
 
 
@@ -122,6 +146,7 @@ public:
     virtual Type getType() const { return INT64_NODE; }
     virtual std::string toString() const { return std::to_string(value_); }
     int64_t getValue() const { return value_; }
+    void setValue(const int64_t value) { value_ = value; }
 };
 
 
@@ -132,11 +157,8 @@ public:
     virtual Type getType() const { return DOUBLE_NODE; }
     virtual std::string toString() const { return std::to_string(value_); }
     double getValue() const { return value_; }
+    void setValue(const double value) { value_ = value; }
 };
-
-
-// Forward declaration:
-class ArrayNode;
 
 
 class ObjectNode final : public JSONNode {
@@ -177,8 +199,8 @@ public:
     ArrayNode *getArrayNodeValue(const std::string &label);
     bool isNullNode(const std::string &label) const;
 
-    const_iterator cbegin() const { return entries_.cbegin(); }
-    const_iterator cend() const { return entries_.cend(); }
+    const_iterator begin() const { return entries_.cbegin(); }
+    const_iterator end() const { return entries_.cend(); }
 };
 
 
@@ -210,8 +232,8 @@ public:
     bool isNullNode(const size_t index) const;
 
     size_t size() const { return values_.size(); }
-    const_iterator cbegin() const { return values_.cbegin(); }
-    const_iterator cend() const { return values_.cend(); }
+    const_iterator begin() const { return values_.cbegin(); }
+    const_iterator end() const { return values_.cend(); }
     void push_back(JSONNode * const node) { values_.push_back(node); }
 };
 
