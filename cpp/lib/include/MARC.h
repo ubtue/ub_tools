@@ -300,7 +300,8 @@ private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
     explicit Record(const size_t record_size, char * const record_start);
-    Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level);
+    Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
+           const std::string &control_number = "");
     Record(const Record &other) = default;
 
     inline Record(Record &&other) {
