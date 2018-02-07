@@ -100,6 +100,9 @@ std::string CanonizeCharset(std::string charset) {
 namespace TextUtil {
 
 
+const std::string EncodingConverter::CANONICAL_UTF8_NAME("utf8");
+
+
 std::unique_ptr<EncodingConverter> EncodingConverter::Factory(const std::string &from_encoding, const std::string &to_encoding,
                                                               std::string * const error_message)
 {
@@ -157,6 +160,7 @@ std::string ExtractTextFromHtml(const std::string &html, const std::string &init
     TextExtractor extractor(html, initial_charset, &extracted_text);
     extractor.parse();
 
+    CollapseWhitespace(&extracted_text);
     return StringUtil::TrimWhite(extracted_text);
 }
 

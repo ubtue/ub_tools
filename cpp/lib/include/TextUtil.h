@@ -50,6 +50,8 @@ class EncodingConverter {
 protected:
     const iconv_t iconv_handle_;
 public:
+    static const std::string CANONICAL_UTF8_NAME;
+public:
     virtual ~EncodingConverter();
 
     const std::string &getFromEncoding() const { return from_encoding_; }
