@@ -45,31 +45,45 @@ void Usage() {
 }
 
 
-// Extracts mappings between print and electronic versions of records.  The order is arbitrary as we take the first record we
-// find in the pair.  IOW, the first record becomes the new merged record.
-void CollectMappings(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const ppn_to_ppn_map,
-                     std::unordered_set<std::string> * const merged_ppns)
+// Creates a map from the PPN "partners" to the offsets of the original records that had the links to the partners.
+void CollectMappings(MARC::Reader * const marc_reader,
+                     std::unordered_map<std::string, off_t> * const control_number_to_offset_map,
+                     std::unordered_map<std::string, std::string> * const ppn_to_ppn_map)
 {
+    std::unordered_set<std::string> all_ppns;
+    off_t last_offset(marc_reader->tell());
     while (const MARC::Record record = marc_reader->read()) {
+        all_ppns.emplace(record.getControlNumber());
         for (const auto &field : record.getTagRange("776")) {
             const MARC::Subfields _776_subfields(field.getSubfields());
             if (_776_subfields.getFirstSubfieldWithCode('i') == "Erscheint auch als") {
                 for (const auto &w_subfield : _776_subfields.extractSubfields('w')) {
                     if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
                         const std::string other_ppn(w_subfield.substr(__builtin_strlen("(DE-576)")));
-                        if (merged_ppns->find(other_ppn) == merged_ppns->end()) {
-                            if (unlikely(record.getBibliographicLevel() != 's'))
-                                logger->warning("record with PPN " + record.getControlNumber() + " is not a serial!");
-                            merged_ppns->emplace(record.getControlNumber());
+                        if (unlikely(record.getBibliographicLevel() != 's'))
+                            WARNING("record with PPN " + record.getControlNumber() + " is not a serial!");
+                        else {
+                            (*control_number_to_offset_map)[other_ppn] = last_offset;
                             (*ppn_to_ppn_map)[other_ppn] = record.getControlNumber();
                         }
                     }
                 }
             }
         }
+        
+        last_offset = marc_reader->tell();
     }
 
-    std::cout << "Found " << ppn_to_ppn_map->size() << " superior records that we may be able to merge.\n";
+    unsigned no_partner_count(0);
+    for (auto &control_number_and_offset : *control_number_to_offset_map) {
+        if (all_ppns.find(control_number_and_offset.first) == all_ppns.end()) {
+            ++no_partner_count;
+            control_number_to_offset_map->erase(control_number_and_offset.first);
+        }
+    }
+
+    std::cout << "Found " << control_number_to_offset_map->size() << " superior record(s) that we may be able to merge.\n";
+    std::cout << "Found " <<  no_partner_count << " superior record(s) that have missing \"partners\".\n";
 }
 
 
@@ -104,40 +118,56 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
 }
 
 
+MARC::Record MergeRecords(const MARC::Record &record1, const MARC::Record &/*record2*/) {
+    MARC::Record merged_record(record1);
+
+    // Mark the record as being both "print" as well as "electronic":
+    merged_record.insertField("ZWI", { { 'a', "1" } });
+
+    return merged_record;
+}
+
+
+MARC::Record ReadRecordFromOffsetOrDie(MARC::Reader * const marc_reader, const off_t offset) {
+    if (unlikely(not marc_reader->seek(offset)))
+        ERROR("can't seek to offset " + std::to_string(offset) + "!");
+    MARC::Record record(marc_reader->read());
+    if (unlikely(not record))
+        ERROR("failed to read a record from offset " + std::to_string(offset) + "!");
+
+    return record;
+}
+
+    
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, File * const missing_partners,
-                    const std::unordered_map<std::string, std::string> &ppn_to_ppn_map,
-                    const std::unordered_set<std::string> &merged_ppns)
+                    const std::unordered_map<std::string, off_t> &control_number_to_offset_map,
+                    const std::unordered_map<std::string, std::string> &ppn_to_ppn_map)
 {
-    unsigned record_count(0), dropped_count(0), augmented_count(0);
-    std::unordered_set<std::string> found_partners;
+    unsigned record_count(0), merged_count(0), augmented_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
-        if (ppn_to_ppn_map.find(record.getControlNumber()) != ppn_to_ppn_map.cend()) {
-            ++dropped_count;
-            found_partners.emplace(record.getControlNumber());
-            continue;
-        }
 
-        if (merged_ppns.find(record.getControlNumber()) != merged_ppns.cend()) {
-            // Mark the record as being both "print" as well as "electronic":
-            record.insertField("ZWI", { { 'a', "1" } });
-            ++augmented_count;
+        const auto control_number_and_offset(control_number_to_offset_map.find(record.getControlNumber()));
+        if (control_number_and_offset != control_number_to_offset_map.end()) {
+            MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, control_number_and_offset->second));
+            record = MergeRecords(record, record2);
+            ++merged_count;
         } else if (PatchUplink(&record, ppn_to_ppn_map))
             ++augmented_count;
 
         marc_writer->write(record);
     }
 
-    unsigned missing_partner_count(0);
-    for (const auto &ppn_and_ppn : ppn_to_ppn_map) {
-        if (found_partners.find(ppn_and_ppn.first) == found_partners.cend()) {
-            missing_partners->write(ppn_and_ppn.first + "\n");
-            ++missing_partner_count;
-        }
+    // Process records for which we are missing the partner:
+    const unsigned missing_partner_count(control_number_to_offset_map.size());
+    for (const auto &control_number_and_offset : control_number_to_offset_map) {
+        missing_partners->write(control_number_and_offset.first + "\n");
+        const MARC::Record record(ReadRecordFromOffsetOrDie(marc_reader, control_number_and_offset.second));
+        marc_writer->write(record);
     }
 
     std::cout << "Data set contained " << record_count << " MARC record(s).\n";
-    std::cout << "Dropped " << dropped_count << " MARC record(s).\n";
+    std::cout << "Merged " << merged_count << " MARC record(s).\n";
     std::cout << "Augmented " << augmented_count << " MARC record(s).\n";
     std::cout << "Wrote " << missing_partner_count << " missing partner PPN('s) to \"" << missing_partners->getPath() << "\".\n";
 }
@@ -222,11 +252,12 @@ int main(int argc, char *argv[]) {
     std::unique_ptr<File> missing_partners(FileUtil::OpenOutputFileOrDie(argv[3]));
 
     try {
+        std::unordered_map<std::string, off_t> control_number_to_offset_map;
         std::unordered_map<std::string, std::string> ppn_to_ppn_map;
-        std::unordered_set<std::string> merged_ppns;
-        CollectMappings(marc_reader.get(), &ppn_to_ppn_map, &merged_ppns);
+        CollectMappings(marc_reader.get(), &control_number_to_offset_map, &ppn_to_ppn_map);
         marc_reader->rewind();
-        ProcessRecords(marc_reader.get(), marc_writer.get(), missing_partners.get(), ppn_to_ppn_map, merged_ppns);
+        ProcessRecords(marc_reader.get(), marc_writer.get(), missing_partners.get(), control_number_to_offset_map,
+                       ppn_to_ppn_map);
 
         std::string mysql_url;
         VuFind::GetMysqlURL(&mysql_url);
@@ -235,6 +266,6 @@ int main(int argc, char *argv[]) {
         PatchPDASubscriptions(&db_connection, ppn_to_ppn_map);
         PatchResourceTable(&db_connection, ppn_to_ppn_map);
     } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
+        ERROR("Caught exception: " + std::string(e.what()));
     }
 }
