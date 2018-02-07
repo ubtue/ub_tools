@@ -591,8 +591,11 @@ void HtmlParser::skipWhiteSpace() {
 
 const std::vector<std::string> HTML4_DOCTYPES = {
     "HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\"",
+    "HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\"",
     "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"",
+    "HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\"",
     "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\"",
+    "HTML PUBLIC \"-//W3C//DTD HTML 4.0 Frameset//EN\"",
     "html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"",
     "html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"",
     "html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\"",
@@ -628,7 +631,7 @@ void HtmlParser::processDoctype() {
         return; // We don't care about the document-local encoding because the HTTP header's has precedence!
 
     doctype.resize(doctype.size() - 1); // Strip off trailing '>'.
-    StringUtil::TrimWhite(&doctype);
+    StringUtil::CollapseAndTrimWhitespace(&doctype);
 
     if (::strcasecmp(doctype.c_str(), "html") == 0)
         return;
