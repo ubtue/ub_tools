@@ -42,7 +42,7 @@ FullTextCache::FullTextCache() {
 }
 
 
-bool FullTextCache::getDomainFromUrl(const std::string &url, std::string &domain) {
+bool FullTextCache::getDomainFromUrl(const std::string &url, std::string * const domain) {
     std::string scheme, username_password, authority, port, path, params, query,
                 fragment, relative_url;
 
@@ -51,7 +51,7 @@ bool FullTextCache::getDomainFromUrl(const std::string &url, std::string &domain
                                     &relative_url);
 
     if (result)
-        domain = authority;
+        *domain = authority;
 
     return result;
 }
@@ -64,7 +64,7 @@ std::vector<std::string> FullTextCache::getDomains() {
     std::vector<std::string> domains;
     while (const DbRow row = result_set.getNextRow()) {
         std::string domain;
-        FullTextCache::getDomainFromUrl(row["url"], domain);
+        FullTextCache::getDomainFromUrl(row["url"], &domain);
         domains.emplace_back(domain);
     }
     return domains;
