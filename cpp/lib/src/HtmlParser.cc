@@ -631,7 +631,7 @@ void HtmlParser::processDoctype() {
         return; // We don't care about the document-local encoding because the HTTP header's has precedence!
 
     doctype.resize(doctype.size() - 1); // Strip off trailing '>'.
-    StringUtil::CollapseAndTrimWhitespace(&doctype);
+    TextUtil::CollapseAndTrimWhitespace(&doctype);
 
     if (::strcasecmp(doctype.c_str(), "html") == 0)
         return;
