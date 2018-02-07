@@ -254,7 +254,7 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
             entry_urls.push_back(entry_url);
         }
 
-        success = not at_least_one_error;
+        success = not at_least_one_error && urls.size();
 
         if (success) {
             combined_text_final = combined_text;
