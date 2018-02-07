@@ -89,6 +89,12 @@ void Record::Field::deleteAllSubfieldsWithCode(const char subfield_code) {
 }
 
 
+Record::Record(const std::string &leader): leader_(leader) {
+    if (unlikely(leader_.length() != LEADER_LENGTH))
+        ERROR("supposed leader has invalid length!");
+}
+
+    
 Record::Record(const size_t record_size, char * const record_start)
     : record_size_(record_size), leader_(record_start, LEADER_LENGTH)
 {
