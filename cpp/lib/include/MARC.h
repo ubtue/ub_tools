@@ -228,6 +228,7 @@ public:
     public:
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         Field(const Tag &tag, const std::string &contents): tag_(tag), contents_(contents) { }
+        bool operator<(const Field &rhs);
         inline const Tag &getTag() const { return tag_; }
         inline const std::string &getContents() const { return contents_; }
         inline std::string getContents() { return contents_; }
@@ -377,6 +378,9 @@ public:
     inline iterator end() { return fields_.end(); }
     inline const_iterator begin() const { return fields_.cbegin(); }
     inline const_iterator end() const { return fields_.cend(); }
+
+    // Alphanumerically sorts the fields in the range [begin_field, end_field).
+    void sortFields(const iterator &begin_field, const iterator &end_field) { std::sort(begin_field, end_field); }
 
     /** \return Iterators pointing to the half-open interval of the first range of fields corresponding to the tag "tag".
      *  \remark {
