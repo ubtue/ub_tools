@@ -61,7 +61,7 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 }
 
 
-bool Record::Field::operator<(const Record::Field &rhs) {
+bool Record::Field::operator<(const Record::Field &rhs) const {
     if (tag_ < rhs.tag_)
         return true;
     if (tag_ > rhs.tag_)
