@@ -285,7 +285,8 @@ bool DecodeEntity(const char * const entity_string, std::string * const ch, cons
             static std::unique_ptr<TextUtil::EncodingConverter> to_ansi_converter;
             if (to_ansi_converter.get() == nullptr) {
                 std::string err_msg;
-                to_ansi_converter = TextUtil::EncodingConverter::Factory(TextUtil::EncodingConverter::CANONICAL_UTF8_NAME, "MS-ANSI", &err_msg);
+                to_ansi_converter = TextUtil::EncodingConverter::Factory(TextUtil::EncodingConverter::CANONICAL_UTF8_NAME,
+                                                                         "MS-ANSI", &err_msg);
                 if (not err_msg.empty())
                     ERROR(err_msg);
             }
@@ -392,7 +393,7 @@ std::string HtmlParser::Chunk::toPlainText() const {
 
 HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_header_charset, const unsigned chunk_mask,
                        const bool header_only)
-    : input_string_(StringUtil::strnewdup(input_string.c_str())), http_header_charset_(http_header_charset), lineno_(1),
+    : input_string_(handleBOM(input_string)), http_header_charset_(http_header_charset), lineno_(1),
       chunk_mask_(chunk_mask), header_only_(header_only), is_xhtml_(false)
 {
     if ((chunk_mask_ & TEXT) and (chunk_mask_ & (WORD | PUNCTUATION | WHITESPACE)))
@@ -404,9 +405,14 @@ HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_
     if (likely(not end_of_stream_))
         replaceEntitiesInString();
 
+    if (encoding_converter_.get() != nullptr)
+        return; // We set a converter because we found a BOM.
+
     if (not http_header_charset.empty()) {
         std::string error_message;
-        encoding_converter_ = TextUtil::EncodingConverter::Factory(http_header_charset, TextUtil::EncodingConverter::CANONICAL_UTF8_NAME, &error_message);
+        encoding_converter_ = TextUtil::EncodingConverter::Factory(http_header_charset,
+                                                                   TextUtil::EncodingConverter::CANONICAL_UTF8_NAME,
+                                                                   &error_message);
         if (encoding_converter_.get() == nullptr)
             WARNING(error_message);
     }
@@ -415,19 +421,49 @@ HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_
 }
 
 
+// See https://www.w3.org/International/questions/qa-byte-order-mark for why we do what we're doing.
+char *HtmlParser::handleBOM(const std::string &input_string) {
+    std::string BOM_type;
+    if (StringUtil::StartsWith(input_string, "\xFE\xFF")) // Big-endian
+        BOM_type = "UCS-2BE";
+    else if(StringUtil::StartsWith(input_string, "\xFF\xFE")) // Little-endian
+        BOM_type = "UCS-2LE";
+    else if (StringUtil::StartsWith(input_string, "\xEF\xBB\xBF")) // UTF-8
+        BOM_type = "UTF-8";
+
+    if (BOM_type == "UTF-8" or BOM_type.empty())
+        return StringUtil::strnewdup(input_string.c_str());
+    if (BOM_type == "UTF-8") {
+        encoding_converter_ = TextUtil::IdentityConverter::Factory();
+        return StringUtil::strnewdup(input_string.c_str() + 3 /* Skip over the BOM. */);
+    }
+
+    std::string error_message;
+    auto text_converter(TextUtil::EncodingConverter::Factory(BOM_type, "UTF-8", &error_message));
+    if (not error_message.empty())
+        ERROR("failed to create a text converter for conversion from " + BOM_type +" to UTF-8!");
+
+    std::string utf8_string;
+    if (not text_converter->convert(input_string, &utf8_string))
+        ERROR("failed to convert from " + BOM_type +" to UTF-8!");
+    encoding_converter_ = TextUtil::IdentityConverter::Factory();
+
+    return StringUtil::strnewdup(utf8_string.c_str());
+}
+
+
 bool HtmlParser::AttributeMap::insert(const std::string &name, const std::string &value) {
-    const const_iterator iter = find(name);
-    if (iter != end())
+    if (find(name) != end())
         return false;
 
-    map_.insert(std::pair<std::string, std::string>(name, value));
+    map_.insert(std::make_pair<>(name, value));
     return true;
 }
 
 
 void HtmlParser::replaceEntitiesInString() {
-    char *read_ptr = input_string_;
-    char *write_ptr = read_ptr;
+    char *read_ptr(input_string_);
+    char *write_ptr(read_ptr);
 
     while (likely(*read_ptr != '\0')) {
         if (likely(*read_ptr != '&')) {
@@ -475,7 +511,8 @@ void HtmlParser::replaceEntitiesInString() {
         }
 
         std::string expanded_entity;
-        const bool using_utf8((encoding_converter_.get() == nullptr) or (encoding_converter_->getFromEncoding() == TextUtil::EncodingConverter::CANONICAL_UTF8_NAME));
+        const bool using_utf8((encoding_converter_.get() == nullptr)
+                              or (encoding_converter_->getFromEncoding() == TextUtil::EncodingConverter::CANONICAL_UTF8_NAME));
         if (likely(DecodeEntity(entity, &expanded_entity, using_utf8))) {
             for (const char &ch : expanded_entity)
                 *write_ptr++ = ch;

@@ -152,6 +152,7 @@ protected:
         notify(). */
     virtual void preNotify(Chunk * const chunk) { notify(*chunk); }
 private:
+    char *handleBOM(const std::string &input_string);
     void replaceEntitiesInString();
     int getChar(bool * const is_entity = nullptr);
     bool endOfStream() const { return end_of_stream_; }
