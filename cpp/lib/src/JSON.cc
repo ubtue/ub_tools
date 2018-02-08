@@ -704,7 +704,7 @@ static const JSONNode *GetLastPathComponent(const std::string &path, const JSONN
             if (unlikely(index >= array_node->size()))
                 throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
                                          + "\" in path \"" + path + "\" is too large as an array index!");
-            next_node = array_node->getValue(index);
+            next_node = array_node->getNode(index);
             break;
         }
     }
