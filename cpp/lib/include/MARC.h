@@ -230,7 +230,7 @@ public:
         Field(const Field &other) = default;
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         Field(const Tag &tag, const std::string &contents): tag_(tag), contents_(contents) { }
-        bool operator<(const Field &rhs);
+        bool operator<(const Field &rhs) const;
         inline const Tag &getTag() const { return tag_; }
         inline const std::string &getContents() const { return contents_; }
         inline std::string getContents() { return contents_; }
