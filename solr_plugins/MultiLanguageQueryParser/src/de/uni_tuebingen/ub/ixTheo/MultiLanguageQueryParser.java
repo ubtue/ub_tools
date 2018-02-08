@@ -121,9 +121,7 @@ public class MultiLanguageQueryParser extends QParser {
                          if (schema.getFieldOrNull(newFieldName) != null)
                              newFilterQuery += newFieldExpression + ":";
                          else
-                             throw new MultiLanguageQueryParserException("Cannot rewrite \"" +
-                                       fieldNameAndFilterValues[i] + "\" to \"" +
-                                       newFieldName + "\" [No such field]");
+                             newFilterQuery = fieldNameAndFilterValues[i] + ":";
                     }
                     newFilterQuery += fieldNameAndFilterValues[fieldNameAndFilterValuesLength - 1];
                     newParams.remove("fq", filterQuery);
