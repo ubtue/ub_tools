@@ -127,7 +127,7 @@ std::string GetLastModificationTime(const JSON::ObjectNode * const doc_obj) {
 
 std::string GetSeriesTitle(const JSON::ObjectNode * const doc_obj) {
     const std::string NO_SERIES_TITLE("*No Series Title*");
-    const JSON::JSONNode * const container_ids_and_titles(doc_obj->getValue("container_ids_and_titles"));
+    const JSON::JSONNode * const container_ids_and_titles(doc_obj->getNode("container_ids_and_titles"));
     if (container_ids_and_titles == nullptr) {
         WARNING("\"container_ids_and_titles\" is null");
         return NO_SERIES_TITLE;
@@ -174,11 +174,11 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
     if (unlikely(tree_obj == nullptr))
         ERROR("top level JSON entity is not an object type!");
 
-    const JSON::ObjectNode * const response(dynamic_cast<const JSON::ObjectNode *>(tree_obj->getValue("response")));
+    const JSON::ObjectNode * const response(dynamic_cast<const JSON::ObjectNode *>(tree_obj->getNode("response")));
     if (unlikely(response == nullptr))
         ERROR("top level node \"response\" in JSON tree is missing!");
 
-    const JSON::ArrayNode * const docs(dynamic_cast<const JSON::ArrayNode *>(response->getValue("docs")));
+    const JSON::ArrayNode * const docs(dynamic_cast<const JSON::ArrayNode *>(response->getNode("docs")));
     if (unlikely(docs == nullptr))
         ERROR("array node \"docs\" in JSON tree is missing!");
 
