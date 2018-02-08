@@ -58,20 +58,20 @@ public:
 // Parses a JSON subtree that, should it exist looks like [[YYYY, MM, DD]] where the day as well as the
 // month may be missing.
 CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &field) {
-    const JSON::ObjectNode * const subtree(dynamic_cast<const JSON::ObjectNode *>(object.getValue(field)));
+    const JSON::ObjectNode * const subtree(dynamic_cast<const JSON::ObjectNode *>(object.getNode(field)));
     if (subtree == nullptr) {
         year_ = month_ = day_ = 0;
         return;
     }
 
-    const JSON::ArrayNode * const array_node(dynamic_cast<const JSON::ArrayNode *>(subtree->getValue("date-parts")));
+    const JSON::ArrayNode * const array_node(dynamic_cast<const JSON::ArrayNode *>(subtree->getNode("date-parts")));
     if (unlikely(array_node == nullptr))
         logger->error("in CrossrefDate::CrossrefDate: \"date-parts\" does not exist or is not a JSON array!");
 
     if (unlikely(array_node->empty()))
         logger->error("in CrossrefDate::CrossrefDate: nested child of \"" + field + "\" does not exist!");
 
-    const JSON::ArrayNode * const array_node2(dynamic_cast<const JSON::ArrayNode *>(array_node->getValue(0)));
+    const JSON::ArrayNode * const array_node2(dynamic_cast<const JSON::ArrayNode *>(array_node->getNode(0)));
     if (unlikely(array_node2 == nullptr))
         logger->error("in CrossrefDate::CrossrefDate: inner nested child of \"" + field + "\" is not a JSON array!");
 
@@ -279,7 +279,7 @@ bool FuzzyTextMatch(const std::string &s1, const std::string &s2) {
 
 std::vector<std::string> ExtractString(const JSON::ObjectNode &object_node, const std::string &json_field_name) {
     std::vector<std::string> extracted_values;
-    const JSON::JSONNode * const node(object_node.getValue(json_field_name));
+    const JSON::JSONNode * const node(object_node.getNode(json_field_name));
     if (node == nullptr or node->getType() != JSON::JSONNode::STRING_NODE)
         return extracted_values;
 
@@ -291,18 +291,18 @@ std::vector<std::string> ExtractString(const JSON::ObjectNode &object_node, cons
 
 std::string ExtractAuthor(const JSON::ObjectNode &object_node) {
     const JSON::StringNode * const name_node(
-        dynamic_cast<const JSON::StringNode *>(object_node.getValue("name")));
+        dynamic_cast<const JSON::StringNode *>(object_node.getNode("name")));
     if (name_node != nullptr)
         return name_node->getValue();
 
     const JSON::StringNode * const family_node(
-        dynamic_cast<const JSON::StringNode *>(object_node.getValue("family")));
+        dynamic_cast<const JSON::StringNode *>(object_node.getNode("family")));
     if (unlikely(family_node == nullptr))
         logger->error("in ExtractAuthor: missing or invalid \"family\" node!");
 
     std::string author(family_node->getValue());
     const JSON::StringNode * const given_node(
-        dynamic_cast<const JSON::StringNode *>(object_node.getValue("given")));
+        dynamic_cast<const JSON::StringNode *>(object_node.getNode("given")));
     if (given_node != nullptr)
         author += ", " + given_node->getValue();
 
@@ -315,7 +315,7 @@ std::vector<std::string> ExtractAuthorVector(const JSON::ObjectNode &object_node
 {
     std::vector<std::string> extracted_values;
 
-    const JSON::ArrayNode *array_node(dynamic_cast<const JSON::ArrayNode *>(object_node.getValue(json_field_name)));
+    const JSON::ArrayNode *array_node(dynamic_cast<const JSON::ArrayNode *>(object_node.getNode(json_field_name)));
     if (array_node == nullptr)
         return extracted_values;
 
@@ -334,7 +334,7 @@ std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node
 {
     std::vector<std::string> extracted_values;
 
-    const JSON::ArrayNode *array_node(dynamic_cast<const JSON::ArrayNode *>(object_node.getValue(json_field_name)));
+    const JSON::ArrayNode *array_node(dynamic_cast<const JSON::ArrayNode *>(object_node.getNode(json_field_name)));
     if (array_node == nullptr)
         return extracted_values;
 
@@ -353,15 +353,15 @@ std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node
 
 static std::string GetOptionalStringValue(const JSON::ObjectNode &object_node, const std::string &json_field_name) {
     const JSON::StringNode *string_node(dynamic_cast<const JSON::StringNode *>(
-        object_node.getValue(json_field_name)));
+        object_node.getNode(json_field_name)));
     return (string_node == nullptr) ? "" : string_node->getValue();
 
 }
 
 
 std::string ExtractName(const JSON::ObjectNode * const object_node) {
-    const JSON::JSONNode *const given(object_node->getValue("given"));
-    const JSON::JSONNode *const family(object_node->getValue("family"));
+    const JSON::JSONNode *const given(object_node->getNode("given"));
+    const JSON::JSONNode *const family(object_node->getNode("family"));
     std::string name;
 
     if (given != nullptr) {
@@ -385,7 +385,7 @@ std::string ExtractName(const JSON::ObjectNode * const object_node) {
 void AddAuthors(const std::string &DOI, const std::string &ISSN, const JSON::ObjectNode &message_tree,
                 MarcRecord * const marc_record)
 {
-    const JSON::ArrayNode *authors(dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("author")));
+    const JSON::ArrayNode *authors(dynamic_cast<const JSON::ArrayNode *>(message_tree.getNode("author")));
     if (authors == nullptr) {
         logger->warning("no author node found, DOI was \"" + DOI + "\", ISSN was \"" + ISSN + "\"!");
         return;
@@ -411,7 +411,7 @@ void AddAuthors(const std::string &DOI, const std::string &ISSN, const JSON::Obj
 
 
 void AddEditors(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
-    const JSON::ArrayNode *editors(dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("editor")));
+    const JSON::ArrayNode *editors(dynamic_cast<const JSON::ArrayNode *>(message_tree.getNode("editor")));
     if (editors == nullptr)
         return;
 
@@ -464,7 +464,7 @@ void AddIssueInfo(const JSON::ObjectNode &message_tree, MarcRecord * const marc_
 // or contain ISSNs we will not set any ISSN in "marc_record".
 void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
     const JSON::ArrayNode * const issn_types(
-        dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("issn-type")));
+        dynamic_cast<const JSON::ArrayNode *>(message_tree.getNode("issn-type")));
     if (issn_types != nullptr) {
         std::string issn;
         for (auto issn_type : *issn_types) {
@@ -475,9 +475,9 @@ void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_recor
             }
 
             const JSON::StringNode * const value_node(
-                dynamic_cast<const JSON::StringNode *>(issn_type_node->getValue("value")));
+                dynamic_cast<const JSON::StringNode *>(issn_type_node->getNode("value")));
             const JSON::StringNode * const type_node(
-                dynamic_cast<const JSON::StringNode *>(issn_type_node->getValue("type")));
+                dynamic_cast<const JSON::StringNode *>(issn_type_node->getNode("type")));
             if (unlikely(value_node == nullptr or type_node == nullptr)) {
                 logger->warning("in AddISSN: strange, issn-type entry is missing a \"value\" or \"type\" string "
                                 "subnode!");
@@ -497,14 +497,14 @@ void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_recor
         }
     }
 
-    const JSON::ArrayNode * const issns(dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("ISSN")));
+    const JSON::ArrayNode * const issns(dynamic_cast<const JSON::ArrayNode *>(message_tree.getNode("ISSN")));
     if (issns == nullptr)
         return;
     if (unlikely(issns->empty())) {
         logger->warning("in AddISSN: bizarre, ISSN list is empty!");
         return;
     }
-    const JSON::StringNode * const first_issn(dynamic_cast<const JSON::StringNode *>(issns->getValue(0)));
+    const JSON::StringNode * const first_issn(dynamic_cast<const JSON::StringNode *>(issns->getNode(0)));
     if (likely(first_issn != nullptr))
         marc_record->insertSubfield("022", 'a', first_issn->getValue());
     else
@@ -514,19 +514,19 @@ void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_recor
 
 bool AddTitle(const JSON::ObjectNode &message_tree, MarcRecord * const marc_record) {
     const JSON::ArrayNode * const titles(
-        dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("title")));
+        dynamic_cast<const JSON::ArrayNode *>(message_tree.getNode("title")));
     if (unlikely(titles == nullptr or titles->empty()))
         return false;
-    const JSON::StringNode * const first_title(dynamic_cast<const JSON::StringNode *>(titles->getValue(0)));
+    const JSON::StringNode * const first_title(dynamic_cast<const JSON::StringNode *>(titles->getNode(0)));
     if (unlikely(first_title == nullptr))
         return false;
     marc_record->insertSubfield("245", 'a', first_title->getValue());
 
     const JSON::ArrayNode * const subtitles(
-        dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("subtitle")));
+        dynamic_cast<const JSON::ArrayNode *>(message_tree.getNode("subtitle")));
     if (subtitles != nullptr and not subtitles->empty()) {
         const JSON::StringNode * const first_subtitle_node(
-            dynamic_cast<const JSON::StringNode *>(subtitles->getValue(0)));
+            dynamic_cast<const JSON::StringNode *>(subtitles->getNode(0)));
         if (likely(first_subtitle_node != nullptr))
             marc_record->addSubfield("245", 'b', first_subtitle_node->getValue());
     }
@@ -650,11 +650,11 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MarcWriter * c
         logger->error("JSON returned from Crossref is not an object! (URL was " + DOWNLOAD_URL + ")");
 
     const JSON::ObjectNode * const message_node(
-        dynamic_cast<const JSON::ObjectNode *>(top_node->getValue("message")));
+        dynamic_cast<const JSON::ObjectNode *>(top_node->getNode("message")));
     if (unlikely(message_node == nullptr))
         return;
 
-    const JSON::ArrayNode * const items(dynamic_cast<const JSON::ArrayNode *>(message_node->getValue("items")));
+    const JSON::ArrayNode * const items(dynamic_cast<const JSON::ArrayNode *>(message_node->getNode("items")));
     if (unlikely(items == nullptr))
         return;
 
