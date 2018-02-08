@@ -133,20 +133,13 @@ std::string GetSeriesTitle(const JSON::ObjectNode * const doc_obj) {
         return NO_SERIES_TITLE;
     }
 
-    const JSON::ArrayNode * const container_ids_and_titles_array(dynamic_cast<const JSON::ArrayNode *>(container_ids_and_titles));
-
-    if (unlikely(container_ids_and_titles_array == nullptr))
-        ERROR("\"container_ids_and_titles\" is not a JSON array!");
+    const JSON::ArrayNode * const container_ids_and_titles_array(JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
     if (container_ids_and_titles_array->empty()) {
         WARNING("\"container_ids_and_titles\" is empty");
         return NO_SERIES_TITLE;
     }
-    const JSON::JSONNode *first_id_and_title(container_ids_and_titles_array->getNode(0));
-    const JSON::StringNode *first_id_and_title_string(dynamic_cast<const JSON::StringNode *>(first_id_and_title));
-    if (first_id_and_title_string == nullptr)
-        ERROR("first entry in container_ids_and_titles is not a JSON string!");
-    std::string first_id_and_title_string_value(first_id_and_title_string->getValue());
 
+    std::string first_id_and_title_string_value(container_ids_and_titles_array->getStringNode(0)->getValue());
     StringUtil::ReplaceString("#31;", "\x1F", &first_id_and_title_string_value);
     std::vector<std::string> parts;
     StringUtil::Split(first_id_and_title_string_value, '\x1F', &parts);
@@ -170,22 +163,12 @@ bool ExtractNewIssueInfos(const std::unique_ptr<kyotocabinet::HashDB> &notified_
     if (not parser.parse(&tree))
         ERROR("JSON parser failed: " + parser.getErrorMessage());
 
-    const JSON::ObjectNode * const tree_obj(dynamic_cast<const JSON::ObjectNode *>(tree));
-    if (unlikely(tree_obj == nullptr))
-        ERROR("top level JSON entity is not an object type!");
-
-    const JSON::ObjectNode * const response(dynamic_cast<const JSON::ObjectNode *>(tree_obj->getNode("response")));
-    if (unlikely(response == nullptr))
-        ERROR("top level node \"response\" in JSON tree is missing!");
-
-    const JSON::ArrayNode * const docs(dynamic_cast<const JSON::ArrayNode *>(response->getNode("docs")));
-    if (unlikely(docs == nullptr))
-        ERROR("array node \"docs\" in JSON tree is missing!");
+    JSON::ObjectNode * tree_obj(JSON::JSONNode::CastToObjectNodeOrDie("top level JSON entity", tree));
+    const JSON::ObjectNode * const response(tree_obj->getObjectNode("response"));
+    const JSON::ArrayNode * const docs(response->getArrayNode("docs"));
 
     for (auto doc : *docs) {
-        const JSON::ObjectNode * const doc_obj(dynamic_cast<const JSON::ObjectNode *>(doc));
-        if (unlikely(doc_obj == nullptr))
-            ERROR("document object is missing!");
+        const JSON::ObjectNode * const doc_obj(JSON::JSONNode::CastToObjectNodeOrDie("document object", doc));
 
         const std::string id(GetIssueId(doc_obj));
         if (notified_db->check(id) > 0)
