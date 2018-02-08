@@ -226,7 +226,7 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
         bool at_least_one_error(false);
 
         for (const auto &url : urls) {
-            DEBUG("processing URL: \"" + url + "\".");
+            INFO("processing URL: \"" + url + "\".");
             FullTextCache::EntryUrl entry_url;
             entry_url.id_ = ppn;
             entry_url.url_ = url;
