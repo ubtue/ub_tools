@@ -159,8 +159,6 @@ std::string ExtractTextFromHtml(const std::string &html, const std::string &init
     std::string extracted_text;
     TextExtractor extractor(html, initial_charset, &extracted_text);
     extractor.parse();
-
-    CollapseWhitespace(&extracted_text);
     return StringUtil::TrimWhite(extracted_text);
 }
 
