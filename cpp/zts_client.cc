@@ -151,7 +151,7 @@ void AugmentJsonCreators(JSON::ArrayNode * const creators_array,
                          std::vector<std::string> * const comments)
 {
     for (size_t i(0); i < creators_array->size(); ++i) {
-        JSON::ObjectNode * const creator_object(creators_array->getObjectNodeValue(i));
+        JSON::ObjectNode * const creator_object(creators_array->getObjectNode(i));
 
         const JSON::JSONNode * const last_name_node(creator_object->getValue("lastName"));
         if (last_name_node == nullptr)
