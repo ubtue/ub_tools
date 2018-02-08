@@ -1083,12 +1083,80 @@ std::string CalcChecksum(const Record &record, const bool exclude_001) {
 
 // See https://www.loc.gov/marc/bibliographic/ for how to construct this map:
 static std::unordered_map<Tag, bool> tag_to_repeatable_map{
+    { Tag("001"), false },
+    { Tag("003"), false },
+    { Tag("005"), false },
+    { Tag("007"), true  },
+    { Tag("008"), false },
+    { Tag("010"), false },
+    { Tag("013"), true  },
+    { Tag("015"), true  },
+    { Tag("016"), true  },
+    { Tag("017"), true  },
+    { Tag("018"), false },
+    { Tag("020"), true  },
+    { Tag("022"), true  },
+    { Tag("024"), true  },
+    { Tag("025"), true  },
+    { Tag("026"), true  },
+    { Tag("027"), true  },
+    { Tag("028"), true  },
+    { Tag("030"), true  },
+    { Tag("031"), true  },
+    { Tag("032"), true  },
+    { Tag("033"), true  },
+    { Tag("034"), true  },
+    { Tag("035"), true  },
+    { Tag("036"), false },
+    { Tag("037"), true  },
+    { Tag("038"), false },
+    { Tag("040"), false },
+    { Tag("041"), true  },
+    { Tag("042"), false },
+    { Tag("043"), false },
+    { Tag("044"), false },
+    { Tag("045"), false },
+    { Tag("046"), true  },
+    { Tag("047"), true  },
+    { Tag("048"), true  },
+    { Tag("050"), true  },
+    { Tag("051"), true  },
+    { Tag("052"), true  },
+    { Tag("055"), true  },
+    { Tag("060"), true  },
+    { Tag("061"), true  },
+    { Tag("066"), false },
+    { Tag("070"), true  },
+    { Tag("071"), true  },
+    { Tag("072"), true  },
+    { Tag("074"), true  },
+    { Tag("080"), true  },
+    { Tag("082"), true  },
+    { Tag("083"), true  },
+    { Tag("084"), true  },
+    { Tag("085"), true  },
+    { Tag("086"), true  },
+    { Tag("088"), true  },
     { Tag("100"), false },
+    { Tag("110"), false },
+    { Tag("111"), false },
+    { Tag("130"), false },
     { Tag("210"), true  },
+    { Tag("222"), true  },
+    { Tag("240"), false },
+    { Tag("242"), true  },
+    { Tag("243"), false },
+    { Tag("246"), true  },
+    { Tag("247"), true  },
 };
 
 
 bool IsRepeatableField(const Tag &tag) {
+    // 1. Handle all local fields.
+    if (tag.to_string().find('9') != std::string::npos or StringUtil::IsAsciiLetter(tag.to_string()[0]))
+        return true;
+
+    // 2. Handle all other fields.
     const auto tag_and_repeatable(tag_to_repeatable_map.find(tag));
     if (unlikely(tag_and_repeatable == tag_to_repeatable_map.end()))
         ERROR(tag.to_string() + " is not in our map!");
