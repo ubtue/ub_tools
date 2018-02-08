@@ -141,7 +141,7 @@ std::string GetSeriesTitle(const JSON::ObjectNode * const doc_obj) {
         WARNING("\"container_ids_and_titles\" is empty");
         return NO_SERIES_TITLE;
     }
-    const JSON::JSONNode *first_id_and_title(container_ids_and_titles_array->getValue(0));
+    const JSON::JSONNode *first_id_and_title(container_ids_and_titles_array->getNode(0));
     const JSON::StringNode *first_id_and_title_string(dynamic_cast<const JSON::StringNode *>(first_id_and_title));
     if (first_id_and_title_string == nullptr)
         ERROR("first entry in container_ids_and_titles is not a JSON string!");

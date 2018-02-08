@@ -92,16 +92,16 @@ public:
     virtual std::string toString() const = 0;
     static std::string TypeToString(const Type type);
 private:
-    template<typename T> static const T * CastToConstNodeOrDie(const std::string &node_name, const Type node_type, const JSONNode * const node) {
+    template<typename NodeType> static const NodeType * CastToConstNodeOrDie(const std::string &node_name, const Type node_type, const JSONNode * const node) {
         if (unlikely(node->getType() != node_type))
             ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
-        return reinterpret_cast<const T *>(node);
+        return reinterpret_cast<const NodeType *>(node);
     }
 
-    template<typename T> static T * CastToNodeOrDie(const std::string &node_name, const Type node_type, JSONNode * const node) {
+    template<typename NodeType> static NodeType * CastToNodeOrDie(const std::string &node_name, const Type node_type, JSONNode * const node) {
         if (unlikely(node->getType() != node_type))
             ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
-        return reinterpret_cast<T *>(node);
+        return reinterpret_cast<NodeType *>(node);
     }
 public:
     static const ArrayNode *CastToArrayNodeOrDie(const std::string &node_name, const JSONNode * const node) { return CastToConstNodeOrDie<ArrayNode>(node_name, ARRAY_NODE, node); };
@@ -178,7 +178,7 @@ class ObjectNode final : public JSONNode {
     std::unordered_map<std::string, JSONNode *> entries_;
 public:
     typedef std::unordered_map<std::string, JSONNode *>::const_iterator const_iterator;
-    template<typename ReturnType> ReturnType * getTypeNodeValue(const std::string &label, const Type node_type) const {
+    template<typename ReturnType> ReturnType * getNode(const std::string &label, const Type node_type) const {
         const auto entry(entries_.find(label));
         if (unlikely(entry == entries_.cend()))
             ERROR("label \"" + label + "\" not found!");
@@ -186,11 +186,11 @@ public:
             ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
         return reinterpret_cast<ReturnType *>(entry->second);
     }
-    template<typename ReturnType, typename NodeType> ReturnType getTypeValue(const std::string &label, const Type node_type) const {
-        const NodeType * node(getTypeNodeValue<NodeType>(label, node_type));
+    template<typename ReturnType, typename NodeType> ReturnType getValue(const std::string &label, const Type node_type) const {
+        const NodeType * node(getNode<NodeType>(label, node_type));
         return node->getValue();
     }
-    template<typename ReturnType, typename NodeType> ReturnType getOptionalTypeValue(const std::string &label, const ReturnType default_value,
+    template<typename ReturnType, typename NodeType> ReturnType getOptionalValue(const std::string &label, const ReturnType default_value,
                                                                                      const Type node_type) const
     {
         const auto entry(entries_.find(label));
@@ -217,30 +217,30 @@ public:
     const JSONNode *getValue(const std::string &label) const;
     JSONNode *getValue(const std::string &label);
 
-    // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
-    const ArrayNode *getArrayNodeValue(const std::string &label) const { return getTypeNodeValue<ArrayNode>(label, ARRAY_NODE); }
-    ArrayNode *getArrayNodeValue(const std::string &label) { return getTypeNodeValue<ArrayNode>(label, ARRAY_NODE); }
-    const BooleanNode *getBooleanNodeValue(const std::string &label) const { return getTypeNodeValue<BooleanNode>(label, BOOLEAN_NODE); }
-    BooleanNode *getBooleanNodeValue(const std::string &label) { return getTypeNodeValue<BooleanNode>(label, BOOLEAN_NODE); }
-    const DoubleNode *getDoubleNodeValue(const std::string &label) const { return getTypeNodeValue<DoubleNode>(label, DOUBLE_NODE); }
-    DoubleNode *getDoubleNodeValue(const std::string &label) { return getTypeNodeValue<DoubleNode>(label, DOUBLE_NODE); }
-    const IntegerNode *getIntegerNodeValue(const std::string &label) const { return getTypeNodeValue<IntegerNode>(label, INT64_NODE); }
-    IntegerNode *getIntegerNodeValue(const std::string &label) { return getTypeNodeValue<IntegerNode>(label, INT64_NODE); }
-    const ObjectNode *getObjectNodeValue(const std::string &label) const { return getTypeNodeValue<ObjectNode>(label, OBJECT_NODE); }
-    ObjectNode *getObjectNodeValue(const std::string &label) { return getTypeNodeValue<ObjectNode>(label, OBJECT_NODE); }
-    const StringNode *getStringNodeValue(const std::string &label) const { return getTypeNodeValue<StringNode>(label, STRING_NODE); }
-    StringNode *getStringNodeValue(const std::string &label) { return getTypeNodeValue<StringNode>(label, STRING_NODE); }
+    // Automatic cast value retrieval. If the requested type is not applicable, the functions abort.
+    const ArrayNode *getArrayNode(const std::string &label) const { return getNode<ArrayNode>(label, ARRAY_NODE); }
+    ArrayNode *getArrayNode(const std::string &label) { return getNode<ArrayNode>(label, ARRAY_NODE); }
+    const BooleanNode *getBooleanNode(const std::string &label) const { return getNode<BooleanNode>(label, BOOLEAN_NODE); }
+    BooleanNode *getBooleanNode(const std::string &label) { return getNode<BooleanNode>(label, BOOLEAN_NODE); }
+    const DoubleNode *getDoubleNode(const std::string &label) const { return getNode<DoubleNode>(label, DOUBLE_NODE); }
+    DoubleNode *getDoubleNode(const std::string &label) { return getNode<DoubleNode>(label, DOUBLE_NODE); }
+    const IntegerNode *getIntegerNode(const std::string &label) const { return getNode<IntegerNode>(label, INT64_NODE); }
+    IntegerNode *getIntegerNode(const std::string &label) { return getNode<IntegerNode>(label, INT64_NODE); }
+    const ObjectNode *getObjectNode(const std::string &label) const { return getNode<ObjectNode>(label, OBJECT_NODE); }
+    ObjectNode *getObjectNode(const std::string &label) { return getNode<ObjectNode>(label, OBJECT_NODE); }
+    const StringNode *getStringNode(const std::string &label) const { return getNode<StringNode>(label, STRING_NODE); }
+    StringNode *getStringNode(const std::string &label) { return getNode<StringNode>(label, STRING_NODE); }
     bool isNullNode(const std::string &label) const;
 
-    bool getBooleanValue(const std::string &label) const { return getTypeValue<bool, BooleanNode>(label, BOOLEAN_NODE); }
-    double getDoubleValue(const std::string &label) const { return getTypeValue<double, DoubleNode>(label, DOUBLE_NODE); }
-    int64_t getIntegerValue(const std::string &label) const { return getTypeValue<int64_t, IntegerNode>(label, INT64_NODE); }
-    std::string getStringValue(const std::string &label) const { return getTypeValue<std::string, StringNode>(label, STRING_NODE); }
+    bool getBooleanValue(const std::string &label) const { return getValue<bool, BooleanNode>(label, BOOLEAN_NODE); }
+    double getDoubleValue(const std::string &label) const { return getValue<double, DoubleNode>(label, DOUBLE_NODE); }
+    int64_t getIntegerValue(const std::string &label) const { return getValue<int64_t, IntegerNode>(label, INT64_NODE); }
+    std::string getStringValue(const std::string &label) const { return getValue<std::string, StringNode>(label, STRING_NODE); }
 
-    bool getOptionalBooleanValue(const std::string &label, const bool default_value) const { return getOptionalTypeValue<bool, BooleanNode>(label, default_value, BOOLEAN_NODE); }
-    double getOptionalDoubleValue(const std::string &label, const double default_value) const { return getOptionalTypeValue<double, DoubleNode>(label, default_value, DOUBLE_NODE); }
-    int64_t getOptionalIntegerValue(const std::string &label, const int64_t default_value) const { return getOptionalTypeValue<int64_t, IntegerNode>(label, default_value, INT64_NODE); }
-    std::string getOptionalStringValue(const std::string &label, const std::string &default_value = "") const { return getOptionalTypeValue<std::string, StringNode>(label, default_value, STRING_NODE); }
+    bool getOptionalBooleanValue(const std::string &label, const bool default_value) const { return getOptionalValue<bool, BooleanNode>(label, default_value, BOOLEAN_NODE); }
+    double getOptionalDoubleValue(const std::string &label, const double default_value) const { return getOptionalValue<double, DoubleNode>(label, default_value, DOUBLE_NODE); }
+    int64_t getOptionalIntegerValue(const std::string &label, const int64_t default_value) const { return getOptionalValue<int64_t, IntegerNode>(label, default_value, INT64_NODE); }
+    std::string getOptionalStringValue(const std::string &label, const std::string &default_value = "") const { return getOptionalValue<std::string, StringNode>(label, default_value, STRING_NODE); }
 
     const_iterator begin() const { return entries_.cbegin(); }
     const_iterator end() const { return entries_.cend(); }
@@ -249,12 +249,12 @@ public:
 
 class ArrayNode final : public JSONNode {
     std::vector<JSONNode *> values_;
-    template<typename T> T * getTypeNodeValue(const size_t index, const JSONNode::Type node_type) const {
+    template<typename NodeType> NodeType * getNode(const size_t index, const JSONNode::Type node_type) const {
         if (unlikely(index >= values_.size()))
             ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
         if (unlikely(values_[index]->getType() != node_type))
             ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
-        return (reinterpret_cast<T *>(values_[index]));
+        return (reinterpret_cast<NodeType *>(values_[index]));
     }
 public:
     typedef std::vector<JSONNode *>::const_iterator const_iterator;
@@ -265,20 +265,20 @@ public:
     virtual Type getType() const { return ARRAY_NODE; }
     virtual std::string toString() const;
     bool empty() const { return values_.empty(); }
-    const JSONNode *getValue(const size_t index) const { return values_[index]; }
-    JSONNode *getValue(const size_t index) { return values_[index]; }
+    const JSONNode *getNode(const size_t index) const { return values_[index]; }
+    JSONNode *getNode(const size_t index) { return values_[index]; }
 
     // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
-    bool getBooleanValue(const size_t index) const { return this->getTypeNodeValue<BooleanNode>(index, BOOLEAN_NODE)->getValue(); }
-    std::string getStringValue(const size_t index) const { return this->getTypeNodeValue<StringNode>(index, STRING_NODE)->getValue(); }
-    int64_t getIntegerValue(const size_t index) const { return this->getTypeNodeValue<IntegerNode>(index, INT64_NODE)->getValue(); }
-    double getDoubleValue(const size_t index) const { return this->getTypeNodeValue<DoubleNode>(index, DOUBLE_NODE)->getValue(); }
-    const ObjectNode *getObjectNodeValue(const size_t index) const { return this->getTypeNodeValue<ObjectNode>(index, OBJECT_NODE); }
-    ObjectNode *getObjectNodeValue(const size_t index) { return this->getTypeNodeValue<ObjectNode>(index, OBJECT_NODE); };
-    const StringNode *getStringNodeValue(const size_t index) const { return this->getTypeNodeValue<StringNode>(index, STRING_NODE); }
-    StringNode *getStringNodeValue(const size_t index) { return this->getTypeNodeValue<StringNode>(index, STRING_NODE); }
-    const ArrayNode *getArrayNodeValue(const size_t index) const { return this->getTypeNodeValue<ArrayNode>(index, ARRAY_NODE); }
-    ArrayNode *getArrayNodeValue(const size_t index) { return this->getTypeNodeValue<ArrayNode>(index, ARRAY_NODE); }
+    bool getBooleanValue(const size_t index) const { return this->getNode<BooleanNode>(index, BOOLEAN_NODE)->getValue(); }
+    std::string getStringValue(const size_t index) const { return this->getNode<StringNode>(index, STRING_NODE)->getValue(); }
+    int64_t getIntegerValue(const size_t index) const { return this->getNode<IntegerNode>(index, INT64_NODE)->getValue(); }
+    double getDoubleValue(const size_t index) const { return this->getNode<DoubleNode>(index, DOUBLE_NODE)->getValue(); }
+    const ObjectNode *getObjectNode(const size_t index) const { return this->getNode<ObjectNode>(index, OBJECT_NODE); }
+    ObjectNode *getObjectNode(const size_t index) { return this->getNode<ObjectNode>(index, OBJECT_NODE); };
+    const StringNode *getStringNode(const size_t index) const { return this->getNode<StringNode>(index, STRING_NODE); }
+    StringNode *getStringNode(const size_t index) { return this->getNode<StringNode>(index, STRING_NODE); }
+    const ArrayNode *getArrayNode(const size_t index) const { return this->getNode<ArrayNode>(index, ARRAY_NODE); }
+    ArrayNode *getArrayNode(const size_t index) { return this->getNode<ArrayNode>(index, ARRAY_NODE); }
     bool isNullNode(const size_t index) const;
 
     size_t size() const { return values_.size(); }
