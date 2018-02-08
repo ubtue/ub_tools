@@ -186,6 +186,14 @@ public:
             ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
         return reinterpret_cast<ReturnType *>(entry->second);
     }
+    template<typename ReturnType> ReturnType * getOptionalNode(const std::string &label, const Type node_type) const {
+        const auto entry(entries_.find(label));
+        if (unlikely(entry == entries_.cend()))
+            return nullptr;
+        if (unlikely(entry->second->getType() != node_type))
+            ERROR("node for label \"" + label + "\" is not of type " + JSONNode::TypeToString(node_type) + "!");
+        return reinterpret_cast<ReturnType *>(entry->second);
+    }
     template<typename ReturnType, typename NodeType> ReturnType getValue(const std::string &label, const Type node_type) const {
         const NodeType * node(getNode<NodeType>(label, node_type));
         return node->getValue();
@@ -217,7 +225,7 @@ public:
     const JSONNode *getNode(const std::string &label) const;
     JSONNode *getNode(const std::string &label);
 
-    // Automatic cast value retrieval. If the requested type is not applicable, the functions abort.
+    // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
     const ArrayNode *getArrayNode(const std::string &label) const { return getNode<ArrayNode>(label, ARRAY_NODE); }
     ArrayNode *getArrayNode(const std::string &label) { return getNode<ArrayNode>(label, ARRAY_NODE); }
     const BooleanNode *getBooleanNode(const std::string &label) const { return getNode<BooleanNode>(label, BOOLEAN_NODE); }
@@ -231,6 +239,20 @@ public:
     const StringNode *getStringNode(const std::string &label) const { return getNode<StringNode>(label, STRING_NODE); }
     StringNode *getStringNode(const std::string &label) { return getNode<StringNode>(label, STRING_NODE); }
     bool isNullNode(const std::string &label) const;
+
+    // Automatic cast value retrieval.  Returns nullptr if node not found.  If the requested type is not applicable, the functions abort.
+    const ArrayNode *getOptionalArrayNode(const std::string &label) const { return getOptionalNode<ArrayNode>(label, ARRAY_NODE); }
+    ArrayNode *getOptionalArrayNode(const std::string &label) { return getOptionalNode<ArrayNode>(label, ARRAY_NODE); }
+    const BooleanNode *getOptionalBooleanNode(const std::string &label) const { return getOptionalNode<BooleanNode>(label, BOOLEAN_NODE); }
+    BooleanNode *getOptionalBooleanNode(const std::string &label) { return getOptionalNode<BooleanNode>(label, BOOLEAN_NODE); }
+    const DoubleNode *getOptionalDoubleNode(const std::string &label) const { return getNode<DoubleNode>(label, DOUBLE_NODE); }
+    DoubleNode *getOptionalDoubleNode(const std::string &label) { return getOptionalNode<DoubleNode>(label, DOUBLE_NODE); }
+    const IntegerNode *getOptionalIntegerNode(const std::string &label) const { return getOptionalNode<IntegerNode>(label, INT64_NODE); }
+    IntegerNode *getOptionalIntegerNode(const std::string &label) { return getOptionalNode<IntegerNode>(label, INT64_NODE); }
+    const ObjectNode *getOptionalObjectNode(const std::string &label) const { return getOptionalNode<ObjectNode>(label, OBJECT_NODE); }
+    ObjectNode *getOptionalObjectNode(const std::string &label) { return getOptionalNode<ObjectNode>(label, OBJECT_NODE); }
+    const StringNode *getOptionalStringNode(const std::string &label) const { return getOptionalNode<StringNode>(label, STRING_NODE); }
+    StringNode *getOptionalStringNode(const std::string &label) { return getOptionalNode<StringNode>(label, STRING_NODE); }
 
     bool getBooleanValue(const std::string &label) const { return getValue<bool, BooleanNode>(label, BOOLEAN_NODE); }
     double getDoubleValue(const std::string &label) const { return getValue<double, DoubleNode>(label, DOUBLE_NODE); }
@@ -252,6 +274,13 @@ class ArrayNode final : public JSONNode {
     template<typename NodeType> NodeType * getNode(const size_t index, const JSONNode::Type node_type) const {
         if (unlikely(index >= values_.size()))
             ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
+        if (unlikely(values_[index]->getType() != node_type))
+            ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
+        return (reinterpret_cast<NodeType *>(values_[index]));
+    }
+    template<typename NodeType> NodeType * getOptionalNode(const size_t index, const JSONNode::Type node_type) const {
+        if (unlikely(index >= values_.size()))
+            return nullptr;
         if (unlikely(values_[index]->getType() != node_type))
             ERROR("entry with index \"" + std::to_string(index) + "\" is not a " + JSONNode::TypeToString(node_type) + " node!");
         return (reinterpret_cast<NodeType *>(values_[index]));
@@ -280,6 +309,14 @@ public:
     const ArrayNode *getArrayNode(const size_t index) const { return this->getNode<ArrayNode>(index, ARRAY_NODE); }
     ArrayNode *getArrayNode(const size_t index) { return this->getNode<ArrayNode>(index, ARRAY_NODE); }
     bool isNullNode(const size_t index) const;
+
+    // Automatic cast value retrieval.  Returns nullptr if node not found.  If the requested type is not applicable, the functions abort.
+    const ObjectNode *getOptionalObjectNode(const size_t index) const { return this->getOptionalNode<ObjectNode>(index, OBJECT_NODE); }
+    ObjectNode *getOptionalObjectNode(const size_t index) { return this->getOptionalNode<ObjectNode>(index, OBJECT_NODE); };
+    const StringNode *getOptionalStringNode(const size_t index) const { return this->getOptionalNode<StringNode>(index, STRING_NODE); }
+    StringNode *getOptionalStringNode(const size_t index) { return this->getOptionalNode<StringNode>(index, STRING_NODE); }
+    const ArrayNode *getOptionalArrayNode(const size_t index) const { return this->getOptionalNode<ArrayNode>(index, ARRAY_NODE); }
+    ArrayNode *getOptionalArrayNode(const size_t index) { return this->getOptionalNode<ArrayNode>(index, ARRAY_NODE); }
 
     size_t size() const { return values_.size(); }
     const_iterator begin() const { return values_.cbegin(); }
