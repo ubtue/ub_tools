@@ -416,13 +416,13 @@ bool ObjectNode::remove(const std::string &label) {
 }
 
 
-const JSONNode *ObjectNode::getValue(const std::string &label) const {
+const JSONNode *ObjectNode::getNode(const std::string &label) const {
     const auto entry(entries_.find(label));
     return entry == entries_.cend() ? nullptr : entry->second;
 }
 
 
-JSONNode *ObjectNode::getValue(const std::string &label) {
+JSONNode *ObjectNode::getNode(const std::string &label) {
     const auto entry(entries_.find(label));
     return entry == entries_.cend() ? nullptr : entry->second;
 }
@@ -687,7 +687,7 @@ static const JSONNode *GetLastPathComponent(const std::string &path, const JSONN
         case JSONNode::DOUBLE_NODE:
             throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
         case JSONNode::OBJECT_NODE:
-            next_node = reinterpret_cast<const ObjectNode *>(next_node)->getValue(path_component);
+            next_node = reinterpret_cast<const ObjectNode *>(next_node)->getNode(path_component);
             if (next_node == nullptr) {
                 if (unlikely(not have_default))
                     throw std::runtime_error("in JSON::GetLastPathComponent: can't find path component \""

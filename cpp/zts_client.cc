@@ -153,12 +153,12 @@ void AugmentJsonCreators(JSON::ArrayNode * const creators_array,
     for (size_t i(0); i < creators_array->size(); ++i) {
         JSON::ObjectNode * const creator_object(creators_array->getObjectNode(i));
 
-        const JSON::JSONNode * const last_name_node(creator_object->getValue("lastName"));
+        const JSON::JSONNode * const last_name_node(creator_object->getNode("lastName"));
         if (last_name_node == nullptr)
             ERROR("creator is missing a last name!");
         std::string name(creator_object->getStringValue("lastName"));
 
-        const JSON::JSONNode * const first_name_node(creator_object->getValue("firstName"));
+        const JSON::JSONNode * const first_name_node(creator_object->getNode("firstName"));
         if (first_name_node != nullptr)
             name += ", " + creator_object->getStringValue("firstName");
 
@@ -243,7 +243,7 @@ void AugmentJson(JSON::ObjectNode * const object_node, ZtsClientMaps &zts_client
             const auto ISSN_and_volume(zts_client_maps.ISSN_to_volume_map_.find(issn_normalized));
             if (ISSN_and_volume != zts_client_maps.ISSN_to_volume_map_.cend()) {
                 if (volume.empty()) {
-                    JSON::JSONNode * const volume_node = object_node->getValue("volume");
+                    JSON::JSONNode * const volume_node = object_node->getNode("volume");
                     reinterpret_cast<JSON::StringNode *>(volume_node)->setValue(ISSN_and_volume->second);
                 } else {
                     JSON::StringNode *volume_node(new JSON::StringNode(ISSN_and_volume->second));
@@ -412,7 +412,7 @@ class MarcFormatHandler : public FormatHandler {
 
         for (auto tag : *tags) {
             const JSON::ObjectNode * const tag_object(JSON::JSONNode::CastToObjectNodeOrDie("tag", tag));
-            const JSON::JSONNode * const tag_node(tag_object->getValue("tag"));
+            const JSON::JSONNode * const tag_node(tag_object->getNode("tag"));
             if (tag_node == nullptr)
                 WARNING("unexpected: tag object does not contain a \"tag\" entry!");
             else if (tag_node->getType() != JSON::JSONNode::STRING_NODE)
@@ -455,27 +455,27 @@ class MarcFormatHandler : public FormatHandler {
         for (auto creator_node : *creators_array) {
             const JSON::ObjectNode * const creator_object(JSON::JSONNode::CastToObjectNodeOrDie("creator", creator_node));
 
-            const JSON::JSONNode * const last_name_node(creator_object->getValue("lastName"));
+            const JSON::JSONNode * const last_name_node(creator_object->getNode("lastName"));
             if (last_name_node == nullptr)
                 ERROR("creator is missing a last name!");
             const JSON::StringNode * const last_name(JSON::JSONNode::CastToStringNodeOrDie("lastName", last_name_node));
             std::string name(last_name->getValue());
 
-            const JSON::JSONNode * const first_name_node(creator_object->getValue("firstName"));
+            const JSON::JSONNode * const first_name_node(creator_object->getNode("firstName"));
             if (first_name_node != nullptr) {
                 const JSON::StringNode * const first_name(JSON::JSONNode::CastToStringNodeOrDie("firstName", first_name_node));
                 name += ", " + first_name->getValue();
             }
 
             std::string PPN;
-            const JSON::JSONNode * const ppn_node(creator_object->getValue("ppn"));
+            const JSON::JSONNode * const ppn_node(creator_object->getNode("ppn"));
             if (ppn_node != nullptr) {
                 const JSON::StringNode * const ppn_string_node(JSON::JSONNode::CastToStringNodeOrDie("ppn", first_name_node));
                 PPN = ppn_string_node->getValue();
                 name = "!" + PPN + "!";
             }
 
-            const JSON::JSONNode * const creator_type(creator_object->getValue("creatorType"));
+            const JSON::JSONNode * const creator_type(creator_object->getNode("creatorType"));
             std::string creator_role;
             if (creator_type != nullptr) {
                 const JSON::StringNode * const creator_role_node(JSON::JSONNode::CastToStringNodeOrDie("creatorType", creator_type));
@@ -557,7 +557,7 @@ public:
                                 + key_and_node.second->toString() + ")");
         }
 
-        const JSON::JSONNode * custom_node(object_node->getValue("ubtue"));
+        const JSON::JSONNode * custom_node(object_node->getNode("ubtue"));
         if (custom_node != nullptr) {
             const JSON::ObjectNode * const custom_object(JSON::JSONNode::CastToObjectNodeOrDie("ubtue", custom_node));
             parent_issn = custom_object->getOptionalStringValue("issnRaw");
@@ -600,7 +600,7 @@ public:
         }
 
         // keywords:
-        const JSON::JSONNode * const tags_node(object_node->getValue("tags"));
+        const JSON::JSONNode * const tags_node(object_node->getNode("tags"));
         if (tags_node != nullptr)
             ExtractKeywords(tags_node, issn, zts_client_maps_.ISSN_to_keyword_field_map_, &new_record);
 

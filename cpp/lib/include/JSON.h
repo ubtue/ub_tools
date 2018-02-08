@@ -214,8 +214,8 @@ public:
     bool remove(const std::string &label);
 
     // Member accessors, they return NULL if there is no entry for the provided label o/w they return the entry.
-    const JSONNode *getValue(const std::string &label) const;
-    JSONNode *getValue(const std::string &label);
+    const JSONNode *getNode(const std::string &label) const;
+    JSONNode *getNode(const std::string &label);
 
     // Automatic cast value retrieval. If the requested type is not applicable, the functions abort.
     const ArrayNode *getArrayNode(const std::string &label) const { return getNode<ArrayNode>(label, ARRAY_NODE); }
