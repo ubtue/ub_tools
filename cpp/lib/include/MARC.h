@@ -125,6 +125,7 @@ public:
     typedef std::vector<Subfield>::const_iterator const_iterator;
     typedef std::vector<Subfield>::iterator iterator;
 public:
+    Subfields() = default;
     inline Subfields(std::vector<Subfield> &&subfields): subfields_(subfields) { }
     Subfields(const Subfields &other) = default;
     inline explicit Subfields(const std::string &field_contents) {
@@ -226,6 +227,7 @@ public:
         std::string contents_;
     private:
     public:
+        Field(const Field &other) = default;
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         Field(const Tag &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         bool operator<(const Field &rhs);
@@ -322,12 +324,19 @@ public:
     inline bool isMonograph() const { return leader_[7] == 'm'; }
     inline bool isSerial() const { return leader_[7] == 's'; }
     inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
+    bool isElectronicResource() const;
     inline std::string getControlNumber() const
         { return likely(fields_.front().getTag() == "001") ? fields_.front().getContents() : ""; }
 
     /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
     inline const_iterator getFirstField(const Tag &field_tag) const {
         return std::find_if(fields_.cbegin(), fields_.cend(),
+                            [&field_tag](const Field &field){ return field.getTag() == field_tag; });
+    }
+
+    /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
+    inline iterator getFirstField(const Tag &field_tag) {
+        return std::find_if(fields_.begin(), fields_.end(),
                             [&field_tag](const Field &field){ return field.getTag() == field_tag; });
     }
 
@@ -367,6 +376,16 @@ public:
         for (const auto &subfield : subfields)
             new_field_value += subfield.toString();
         insertField(new_field_tag, new_field_value);
+    }
+
+    inline void appendField(const Tag &new_field_tag, const std::string &field_contents, const char indicator1 = ' ',
+                            const char indicator2 = ' ')
+    {
+        fields_.emplace_back(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + field_contents);
+    }
+
+    inline void appendField(const Field &field) {
+        fields_.emplace_back(field);
     }
 
     /** \brief  Adds a subfield to the first existing field with tag "field_tag".
@@ -615,6 +634,9 @@ std::string CalcChecksum(const Record &record, const bool exclude_001 = false);
 
 
 bool IsRepeatableField(const Tag &tag);
+
+// Takes local UB Tübingen criteria into account.
+bool UBTueIsElectronicResource(const Record &marc_record);
 
 
 } // namespace MARC

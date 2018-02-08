@@ -196,6 +196,33 @@ Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibli
 }
 
 
+bool Record::isElectronicResource() const {
+    if (std::toupper(leader_[6]) == 'M')
+        return true;
+
+    if (isMonograph()) {
+        for (const auto &_007_field : getTagRange("007")) {
+            const std::string &_007_field_contents(_007_field.getContents());
+            if (not _007_field_contents.empty() and std::toupper(_007_field_contents[0]) == 'C')
+                return true;
+        }
+    }
+
+    for (const auto &_245_field : getTagRange("245")) {
+        const Subfields subfields(_245_field.getSubfields());
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ != 'h')
+                continue;
+            if (::strcasestr(subfield.value_.c_str(), "[Elektronische Ressource]") != nullptr
+                or ::strcasestr(subfield.value_.c_str(), "[electronic resource]") != nullptr)
+                return true;
+        }
+    }
+
+    return false;
+}
+
+
 Record::ConstantRange Record::getTagRange(const Tag &tag) const {
     const auto begin(std::find_if(fields_.begin(), fields_.end(),
                                   [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
