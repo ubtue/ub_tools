@@ -70,7 +70,7 @@ void CollectMappings(MARC::Reader * const marc_reader,
                 }
             }
         }
-        
+
         last_offset = marc_reader->tell();
     }
 
@@ -118,8 +118,88 @@ bool PatchUplink(MARC::Record * const record, const std::unordered_map<std::stri
 }
 
 
-MARC::Record MergeRecords(const MARC::Record &record1, const MARC::Record &/*record2*/) {
-    MARC::Record merged_record(record1);
+// The strategy we emply here is that we just pick "contents1" unless we have an identical subfield structure.
+std::string MergeFieldContents(const bool is_control_field, const std::string &contents1, const bool record1_is_electronic,
+                               const std::string &contents2, const bool record2_is_electronic)
+{
+    if (is_control_field) // We don't really know what to do here!
+        return contents1;
+
+    const MARC::Subfields subfields1(contents1);
+    std::string subfield_codes1;
+    for (const auto &subfield : subfields1)
+        subfield_codes1 += subfield.code_;
+
+    const MARC::Subfields subfields2(contents2);
+    std::string subfield_codes2;
+    for (const auto &subfield : subfields2)
+        subfield_codes2 += subfield.code_;
+
+    if (subfield_codes1 != subfield_codes2) // We are up the creek!
+        return contents1;
+
+    MARC::Subfields merged_subfields;
+    for (auto subfield1(subfields1.begin()), subfield2(subfields2.begin()); subfield1 != subfields1.end();
+         ++subfield1, ++subfield2)
+    {
+        if (subfield1->value_ == subfield2->value_)
+            merged_subfields.addSubfield(subfield1->code_, subfield1->value_);
+        else {
+            std::string merged_value(subfield1->value_);
+            merged_value += " (";
+            merged_value += record1_is_electronic ? "electronic" : "print";
+            merged_value += "); ";
+            merged_value += subfield2->value_;
+            merged_value += " (";
+            merged_value += record2_is_electronic ? "electronic" : "print";
+            merged_value += ')';
+            merged_subfields.addSubfield(subfield1->code_, merged_value);
+        }
+    }
+
+    return merged_subfields.toString();
+}
+
+
+MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
+    MARC::Record merged_record(record1.getLeader());
+
+    const auto record1_end_or_lok_start(record1.getFirstField("LOK"));
+    record1.sortFields(record1.begin(), record1_end_or_lok_start);
+    auto record1_field(record1.begin());
+
+    const auto record2_end_or_lok_start(record2.getFirstField("LOK"));
+    record2.sortFields(record1.begin(), record2_end_or_lok_start);
+    auto record2_field(record2.begin());
+
+    while (record1_field != record1_end_or_lok_start and record2_field != record2_end_or_lok_start) {
+        if (record1_field->getTag() == record2_field->getTag() and not MARC::IsRepeatableField(record1_field->getTag())) {
+            merged_record.appendField(record1_field->getTag(),
+                                      MergeFieldContents(record1_field->getTag().isTagOfControlField(),
+                                                         record1_field->getContents(), record1.isElectronicResource(),
+                                                         record2_field->getContents(), record2.isElectronicResource()),
+                                      record1_field->getIndicator1(), record1_field->getIndicator2());
+            ++record1_field, ++record2_field;
+        } else if (*record1_field < *record2_field) {
+            merged_record.appendField(*record1_field);
+            ++record1_field;
+        } else if (*record2_field < *record1_field) {
+            merged_record.appendField(*record2_field);
+            ++record2_field;
+        } else { // Both fields are identical => just take any one of them.
+            merged_record.appendField(*record1_field);
+            ++record1_field, ++record2_field;
+        }
+    }
+
+    // Append local data, if we have any:
+    if (record1_end_or_lok_start != record1.end()) {
+        for (record1_field = record1_end_or_lok_start; record1_field != record1.end(); ++record1_field)
+            merged_record.appendField(*record1_field);
+    } else if (record2_end_or_lok_start != record2.end()) {
+        for (record2_field = record2_end_or_lok_start; record2_field != record2.end(); ++record2_field)
+            merged_record.appendField(*record2_field);
+    }
 
     // Mark the record as being both "print" as well as "electronic":
     merged_record.insertField("ZWI", { { 'a', "1" } });
@@ -138,7 +218,7 @@ MARC::Record ReadRecordFromOffsetOrDie(MARC::Reader * const marc_reader, const o
     return record;
 }
 
-    
+
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, File * const missing_partners,
                     const std::unordered_map<std::string, off_t> &control_number_to_offset_map,
                     const std::unordered_map<std::string, std::string> &ppn_to_ppn_map)
