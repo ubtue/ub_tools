@@ -192,6 +192,15 @@ MARC::Record MergeRecords(MARC::Record &record1, MARC::Record &record2) {
         }
     }
 
+    // Append local data, if we have any:
+    if (record1_end_or_lok_start != record1.end()) {
+        for (record1_field = record1_end_or_lok_start; record1_field != record1.end(); ++record1_field)
+            merged_record.appendField(*record1_field);
+    } else if (record2_end_or_lok_start != record2.end()) {
+        for (record2_field = record2_end_or_lok_start; record2_field != record2.end(); ++record2_field)
+            merged_record.appendField(*record2_field);
+    }
+
     // Mark the record as being both "print" as well as "electronic":
     merged_record.insertField("ZWI", { { 'a', "1" } });
 
