@@ -191,8 +191,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 }
 
 
-// Returns true if text has been successfully extracted, else false.
-bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_filename) {
+bool ProcessRecordUrls(MARC::Record * const record) {
     const std::string ppn(record->getControlNumber());
     std::vector<std::string> urls;
 
@@ -266,6 +265,18 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
 
     if (not combined_text_final.empty())
         record->insertField("FUL", { { 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn } });
+
+    return success;
+}
+
+
+bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_filename) {
+    bool success(false);
+    try {
+        success = ProcessRecordUrls(record);
+    } catch (const std::exception &x) {
+        WARNING("caught exception: " + std::string(x.what()));
+    }
 
     // Safely append the modified MARC data to the MARC output file:
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY,
