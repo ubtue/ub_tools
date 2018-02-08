@@ -71,7 +71,7 @@ CrossrefDate::CrossrefDate(const JSON::ObjectNode &object, const std::string &fi
     if (unlikely(array_node->empty()))
         logger->error("in CrossrefDate::CrossrefDate: nested child of \"" + field + "\" does not exist!");
 
-    const JSON::ArrayNode * const array_node2(dynamic_cast<const JSON::ArrayNode *>(array_node->getValue(0)));
+    const JSON::ArrayNode * const array_node2(dynamic_cast<const JSON::ArrayNode *>(array_node->getNode(0)));
     if (unlikely(array_node2 == nullptr))
         logger->error("in CrossrefDate::CrossrefDate: inner nested child of \"" + field + "\" is not a JSON array!");
 
@@ -504,7 +504,7 @@ void AddISSN(const JSON::ObjectNode &message_tree, MarcRecord * const marc_recor
         logger->warning("in AddISSN: bizarre, ISSN list is empty!");
         return;
     }
-    const JSON::StringNode * const first_issn(dynamic_cast<const JSON::StringNode *>(issns->getValue(0)));
+    const JSON::StringNode * const first_issn(dynamic_cast<const JSON::StringNode *>(issns->getNode(0)));
     if (likely(first_issn != nullptr))
         marc_record->insertSubfield("022", 'a', first_issn->getValue());
     else
@@ -517,7 +517,7 @@ bool AddTitle(const JSON::ObjectNode &message_tree, MarcRecord * const marc_reco
         dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("title")));
     if (unlikely(titles == nullptr or titles->empty()))
         return false;
-    const JSON::StringNode * const first_title(dynamic_cast<const JSON::StringNode *>(titles->getValue(0)));
+    const JSON::StringNode * const first_title(dynamic_cast<const JSON::StringNode *>(titles->getNode(0)));
     if (unlikely(first_title == nullptr))
         return false;
     marc_record->insertSubfield("245", 'a', first_title->getValue());
@@ -526,7 +526,7 @@ bool AddTitle(const JSON::ObjectNode &message_tree, MarcRecord * const marc_reco
         dynamic_cast<const JSON::ArrayNode *>(message_tree.getValue("subtitle")));
     if (subtitles != nullptr and not subtitles->empty()) {
         const JSON::StringNode * const first_subtitle_node(
-            dynamic_cast<const JSON::StringNode *>(subtitles->getValue(0)));
+            dynamic_cast<const JSON::StringNode *>(subtitles->getNode(0)));
         if (likely(first_subtitle_node != nullptr))
             marc_record->addSubfield("245", 'b', first_subtitle_node->getValue());
     }
