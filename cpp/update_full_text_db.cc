@@ -28,6 +28,7 @@
 #include "Downloader.h"
 #include "FullTextCache.h"
 #include "MARC.h"
+#include "OCR.h"
 #include "PdfUtil.h"
 #include "Semaphore.h"
 #include "StringUtil.h"
@@ -166,25 +167,37 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
         std::string utf8_document;
         if (unlikely(not encoding_converter->convert(document, &utf8_document)))
             WARNING("conversion error while converting text from \"" + http_header_charset + "\" to UTF-8!");
-        return utf8_document;
+        return TextUtil::CollapseWhitespace(&utf8_document);
     }
 
-    if (media_type == "text/html")
-        return TextUtil::ExtractTextFromHtml(document, http_header_charset);
+    std::string extracted_text;
+    if (media_type == "text/html") {
+        extracted_text = TextUtil::ExtractTextFromHtml(document, http_header_charset);
+        return TextUtil::CollapseWhitespace(&extracted_text);
+    }
 
     if (StringUtil::StartsWith(media_type, "application/pdf")) {
         if (PdfUtil::PdfDocContainsNoText(document)) {
-            std::string extracted_text;
             if (not PdfUtil::GetTextFromImagePDF(document, tesseract_language_code, &extracted_text)) {
                 *error_message = "Failed to extract text from an image PDF!";
                 WARNING(*error_message);
                 return "";
             }
-            return extracted_text;
+            return TextUtil::CollapseWhitespace(&extracted_text);
         }
-        return PdfUtil::ExtractText(document);
-
+        extracted_text = PdfUtil::ExtractText(document);
+        return TextUtil::CollapseWhitespace(&extracted_text);
     }
+
+    if (media_type == "image/jpeg" or media_type == "image/png") {
+        if (OCR(document, &extracted_text, "deu+eng+fra") != 0) {
+            *error_message = "Failed to extract text by using OCR on " + media_type;
+            WARNING(*error_message);
+            return "";
+        }
+        return TextUtil::CollapseWhitespace(&extracted_text);
+    }
+
     *error_message = "Don't know how to handle media type: " + media_type;
     WARNING(*error_message);
     return "";
