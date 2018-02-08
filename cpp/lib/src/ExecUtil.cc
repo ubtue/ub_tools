@@ -80,7 +80,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
         throw std::runtime_error("in ExecUtil::Exec: can't execute \"" + command + "\"!");
 
     if (exec_mode == ExecMode::DETACH and timeout_in_seconds > 0)
-        throw std::runtime_error("in ExecUtil::Exec: non-zero timeout is imcompatible w/ ExecMode::DETACH!");
+        throw std::runtime_error("in ExecUtil::Exec: non-zero timeout is incompatible w/ ExecMode::DETACH!");
 
     const int EXECVE_FAILURE(248);
 
