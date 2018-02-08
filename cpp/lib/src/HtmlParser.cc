@@ -655,7 +655,8 @@ const std::vector<std::string> HTML4_DOCTYPES = {
     "html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"",
     "html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"",
     "html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\"",
-    "html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\""
+    "html PUBLIC \"-//W3C//DTD XHTML+RDFa 1.0//EN\"",
+    "html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\"",
 };
 
 
