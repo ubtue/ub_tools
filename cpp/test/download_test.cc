@@ -45,7 +45,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << progname << " [--timeout seconds] [--trace] url output_filename\n";
+    std::cerr << "Usage: " << progname << " [--timeout milliseconds] [--trace] url output_filename\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -56,11 +56,11 @@ int main(int argc, char *argv[]) {
     if (argc < 3)
         Usage();
 
-    const unsigned DEFAULT_TIMEOUT(20); // seconds
+    const unsigned DEFAULT_TIMEOUT(20000); // ms
     unsigned timeout(DEFAULT_TIMEOUT);
     if (std::strcmp(argv[1], "--timeout") == 0) {
         if (not StringUtil::ToUnsigned(argv[2], &timeout))
-            Error("bad timeout \"" + std::string(argv[2]) + "\"!");
+            ERROR("bad timeout \"" + std::string(argv[2]) + "\"!");
         argc -= 2;
         argv += 2;
     }
@@ -82,17 +82,17 @@ int main(int argc, char *argv[]) {
     const std::string output_filename(argv[2]);
 
     try {
-        std::string document;
-        if (not SmartDownload(url, timeout, &document, trace)) {
-            std::cerr << progname << ": Download failed!\n";
+        std::string document, charset, err_msg;
+        if (not SmartDownload(url, timeout, &document, &charset, &err_msg, trace)) {
+            std::cerr << ::progname << ": Download failed! (" + err_msg + ")\n";
             std::exit(EXIT_FAILURE);
         }
 
         if (not FileUtil::WriteString(output_filename, document)) {
-            std::cerr << progname << ": failed to write downloaded document to \"" + output_filename + "\"!\n";
+            std::cerr << ::progname << ": failed to write downloaded document to \"" + output_filename + "\"!\n";
             std::exit(EXIT_FAILURE);
         }
     } catch (const std::exception &e) {
-        Error("Caught exception: " + std::string(e.what()));
+        ERROR("Caught exception: " + std::string(e.what()));
     }
 }
