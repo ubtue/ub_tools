@@ -49,8 +49,8 @@ std::string RomanPageNumberGenerator::getNextPageNumber() {
 
 
 bool IdbPager::getNextPage(const TimeLimit &time_limit, std::string * const ocr_text) {
-    if (Download(base_url_ + number_generator_->getNextPageNumber() + "/ocr",
-                 time_limit, ocr_text) != 0)
+    if (not Download(base_url_ + number_generator_->getNextPageNumber() + "/ocr",
+                 time_limit, ocr_text))
         return false;
 
     const std::string page_no_start_string("Seite:&nbsp;");

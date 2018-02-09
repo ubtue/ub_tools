@@ -160,7 +160,7 @@ void ProcessRecords(MarcReader * const marc_reader, const unsigned pdf_limit_cou
 
         if (pdf_success_count < pdf_limit_count) {
             std::string document;
-            if (Download(pdf_url, 10000 /* ms */, &document) != 0)
+            if (not Download(pdf_url, 10000 /* ms */, &document))
                 ++download_failure_count;
             else {
                 const std::string media_type(MediaTypeUtil::GetMediaType(document));
