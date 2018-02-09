@@ -34,7 +34,7 @@ class IdbPager {
 public:
     IdbPager(const std::string &id, PageNumberGenerator * const number_generator)
         : number_generator_(number_generator), base_url_("http://idb.ub.uni-tuebingen.de/diglit/" +id + "/") { }
-    bool getNextPage(const TimeLimit time_limit, std::string * const ocr_text);
+    bool getNextPage(const TimeLimit &time_limit, std::string * const ocr_text);
 };
 
 
