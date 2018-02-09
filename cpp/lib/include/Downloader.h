@@ -197,23 +197,17 @@ private:
 /** \brief Downloads a Web document.
  *  \param url              The address.
  *  \param output_filename  Where to store the downloaded document.
- *  \param timeout          Max. amount of time to try to download a document in seconds.
- *  \param cookie_file      Cookies will be read before the attempted download and later stored here.
- *  \return Exit code of the child process.  0 upon success.
+ *  \param time_limit          Max. amount of time to try to download a document in seconds.
  */
-int Download(const std::string &url, const std::string &output_filename, const unsigned timeout,
-             const std::string &cookie_file = "");
+bool Download(const std::string &url, const std::string &output_filename, const TimeLimit &time_limit);
 
 
 /** \brief Downloads a Web document.
- *  \param url      The address.
- *  \param timeout  Max. amount of time to try to download a document in seconds.
- *  \param output   Where to store the downloaded document.
- *  \param cookie_file      Cookies will be read before the attempted download and later stored here.
- *  \return Exit code of the child process.  0 upon success.
+ *  \param url         The address.
+ *  \param time_limit  Max. amount of time to try to download a document in seconds.
+ *  \param output      Where to store the downloaded document.
  */
-int Download(const std::string &url, const unsigned timeout, std::string * const output,
-             const std::string &cookie_file = "");
+bool Download(const std::string &url, const TimeLimit &time_limit, std::string * const output);
 
 
 #endif // ifndef DOWNLOADER_H

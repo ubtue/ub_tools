@@ -166,9 +166,9 @@ void GetQueryParams(const std::string &serialised_minSO,
     params_to_values_map->clear();
 
     static const std::string URL_BASE("http://localhost/Devtools/Deminify?min=");
-    static const unsigned TIMEOUT(10); // seconds
+    static const unsigned TIMEOUT(10000); // ms
     std::string web_document;
-    if (Download(URL_BASE + UrlUtil::UrlEncode(serialised_minSO), TIMEOUT, &web_document) != 0)
+    if (not Download(URL_BASE + UrlUtil::UrlEncode(serialised_minSO), TIMEOUT, &web_document))
         throw std::runtime_error("Failed to contact VuFind w/in " + std::to_string(TIMEOUT) + " seconds!");
 
     const std::string::size_type pre_start_pos(web_document.find("<pre>"));
@@ -322,7 +322,7 @@ void InsertIdsIntoTheIxtheoIdResultSetsTable(const std::string &query_id, const 
 bool ProcessUser(const std::string &user_id, const std::string &/*email_address*/, DbConnection * const connection) {
     connection->queryOrDie("SELECT id,search_object FROM search WHERE user_id=" + user_id);
 
-    constexpr unsigned SOLR_QUERY_TIMEOUT(20); // seconds
+    constexpr unsigned SOLR_QUERY_TIMEOUT(20000); // ms
     DbResultSet search_object_result_set(connection->getLastResultSet());
     while (const DbRow row = search_object_result_set.getNextRow()) {
         const std::string query_id(row[0]);
