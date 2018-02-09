@@ -33,7 +33,7 @@ bool Query(const std::string &query, const std::string &fields, std::string * co
     const std::string url("http://" + host_and_port + "/solr/biblio/select?q=" + UrlUtil::UrlEncode(query)
                           + "&wt=" + std::string(query_result_format == XML ? "xml" : "json")
                           + (fields.empty() ? "" : "&fl=" + fields) + "&rows=999999");
-    return Download(url, timeout, xml_result) == 0;
+    return Download(url, timeout * 1000, xml_result);
 }
 
 

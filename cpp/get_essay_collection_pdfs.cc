@@ -160,7 +160,7 @@ void ProcessRecords(MarcReader * const marc_reader, const unsigned pdf_limit_cou
 
         if (pdf_success_count < pdf_limit_count) {
             std::string document;
-            if (Download(pdf_url, 10 /* seconds */, &document) != 0)
+            if (not Download(pdf_url, 10000 /* ms */, &document))
                 ++download_failure_count;
             else {
                 const std::string media_type(MediaTypeUtil::GetMediaType(document));
@@ -168,7 +168,7 @@ void ProcessRecords(MarcReader * const marc_reader, const unsigned pdf_limit_cou
                     std::cout << url << " has wrong media type: " << media_type << '\n';
                     continue;
                 }
-                
+
                 const std::string &control_number(record.getControlNumber());
                 const std::string output_filename(control_number + ".pdf");
                 if (not FileUtil::WriteString(output_filename, document))
