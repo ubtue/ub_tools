@@ -81,42 +81,4 @@ bool PdfDocContainsNoText(const std::string &document) {
 }
 
 
-bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
-                         std::string * const extracted_text)
-{
-    extracted_text->clear();
-
-    static std::string pdf_images_script_path;
-    if (pdf_images_script_path.empty())
-        pdf_images_script_path = ExecUtil::LocateOrDie("pdf_images_to_text.sh");
-
-    const FileUtil::AutoTempFile auto_temp_file;
-    const std::string &input_filename(auto_temp_file.getFilePath());
-    if (not FileUtil::WriteString(input_filename, pdf_document))
-        logger->error("failed to write the PDF to a temp file!");
-
-    const FileUtil::AutoTempFile auto_temp_file2;
-    const std::string &output_filename(auto_temp_file2.getFilePath());
-    static constexpr unsigned TIMEOUT(60); // in seconds
-
-    const std::string UPDATE_DB_LOG_PATH("/usr/local/var/log/tuefind/update_full_text_db/log");
-    MiscUtil::LogRotate(UPDATE_DB_LOG_PATH, /* max_count = */5);
-
-    if (ExecUtil::Exec(pdf_images_script_path, { input_filename, output_filename, tesseract_language_code },
-                       /* new_stdin = */"", /* new_stdout = */UPDATE_DB_LOG_PATH,
-                       /* new_stderr = */UPDATE_DB_LOG_PATH, TIMEOUT) != 0)
-    {
-        logger->warning("failed to execute conversion script \"" + pdf_images_script_path + "\" w/in "
-                        + std::to_string(TIMEOUT) + " seconds!");
-        return false;
-    }
-
-    std::string plain_text;
-    if (not FileUtil::ReadString(output_filename, extracted_text))
-        logger->error("failed to read OCR output!");
-
-    return not extracted_text->empty();
-}
-
-
 } // namespace PdfUtil
