@@ -31,6 +31,7 @@
 #include "OCR.h"
 #include "PdfUtil.h"
 #include "Semaphore.h"
+#include "SmartDownloader.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "util.h"
@@ -55,22 +56,14 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std
                              std::string * const media_type, std::string * const http_header_charset,
                              std::string * const error_message)
 {
-    Downloader::Params params;
-    Downloader downloader(url, params, timeout);
-    if (downloader.anErrorOccurred()) {
-        *error_message = downloader.getLastErrorMessage();
+    if (not SmartDownload(url, timeout, document, http_header_charset, error_message))
         return false;
-    }
 
-    *document = downloader.getMessageBody();
-    // Get media type including enconding
-    *media_type = downloader.getMediaType();
+    *media_type = MediaTypeUtil::GetMediaType(*document, false /* auto_simplify */);
     if (media_type->empty()) {
-        *error_message = "failed to determine the media type!";
+        *error_message = "Failed to get media type";
         return false;
     }
-
-    *http_header_charset = downloader.getCharset();
 
     return true;
 }
@@ -238,7 +231,6 @@ bool ProcessRecordUrls(MARC::Record * const record) {
         bool at_least_one_error(false);
 
         for (const auto &url : urls) {
-            INFO("processing URL: \"" + url + "\".");
             FullTextCache::EntryUrl entry_url;
             entry_url.id_ = ppn;
             entry_url.url_ = url;
@@ -248,12 +240,14 @@ bool ProcessRecordUrls(MARC::Record * const record) {
             std::string document, media_type, http_header_charset, error_message;
             if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &http_header_charset,
                                              &error_message))) {
+                WARNING("URL " + url + ": could not get document and media type! (" + error_message + ")");
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
             } else {
                 std::string extracted_text(ConvertToPlainText(media_type, http_header_charset, GetTesseractLanguageCode(*record),
                                                               document, &error_message));
 
                 if (unlikely(extracted_text.empty())) {
+                    WARNING("URL " + url + ": failed to extract text from the downloaded document! (" + error_message + ")");
                     entry_url.error_message_ = "failed to extract text from the downloaded document! (" + error_message + ")";
                 } else {
                     if (combined_text.empty())
