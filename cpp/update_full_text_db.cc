@@ -178,7 +178,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 
     if (StringUtil::StartsWith(media_type, "application/pdf")) {
         if (PdfUtil::PdfDocContainsNoText(document)) {
-            if (OCR(document, &extracted_text, tesseract_language_code) != 0) {
+            if (not PdfUtil::GetTextFromImagePDF(document, tesseract_language_code, &extracted_text)) {
                 *error_message = "Failed to extract text from an image PDF!";
                 WARNING(*error_message);
                 return "";
@@ -190,7 +190,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
     }
 
     if (media_type == "image/jpeg" or media_type == "image/png") {
-        if (OCR(document, &extracted_text, tesseract_language_code) != 0) {
+        if (OCR(document, &extracted_text, "deu+eng+fra") != 0) {
             *error_message = "Failed to extract text by using OCR on " + media_type;
             WARNING(*error_message);
             return "";
