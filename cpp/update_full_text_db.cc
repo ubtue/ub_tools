@@ -28,6 +28,7 @@
 #include "Downloader.h"
 #include "FullTextCache.h"
 #include "MARC.h"
+#include "MediaTypeUtil.h"
 #include "OCR.h"
 #include "PdfUtil.h"
 #include "Semaphore.h"
