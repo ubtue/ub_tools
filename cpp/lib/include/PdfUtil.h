@@ -44,11 +44,6 @@ bool PdfFileContainsNoText(const std::string &path);
 bool PdfDocContainsNoText(const std::string &document);
 
 
-/** \brief Uses tesseract to attempt OCR. */
-bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
-                         std::string * const extracted_text);
-
-
 } // namespace PdfUtil
 
 
