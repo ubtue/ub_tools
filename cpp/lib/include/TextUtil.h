@@ -346,6 +346,12 @@ inline std::string CStyleEscape(std::string s) {
 }
 
 
+/** \brief Converts the first character of "text" to uppercase and the remainder to lowercase, if possible.
+ *  \note  We treat "text" as UTF-8.
+ */
+std::string InitialCaps(const std::string &text);
+
+
 } // namespace TextUtil
 
 
