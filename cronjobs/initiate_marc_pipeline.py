@@ -85,6 +85,7 @@ def FoundNewBSZDataFile(link_filename):
 def Main():
     util.default_email_sender = "initiate_marc_pipeline@ub.uni-tuebingen.de"
     if len(sys.argv) != 3:
+         print "invalid arguments! usage: initiate_marc_pipeline.py <default email recipient> <MARC21 pipeline script name>"
          util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)",
                         "This script needs to be called with two arguments,\n"
                         + "the default email recipient and the name of the MARC-21\n"
@@ -94,6 +95,7 @@ def Main():
     util.default_email_recipient = sys.argv[1]
     pipeline_script_name = sys.argv[2]
     if not os.access(pipeline_script_name, os.X_OK):
+         print "Pipeline script not found or not executable: " + pipeline_script_name
          util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)", "Pipeline script not found or not executable: \""
                         + pipeline_script_name + "\"\n", priority=1)
          sys.exit(-1)
