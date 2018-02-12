@@ -56,6 +56,7 @@ public:
     static const std::string DEFAULT_USER_AGENT_STRING;
     static const std::string DEFAULT_ACCEPTABLE_LANGUAGES;
     static const unsigned DEFAULT_TIME_LIMIT    = 20000; // In ms.
+    static const long DEFAULT_META_REDIRECT_THRESHOLD = 30; // In s
 private:
     CURLcode curl_error_code_;
     mutable std::string last_error_message_;
@@ -86,6 +87,7 @@ public:
         PerlCompatRegExps banned_reg_exps_; // Do not download anything matching these regular expressions.
         bool debugging_;
         bool follow_redirects_;
+        unsigned meta_redirect_threshold_; // only redirect if less than this value in seconds
         bool ignore_ssl_certificates_;
         std::string proxy_host_and_port_;
         std::vector<std::string> additional_headers_;
@@ -98,7 +100,8 @@ public:
                         const bool honour_robots_dot_txt = false,
                         const TextTranslationMode text_translation_mode = TRANSPARENT,
                         const PerlCompatRegExps &banned_reg_exps = PerlCompatRegExps(), const bool debugging = false,
-                        const bool follow_redirects = true, bool ignore_ssl_certificates = false,
+                        const bool follow_redirects = true, const unsigned meta_redirect_threshold = DEFAULT_META_REDIRECT_THRESHOLD,
+                        const bool ignore_ssl_certificates = false,
                         const std::string &proxy_host_and_port = "",
                         const std::vector<std::string> &additional_headers = {},
                         const std::string &post_data = "");
