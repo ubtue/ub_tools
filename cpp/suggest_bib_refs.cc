@@ -95,17 +95,17 @@ std::string GetPossibleBibleReference(const std::string &normalised_title,
 {
     // Regex taken from https://stackoverflow.com/questions/22254746/bible-verse-regex
     static const RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "((\\d*)\\s*([a-z]+)\\s*(\\d+)(?::(\\d+))?(\\s*-\\s*(\\d+)(?:\\s*([a-z]+)\\s*(\\d+))?(?::(\\d+))?)?)"));
+        "(\\d*)\\s*([a-z]+)\\s*(\\d+)(:(\\d+))?(\\s*-\\s*(\\d+)(\\s*([a-z]+)\\s*(\\d+))?(:(\\d+))?)?"));
     if (not matcher->matched(normalised_title))
         return "";
 
-    const std::string bible_reference_candidate((*matcher)[1]);
+    const std::string bible_reference_candidate((*matcher)[0]);
     std::string book_candidate, chapters_and_verses_candidate;
     BibleUtil::SplitIntoBookAndChaptersAndVerses(bible_reference_candidate, &book_candidate, &chapters_and_verses_candidate);
 
     book_candidate = bible_book_canoniser.canonise(book_candidate, /* verbose = */false);
     const std::string book_code(bible_book_to_code_mapper.mapToCode(book_candidate, /* verbose = */false));
-    if (book_code.empty() or chapters_and_verses_candidate.empty())
+    if (book_code.empty())
         return "";
 
     std::set<std::pair<std::string, std::string>> start_end;
@@ -139,10 +139,10 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const ppn_candidate
 
         const std::string normalised_title(NormaliseTitle(title));
         std::string bib_ref_candidate(GetPericope(normalised_title, pericopes_to_codes_map));
-        StringUtil::TrimWhite(&bib_ref_candidate);
         if (bib_ref_candidate.empty())
             bib_ref_candidate = GetPossibleBibleReference(normalised_title, bible_book_canoniser,
                                                           bible_book_to_code_mapper);
+        StringUtil::TrimWhite(&bib_ref_candidate);
         if (not bib_ref_candidate.empty()) {
             ++ppn_candidate_count;
             ppn_candidate_list->write("\"" + PPN + "\",\"" + TextUtil::CSVEscape(bib_ref_candidate) + "\",\""
@@ -151,7 +151,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const ppn_candidate
     }
 
     std::cout << "Processed " << record_count << " MARC bibliographic record(s).\n";
-    std::cout << "Found " << ppn_candidate_count << " record(s) that may need a bible references.\n";
+    std::cout << "Found " << ppn_candidate_count << " record(s) that may need a bible reference.\n";
 }
 
 
