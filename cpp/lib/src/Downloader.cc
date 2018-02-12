@@ -634,7 +634,8 @@ bool Downloader::getHttpEquivRedirect(std::string * const redirect_url) const {
                                                    &url_and_possible_junk))
         return false;
 
-    if (StringUtil::ToUnsigned(delay) > params_.meta_redirect_threshold_)
+    unsigned delay_unsigned;
+    if (StringUtil::ToUnsigned(delay, &delay_unsigned) && delay_unsigned > params_.meta_redirect_threshold_)
         return false;
 
     const char * const url_and_equal_sign(::strcasestr(url_and_possible_junk.c_str(), "url="));
