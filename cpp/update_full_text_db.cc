@@ -60,7 +60,7 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std
     if (not SmartDownload(url, timeout, document, http_header_charset, error_message))
         return false;
 
-    *media_type = MediaTypeUtil::GetMediaType(*document, false /* auto_simplify */);
+    *media_type = MediaTypeUtil::GetMediaType(*document);
     if (media_type->empty()) {
         *error_message = "Failed to get media type";
         return false;
