@@ -53,23 +53,18 @@ bool DownloadHelper(const std::string &url, const TimeLimit &time_limit,
 SmartDownloader::SmartDownloader(const std::string &regex, const bool trace): trace_(trace) {
     std::string err_msg;
     matcher_.reset(RegexMatcher::RegexMatcherFactory(regex, &err_msg));
-    if (not matcher_) {
-        std::cerr << progname << ": in SmartDownloader::SmartDownloader: pattern failed to compile \""
-                  << regex << "\"!\n";
-        std::exit(EXIT_FAILURE);
-    }
+    if (not matcher_)
+        ERROR("pattern failed to compile \"" + regex + "\"!");
 }
 
 
 bool SmartDownloader::canHandleThis(const std::string &url) const {
     std::string err_msg;
     if (matcher_->matched(url, &err_msg)) {
-        if (not err_msg.empty()) {
-            std::cerr << progname
-                      << ": in SmartDownloader::canHandleThis: an error occurred while trying to match \""
-                      << url << "\" with \"" << matcher_->getPattern() << "\"! (" << err_msg << ")\n";
-            std::exit(EXIT_FAILURE);
-        }
+        if (not err_msg.empty())
+            ERROR("an error occurred while trying to match \"" + url + "\" with \""
+                  + matcher_->getPattern() + "\"! (" + err_msg + ")");
+
         return true;
     }
 
@@ -137,7 +132,7 @@ bool SimpleSuffixDownloader::downloadDocImpl(const std::string &url, const TimeL
                                              std::string * const error_message)
 {
     if (trace_)
-        std::cerr << "in SimpleSuffixDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        INFO("about to download \"" + url + "\".");
     return (DownloadHelper(url, time_limit, document, http_header_charset, error_message));
 }
 
@@ -157,7 +152,7 @@ bool SimplePrefixDownloader::downloadDocImpl(const std::string &url, const TimeL
                                              std::string * const error_message)
 {
     if (trace_)
-        std::cerr << "in SimplePrefixDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        INFO("about to download \"" + url + "\".");
     return (DownloadHelper(url, time_limit, document, http_header_charset, error_message));
 }
 
@@ -177,7 +172,7 @@ bool DigiToolSmartDownloader::downloadDocImpl(const std::string &url, const Time
     const std::string normalised_url(url.substr(start_pos, end_pos - start_pos));
 
     if (trace_)
-        std::cerr << "in DigiToolSmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        INFO("about to download \"" + url + "\".");
     if (not DownloadHelper(normalised_url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded())
         return false;
 
@@ -195,24 +190,24 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
                                             std::string * const error_message)
 {
     if (trace_)
-        std::cerr << "in DiglitSmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        INFO("about to download \"" + url + "\".");
     if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message)) {
         if (trace_)
-            std::cerr << "in DiglitSmartDownloader::downloadDocImpl: original download failed!\n";
+            WARNING("original download failed!");
         return false;
     }
     const std::string start_string("<input type=\"hidden\" name=\"projectname\" value=\"");
     size_t start_pos(document->find(start_string));
     if  (start_pos == std::string::npos) {
         if (trace_)
-            std::cerr << "in DiglitSmartDownloader::downloadDocImpl: start position not found!\n";
+            WARNING("start position not found!");
         return false;
     }
     start_pos += start_string.length();
     const size_t end_pos(document->find('"', start_pos));
     if  (end_pos == std::string::npos) {
         if (trace_)
-            std::cerr << "in DiglitSmartDownloader::downloadDocImpl: end position not found!\n";
+            WARNING("end position not found!");
         return false;
     }
     const std::string projectname(document->substr(start_pos, end_pos - start_pos));
@@ -224,7 +219,7 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
     while (roman_pager.getNextPage(time_limit, &page)) {
         if (time_limit.limitExceeded()) {
             if (trace_)
-                std::cerr << "in DiglitSmartDownloader::downloadDocImpl: time out while paging! (roman numbers)\n";
+                WARNING("time out while paging! (roman numbers)");
             return false;
         }
         document->append(page);
@@ -235,7 +230,7 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
     while (arabic_pager.getNextPage(time_limit, &page)) {
         if (time_limit.limitExceeded()) {
             if (trace_)
-                std::cerr << "in DiglitSmartDownloader::downloadDocImpl: time out while paging! (arabic numbers)\n";
+                WARNING("time out while paging! (arabic numbers)");
             return false;
         }
         document->append(page);
@@ -251,7 +246,7 @@ bool BszSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit
 {
     const std::string doc_url(url.substr(0, url.size() - 3) + "pdf");
     if (trace_)
-        std::cerr << "in BszSmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
+        INFO("about to download \"" + doc_url + "\".");
     return DownloadHelper(url, time_limit, document, http_header_charset, error_message);
 }
 
@@ -262,7 +257,7 @@ bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimi
 {
     std::string html;
     if (trace_)
-        std::cerr << "in BvbrSmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        INFO("about to download \"" + url + "\".");
     if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded())
         return false;
     const std::string start_string("<body onload=window.location=\"");
@@ -275,7 +270,7 @@ bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimi
         return false;
     const std::string doc_url("http://bvbr.bib-bvb.de:8991" + html.substr(start_pos, end_pos - start_pos));
     if (trace_)
-        std::cerr << "in BvbrSmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
+        INFO("about to download \"" + doc_url + "\".");
     return DownloadHelper(url, time_limit, document, http_header_charset, error_message);
 }
 
@@ -285,7 +280,7 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLim
                                            std::string * const error_message)
 {
     if (trace_)
-        std::cerr << "in Bsz21SmartDownloader::downloadDocImpl: about to download \"" << url << "\".\n";
+        INFO("about to download \"" + url + "\".");
     if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded())
         return false;
     if (MediaTypeUtil::GetMediaType(*document) == "application/pdf")
@@ -321,7 +316,7 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLim
     }
 
     if (trace_)
-        std::cerr << "in Bsz21SmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
+        INFO("about to download \"" + doc_url + "\".");
     return DownloadHelper(url, time_limit, document, http_header_charset, error_message);
 }
 
@@ -335,7 +330,7 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
     const std::string doc_url("http://catdir" + url.substr(10));
     std::string html;
     if (trace_)
-        std::cerr << "in LocGovSmartDownloader::downloadDocImpl: about to download \"" << doc_url << "\".\n";
+        INFO("about to download \"" + doc_url + "\".");
     const int retcode = DownloadHelper(url, time_limit, &html, http_header_charset, error_message);
 
     if (retcode != 0)
