@@ -4,7 +4,7 @@
  *  \author Artur Kedzierski
  *  \author Dr. Gordon W. Paynter
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.
+ *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.
  *  \copyright 2002-2008 Project iVia.
  *  \copyright 2002-2008 The Regents of The University of California.
  *
@@ -177,6 +177,24 @@ std::string PerformExchange(const int socket_fd, const TimeLimit &time_limit, co
 }
 
 
+void Authenticate(const int socket_fd, const TimeLimit &time_limit, SslConnection * const ssl_connection) {
+    std::string server_response(PerformExchange(socket_fd, time_limit, "AUTH LOGIN", "3[0-9][0-9]*", ssl_connection));
+    const std::string local_server_user(GetServerUser());
+    if (perform_logging) {
+        std::clog << "Decoded server response: " << TextUtil::Base64Decode(server_response.substr(4)) << '\n';
+        std::clog << "Sending user name: " << local_server_user << '\n';
+    }
+    server_response = PerformExchange(socket_fd, time_limit, Base64Encode(local_server_user), "3[0-9][0-9]*",
+                                      ssl_connection);
+    const std::string local_server_password(GetServerPassword());
+    if (perform_logging) {
+        std::clog << "Decoded server response: " << TextUtil::Base64Decode(server_response.substr(4)) << '\n';
+        std::clog << "Sending server password: " << local_server_password << '\n';
+    }
+    PerformExchange(socket_fd, time_limit, Base64Encode(local_server_password), "2[0-9][0-9]*", ssl_connection);
+}
+
+
 std::string GetDotStuffedMessage(const std::string &message) {
     std::list<std::string> lines;
     StringUtil::SplitThenTrim(message, "\n", "\r", &lines, /* suppress_empty_words = */ false);
@@ -192,16 +210,29 @@ std::string GetDotStuffedMessage(const std::string &message) {
 }
 
 
-std::string CreateEmailMessage(const EmailSender::Priority priority, const EmailSender::Format format,
-                               const std::string &sender, const std::string &recipient, const std::string &subject,
-                               const std::string &message_body, const std::string &cc = "")
+void  AppendRecipientHeaders(std::string * const message, const std::string &recipient_type,
+                             const std::vector<std::string> &recipients)
+{
+    for (const auto &recipient : recipients) {
+        const std::string tag(recipient_type + TextUtil::InitialCaps(recipient_type) + ": ");
+        if (perform_logging)
+            std::clog << tag << recipient << '\n';
+        message->append(tag + recipient + "\r\n");
+    }
+}
+
+
+std::string CreateEmailMessage(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &sender,
+                               const std::vector<std::string> &recipients, const std::vector<std::string> &cc_recipients,
+                               const std::vector<std::string> &bcc_recipients, const std::string &subject,
+                               const std::string &message_body)
 {
     std::string message;
     message  = "Date: " + GetDateInRFC822Format() + "\r\n";
     message += "From: " + sender + "\r\n";
-    message += "To: " + recipient + "\r\n";
-    if (not cc.empty())
-        message += "Cc: " + cc + "\r\n";
+    AppendRecipientHeaders(&message, "to", recipients);
+    AppendRecipientHeaders(&message, "cc", cc_recipients);
+    AppendRecipientHeaders(&message, "bcc", bcc_recipients);
     message += "Subject: " + subject + "\r\n";
     if (format == EmailSender::PLAIN_TEXT)
         message += "Content-Type: text/plain; charset=\"utf-8\"\r\n";
@@ -217,32 +248,46 @@ std::string CreateEmailMessage(const EmailSender::Priority priority, const Email
 }
 
 
+bool CleanAddress(const std::string &email_address, std::string * const cleaned_up_email_address) {
+    const auto open_angle_bracket_pos(email_address.find('<'));
+    if (open_angle_bracket_pos == std::string::npos) {
+        *cleaned_up_email_address = email_address;
+        return true;
+    }
+
+    const auto close_angle_bracket_pos(email_address.find('>'));
+    if (unlikely(close_angle_bracket_pos == std::string::npos))
+        return false;
+
+    *cleaned_up_email_address = email_address.substr(close_angle_bracket_pos + 1,
+                                                     close_angle_bracket_pos - open_angle_bracket_pos - 1);
+    return true;
+}
+
+
+bool ProcessRecipients(const int socket_fd, const TimeLimit &time_limit, const std::vector<std::string> &recipients,
+                       SslConnection * const ssl_connection)
+{
+    for (const auto &recipient : recipients) {
+        std::string cleaned_up_email_address;
+        if (unlikely(not CleanAddress(recipient, &cleaned_up_email_address)))
+            return false;
+        PerformExchange(socket_fd, time_limit, "RCPT TO:<" + cleaned_up_email_address + ">", "2[0-9][0-9]*", ssl_connection);
+    }
+
+    return true;
+}
+
+
 } // unnamed namespace
 
 
 namespace EmailSender {
 
 
-void Authenticate(const int socket_fd, const TimeLimit &time_limit, SslConnection * const ssl_connection = nullptr) {
-    std::string server_response(PerformExchange(socket_fd, time_limit, "AUTH LOGIN", "3[0-9][0-9]*", ssl_connection));
-    if (perform_logging) {
-        std::clog << "Decoded server response: " << TextUtil::Base64Decode(server_response.substr(4)) << '\n';
-        std::clog << "Sending user name: " << server_user << '\n';
-    }
-    const std::string server_user(GetServerUser());
-    server_response = PerformExchange(socket_fd, time_limit, Base64Encode(server_user), "3[0-9][0-9]*",
-                                      ssl_connection);
-    if (perform_logging) {
-        std::clog << "Decoded server response: " << TextUtil::Base64Decode(server_response.substr(4)) << '\n';
-        std::clog << "Sending server password: " << server_password << '\n';
-    }
-    const std::string server_password(GetServerPassword());
-    PerformExchange(socket_fd, time_limit, Base64Encode(server_password), "2[0-9][0-9]*", ssl_connection);
-}
-
-
-bool SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
-               const std::string &message_body, const Priority priority, const Format format,
+bool SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
+               const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
+               const std::string &subject, const std::string &message_body, const Priority priority, const Format format,
                const std::string &reply_to, const bool use_ssl, const bool use_authentication)
 {
     if (unlikely(sender.empty() and reply_to.empty()))
@@ -294,14 +339,19 @@ bool SendEmail(const std::string &sender, const std::string &recipient, const st
                         ssl_connection.get());
 
         // Send email to each recipient:
-        const std::list<std::string> receiver_email_address_list{ recipient };
-        for (const auto &receiver_email_address : receiver_email_address_list)
-            PerformExchange(socket_fd, time_limit, "RCPT TO:<" + receiver_email_address + ">", "2[0-9][0-9]*",
-                            ssl_connection.get());
+        if (unlikely(recipients.empty() and cc_recipients.empty() and bcc_recipients.empty()))
+            return false;
+        if (unlikely(not ProcessRecipients(socket_fd, time_limit, recipients, ssl_connection.get())))
+            return false;
+        if (unlikely(not ProcessRecipients(socket_fd, time_limit, cc_recipients, ssl_connection.get())))
+            return false;
+        if (unlikely(not ProcessRecipients(socket_fd, time_limit, bcc_recipients, ssl_connection.get())))
+            return false;
 
         PerformExchange(socket_fd, time_limit, "DATA", "3[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit,
-                        CreateEmailMessage(priority, format, sender, recipient, subject, message_body) + "\r\n.",
+                        CreateEmailMessage(priority, format, sender, recipients, cc_recipients, bcc_recipients, subject,
+                                           message_body) + "\r\n.",
                         "2[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit, "QUIT", "2[0-9][0-9]*", ssl_connection.get());
     } catch (const std::exception &x) {
