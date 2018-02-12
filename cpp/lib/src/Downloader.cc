@@ -89,7 +89,9 @@ CURLSH *Downloader::share_handle_(nullptr);
 unsigned Downloader::instance_count_(0);
 std::mutex *Downloader::dns_mutex_(nullptr);
 std::mutex *Downloader::cookie_mutex_(nullptr);
+std::mutex *Downloader::header_mutex_(nullptr);
 std::mutex *Downloader::robots_dot_txt_mutex_(nullptr);
+std::mutex *Downloader::write_mutex_(nullptr);
 std::unordered_map<std::string, RobotsDotTxt> Downloader::url_to_robots_dot_txt_map_;
 const std::string Downloader::DEFAULT_USER_AGENT_STRING("UB Tübingen C++ Downloader");
 const std::string Downloader::DEFAULT_ACCEPTABLE_LANGUAGES("en,eng,english");
@@ -350,7 +352,9 @@ void Downloader::InitCurlEasyHandle(const long dns_cache_timeout, const char * c
             throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_setopt() failed (3)!");
         if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE) != 0))
             throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_setopt() failed (4)!");
+        header_mutex_ = new std::mutex;
         robots_dot_txt_mutex_ = new std::mutex;
+        write_mutex_ = new std::mutex;
     }
 
     if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_SHARE, share_handle_) != CURLE_OK))
@@ -447,7 +451,10 @@ size_t Downloader::writeFunction(void *data, size_t size, size_t nmemb) {
 
 size_t Downloader::WriteFunction(void *data, size_t size, size_t nmemb, void *this_pointer) {
     Downloader *downloader(reinterpret_cast<Downloader *>(this_pointer));
-    return downloader->writeFunction(data, size, nmemb);
+    Downloader::write_mutex_->lock();
+    size_t result(downloader->writeFunction(data, size, nmemb));
+    Downloader::write_mutex_->unlock();
+    return result;
 }
 
 
@@ -491,7 +498,10 @@ size_t Downloader::headerFunction(void *data, size_t size, size_t nmemb) {
 
 size_t Downloader::HeaderFunction(void *data, size_t size, size_t nmemb, void *this_pointer) {
     Downloader *downloader(reinterpret_cast<Downloader *>(this_pointer));
-    return downloader->headerFunction(data, size, nmemb);
+    Downloader::header_mutex_->lock();
+    size_t result(downloader->headerFunction(data, size, nmemb));
+    Downloader::header_mutex_->unlock();
+    return result;
 }
 
 
