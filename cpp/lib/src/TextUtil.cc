@@ -1094,7 +1094,7 @@ std::string InitialCaps(const std::string &text) {
     auto wide_ch(wchar_string.begin());
     if (std::iswlower(*wide_ch))
         *wide_ch = std::towupper(*wide_ch);
-    for (/* Intentionally empty! */; wide_ch != wchar_string.end(); ++wide_ch) {
+    for (++wide_ch; wide_ch != wchar_string.end(); ++wide_ch) {
         if (std::iswupper(*wide_ch))
             *wide_ch = std::towlower(*wide_ch);
     }
