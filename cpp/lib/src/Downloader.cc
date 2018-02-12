@@ -87,9 +87,11 @@ int dummy(GlobalInit());
 
 CURLSH *Downloader::share_handle_(nullptr);
 unsigned Downloader::instance_count_(0);
-std::mutex *Downloader::dns_mutex_(nullptr);
-std::mutex *Downloader::cookie_mutex_(nullptr);
-std::mutex *Downloader::robots_dot_txt_mutex_(nullptr);
+std::mutex Downloader::cookie_mutex_;
+std::mutex Downloader::dns_mutex_;
+std::mutex Downloader::header_mutex_;
+std::mutex Downloader::robots_dot_txt_mutex_;
+std::mutex Downloader::write_mutex_;
 std::unordered_map<std::string, RobotsDotTxt> Downloader::url_to_robots_dot_txt_map_;
 const std::string Downloader::DEFAULT_USER_AGENT_STRING("UB Tübingen C++ Downloader");
 const std::string Downloader::DEFAULT_ACCEPTABLE_LANGUAGES("en,eng,english");
@@ -340,8 +342,6 @@ void Downloader::InitCurlEasyHandle(const long dns_cache_timeout, const char * c
         share_handle_ = ::curl_share_init( );
         if (unlikely(share_handle_ == nullptr))
             throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_init() failed!");
-        dns_mutex_ = new std::mutex;
-        cookie_mutex_ = new std::mutex;
         if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_LOCKFUNC, lock_func) != 0))
             throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_setopt() failed (1)!");
         if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_UNLOCKFUNC, unlock_func) != 0))
@@ -350,7 +350,6 @@ void Downloader::InitCurlEasyHandle(const long dns_cache_timeout, const char * c
             throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_setopt() failed (3)!");
         if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE) != 0))
             throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_setopt() failed (4)!");
-        robots_dot_txt_mutex_ = new std::mutex;
     }
 
     if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_SHARE, share_handle_) != CURLE_OK))
@@ -447,6 +446,7 @@ size_t Downloader::writeFunction(void *data, size_t size, size_t nmemb) {
 
 size_t Downloader::WriteFunction(void *data, size_t size, size_t nmemb, void *this_pointer) {
     Downloader *downloader(reinterpret_cast<Downloader *>(this_pointer));
+    std::lock_guard<std::mutex> mutex_locker(write_mutex_);
     return downloader->writeFunction(data, size, nmemb);
 }
 
@@ -455,17 +455,17 @@ void Downloader::LockFunction(CURL */* handle */, curl_lock_data data, curl_lock
                               void */* unused */)
 {
     if (data == CURL_LOCK_DATA_DNS)
-        Downloader::dns_mutex_->lock();
+        Downloader::dns_mutex_.lock();
     else if (data == CURL_LOCK_DATA_COOKIE)
-        Downloader::cookie_mutex_->lock();
+        Downloader::cookie_mutex_.lock();
 }
 
 
 void Downloader::UnlockFunction(CURL */* handle */, curl_lock_data data, void */* unused */) {
     if (data == CURL_LOCK_DATA_DNS)
-        Downloader::dns_mutex_->unlock();
+        Downloader::dns_mutex_.unlock();
     else if (data == CURL_LOCK_DATA_COOKIE)
-        Downloader::cookie_mutex_->unlock();
+        Downloader::cookie_mutex_.unlock();
 }
 
 
@@ -491,6 +491,7 @@ size_t Downloader::headerFunction(void *data, size_t size, size_t nmemb) {
 
 size_t Downloader::HeaderFunction(void *data, size_t size, size_t nmemb, void *this_pointer) {
     Downloader *downloader(reinterpret_cast<Downloader *>(this_pointer));
+    std::lock_guard<std::mutex> mutex_locker(header_mutex_);
     return downloader->headerFunction(data, size, nmemb);
 }
 
@@ -540,7 +541,7 @@ bool Downloader::allowedByRobotsDotTxt(const Url &url, const TimeLimit &time_lim
 
     {
         // Check to see if we already have a robots.txt object for the current URL:
-        std::lock_guard<std::mutex> mutex_locker(*robots_dot_txt_mutex_);
+        std::lock_guard<std::mutex> mutex_locker(robots_dot_txt_mutex_);
         const std::unordered_map<std::string, RobotsDotTxt>::const_iterator
             url_and_robots_dot_txt(url_to_robots_dot_txt_map_.find(robots_txt_url));
         if (url_and_robots_dot_txt != url_to_robots_dot_txt_map_.end())
@@ -553,13 +554,13 @@ bool Downloader::allowedByRobotsDotTxt(const Url &url, const TimeLimit &time_lim
 
     // Site doesn't have a robots.txt or for some reason we couldn't get it?
     if (not internalNewUrl(Url(robots_txt_url), time_limit)) {
-        std::lock_guard<std::mutex> mutex_locker(*robots_dot_txt_mutex_);
+        std::lock_guard<std::mutex> mutex_locker(robots_dot_txt_mutex_);
         url_to_robots_dot_txt_map_.insert(std::make_pair(robots_txt_url, RobotsDotTxt()));
         return true;
     }
 
     RobotsDotTxt new_robots_txt(body_);
-    std::lock_guard<std::mutex> mutex_locker(*robots_dot_txt_mutex_);
+    std::lock_guard<std::mutex> mutex_locker(robots_dot_txt_mutex_);
     url_to_robots_dot_txt_map_.insert(std::make_pair(robots_txt_url, new_robots_txt));
 
     return new_robots_txt.accessAllowed(params_.user_agent_, url.getPath());
@@ -574,10 +575,6 @@ void Downloader::GlobalCleanup(const bool forever) {
         ::curl_share_cleanup(share_handle_);
         share_handle_ = nullptr;
     }
-
-    delete dns_mutex_,  dns_mutex_ = nullptr;
-    delete cookie_mutex_,  cookie_mutex_ = nullptr;
-    delete robots_dot_txt_mutex_,  robots_dot_txt_mutex_ = nullptr;
 
     if (forever)
         ::curl_global_cleanup();
