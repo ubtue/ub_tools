@@ -35,10 +35,7 @@ bool DownloadHelper(const std::string &url, const TimeLimit &time_limit,
                     std::string * const document, std::string * const http_header_charset,
                     std::string * const error_message)
 {
-    Downloader::Params params;
-    //params.follow_redirects_ = false;
-    //params.debugging_ = true;
-    Downloader downloader(url, params, time_limit);
+    Downloader downloader(url, Downloader::Params(), time_limit);
     if (downloader.anErrorOccurred()) {
         *error_message = downloader.getLastErrorMessage();
         return false;
