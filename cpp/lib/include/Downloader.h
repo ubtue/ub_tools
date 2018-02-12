@@ -43,9 +43,11 @@ class Downloader {
     CURL *easy_handle_;
     static CURLSH *share_handle_;
     static unsigned instance_count_;
-    static std::mutex *dns_mutex_;
-    static std::mutex *cookie_mutex_;
-    static std::mutex *robots_dot_txt_mutex_;
+    static std::mutex dns_mutex_;
+    static std::mutex cookie_mutex_;
+    static std::mutex header_mutex_;
+    static std::mutex robots_dot_txt_mutex_;
+    static std::mutex write_mutex_;
     static std::unordered_map<std::string, RobotsDotTxt> url_to_robots_dot_txt_map_;
 protected:
     bool multi_mode_;
