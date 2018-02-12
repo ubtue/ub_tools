@@ -35,7 +35,10 @@ bool DownloadHelper(const std::string &url, const TimeLimit &time_limit,
                     std::string * const document, std::string * const http_header_charset,
                     std::string * const error_message)
 {
-    Downloader downloader(url, Downloader::Params(), time_limit);
+    Downloader::Params params;
+    //params.follow_redirects_ = false;
+    //params.debugging_ = true;
+    Downloader downloader(url, params, time_limit);
     if (downloader.anErrorOccurred()) {
         *error_message = downloader.getLastErrorMessage();
         return false;
@@ -255,23 +258,22 @@ bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimi
                                           std::string * const document, std::string * const http_header_charset,
                                           std::string * const error_message)
 {
-    std::string html;
     if (trace_)
         INFO("about to download \"" + url + "\".");
     if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded())
         return false;
     const std::string start_string("<body onload=window.location=\"");
-    size_t start_pos(html.find(start_string));
+    size_t start_pos(document->find(start_string));
     if (start_pos == std::string::npos)
         return false;
     start_pos += start_string.size();
-    const size_t end_pos(html.find('"', start_pos + 1));
+    const size_t end_pos(document->find('"', start_pos + 1));
     if (end_pos == std::string::npos)
         return false;
-    const std::string doc_url("http://bvbr.bib-bvb.de:8991" + html.substr(start_pos, end_pos - start_pos));
+    const std::string doc_url("http://bvbr.bib-bvb.de:8991" + document->substr(start_pos, end_pos - start_pos));
     if (trace_)
         INFO("about to download \"" + doc_url + "\".");
-    return DownloadHelper(url, time_limit, document, http_header_charset, error_message);
+    return DownloadHelper(doc_url, time_limit, document, http_header_charset, error_message);
 }
 
 

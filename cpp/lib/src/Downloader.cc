@@ -101,13 +101,13 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
                            const long max_redirect_count, const long dns_cache_timeout,
                            const bool honour_robots_dot_txt, const TextTranslationMode text_translation_mode,
                            const PerlCompatRegExps &banned_reg_exps, const bool debugging,
-                           const bool follow_redirects, bool ignore_ssl_certificates,
+                           const bool follow_redirects, const unsigned meta_redirect_threshold, const bool ignore_ssl_certificates,
                            const std::string &proxy_host_and_port, const std::vector<std::string> &additional_headers,
                            const std::string &post_data)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
       dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt),
       text_translation_mode_(text_translation_mode), banned_reg_exps_(banned_reg_exps), debugging_(debugging),
-      follow_redirects_(follow_redirects), ignore_ssl_certificates_(ignore_ssl_certificates),
+      follow_redirects_(follow_redirects), meta_redirect_threshold_(meta_redirect_threshold), ignore_ssl_certificates_(ignore_ssl_certificates),
       proxy_host_and_port_(proxy_host_and_port), additional_headers_(additional_headers),
       post_data_(post_data)
 {
@@ -500,8 +500,17 @@ void Downloader::debugFunction(CURL */* handle */, curl_infotype infotype, char 
     case CURLINFO_TEXT:
         INFO("informational text: " + std::string(data, size));
         break;
+    case CURLINFO_HEADER_IN:
+        INFO("received header:\n" + std::string(data, size));
+        break;
     case CURLINFO_HEADER_OUT:
         INFO("sent header:\n" + std::string(data, size));
+        break;
+    case CURLINFO_DATA_IN:
+        INFO("received data:\n" + std::string(data, size));
+        break;
+    case CURLINFO_DATA_OUT:
+        INFO("sent data:\n" + std::string(data, size));
         break;
     default:
         break;
@@ -623,6 +632,9 @@ bool Downloader::getHttpEquivRedirect(std::string * const redirect_url) const {
     std::string delay, url_and_possible_junk;
     if (not StringUtil::SplitOnStringThenTrimWhite(refresh_meta_tags.front().second, ";", &delay,
                                                    &url_and_possible_junk))
+        return false;
+
+    if (StringUtil::ToUnsigned(delay) > params_.meta_redirect_threshold_)
         return false;
 
     const char * const url_and_equal_sign(::strcasestr(url_and_possible_junk.c_str(), "url="));
