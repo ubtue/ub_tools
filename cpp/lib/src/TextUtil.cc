@@ -1088,12 +1088,12 @@ std::string InitialCaps(const std::string &text) {
         return "";
 
     std::wstring wchar_string;
-    if (unlikely(not UTF8ToWCharString(utf8_string, &wchar_string)))
+    if (unlikely(not UTF8ToWCharString(text, &wchar_string)))
         ERROR("can't convert a supposed UTF-8 string to a wide string!");
 
-    auto wchar(wchar_string.begin());
+    auto wide_ch(wchar_string.begin());
     if (std::iswlower(*wide_ch))
-        *wide_ch = std::towupper(wide_ch);
+        *wide_ch = std::towupper(*wide_ch);
     for (/* Intentionally empty! */; wide_ch != wchar_string.end(); ++wide_ch) {
         if (std::iswupper(*wide_ch))
             *wide_ch = std::towlower(*wide_ch);
