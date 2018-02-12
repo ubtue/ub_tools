@@ -214,7 +214,7 @@ void  AppendRecipientHeaders(std::string * const message, const std::string &rec
                              const std::vector<std::string> &recipients)
 {
     for (const auto &recipient : recipients) {
-        const std::string tag(recipient_type + TextUtil::InitialCaps(recipient_type) + ": ");
+        const std::string tag(TextUtil::InitialCaps(recipient_type) + ": ");
         if (perform_logging)
             std::clog << tag << recipient << '\n';
         message->append(tag + recipient + "\r\n");
