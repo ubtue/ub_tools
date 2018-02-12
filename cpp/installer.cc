@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <unordered_map>
+#include <dirent.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/sendfile.h>
@@ -79,6 +80,13 @@ __attribute__((noreturn)) void Usage() {
 // Print a log message to the terminal with a bright green background.
 void Echo(const std::string &log_message) {
     std::cout << "\x1B" << "[42m--- " << log_message << "\x1B" << "[0m\n";
+}
+
+
+static void FileUtil_CloseDirWhilePreservingErrno(DIR * const dir_handle) {
+    const int old_errno(errno);
+    ::closedir(dir_handle);
+    errno = old_errno;
 }
 
 
@@ -162,6 +170,45 @@ bool FileUtil_ReadString(const std::string &path, std::string * const data) {
     input.read(const_cast<char *>(data->data()), file_size);
     return not input.bad();
 
+}
+
+
+bool FileUtil_RemoveDirectory(const std::string &dir_name) {
+    DIR *dir_handle(::opendir(dir_name.c_str()));
+    if (unlikely(dir_handle == nullptr))
+        return false;
+
+    struct dirent *entry;
+    while ((entry = ::readdir(dir_handle)) != nullptr) {
+        if (std::strcmp(entry->d_name, ".") == 0 or std::strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        const std::string path(dir_name + "/" + std::string(entry->d_name));
+
+        if (entry->d_type == DT_DIR) {
+            if (unlikely(not FileUtil_RemoveDirectory(path))) {
+                FileUtil_CloseDirWhilePreservingErrno(dir_handle);
+                return false;
+            }
+        } else
+            ::unlink(path.c_str());
+
+        if (unlikely(errno != 0)) {
+            FileUtil_CloseDirWhilePreservingErrno(dir_handle);
+            return false;
+        }
+    }
+    if (unlikely(errno != 0)) { // readdir(2) failed!
+        FileUtil_CloseDirWhilePreservingErrno(dir_handle);
+        return false;
+    }
+
+    if (::unlikely(::rmdir(dir_name.c_str()) != 0)) {
+        FileUtil_CloseDirWhilePreservingErrno(dir_handle);
+        return false;
+    }
+
+    return likely(::closedir(dir_handle) == 0);
 }
 
 
@@ -2413,7 +2460,7 @@ void DownloadVuFind() {
         ExecOrDie(ExecUtil_Which("git"), { "clone", git_url, VUFIND_DIRECTORY });
 
         Echo("Activating custom git hooks");
-        ExecOrDie("rm", { "-r", VUFIND_DIRECTORY + "/.git/hooks" });
+        FileUtil_RemoveDirectory(VUFIND_DIRECTORY + "/.git/hooks");
         TemporaryChDir tmp1(VUFIND_DIRECTORY + "/.git");
         FileUtil_CreateSymlink("../git-config/hooks", "hooks");
 
