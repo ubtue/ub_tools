@@ -862,41 +862,40 @@ template<typename InsertableContainer> unsigned Split(const std::string &source,
                                                       InsertableContainer * const container,
                                                       const bool suppress_empty_components = true)
 {
-        if (unlikely(delimiter_string.empty()))
-                throw std::runtime_error("in StringUtil::Split: empty delimited string!");
+    if (unlikely(delimiter_string.empty()))
+        throw std::runtime_error("in StringUtil::Split: empty delimited string!");
 
-        container->clear();
-        if (source.empty())
-              return 0;
+    container->clear();
+    if (source.empty())
+        return 0;
 
-        std::string::size_type start = 0;
-        std::string::size_type next_delimiter = 0;
-        unsigned count = 0;
+    std::string::size_type start = 0;
+    std::string::size_type next_delimiter = 0;
+    unsigned count = 0;
 
-        while (next_delimiter != std::string::npos) {
-                // Search for first occurence of delimiter that appears after start
-                next_delimiter = source.find(delimiter_string, start);
+    while (next_delimiter != std::string::npos) {
+        // Search for first occurence of delimiter that appears after start
+        next_delimiter = source.find(delimiter_string, start);
 
-                // Add the field starting at start and ending at next_delimiter
-                if (next_delimiter == std::string::npos) {
-                        if (not suppress_empty_components or start < source.length())
-                                container->insert(container->end(), source.substr(start));
-                        ++count;
-                }
-                else if (next_delimiter > start) {
-                        if (not suppress_empty_components or start < next_delimiter)
-                                container->insert(container->end(), source.substr(start, next_delimiter - start));
-                        ++count;
-                }
-
-                // Move the start pointer along the array
-                if (next_delimiter != std::string::npos)
-                        start = next_delimiter + delimiter_string.length();
-                if (start >= source.length())
-                        next_delimiter = std::string::npos;
+        // Add the field starting at start and ending at next_delimiter
+        if (next_delimiter == std::string::npos) {
+            if (not suppress_empty_components or start < source.length())
+                container->insert(container->end(), source.substr(start));
+            ++count;
+        } else if (next_delimiter > start) {
+            if (not suppress_empty_components or start < next_delimiter)
+                container->insert(container->end(), source.substr(start, next_delimiter - start));
+            ++count;
         }
 
-        return count;
+        // Move the start pointer along the array
+        if (next_delimiter != std::string::npos)
+            start = next_delimiter + delimiter_string.length();
+        if (start >= source.length())
+            next_delimiter = std::string::npos;
+    }
+
+    return count;
 }
 
 
@@ -926,38 +925,37 @@ template<typename InsertableContainer> unsigned Split(const std::string &source,
                                                       InsertableContainer * const container,
                                                       const bool suppress_empty_components = true)
 {
-        container->clear();
-        if (source.empty())
-              return 0;
+    container->clear();
+    if (source.empty())
+        return 0;
 
-        std::string::size_type start = 0;
-        std::string::size_type next_delimiter = 0;
-        unsigned count = 0;
+    std::string::size_type start = 0;
+    std::string::size_type next_delimiter = 0;
+    unsigned count = 0;
 
-        while (next_delimiter != std::string::npos) {
-                // Search for first occurence of delimiter that appears after start:
-                next_delimiter = source.find(delimiter, start);
+    while (next_delimiter != std::string::npos) {
+        // Search for first occurence of delimiter that appears after start:
+        next_delimiter = source.find(delimiter, start);
 
-                // Add the field starting at start and ending at next_delimiter:
-                if (next_delimiter == std::string::npos) {
-                        if (not suppress_empty_components or start < source.length())
-                                container->insert(container->end(), source.substr(start));
-                        ++count;
-                }
-                else if (next_delimiter > start) {
-                        if (not suppress_empty_components or start < next_delimiter)
-                                container->insert(container->end(), source.substr(start, next_delimiter - start));
-                        ++count;
-                }
-
-                // Move the start pointer along the string:
-                if (next_delimiter != std::string::npos)
-                        start = next_delimiter + 1;
-                if (start >= source.length())
-                        next_delimiter = std::string::npos;
+        // Add the field starting at start and ending at next_delimiter:
+        if (next_delimiter == std::string::npos) {
+            if (not suppress_empty_components or start < source.length())
+                container->insert(container->end(), source.substr(start));
+            ++count;
+        } else if (next_delimiter > start) {
+            if (not suppress_empty_components or start < next_delimiter)
+                container->insert(container->end(), source.substr(start, next_delimiter - start));
+            ++count;
         }
 
-        return count;
+        // Move the start pointer along the string:
+        if (next_delimiter != std::string::npos)
+            start = next_delimiter + 1;
+        if (start >= source.length())
+            next_delimiter = std::string::npos;
+    }
+
+    return count;
 }
 
 
@@ -972,45 +970,46 @@ template<typename InsertableContainer> unsigned Split(const std::string &source,
  *  Empty fields are returned in the list.
  */
 template<typename InsertableContainer> unsigned Split(const std::string &source, const std::set<char> &delimiters,
-                                                      InsertableContainer * const container, const bool suppress_empty_components = true)
+                                                      InsertableContainer * const container,
+                                                      const bool suppress_empty_components = true)
 {
-        container->clear();
-        if (source.empty())
-              return 0;
+    container->clear();
+    if (source.empty())
+        return 0;
 
-        std::string::size_type start = 0;
-        std::string::size_type next_delimiter = 0;
-        unsigned count = 0;
+    std::string::size_type start = 0;
+    std::string::size_type next_delimiter = 0;
+    unsigned count = 0;
 
-        while (next_delimiter != std::string::npos) {
-                // Search for first occurence a delimiter that appears after start:
-                next_delimiter = std::string::npos;
-                for (std::set<char>::const_iterator delimiter(delimiters.begin()); delimiter != delimiters.end(); ++delimiter) {
-                        const std::string::size_type next_delimiter_candidate(source.find(*delimiter, start));
-                        if (next_delimiter_candidate != std::string::npos and next_delimiter_candidate < next_delimiter)
-                                next_delimiter = next_delimiter_candidate;
-                }
-
-                // Add the field starting at start and ending at next_delimiter:
-                if (next_delimiter == std::string::npos) {
-                        if (not suppress_empty_components or start < source.length())
-                                container->insert(container->end(), source.substr(start));
-                        ++count;
-                }
-                else if (next_delimiter > start) {
-                        if (not suppress_empty_components or start < next_delimiter)
-                                container->insert(container->end(), source.substr(start, next_delimiter - start));
-                        ++count;
-                }
-
-                // Move the start pointer along the string:
-                if (next_delimiter != std::string::npos)
-                        start = next_delimiter + 1;
-                if (start >= source.length())
-                        next_delimiter = std::string::npos;
+    while (next_delimiter != std::string::npos) {
+        // Search for first occurence a delimiter that appears after start:
+        next_delimiter = std::string::npos;
+        for (std::set<char>::const_iterator delimiter(delimiters.begin()); delimiter != delimiters.end(); ++delimiter) {
+            const std::string::size_type next_delimiter_candidate(source.find(*delimiter, start));
+            if (next_delimiter_candidate != std::string::npos and next_delimiter_candidate < next_delimiter)
+                next_delimiter = next_delimiter_candidate;
         }
 
-        return count;
+        // Add the field starting at start and ending at next_delimiter:
+        if (next_delimiter == std::string::npos) {
+            if (not suppress_empty_components or start < source.length())
+                container->insert(container->end(), source.substr(start));
+            ++count;
+        }
+        else if (next_delimiter > start) {
+            if (not suppress_empty_components or start < next_delimiter)
+                container->insert(container->end(), source.substr(start, next_delimiter - start));
+            ++count;
+        }
+
+        // Move the start pointer along the string:
+        if (next_delimiter != std::string::npos)
+            start = next_delimiter + 1;
+        if (start >= source.length())
+            next_delimiter = std::string::npos;
+    }
+
+    return count;
 }
 
 
@@ -1023,10 +1022,11 @@ template<typename InsertableContainer> unsigned Split(const std::string &source,
  *  Splits "source" around the character in "delimiter" and return the resulting list of fields in "fields."
  *  Empty fields are returned in the list.
  */
-template<typename InsertableContainer> inline unsigned WhiteSpaceSplit(const std::string &source, InsertableContainer * const container,
+template<typename InsertableContainer> inline unsigned WhiteSpaceSplit(const std::string &source,
+                                                                       InsertableContainer * const container,
                                                                        const bool suppress_empty_components = true)
 {
-        return Split(source, MiscUtil::GetWhiteSpaceSet(), container, suppress_empty_components);
+    return Split(source, MiscUtil::GetWhiteSpaceSet(), container, suppress_empty_components);
 }
 
 
