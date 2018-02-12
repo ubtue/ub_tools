@@ -451,10 +451,8 @@ size_t Downloader::writeFunction(void *data, size_t size, size_t nmemb) {
 
 size_t Downloader::WriteFunction(void *data, size_t size, size_t nmemb, void *this_pointer) {
     Downloader *downloader(reinterpret_cast<Downloader *>(this_pointer));
-    Downloader::write_mutex_->lock();
-    size_t result(downloader->writeFunction(data, size, nmemb));
-    Downloader::write_mutex_->unlock();
-    return result;
+    std::lock_guard<std::mutex> mutex_locker(*write_mutex_);
+    return downloader->writeFunction(data, size, nmemb);
 }
 
 
@@ -498,10 +496,8 @@ size_t Downloader::headerFunction(void *data, size_t size, size_t nmemb) {
 
 size_t Downloader::HeaderFunction(void *data, size_t size, size_t nmemb, void *this_pointer) {
     Downloader *downloader(reinterpret_cast<Downloader *>(this_pointer));
-    Downloader::header_mutex_->lock();
-    size_t result(downloader->headerFunction(data, size, nmemb));
-    Downloader::header_mutex_->unlock();
-    return result;
+    std::lock_guard<std::mutex> mutex_locker(*header_mutex_);
+    return downloader->headerFunction(data, size, nmemb);
 }
 
 
