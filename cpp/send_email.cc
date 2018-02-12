@@ -1,3 +1,4 @@
+// \brief Command-line utility to send email messages.
 #include <iostream>
 #include <cstdlib>
 #include "EmailSender.h"
@@ -9,8 +10,9 @@ namespace {
 
 
 __attribute__((noreturn)) void Usage() {
-    std::cerr << "usage: " << ::progname << " [--sender=sender] [-reply-to=reply_to] --recipient=recipient "
-              << "--subject=subject--message-body=message_body [--priority=priority] [--format=format]\n"
+    std::cerr << "Usage: " << ::progname << " [--sender=sender] [-reply-to=reply_to] --recipients=recipients\n"
+              << "  [--cc-recipients=cc_recipients] [--bcc-recipients=bcc_recipients]\n"
+              << "  --subject=subject--message-body=message_body [--priority=priority] [--format=format]\n\n"
               << "       \"priority\" has to be one of \"very_low\", \"low\", \"medium\", \"high\", or\n"
               << "       \"very_high\".  \"format\" has to be one of \"plain_text\" or \"html\"  At least one\n"
               << "       of \"sender\" or \"reply-to\" has to be specified.\n\n";
@@ -29,7 +31,7 @@ EmailSender::Priority StringToPriority(const std::string &priority_candidate) {
         return EmailSender::HIGH;
     if (priority_candidate == "very_high")
         return EmailSender::VERY_HIGH;
-    logger->error("\"" + priority_candidate + "\" is an unknown priority!");
+    ERROR("\"" + priority_candidate + "\" is an unknown priority!");
 }
 
 
@@ -38,7 +40,7 @@ EmailSender::Format StringToFormat(const std::string &format_candidate) {
         return EmailSender::PLAIN_TEXT;
     else if (format_candidate == "html")
         return EmailSender::HTML;
-    logger->error("\"" + format_candidate + "\" is an unknown format!");
+    ERROR("\"" + format_candidate + "\" is an unknown format!");
 }
 
 
@@ -46,7 +48,7 @@ bool ExtractArg(const char * const argument, const std::string &arg_name, std::s
     if (StringUtil::StartsWith(argument, "--" + arg_name + "=")) {
         *arg_value = argument + arg_name.length() + 3 /* two dashes and one equal sign */;
         if (arg_value->empty())
-            logger->error(arg_name + " is missing!");
+            ERROR(arg_name + " is missing!");
 
         return true;
     }
@@ -56,27 +58,36 @@ bool ExtractArg(const char * const argument, const std::string &arg_name, std::s
 
 
 void ParseCommandLine(char **argv, std::string * const sender, std::string * const reply_to,
-                      std::string * const recipient, std::string * const subject, std::string * const message_body,
-                      std::string * const priority, std::string * const format)
+                      std::string * const recipients, std::string * const cc_recipients, std::string * const bcc_recipients,
+                      std::string * const subject, std::string * const message_body, std::string * const priority,
+                      std::string * const format)
 {
     while (*argv != nullptr) {
         if (ExtractArg(*argv, "sender", sender) or ExtractArg(*argv, "reply-to", reply_to)
-            or ExtractArg(*argv, "recipient", recipient) or ExtractArg(*argv, "subject", subject)
+            or ExtractArg(*argv, "recipients", recipients) or ExtractArg(*argv, "cc-recipients", cc_recipients)
+            or ExtractArg(*argv, "bcc-recipients", bcc_recipients) or ExtractArg(*argv, "subject", subject)
             or ExtractArg(*argv, "message-body", message_body) or ExtractArg(*argv, "priority", priority)
             or ExtractArg(*argv, "format", format))
             ++argv;
         else
-            logger->error("unknown argument: " + std::string(*argv));
+            ERROR("unknown argument: " + std::string(*argv));
     }
 
     if (sender->empty() and reply_to->empty())
-        logger->error("you must specify --sender and/or --reply-to!");
-    if (recipient->empty())
-        logger->error("you must specify a recipient!");
+        ERROR("you must specify --sender and/or --reply-to!");
+    if (recipients->empty() and cc_recipients->empty() and bcc_recipients->empty())
+        ERROR("you must specify a recipient!");
     if (subject->empty())
-        logger->error("you must specify a subject!");
+        ERROR("you must specify a subject!");
     if (message_body->empty())
-        logger->error("you must specify a message-body!");
+        ERROR("you must specify a message-body!");
+}
+
+
+std::vector<std::string> SplitRecipients(const std::string &recipients) {
+    std::vector<std::string> individual_recipients;
+    StringUtil::Split(recipients, ',', &individual_recipients);
+    return individual_recipients;
 }
 
 
@@ -92,18 +103,20 @@ int main(int argc, char *argv[]) {
     EmailSender::Format format(EmailSender::PLAIN_TEXT);
 
     try {
-        std::string sender, reply_to, recipient, subject, message_body, priority_as_string, format_as_string;
-        ParseCommandLine(++argv, &sender, &reply_to, &recipient, &subject, &message_body, &priority_as_string,
-                         &format_as_string);
+        std::string sender, reply_to, recipients, cc_recipients, bcc_recipients, subject, message_body, priority_as_string,
+                    format_as_string;
+        ParseCommandLine(++argv, &sender, &reply_to, &recipients, &cc_recipients, &bcc_recipients, &subject, &message_body,
+                         &priority_as_string, &format_as_string);
 
         if (not priority_as_string.empty())
             priority = StringToPriority(priority_as_string);
         if (not format_as_string.empty())
             format = StringToFormat(format_as_string);
 
-        if (not EmailSender::SendEmail(sender, recipient, subject, message_body, priority, format, reply_to))
-            logger->error("failed to send your email!");
+        if (not EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
+                                       SplitRecipients(bcc_recipients), subject, message_body, priority, format, reply_to))
+            ERROR("failed to send your email!");
     } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
+        ERROR("Caught exception: " + std::string(e.what()));
     }
 }
