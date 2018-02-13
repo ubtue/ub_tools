@@ -171,7 +171,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
         }
 
         for (;;) {
-            auto hostname_and_count(hostname_to_outstanding_request_count_map.find(offset_and_url.second));
+            auto hostname_and_count(hostname_to_outstanding_request_count_map.find(authority));
             if (hostname_and_count == hostname_to_outstanding_request_count_map.end()) {
                 hostname_to_outstanding_request_count_map[offset_and_hostname.second] = 1;
                 break;
