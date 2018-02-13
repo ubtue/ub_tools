@@ -99,10 +99,8 @@ void ProcessNoDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * c
                                        and not record.getSubfieldValues("520", 'a').empty()));
         if (insert_in_cache)
             download_record_offsets_and_urls->emplace_back(record_start, first_non_review_link);
-        else {
+        else
             marc_writer->write(record);
-            record_start = marc_reader->tell();
-        }
 
         record_start = marc_reader->tell();
     }
