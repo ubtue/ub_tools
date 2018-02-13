@@ -31,25 +31,26 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <kchashdb.h>
+#include "DnsUtil.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "MARC.h"
 #include "Semaphore.h"
 #include "StringUtil.h"
 #include "Subfields.h"
+#include "UrlUtil.h"
 #include "util.h"
 
 
 namespace {
 
-    
+
 static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
     std::cerr << "Usage: " << ::progname
-              << "[--max-record-count count] [--skip-count count] [--process-count-low-and-high-watermarks low:high] "
-              << "marc_input marc_output\n"
+              << "[--skip-count count] [--process-count-low-and-high-watermarks low:high] marc_input marc_output\n"
               << "       --process-count-low-and-high-watermarks sets the maximum and minimum number of spawned\n"
               << "       child processes.  When we hit the high water mark we wait for child processes to exit\n"
               << "       until we reach the low watermark.\n\n";
@@ -69,81 +70,139 @@ bool IsProbablyAReviewOrCover(const MARC::Subfields &subfields) {
 }
 
 
-bool FoundAtLeastOneNonReviewOrCoverLink(const MARC::Record &record) {
+bool FoundAtLeastOneNonReviewOrCoverLink(const MARC::Record &record, std::string * const first_non_review_link) {
     for (const auto &field : record.getTagRange("856")) {
         const MARC::Subfields subfields(field.getSubfields());
         if (field.getIndicator1() == '7' or not subfields.hasSubfield('u'))
             continue;
 
-        if (not IsProbablyAReviewOrCover(subfields))
+        if (not IsProbablyAReviewOrCover(subfields)) {
+            *first_non_review_link = subfields.getFirstSubfieldWithCode('u');
             return true;
+        }
     }
 
     return false;
 }
 
 
+void ProcessNoDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                              std::vector<std::pair<off_t, std::string>> * const download_record_offsets)
+{
+    unsigned total_record_count(0);
+    off_t record_start(marc_reader->tell());
+
+    while (MARC::Record record = marc_reader->read()) {
+        ++total_record_count;
+
+        std::string first_non_review_link;
+        const bool insert_in_cache(FoundAtLeastOneNonReviewOrCoverLink(record, &first_non_review_link)
+                                   or (record.getSubfieldValues("856", 'u').empty()
+                                       and not record.getSubfieldValues("520", 'a').empty()));
+        if (insert_in_cache)
+            download_record_offsets->emplace_back(record_start, first_non_review_link);
+        else {
+            marc_writer->write(record);
+            record_start = marc_reader->tell();
+        }
+
+        record_start = marc_reader->tell();
+    }
+
+    std::cerr << "Read " << total_record_count << " records.\n";
+    std::cerr << "Wrote " << (total_record_count - download_record_offsets->size())
+              << " records that did not require any downloads.\n";
+}
+
+
 // Returns the number of child processes that returned a non-zero exit code.
-unsigned CleanUpZombies(const unsigned zombies_to_collect) {
+unsigned CleanUpZombies(const unsigned no_of_zombies_to_collect,
+                        std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
+                        std::map<int, std::string> * const process_id_to_hostname_map)
+{
     unsigned child_reported_failure_count(0);
-    for (unsigned zombie_no(0); zombie_no < zombies_to_collect; ++zombie_no) {
+    for (unsigned zombie_no(0); zombie_no < no_of_zombies_to_collect; ++zombie_no) {
         int exit_code;
-        ::wait(&exit_code);
+        const pid_t zombie_pid(::wait(&exit_code));
         if (exit_code != 0)
             ++child_reported_failure_count;
+
+        const auto process_id_and_hostname(process_id_to_hostname_map->find(zombie_pid));
+        if (process_id_and_hostname == process_id_to_hostname_map->end())
+            continue;
+
+        if (--(*hostname_to_outstanding_request_count_map)[process_id_and_hostname->second] == 0)
+            hostname_to_outstanding_request_count_map->erase(process_id_and_hostname->second);
+        process_id_to_hostname_map->erase(process_id_and_hostname);
     }
 
     return child_reported_failure_count;
 }
 
 
-void ProcessRecords(const unsigned max_record_count, const unsigned skip_count, MARC::Reader * const marc_reader,
-                    MARC::Writer * const marc_writer, const unsigned process_count_low_watermark,
-                    const unsigned process_count_high_watermark)
+void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                            const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_hostnames,
+                            const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
 {
     Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
-    std::string err_msg;
     unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
 
     const std::string UPDATE_FULL_TEXT_DB_PATH("/usr/local/bin/update_full_text_db");
-
-    std::cout << "Skip " << skip_count << " records\n";
-    off_t record_start = marc_reader->tell();
-    while (MARC::Record record = marc_reader->read()) {
-        if (total_record_count == max_record_count)
-            break;
+    const unsigned MAX_CONCURRENT_DOWNLOADS_PER_SERVER(1);
+    std::map<std::string, unsigned> hostname_to_outstanding_request_count_map;
+    std::map<int, std::string> process_id_to_hostname_map;
+    
+    for (const auto &offset_and_hostname : download_record_offsets_and_hostnames) {
         ++total_record_count;
-        if (total_record_count <= skip_count) {
-            record_start = marc_reader->tell();
-            continue;
-        }
+        
+        std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
+        if (not UrlUtil::ParseUrl(offset_and_hostname.second, &scheme, &username_password, &authority, &port, &path, &params,
+                                  &query, &fragment, &relative_url))
+        {
+            WARNING("failed to parse URL: " + offset_and_hostname.second);
 
-        const bool insert_in_cache(FoundAtLeastOneNonReviewOrCoverLink(record)
-                                   or (record.getSubfieldValues("856", 'u').empty()
-                                       and not record.getSubfieldValues("520", 'a').empty()));
-        if (not insert_in_cache) {
+            // Safely append the MARC data to the MARC output file:
+            if (unlikely(not marc_reader->seek(offset_and_hostname.first)))
+                ERROR("seek failed!");
+            const MARC::Record record = marc_reader->read();
             MARC::FileLockedComposeAndWriteRecord(marc_writer, record);
-            record_start = marc_reader->tell();
+
             continue;
         }
 
-        ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
-                        { std::to_string(record_start), marc_reader->getPath(), marc_writer->getFile().getPath() });
+        for (;;) {
+            auto hostname_and_count(hostname_to_outstanding_request_count_map.find(offset_and_hostname.second));
+            if (hostname_and_count == hostname_to_outstanding_request_count_map.end()) {
+                hostname_to_outstanding_request_count_map[offset_and_hostname.second] = 1;
+                break;
+            } else if (hostname_and_count->second < MAX_CONCURRENT_DOWNLOADS_PER_SERVER) {
+                ++hostname_and_count->second;
+                break;
+            }
+
+            ::sleep(5 /* seconds */);
+        }
+        
+        const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
+                                            { std::to_string(offset_and_hostname.first), marc_reader->getPath(),
+                                              marc_writer->getFile().getPath() }));
+        process_id_to_hostname_map[child_pid] = authority;
+        
         ++active_child_count;
         ++spawn_count;
 
         if (active_child_count > process_count_high_watermark) {
-            child_reported_failure_count += CleanUpZombies(active_child_count - process_count_low_watermark);
+            child_reported_failure_count += CleanUpZombies(active_child_count - process_count_low_watermark,
+                                                           &hostname_to_outstanding_request_count_map,
+                                                           &process_id_to_hostname_map);
             active_child_count = process_count_low_watermark;
         }
-        record_start = marc_reader->tell();
     }
 
     // Wait for stragglers:
-    child_reported_failure_count += CleanUpZombies(active_child_count);
+    child_reported_failure_count += CleanUpZombies(active_child_count, &hostname_to_outstanding_request_count_map,
+                                                   &process_id_to_hostname_map);
 
-    if (not err_msg.empty())
-        logger->error(err_msg);
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Spawned " << spawn_count << " subprocesses.\n";
     std::cerr << semaphore.getValue()
@@ -167,25 +226,11 @@ int main(int argc, char **argv) {
     ++argv; // skip program name
 
     // Process optional args:
-    unsigned max_record_count(UINT_MAX), skip_count(0);
     unsigned process_count_low_watermark(PROCESS_COUNT_DEFAULT_LOW_WATERMARK),
              process_count_high_watermark(PROCESS_COUNT_DEFAULT_HIGH_WATERMARK);
     while (argc > 4) {
         std::cout << "Arg: " << *argv << "\n";
-        if (std::strcmp(*argv, "--max-record-count") == 0) {
-            ++argv;
-            if (not StringUtil::ToNumber(*argv, &max_record_count) or max_record_count == 0)
-                logger->error("bad value for --max-record-count!");
-            ++argv;
-            argc -= 2;
-        } else if (std::strcmp(*argv, "--skip-count") == 0) {
-            ++argv;
-            if (not StringUtil::ToNumber(*argv, &skip_count))
-                logger->error("bad value for --skip-count!");
-            std::cout << "Should skip " << skip_count << " records\n";
-            ++argv;
-            argc -= 2;
-        } else if (std::strcmp("--process-count-low-and-high-watermarks", *argv) == 0) {
+        if (std::strcmp("--process-count-low-and-high-watermarks", *argv) == 0) {
             ++argv;
             char *arg_end(*argv + std::strlen(*argv));
             char * const colon(std::find(*argv, arg_end, ':'));
@@ -217,8 +262,14 @@ int main(int argc, char **argv) {
         logger->error("failed to create directory: " + UPDATE_DB_LOG_DIR_PATH);
 
     try {
-        ProcessRecords(max_record_count, skip_count, marc_reader.get(), marc_writer.get(),
-                       process_count_low_watermark, process_count_high_watermark);
+        std::vector<std::pair<off_t, std::string>> download_record_offsets;
+        ProcessNoDownloadRecords(marc_reader.get(), marc_writer.get(), &download_record_offsets);
+
+        // Try to prevent clumps of URL's from the same server:
+        std::random_shuffle(download_record_offsets.begin(), download_record_offsets.end());
+
+        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), download_record_offsets,
+                               process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
         logger->error("Caught exception: " + std::string(e.what()));
     }
