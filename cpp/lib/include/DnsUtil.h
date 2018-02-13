@@ -6,6 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -82,6 +83,8 @@ bool IpAddrToHostnames(const std::string &dotted_quad, std::list<std::string> * 
  */
 bool TimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit, in_addr_t * const ip_address,
                         std::string * const error_message);
+bool CachedTimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit, in_addr_t * const ip_address,
+                              std::string * const error_message);
 
 
 /** Returns the current system's hostname. */
