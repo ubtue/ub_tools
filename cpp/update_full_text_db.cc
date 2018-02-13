@@ -165,7 +165,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
     }
 
     std::string extracted_text;
-    if (media_type == "text/html") {
+    if (media_type == "text/html" or media_type == "text/xhtml") {
         extracted_text = TextUtil::ExtractTextFromHtml(document, http_header_charset);
         return TextUtil::CollapseWhitespace(&extracted_text);
     }
@@ -299,6 +299,7 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
 bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_output_filename) {
     MARC::Record record(marc_reader->read());
     try {
+        INFO("processing record " + record.getControlNumber());
         return ProcessRecord(&record, marc_output_filename);
     } catch (const std::exception &x) {
         throw std::runtime_error(x.what() + std::string(" (PPN: ") + record.getControlNumber() + ")");
