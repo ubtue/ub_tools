@@ -194,28 +194,32 @@ bool TimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit
 
 
 static std::unordered_map<std::string, in_addr_t> hostname_to_IP_address_map;
-static std::mutex cash_guard;
+static std::mutex cache_guard;
 
 
 bool CachedTimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit, in_addr_t * const ip_address,
                               std::string * const error_message)
 {
-    std::lock_guard<std::mutex> mutex_locker(cash_guard);
-    const auto hostname_and_IP_address(hostname_to_IP_address_map.find(hostname));
-    if (hostname_and_IP_address != hostname_to_IP_address_map.end()) {
-        if (hostname_and_IP_address->second == 0) {
-            *error_message = "Lookup failed! (cached)";
-            return false;
+    {
+        std::lock_guard<std::mutex> mutex_locker(cache_guard);
+        const auto hostname_and_IP_address(hostname_to_IP_address_map.find(hostname));
+        if (hostname_and_IP_address != hostname_to_IP_address_map.end()) {
+            if (hostname_and_IP_address->second == 0) {
+                *error_message = "Lookup failed! (cached)";
+                return false;
+            }
+            *ip_address = hostname_and_IP_address->second;
+            return true;
         }
-        *ip_address = hostname_and_IP_address->second;
-        return true;
     }
-
-    if (not CachedTimedGetHostByName(hostname, time_limit, ip_address, error_message)) {
+    
+    if (not TimedGetHostByName(hostname, time_limit, ip_address, error_message)) {
+        std::lock_guard<std::mutex> mutex_locker(cache_guard);
         hostname_to_IP_address_map[hostname] = static_cast<in_addr_t>(0);
         return false;
     }
 
+    std::lock_guard<std::mutex> mutex_locker(cache_guard);
     hostname_to_IP_address_map[hostname] = *ip_address;
     return true;
 }
