@@ -87,7 +87,7 @@ bool FoundAtLeastOneNonReviewOrCoverLink(const MARC::Record &record, std::string
 
 
 void ProcessNoDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                              std::vector<std::pair<off_t, std::string>> * const download_record_offsets)
+                              std::vector<std::pair<off_t, std::string>> * const download_record_offsets_and_urls)
 {
     unsigned total_record_count(0);
     off_t record_start(marc_reader->tell());
@@ -100,7 +100,7 @@ void ProcessNoDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * c
                                    or (record.getSubfieldValues("856", 'u').empty()
                                        and not record.getSubfieldValues("520", 'a').empty()));
         if (insert_in_cache)
-            download_record_offsets->emplace_back(record_start, first_non_review_link);
+            download_record_offsets_and_urls->emplace_back(record_start, first_non_review_link);
         else {
             marc_writer->write(record);
             record_start = marc_reader->tell();
@@ -110,7 +110,7 @@ void ProcessNoDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * c
     }
 
     std::cerr << "Read " << total_record_count << " records.\n";
-    std::cerr << "Wrote " << (total_record_count - download_record_offsets->size())
+    std::cerr << "Wrote " << (total_record_count - download_record_offsets_and_urls->size())
               << " records that did not require any downloads.\n";
 }
 
@@ -141,7 +141,7 @@ unsigned CleanUpZombies(const unsigned no_of_zombies_to_collect,
 
 
 void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                            const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_hostnames,
+                            const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_urls,
                             const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
 {
     Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
@@ -152,7 +152,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
     std::map<std::string, unsigned> hostname_to_outstanding_request_count_map;
     std::map<int, std::string> process_id_to_hostname_map;
     
-    for (const auto &offset_and_hostname : download_record_offsets_and_hostnames) {
+    for (const auto &offset_and_hostname : download_record_offsets_and_urls) {
         ++total_record_count;
         
         std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
@@ -262,13 +262,13 @@ int main(int argc, char **argv) {
         logger->error("failed to create directory: " + UPDATE_DB_LOG_DIR_PATH);
 
     try {
-        std::vector<std::pair<off_t, std::string>> download_record_offsets;
-        ProcessNoDownloadRecords(marc_reader.get(), marc_writer.get(), &download_record_offsets);
+        std::vector<std::pair<off_t, std::string>> download_record_offsets_and_urls;
+        ProcessNoDownloadRecords(marc_reader.get(), marc_writer.get(), &download_record_offsets_and_urls);
 
         // Try to prevent clumps of URL's from the same server:
-        std::random_shuffle(download_record_offsets.begin(), download_record_offsets.end());
+        std::random_shuffle(download_record_offsets_and_urls.begin(), download_record_offsets_and_urls.end());
 
-        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), download_record_offsets,
+        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), download_record_offsets_and_urls,
                                process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
         logger->error("Caught exception: " + std::string(e.what()));
