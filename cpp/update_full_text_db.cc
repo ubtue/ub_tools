@@ -266,9 +266,8 @@ bool ProcessRecordUrls(MARC::Record * const record) {
         if (success) {
             combined_text_final = combined_text;
             TextUtil::CollapseAndTrimWhitespace(&combined_text_final);
-            cache.insertEntry(ppn, combined_text_final, entry_urls);
         }
-
+        cache.insertEntry(ppn, combined_text_final, entry_urls);
     }
 
     if (not combined_text_final.empty())

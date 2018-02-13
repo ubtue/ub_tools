@@ -42,7 +42,7 @@
 
 namespace {
 
-    
+
 static void Usage() __attribute__((noreturn));
 
 
@@ -210,11 +210,6 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::Reader::BINARY));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY));
-
-    const std::string UPDATE_DB_LOG_DIR_PATH(
-        "/usr/local/var/log/tuefind/update_full_text_db");
-    if (not FileUtil::MakeDirectory(UPDATE_DB_LOG_DIR_PATH, /* recursive = */ true))
-        logger->error("failed to create directory: " + UPDATE_DB_LOG_DIR_PATH);
 
     try {
         ProcessRecords(max_record_count, skip_count, marc_reader.get(), marc_writer.get(),
