@@ -92,7 +92,7 @@ void ProcessNoDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * c
     unsigned total_record_count(0);
     off_t record_start(marc_reader->tell());
 
-    while (MARC::Record record = marc_reader->read()) {
+    while (const MARC::Record record = marc_reader->read()) {
         ++total_record_count;
 
         std::string first_non_review_link;
@@ -182,6 +182,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
             
             CleanUpZombies(/*no_of_zombies*/ 1, &hostname_to_outstanding_request_count_map,
                            &process_id_to_hostname_map);
+            --active_child_count;
 
             ::sleep(5 /* seconds */);
         }
