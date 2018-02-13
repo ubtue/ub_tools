@@ -173,7 +173,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
         for (;;) {
             auto hostname_and_count(hostname_to_outstanding_request_count_map.find(authority));
             if (hostname_and_count == hostname_to_outstanding_request_count_map.end()) {
-                hostname_to_outstanding_request_count_map[offset_and_hostname.second] = 1;
+                hostname_to_outstanding_request_count_map[authority] = 1;
                 break;
             } else if (hostname_and_count->second < MAX_CONCURRENT_DOWNLOADS_PER_SERVER) {
                 ++hostname_and_count->second;
@@ -187,7 +187,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
         }
         
         const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
-                                            { std::to_string(offset_and_hostname.first), marc_reader->getPath(),
+                                            { std::to_string(offset_and_url.first), marc_reader->getPath(),
                                               marc_writer->getFile().getPath() }));
         process_id_to_hostname_map[child_pid] = authority;
         
