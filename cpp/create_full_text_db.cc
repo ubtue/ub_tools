@@ -129,7 +129,7 @@ unsigned CleanUpZombies(const unsigned no_of_zombies_to_collect,
 
         const auto process_id_and_hostname(process_id_to_hostname_map->find(zombie_pid));
         if (process_id_and_hostname == process_id_to_hostname_map->end())
-            continue;
+            ERROR("This should never happen!");
 
         if (--(*hostname_to_outstanding_request_count_map)[process_id_and_hostname->second] == 0)
             hostname_to_outstanding_request_count_map->erase(process_id_and_hostname->second);
