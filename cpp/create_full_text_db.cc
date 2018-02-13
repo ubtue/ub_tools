@@ -152,17 +152,17 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
     std::map<std::string, unsigned> hostname_to_outstanding_request_count_map;
     std::map<int, std::string> process_id_to_hostname_map;
     
-    for (const auto &offset_and_hostname : download_record_offsets_and_urls) {
+    for (const auto &offset_and_url : download_record_offsets_and_urls) {
         ++total_record_count;
         
         std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
-        if (not UrlUtil::ParseUrl(offset_and_hostname.second, &scheme, &username_password, &authority, &port, &path, &params,
+        if (not UrlUtil::ParseUrl(offset_and_url.second, &scheme, &username_password, &authority, &port, &path, &params,
                                   &query, &fragment, &relative_url))
         {
-            WARNING("failed to parse URL: " + offset_and_hostname.second);
+            WARNING("failed to parse URL: " + offset_and_url.second);
 
             // Safely append the MARC data to the MARC output file:
-            if (unlikely(not marc_reader->seek(offset_and_hostname.first)))
+            if (unlikely(not marc_reader->seek(offset_and_url.first)))
                 ERROR("seek failed!");
             const MARC::Record record = marc_reader->read();
             MARC::FileLockedComposeAndWriteRecord(marc_writer, record);
@@ -171,7 +171,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
         }
 
         for (;;) {
-            auto hostname_and_count(hostname_to_outstanding_request_count_map.find(offset_and_hostname.second));
+            auto hostname_and_count(hostname_to_outstanding_request_count_map.find(offset_and_url.second));
             if (hostname_and_count == hostname_to_outstanding_request_count_map.end()) {
                 hostname_to_outstanding_request_count_map[offset_and_hostname.second] = 1;
                 break;
