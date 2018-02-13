@@ -30,14 +30,12 @@
 #include <strings.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <kchashdb.h>
 #include "DnsUtil.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "MARC.h"
 #include "Semaphore.h"
 #include "StringUtil.h"
-#include "Subfields.h"
 #include "UrlUtil.h"
 #include "util.h"
 
@@ -239,13 +237,13 @@ int main(int argc, char **argv) {
             char *arg_end(*argv + std::strlen(*argv));
             char * const colon(std::find(*argv, arg_end, ':'));
             if (colon == arg_end)
-                logger->error("bad argument to --process-count-low-and-high-watermarks: colon is missing!");
+                ERROR("bad argument to --process-count-low-and-high-watermarks: colon is missing!");
             *colon = '\0';
             if (not StringUtil::ToNumber(*argv, &process_count_low_watermark)
                 or not StringUtil::ToNumber(*argv, &process_count_high_watermark))
-                logger->error("low or high watermark is not an unsigned number!");
+                EERROR("low or high watermark is not an unsigned number!");
             if (process_count_high_watermark > process_count_low_watermark)
-                logger->error("the high watermark must be larger than the low watermark!");
+                ERROR("the high watermark must be larger than the low watermark!");
             ++argv;
             argc -= 2;
         } else
@@ -255,7 +253,7 @@ int main(int argc, char **argv) {
     const std::string marc_input_filename(*argv++);
     const std::string marc_output_filename(*argv++);
     if (marc_input_filename == marc_output_filename)
-        logger->error("input filename must not equal output filename!");
+        ERROR("input filename must not equal output filename!");
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename, MARC::Reader::BINARY));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::Writer::BINARY));
@@ -270,6 +268,6 @@ int main(int argc, char **argv) {
         ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), download_record_offsets_and_urls,
                                process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
+        ERROR("Caught exception: " + std::string(e.what()));
     }
 }
