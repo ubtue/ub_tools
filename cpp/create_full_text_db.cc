@@ -180,8 +180,8 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                 break;
             }
             
-            CleanUpZombies(/*no_of_zombies*/ 1, &hostname_to_outstanding_request_count_map,
-                           &process_id_to_hostname_map);
+            child_reported_failure_count += CleanUpZombies(/*no_of_zombies*/ 1, &hostname_to_outstanding_request_count_map,
+                                                           &process_id_to_hostname_map);
             --active_child_count;
 
             ::sleep(5 /* seconds */);
