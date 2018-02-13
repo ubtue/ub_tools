@@ -112,16 +112,16 @@ public class MultiLanguageQueryParser extends QParser {
                 // The usual case is an ordinary expression made up of a field + ":" + query
                 // Moreover, we can have complex (i.e. parenthesized) expressions on the right hand side
                 // so we try to replace any field left to a colon
-                if (fieldNameAndFilterValuesLength >= 2 && fieldNameAndFilterValuesLength <= 3) {
+                if (fieldNameAndFilterValuesLength >= 2) {
                     String newFilterQuery = new String();
                     for (int i = 0; i < fieldNameAndFilterValuesLength - 1; ++i) {
                          final String newFieldExpression = fieldNameAndFilterValues[i] + "_" + lang;
-                         //Strip potential local parameters or a leading opening bracket
-                         final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\()", "");
+                         //Strip potential local parameters or a leading opening bracket of any tokens to the left
+                         final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\(|.*\\s+)", "");
                          if (schema.getFieldOrNull(newFieldName) != null)
                              newFilterQuery += newFieldExpression + ":";
                          else
-                             newFilterQuery = fieldNameAndFilterValues[i] + ":";
+                             newFilterQuery += fieldNameAndFilterValues[i] + ":";
                     }
                     newFilterQuery += fieldNameAndFilterValues[fieldNameAndFilterValuesLength - 1];
                     newParams.remove("fq", filterQuery);
