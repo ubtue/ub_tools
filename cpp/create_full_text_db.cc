@@ -179,6 +179,9 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                 ++hostname_and_count->second;
                 break;
             }
+            
+            CleanUpZombies(/*no_of_zombies*/ 1, &hostname_to_outstanding_request_count_map,
+                           &process_id_to_hostname_map);
 
             ::sleep(5 /* seconds */);
         }
