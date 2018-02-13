@@ -50,7 +50,7 @@ static void Usage() __attribute__((noreturn));
 
 static void Usage() {
     std::cerr << "Usage: " << ::progname
-              << "[--skip-count count] [--process-count-low-and-high-watermarks low:high] marc_input marc_output\n"
+              << " [--process-count-low-and-high-watermarks low:high] marc_input marc_output\n"
               << "       --process-count-low-and-high-watermarks sets the maximum and minimum number of spawned\n"
               << "       child processes.  When we hit the high water mark we wait for child processes to exit\n"
               << "       until we reach the low watermark.\n\n";
