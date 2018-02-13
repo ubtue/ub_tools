@@ -6,7 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2017 Universtitätsbibliothek Tübingen
+ *  Copyright 2017,2018 Universtitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -27,7 +27,9 @@
 
 #include "DnsUtil.h"
 #include <list>
+#include <mutex>
 #include <stdexcept>
+#include <unordered_map>
 #include <cerrno>
 #include <signal.h>
 #include <sys/socket.h>
@@ -188,6 +190,34 @@ bool TimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit
     }
 
     return false;
+}
+
+
+static std::unordered_map<std::string, in_addr_t> hostname_to_IP_address_map;
+static std::mutex cash_guard;
+
+
+bool CachedTimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit, in_addr_t * const ip_address,
+                              std::string * const error_message)
+{
+    std::lock_guard<std::mutex> mutex_locker(cash_guard);
+    const auto hostname_and_IP_address(hostname_to_IP_address_map.find(hostname));
+    if (hostname_and_IP_address != hostname_to_IP_address_map.end()) {
+        if (hostname_and_IP_address->second == 0) {
+            *error_message = "Lookup failed! (cached)";
+            return false;
+        }
+        *ip_address = hostname_and_IP_address->second;
+        return true;
+    }
+
+    if (not CachedTimedGetHostByName(hostname, time_limit, ip_address, error_message)) {
+        hostname_to_IP_address_map[hostname] = static_cast<in_addr_t>(0);
+        return false;
+    }
+
+    hostname_to_IP_address_map[hostname] = *ip_address;
+    return true;
 }
 
 
