@@ -143,7 +143,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                             const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
 {
     Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
-    unsigned total_record_count(0), spawn_count(0), active_child_count(0), child_reported_failure_count(0);
+    unsigned spawn_count(0), active_child_count(0), child_reported_failure_count(0);
 
     const std::string UPDATE_FULL_TEXT_DB_PATH("/usr/local/bin/update_full_text_db");
     const unsigned MAX_CONCURRENT_DOWNLOADS_PER_SERVER(1);
@@ -151,8 +151,6 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
     std::map<int, std::string> process_id_to_hostname_map;
     
     for (const auto &offset_and_url : download_record_offsets_and_urls) {
-        ++total_record_count;
-        
         std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
         if (not UrlUtil::ParseUrl(offset_and_url.second, &scheme, &username_password, &authority, &port, &path, &params,
                                   &query, &fragment, &relative_url))
@@ -205,7 +203,6 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
     child_reported_failure_count += CleanUpZombies(active_child_count, &hostname_to_outstanding_request_count_map,
                                                    &process_id_to_hostname_map);
 
-    std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Spawned " << spawn_count << " subprocesses.\n";
     std::cerr << semaphore.getValue()
               << " documents were not downloaded because their cached values had not yet expired.\n";
