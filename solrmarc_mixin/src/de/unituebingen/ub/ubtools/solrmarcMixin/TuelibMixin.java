@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.YearMonth;
@@ -23,6 +25,7 @@ import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.DataUtil;
 import org.solrmarc.tools.Utils;
+import java.sql.*;
 
 public class TuelibMixin extends SolrIndexerMixin {
     public final static String UNASSIGNED_STRING = "[Unassigned]";
@@ -802,7 +805,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     boolean isCurrentYearAndMonth(final String year, final String month) {
         Calendar calendar = Calendar.getInstance();
-        return (Integer.valueOf(year) == calendar.get(Calendar.YEAR)) && 
+        return (Integer.valueOf(year) == calendar.get(Calendar.YEAR)) &&
                (Integer.valueOf(month) == calendar.get(Calendar.MONTH));
     }
 
@@ -2539,5 +2542,44 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
         return result;
+    }
+
+    private static Connection dbConnection = null;
+    private static String DATABASE_CONF = "/usr/local/vufind/local/tuefind/local_overrides/database.conf";
+    public String getFullText(final Record record) {
+        final DataField fullTextField = (DataField) record.getVariableField("FUL");
+        if (fullTextField == null)
+            return "";
+
+        if (dbConnection == null) {
+            String contents = null;
+            try {
+                    contents = new String(Files.readAllBytes(Paths.get(DATABASE_CONF)));
+            } catch (IOException e) {
+                logger.severe("Could not open or read file: " + DATABASE_CONF);
+                System.exit(1);
+            }
+            
+            final int equalPos = contents.indexOf('=');
+            final String dataBaseURL = contents.substring(equalPos + 1);
+            try {
+                dbConnection = DriverManager.getConnection("jdbc:" + dataBaseURL.trim());
+            } catch (SQLException e) {
+                logger.severe("Could not establish database connection: " + e.toString());
+                System.exit(1);
+            }
+        }
+
+        try {
+            final Statement statement = dbConnection.createStatement();
+            final ResultSet resultSet = statement.executeQuery("SELECT full_text FROM full_text_cache WHERE id=\""
+                                                               + record.getControlNumber() + "\"");
+            resultSet.next();
+            return resultSet.getString("full_text");
+        } catch (SQLException e) {
+            logger.severe("SQL error: " + e.toString());
+            System.exit(1);
+            return ""; // Keep the compiler happy!
+        }
     }
 }
