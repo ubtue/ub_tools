@@ -39,15 +39,18 @@
 namespace {
 
 
-static void Usage() __attribute__((noreturn));
+constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
 
 
-static void Usage() {
+[[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--process-count-low-and-high-watermarks low:high] marc_input marc_output\n"
-              << "       --process-count-low-and-high-watermarks sets the maximum and minimum number of spawned\n"
-              << "       child processes.  When we hit the high water mark we wait for child processes to exit\n"
-              << "       until we reach the low watermark.\n\n";
+              << " [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] marc_input marc_output\n"
+              << "       \"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
+              << "       child processes.    When we hit the high water mark we wait for child processes to exit\n"
+              << "       until we reach the low watermark.  \"--pdf-extraction-timeout\" which has a default of "
+              << DEFAULT_PDF_EXTRACTION_TIMEOUT << '\n'
+              << "       seconds is the maximum amount of time spent by a subprocess in attemting text extraction from a\n"
+              << "       downloaded PDF document.\n\n";
 
     std::exit(EXIT_FAILURE);
 }
@@ -120,8 +123,8 @@ unsigned CleanUpZombies(const unsigned no_of_zombies_to_collect,
             ++child_reported_failure_count;
 
         const auto process_id_and_hostname(process_id_to_hostname_map->find(zombie_pid));
-        if (process_id_and_hostname == process_id_to_hostname_map->end())
-            ERROR("This should never happen!");
+        if (unlikely(process_id_and_hostname == process_id_to_hostname_map->end()))
+            ERROR("This should *never* happen!");
 
         if (--(*hostname_to_outstanding_request_count_map)[process_id_and_hostname->second] == 0)
             hostname_to_outstanding_request_count_map->erase(process_id_and_hostname->second);
@@ -133,6 +136,7 @@ unsigned CleanUpZombies(const unsigned no_of_zombies_to_collect,
 
 
 void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                            const unsigned pdf_extraction_timeout,
                             const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_urls,
                             const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
 {
@@ -160,8 +164,8 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
             continue;
         }
 
+        auto hostname_and_count(hostname_to_outstanding_request_count_map.find(authority));
         for (;;) {
-            auto hostname_and_count(hostname_to_outstanding_request_count_map.find(authority));
             if (hostname_and_count == hostname_to_outstanding_request_count_map.end()) {
                 hostname_to_outstanding_request_count_map[authority] = 1;
                 break;
@@ -178,8 +182,12 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
         }
         
         const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
-                                            { std::to_string(offset_and_url.first), marc_reader->getPath(),
+                                            { "--pdf-extraction-timeout=" + std::to_string(pdf_extraction_timeout),
+                                              std::to_string(offset_and_url.first), marc_reader->getPath(),
                                               marc_writer->getFile().getPath() }));
+        if (unlikely(child_pid == -1))
+            ERROR("ExecUtil::Spawn failed! (no more resources?)");
+        
         process_id_to_hostname_map[child_pid] = authority;
         
         ++active_child_count;
@@ -208,41 +216,48 @@ constexpr unsigned PROCESS_COUNT_DEFAULT_HIGH_WATERMARK(10);
 constexpr unsigned PROCESS_COUNT_DEFAULT_LOW_WATERMARK(5);
 
 
+void ExtractLowAndHighWatermarks(const std::string &arg, unsigned * const process_count_low_watermark,
+                                 unsigned * const process_count_high_watermark)
+{
+    const auto colon_pos(arg.find(':'));
+    if (colon_pos == std::string::npos or not StringUtil::ToNumber(arg.substr(0, colon_pos), process_count_low_watermark)
+        or not StringUtil::ToNumber(arg.substr(colon_pos + 1), process_count_high_watermark) or *process_count_low_watermark == 0
+        or *process_count_high_watermark == 0)
+        ERROR("bad low or high watermarks!");
+}
+
+
 } // unnamed namespace
 
 
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 3 and argc != 5 and argc != 7 and argc != 9)
+    if (argc < 3)
         Usage();
-    ++argv; // skip program name
 
     // Process optional args:
     unsigned process_count_low_watermark(PROCESS_COUNT_DEFAULT_LOW_WATERMARK),
              process_count_high_watermark(PROCESS_COUNT_DEFAULT_HIGH_WATERMARK);
-    while (argc > 4) {
-        std::cout << "Arg: " << *argv << "\n";
-        if (std::strcmp("--process-count-low-and-high-watermarks", *argv) == 0) {
-            ++argv;
-            char *arg_end(*argv + std::strlen(*argv));
-            char * const colon(std::find(*argv, arg_end, ':'));
-            if (colon == arg_end)
-                ERROR("bad argument to --process-count-low-and-high-watermarks: colon is missing!");
-            *colon = '\0';
-            if (not StringUtil::ToNumber(*argv, &process_count_low_watermark)
-                or not StringUtil::ToNumber(*argv, &process_count_high_watermark))
-                ERROR("low or high watermark is not an unsigned number!");
-            if (process_count_high_watermark > process_count_low_watermark)
-                ERROR("the high watermark must be larger than the low watermark!");
-            ++argv;
-            argc -= 2;
-        } else
-            logger->error("unknown flag: " + std::string(*argv));
+    if (std::strcmp(argv[1], "--process-count-low-and-high-watermarks") == 0) {
+        ExtractLowAndHighWatermarks(argv[2], &process_count_low_watermark, &process_count_high_watermark);
+        argv += 2;
+        argc -= 2;
     }
 
-    const std::string marc_input_filename(*argv++);
-    const std::string marc_output_filename(*argv++);
+    unsigned pdf_extraction_timeout(DEFAULT_PDF_EXTRACTION_TIMEOUT);
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--pdf-extraction-timeout=")) {
+        if (not StringUtil::ToNumber(argv[1] + __builtin_strlen("--pdf-extraction-timeout="), &pdf_extraction_timeout)
+            or pdf_extraction_timeout == 0)
+                ERROR("bad value for --pdf-extraction-timeout!");
+        ++argv, --argc;
+    }
+
+    if (argc != 3)
+        Usage();
+
+    const std::string marc_input_filename(argv[1]);
+    const std::string marc_output_filename(argv[2]);
     if (marc_input_filename == marc_output_filename)
         ERROR("input filename must not equal output filename!");
 
@@ -256,7 +271,7 @@ int main(int argc, char **argv) {
         // Try to prevent clumps of URL's from the same server:
         std::random_shuffle(download_record_offsets_and_urls.begin(), download_record_offsets_and_urls.end());
 
-        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), download_record_offsets_and_urls,
+        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, download_record_offsets_and_urls,
                                process_count_low_watermark, process_count_high_watermark);
     } catch (const std::exception &e) {
         ERROR("Caught exception: " + std::string(e.what()));
