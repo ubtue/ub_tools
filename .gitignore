@@ -96,6 +96,7 @@ make_marc_xml
 map_ddc_and_rvk_to_ixtheo_notations
 marc_char_filter
 marc_compare
+marc_diff               
 marc_filter
 marc_grep
 marc_info
@@ -103,6 +104,7 @@ marc_size
 marc_split
 marc_tag_grep
 merge_differential_and_full_marc_updates
+merge_print_and_online
 mpi_stats
 new_journal_alert
 normalise_urls
@@ -115,6 +117,7 @@ regex_matcher
 remove_redundant_includes
 remove_unused_authority_records
 replace_marc_records
+send_email
 set_tad_access_flag
 simple_crawler
 stemwords
