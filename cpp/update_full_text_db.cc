@@ -46,8 +46,8 @@ static void Usage() __attribute__((noreturn));
 
 
 static void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--pdf-extraction-timeout timeout] file_offset marc_input marc_output\n\n"
-              << "       \"--pdf-extraction-timeout\" timeout In seconds (default " + std::to_string(PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT) + ").\n"
+    std::cerr << "Usage: " << ::progname << " [--pdf-extraction-timeout=timeout] file_offset marc_input marc_output\n\n"
+              << "       \"--pdf-extraction-timeout\" timeout in seconds (default " << PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT << ").\n"
               << "       file_offset                        Where to start reading a MARC data set from in marc_input.\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -316,33 +316,27 @@ bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_out
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    ++argv;
     unsigned pdf_extraction_timeout(PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT);
-    if (argc == 6) {
-        if (std::strcmp(*argv, "--pdf-extraction-timeout") == 0) {
-            ++argv;
-            if (not StringUtil::ToNumber(*argv, &pdf_extraction_timeout) or pdf_extraction_timeout == 0)
-                logger->error("bad value for --pdf-extraction-timeout!");
-            argc -= 2;
-        }
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--pdf-extraction-timeout=")) {
+        if (not StringUtil::ToNumber(argv[1] + __builtin_strlen("--pdf-extraction-timeout="), &pdf_extraction_timeout)
+            or pdf_extraction_timeout == 0)
+                ERROR("bad value for --pdf-extraction-timeout!");
+        ++argv, --argc;
     }
 
     if (argc != 4)
         Usage();
 
     long offset;
-    if (not StringUtil::ToNumber(*argv, &offset))
+    if (not StringUtil::ToNumber(argv[1], &offset))
         ERROR("file offset must be a number!");
 
-    ++argv;
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(*argv, MARC::Reader::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2], MARC::Reader::BINARY));
     if (not marc_reader->seek(offset, SEEK_SET))
-        ERROR("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset)
-              + "! (" + std::to_string(errno) + ")");
+        ERROR("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset) + "!");
 
-    ++argv;
     try {
-        return ProcessRecord(marc_reader.get(), *argv, pdf_extraction_timeout) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return ProcessRecord(marc_reader.get(), argv[3], pdf_extraction_timeout) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         ERROR("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
               + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));
