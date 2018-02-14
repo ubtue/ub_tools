@@ -135,16 +135,50 @@ void CleanUpZombies(const unsigned no_of_zombies_to_collect,
 }
 
 
+const std::string UPDATE_FULL_TEXT_DB_PATH("/usr/local/bin/update_full_text_db");
+
+
+void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_record_start, const unsigned pdf_extraction_timeout,
+                        const std::string &marc_input_filename, const std::string &marc_output_filename,
+                        std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
+                        std::map<int, std::string> * const process_id_to_hostname_map,
+                        unsigned * const child_reported_failure_count, unsigned * const active_child_count)
+{
+    constexpr unsigned MAX_CONCURRENT_DOWNLOADS_PER_SERVER = 2;
+
+    // Wait until we have a slot available for the server:
+    for (;;) {
+        auto hostname_and_count(hostname_to_outstanding_request_count_map->find(server_hostname));
+        if (hostname_and_count == hostname_to_outstanding_request_count_map->end()) {
+            (*hostname_to_outstanding_request_count_map)[server_hostname] = 1;
+            break;
+        } else if (hostname_and_count->second < MAX_CONCURRENT_DOWNLOADS_PER_SERVER) {
+            ++hostname_and_count->second;
+            break;
+        }
+
+        CleanUpZombies(/*no_of_zombies*/ 1, hostname_to_outstanding_request_count_map, process_id_to_hostname_map,
+                       child_reported_failure_count, active_child_count);
+    }
+
+    const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
+                                        { "--pdf-extraction-timeout=" + std::to_string(pdf_extraction_timeout),
+                                          std::to_string(marc_record_start), marc_input_filename, marc_output_filename}));
+    if (unlikely(child_pid == -1))
+        ERROR("ExecUtil::Spawn failed! (no more resources?)");
+
+    (*process_id_to_hostname_map)[child_pid] = server_hostname;
+}
+
+
 void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                             const unsigned pdf_extraction_timeout,
                             const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_urls,
                             const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
 {
     Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
-    unsigned spawn_count(0), active_child_count(0), child_reported_failure_count(0);
+    unsigned active_child_count(0), child_reported_failure_count(0);
 
-    const std::string UPDATE_FULL_TEXT_DB_PATH("/usr/local/bin/update_full_text_db");
-    const unsigned MAX_CONCURRENT_DOWNLOADS_PER_SERVER(1);
     std::map<std::string, unsigned> hostname_to_outstanding_request_count_map;
     std::map<int, std::string> process_id_to_hostname_map;
 
@@ -164,33 +198,9 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
             continue;
         }
 
-        auto hostname_and_count(hostname_to_outstanding_request_count_map.find(authority));
-        for (;;) {
-            if (hostname_and_count == hostname_to_outstanding_request_count_map.end()) {
-                hostname_to_outstanding_request_count_map[authority] = 1;
-                break;
-            } else if (hostname_and_count->second < MAX_CONCURRENT_DOWNLOADS_PER_SERVER) {
-                ++hostname_and_count->second;
-                break;
-            }
-
-            CleanUpZombies(/*no_of_zombies*/ 1, &hostname_to_outstanding_request_count_map, &process_id_to_hostname_map,
-                           &child_reported_failure_count, &active_child_count);
-
-            ::sleep(5 /* seconds */);
-        }
-
-        const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
-                                            { "--pdf-extraction-timeout=" + std::to_string(pdf_extraction_timeout),
-                                              std::to_string(offset_and_url.first), marc_reader->getPath(),
-                                              marc_writer->getFile().getPath() }));
-        if (unlikely(child_pid == -1))
-            ERROR("ExecUtil::Spawn failed! (no more resources?)");
-
-        process_id_to_hostname_map[child_pid] = authority;
-
-        ++active_child_count;
-        ++spawn_count;
+        ScheduleSubprocess(authority, offset_and_url.first, pdf_extraction_timeout, marc_reader->getPath(),
+                           marc_writer->getFile().getPath(), &hostname_to_outstanding_request_count_map,
+                           &process_id_to_hostname_map, &child_reported_failure_count, &active_child_count);
 
         if (active_child_count > process_count_high_watermark)
             CleanUpZombies(active_child_count - process_count_low_watermark, &hostname_to_outstanding_request_count_map,
@@ -201,7 +211,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
     CleanUpZombies(active_child_count, &hostname_to_outstanding_request_count_map, &process_id_to_hostname_map,
                    &child_reported_failure_count, &active_child_count);
 
-    std::cerr << "Spawned " << spawn_count << " subprocesses.\n";
+    std::cerr << "Spawned " << download_record_offsets_and_urls.size() << " subprocesses.\n";
     std::cerr << semaphore.getValue()
               << " documents were not downloaded because their cached values had not yet expired.\n";
     std::cerr << child_reported_failure_count << " children reported a failure!\n";
