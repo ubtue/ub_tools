@@ -102,14 +102,17 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
                        /* new_stdin = */"", /* new_stdout = */"",
                        /* new_stderr = */"", timeout) != 0)
     {
-        logger->warning("failed to execute conversion script \"" + pdf_images_script_path + "\" w/in "
-                        + std::to_string(timeout) + " seconds!");
+        if (errno == ETIME)
+            WARNING("failed to execute conversion script \"" + pdf_images_script_path + "\" w/in "
+                    + std::to_string(timeout) + " seconds!");
+        else
+            WARNING("failed to execute conversion script \"" + pdf_images_script_path + "\"!");
         return false;
     }
 
     std::string plain_text;
     if (not FileUtil::ReadString(output_filename, extracted_text))
-        logger->error("failed to read OCR output!");
+        ERROR("failed to read OCR output!");
 
     return not extracted_text->empty();
 }
