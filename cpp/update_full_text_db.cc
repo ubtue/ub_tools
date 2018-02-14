@@ -267,10 +267,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
 
         success = not at_least_one_error && not urls.empty();
 
-        if (success) {
-            combined_text_final = combined_text;
-            TextUtil::CollapseAndTrimWhitespace(&combined_text_final);
-        }
+
+        combined_text_final = combined_text;
+        TextUtil::CollapseAndTrimWhitespace(&combined_text_final);
         cache.insertEntry(ppn, combined_text_final, entry_urls);
     }
 
