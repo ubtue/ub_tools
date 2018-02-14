@@ -76,6 +76,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
          const std::string &new_stdout, const std::string &new_stderr, const ExecMode exec_mode,
          unsigned timeout_in_seconds, const int tardy_child_signal)
 {
+    errno = 0;
     if (::access(command.c_str(), X_OK) != 0)
         throw std::runtime_error("in ExecUtil::Exec: can't execute \"" + command + "\"!");
 
@@ -171,6 +172,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
                 while (::wait4(-pid, &child_exit_status, 0, nullptr) != -1)
                     /* Intentionally empty! */;
 
+                errno = ETIME;
                 return -1;
             }
         }
