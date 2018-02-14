@@ -191,10 +191,9 @@ std::string UrlEncode(std::string * const s);
 
 
 /** Replace all characters that have a special meaning in a URL with %XX where "XX" is a two character hex encoding. */
-inline std::string UrlEncode(const std::string &s)
-{
-        std::string mutable_s(s);
-        return UrlEncode(&mutable_s);
+inline std::string UrlEncode(const std::string &s) {
+    std::string mutable_s(s);
+    return UrlEncode(&mutable_s);
 }
 
 
