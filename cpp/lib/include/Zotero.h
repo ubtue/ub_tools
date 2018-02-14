@@ -39,6 +39,10 @@ public:
                        const std::string &format, const std::string &json,
                        std::string * const response_body, std::string * const error_message);
 
+    /** \brief Use builtin translator to convert input format to JSON. */
+    static bool Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
+                       const std::string &input_content, std::string * const output_json, std::string * const error_message);
+
     /** \brief Download URL and return as JSON. (If harvested_html is given, URL is not downloaded again. ) */
     static bool Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
                     const Url &harvest_url, const std::string &harvested_html,
