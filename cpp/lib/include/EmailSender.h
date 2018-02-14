@@ -35,6 +35,7 @@ enum Format { PLAIN_TEXT, HTML };
 /** \note Please note that "sender", "recipient", and "cc" email addresses may either be regular email addresses or of the
  *        form "Name<email_address>".  Also "subject" and "message_body" are assumed to be in UTF-8.  Also, at least
  *        one of "sender" or "reply_to" have to be specified.
+ *  \note The message body must be UTF-8!
  */
 bool SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
                const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
