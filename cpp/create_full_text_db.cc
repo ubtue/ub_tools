@@ -152,7 +152,7 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
         if (hostname_and_count == hostname_to_outstanding_request_count_map->end()) {
             (*hostname_to_outstanding_request_count_map)[server_hostname] = 1;
             break;
-        } else if (hostname_and_count->second < MAX_CONCURRENT_DOWNLOADS_PER_SERVER) {
+        } else if (server_hostname.empty() or hostname_and_count->second < MAX_CONCURRENT_DOWNLOADS_PER_SERVER) {
             ++hostname_and_count->second;
             break;
         }
@@ -184,11 +184,12 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
     std::map<int, std::string> process_id_to_hostname_map;
 
     for (const auto &offset_and_url : download_record_offsets_and_urls) {
+        const std::string &url(offset_and_url.second);
         std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
-        if (not UrlUtil::ParseUrl(offset_and_url.second, &scheme, &username_password, &authority, &port, &path, &params,
-                                  &query, &fragment, &relative_url))
+        if (not url.empty() and not UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params,
+                                                      &query, &fragment, &relative_url))
         {
-            WARNING("failed to parse URL: " + offset_and_url.second);
+            WARNING("failed to parse URL: " + url);
 
             // Safely append the MARC data to the MARC output file:
             if (unlikely(not marc_reader->seek(offset_and_url.first)))
@@ -231,6 +232,9 @@ void ExtractLowAndHighWatermarks(const std::string &arg, unsigned * const proces
         or not StringUtil::ToNumber(arg.substr(colon_pos + 1), process_count_high_watermark) or *process_count_low_watermark == 0
         or *process_count_high_watermark == 0)
         ERROR("bad low or high watermarks!");
+
+    if (not (*process_count_low_watermark < *process_count_high_watermark))
+        ERROR("the low water mark must be less than the high water mark!");
 }
 
 
