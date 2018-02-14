@@ -82,7 +82,7 @@ bool PdfDocContainsNoText(const std::string &document) {
 
 
 bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
-                         std::string * const extracted_text)
+                         std::string * const extracted_text, unsigned timeout)
 {
     extracted_text->clear();
 
@@ -97,14 +97,13 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
-    static constexpr unsigned TIMEOUT(60); // in seconds
 
     if (ExecUtil::Exec(pdf_images_script_path, { input_filename, output_filename, tesseract_language_code },
                        /* new_stdin = */"", /* new_stdout = */"",
-                       /* new_stderr = */"", TIMEOUT) != 0)
+                       /* new_stderr = */"", timeout) != 0)
     {
         logger->warning("failed to execute conversion script \"" + pdf_images_script_path + "\" w/in "
-                        + std::to_string(TIMEOUT) + " seconds!");
+                        + std::to_string(timeout) + " seconds!");
         return false;
     }
 
