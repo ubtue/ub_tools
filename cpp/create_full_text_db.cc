@@ -20,14 +20,10 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
-//#include <memory>
 #include <stdexcept>
 #include <vector>
-//#include <climits>
 #include <cstdio>
 #include <cstdlib>
-//#include <libgen.h>
-//#include <strings.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "DnsUtil.h"
@@ -236,7 +232,7 @@ int main(int argc, char **argv) {
             *colon = '\0';
             if (not StringUtil::ToNumber(*argv, &process_count_low_watermark)
                 or not StringUtil::ToNumber(*argv, &process_count_high_watermark))
-                EERROR("low or high watermark is not an unsigned number!");
+                ERROR("low or high watermark is not an unsigned number!");
             if (process_count_high_watermark > process_count_low_watermark)
                 ERROR("the high watermark must be larger than the low watermark!");
             ++argv;
