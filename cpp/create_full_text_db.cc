@@ -112,16 +112,17 @@ void ProcessNoDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * c
 
 
 // Returns the number of child processes that returned a non-zero exit code.
-unsigned CleanUpZombies(const unsigned no_of_zombies_to_collect,
-                        std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
-                        std::map<int, std::string> * const process_id_to_hostname_map)
+void CleanUpZombies(const unsigned no_of_zombies_to_collect,
+                    std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
+                    std::map<int, std::string> * const process_id_to_hostname_map,
+                    unsigned * const child_reported_failure_count, unsigned * const active_child_count)
 {
-    unsigned child_reported_failure_count(0);
     for (unsigned zombie_no(0); zombie_no < no_of_zombies_to_collect; ++zombie_no) {
         int exit_code;
         const pid_t zombie_pid(::wait(&exit_code));
         if (exit_code != 0)
-            ++child_reported_failure_count;
+            ++*child_reported_failure_count;
+        --*active_child_count;
 
         const auto process_id_and_hostname(process_id_to_hostname_map->find(zombie_pid));
         if (unlikely(process_id_and_hostname == process_id_to_hostname_map->end()))
@@ -131,8 +132,6 @@ unsigned CleanUpZombies(const unsigned no_of_zombies_to_collect,
             hostname_to_outstanding_request_count_map->erase(process_id_and_hostname->second);
         process_id_to_hostname_map->erase(process_id_and_hostname);
     }
-
-    return child_reported_failure_count;
 }
 
 
@@ -165,8 +164,8 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
             continue;
         }
 
-        auto hostname_and_count(hostname_to_outstanding_request_count_map.find(authority));
         for (;;) {
+            auto hostname_and_count(hostname_to_outstanding_request_count_map.find(authority));
             if (hostname_and_count == hostname_to_outstanding_request_count_map.end()) {
                 hostname_to_outstanding_request_count_map[authority] = 1;
                 break;
@@ -175,9 +174,8 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                 break;
             }
 
-            child_reported_failure_count += CleanUpZombies(/*no_of_zombies*/ 1, &hostname_to_outstanding_request_count_map,
-                                                           &process_id_to_hostname_map);
-            --active_child_count;
+            CleanUpZombies(/*no_of_zombies*/ 1, &hostname_to_outstanding_request_count_map, &process_id_to_hostname_map,
+                           &child_reported_failure_count, &active_child_count);
 
             ::sleep(5 /* seconds */);
         }
@@ -194,17 +192,14 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
         ++active_child_count;
         ++spawn_count;
 
-        if (active_child_count > process_count_high_watermark) {
-            child_reported_failure_count += CleanUpZombies(active_child_count - process_count_low_watermark,
-                                                           &hostname_to_outstanding_request_count_map,
-                                                           &process_id_to_hostname_map);
-            active_child_count = process_count_low_watermark;
-        }
+        if (active_child_count > process_count_high_watermark)
+            CleanUpZombies(active_child_count - process_count_low_watermark, &hostname_to_outstanding_request_count_map,
+                           &process_id_to_hostname_map, &child_reported_failure_count, &active_child_count);
     }
 
     // Wait for stragglers:
-    child_reported_failure_count += CleanUpZombies(active_child_count, &hostname_to_outstanding_request_count_map,
-                                                   &process_id_to_hostname_map);
+    CleanUpZombies(active_child_count, &hostname_to_outstanding_request_count_map, &process_id_to_hostname_map,
+                   &child_reported_failure_count, &active_child_count);
 
     std::cerr << "Spawned " << spawn_count << " subprocesses.\n";
     std::cerr << semaphore.getValue()
