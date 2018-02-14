@@ -61,6 +61,23 @@ bool Zotero::Export(const Url &zts_server_url, const TimeLimit &time_limit, Down
 }
 
 
+bool Zotero::Import(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
+                    const std::string &input_content, std::string * const output_json, std::string * const error_message)
+{
+    const std::string endpoint_url(Url(zts_server_url.toString() + "/import"));
+    downloader_params.post_data_ = input_content;
+
+    Downloader downloader(endpoint_url, downloader_params, time_limit);
+    if (downloader.anErrorOccurred()) {
+        *error_message = downloader.getLastErrorMessage();
+        return false;
+    } else {
+        *output_json = downloader.getMessageBody();
+        return true;
+    }
+}
+
+
 bool Zotero::Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloader::Params downloader_params,
                  const Url &harvest_url, const std::string &harvested_html,
                  std::string * const response_body, unsigned * response_code, std::string * const error_message)
@@ -69,8 +86,10 @@ bool Zotero::Web(const Url &zts_server_url, const TimeLimit &time_limit, Downloa
     downloader_params.additional_headers_ = { "Accept: application/json", "Content-Type: application/json" };
     downloader_params.post_data_ = "{\"url\":\"" + JSON::EscapeString(harvest_url) + "\","
                                    + "\"sessionid\":\"" + JSON::EscapeString(GetNextSessionId()) + "\"";
-    if (not harvested_html.empty())
-        downloader_params.post_data_ += ",\"cachedHTML\":\"" + JSON::EscapeString(harvested_html) + "\"";
+    if (not harvested_html.empty()) {
+        //downloader_params.post_data_ += ",\"cachedHTML\":\"" + JSON::EscapeString(harvested_html) + "\"";
+        INFO("TODO: implement using cached html");
+    }
     downloader_params.post_data_ += "}";
 
     Downloader downloader(endpoint_url, downloader_params, time_limit);
