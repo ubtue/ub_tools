@@ -32,17 +32,19 @@
 
 
 // Macros to create strings describing where and why an error occurred. Must be macros to access __FILE__ and __LINE__.
-// This gobble-dee-goop necessary to turn __LINE__ into a string. See doctor dobs: http://www.ddj.com/dept/cpp/184403864
+// This gobble-dee-goop is necessary to turn __LINE__ into a string. See doctor dobs: http://www.ddj.com/dept/cpp/184403864
 //
 #define Stringize(S) ReallyStringize(S)
 #define ReallyStringize(S) #S
 
 
 // A thread-safe logger class.
+// \note Set the environment variable LOGGER_FORMAT to control the output format of our logger.
 class Logger {
     friend Logger *LoggerInstantiator();
     std::mutex mutex_;
     int fd_;
+    bool log_process_pids_;
 public:
     enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
 private:
@@ -73,6 +75,8 @@ public:
 
     //* \note Aborts if ""level_candidate" is not one of "ERROR", "WARNING", "INFO" or "DEBUG".
     static LogLevel StringToLogLevel(const std::string &level_candidate);
+private:
+    void writeString(std::string msg);
 };
 extern Logger *logger;
 
