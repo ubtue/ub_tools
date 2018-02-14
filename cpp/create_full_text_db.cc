@@ -168,6 +168,7 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
         ERROR("ExecUtil::Spawn failed! (no more resources?)");
 
     (*process_id_to_hostname_map)[child_pid] = server_hostname;
+    ++*active_child_count;
 }
 
 
