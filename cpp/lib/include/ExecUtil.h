@@ -58,6 +58,7 @@ public:
  *  \param  timeout_in_seconds  If not zero, the subprocess will be killed if the timeout expires before
  *                              the process terminates.
  *  \param  tardy_child_signal  The signal to send to our offspring if there was a timeout.
+ *  \note   in case of a timeout, we set errno to ETIME and return -1
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
 int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
