@@ -47,7 +47,7 @@ static void Usage() __attribute__((noreturn));
 
 static void Usage() {
     std::cerr << "Usage: " << ::progname << " [--pdf-extraction-timeout timeout] file_offset marc_input marc_output\n\n"
-              << "       [--pdf-extraction-timeout timeout] In seconds (default " + std::to_string(PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT) + ").\n"
+              << "       \"--pdf-extraction-timeout\" timeout In seconds (default " + std::to_string(PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT) + ").\n"
               << "       file_offset                        Where to start reading a MARC data set from in marc_input.\n\n";
     std::exit(EXIT_FAILURE);
 }
