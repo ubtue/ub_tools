@@ -232,7 +232,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         FullTextCache::Entry entry;
         std::vector<FullTextCache::EntryUrl> entry_urls;
         std::string combined_text(GetTextFrom520a(*record));
-        constexpr unsigned PER_DOC_TIMEOUT(10000); // in milliseconds
+        constexpr unsigned PER_DOC_TIMEOUT(30000); // in milliseconds
         bool at_least_one_error(false);
 
         for (const auto &url : urls) {
