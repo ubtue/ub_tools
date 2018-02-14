@@ -30,6 +30,7 @@
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "MARC.h"
+#include "MiscUtil.h"
 #include "Semaphore.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -147,7 +148,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
     const unsigned MAX_CONCURRENT_DOWNLOADS_PER_SERVER(1);
     std::map<std::string, unsigned> hostname_to_outstanding_request_count_map;
     std::map<int, std::string> process_id_to_hostname_map;
-    
+
     for (const auto &offset_and_url : download_record_offsets_and_urls) {
         std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
         if (not UrlUtil::ParseUrl(offset_and_url.second, &scheme, &username_password, &authority, &port, &path, &params,
@@ -173,23 +174,23 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                 ++hostname_and_count->second;
                 break;
             }
-            
+
             child_reported_failure_count += CleanUpZombies(/*no_of_zombies*/ 1, &hostname_to_outstanding_request_count_map,
                                                            &process_id_to_hostname_map);
             --active_child_count;
 
             ::sleep(5 /* seconds */);
         }
-        
+
         const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH,
                                             { "--pdf-extraction-timeout=" + std::to_string(pdf_extraction_timeout),
                                               std::to_string(offset_and_url.first), marc_reader->getPath(),
                                               marc_writer->getFile().getPath() }));
         if (unlikely(child_pid == -1))
             ERROR("ExecUtil::Spawn failed! (no more resources?)");
-        
+
         process_id_to_hostname_map[child_pid] = authority;
-        
+
         ++active_child_count;
         ++spawn_count;
 
@@ -232,6 +233,7 @@ void ExtractLowAndHighWatermarks(const std::string &arg, unsigned * const proces
 
 int main(int argc, char **argv) {
     ::progname = argv[0];
+    MiscUtil::SetEnv("LOGGER_FORMAT", "process_pids");
 
     if (argc < 3)
         Usage();
