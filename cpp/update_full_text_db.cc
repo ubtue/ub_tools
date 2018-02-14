@@ -147,7 +147,16 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
                                const std::string &tesseract_language_code, const std::string &document,
                                const unsigned pdf_extraction_timeout, std::string * const error_message)
 {
-    if (media_type == "text/plain") {
+    std::string extracted_text;
+    if (media_type == "text/html" or media_type == "text/xhtml") {
+        extracted_text = TextUtil::ExtractTextFromHtml(document, http_header_charset);
+        return TextUtil::CollapseWhitespace(&extracted_text);
+    }
+
+    if (StringUtil::StartsWith(media_type, "text/")) {
+        if (not (media_type == "text/plain"))
+            WARNING("treating " + media_type + " as text/plain");
+
         if (IsUTF8(http_header_charset))
             return document;
 
@@ -163,12 +172,6 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
         if (unlikely(not encoding_converter->convert(document, &utf8_document)))
             WARNING("conversion error while converting text from \"" + http_header_charset + "\" to UTF-8!");
         return TextUtil::CollapseWhitespace(&utf8_document);
-    }
-
-    std::string extracted_text;
-    if (media_type == "text/html" or media_type == "text/xhtml") {
-        extracted_text = TextUtil::ExtractTextFromHtml(document, http_header_charset);
-        return TextUtil::CollapseWhitespace(&extracted_text);
     }
 
     if (StringUtil::StartsWith(media_type, "application/pdf")) {
