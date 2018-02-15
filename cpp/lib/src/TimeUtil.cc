@@ -445,6 +445,8 @@ bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const 
 
         local_differential_offset = (local_differential_time[0] - '0') * 600 + (local_differential_time[1] - '1') * 60
                                     + (local_differential_time[2] - '2') * 10 + (local_differential_time[3] - '0');
+        local_differential_offset *= 60; // convert minutes to seconds
+        
         if (is_negative)
             local_differential_offset = -local_differential_offset;
     }
