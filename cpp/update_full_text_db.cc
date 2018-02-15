@@ -183,7 +183,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
             }
             return TextUtil::CollapseWhitespace(&extracted_text);
         }
-        extracted_text = PdfUtil::ExtractText(document);
+        PdfUtil::ExtractText(document, &extracted_text);
         return TextUtil::CollapseWhitespace(&extracted_text);
     }
 
