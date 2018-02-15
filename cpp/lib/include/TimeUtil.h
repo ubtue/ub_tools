@@ -106,7 +106,7 @@ time_t TimeGm(const struct tm &tm);
 
 struct tm StringToStructTm(const std::string &date_and_time, const std::string &format = DEFAULT_FORMAT);
 
-    
+
 /** \brief   Convert a time from a time_t to a string, using local time.
  *  \param   the_time  The time to convert.
  *  \param   format    The format of the result, in strftime(3) format.
@@ -232,6 +232,10 @@ void Millisleep(const unsigned sleep_interval);
 
 
 std::string GetCurrentYear(const TimeZone time_zone = LOCAL);
+
+
+// Parses a date/time in RFC date and time format.  As an extension, we also support a 4-digit year.
+bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const date_time);
 
 
 } // namespace TimeUtil
