@@ -30,28 +30,34 @@
 namespace PdfUtil {
 
 
-std::string ExtractText(const std::string &pdf_document) {
+bool ExtractText(const std::string &pdf_document, std::string * const extracted_text) {
     static std::string pdftotext_path;
     if (pdftotext_path.empty())
         pdftotext_path = ExecUtil::LocateOrDie("pdftotext");
 
     const FileUtil::AutoTempFile auto_temp_file1;
     const std::string &input_filename(auto_temp_file1.getFilePath());
-    if (not FileUtil::WriteString(input_filename, pdf_document))
-        logger->error("in PdfUtil::ExtractText: can't write document to \"" + input_filename + "\"!");
+    if (not FileUtil::WriteString(input_filename, pdf_document)) {
+        WARNING("can't write document to \"" + input_filename + "\"!");
+        return false;
+    }
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
 
     const int retval(ExecUtil::Exec(pdftotext_path,
                                     { "-enc", "UTF-8", "-nopgbrk", input_filename, output_filename }));
-    if (retval != 0)
-        logger->error("in PdfUtil::ExtractText: failed to execute \"" + pdftotext_path + "\"!");
-    std::string extracted_text;
-    if (not FileUtil::ReadString(output_filename, &extracted_text))
-        logger->error("in PdfUtil::ExtractText: failed to read extracted text from \"" + output_filename + "\"!");
+    if (retval != 0) {
+        WARNING("failed to execute \"" + pdftotext_path + "\"!");
+        return false;
+    }
+                                    
+    if (not FileUtil::ReadString(output_filename, extracted_text)) {
+        WARNING("failed to read extracted text from \"" + output_filename + "\"!");
+        return false;
+    }
 
-    return extracted_text;
+    return not extracted_text->empty();
 }
 
 
@@ -88,8 +94,10 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
                       std::string * const extracted_text)
 {
     tesseract::TessBaseAPI * const api(new tesseract::TessBaseAPI());
-    if (api->Init(nullptr, tesseract_language_code.c_str()))
-        ERROR("Could not initialize Tesseract API!");
+    if (api->Init(nullptr, tesseract_language_code.c_str())) {
+        WARNING("Could not initialize Tesseract API!");
+        return false;
+    }
 
     Pix * image(pixRead(img_path.c_str()));
     api->SetImage(image);
@@ -98,7 +106,7 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
     api->End();
     pixDestroy(&image);
 
-    return true;
+    return not extracted_text->empty();
 }
 
 
@@ -114,20 +122,28 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
     const FileUtil::AutoTempDirectory auto_temp_dir;
     const std::string &output_dirname(auto_temp_dir.getDirectoryPath());
     const std::string input_filename(output_dirname + "/in.pdf");
-    if (not FileUtil::WriteString(input_filename, pdf_document))
-        ERROR("failed to write the PDF to a temp file!");
+    if (not FileUtil::WriteString(input_filename, pdf_document)) {
+        WARNING("failed to write the PDF to a temp file!");
+        return false;
+    }
 
-    if (ExecUtil::Exec(pdf_images_script_path, { input_filename, output_dirname + "/out" }, "", "", "", timeout) != 0)
-        ERROR("failed to extract images from PDF file!");
+    if (ExecUtil::Exec(pdf_images_script_path, { input_filename, output_dirname + "/out" }, "", "", "", timeout) != 0) {
+        WARNING("failed to extract images from PDF file!");
+        return false;
+    }
 
     std::vector<std::string> pdf_image_filenames;
-    if (FileUtil::GetFileNameList("out.*", &pdf_image_filenames, output_dirname) == 0)
-        ERROR("PDF did not contain any images!");
+    if (FileUtil::GetFileNameList("out.*", &pdf_image_filenames, output_dirname) == 0) {
+        WARNING("PDF did not contain any images!");
+        return false;
+    }
 
     for (const std::string &pdf_image_filename : pdf_image_filenames) {
         std::string image_text;
-        if (not GetTextFromImage(output_dirname + "/" + pdf_image_filename, tesseract_language_code, &image_text))
-            ERROR("failed to extract text from image " + pdf_image_filename);
+        if (not GetTextFromImage(output_dirname + "/" + pdf_image_filename, tesseract_language_code, &image_text)) {
+            WARNING("failed to extract text from image " + pdf_image_filename);
+            return false;
+        }
          *extracted_text += " " + image_text;
     }
 
