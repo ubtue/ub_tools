@@ -37,6 +37,14 @@ The following translations have been attributed to you:
        </tr>
     {ENDLOOP}
     </table>
+<h4>Miscellaneous Translations</h4>    
+    <table>
+    {LOOP miscellaneous_translations}
+       <tr>
+         {miscellaneous_translations}
+       </tr>
+    {ENDLOOP}
+    </table>
 </br>
 Kind Regards</br>
 Your IxTheo Team

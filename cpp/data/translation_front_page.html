@@ -97,6 +97,7 @@
                     Please select target scope <select name="target" onchange="if(this.value != '{target_translation_scope}') this.form.submit()">
                     <option value="vufind" {IF target_translation_scope == "vufind"} selected {ENDIF}>VuFind Translations</option>
                     <option value="keywords" {IF target_translation_scope == "keywords"} selected {ENDIF}>Keyword Translations</option>
+                    <option value="miscellaneous" {IF target_translation_scope == "miscellaneous"} selected {ENDIF}>Miscellanous Translations</option>
             </select>
             </form>
         </div> 
@@ -188,7 +189,8 @@
                     </table>
                 </div>
             </div>
-            {ELSE}
+            {ENDIF}
+            {IF target_translation_scope == "keyword"}
             <div style="width: 90%;">
                <h2>Keyword Translations</h2>
                <div style="width: 15% float: right; text-align: right;">
@@ -242,6 +244,67 @@
                         {LOOP keyword_row}
                         <tr>
                             {keyword_row}
+                        </tr>
+                        {ENDLOOP}
+                    </table>
+                </div>
+            </div>
+            {ELSE}
+             <div style="width: 90%;">
+                <h2>Miscellaneous Translations</h2>
+                <div style="width: 15% float: right; text-align: right;">
+                   <form action="/cgi-bin/translator" method="POST">
+                       <input type="checkbox" name="filter_untranslated" value="checked" {filter_untranslated} onChange="this.form.submit()">
+                       <button type="submit" class="link-button">Filter Untranslated</button>
+                       <input type="hidden" name="target" value="{target_translation_scope}">
+                   </form>
+                </div>
+
+                <div>
+                   <div style="width: 70%; float:left;">
+                        <table style="width: 50%; border: none;">
+                            <tr style="border: none;">
+                                {LOOP direct_jump_miscellaneous}
+                                    {direct_jump_miscellaneous}
+                                {ENDLOOP}
+                             </tr>
+                        </table>
+                   </div>
+                   <div style="width: 15%; float: left; text-align: left;">
+                        <div style="float: left; text-align: left;">
+                            <form action="/cgi-bin/translator" method="POST">
+                                <button type="submit" class="link-button">Save Status</button>
+                                <input type="hidden" name="save_action" value="save">
+                                <input type="hidden" name="lookfor" value="{lookfor}">
+                                <input type="hidden" name="offset" value="{current_offset}">
+                                <input type="hidden" name="target" value="{target_translation_scope}">
+                                <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                            </form>
+                        </div>
+                        <div style="float: left; text-align: left;">
+                            <form action="/cgi-bin/translator" method="POST">
+                                <button type="submit" class="link-button">Restore Status</button>
+                                <input type="hidden" name="save_action" value="restore">
+                                <input type="hidden" name="target" value="{target_translation_scope}">
+                                <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                            </form>
+                        </div>
+                   </div>
+                   <div style="width: 15%; float: right; text-align: right;">
+                        <form action="/cgi-bin/translator" method="POST">
+                            <button type="submit" class="link-button">Mail my Translations</button>
+                            <input type="hidden" name="target" value="{target_translation_scope}">
+                            <input type="hidden" name="mail" value="mytranslations">
+                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                        </form>
+                   </div>
+                </div>
+                <div>
+                    <table>
+                        <tr>{miscellaneous_token_table_headline}</tr>
+                        {LOOP miscellaneous_token_row}
+                        <tr>
+                            {miscellaneous_token_row}
                         </tr>
                         {ENDLOOP}
                     </table>

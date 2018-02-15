@@ -56,7 +56,7 @@ const std::string MACS_COLUMN_DESCRIPTOR("macs");
 const int NO_INDEX(-1);
 const unsigned int LOOKFOR_PREFIX_LIMIT(3);
 
-enum Category { VUFIND, KEYWORDS };
+enum Category { VUFIND, KEYWORDS, MISCELLANEOUS };
 
 
 DbResultSet ExecSqlAndReturnResultsOrDie(const std::string &select_statement, DbConnection * const db_connection) {
@@ -280,7 +280,7 @@ std::string GetTranslatedAllLanguagesCriterion(const std::string &translator, en
     GetTranslatorLanguages(ini_file, translator, &translator_languages);
     std::string criterion("translator='" + translator +"' AND language_code IN (");
     int num_of_languages(0);
-    const std::string group_by_criterion(category == VUFIND ? "token" : "ppn");
+    const std::string group_by_criterion((category == VUFIND || category == MISCELLANEOUS) ? "token" : "ppn");
     bool is_first(true);
     for (const auto &translator_language : translator_languages) {
         if (translator_language == "ger")
@@ -555,6 +555,137 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 }
 
 
+Category GetCategoryForRealm(const std::string &realm) {
+    if (realm == "vufind")
+        return VUFIND;
+    if (realm == "keywords")
+        return KEYWORDS;
+    if (realm == "miscellaneous")
+        return MISCELLANEOUS;
+    throw std::runtime_error("Unvalid realm " + realm);
+}
+
+
+void SetupGenericNonKeywordSortLimit(DbConnection &db_connection, const std::string &realm, 
+                                     std::string * const create_sort_limit, 
+                                     const std::string &offset, const bool use_untranslated_filter) { 
+    if (use_untranslated_filter) {
+        const std::string translator(GetTranslatorOrEmptyString());
+        Category category(GetCategoryForRealm(realm));
+        if (translator.empty())
+            ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
+
+        const std::string translated_by_translator("CREATE TEMPORARY TABLE translated_by_translator (INDEX (token)) AS "
+                                                   "(SELECT DISTINCT token FROM " + realm + "_ger_sorted WHERE " +
+                                                    GetTranslatedAllLanguagesCriterion(translator, category) + ")");
+        db_connection.queryOrDie(translated_by_translator);
+        const std::string untranslated_by_translator_ger_sorted("CREATE TEMPORARY TABLE untranslated_by_translator_ger_sorted AS "
+                                                     "(SELECT DISTINCT l.token FROM (SELECT token FROM " + realm + "_ger_sorted "
+                                                     "WHERE language_code='ger' ORDER BY token) AS l "
+                                                     "LEFT JOIN translated_by_translator AS r "
+                                                     "ON l.token=r.token WHERE r.token IS NULL)");
+        db_connection.queryOrDie(untranslated_by_translator_ger_sorted);
+        *create_sort_limit = "CREATE TEMPORARY TABLE " + realm + "_sort_limit AS (SELECT DISTINCT l.token FROM " + realm + "_ger_sorted AS l "
+                             "INNER JOIN untranslated_by_translator_ger_sorted AS r USING(token) "
+                             "ORDER BY l.token LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) +  ")";
+    } else
+        *create_sort_limit = "CREATE TEMPORARY TABLE " + realm + "_sort_limit AS (SELECT token FROM " + realm + "_ger_sorted WHERE "
+                             "language_code='ger' ORDER BY token LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE)
+                             + ")";
+}
+
+
+void GetGenericNonKeywordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &realm, const std::string &lookfor,
+                                                 const std::string &offset, std::vector<std::string> * const rows,
+                                                 std::string * const headline,
+                                                 const std::vector<std::string> &translator_languages,
+                                                 const std::vector<std::string> &additional_view_languages,
+                                                 const bool filter_untranslated) {
+    rows->clear();
+
+    const std::string search_pattern(lookfor.size() <=
+                                    LOOKFOR_PREFIX_LIMIT ? "LIKE '" + lookfor + "%'" : "LIKE '%" + lookfor + "%'");
+    const std::string token_where_clause(
+            lookfor.empty() ? "" : "WHERE token " + search_pattern);
+    const std::string token_query("SELECT token FROM " + realm + "_translations " + token_where_clause + " ORDER BY token");
+    const std::string query("SELECT token, translation, language_code, translator FROM " + realm + "_translations "
+                            "WHERE token IN (SELECT * FROM (" + token_query
+                            + ") as t) ORDER BY token, language_code");
+
+    const std::string create_ger_sorted("CREATE TEMPORARY TABLE " + realm + "_ger_sorted AS (" + query + ")");
+    db_connection.queryOrDie(create_ger_sorted);
+
+    std::string create_sort_limit;
+    SetupGenericNonKeywordSortLimit(db_connection, realm, &create_sort_limit, offset, filter_untranslated);
+    db_connection.queryOrDie(create_sort_limit);
+
+
+    const std::string create_result_with_limit("SELECT  token, translation, language_code, translator FROM " + realm + "_ger_sorted AS v"
+                                       " INNER JOIN " + realm + "_sort_limit AS u USING (token)");
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, &db_connection));
+
+    std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
+    std::vector<std::string> display_languages;
+    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, VUFIND);
+    *headline = "<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>";
+    if (result_set.empty())
+        return;
+
+    std::vector<std::string> row_values(display_languages.size());
+    std::string current_token;
+    while (auto db_row = result_set.getNextRow()) {
+       std::string token(db_row["token"]);
+       std::string translation(db_row["translation"]);
+       std::string language_code(db_row["language_code"]);
+       std::string translator(db_row["translator"]);
+       if (current_token != token) {
+           if (not current_token.empty())
+              rows->emplace_back(StringUtil::Join(row_values, ""));
+
+           current_token = token;
+           row_values.clear();
+           row_values.resize(display_languages.size(), "<td style=\"background-color:lightgrey\"></td>");
+           int token_index(GetColumnIndexForColumnHeading(display_languages, row_values, TOKEN_COLUMN_DESCRIPTOR));
+           if (token_index == NO_INDEX)
+               continue;
+           row_values[token_index] = CreateNonEditableRowEntry(token);
+           for (auto translator_language : translator_languages) {
+               int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
+               if (index != NO_INDEX)
+                   row_values[index] = CreateEditableRowEntry(current_token, "", translator_language, "vufind_translations", "");
+           }
+       }
+
+       int index(GetColumnIndexForColumnHeading(display_languages, row_values, language_code));
+       if (index == NO_INDEX)
+           continue;
+       if (IsTranslatorLanguage(translator_languages, language_code))
+          row_values[index] = CreateEditableRowEntry(current_token, translation, language_code, "vufind_translations",
+                                                     translator);
+       else
+          row_values[index] = CreateNonEditableRowEntry(translation);
+   }
+   rows->emplace_back(StringUtil::Join(row_values, ""));
+   // We may not use a ';' here within a query to prevent mysql from getting out of sync
+   const std::string drop_ger_sorted("DROP TEMPORARY TABLE miscellaneous_ger_sorted");
+   const std::string drop_sort_limit("DROP TEMPORARY TABLE miscellaneous_sort_limit");
+   db_connection.queryOrDie(drop_ger_sorted);
+   db_connection.queryOrDie(drop_sort_limit);
+}
+
+
+void GetMiscellaneousTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
+                                                 const std::string &offset, std::vector<std::string> * const rows,
+                                                 std::string * const headline,
+                                                 const std::vector<std::string> &translator_languages,
+                                                 const std::vector<std::string> &additional_view_languages,
+                                                 const bool filter_untranslated) {
+    GetGenericNonKeywordTranslationsAsHTMLRowsFromDatabase(db_connection, "miscellaneous", lookfor, offset, rows, headline,
+                                             translator_languages, additional_view_languages, filter_untranslated);
+}
+
+
+
 void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum Category category = KEYWORDS,
                              const bool filter_untranslated = false)
 {
@@ -564,7 +695,7 @@ void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum C
          R"END(<form action="/cgi-bin/translator" method="POST">
             <button type="submit" class="link-button">)END" + std::string(1,ch) + "</button>"
          R"END(<input type="hidden" name="lookfor" value=")END" + std::string(1,ch) + "\">"
-         R"END(<input type="hidden" name="target" value=")END" + (category == VUFIND ? "vufind" : "keywords") + "\">"
+         R"END(<input type="hidden" name="target" value=")END" + (category == VUFIND ? "vufind" : (category == KEYWORDS) ? "keywords" : "miscellaneous") + "\">"
          R"END(<input type="hidden" name="filter_untranslated" value=)END" + (filter_untranslated ? " checked" : "") + ">"
          "</form>");
         jump_table->emplace_back("<td style=\"border:none;\">" + post_link + "</td>");
@@ -589,17 +720,27 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     names_to_values_map.emplace("direct_jump_vufind", jump_entries_vufind);
     names_to_values_map.emplace("translator", std::vector<std::string> { translator });
 
+    std::vector<std::string> jump_entries_miscellaneous;
+    GenerateDirectJumpTable(&jump_entries_miscellaneous, MISCELLANEOUS, filter_untranslated);
+    names_to_values_map.emplace("direct_jump_miscellaneous", jump_entries_miscellaneous);
+
     if (target == "vufind")
         GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
                                                     translator_languages, additional_view_languages, filter_untranslated);
     else if (target == "keywords")
         GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
                                                      translator_languages, additional_view_languages, filter_untranslated);
+    else if (target == "miscellaneous")
+        GetMiscellaneousTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
+                                                     translator_languages, additional_view_languages, filter_untranslated);
     else
         ShowErrorPageAndDie("Error - Invalid Target", "No valid target selected");
 
     names_to_values_map.emplace("vufind_token_row", rows);
     names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
+
+    names_to_values_map.emplace("miscellaneous_token_row", rows);
+    names_to_values_map.emplace("miscellaneous_token_table_headline", std::vector<std::string> {headline});
 
     names_to_values_map.emplace("keyword_row", rows);
     names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
@@ -698,10 +839,21 @@ bool AssembleMyTranslationsData(DbConnection &db_connection, const IniFile &ini_
                                     "l.status!='reliable_synonym' AND l.status != 'unreliable_synonym'"
                                     " AND l.ppn IN (SELECT ppn from keyword_translations WHERE translator='"
                                     + translator + "') ORDER BY k.translation;");
-
     std::vector<std::string> keyword_rows;
     GetTableForQuery(db_connection, &keyword_rows, keyword_query, display_languages, KEYWORDS);
     names_to_values_map->emplace("keyword_translations", keyword_rows);
+
+    // Get Miscellaneous Translations
+    const std::string miscellaneous_query("SELECT token, translation, language_code, translator FROM miscellaneous_translations "
+                                   "WHERE token IN (SELECT * FROM (SELECT token FROM miscellaneous_translations WHERE "
+                                   "translator='" + translator + "') as t) ORDER BY token, language_code;");
+
+    std::vector<std::string> miscellaneous_rows;
+    GetTableForQuery(db_connection, &miscellaneous_rows, miscellaneous_query, display_languages, MISCELLANEOUS);
+    names_to_values_map->emplace("miscellaneous_translations", miscellaneous_rows);
+
+
+
     return true;
 }
 
