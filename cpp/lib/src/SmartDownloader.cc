@@ -94,8 +94,7 @@ bool DSpaceDownloader::downloadDocImpl(const std::string &url, const TimeLimit &
 {
     document->clear();
 
-    std::string html_document_candidate;
-    if (not DownloadHelper(url, time_limit, &html_document_candidate, http_header_charset, error_message))
+    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message))
         return false;
 
     static RegexMatcher *matcher;
@@ -106,13 +105,13 @@ bool DSpaceDownloader::downloadDocImpl(const std::string &url, const TimeLimit &
             ERROR("failed to compile regex! (" + err_msg + ")");
     }
 
-    if (not matcher->matched(html_document_candidate)) {
+    if (not matcher->matched(*document)) {
         *error_message = "no matching DSpace structure found!";
         return false;
     }
 
     const std::string pdf_link("http" + (*matcher)[1] + "pdf");
-    if (not DownloadHelper(pdf_link, time_limit, &html_document_candidate, http_header_charset, error_message))
+    if (not DownloadHelper(pdf_link, time_limit, document, http_header_charset, error_message))
         return false;
 
     return true;
