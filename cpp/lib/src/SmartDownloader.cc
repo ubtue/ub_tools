@@ -94,8 +94,7 @@ bool DSpaceDownloader::downloadDocImpl(const std::string &url, const TimeLimit &
 {
     document->clear();
 
-    std::string html_document_candidate;
-    if (not DownloadHelper(url, time_limit, &html_document_candidate, http_header_charset, error_message))
+    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message))
         return false;
 
     static RegexMatcher *matcher;
@@ -106,11 +105,13 @@ bool DSpaceDownloader::downloadDocImpl(const std::string &url, const TimeLimit &
             ERROR("failed to compile regex! (" + err_msg + ")");
     }
 
-    if (not matcher->matched(html_document_candidate))
+    if (not matcher->matched(*document)) {
+        *error_message = "no matching DSpace structure found!";
         return false;
+    }
 
     const std::string pdf_link("http" + (*matcher)[1] + "pdf");
-    if (not DownloadHelper(pdf_link, time_limit, &html_document_candidate, http_header_charset, error_message))
+    if (not DownloadHelper(pdf_link, time_limit, document, http_header_charset, error_message))
         return false;
 
     return true;
@@ -173,8 +174,11 @@ bool DigiToolSmartDownloader::downloadDocImpl(const std::string &url, const Time
 
     if (trace_)
         INFO("about to download \"" + url + "\".");
-    if (not DownloadHelper(normalised_url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded())
+    if (not DownloadHelper(normalised_url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded()) {
+        if (time_limit.limitExceeded())
+            *error_message = "timelimit exceeded!";
         return false;
+    }
 
     static const std::string ocr_text("ocr-text:\n");
     if (MediaTypeUtil::GetMediaType(*document) == "text/plain"
@@ -201,6 +205,7 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
     if  (start_pos == std::string::npos) {
         if (trace_)
             WARNING("start position not found!");
+        *error_message = "no matching Diglit structure found (start position)!";
         return false;
     }
     start_pos += start_string.length();
@@ -208,6 +213,7 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
     if  (end_pos == std::string::npos) {
         if (trace_)
             WARNING("end position not found!");
+        *error_message = "no matching Diglit structure found (end position)!";
         return false;
     }
     const std::string projectname(document->substr(start_pos, end_pos - start_pos));
@@ -220,6 +226,7 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
         if (time_limit.limitExceeded()) {
             if (trace_)
                 WARNING("time out while paging! (roman numbers)");
+            *error_message = "time out while paging! (Diglit roman numbers)";
             return false;
         }
         document->append(page);
@@ -231,6 +238,7 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
         if (time_limit.limitExceeded()) {
             if (trace_)
                 WARNING("time out while paging! (arabic numbers)");
+            *error_message = "time out while paging! (Diglit arabic numbers)";
             return false;
         }
         document->append(page);
@@ -257,16 +265,23 @@ bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimi
 {
     if (trace_)
         INFO("about to download \"" + url + "\".");
-    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded())
+    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded()) {
+        if (time_limit.limitExceeded())
+            *error_message = "timelimit exceeded!";
         return false;
+    }
     const std::string start_string("<body onload=window.location=\"");
     size_t start_pos(document->find(start_string));
-    if (start_pos == std::string::npos)
+    if (start_pos == std::string::npos) {
+        *error_message = "no matching Bvbr structure found!";
         return false;
+    }
     start_pos += start_string.size();
     const size_t end_pos(document->find('"', start_pos + 1));
-    if (end_pos == std::string::npos)
+    if (end_pos == std::string::npos) {
+        *error_message = "no matching Bvbr structure found! (part 2)";
         return false;
+    }
     const std::string doc_url("http://bvbr.bib-bvb.de:8991" + document->substr(start_pos, end_pos - start_pos));
     if (trace_)
         INFO("about to download \"" + doc_url + "\".");
@@ -280,8 +295,11 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLim
 {
     if (trace_)
         INFO("about to download \"" + url + "\".");
-    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded())
+    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded()) {
+        if (time_limit.limitExceeded())
+            *error_message = "timelimit exceeded!";
         return false;
+    }
     if (MediaTypeUtil::GetMediaType(*document) == "application/pdf")
         return true;
 
@@ -291,12 +309,16 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLim
     if (start_pos != std::string::npos) {
         start_pos += start_string.size();
         const size_t end_pos(document->find('"', start_pos + 1));
-        if (end_pos == std::string::npos)
+        if (end_pos == std::string::npos) {
+            *error_message = "no matching Bsz2l structure found! (part 1)";
             return false;
+        }
         const std::string pers_url(document->substr(start_pos, end_pos - start_pos));
         const size_t last_slash_pos(pers_url.rfind('/'));
-        if (last_slash_pos == std::string::npos or last_slash_pos == pers_url.size() - 1)
+        if (last_slash_pos == std::string::npos or last_slash_pos == pers_url.size() - 1) {
+            *error_message = "no matching Bsz2l structure found! (part 2)";
             return false;
+        }
         doc_url = "http://idb.ub.uni-tuebingen.de/cgi-bin/digi-downloadPdf.fcgi?projectname="
                   + pers_url.substr(last_slash_pos + 1);
     } else {
@@ -305,12 +327,16 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLim
             return true;
         start_string = "meta content=\"";
         start_pos = document->rfind(start_string, start_pos);
-        if (start_pos == std::string::npos)
+        if (start_pos == std::string::npos) {
+            *error_message = "no matching Bsz2l structure found! (part 3)";
             return false;
+        }
         start_pos += start_string.size();
         const size_t end_pos(document->find('"', start_pos + 1));
-        if (end_pos == std::string::npos)
+        if (end_pos == std::string::npos) {
+            *error_message = "no matching Bsz2l structure found! (part 4)";
             return false;
+        }
         doc_url = document->substr(start_pos, end_pos - start_pos);
     }
 
@@ -324,26 +350,32 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
                                             std::string * const document, std::string * const http_header_charset,
                                             std::string * const error_message)
 {
-    if (url.length() < 11)
+    if (url.length() < 11) {
+        *error_message = "LocGov URL too short!";
         return false;
+    }
     const std::string doc_url("http://catdir" + url.substr(10));
-    std::string html;
     if (trace_)
         INFO("about to download \"" + doc_url + "\".");
-    const int retcode = DownloadHelper(url, time_limit, &html, http_header_charset, error_message);
 
-    if (retcode != 0)
+    if (not DownloadHelper(doc_url, time_limit, document, http_header_charset, error_message))
         return false;
-    size_t toc_start_pos(StringUtil::FindCaseInsensitive(html, "<TITLE>Table of contents"));
-    if (toc_start_pos == std::string::npos)
-        return false;
-    const size_t pre_start_pos(StringUtil::FindCaseInsensitive(html, "<pre>"));
-    if (pre_start_pos == std::string::npos)
-        return false;
-    const size_t pre_end_pos(StringUtil::FindCaseInsensitive(html, "</pre>"));
-    if (pre_end_pos == std::string::npos)
-        return false;
-    *document = html.substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5);
+    size_t toc_start_pos(StringUtil::FindCaseInsensitive(*document, "<TITLE>Table of contents"));
+    if (toc_start_pos != std::string::npos) {
+        const size_t pre_start_pos(StringUtil::FindCaseInsensitive(*document, "<pre>"));
+        if (pre_start_pos == std::string::npos) {
+            *error_message = "no matching LocGov structure found! (part 2)";
+            return false;
+        }
+        const size_t pre_end_pos(StringUtil::FindCaseInsensitive(*document, "</pre>"));
+        if (pre_end_pos == std::string::npos) {
+            *error_message = "no matching LocGov structure found! (part 3)";
+            return false;
+        }
+        *document = document->substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5);
+        return true;
+    }
+
     return true;
 }
 
@@ -383,5 +415,6 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
             return smart_downloader->downloadDoc(url, time_limit, document, http_header_charset, error_message);
     }
 
+    *error_message = "No downloader available for URL: " + url;
     return false;
 }
