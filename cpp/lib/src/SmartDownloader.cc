@@ -356,29 +356,27 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
         return false;
     }
     const std::string doc_url("http://catdir" + url.substr(10));
-    std::string html;
     if (trace_)
         INFO("about to download \"" + doc_url + "\".");
-    const int retcode = DownloadHelper(url, time_limit, &html, http_header_charset, error_message);
 
-    if (retcode != 0)
+    if (not DownloadHelper(doc_url, time_limit, document, http_header_charset, error_message))
         return false;
-    size_t toc_start_pos(StringUtil::FindCaseInsensitive(html, "<TITLE>Table of contents"));
-    if (toc_start_pos == std::string::npos) {
-        *error_message = "no matching LocGov structure found! (part 1)";
-        return false;
+    size_t toc_start_pos(StringUtil::FindCaseInsensitive(*document, "<TITLE>Table of contents"));
+    if (toc_start_pos != std::string::npos) {
+        const size_t pre_start_pos(StringUtil::FindCaseInsensitive(*document, "<pre>"));
+        if (pre_start_pos == std::string::npos) {
+            *error_message = "no matching LocGov structure found! (part 2)";
+            return false;
+        }
+        const size_t pre_end_pos(StringUtil::FindCaseInsensitive(*document, "</pre>"));
+        if (pre_end_pos == std::string::npos) {
+            *error_message = "no matching LocGov structure found! (part 3)";
+            return false;
+        }
+        *document = document->substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5);
+        return true;
     }
-    const size_t pre_start_pos(StringUtil::FindCaseInsensitive(html, "<pre>"));
-    if (pre_start_pos == std::string::npos) {
-        *error_message = "no matching LocGov structure found! (part 2)";
-        return false;
-    }
-    const size_t pre_end_pos(StringUtil::FindCaseInsensitive(html, "</pre>"));
-    if (pre_end_pos == std::string::npos) {
-        *error_message = "no matching LocGov structure found! (part 3)";
-        return false;
-    }
-    *document = html.substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5);
+
     return true;
 }
 
