@@ -87,19 +87,13 @@ bool PdfDocContainsNoText(const std::string &document) {
 bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_language_code,
                       std::string * const extracted_text)
 {
-    INFO("api construct");
     tesseract::TessBaseAPI *api = new tesseract::TessBaseAPI();
-    INFO("api init");
     if (api->Init(NULL, tesseract_language_code.c_str()))
         ERROR("Could not initialize tesseract!");
 
-    INFO("image init");
     Pix *image = pixRead(img_path.c_str());
-    INFO("image set");
     api->SetImage(image);
-    INFO("extract");
     *extracted_text = api->GetUTF8Text();
-    INFO("deinit");
 
     api->End();
     pixDestroy(&image);
@@ -131,7 +125,6 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
         ERROR("PDF did not contain any images!");
 
     for (const std::string &pdf_image_filename : pdf_image_filenames) {
-        INFO("starting extraction for: " +  pdf_image_filename);
         std::string image_text;
         if (not GetTextFromImage(output_dirname + "/" + pdf_image_filename, tesseract_language_code, &image_text))
             ERROR("failed to extract text from image " + pdf_image_filename);
