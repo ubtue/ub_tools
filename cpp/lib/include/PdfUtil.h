@@ -45,7 +45,12 @@ bool PdfFileContainsNoText(const std::string &path);
 bool PdfDocContainsNoText(const std::string &document);
 
 
-/** \brief Uses tesseract to attempt OCR. */
+/** \brief Uses tesseract API to attempt OCR. */
+bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_language_code,
+                      std::string * const extracted_text);
+
+
+/** \brief Uses pdfimages + tesseract API to attempt OCR. */
 bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
                          std::string * const extracted_text, unsigned timeout=DEFAULT_PDF_EXTRACTION_TIMEOUT /* in s */);
 
