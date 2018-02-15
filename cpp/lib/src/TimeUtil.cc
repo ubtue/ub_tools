@@ -459,7 +459,7 @@ bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const 
     if (first_not_processed == nullptr or *first_not_processed != '\0')
         return false;
 
-    *date_time += local_differential_offset;
+    *date_time += TimeGm(tm) + local_differential_offset;
     return true;
 }
 
