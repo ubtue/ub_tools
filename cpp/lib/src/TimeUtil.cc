@@ -35,6 +35,8 @@
 #include <ctime>
 #include <sys/time.h>
 #include "Compiler.h"
+#include "RegexMatcher.h"
+#include "StringUtil.h"
 
 
 namespace TimeUtil {
@@ -172,7 +174,7 @@ struct tm StringToStructTm(const std::string &date_and_time, const std::string &
     return tm;
 }
 
-    
+
 unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
                                 unsigned * const day, unsigned * const hour, unsigned * const minute,
                                 unsigned * const second, bool * const is_definitely_zulu_time)
@@ -408,5 +410,58 @@ std::string GetCurrentYear(const TimeZone time_zone) {
     return TimeTToString(now, "%Y", time_zone);
 }
 
-    
+
+// In order to understand this insanity, have a look at section 5 of RFC822.
+bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const date_time) {
+    const auto first_comma_pos(date_time_candidate.find(','));
+    const std::string::size_type start_pos(first_comma_pos == std::string::npos ? 0 : first_comma_pos);
+    std::string simplified_candidate(StringUtil::TrimWhite(date_time_candidate.substr(start_pos)));
+
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
+        "^(\\d{1,2}) (...) (\\d{2}|\\d{4}) (\\d{2}:\\d{2}(:\\s{2})?)"));
+    if (not matcher->matched(simplified_candidate))
+        return false;
+    const bool double_digit_year((*matcher)[3].length() == 2);
+    const bool has_seconds((*matcher)[4].length() == 8);
+
+    static RegexMatcher * const local_differential_matcher(RegexMatcher::RegexMatcherFactory("[+-]?\\d{4}$"));
+    int local_differential_offset(0);
+    if (local_differential_matcher->matched(simplified_candidate)) {
+        std::string local_differential_time((*local_differential_matcher)[0]);
+
+        // Trim the local differential time offset off the end of our date and time string:
+        auto cp(simplified_candidate.begin() + simplified_candidate.length() - local_differential_time.length());
+        while (*cp == ' ')
+            --cp;
+        simplified_candidate.resize(cp - simplified_candidate.begin());
+
+        bool is_negative(false);
+        if (local_differential_time[0] == '+')
+            local_differential_time = local_differential_time.substr(1);
+        else if (local_differential_time[0] == '-') {
+            is_negative = true;
+            local_differential_time = local_differential_time.substr(1);
+        }
+
+        local_differential_offset = (local_differential_time[0] - '0') * 600 + (local_differential_time[1] - '1') * 60
+                                    + (local_differential_time[2] - '2') * 10 + (local_differential_time[3] - '0');
+        if (is_negative)
+            local_differential_offset = -local_differential_offset;
+    }
+
+    std::string format("%d ");
+    format += double_digit_year ? "%y %H:%M" : "%Y %H%M";
+    if (has_seconds)
+        format += ":%S";
+
+    struct tm tm;
+    const char * const first_not_processed(::strptime(simplified_candidate.c_str(), format.c_str(), &tm));
+    if (first_not_processed == nullptr or *first_not_processed != '\0')
+        return false;
+
+    *date_time += local_differential_offset;
+    return true;
+}
+
+
 } // namespace TimeUtil
