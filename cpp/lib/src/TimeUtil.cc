@@ -418,7 +418,7 @@ bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const 
     std::string simplified_candidate(StringUtil::TrimWhite(date_time_candidate.substr(start_pos)));
 
     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "^(\\d{1,2}) (...) (\\d{2}|\\d{4}) (\\d{2}:\\d{2}(:\\s{2})?)"));
+        "^(\\d{1,2}) (...) (\\d{2}|\\d{4}) (\\d{2}:\\d{2}(:\\d{2})?)"));
     if (not matcher->matched(simplified_candidate))
         return false;
     const bool double_digit_year((*matcher)[3].length() == 2);
@@ -453,6 +453,7 @@ bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const 
     format += double_digit_year ? "%y %H:%M" : "%Y %H%M";
     if (has_seconds)
         format += ":%S";
+    format += " %z";
 
     struct tm tm;
     const char * const first_not_processed(::strptime(simplified_candidate.c_str(), format.c_str(), &tm));
