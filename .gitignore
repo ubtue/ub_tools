@@ -96,7 +96,7 @@ make_marc_xml
 map_ddc_and_rvk_to_ixtheo_notations
 marc_char_filter
 marc_compare
-marc_diff               
+marc_diff
 marc_filter
 marc_grep
 marc_info
