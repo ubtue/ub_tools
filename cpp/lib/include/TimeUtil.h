@@ -8,6 +8,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -234,7 +235,9 @@ void Millisleep(const unsigned sleep_interval);
 std::string GetCurrentYear(const TimeZone time_zone = LOCAL);
 
 
-// Parses a date/time in RFC date and time format.  As an extension, we also support a 4-digit year.
+/** \brief Parses a date/time in RFC date and time format.  As an extension, we also support a 4-digit year.
+ *  \note The returned time is UTC time.
+ */
 bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const date_time);
 
 
