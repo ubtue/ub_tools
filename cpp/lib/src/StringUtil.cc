@@ -11,7 +11,7 @@
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
  *  Copyright 2002-2005 Dr. Johannes Ruscheinski.
- *  Copyright 2017 Universitätsbibliothek Tübingen
+ *  Copyright 2017,2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -61,23 +61,11 @@ namespace {
 
 bool InitializeLocale() {
     // Try to force the use of the iVia standard or fallback locale:
-    if (std::setlocale(LC_CTYPE, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr
-        and std::setlocale(LC_CTYPE, StringUtil::IVIA_FALLBACK_LOCALE.c_str()) == nullptr)
+    if (std::setlocale(LC_ALL, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr
+        and std::setlocale(LC_ALL, StringUtil::IVIA_FALLBACK_LOCALE.c_str()) == nullptr)
     {
         const std::string error_message("in InitializeLocale: setlocale(3) failed: "
                                         + StringUtil::IVIA_STANDARD_LOCALE + "/" + StringUtil::IVIA_FALLBACK_LOCALE + "\n");
-        const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
-        (void)dummy;
-        ::_exit(EXIT_FAILURE);
-    }
-
-    // Try to force the use of the iVia standard or fallback locale:
-    if (std::setlocale(LC_MONETARY, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr
-        and std::setlocale(LC_MONETARY, StringUtil::IVIA_FALLBACK_LOCALE.c_str()) == nullptr)
-    {
-        const std::string error_message("In InitializeLocale: setlocale(3) failed for LC_MONETARY.  Cannot "
-                                        "honour the '" + StringUtil::IVIA_STANDARD_LOCALE + "/"
-                                        + StringUtil::IVIA_FALLBACK_LOCALE + "' locale!\n");
         const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
         (void)dummy;
         ::_exit(EXIT_FAILURE);
