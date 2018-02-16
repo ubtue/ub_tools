@@ -104,8 +104,10 @@ void ProcessNoDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * c
 
         record_start = marc_reader->tell();
     }
-    marc_writer->getFile().flush();
-    
+
+    if (unlikely(not marc_writer->flush()))
+        ERROR("flush to \"" + marc_writer->getFile().getPath() + "\" failed!");
+
     std::cerr << "Read " << total_record_count << " records.\n";
     std::cerr << "Wrote " << (total_record_count - download_record_offsets_and_urls->size())
               << " records that did not require any downloads.\n";
