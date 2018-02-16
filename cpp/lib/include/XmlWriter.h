@@ -6,7 +6,7 @@
 /*
  *  Copyright 2005-2007 Project iVia.
  *  Copyright 2005-2007 The Regents of The University of California.
- *  Copyright 2015-2016 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2016,2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -154,6 +154,11 @@ public:
 
     /** Emits the number of spaces corresponding to the current nesting level to the output file. */
     void indent();
+
+    /** \brief Flushes the buffers of the underlying File to the storage medium.
+     *  \return True on success and false on failure.  Sets errno if there is a failure.
+     */
+    bool flush() { return output_file_->flush(); }
 
     XmlWriter &operator<<(const std::string &s);
     XmlWriter &operator<<(const char * const s) { return operator<<(std::string(s)); }

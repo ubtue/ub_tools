@@ -1,7 +1,7 @@
 /** \brief Various classes, functions etc. having to do with the Library of Congress MARC bibliographic format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -971,10 +971,11 @@ void XmlWriter::write(const Record &record) {
 
 void FileLockedComposeAndWriteRecord(Writer * const marc_writer, const Record &record) {
     FileLocker file_locker(marc_writer->getFile().getFileDescriptor(), FileLocker::WRITE_ONLY);
-    if (not (marc_writer->getFile().seek(0, SEEK_END)))
+    if (unlikely(not (marc_writer->getFile().seek(0, SEEK_END))))
         ERROR("failed to seek to the end of \"" + marc_writer->getFile().getPath() + "\"!");
     marc_writer->write(record);
-    marc_writer->getFile().flush();
+    if (unlikely(not marc_writer->flush()))
+        ERROR("failed to flush to \"" +  marc_writer->getFile().getPath() + "\"!");
 }
 
 
