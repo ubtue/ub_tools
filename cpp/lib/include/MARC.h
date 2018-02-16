@@ -563,6 +563,11 @@ public:
     /** \return a reference to the underlying, assocaiated file. */
     virtual File &getFile() = 0;
 
+    /** \brief Flushes the buffers of the underlying File to the storage medium.
+     *  \return True on success and false on failure.  Sets errno if there is a failure.
+     */
+    virtual bool flush() = 0;
+
     /** \note If you pass in AUTO for "writer_type", "output_filename" must end in ".mrc" or ".xml"! */
     static std::unique_ptr<Writer> Factory(const std::string &output_filename, WriterType writer_type = AUTO,
                                            const WriterMode writer_mode = WriterMode::OVERWRITE);
@@ -579,6 +584,11 @@ public:
 
     /** \return a reference to the underlying, associated file. */
     virtual File &getFile() final { return *output_; }
+
+    /** \brief Flushes the buffers of the underlying File to the storage medium.
+     *  \return True on success and false on failure.  Sets errno if there is a failure.
+     */
+    virtual bool flush() { return output_->flush(); }
 };
 
 
@@ -593,6 +603,11 @@ public:
 
     /** \return a reference to the underlying, assocaiated file. */
     virtual File &getFile() final { return *xml_writer_->getAssociatedOutputFile(); }
+
+    /** \brief Flushes the buffers of the underlying File to the storage medium.
+     *  \return True on success and false on failure.  Sets errno if there is a failure.
+     */
+    virtual bool flush() { return xml_writer_->flush(); }
 };
 
 
