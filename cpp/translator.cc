@@ -599,7 +599,7 @@ void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum C
             <button type="submit" class="link-button">)END" + std::string(1,ch) + "</button>"
          R"END(<input type="hidden" name="lookfor" value=")END" + std::string(1,ch) + "\">"
          R"END(<input type="hidden" name="target" value=")END" + (category == VUFIND ? "vufind" : (category == KEYWORDS) ? "keywords" : "miscellaneous") + "\">"
-         R"END(<input type="hidden" name="filter_untranslated" value=)END" + (filter_untranslated ? " checked" : "") + ">"
+         R"END(<input type="hidden" name="filter_untranslated" value=)END" + (filter_untranslated ? " checked" : "\"\"") + ">"
          "</form>");
         jump_table->emplace_back("<td style=\"border:none;\">" + post_link + "</td>");
     }
@@ -627,26 +627,41 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     GenerateDirectJumpTable(&jump_entries_miscellaneous, MISCELLANEOUS, filter_untranslated);
     names_to_values_map.emplace("direct_jump_miscellaneous", jump_entries_miscellaneous);
 
-    if (target == "vufind")
+    if (target == "vufind") {
         GetVuFindTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
                                                     translator_languages, additional_view_languages, filter_untranslated);
-    else if (target == "keywords")
+        names_to_values_map.emplace("vufind_token_row", rows);
+        names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
+        // Make the parser happy
+        names_to_values_map.emplace("keyword_row", rows);
+        names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
+        names_to_values_map.emplace("miscellaneous_token_row", rows);
+        names_to_values_map.emplace("miscellaneous_token_table_headline", std::vector<std::string> {headline});
+    }
+    else if (target == "keywords") {
         GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
                                                      translator_languages, additional_view_languages, filter_untranslated);
-    else if (target == "miscellaneous")
+        names_to_values_map.emplace("keyword_row", rows);
+        names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
+        // Make the parser happy
+        names_to_values_map.emplace("vufind_token_row", std::vector<std::string>());
+        names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
+        names_to_values_map.emplace("miscellaneous_token_row", std::vector<std::string>());
+        names_to_values_map.emplace("miscellaneous_token_table_headline", std::vector<std::string> {headline});
+
+    }
+    else if (target == "miscellaneous") {
         GetMiscellaneousTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
                                                      translator_languages, additional_view_languages, filter_untranslated);
+        names_to_values_map.emplace("miscellaneous_token_row", rows);
+        names_to_values_map.emplace("miscellaneous_token_table_headline", std::vector<std::string> {headline});
+        names_to_values_map.emplace("keyword_row", std::vector<std::string>());
+        names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
+        names_to_values_map.emplace("vufind_token_row", std::vector<std::string>());
+        names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
+    }
     else
         ShowErrorPageAndDie("Error - Invalid Target", "No valid target selected");
-
-    names_to_values_map.emplace("vufind_token_row", rows);
-    names_to_values_map.emplace("vufind_token_table_headline", std::vector<std::string> {headline});
-
-    names_to_values_map.emplace("miscellaneous_token_row", rows);
-    names_to_values_map.emplace("miscellaneous_token_table_headline", std::vector<std::string> {headline});
-
-    names_to_values_map.emplace("keyword_row", rows);
-    names_to_values_map.emplace("keyword_table_headline", std::vector<std::string> {headline});
 
     names_to_values_map.emplace("lookfor", std::vector<std::string> {lookfor});
     names_to_values_map.emplace("prev_offset", std::vector<std::string>
