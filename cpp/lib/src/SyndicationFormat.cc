@@ -111,7 +111,7 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
                                          &pub_date_string)))
         throw std::runtime_error("in RSS20::getNextItem: missing \"pubDate\" closing tag!");
     time_t pub_date;
-    if (unlikely(not TimeUtil::ParseRFC822DateTime(pub_date_string, &pub_date))) {
+    if (unlikely(not TimeUtil::ParseRFC1123DateTime(pub_date_string, &pub_date))) {
         WARNING("couldn't parse \"" + pub_date_string + "\"!");
         return std::unique_ptr<SyndicationFormat::Item>(new Item(description, TimeUtil::BAD_TIME_T));
     }
