@@ -529,7 +529,7 @@ std::cerr << "tm=" << StructTmToString(tm) << '\n';
     tm.tm_gmtoff = 0;
 std::cerr << "tm=" << StructTmToString(tm) << '\n';
 //    *date_time += TimeGm(tm) + local_differential_offset;
- *date_time += ::timegm(&tm);// + local_differential_offset;
+ *date_time = ::timegm(&tm);// + local_differential_offset;
     return true;
 }
 
