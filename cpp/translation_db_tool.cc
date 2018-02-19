@@ -267,9 +267,9 @@ int main(int argc, char *argv[]) {
             else
                 GetExistingKeywordTranslations(&db_connection, language_code, index_value);
         } else if (std::strcmp(argv[1], "insert") == 0) {
-            if (argc != 6 and argc != 7)
+            if (argc < 6 and argc > 8)
                 logger->error("\"insert\" requires four or five arguments: token or ppn, gnd_code (if ppn), "
-                              "language_code, text, translator and an optional category!");
+                              "language_code, text, translator and an optional category [We have argc ]" + std::to_string(argc) + "!");
 
             const std::string language_code(argv[GetLanguageCodeArgvOffset(argc, argv)]);
             if (not TranslationUtil::IsValidFake3Or4LetterEnglishLanguagesCode(language_code))
@@ -282,9 +282,9 @@ int main(int argc, char *argv[]) {
             else
                 InsertIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5], argv[6]);
         } else if (std::strcmp(argv[1], "update") == 0) {
-            if (argc != 6 and argc != 7)
-                logger->error("\"update\" requires four or five arguments: token or ppn, gnd_code (if ppn), "
-                      "language_code, text and translator!");
+            if (argc < 6 and argc > 8)
+                logger->error("\"update\" requires four, five or six arguments: token or ppn, gnd_code (if ppn), "
+                      "language_code, text and translator and an optional category!");
             const std::string language_code(argv[GetLanguageCodeArgvOffset(argc, argv)]);
 
             if (not TranslationUtil::IsValidFake3Or4LetterEnglishLanguagesCode(language_code))

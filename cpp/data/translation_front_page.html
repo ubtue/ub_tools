@@ -15,7 +15,7 @@
                 -ms-hyphens: auto;
                 hyphens: auto;
              }
-        a, a:visited {{ 
+        a, a:visited {{
             text-decoration: none;
             color: Blue; }
         <!--see http://stackoverflow.com/questions/3915917/make-a-link-use-post-instead-of-get (20170221) -->
@@ -60,19 +60,20 @@
        var translator_exists = $(object).attr("translator_exists");
        var translation = $(object).text();
        var category = $(object).attr("category");
-       if (translation == old_translation) 
+       if (translation == old_translation)
            return;
 
        $(object).attr("translation", translation);
        // For VuFind we can take a straightforward approach
        // For Keywords there are possibly unreliable translations from the MACS project thus
        // we have to insert a new translation even if there is already one present in the cell
-       var action = ((category == "vufind_translations" && !IsEmpty(old_translation)) || translator_exists) ? "update" : "insert"
+       var action = (((category == "vufind_translations" || category == "miscellaneous_translations") &&
+                      !IsEmpty(old_translation)) || translator_exists) ? "update" : "insert"
        $.ajax({{
           type: "PUT",
           url: "translator_ajax",
-          data: "index=" + index + "&gnd_code=" + gnd_code + "&language_code=" + language_code 
-                         + "&translation=" + translation + "&action=" + action,
+          data: "index=" + index + "&gnd_code=" + gnd_code + "&language_code=" + language_code
+                         + "&translation=" + translation + "&action=" + action  + "&category=" + category,
           success: function(json) {{
              $(object).css("background-color", "yellow");
              // Make sure that translator_exists will be correctly present for subsequent calls
@@ -100,7 +101,7 @@
                     <option value="miscellaneous" {IF target_translation_scope == "miscellaneous"} selected {ENDIF}>Miscellanous Translations</option>
             </select>
             </form>
-        </div> 
+        </div>
         <p>
         <div style="text-align: center;">
             <form action="/cgi-bin/translator" method="POST">
