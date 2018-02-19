@@ -236,10 +236,10 @@ void Millisleep(const unsigned sleep_interval);
 std::string GetCurrentYear(const TimeZone time_zone = LOCAL);
 
 
-/** \brief Parses a date/time in RFC date and time format.  As an extension, we also support a 4-digit year.
+/** \brief Parses a date/time in RFC1123 date and time format.
  *  \note The returned time is UTC time.
  */
-bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const date_time);
+bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const date_time);
 
 
 // Debugging aid.

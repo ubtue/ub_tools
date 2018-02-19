@@ -29,7 +29,6 @@
 
 #include "TimeUtil.h"
 #include <map>
-#include <iostream>//XXX
 #include <stdexcept>
 #include <string>
 #include <cstdio>
@@ -153,7 +152,6 @@ time_t TimeGm(const struct tm &tm) {
     ::tzset();
 
     struct tm temp_tm(tm);
-std::cerr << "temp_tm=" << StructTmToString(temp_tm) << '\n';
     const time_t ret_val = ::mktime(&temp_tm);
 
     // Restore the original time zone:
@@ -469,8 +467,44 @@ time_t UTCStructTmToTimeT(const struct tm &tm) {
 }
 
 
-// In order to understand this insanity, have a look at section 5 of RFC822.
-bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const date_time) {
+// See https://www.rfc-editor.org/rfc/rfc822.txt section 5.1.
+static bool ZoneAdjustment(const std::string &rfc822_zone, time_t * const adjustment) {
+    if (rfc822_zone == "UTC" or rfc822_zone == "UT")
+        *adjustment = 0;
+    else if (rfc822_zone == "EST")
+        *adjustment = +5 * 3600;
+    else if (rfc822_zone == "EDT")
+        *adjustment = +4 * 3600;
+    else if (rfc822_zone == "CST")
+        *adjustment = +6 * 3600;
+    else if (rfc822_zone == "CDT")
+        *adjustment = +5 * 3600;
+    else if (rfc822_zone == "MST")
+        *adjustment = +7 * 3600;
+    else if (rfc822_zone == "MDT")
+        *adjustment = +6 * 3600;
+    else if (rfc822_zone == "PST")
+        *adjustment = +8 * 3600;
+    else if (rfc822_zone == "PDT")
+        *adjustment = +7 * 3600;
+    else if (rfc822_zone == "A")
+        *adjustment = -1 * 3600;
+    else if (rfc822_zone == "M")
+        *adjustment = -12 * 3600;
+    else if (rfc822_zone == "N")
+        *adjustment = +1 * 3600;
+    else if (rfc822_zone == "Y")
+        *adjustment = +12 * 3600;
+    else // Unrecognized tiem zone.
+        return false;
+
+    return true;
+}
+
+
+// In order to understand this insanity, have a look at section 5.1 of RFC822.  Please note that we also support 4-digit
+// years as specified by RFC1123.
+bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const date_time) {
     const auto first_comma_pos(date_time_candidate.find(','));
     const std::string::size_type start_pos(first_comma_pos == std::string::npos ? 0 : first_comma_pos + 1);
     std::string simplified_candidate(StringUtil::TrimWhite(date_time_candidate.substr(start_pos)));
@@ -481,14 +515,13 @@ bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const 
         return false;
     const bool double_digit_year((*matcher)[3].length() == 2);
     const bool has_seconds((*matcher)[4].length() == 8);
-std::cerr << "simplified_candidate=\"" << simplified_candidate << "\", double_digit_year="<<double_digit_year<<", has_seconds="<<has_seconds<<'\n';
 
     std::string format(double_digit_year ? "%d %b %y %H:%M" : "%d %b %Y %H:%M");
     if (has_seconds)
         format += ":%S";
 
     static RegexMatcher * const local_differential_matcher(RegexMatcher::RegexMatcherFactory("[+-]?\\d{4}$"));
-    int local_differential_offset(0);
+    time_t local_differential_offset(0);
     if (local_differential_matcher->matched(simplified_candidate)) {
         std::string local_differential_time((*local_differential_matcher)[0]);
 
@@ -506,30 +539,29 @@ std::cerr << "simplified_candidate=\"" << simplified_candidate << "\", double_di
             local_differential_time = local_differential_time.substr(1);
         }
 
-std::cerr << "local_differential_time=\"" << local_differential_time << "\"\n";
         local_differential_offset = (local_differential_time[0] - '0') * 600 + (local_differential_time[1] - '0') * 60
                                     + (local_differential_time[2] - '0') * 10 + (local_differential_time[3] - '0');
         local_differential_offset *= 60; // convert minutes to seconds
 
         if (is_negative)
             local_differential_offset = -local_differential_offset;
-std::cerr << "local_differential_offset=" << local_differential_offset << '\n';
-    } else
-        format += " %z";
-std::cerr << "simplified_candidate=\"" << simplified_candidate << "\"\n";
-std::cerr << "format=\"" << format << "\"\n";
+    } else {
+        const auto last_space_pos(simplified_candidate.rfind(' '));
+        if (unlikely(last_space_pos == std::string::npos
+                     or not ZoneAdjustment(simplified_candidate.substr(last_space_pos + 1), &local_differential_offset)))
+            return false;
+        simplified_candidate.resize(last_space_pos);
+    }
 
     struct tm tm;
     std::memset(&tm, 0, sizeof tm);
-std::cerr << "tm=" << StructTmToString(tm) << '\n';
     const char * const first_not_processed(::strptime(simplified_candidate.c_str(), format.c_str(), &tm));
     if (first_not_processed == nullptr or *first_not_processed != '\0')
         return false;
 
     tm.tm_gmtoff = 0;
-std::cerr << "tm=" << StructTmToString(tm) << '\n';
-//    *date_time += TimeGm(tm) + local_differential_offset;
- *date_time += ::timegm(&tm);// + local_differential_offset;
+    *date_time = TimeGm(tm) + local_differential_offset;
+
     return true;
 }
 
