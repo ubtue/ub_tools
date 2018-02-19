@@ -37,10 +37,27 @@ public:
         time_t pub_date_;
     public:
         Item(const std::string &description, const time_t pub_date): description_(description), pub_date_(pub_date) { }
+        inline bool operator==(const Item &rhs) const { return pub_date_ == rhs.pub_date_ and description_ == rhs.description_; }
         const std::string &getDescription() const { return description_; }
         time_t getPubDate() const { return pub_date_; }
     };
+
+    class const_iterator final {
+        friend class SyndicationFormat;
+        SyndicationFormat *syndication_format_;
+        std::unique_ptr<Item> item_;
+    private:
+        explicit const_iterator(SyndicationFormat *syndication_format): syndication_format_(syndication_format) { }
+        const_iterator(): syndication_format_(nullptr) { }
+        const_iterator(const_iterator &&rhs): syndication_format_(rhs.syndication_format_), item_(rhs.item_.release())
+            { rhs.syndication_format_ = nullptr; }
+    public:
+        void operator++();
+        const Item &operator*() const { return *item_; }
+        bool operator==(const const_iterator &rhs);
+    };
 protected:
+    friend class const_iterator;
     StringDataSource *data_source_;
     SimpleXmlParser<StringDataSource> *xml_parser_;
     std::string title_, link_, description_;
@@ -54,10 +71,13 @@ public:
     const std::string &getLink() const { return link_; }
     const std::string &getDescription() const { return description_; }
 
-    virtual std::unique_ptr<Item> getNextItem() = 0;
+    inline const_iterator begin() { return const_iterator(this); }
+    inline const_iterator end() { return const_iterator(); }
 
     // \return an instance of a subclass of SyndicationFormat on success or a nullptr upon failure.
     static std::unique_ptr<SyndicationFormat> Factory(const std::string &xml_document, std::string * const err_msg);
+protected:    
+    virtual std::unique_ptr<Item> getNextItem() = 0;
 };
 
 
@@ -66,8 +86,30 @@ public:
     explicit RSS20(const std::string &xml_document);
     virtual ~RSS20() final { }
 
-    virtual std::string getFormatName() const { return "RSS 2.0"; }
-    virtual std::unique_ptr<Item> getNextItem();
+    virtual std::string getFormatName() const override { return "RSS 2.0"; }
+protected:    
+    virtual std::unique_ptr<Item> getNextItem() override;
+};
+
+
+class RSS091 final : public SyndicationFormat {
+public:
+    explicit RSS091(const std::string &xml_document);
+    virtual ~RSS091() final { }
+
+    virtual std::string getFormatName() const override { return "RSS 0.91"; }
+protected:    
+    virtual std::unique_ptr<Item> getNextItem() override;
+};
+
+
+class Atom final : public SyndicationFormat {
+public:
+    explicit Atom(const std::string &xml_document);
+    virtual ~Atom() final { }
+
+    virtual std::string getFormatName() const override { return "Atom"; }
+    virtual std::unique_ptr<Item> getNextItem() override;
 };
 
 
