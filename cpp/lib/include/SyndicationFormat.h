@@ -49,12 +49,14 @@ public:
     private:
         explicit const_iterator(SyndicationFormat *syndication_format): syndication_format_(syndication_format) { }
         const_iterator(): syndication_format_(nullptr) { }
+    public:
         const_iterator(const_iterator &&rhs): syndication_format_(rhs.syndication_format_), item_(rhs.item_.release())
             { rhs.syndication_format_ = nullptr; }
-    public:
+
         void operator++();
         const Item &operator*() const { return *item_; }
-        bool operator==(const const_iterator &rhs);
+        bool operator==(const const_iterator &rhs) const;
+        inline bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
     };
 protected:
     friend class const_iterator;
