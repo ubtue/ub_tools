@@ -18,12 +18,27 @@
 */
 
 #include "SyndicationFormat.h"
+#include <regex>
 #include <stdexcept>
 #include "Compiler.h"
 #include "SimpleXmlParser.h"
 #include "StringDataSource.h"
 #include "TimeUtil.h"
 #include "util.h"
+
+
+void SyndicationFormat::const_iterator::operator++() {
+    item_ = syndication_format_->getNextItem();
+}
+
+
+bool SyndicationFormat::const_iterator::operator==(const SyndicationFormat::const_iterator &rhs) {
+    if (item_ == nullptr and rhs.item_ == nullptr)
+        return true;
+    if ((item_ == nullptr and rhs.item_ != nullptr) or (item_ != nullptr and rhs.item_ == nullptr))
+        return false;
+    return *item_ == *rhs.item_;
+}
 
 
 SyndicationFormat::SyndicationFormat(const std::string &xml_document)
@@ -41,10 +56,22 @@ SyndicationFormat::~SyndicationFormat() {
 namespace {
 
 
-enum SyndicationFormatType { TYPE_UNKNOWN, TYPE_RSS20 };
+enum SyndicationFormatType { TYPE_UNKNOWN, TYPE_RSS20, TYPE_RSS091, TYPE_ATOM };
 
 
-SyndicationFormatType GetFormatType(const std::string &/*xml_document*/) {
+static const std::regex RSS20_REGEX("<rss[^>]+version=\"2.0\">");
+static const std::regex RSS091_REGEX("<rss[^>]+version=\"0.91\">");
+static const std::regex ATOM_REGEX("<feed[^>]+2005/Atom\">");
+
+
+SyndicationFormatType GetFormatType(const std::string &xml_document) {
+    if (std::regex_match(xml_document, RSS20_REGEX))
+        return TYPE_RSS20;
+    if (std::regex_match(xml_document, RSS091_REGEX))
+        return TYPE_RSS091;
+    if (std::regex_match(xml_document, ATOM_REGEX))
+        return TYPE_ATOM;
+
     return TYPE_UNKNOWN;
 }
 
@@ -60,6 +87,10 @@ std::unique_ptr<SyndicationFormat> SyndicationFormat::Factory(const std::string 
             return nullptr;
         case TYPE_RSS20:
             return std::unique_ptr<SyndicationFormat>(new RSS20(xml_document));
+        case TYPE_RSS091:
+            return std::unique_ptr<SyndicationFormat>(new RSS091(xml_document));
+        case TYPE_ATOM:
+            return std::unique_ptr<SyndicationFormat>(new Atom(xml_document));
         }
     } catch (const std::runtime_error &x) {
         *err_msg = "Error while parsing syndication format: " + std::string(x.what());
@@ -81,7 +112,7 @@ RSS20::RSS20(const std::string &xml_document): SyndicationFormat(xml_document) {
         throw std::runtime_error("in RSS20::RSS20: opening \"link\" tag not found!");
     if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &link_) or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
         throw std::runtime_error("in RSS20::RSS20: link characters not found!");
-    
+
     if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "description")))
         throw std::runtime_error("in RSS20::RSS20: opening \"description\" tag not found!");
     if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &description_)
@@ -115,5 +146,91 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
         WARNING("couldn't parse \"" + pub_date_string + "\"!");
         return std::unique_ptr<SyndicationFormat::Item>(new Item(description, TimeUtil::BAD_TIME_T));
     }
+
     return std::unique_ptr<SyndicationFormat::Item>(new Item(description, pub_date));
+}
+
+
+RSS091::RSS091(const std::string &xml_document): SyndicationFormat(xml_document) {
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "title")))
+        throw std::runtime_error("in RSS091::RSS091: opening \"title\" tag not found!");
+
+    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &title_) or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
+        throw std::runtime_error("in RSS091::RSS091: title characters not found!");
+
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "link")))
+        throw std::runtime_error("in RSS091::RSS091: opening \"link\" tag not found!");
+    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &link_) or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
+        throw std::runtime_error("in RSS091::RSS091: link characters not found!");
+
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "description")))
+        throw std::runtime_error("in RSS091::RSS091: opening \"description\" tag not found!");
+    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &description_)
+                 or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
+        throw std::runtime_error("in RSS091::RSS091: description characters not found!");
+}
+
+
+std::unique_ptr<SyndicationFormat::Item> RSS091::getNextItem() {
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "item")))
+        return nullptr;
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "description")))
+        throw std::runtime_error("in RSS091::getNextItem: opening \"description\" tag not found!");
+
+    std::string description;
+    std::map<std::string, std::string> attrib_map;
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "description", &attrib_map,
+                                         &description)))
+        throw std::runtime_error("in RSS091::getNextItem: closing \"description\" tag not found!");
+
+    return std::unique_ptr<SyndicationFormat::Item>(new Item(description, TimeUtil::BAD_TIME_T));
+}
+
+
+Atom::Atom(const std::string &xml_document): SyndicationFormat(xml_document) {
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "title")))
+        throw std::runtime_error("in Atom::Atom: opening \"title\" tag not found!");
+
+    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &title_) or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
+        throw std::runtime_error("in Atom::Atom: title characters not found!");
+
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "link")))
+        throw std::runtime_error("in Atom::Atom: opening \"link\" tag not found!");
+    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &link_) or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
+        throw std::runtime_error("in Atom::Atom: link characters not found!");
+
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "description")))
+        throw std::runtime_error("in Atom::Atom: opening \"description\" tag not found!");
+    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &description_)
+                 or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
+        throw std::runtime_error("in Atom::Atom: description characters not found!");
+}
+
+
+std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "entry")))
+        return nullptr;
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "title")))
+        throw std::runtime_error("in Atom::getNextItem: opening \"title\" tag not found!");
+
+    std::string description;
+    std::map<std::string, std::string> attrib_map;
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "title", &attrib_map,
+                                         &description)))
+        throw std::runtime_error("in Atom::getNextItem: closing \"description\" tag not found!");
+
+    if (not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "updated"))
+        throw std::runtime_error("in Atom::getNextItem: opening \"updated\" tag not found!");
+
+    std::string updated_string;
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "updated", &attrib_map,
+                                         &updated_string)))
+        throw std::runtime_error("in Atom::getNextItem: missing \"updated\" closing tag!");
+    const time_t updated(TimeUtil::Iso8601StringToTimeT(updated_string, TimeUtil::UTC));
+
+    return std::unique_ptr<SyndicationFormat::Item>(new Item(description, updated));
 }
