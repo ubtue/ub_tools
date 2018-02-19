@@ -32,7 +32,7 @@ void SyndicationFormat::const_iterator::operator++() {
 }
 
 
-bool SyndicationFormat::const_iterator::operator==(const SyndicationFormat::const_iterator &rhs) {
+bool SyndicationFormat::const_iterator::operator==(const SyndicationFormat::const_iterator &rhs) const {
     if (item_ == nullptr and rhs.item_ == nullptr)
         return true;
     if ((item_ == nullptr and rhs.item_ != nullptr) or (item_ != nullptr and rhs.item_ == nullptr))
@@ -59,17 +59,17 @@ namespace {
 enum SyndicationFormatType { TYPE_UNKNOWN, TYPE_RSS20, TYPE_RSS091, TYPE_ATOM };
 
 
-static const std::regex RSS20_REGEX("<rss[^>]+version=\"2.0\">");
-static const std::regex RSS091_REGEX("<rss[^>]+version=\"0.91\">");
-static const std::regex ATOM_REGEX("<feed[^>]+2005/Atom\">");
+static const std::regex RSS20_REGEX("<rss\\s+version=\"2.0\"\\s*>");
+static const std::regex RSS091_REGEX("<rss\\s+version=\"0.91\"\\s*>");
+static const std::regex ATOM_REGEX("<feed[^2]+2005/Atom\"\\s*>");
 
 
 SyndicationFormatType GetFormatType(const std::string &xml_document) {
-    if (std::regex_match(xml_document, RSS20_REGEX))
+    if (std::regex_search(xml_document, RSS20_REGEX))
         return TYPE_RSS20;
-    if (std::regex_match(xml_document, RSS091_REGEX))
+    if (std::regex_search(xml_document, RSS091_REGEX))
         return TYPE_RSS091;
-    if (std::regex_match(xml_document, ATOM_REGEX))
+    if (std::regex_search(xml_document, ATOM_REGEX))
         return TYPE_ATOM;
 
     return TYPE_UNKNOWN;
@@ -110,7 +110,8 @@ RSS20::RSS20(const std::string &xml_document): SyndicationFormat(xml_document) {
 
     if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "link")))
         throw std::runtime_error("in RSS20::RSS20: opening \"link\" tag not found!");
-    if (unlikely(not xml_parser_->getNext(&type, &attrib_map, &link_) or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
+    if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "link", &attrib_map, &link_)
+                 or type != SimpleXmlParser<StringDataSource>::CHARACTERS))
         throw std::runtime_error("in RSS20::RSS20: link characters not found!");
 
     if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "description")))
