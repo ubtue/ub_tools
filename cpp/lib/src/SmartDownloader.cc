@@ -174,11 +174,8 @@ bool DigiToolSmartDownloader::downloadDocImpl(const std::string &url, const Time
 
     if (trace_)
         INFO("about to download \"" + url + "\".");
-    if (not DownloadHelper(normalised_url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded()) {
-        if (time_limit.limitExceeded())
-            *error_message = "timelimit exceeded!";
+    if (not DownloadHelper(normalised_url, time_limit, document, http_header_charset, error_message))
         return false;
-    }
 
     static const std::string ocr_text("ocr-text:\n");
     if (MediaTypeUtil::GetMediaType(*document) == "text/plain"
@@ -265,11 +262,8 @@ bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimi
 {
     if (trace_)
         INFO("about to download \"" + url + "\".");
-    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded()) {
-        if (time_limit.limitExceeded())
-            *error_message = "timelimit exceeded!";
+    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message))
         return false;
-    }
     const std::string start_string("<body onload=window.location=\"");
     size_t start_pos(document->find(start_string));
     if (start_pos == std::string::npos) {
@@ -295,11 +289,9 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLim
 {
     if (trace_)
         INFO("about to download \"" + url + "\".");
-    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message) or time_limit.limitExceeded()) {
-        if (time_limit.limitExceeded())
-            *error_message = "timelimit exceeded!";
+    if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message))
         return false;
-    }
+
     if (MediaTypeUtil::GetMediaType(*document) == "application/pdf")
         return true;
 
