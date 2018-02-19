@@ -299,114 +299,6 @@ std::string GetTranslatedAllLanguagesCriterion(const std::string &translator, en
 }
 
 
-void SetupVuFindSortLimit(DbConnection &db_connection, std::string * const create_sort_limit, const std::string &offset,
-                          const bool use_untranslated_filter)
-{
-    if (use_untranslated_filter) {
-        const std::string translator(GetTranslatorOrEmptyString());
-        if (translator.empty())
-            ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
-
-        const std::string translated_by_translator("CREATE TEMPORARY TABLE translated_by_translator (INDEX (token)) AS "
-                                                   "(SELECT DISTINCT token FROM vufind_ger_sorted WHERE " +
-                                                    GetTranslatedAllLanguagesCriterion(translator, VUFIND) + ")");
-        db_connection.queryOrDie(translated_by_translator);
-        const std::string untranslated_by_translator_ger_sorted("CREATE TEMPORARY TABLE untranslated_by_translator_ger_sorted AS "
-                                                     "(SELECT DISTINCT l.token FROM (SELECT token FROM vufind_ger_sorted "
-                                                     "WHERE language_code='ger' ORDER BY token) AS l "
-                                                     "LEFT JOIN translated_by_translator AS r "
-                                                     "ON l.token=r.token WHERE r.token IS NULL)");
-        db_connection.queryOrDie(untranslated_by_translator_ger_sorted);
-        *create_sort_limit = "CREATE TEMPORARY TABLE vufind_sort_limit AS (SELECT DISTINCT l.token FROM vufind_ger_sorted AS l "
-                             "INNER JOIN untranslated_by_translator_ger_sorted AS r USING(token) "
-                             "ORDER BY l.token LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE) +  ")";
-    } else
-        *create_sort_limit = "CREATE TEMPORARY TABLE vufind_sort_limit AS (SELECT token FROM vufind_ger_sorted WHERE "
-                             "language_code='ger' ORDER BY token LIMIT " + offset + ", " + std::to_string(ENTRIES_PER_PAGE)
-                             + ")";
-}
-
-
-void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
-                                                 const std::string &offset, std::vector<std::string> * const rows,
-                                                 std::string * const headline,
-                                                 const std::vector<std::string> translator_languages,
-                                                 const std::vector<std::string> &additional_view_languages,
-                                                 const bool filter_untranslated)
-{
-    rows->clear();
-
-    const std::string search_pattern(lookfor.size() <=
-                                    LOOKFOR_PREFIX_LIMIT ? "LIKE '" + lookfor + "%'" : "LIKE '%" + lookfor + "%'");
-    const std::string token_where_clause(
-            lookfor.empty() ? "" : "WHERE token " + search_pattern);
-    const std::string token_query("SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token");
-    const std::string query("SELECT token, translation, language_code, translator FROM vufind_translations "
-                            "WHERE token IN (SELECT * FROM (" + token_query
-                            + ") as t) ORDER BY token, language_code");
-
-    const std::string create_vufind_ger_sorted("CREATE TEMPORARY TABLE vufind_ger_sorted AS (" + query + ")");
-    db_connection.queryOrDie(create_vufind_ger_sorted);
-
-    std::string create_sort_limit;
-    SetupVuFindSortLimit(db_connection, &create_sort_limit, offset, filter_untranslated);
-    db_connection.queryOrDie(create_sort_limit);
-
-
-    const std::string create_result_with_limit("SELECT  token, translation, language_code, translator FROM vufind_ger_sorted AS v"
-                                       " INNER JOIN vufind_sort_limit AS u USING (token)");
-    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, &db_connection));
-
-    std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
-    std::vector<std::string> display_languages;
-    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, VUFIND);
-    *headline = "<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>";
-    if (result_set.empty())
-        return;
-
-    std::vector<std::string> row_values(display_languages.size());
-    std::string current_token;
-    while (auto db_row = result_set.getNextRow()) {
-       std::string token(db_row["token"]);
-       std::string translation(db_row["translation"]);
-       std::string language_code(db_row["language_code"]);
-       std::string translator(db_row["translator"]);
-       if (current_token != token) {
-           if (not current_token.empty())
-              rows->emplace_back(StringUtil::Join(row_values, ""));
-
-           current_token = token;
-           row_values.clear();
-           row_values.resize(display_languages.size(), "<td style=\"background-color:lightgrey\"></td>");
-           int token_index(GetColumnIndexForColumnHeading(display_languages, row_values, TOKEN_COLUMN_DESCRIPTOR));
-           if (token_index == NO_INDEX)
-               continue;
-           row_values[token_index] = CreateNonEditableRowEntry(token);
-           for (auto translator_language : translator_languages) {
-               int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
-               if (index != NO_INDEX)
-                   row_values[index] = CreateEditableRowEntry(current_token, "", translator_language, "vufind_translations", "");
-           }
-       }
-
-       int index(GetColumnIndexForColumnHeading(display_languages, row_values, language_code));
-       if (index == NO_INDEX)
-           continue;
-       if (IsTranslatorLanguage(translator_languages, language_code))
-          row_values[index] = CreateEditableRowEntry(current_token, translation, language_code, "vufind_translations",
-                                                     translator);
-       else
-          row_values[index] = CreateNonEditableRowEntry(translation);
-   }
-   rows->emplace_back(StringUtil::Join(row_values, ""));
-   // We may not use a ';' here within a query to prevent mysql from getting out of sync
-   const std::string drop_ger_sorted("DROP TEMPORARY TABLE vufind_ger_sorted");
-   const std::string drop_sort_limit("DROP TEMPORARY TABLE vufind_sort_limit");
-   db_connection.queryOrDie(drop_ger_sorted);
-   db_connection.queryOrDie(drop_sort_limit);
-}
-
-
 void SetupKeyWordSortLimitQuery(DbConnection &db_connection, std::string * const create_sort_limit, const std::string &offset,
                                 const bool use_untranslated_filter)
 {
@@ -566,9 +458,9 @@ Category GetCategoryForRealm(const std::string &realm) {
 }
 
 
-void SetupGenericNonKeywordSortLimit(DbConnection &db_connection, const std::string &realm, 
-                                     std::string * const create_sort_limit, 
-                                     const std::string &offset, const bool use_untranslated_filter) { 
+void SetupGenericNonKeywordSortLimit(DbConnection &db_connection, const std::string &realm,
+                                     std::string * const create_sort_limit,
+                                     const std::string &offset, const bool use_untranslated_filter) {
     if (use_untranslated_filter) {
         const std::string translator(GetTranslatorOrEmptyString());
         Category category(GetCategoryForRealm(realm));
@@ -667,10 +559,21 @@ void GetGenericNonKeywordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_con
    }
    rows->emplace_back(StringUtil::Join(row_values, ""));
    // We may not use a ';' here within a query to prevent mysql from getting out of sync
-   const std::string drop_ger_sorted("DROP TEMPORARY TABLE miscellaneous_ger_sorted");
-   const std::string drop_sort_limit("DROP TEMPORARY TABLE miscellaneous_sort_limit");
+   const std::string drop_ger_sorted("DROP TEMPORARY TABLE " + realm + "_ger_sorted");
+   const std::string drop_sort_limit("DROP TEMPORARY TABLE " + realm + "_sort_limit");
    db_connection.queryOrDie(drop_ger_sorted);
    db_connection.queryOrDie(drop_sort_limit);
+}
+
+
+void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &lookfor,
+                                                 const std::string &offset, std::vector<std::string> * const rows,
+                                                 std::string * const headline,
+                                                 const std::vector<std::string> &translator_languages,
+                                                 const std::vector<std::string> &additional_view_languages,
+                                                 const bool filter_untranslated) {
+    GetGenericNonKeywordTranslationsAsHTMLRowsFromDatabase(db_connection, "vufind", lookfor, offset, rows, headline,
+                                             translator_languages, additional_view_languages, filter_untranslated);
 }
 
 
