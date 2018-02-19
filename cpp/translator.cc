@@ -652,7 +652,7 @@ void GetGenericNonKeywordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_con
            for (auto translator_language : translator_languages) {
                int index(GetColumnIndexForColumnHeading(display_languages, row_values, translator_language));
                if (index != NO_INDEX)
-                   row_values[index] = CreateEditableRowEntry(current_token, "", translator_language, "vufind_translations", "");
+                   row_values[index] = CreateEditableRowEntry(current_token, "", translator_language, realm + "_translations", "");
            }
        }
 
@@ -660,7 +660,7 @@ void GetGenericNonKeywordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_con
        if (index == NO_INDEX)
            continue;
        if (IsTranslatorLanguage(translator_languages, language_code))
-          row_values[index] = CreateEditableRowEntry(current_token, translation, language_code, "vufind_translations",
+          row_values[index] = CreateEditableRowEntry(current_token, translation, language_code, realm + "_translations",
                                                      translator);
        else
           row_values[index] = CreateNonEditableRowEntry(translation);

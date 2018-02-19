@@ -80,13 +80,13 @@ void Update(const std::multimap<std::string, std::string> &cgi_args, const std::
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
     const std::string gnd_code(GetCGIParameterOrEmptyString(cgi_args, "gnd_code"));
+    const std::string category(GetEnvParameterOrEmptyString(cgi_args, "category"));
     const std::string translator(GetEnvParameterOrEmptyString(env_args, "REMOTE_USER"));
 
     std::string update_command("/usr/local/bin/translation_db_tool update '" + index);
     if (not gnd_code.empty())
         update_command += "' '" + gnd_code;
-    update_command += "' " + language_code + " \"" + translation + "\" '" + translator + "'";
-
+    update_command += "' " + language_code + " \"" + translation + "\" '" + translator + "' '" + category + "'";
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
         logger->error("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
@@ -98,6 +98,7 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
     const std::string gnd_code(GetCGIParameterOrEmptyString(cgi_args, "gnd_code"));
+    const std::string category(GetEnvParameterOrEmptyString(cgi_args, "category"));
     const std::string translator(GetEnvParameterOrEmptyString(env_args, "REMOTE_USER"));
 
     if (translation.empty())
@@ -106,8 +107,7 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::
     std::string insert_command("/usr/local/bin/translation_db_tool insert '" + index);
     if (not gnd_code.empty())
         insert_command += "' '" + gnd_code;
-    insert_command += "' " + language_code + " \"" + translation + "\" '" + translator + "'";
-
+    insert_command += "' " + language_code + " \"" + translation + "\" '" + translator + "' '" + category + "'";
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
         logger->error("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");

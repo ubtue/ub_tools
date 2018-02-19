@@ -155,6 +155,16 @@ void InsertIntoVuFindTranslations(DbConnection * const connection, const std::st
 }
 
 
+void InsertIntoMiscellaneousTranslations(DbConnection * const connection, const std::string &token,
+                                  const std::string &language_code, const std::string &text,
+                                  const std::string &translator)
+{
+    connection->queryOrDie("INSERT INTO miscellaneous_translations SET token=\"" + token + "\",language_code=\""
+                           + language_code + "\",translation=\"" + connection->escapeString(text)
+                           + "\",translator=\"" + translator + "\";");
+}
+
+
 void InsertIntoKeywordTranslations(DbConnection * const connection, const std::string &ppn,
                                    const std::string &gnd_code, const std::string &language_code,
                                    const std::string &text, const std::string &translator)
@@ -163,6 +173,16 @@ void InsertIntoKeywordTranslations(DbConnection * const connection, const std::s
                            + "\",language_code=\"" + language_code + "\",translation=\""
                            + connection->escapeString(text) + "\",origin=\"150\",status=\"new\"" + ",translator=\""
                            + translator + "\";");
+}
+
+
+void UpdateIntoMiscellaneousTranslations(DbConnection * const connection, const std::string &token,
+                                  const std::string &language_code, const std::string &text,
+                                  const std::string &translator)
+{
+    connection->queryOrDie("UPDATE miscellaneous_translations SET translation=\"" + connection->escapeString(text)
+                           + "\", translator=\"" + translator + "\" WHERE token=\"" + token
+                           + "\" AND language_code=\"" + language_code + "\";");
 }
 
 
@@ -207,6 +227,12 @@ void ValidateKeywordTranslation(DbConnection * const connection, const std::stri
 const std::string CONF_FILE_PATH("/usr/local/var/lib/tuelib/translations.conf");
 
 
+int GetLanguageCodeArgvOffset(int argc, char ** const argv) {
+     return (argc == 6 || (argc == 7 && (argv[6] == std::string("vufind_translations") ||
+            (argv[6] == std::string("miscellaneous_translations")))) ? 3 : 4);
+}
+
+
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
@@ -243,27 +269,31 @@ int main(int argc, char *argv[]) {
         } else if (std::strcmp(argv[1], "insert") == 0) {
             if (argc != 6 and argc != 7)
                 logger->error("\"insert\" requires four or five arguments: token or ppn, gnd_code (if ppn), "
-                              "language_code, text, and translator!");
+                              "language_code, text, translator and an optional category!");
 
-            const std::string language_code(argv[(argc == 6) ? 3 : 4]);
+            const std::string language_code(argv[GetLanguageCodeArgvOffset(argc, argv)]);
             if (not TranslationUtil::IsValidFake3Or4LetterEnglishLanguagesCode(language_code))
                 logger->error("\"" + language_code + "\" is not a valid fake 3- or 4-letter english language code!");
 
-            if (argc == 6)
+            if (argc == 6 || (argc == 7 && argv[6] == std::string("vufind_translations")))
                 InsertIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4], argv[5]);
+            else if (argv[6] == std::string("miscellaneous_translations"))
+                InsertIntoMiscellaneousTranslations(&db_connection, argv[2], language_code, argv[4], argv[5]);
             else
                 InsertIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5], argv[6]);
         } else if (std::strcmp(argv[1], "update") == 0) {
             if (argc != 6 and argc != 7)
                 logger->error("\"update\" requires four or five arguments: token or ppn, gnd_code (if ppn), "
                       "language_code, text and translator!");
+            const std::string language_code(argv[GetLanguageCodeArgvOffset(argc, argv)]);
 
-            const std::string language_code(argv[(argc == 6) ? 3 : 4]);
             if (not TranslationUtil::IsValidFake3Or4LetterEnglishLanguagesCode(language_code))
                 logger->error("\"" + language_code + "\" is not a valid fake 3-letter english language code!");
 
-            if (argc == 6)
+            if (argc == 6 || (argc == 7 && argv[6] == std::string("vufind_translations")))
                 UpdateIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4], argv[5]);
+            else if (argc == 7 && (argv[6] == std::string("miscellaneous_translations")))
+                UpdateIntoMiscellaneousTranslations(&db_connection, argv[2], language_code, argv[4], argv[5]);
             else
                 UpdateIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5], argv[6]);
         } else if (std::strcmp(argv[1], "validate_keyword") == 0) {
