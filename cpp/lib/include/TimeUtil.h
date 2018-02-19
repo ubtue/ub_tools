@@ -33,7 +33,9 @@
 
 #include <string>
 #include <cstdint>
-#define _BSD_SOURCE
+#ifndef _BSD_SOURCE
+#   define _BSD_SOURCE
+#endif
 #include <ctime>
 #include "PerlCompatRegExp.h"
 
