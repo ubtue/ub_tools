@@ -103,12 +103,15 @@ class MetadataHarvester {
         $progressPath = BackgroundTask::getProgressPath($taskId);
 
         $cmd = 'zts_client';
-        $cmd .= ' --simple-crawler-config-file="' . $cfgPath . '"';
-        if ($progressPath != null) {
-            $cmd .= ' --progress-file="' . $progressPath . '"';
+        if (ZOTERO_PROXY_SERVER != '') {
+            $cmd .= ' "--proxy=' . ZOTERO_PROXY_SERVER . '"';
         }
-        $cmd .= ' --output-format=' . $outFormat;
-        $cmd .= ' ' . $this->url . ' ' . $dirMap . ' "' . $outPath . '"';
+        $cmd .= ' "--simple-crawler-config-file=' . $cfgPath . '"';
+        if ($progressPath != null) {
+            $cmd .= ' "--progress-file=' . $progressPath . '"';
+        }
+        $cmd .= ' "--output-format=' . $outFormat . '"';
+        $cmd .= ' "' . $this->url . '" "' . $dirMap . '" "' . $outPath . '"';
         $cmd .= ' 2>&1';
 
         $task = new BackgroundTask();
