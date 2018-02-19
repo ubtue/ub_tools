@@ -33,6 +33,7 @@
 
 #include <string>
 #include <cstdint>
+#define _BSD_SOURCE
 #include <ctime>
 #include "PerlCompatRegExp.h"
 
@@ -239,6 +240,10 @@ std::string GetCurrentYear(const TimeZone time_zone = LOCAL);
  *  \note The returned time is UTC time.
  */
 bool ParseRFC822DateTime(const std::string &date_time_candidate, time_t * const date_time);
+
+
+// Debugging aid.
+std::string StructTmToString(const struct tm &tm);
 
 
 } // namespace TimeUtil
