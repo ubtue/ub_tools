@@ -5,8 +5,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.YearMonth;
@@ -25,6 +23,7 @@ import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.DataUtil;
 import org.solrmarc.tools.Utils;
+import org.vufind.index.DatabaseManager;
 import java.sql.*;
 
 public class TuelibMixin extends SolrIndexerMixin {
@@ -34,7 +33,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
     private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
 
-    private final static Pattern MYSQL_URL_PATTERN = Pattern.compile("^mysql://(([^/]+):([^/]+)@)?([^/]+(:\\d+)?)/([^/]+)$");
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
@@ -2545,36 +2543,13 @@ public class TuelibMixin extends SolrIndexerMixin {
         return result;
     }
 
-    private static Connection dbConnection = null;
-    private static String DATABASE_CONF = "/usr/local/vufind/local/tuefind/local_overrides/database.conf";
+
     public String getFullText(final Record record) {
         final DataField fullTextField = (DataField) record.getVariableField("FUL");
         if (fullTextField == null)
             return "";
 
-        if (dbConnection == null) {
-            String contents = null;
-            try {
-                contents = new String(Files.readAllBytes(Paths.get(DATABASE_CONF)));
-            } catch (IOException e) {
-                logger.severe("Could not open or read file: " + DATABASE_CONF);
-                System.exit(1);
-            }
-
-            final int equalPos = contents.indexOf('=');
-            String dataBaseURL = contents.substring(equalPos + 1).trim().replaceAll("^\"|\"$", "");
-            final Matcher matcher = MYSQL_URL_PATTERN.matcher(dataBaseURL);
-            if (matcher.matches())
-                dataBaseURL = "mysql://" + matcher.group(4) + "/" + matcher.group(6) + "?user=" + matcher.group(2) + "&password=" + matcher.group(3);
-
-            try {
-                Class.forName("com.mysql.jdbc.Driver").newInstance();
-                dbConnection = DriverManager.getConnection("jdbc:" + dataBaseURL);
-            } catch (Exception e) {
-                logger.severe("Could not establish database connection: " + e.toString());
-                System.exit(1);
-            }
-        }
+        Connection dbConnection = DatabaseManager.instance().getConnection();
 
         try {
             final Statement statement = dbConnection.createStatement();
