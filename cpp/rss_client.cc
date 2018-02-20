@@ -56,7 +56,12 @@ void ProcessSyndicationURL(const bool verbose, const std::string &url) {
 
     for (const auto &item : *syndication_format) {
         std::cout << "\tItem:\n";
-        std::cout << "\t\tDescription: " << item.getDescription() << '\n';
+        const std::string title(item.getTitle());
+        if (not title.empty())
+            std::cout << "\t\tTitle: " << title << '\n';
+        const std::string description(item.getDescription());
+        if (not description.empty())
+            std::cout << "\t\tDescription: " << description << '\n';
         std::cout << "\t\tDate: " << TimeUtil::TimeTToString(item.getPubDate()) << '\n';
     }
 }
