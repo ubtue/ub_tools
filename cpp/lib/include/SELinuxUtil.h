@@ -23,6 +23,7 @@
 
 
 #include <cctype>
+#include <cinttypes>
 #include <string>
 #include <vector>
 #include <FileUtil.h>
@@ -118,7 +119,7 @@ namespace Port {
  *  \param  protocol            protocol, e.g. tcp
  *  \param  port                port number
  */
-void AddRecord(const std::string &type, const std::string &protocol, unsigned port);
+void AddRecord(const std::string &type, const std::string &protocol, const uint16_t port);
 
 
 /** \brief  Add port type record if not exists
@@ -126,7 +127,7 @@ void AddRecord(const std::string &type, const std::string &protocol, unsigned po
  *  \param  protocol            protocol, e.g. tcp
  *  \param  port                port number
  */
-void AddRecordIfMissing(const std::string &type, const std::string &protocol, unsigned port);
+void AddRecordIfMissing(const std::string &type, const std::string &protocol, const uint16_t port);
 
 
 /** \brief  Check if the type has an entry for the given protocol/port
@@ -134,7 +135,7 @@ void AddRecordIfMissing(const std::string &type, const std::string &protocol, un
  *  \param  protocol            protocol, e.g. tcp
  *  \param  port                port number
  */
-bool HasPortType(const std::string &type, const std::string &protocol, unsigned port);
+bool HasPortType(const std::string &type, const std::string &protocol, const uint16_t port);
 
 
 } // namespace Port
