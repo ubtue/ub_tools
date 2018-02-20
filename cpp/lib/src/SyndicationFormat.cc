@@ -140,6 +140,7 @@ RSS20::RSS20(const std::string &xml_document): SyndicationFormat(xml_document) {
 
 
 std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
+    std::string title;
     std::string description;
     time_t pub_date(TimeUtil::BAD_TIME_T);
     SimpleXmlParser<StringDataSource>::Type type;
@@ -147,9 +148,11 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
     std::string data;
     while (xml_parser_->getNext(&type, &attrib_map, &data)) {
         if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == "item")
-            return std::unique_ptr<SyndicationFormat::Item>(new Item(description, pub_date));
+            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, pub_date));
         if (type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT)
             return nullptr;
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
+            title = ExtractText(xml_parser_, "title");
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "description")
             description = ExtractText(xml_parser_, "description");
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "pubDate") {
@@ -161,7 +164,7 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
         throw std::runtime_error("in RSS20::getNextItem: found XML error: " + data);
 
-    return std::unique_ptr<SyndicationFormat::Item>(new Item(description, pub_date));
+    return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, pub_date));
 }
 
 
@@ -199,7 +202,7 @@ std::unique_ptr<SyndicationFormat::Item> RSS091::getNextItem() {
                                          &description)))
         throw std::runtime_error("in RSS091::getNextItem: closing \"description\" tag not found!");
 
-    return std::unique_ptr<SyndicationFormat::Item>(new Item(description, TimeUtil::BAD_TIME_T));
+    return std::unique_ptr<SyndicationFormat::Item>(new Item("", description, TimeUtil::BAD_TIME_T));
 }
 
 
@@ -246,5 +249,5 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
         throw std::runtime_error("in Atom::getNextItem: missing \"updated\" closing tag!");
     const time_t updated(TimeUtil::Iso8601StringToTimeT(updated_string, TimeUtil::UTC));
 
-    return std::unique_ptr<SyndicationFormat::Item>(new Item(description, updated));
+    return std::unique_ptr<SyndicationFormat::Item>(new Item("", description, updated));
 }
