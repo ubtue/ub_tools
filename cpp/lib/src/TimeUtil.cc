@@ -511,8 +511,11 @@ bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const
 
     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
         "^(\\d{1,2}) (...) (\\d{2}|\\d{4}) (\\d{2}:\\d{2}(:\\d{2})?)"));
-    if (not matcher->matched(simplified_candidate))
+    if (not matcher->matched(simplified_candidate)) {
+        *date_time = BAD_TIME_T;
         return false;
+    }
+
     const bool double_digit_year((*matcher)[3].length() == 2);
     const bool has_seconds((*matcher)[4].length() == 8);
 
@@ -556,8 +559,10 @@ bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const
     struct tm tm;
     std::memset(&tm, 0, sizeof tm);
     const char * const first_not_processed(::strptime(simplified_candidate.c_str(), format.c_str(), &tm));
-    if (first_not_processed == nullptr or *first_not_processed != '\0')
+    if (first_not_processed == nullptr or *first_not_processed != '\0') {
+        *date_time = BAD_TIME_T;
         return false;
+    }
 
     tm.tm_gmtoff = 0;
     *date_time = TimeGm(tm) + local_differential_offset;
