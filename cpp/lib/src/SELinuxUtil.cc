@@ -126,7 +126,14 @@ namespace Port {
 
 void AddRecord(const std::string &type, const std::string &protocol, unsigned port) {
     AssertEnabled(std::string(__func__));
-    ExecUtil::Exec(ExecUtil::Which("semanage"), { "port", type, protocol, std::to_string(port) });
+    ExecUtil::Exec(ExecUtil::Which("semanage"), { "port", "-a", "-t", type, "-p", protocol, std::to_string(port) });
+}
+
+
+void AddRecordIfMissing(const std::string &type, const std::string &protocol, unsigned port) {
+    AssertEnabled(std::string(__func__));
+    if (not HasPortType(type, protocol, port))
+        AddRecord(type, protocol, port);
 }
 
 
