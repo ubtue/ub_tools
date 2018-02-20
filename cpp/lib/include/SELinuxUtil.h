@@ -23,6 +23,7 @@
 
 
 #include <cctype>
+#include <cinttypes>
 #include <string>
 #include <vector>
 #include <FileUtil.h>
@@ -108,6 +109,36 @@ bool HasFileType(const std::string &path, const std::string &type);
 
 
 } // namespace FileContext
+
+
+namespace Port {
+
+
+/** \brief  Add port type record
+ *  \param  type                port type, e.g. http_port_t
+ *  \param  protocol            protocol, e.g. tcp
+ *  \param  port                port number
+ */
+void AddRecord(const std::string &type, const std::string &protocol, const uint16_t port);
+
+
+/** \brief  Add port type record if not exists
+ *  \param  type                port type, e.g. http_port_t
+ *  \param  protocol            protocol, e.g. tcp
+ *  \param  port                port number
+ */
+void AddRecordIfMissing(const std::string &type, const std::string &protocol, const uint16_t port);
+
+
+/** \brief  Check if the type has an entry for the given protocol/port
+ *  \param  type                port type, e.g. http_port_t
+ *  \param  protocol            protocol, e.g. tcp
+ *  \param  port                port number
+ */
+bool HasPortType(const std::string &type, const std::string &protocol, const uint16_t port);
+
+
+} // namespace Port
 
 
 } // namespace SELinuxUtil
