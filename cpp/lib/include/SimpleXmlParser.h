@@ -21,6 +21,7 @@
 #define SIMPLE_XML_PARSER_H
 
 
+#include <algorithm>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -60,7 +61,22 @@ public:
 
     /** \brief Skip forward until we encounter a certain element.
      *  \param expected_type  The type of element we're looking for.
+     *  \param expected_tags  If "type" is OPENING_TAG or CLOSING_TAG, the name of the tags we're looking for.  We return when we
+     *                        have found the first matching one.
+     *  \param found_tag      If "type" is OPENING_TAG or CLOSING_TAG, the name of the actually found tag.
+     *  \param attrib_map     If not NULL and if we find what we're looking for and if it is an opening tag, the attribute map
+     *                        for the found opening tag.
+     *  \param data           If not NULL, the skipped over XML will be returned here.
+     *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
+     */
+    bool skipTo(const Type expected_type, const std::vector<std::string> &expected_tags, std::string * const found_tag,
+                std::map<std::string, std::string> * const attrib_map = nullptr, std::string * const data = nullptr);
+
+    /** \brief Skip forward until we encounter a certain element.
+     *  \param expected_type  The type of element we're looking for.
      *  \param expected_tag   If "type" is OPENING_TAG or CLOSING_TAG, the name of the tag we're looking for.
+     *  \param attrib_map     If not NULL and if we find what we're looking for and if it is an opening tag, the attribute map
+     *                        for the found opening tag.
      *  \param data           If not NULL, the skipped over XML will be returned here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
@@ -418,12 +434,12 @@ collect_next_character:
 
 
 template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
-    const Type expected_type, const std::string &expected_tag, std::map<std::string, std::string> * const attrib_map,
-    std::string * const data)
+    const Type expected_type, const std::vector<std::string> &expected_tags, std::string * const found_tag,
+    std::map<std::string, std::string> * const attrib_map, std::string * const data)
 {
-    if (unlikely((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and expected_tag.empty()))
-    throw std::runtime_error("in SimpleXmlParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
-                             "tag name has been specified!");
+    if (unlikely((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and expected_tags.empty()))
+        throw std::runtime_error("in SimpleXmlParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
+                                 "tag names have been specified!");
 
     if (data != nullptr)
         data_collector_ = data;
@@ -436,7 +452,9 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
 
         if (expected_type == type) {
             if (expected_type == OPENING_TAG or expected_type == CLOSING_TAG) {
-                if (data2 == expected_tag) {
+                const auto found(std::find(expected_tags.cbegin(), expected_tags.cend(), data2));
+                if (found != expected_tags.cend()) {
+                    *found_tag = *found;
                     data_collector_ = nullptr;
                     return true;
                 }
@@ -449,6 +467,15 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
             return false;
         }
     }
+}
+
+
+template<typename DataSource> bool SimpleXmlParser<DataSource>::skipTo(
+    const Type expected_type, const std::string &expected_tag, std::map<std::string, std::string> * const attrib_map,
+    std::string * const data)
+{
+    std::string found_tag;
+    return skipTo(expected_type, { expected_tag }, &found_tag, attrib_map, data);
 }
 
 
