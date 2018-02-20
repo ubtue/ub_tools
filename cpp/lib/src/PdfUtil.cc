@@ -51,7 +51,7 @@ bool ExtractText(const std::string &pdf_document, std::string * const extracted_
         WARNING("failed to execute \"" + pdftotext_path + "\"!");
         return false;
     }
-                                    
+
     if (not FileUtil::ReadString(output_filename, extracted_text)) {
         WARNING("failed to read extracted text from \"" + output_filename + "\"!");
         return false;
@@ -83,7 +83,6 @@ bool PdfFileContainsNoText(const std::string &path) {
 bool PdfDocContainsNoText(const std::string &document) {
     const FileUtil::AutoTempFile auto_temp_file;
     const std::string &output_filename(auto_temp_file.getFilePath());
-    const FileUtil::AutoDeleteFile auto_delete(output_filename);
     if (not FileUtil::WriteString(output_filename, document))
         return false;
     return PdfFileContainsNoText(output_filename);
