@@ -25,12 +25,12 @@ SimpleCrawler::Params::Params(const std::string &acceptable_languages, const uns
                               const unsigned min_url_processing_time, const bool print_all_http_headers,
                               const bool print_last_http_header, const bool ignore_robots_dot_txt,
                               const bool print_redirects, const std::string &user_agent,
-                              const std::string &url_ignore_pattern)
+                              const std::string &url_ignore_pattern, const std::string &proxy_host_and_port)
     : acceptable_languages_(acceptable_languages), timeout_(timeout),
       min_url_processing_time_(min_url_processing_time), print_all_http_headers_(print_all_http_headers),
       print_last_http_header_(print_last_http_header), ignore_robots_dot_txt_(ignore_robots_dot_txt),
       print_redirects_(print_redirects), user_agent_(user_agent),
-      url_ignore_pattern_(url_ignore_pattern) {}
+      url_ignore_pattern_(url_ignore_pattern), proxy_host_and_port_(proxy_host_and_port) {}
 
 
 void SimpleCrawler::extractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls) {
@@ -102,6 +102,7 @@ SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
     downloader_.params_.user_agent_            = params.user_agent_;
     downloader_.params_.acceptable_languages_  = params.acceptable_languages_;
     downloader_.params_.honour_robots_dot_txt_ = not params.ignore_robots_dot_txt_;
+    downloader_.params_.proxy_host_and_port_   = params.proxy_host_and_port_;
 }
 
 

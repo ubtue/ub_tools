@@ -57,6 +57,7 @@ const unsigned DEFAULT_ZOTERO_CONVERSION_TIMEOUT(60000);
 void Usage() {
     std::cerr << "Usage: " << ::progname << " [options] zts_server_url map_directory output_file\n"
               << "\t[ --ignore-robots-dot-txt)                                Nomen est omen.\n"
+              << "\t[ --proxy=<proxy_host_and_port>)                          Proxy host and port, default none.\n"
               << "\t[ --simple-crawler-config-file=<path> ]                   Nomen est omen, default: " << DEFAULT_SIMPLE_CRAWLER_CONFIG_PATH << "\n"
               << "\t[ --progress-file=<path> ]                                Nomen est omen.\n"
               << "\t[ --output-format=<format> ]                              marcxml (default), marc21 or json.\n"
@@ -862,7 +863,7 @@ void StorePreviouslyDownloadedHashes(File * const output,
 }
 
 
-void StartHarvesting(const bool ignore_robots_dot_txt, const std::string &simple_crawler_config_path,
+void StartHarvesting(const bool ignore_robots_dot_txt, const std::string &proxy_host_and_port, const std::string &simple_crawler_config_path,
                      ZtsClientParams &zts_client_params, ZtsClientMaps &zts_client_maps, std::unique_ptr<File> &progress_file,
                      unsigned * const total_record_count, unsigned * const total_previously_downloaded_count)
 {
@@ -870,6 +871,7 @@ void StartHarvesting(const bool ignore_robots_dot_txt, const std::string &simple
     crawler_params.ignore_robots_dot_txt_ = ignore_robots_dot_txt;
     crawler_params.timeout_ = DEFAULT_TIMEOUT;
     crawler_params.min_url_processing_time_ = DEFAULT_MIN_URL_PROCESSING_TIME;
+    crawler_params.proxy_host_and_port_ = proxy_host_and_port;
 
     std::vector<SimpleCrawler::SiteDesc> site_descs;
     SimpleCrawler::ParseConfigFile(simple_crawler_config_path, &site_descs);
@@ -903,12 +905,19 @@ void StartHarvesting(const bool ignore_robots_dot_txt, const std::string &simple
 
 void Main(int argc, char *argv[]) {
     ::progname = argv[0];
-    if (argc < 4 or argc > 7)
+    if (argc < 4 or argc > 9)
         Usage();
 
     bool ignore_robots_dot_txt(false);
     if (std::strcmp(argv[1], "--ignore-robots-dot-txt") == 0) {
         ignore_robots_dot_txt = true;
+        --argc, ++argv;
+    }
+
+    std::string proxy_host_and_port;
+    const std::string PROXY_FLAG_PREFIX("--proxy=");
+    if (StringUtil::StartsWith(argv[1], PROXY_FLAG_PREFIX)) {
+        proxy_host_and_port = argv[1] + PROXY_FLAG_PREFIX.length();
         --argc, ++argv;
     }
 
@@ -973,7 +982,7 @@ void Main(int argc, char *argv[]) {
             progress_file = FileUtil::OpenOutputFileOrDie(progress_filename);
 
         zts_client_params.format_handler_->prepareProcessing();
-        StartHarvesting(ignore_robots_dot_txt, simple_crawler_config_path,
+        StartHarvesting(ignore_robots_dot_txt, proxy_host_and_port, simple_crawler_config_path,
                         zts_client_params, zts_client_maps, progress_file,
                         &total_record_count, &total_previously_downloaded_count);
         zts_client_params.format_handler_->finishProcessing();

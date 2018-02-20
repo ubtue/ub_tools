@@ -1,5 +1,6 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
+import java.text.Collator;
 import java.util.*;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
@@ -57,7 +58,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
             // Sort keyword chain
             final char chainID = dataField.getIndicator1();
             final List<String> keyWordChain = getKeyWordChain(keyWordChains, chainID);
-            Collections.sort(keyWordChain, String.CASE_INSENSITIVE_ORDER);
+            Collator collator = Collator.getInstance(Locale.forLanguageTag(lang));
+            Collections.sort(keyWordChain, collator);
         }
         return concatenateKeyWordsToChains(keyWordChains);
     }
