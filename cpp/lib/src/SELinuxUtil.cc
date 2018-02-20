@@ -124,20 +124,20 @@ bool HasFileType(const std::string &path, const std::string &type) {
 namespace Port {
 
 
-void AddRecord(const std::string &type, const std::string &protocol, unsigned port) {
+void AddRecord(const std::string &type, const std::string &protocol, const uint16_t port) {
     AssertEnabled(std::string(__func__));
     ExecUtil::Exec(ExecUtil::Which("semanage"), { "port", "-a", "-t", type, "-p", protocol, std::to_string(port) });
 }
 
 
-void AddRecordIfMissing(const std::string &type, const std::string &protocol, unsigned port) {
+void AddRecordIfMissing(const std::string &type, const std::string &protocol, const uint16_t port) {
     AssertEnabled(std::string(__func__));
     if (not HasPortType(type, protocol, port))
         AddRecord(type, protocol, port);
 }
 
 
-bool HasPortType(const std::string &type, const std::string &protocol, unsigned port) {
+bool HasPortType(const std::string &type, const std::string &protocol, const uint16_t port) {
     AssertEnabled(std::string(__func__));
     std::string semanage_output, semanage_error;
     ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which("semanage"), { "port", "-l" },
