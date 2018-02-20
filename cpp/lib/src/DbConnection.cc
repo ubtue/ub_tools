@@ -92,6 +92,38 @@ std::string DbConnection::escapeString(const std::string &unescaped_string) {
 }
 
 
+bool DbConnection::getOptionAsBool(enum mysql_option option) {
+    bool value(false);
+    if (::mysql_get_option(&mysql_, option, &value) != 0)
+        ERROR("cannot get mysql option");
+    return value;
+}
+
+
+std::string DbConnection::getOptionAsString(enum mysql_option option) {
+    std::string value;
+    if (::mysql_get_option(&mysql_, option, &value) != 0)
+        ERROR("cannot get mysql option");
+    return value;
+}
+
+
+unsigned int DbConnection::getOptionAsUnsignedInt(enum mysql_option option) {
+    unsigned int value(0);
+    if (::mysql_get_option(&mysql_, option, &value) != 0)
+        ERROR("cannot get mysql option");
+    return value;
+}
+
+
+unsigned long DbConnection::getOptionAsUnsignedLong(enum mysql_option option) {
+    unsigned long value(0);
+    if (::mysql_get_option(&mysql_, option, &value) != 0)
+        ERROR("cannot get mysql option");
+    return value;
+}
+
+
 void DbConnection::init(const std::string &database_name, const std::string &user, const std::string &passwd,
                         const std::string &host, const unsigned port)
 {

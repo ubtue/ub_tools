@@ -24,6 +24,7 @@
 #include <string>
 #include <mysql/mysql.h>
 #include "DbResultSet.h"
+#include "util.h"
 
 
 class DbConnection {
@@ -59,10 +60,27 @@ public:
      */
     unsigned getNoOfAffectedRows() const { return ::mysql_affected_rows(&mysql_); }
 
+    /* unfortunately the following functions cannot be implemented via template */
+    bool getOptionAsBool(enum mysql_option option);
+    std::string getOptionAsString(enum mysql_option option);
+    unsigned int getOptionAsUnsignedInt(enum mysql_option option);
+    unsigned long getOptionAsUnsignedLong(enum mysql_option option);
+private:
+    template<typename OptionType> void setOption(const enum mysql_option option, const OptionType * const value) {
+        if (::mysql_options(&mysql_, option, reinterpret_cast<const void *>(value)) != 0)
+            ERROR("mysql_option could not be set!");
+    }
+
+public:
+    void setOption(const enum mysql_option option, const bool value) { setOption<bool>(option, &value); }
+    void setOption(const enum mysql_option option, const std::string &value) { setOption<char>(option, value.c_str()); }
+    void setOption(const enum mysql_option option, const unsigned int value) { setOption<unsigned int>(option, &value); }
+    void setOption(const enum mysql_option option, const unsigned long value) { setOption<unsigned long>(option, &value); }
+
     /** Converts the binary contents of "unescaped_string" into a form that can used as a string (you still
         need to add quotes around it) in SQL statements. */
     std::string escapeString(const std::string &unescaped_string);
-public:
+
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,
               const std::string &host, const unsigned port);
 };
