@@ -59,9 +59,9 @@ namespace {
 enum SyndicationFormatType { TYPE_UNKNOWN, TYPE_RSS20, TYPE_RSS091, TYPE_ATOM };
 
 
-static const std::regex RSS20_REGEX("<rss\\s+version=\"2.0\"\\s*>");
-static const std::regex RSS091_REGEX("<rss\\s+version=\"0.91\"\\s*>");
-static const std::regex ATOM_REGEX("<feed[^2]+2005/Atom\"\\s*>");
+static const std::regex RSS20_REGEX("<rss[^>]+version=\"2.0\"");
+static const std::regex RSS091_REGEX("<rss[^>]+version=\"0.91\"");
+static const std::regex ATOM_REGEX("<feed[^2>]+2005/Atom\"\"");
 
 
 SyndicationFormatType GetFormatType(const std::string &xml_document) {
