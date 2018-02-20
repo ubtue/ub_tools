@@ -64,7 +64,7 @@ public:
      *  \param expected_tags  If "type" is OPENING_TAG or CLOSING_TAG, the name of the tags we're looking for.  We return when we
      *                        have found the first matching one.
      *  \param found_tag      If "type" is OPENING_TAG or CLOSING_TAG, the name of the actually found tag.
-     *  \param attrib_map     If not NULL and if we find what we're looking for and if it is an opeing tag, the attribute map
+     *  \param attrib_map     If not NULL and if we find what we're looking for and if it is an opening tag, the attribute map
      *                        for the found opening tag.
      *  \param data           If not NULL, the skipped over XML will be returned here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
@@ -75,7 +75,7 @@ public:
     /** \brief Skip forward until we encounter a certain element.
      *  \param expected_type  The type of element we're looking for.
      *  \param expected_tag   If "type" is OPENING_TAG or CLOSING_TAG, the name of the tag we're looking for.
-     *  \param attrib_map     If not NULL and if we find what we're looking for and if it is an opeing tag, the attribute map
+     *  \param attrib_map     If not NULL and if we find what we're looking for and if it is an opening tag, the attribute map
      *                        for the found opening tag.
      *  \param data           If not NULL, the skipped over XML will be returned here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
