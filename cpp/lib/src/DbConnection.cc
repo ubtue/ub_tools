@@ -93,10 +93,12 @@ std::string DbConnection::escapeString(const std::string &unescaped_string) {
 
 
 bool DbConnection::getOptionAsBool(enum mysql_option option) {
-    bool value(false);
+    bool value;
     if (::mysql_get_option(&mysql_, option, &value) != 0)
         ERROR("cannot get mysql option");
+#pragma GCC diagnostic ignored "-Wuninitialized"
     return value;
+#pragma GCC diagnostic warning "-Wuninitialized"
 }
 
 
@@ -109,18 +111,22 @@ std::string DbConnection::getOptionAsString(enum mysql_option option) {
 
 
 unsigned int DbConnection::getOptionAsUnsignedInt(enum mysql_option option) {
-    unsigned int value(0);
+    unsigned int value;
     if (::mysql_get_option(&mysql_, option, &value) != 0)
         ERROR("cannot get mysql option");
+#pragma GCC diagnostic ignored "-Wuninitialized"
     return value;
+#pragma GCC diagnostic warning "-Wuninitialized"
 }
 
 
 unsigned long DbConnection::getOptionAsUnsignedLong(enum mysql_option option) {
-    unsigned long value(0);
+    unsigned long value;
     if (::mysql_get_option(&mysql_, option, &value) != 0)
         ERROR("cannot get mysql option");
+#pragma GCC diagnostic ignored "-Wuninitialized"
     return value;
+#pragma GCC diagnostic warning "-Wuninitialized"
 }
 
 
