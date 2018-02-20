@@ -47,7 +47,8 @@ public:
         SyndicationFormat *syndication_format_;
         std::unique_ptr<Item> item_;
     private:
-        explicit const_iterator(SyndicationFormat *syndication_format): syndication_format_(syndication_format) { }
+        explicit const_iterator(SyndicationFormat *syndication_format)
+            : syndication_format_(syndication_format), item_(syndication_format_->getNextItem()) { }
         const_iterator(): syndication_format_(nullptr) { }
     public:
         const_iterator(const_iterator &&rhs): syndication_format_(rhs.syndication_format_), item_(rhs.item_.release())
