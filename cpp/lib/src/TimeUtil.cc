@@ -469,7 +469,7 @@ time_t UTCStructTmToTimeT(const struct tm &tm) {
 
 // See https://www.rfc-editor.org/rfc/rfc822.txt section 5.1.
 static bool ZoneAdjustment(const std::string &rfc822_zone, time_t * const adjustment) {
-    if (rfc822_zone == "UTC" or rfc822_zone == "UT")
+    if (rfc822_zone == "GMT" or rfc822_zone == "UT")
         *adjustment = 0;
     else if (rfc822_zone == "EST")
         *adjustment = +5 * 3600;
