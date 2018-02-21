@@ -385,17 +385,19 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
                     WARNING("couldn't parse \"" + pub_date_string + "\"!");
             } else if (not dc_namespace_.empty() and StringUtil::StartsWith(data, dc_namespace_)) {
                 const std::string tag(data);
-                dc_and_prism_data[tag] = ExtractText(xml_parser_, tag);
+                const std::string tag_suffix(tag.substr(dc_namespace_.length()));
+                dc_and_prism_data["dc:" + tag_suffix] = ExtractText(xml_parser_, tag);
             } else if (not prism_namespace_.empty() and StringUtil::StartsWith(data, prism_namespace_)) {
                 const std::string tag(data);
+                const std::string tag_suffix(tag.substr(prism_namespace_.length()));
                 if (attrib_map.size() != 1)
-                    dc_and_prism_data[tag] = ExtractText(xml_parser_, tag);
+                    dc_and_prism_data["prism:" + tag_suffix] = ExtractText(xml_parser_, tag);
                 else {
-                    const auto subtag(PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS.find(tag.substr(prism_namespace_.length())));
+                    const auto subtag(PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS.find(tag_suffix));
                     if (subtag != PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS.end()) {
                         const auto key_and_value(attrib_map.find("rdf:resource"));
                         if (likely(key_and_value != attrib_map.end())) {
-                            dc_and_prism_data[tag] = key_and_value->second;
+                            dc_and_prism_data["prism:" + tag_suffix] = key_and_value->second;
                             if (not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, tag))
                                 throw std::runtime_error("in RDF::getNextItem: missing closing \"" + tag + "\" tag!");
                         } else
