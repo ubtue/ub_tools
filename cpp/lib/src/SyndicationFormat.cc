@@ -56,12 +56,13 @@ SyndicationFormat::~SyndicationFormat() {
 namespace {
 
 
-enum SyndicationFormatType { TYPE_UNKNOWN, TYPE_RSS20, TYPE_RSS091, TYPE_ATOM };
+    enum SyndicationFormatType { TYPE_UNKNOWN, TYPE_RSS20, TYPE_RSS091, TYPE_ATOM, TYPE_RDF };
 
 
 static const std::regex RSS20_REGEX("<rss[^>]+version=\"2.0\"");
 static const std::regex RSS091_REGEX("<rss[^>]+version=\"0.91\"");
 static const std::regex ATOM_REGEX("<feed[^2>]+2005/Atom\"\"");
+static const std::regex RDF_REGEX("<rdf:RDF");
 
 
 SyndicationFormatType GetFormatType(const std::string &xml_document) {
@@ -71,6 +72,8 @@ SyndicationFormatType GetFormatType(const std::string &xml_document) {
         return TYPE_RSS091;
     if (std::regex_search(xml_document, ATOM_REGEX))
         return TYPE_ATOM;
+    if (std::regex_search(xml_document, RDF_REGEX))
+        return TYPE_RDF;
 
     return TYPE_UNKNOWN;
 }
@@ -107,6 +110,8 @@ std::unique_ptr<SyndicationFormat> SyndicationFormat::Factory(const std::string 
             return std::unique_ptr<SyndicationFormat>(new RSS091(xml_document));
         case TYPE_ATOM:
             return std::unique_ptr<SyndicationFormat>(new Atom(xml_document));
+        case TYPE_RDF:
+            return std::unique_ptr<SyndicationFormat>(new RDF(xml_document));
         }
     } catch (const std::runtime_error &x) {
         *err_msg = "Error while parsing syndication format: " + std::string(x.what());
@@ -124,7 +129,7 @@ RSS20::RSS20(const std::string &xml_document): SyndicationFormat(xml_document) {
             return;
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "image") {
             if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "image")))
-                throw std::runtime_error("in RSS20::RSS20: closing image tag not founmd!");
+                throw std::runtime_error("in RSS20::RSS20: closing image tag not found!");
         }
 
         if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "title")
@@ -250,4 +255,57 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
     const time_t updated(TimeUtil::Iso8601StringToTimeT(updated_string, TimeUtil::UTC));
 
     return std::unique_ptr<SyndicationFormat::Item>(new Item("", description, updated));
+}
+
+
+RDF::RDF(const std::string &xml_document): SyndicationFormat(xml_document) {
+    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    std::string data;
+    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:item")
+            return;
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:image") {
+            if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "rss:image")))
+                throw std::runtime_error("in RSS20::RSS20: closing image tag not found!");
+        }
+
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:title")
+            title_ = ExtractText(xml_parser_, "rss:title");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:link")
+            link_ = ExtractText(xml_parser_, "rss:link");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:description")
+            description_ = ExtractText(xml_parser_, "rss:description");
+    }
+    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
+        throw std::runtime_error("in RSS20::RSS20: found XML error: " + data);
+}
+
+
+std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
+    std::string title;
+    std::string description;
+    time_t pub_date(TimeUtil::BAD_TIME_T);
+    SimpleXmlParser<StringDataSource>::Type type;
+    std::map<std::string, std::string> attrib_map;
+    std::string data;
+    while (xml_parser_->getNext(&type, &attrib_map, &data)) {
+        if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == "rss:item")
+            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, pub_date));
+        if (type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT)
+            return nullptr;
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:title")
+            title = ExtractText(xml_parser_, "rss:title");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:description")
+            description = ExtractText(xml_parser_, "rss:description");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:pubDate") {
+            const std::string pub_date_string(ExtractText(xml_parser_, "rss:pubDate"));
+            if (unlikely(not TimeUtil::ParseRFC1123DateTime(pub_date_string, &pub_date)))
+                WARNING("couldn't parse \"" + pub_date_string + "\"!");
+        }
+    }
+    if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
+        throw std::runtime_error("in RSS20::getNextItem: found XML error: " + data);
+
+    return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, pub_date));
 }
