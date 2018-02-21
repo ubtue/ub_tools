@@ -225,11 +225,17 @@ const std::string GetTueFindFlavour() {
 }
 
 
-void InstallSoftwareDependencies(const OSSystemType os_system_type) {
+void InstallSoftwareDependencies(const OSSystemType os_system_type, bool ub_tools_only) {
+    std::string script;
     if (os_system_type == UBUNTU)
-        ExecOrDie(INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh");
+        script = INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh";
     else
-        ExecOrDie(INSTALLER_SCRIPTS_DIRECTORY + "/install_centos_packages.sh");
+        script = INSTALLER_SCRIPTS_DIRECTORY + "/install_centos_packages.sh";
+
+    if (ub_tools_only)
+        ExecOrDie(script);
+    else
+        ExecOrDie(script, { "tuefind" });
 }
 
 
@@ -579,7 +585,7 @@ int main(int argc, char **argv) {
     try {
         // Install dependencies before vufind
         // correct PHP version for composer dependancies
-        InstallSoftwareDependencies(os_system_type);
+        InstallSoftwareDependencies(os_system_type, ub_tools_only);
 
         if (not ub_tools_only) {
             MountDeptDriveOrDie(vufind_system_type);
