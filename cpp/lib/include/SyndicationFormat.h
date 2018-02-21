@@ -120,6 +120,7 @@ public:
 
 
 class RDF final : public SyndicationFormat {
+    std::string rss_namespace_;
 public:
     explicit RDF(const std::string &xml_document);
     virtual ~RDF() final { }
