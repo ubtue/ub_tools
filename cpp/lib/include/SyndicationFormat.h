@@ -35,13 +35,15 @@ public:
     class Item {
         std::string title_;
         std::string description_;
+        std::string link_;
         time_t pub_date_;
     public:
-        Item(const std::string &title, const std::string &description, const time_t pub_date)
-            : title_(title), description_(description), pub_date_(pub_date) { }
+        Item(const std::string &title, const std::string &description, const std::string &link, const time_t pub_date)
+            : title_(title), description_(description), link_(link), pub_date_(pub_date) { }
         inline bool operator==(const Item &rhs) const { return pub_date_ == rhs.pub_date_ and description_ == rhs.description_; }
         const std::string &getTitle() const { return title_; }
         const std::string &getDescription() const { return description_; }
+        const std::string &getLink() const { return link_; }
         time_t getPubDate() const { return pub_date_; }
     };
 
