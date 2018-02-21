@@ -23,6 +23,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 
 // Forward declaration:
@@ -37,14 +38,18 @@ public:
         std::string description_;
         std::string link_;
         time_t pub_date_;
+        std::unordered_map<std::string, std::string> dc_and_prism_data_;
     public:
-        Item(const std::string &title, const std::string &description, const std::string &link, const time_t pub_date)
-            : title_(title), description_(description), link_(link), pub_date_(pub_date) { }
+        Item(const std::string &title, const std::string &description, const std::string &link, const time_t pub_date,
+             const std::unordered_map<std::string, std::string> &dc_and_prism_data = { })
+            : title_(title), description_(description), link_(link), pub_date_(pub_date), dc_and_prism_data_(dc_and_prism_data)
+            { }
         inline bool operator==(const Item &rhs) const { return pub_date_ == rhs.pub_date_ and description_ == rhs.description_; }
-        const std::string &getTitle() const { return title_; }
-        const std::string &getDescription() const { return description_; }
-        const std::string &getLink() const { return link_; }
-        time_t getPubDate() const { return pub_date_; }
+        inline const std::string &getTitle() const { return title_; }
+        inline const std::string &getDescription() const { return description_; }
+        inline const std::string &getLink() const { return link_; }
+        inline time_t getPubDate() const { return pub_date_; }
+        inline const std::unordered_map<std::string, std::string> &getDCAndPrismData() const { return dc_and_prism_data_; }
     };
 
     class const_iterator final {
@@ -122,7 +127,7 @@ public:
 
 
 class RDF final : public SyndicationFormat {
-    std::string rss_namespace_;
+    std::string rss_namespace_, dc_namespace_, prism_namespace_;
 public:
     explicit RDF(const std::string &xml_document);
     virtual ~RDF() final { }
