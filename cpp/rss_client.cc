@@ -68,6 +68,9 @@ void ProcessSyndicationURL(const bool verbose, const std::string &url) {
         const time_t publication_date(item.getPubDate());
         if (publication_date != TimeUtil::BAD_TIME_T)
             std::cout << "\t\tDate: " << TimeUtil::TimeTToString(publication_date) << '\n';
+        const std::unordered_map<std::string, std::string> &dc_and_prism_data(item.getDCAndPrismData());
+        for (const auto &key_and_value : dc_and_prism_data)
+            std::cout << "\t\t" << key_and_value.first << ": " << key_and_value.second << '\n';
     }
 }
 
