@@ -82,14 +82,6 @@ void Echo(const std::string &log_message) {
 }
 
 
-std::string ReadStringOrDie(const std::string &path) {
-    std::string file_contents;
-    if (not FileUtil::ReadString(path, &file_contents))
-        Error("in ReadStringOrDie: failed to read \"" + path + "\"!");
-    return file_contents;
-}
-
-
 enum VuFindSystemType { KRIMDOK, IXTHEO };
 
 
@@ -171,12 +163,6 @@ bool FileContainsLineStartingWith(const std::string &path, const std::string &pr
     }
 
     return false;
-}
-
-
-void WriteStringOrDie(const std::string &path, const std::string &data) {
-    if (not FileUtil::WriteString(path, data))
-        Error("failed to write data to \"" + path + "\"!");
 }
 
 
@@ -274,13 +260,13 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
     ExecUtil::ExecOrDie(ExecUtil::Which("sed"),
               { "-e", "/" + crontab_block_start + "/,/" + crontab_block_end + "/d",
                 crontab_temp_file_old.getFilePath() }, "", crontab_temp_file_custom.getFilePath());
-    const std::string cronjobs_custom = ReadStringOrDie(crontab_temp_file_custom.getFilePath());
+    const std::string cronjobs_custom(FileUtil::ReadStringOrDie(crontab_temp_file_custom.getFilePath()));
 
     std::string cronjobs_generated(crontab_block_start + "\n");
     if (vufind_system_type == KRIMDOK)
-        cronjobs_generated += ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/krimdok.cronjobs");
+        cronjobs_generated += FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/krimdok.cronjobs");
     else
-        cronjobs_generated += MiscUtil::ExpandTemplate(ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/ixtheo.cronjobs"), names_to_values_map);
+        cronjobs_generated += MiscUtil::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/ixtheo.cronjobs"), names_to_values_map);
     cronjobs_generated += crontab_block_end + "\n";
 
     FileUtil::AutoTempFile crontab_temp_file_new;
@@ -411,10 +397,10 @@ static void InstallVuFindServiceTemplate(const VuFindSystemType system_type) {
         ExecUtil::ExecOrDie(ExecUtil::Which("mkdir"), { "-p", SYSTEMD_SERVICE_DIRECTORY });
         std::map<std::string, std::vector<std::string>> names_to_values_map
             { { "solr_heap", { (system_type == KRIMDOK ? "4G" : "8G") } } };
-        const std::string vufind_service(MiscUtil::ExpandTemplate(ReadStringOrDie(INSTALLER_DATA_DIRECTORY
-                                                                                 + "/vufind.service.template"),
+        const std::string vufind_service(MiscUtil::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+                                                                                            + "/vufind.service.template"),
                                                                  names_to_values_map));
-        WriteStringOrDie(SYSTEMD_SERVICE_DIRECTORY + "/vufind.service", vufind_service);
+        FileUtil::WriteStringOrDie(SYSTEMD_SERVICE_DIRECTORY + "/vufind.service", vufind_service);
 }
 
 
