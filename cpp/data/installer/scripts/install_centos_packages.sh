@@ -9,6 +9,11 @@ function ColorEcho {
     echo -e "\033[1;34m" $1 "\033[0m"
 }
 
+if [[ $1 != "" && $1 != "tuefind" ]]; then
+    ColorEcho "invalid system_type \"$1\"!"
+    exit 1
+fi
+
 #--------------------------------- UB_TOOLS ---------------------------------#
 ColorEcho "installing/updating ub_tools dependencies..."
 
