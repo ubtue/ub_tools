@@ -65,6 +65,9 @@ int Exec(const std::string &command, const std::vector<std::string> &args = {}, 
          const std::string &new_stdout = "", const std::string &new_stderr = "",
          const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
 
+void ExecOrDie(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
+               const std::string &new_stdout = "", const std::string &new_stderr = "",
+               const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
 
 /** \brief  Kicks off a subcommand and returns.
  *  \param  command             The path to the command that should be executed.
