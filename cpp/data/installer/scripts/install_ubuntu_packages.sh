@@ -1,16 +1,21 @@
 #!/bin/bash
-if [[ $# -gt 1 ]]; then
+if [[ $# > 1 ]]; then
     echo "usage: $0 [system_type]"
     echo "          tuefind: Also install PHP/Apache/MySQL + JDK"
     exit 1
 fi
 
-function colorecho {
+function ColorEcho {
     echo -e "\033[1;34m" $1 "\033[0m"
 }
 
+if [[ $1 != "" && $1 != "tuefind" ]]; then
+    ColorEcho "invalid system_type \"$1\"!"
+    exit 1
+fi
+
 #--------------------------------- UB_TOOLS ---------------------------------#
-colorecho "installing/updating ub_tools dependencies..."
+ColorEcho "installing/updating ub_tools dependencies..."
 
 apt-get --yes update
 
@@ -31,7 +36,7 @@ apt-get --quiet --yes --allow-unauthenticated install \
 
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "tuefind" ]]; then
-    colorecho "installing/updating tuefind dependencies..."
+    ColorEcho "installing/updating tuefind dependencies..."
 
     # set frontend to noninteractive (so mysql-server wont ask for root pw, timezone, and so on)
     DEBIAN_FRONTEND_OLD=($DEBIAN_FRONTEND)
@@ -55,4 +60,4 @@ if [[ $1 == "tuefind" ]]; then
     /etc/init.d/apache2 restart
 fi
 
-colorecho "finished installing/updating dependencies"
+ColorEcho "finished installing/updating dependencies"
