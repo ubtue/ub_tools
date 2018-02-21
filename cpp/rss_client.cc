@@ -62,7 +62,12 @@ void ProcessSyndicationURL(const bool verbose, const std::string &url) {
         const std::string description(item.getDescription());
         if (not description.empty())
             std::cout << "\t\tDescription: " << description << '\n';
-        std::cout << "\t\tDate: " << TimeUtil::TimeTToString(item.getPubDate()) << '\n';
+        const std::string link(item.getLink());
+        if (not link.empty())
+            std::cout << "\t\tLink: " << link << '\n';
+        const time_t publication_date(item.getPubDate());
+        if (publication_date != TimeUtil::BAD_TIME_T)
+            std::cout << "\t\tDate: " << TimeUtil::TimeTToString(publication_date) << '\n';
     }
 }
 
