@@ -19,6 +19,7 @@
 
 #include "SyndicationFormat.h"
 #include <regex>
+#include <set>
 #include <stdexcept>
 #include "Compiler.h"
 #include "SimpleXmlParser.h"
@@ -56,7 +57,7 @@ SyndicationFormat::~SyndicationFormat() {
 namespace {
 
 
-    enum SyndicationFormatType { TYPE_UNKNOWN, TYPE_RSS20, TYPE_RSS091, TYPE_ATOM, TYPE_RDF };
+enum SyndicationFormatType { TYPE_UNKNOWN, TYPE_RSS20, TYPE_RSS091, TYPE_ATOM, TYPE_RDF };
 
 
 static const std::regex RSS20_REGEX("<rss[^>]+version=\"2.0\"");
@@ -258,24 +259,48 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
 }
 
 
-RDF::RDF(const std::string &xml_document): SyndicationFormat(xml_document) {
+// Helper for RDF::RDF.
+static std::string ExtractRSSNamespace(SimpleXmlParser<StringDataSource> * const parser) {
+    std::map<std::string, std::string> attrib_map;
+    if (not parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "rdf:RDF", &attrib_map))
+        throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): missing rdf:RDF opening tag!");
+
+    for (const auto &key_and_value : attrib_map) {
+        if (key_and_value.second == "http://purl.org/rss/1.0/") {
+            if (not StringUtil::StartsWith(key_and_value.first, "xmlns"))
+                throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): unexpected attribute key: \""
+                                         + key_and_value.first + "\"! (1)");
+            if (key_and_value.first == "xmlns")
+                return "";
+            if (key_and_value.first[__builtin_strlen("xmlns")] != ':')
+                throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): unexpected attribute key: \""
+                                         + key_and_value.first + "\"! (2)");
+            return key_and_value.first.substr(__builtin_strlen("xmlns") + 1) + ":";
+        }
+    }
+
+    return "";
+}
+
+
+RDF::RDF(const std::string &xml_document): SyndicationFormat(xml_document), rss_namespace_(ExtractRSSNamespace(xml_parser_)) {
     SimpleXmlParser<StringDataSource>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
     while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:item")
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "item")
             return;
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:image") {
-            if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, "rss:image")))
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "image") {
+            if (unlikely(not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, rss_namespace_ + "image")))
                 throw std::runtime_error("in RSS20::RSS20: closing image tag not found!");
         }
 
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:title")
-            title_ = ExtractText(xml_parser_, "rss:title");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:link")
-            link_ = ExtractText(xml_parser_, "rss:link");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:description")
-            description_ = ExtractText(xml_parser_, "rss:description");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "title")
+            title_ = ExtractText(xml_parser_, rss_namespace_ + "title");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "link")
+            link_ = ExtractText(xml_parser_, rss_namespace_ + "link");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "description")
+            description_ = ExtractText(xml_parser_, rss_namespace_ + "description");
     }
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
         throw std::runtime_error("in RSS20::RSS20: found XML error: " + data);
@@ -290,16 +315,16 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
     std::map<std::string, std::string> attrib_map;
     std::string data;
     while (xml_parser_->getNext(&type, &attrib_map, &data)) {
-        if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == "rss:item")
+        if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == rss_namespace_ + "item")
             return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, pub_date));
         if (type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT)
             return nullptr;
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:title")
-            title = ExtractText(xml_parser_, "rss:title");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:description")
-            description = ExtractText(xml_parser_, "rss:description");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == "rss:pubDate") {
-            const std::string pub_date_string(ExtractText(xml_parser_, "rss:pubDate"));
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "title")
+            title = ExtractText(xml_parser_, rss_namespace_ + "title");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "description")
+            description = ExtractText(xml_parser_, rss_namespace_ + "description");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "pubDate") {
+            const std::string pub_date_string(ExtractText(xml_parser_, rss_namespace_ + "pubDate"));
             if (unlikely(not TimeUtil::ParseRFC1123DateTime(pub_date_string, &pub_date)))
                 WARNING("couldn't parse \"" + pub_date_string + "\"!");
         }
