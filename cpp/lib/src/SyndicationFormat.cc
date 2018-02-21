@@ -274,31 +274,51 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
 }
 
 
+static std::string ExtractNamespacePrefix(const std::string &xmlns_string) {
+    if (not StringUtil::StartsWith(xmlns_string, "xmlns"))
+        throw std::runtime_error("in ExtractNamespacePrefix(SyndicationFormat.cc): unexpected attribute key: \""
+                                 + xmlns_string + "\"! (1)");
+    if (xmlns_string == "xmlns")
+        return "";
+    if (xmlns_string[__builtin_strlen("xmlns")] != ':')
+        throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): unexpected attribute key: \""
+                                 + xmlns_string + "\"! (2)");
+    return xmlns_string.substr(__builtin_strlen("xmlns") + 1) + ":";
+}
+
+
 // Helper for RDF::RDF.
-static std::string ExtractRSSNamespace(SimpleXmlParser<StringDataSource> * const parser) {
+static void ExtractNamespaces(SimpleXmlParser<StringDataSource> * const parser,
+                              std::map<std::string, std::string> * const namespace_to_namespace_prefix_map)
+{
     std::map<std::string, std::string> attrib_map;
     if (not parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "rdf:RDF", &attrib_map))
         throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): missing rdf:RDF opening tag!");
 
     for (const auto &key_and_value : attrib_map) {
-        if (key_and_value.second == "http://purl.org/rss/1.0/") {
-            if (not StringUtil::StartsWith(key_and_value.first, "xmlns"))
-                throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): unexpected attribute key: \""
-                                         + key_and_value.first + "\"! (1)");
-            if (key_and_value.first == "xmlns")
-                return "";
-            if (key_and_value.first[__builtin_strlen("xmlns")] != ':')
-                throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): unexpected attribute key: \""
-                                         + key_and_value.first + "\"! (2)");
-            return key_and_value.first.substr(__builtin_strlen("xmlns") + 1) + ":";
-        }
+        if (key_and_value.second == "http://purl.org/rss/1.0/")
+            (*namespace_to_namespace_prefix_map)["rss"] = ExtractNamespacePrefix(key_and_value.first);
+        else if (key_and_value.second == "http://purl.org/dc/elements/1.1/")
+            (*namespace_to_namespace_prefix_map)["dc"] = ExtractNamespacePrefix(key_and_value.first);
+        else if (key_and_value.second == "http://prismstandard.org/namespaces/2.0/basic/")
+            (*namespace_to_namespace_prefix_map)["prism"] = ExtractNamespacePrefix(key_and_value.first);
     }
-
-    return "";
 }
 
 
-RDF::RDF(const std::string &xml_document): SyndicationFormat(xml_document), rss_namespace_(ExtractRSSNamespace(xml_parser_)) {
+RDF::RDF(const std::string &xml_document): SyndicationFormat(xml_document) {
+    std::map<std::string, std::string> namespace_to_namespace_prefix_map;
+    ExtractNamespaces(xml_parser_, &namespace_to_namespace_prefix_map);
+    const auto rss_namespace(namespace_to_namespace_prefix_map.find("rss"));
+    if (rss_namespace != namespace_to_namespace_prefix_map.end())
+        rss_namespace_ = rss_namespace->second;
+    const auto dc_namespace(namespace_to_namespace_prefix_map.find("dc"));
+    if (dc_namespace != namespace_to_namespace_prefix_map.end())
+        dc_namespace_ = dc_namespace->second;
+    const auto prism_namespace(namespace_to_namespace_prefix_map.find("prism"));
+    if (prism_namespace != namespace_to_namespace_prefix_map.end())
+        prism_namespace_ = prism_namespace->second;
+
     SimpleXmlParser<StringDataSource>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
@@ -324,31 +344,70 @@ RDF::RDF(const std::string &xml_document): SyndicationFormat(xml_document), rss_
 }
 
 
+static const std::unordered_set<std::string> PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS{
+    "hasAlternative",
+    "hasCorrection",
+    "hasFormat",
+    "hasPart",
+    "hasPreviousVersion",
+    "hasTranslation",
+    "industry",
+    "isCorrectionOf",
+    "isFormatOf",
+    "isPartOf",
+    "isReferencedBy",
+    "isRequiredBy"
+};
+
+
 std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
     std::string title, description, link;
     time_t pub_date(TimeUtil::BAD_TIME_T);
+    std::unordered_map<std::string, std::string> dc_and_prism_data;
     SimpleXmlParser<StringDataSource>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
     while (xml_parser_->getNext(&type, &attrib_map, &data)) {
         if (type == SimpleXmlParser<StringDataSource>::CLOSING_TAG and data == rss_namespace_ + "item")
-            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, pub_date));
+            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, pub_date, dc_and_prism_data));
         if (type == SimpleXmlParser<StringDataSource>::END_OF_DOCUMENT)
             return nullptr;
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "title")
-            title = ExtractText(xml_parser_, rss_namespace_ + "title");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "description")
-            description = ExtractText(xml_parser_, rss_namespace_ + "description");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "link")
-            link = ExtractText(xml_parser_, rss_namespace_ + "link");
-        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG and data == rss_namespace_ + "pubDate") {
-            const std::string pub_date_string(ExtractText(xml_parser_, rss_namespace_ + "pubDate"));
-            if (unlikely(not TimeUtil::ParseRFC1123DateTime(pub_date_string, &pub_date)))
-                WARNING("couldn't parse \"" + pub_date_string + "\"!");
+        if (type == SimpleXmlParser<StringDataSource>::OPENING_TAG) {
+            if (data == rss_namespace_ + "title")
+                title = ExtractText(xml_parser_, rss_namespace_ + "title");
+            else if (data == rss_namespace_ + "description")
+                description = ExtractText(xml_parser_, rss_namespace_ + "description");
+            else if (data == rss_namespace_ + "link")
+                link = ExtractText(xml_parser_, rss_namespace_ + "link");
+            else if (data == rss_namespace_ + "pubDate") {
+                const std::string pub_date_string(ExtractText(xml_parser_, rss_namespace_ + "pubDate"));
+                if (unlikely(not TimeUtil::ParseRFC1123DateTime(pub_date_string, &pub_date)))
+                    WARNING("couldn't parse \"" + pub_date_string + "\"!");
+            } else if (not dc_namespace_.empty() and StringUtil::StartsWith(data, dc_namespace_)) {
+                const std::string tag(data);
+                dc_and_prism_data[tag] = ExtractText(xml_parser_, tag);
+            } else if (not prism_namespace_.empty() and StringUtil::StartsWith(data, prism_namespace_)) {
+                const std::string tag(data);
+                if (attrib_map.size() != 1)
+                    dc_and_prism_data[tag] = ExtractText(xml_parser_, tag);
+                else {
+                    const auto subtag(PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS.find(tag.substr(prism_namespace_.length())));
+                    if (subtag != PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS.end()) {
+                        const auto key_and_value(attrib_map.find("rdf:resource"));
+                        if (likely(key_and_value != attrib_map.end())) {
+                            dc_and_prism_data[tag] = key_and_value->second;
+                            if (not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, tag))
+                                throw std::runtime_error("in RDF::getNextItem: missing closing \"" + tag + "\" tag!");
+                        } else
+                            WARNING("don't know what to do w/ \"" + tag + "\" attribute!");
+                    } else
+                        WARNING("don't know what to do w/ PRISM \"" + tag + "\"!");
+                }
+            }
         }
     }
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
-        throw std::runtime_error("in RSS20::getNextItem: found XML error: " + data);
+        throw std::runtime_error("in RDF::getNextItem: found XML error: " + data);
 
-    return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, pub_date));
+    return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, pub_date, dc_and_prism_data));
 }
