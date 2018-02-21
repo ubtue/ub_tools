@@ -119,4 +119,15 @@ public:
 };
 
 
+class RDF final : public SyndicationFormat {
+public:
+    explicit RDF(const std::string &xml_document);
+    virtual ~RDF() final { }
+
+    virtual std::string getFormatName() const override { return "RDF"; }
+protected:    
+    virtual std::unique_ptr<Item> getNextItem() override;
+};
+
+
 #endif // ifndef SYNDICATION_FORMAT_H
