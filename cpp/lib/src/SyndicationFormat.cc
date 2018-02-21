@@ -19,7 +19,6 @@
 
 #include "SyndicationFormat.h"
 #include <regex>
-#include <iostream>//XXX
 #include <set>
 #include <stdexcept>
 #include "Compiler.h"
