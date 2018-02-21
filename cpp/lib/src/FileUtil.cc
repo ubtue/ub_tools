@@ -214,6 +214,12 @@ bool WriteString(const std::string &path, const std::string &data) {
 }
 
 
+void WriteStringOrDie(const std::string &path, const std::string &data) {
+    if (not FileUtil::WriteString(path, data))
+        ERROR("failed to write data to \"" + path + "\"!");
+}
+
+
 bool ReadString(const std::string &path, std::string * const data) {
     std::ifstream input(path, std::ios_base::in | std::ios_base::binary);
     if (input.fail())
@@ -223,7 +229,20 @@ bool ReadString(const std::string &path, std::string * const data) {
     data->resize(file_size);
     input.read(const_cast<char *>(data->data()), file_size);
     return not input.bad();
+}
 
+
+void ReadStringOrDie(const std::string &path, std::string * const data) {
+    if (not FileUtil::ReadString(path, data))
+        ERROR("failed to read \"" + path + "\"!");
+}
+
+
+std::string ReadStringOrDie(const std::string &path) {
+    std::string data;
+    if (not FileUtil::ReadString(path, &data))
+        ERROR("failed to read \"" + path + "\"!");
+    return data;
 }
 
 
