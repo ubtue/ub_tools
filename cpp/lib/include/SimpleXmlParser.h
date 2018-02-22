@@ -22,6 +22,7 @@
 
 
 #include <algorithm>
+#include <deque>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -41,8 +42,7 @@ public:
     enum Type { UNINITIALISED, START_OF_DOCUMENT, END_OF_DOCUMENT, ERROR, OPENING_TAG, CLOSING_TAG, CHARACTERS };
 private:
     DataSource * const input_;
-    unsigned pushed_back_count_;
-    int pushed_back_chars_[2];
+    std::deque<int> pushed_back_chars_;
     unsigned line_no_;
     Type last_type_;
     std::string last_error_message_;
@@ -50,6 +50,7 @@ private:
     std::string last_tag_name_;
     std::string *data_collector_;
     TextUtil::UTF8ToUTF32Decoder utf8_to_utf32_decoder_;
+    static const std::deque<int> CDATA_DEQUE;
 public:
     SimpleXmlParser(DataSource * const input);
 
@@ -89,7 +90,7 @@ public:
     static std::string TypeToString(const Type type);
 private:
     int getUnicodeCodePoint();
-    int get();
+    int get(bool * const cdata_mode = nullptr);
     int peek();
     void unget(const int ch);
     bool extractAttribute(std::string * const name, std::string * const value, std::string * const error_message);
@@ -103,9 +104,12 @@ private:
 };
 
 
+template<typename DataSource> const std::deque<int> SimpleXmlParser<DataSource>::CDATA_DEQUE{
+    '<', '!', 'C', 'D', 'A', 'T', 'A', '[', '[' };
+
+
 template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input)
-    : input_(input), pushed_back_count_(0), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false),
-      data_collector_(nullptr)
+    : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr)
 {
     parseOptionalPrologue();
 }
@@ -126,43 +130,48 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
 }
 
 
-template<typename DataSource> int SimpleXmlParser<DataSource>::get() {
-    if (unlikely(pushed_back_count_ > 0)) {
-        const int pushed_back_char(pushed_back_chars_[0]);
-        --pushed_back_count_;
-        for (unsigned i(0); i < pushed_back_count_; ++i)
-            pushed_back_chars_[i] = pushed_back_chars_[i + 1];
+template<typename DataSource> int SimpleXmlParser<DataSource>::get(bool * const cdata_mode) {
+    if (cdata_mode != nullptr) {
+        // Look for a cached EOF:
+        if (std::find(pushed_back_chars_.cbegin(), pushed_back_chars_.cend(), EOF) != pushed_back_chars_.cend())
+            *cdata_mode = false;
+        else {
+            while (pushed_back_chars_.size() < __builtin_strlen("<![CDATA[")) {
+                const int ch(getUnicodeCodePoint());
+                pushed_back_chars_.push_back(ch);
+                if (unlikely(ch == EOF))
+                    goto pop_char;
+            }
+
+            *cdata_mode = pushed_back_chars_ == CDATA_DEQUE;
+        }
+    } else if (pushed_back_chars_.empty())
+        pushed_back_chars_.push_back(getUnicodeCodePoint());
+
+pop_char:
+    const int ch(pushed_back_chars_.front());
+    if (unlikely(ch != EOF)) {
         if (data_collector_ != nullptr)
-            *data_collector_ += TextUtil::UTF32ToUTF8(pushed_back_char);
-        return pushed_back_char;
+            *data_collector_ += TextUtil::UTF32ToUTF8(ch);
+        pushed_back_chars_.pop_front();
     }
 
-    const int ch(getUnicodeCodePoint());
-    if (likely(ch != EOF) and data_collector_ != nullptr)
-        *data_collector_ += TextUtil::UTF32ToUTF8(ch );
     return ch;
 }
 
 
 template<typename DataSource> int SimpleXmlParser<DataSource>::peek() {
-    if (unlikely(pushed_back_count_ > 0))
-        return pushed_back_chars_[0];
-    const int ch(get());
-    if (likely(ch != EOF))
-        unget(ch);
-    return ch;
+    if (pushed_back_chars_.empty())
+        pushed_back_chars_.push_back(getUnicodeCodePoint());
+    return pushed_back_chars_.front();
 }
 
 
 template<typename DataSource> void SimpleXmlParser<DataSource>::unget(const int ch) {
-    if (unlikely(pushed_back_count_ == ARRAY_SIZE(pushed_back_chars_)))
+    if (unlikely(pushed_back_chars_.size() == __builtin_strlen("<![CDATA[")))
         throw std::runtime_error("in SimpleXmlParser::unget: can't push back more than "
-                                 + std::to_string(ARRAY_SIZE(pushed_back_chars_)) + " characters in a row!");
-    for (unsigned i(pushed_back_count_); i > 0; --i)
-        pushed_back_chars_[i] = pushed_back_chars_[i - i];
-    pushed_back_chars_[0] = ch;
-    ++pushed_back_count_;
-
+                                 + std::to_string(__builtin_strlen("<![CDATA[")) + " characters in a row!");
+    pushed_back_chars_.push_back(ch);
     if (data_collector_ != nullptr) {
         if (unlikely(not TextUtil::TrimLastCharFromUTF8Sequence(data_collector_)))
             throw std::runtime_error("in SimpleXmlParser<DataSource>::unget: \"" + *data_collector_
@@ -486,7 +495,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::rewind() {
     last_type_              = UNINITIALISED;
     last_element_was_empty_ = false;
     data_collector_         = nullptr;
-    pushed_back_count_      = 0;
+    pushed_back_chars_.clear();
 
     parseOptionalPrologue();
 }
