@@ -489,10 +489,9 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
 //
 bool IsDirectory(const std::string &dir_name) {
     struct stat statbuf;
-    if (::stat(dir_name.c_str(), &statbuf) != 0) {
-        errno = 0;
+    errno = 0;
+    if (::stat(dir_name.c_str(), &statbuf) != 0)
         return false;
-    }
 
     return S_ISDIR(statbuf.st_mode);
 }
