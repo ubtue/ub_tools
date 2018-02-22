@@ -719,6 +719,9 @@ bool UTF32CharIsAsciiDigit(const uint32_t ch) {
 }
 
 
+const uint32_t REPLACEMENT_CHARACTER(0xFFFDu);
+
+
 bool UTF8ToUTF32Decoder::addByte(const char ch) {
     if (required_count_ == -1) {
         if ((static_cast<unsigned char>(ch) & 0b10000000) == 0b00000000) {
@@ -733,6 +736,9 @@ bool UTF8ToUTF32Decoder::addByte(const char ch) {
         } else if ((static_cast<unsigned char>(ch) & 0b11111000) == 0b11110000) {
             utf32_char_ = static_cast<unsigned char>(ch) & 0b111;
             required_count_ = 3;
+        } else if (permissive_) {
+            utf32_char_ = REPLACEMENT_CHARACTER;
+            required_count_ = 0;
         } else
             #ifndef __clang__
             #    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
