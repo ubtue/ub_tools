@@ -288,8 +288,8 @@ static std::string ExtractNamespacePrefix(const std::string &xmlns_string) {
 
 
 // Helper for RDF::RDF.
-static void ExtractNamespaces(SimpleXmlParser<StringDataSource> * const parser,
-                              std::map<std::string, std::string> * const namespace_to_namespace_prefix_map)
+static void ExtractNamespaces(SimpleXmlParser<StringDataSource> * const parser, std::string * const rss_namespace,
+                              std::string * const dc_namespace, std::string * const prism_namespace)
 {
     std::map<std::string, std::string> attrib_map;
     if (not parser->skipTo(SimpleXmlParser<StringDataSource>::OPENING_TAG, "rdf:RDF", &attrib_map))
@@ -297,27 +297,17 @@ static void ExtractNamespaces(SimpleXmlParser<StringDataSource> * const parser,
 
     for (const auto &key_and_value : attrib_map) {
         if (key_and_value.second == "http://purl.org/rss/1.0/")
-            (*namespace_to_namespace_prefix_map)["rss"] = ExtractNamespacePrefix(key_and_value.first);
+            *rss_namespace = ExtractNamespacePrefix(key_and_value.first);
         else if (key_and_value.second == "http://purl.org/dc/elements/1.1/")
-            (*namespace_to_namespace_prefix_map)["dc"] = ExtractNamespacePrefix(key_and_value.first);
+            *dc_namespace = ExtractNamespacePrefix(key_and_value.first);
         else if (key_and_value.second == "http://prismstandard.org/namespaces/2.0/basic/")
-            (*namespace_to_namespace_prefix_map)["prism"] = ExtractNamespacePrefix(key_and_value.first);
+            *prism_namespace = ExtractNamespacePrefix(key_and_value.first);
     }
 }
 
 
 RDF::RDF(const std::string &xml_document): SyndicationFormat(xml_document) {
-    std::map<std::string, std::string> namespace_to_namespace_prefix_map;
-    ExtractNamespaces(xml_parser_, &namespace_to_namespace_prefix_map);
-    const auto rss_namespace(namespace_to_namespace_prefix_map.find("rss"));
-    if (rss_namespace != namespace_to_namespace_prefix_map.end())
-        rss_namespace_ = rss_namespace->second;
-    const auto dc_namespace(namespace_to_namespace_prefix_map.find("dc"));
-    if (dc_namespace != namespace_to_namespace_prefix_map.end())
-        dc_namespace_ = dc_namespace->second;
-    const auto prism_namespace(namespace_to_namespace_prefix_map.find("prism"));
-    if (prism_namespace != namespace_to_namespace_prefix_map.end())
-        prism_namespace_ = prism_namespace->second;
+    ExtractNamespaces(xml_parser_, &rss_namespace_, &dc_namespace_, &prism_namespace_);
 
     SimpleXmlParser<StringDataSource>::Type type;
     std::map<std::string, std::string> attrib_map;
@@ -344,6 +334,8 @@ RDF::RDF(const std::string &xml_document): SyndicationFormat(xml_document) {
 }
 
 
+// The following, hopefully exhaustive list of XML tag names lists all tags that are part of the PRISM standard that have no
+// character data but instead a single attribute named "rdf:resource".
 static const std::unordered_set<std::string> PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS{
     "hasAlternative",
     "hasCorrection",
@@ -358,6 +350,29 @@ static const std::unordered_set<std::string> PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIB
     "isReferencedBy",
     "isRequiredBy"
 };
+
+
+void ExtractPrismData(SimpleXmlParser<StringDataSource> * const xml_parser, const std::string &tag,
+                      const std::map<std::string, std::string> &attrib_map, const std::string &prism_namespace,
+                      std::unordered_map<std::string, std::string> * const dc_and_prism_data)
+{
+    const std::string tag_suffix(tag.substr(prism_namespace.length()));
+    if (attrib_map.size() != 1)
+        (*dc_and_prism_data)["prism:" + tag_suffix] = ExtractText(xml_parser, tag);
+    else {
+        const auto subtag(PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS.find(tag_suffix));
+        if (subtag != PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS.end()) {
+            const auto key_and_value(attrib_map.find("rdf:resource"));
+            if (likely(key_and_value != attrib_map.end()))
+                (*dc_and_prism_data)["prism:" + tag_suffix] = key_and_value->second;
+            else
+                WARNING("don't know what to do w/ \"" + tag + "\" tag attribute!");
+        } else
+            WARNING("don't know what to do w/ PRISM \"" + tag + "\" tag!");
+        if (not xml_parser->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, tag))
+            throw std::runtime_error("in RDF::getNextItem: missing closing \"" + tag + "\" tag!");
+    }
+}
 
 
 std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
@@ -387,25 +402,8 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
                 const std::string tag(data);
                 const std::string tag_suffix(tag.substr(dc_namespace_.length()));
                 dc_and_prism_data["dc:" + tag_suffix] = ExtractText(xml_parser_, tag);
-            } else if (not prism_namespace_.empty() and StringUtil::StartsWith(data, prism_namespace_)) {
-                const std::string tag(data);
-                const std::string tag_suffix(tag.substr(prism_namespace_.length()));
-                if (attrib_map.size() != 1)
-                    dc_and_prism_data["prism:" + tag_suffix] = ExtractText(xml_parser_, tag);
-                else {
-                    const auto subtag(PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS.find(tag_suffix));
-                    if (subtag != PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS.end()) {
-                        const auto key_and_value(attrib_map.find("rdf:resource"));
-                        if (likely(key_and_value != attrib_map.end())) {
-                            dc_and_prism_data["prism:" + tag_suffix] = key_and_value->second;
-                            if (not xml_parser_->skipTo(SimpleXmlParser<StringDataSource>::CLOSING_TAG, tag))
-                                throw std::runtime_error("in RDF::getNextItem: missing closing \"" + tag + "\" tag!");
-                        } else
-                            WARNING("don't know what to do w/ \"" + tag + "\" attribute!");
-                    } else
-                        WARNING("don't know what to do w/ PRISM \"" + tag + "\"!");
-                }
-            }
+            } else if (not prism_namespace_.empty() and StringUtil::StartsWith(data, prism_namespace_))
+                ExtractPrismData(xml_parser_, data, attrib_map, prism_namespace_, &dc_and_prism_data);
         }
     }
     if (unlikely(type == SimpleXmlParser<StringDataSource>::ERROR))
