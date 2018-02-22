@@ -41,6 +41,9 @@
 namespace TextUtil {
 
 
+constexpr uint32_t REPLACEMENT_CHARACTER(0xFFFDu);
+
+
 /** \brief Converter between many text encodings.
  */
 class EncodingConverter {
