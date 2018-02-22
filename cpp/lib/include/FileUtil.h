@@ -154,7 +154,10 @@ public:
 
 
 bool WriteString(const std::string &path, const std::string &data);
+void WriteStringOrDie(const std::string &path, const std::string &data);
 bool ReadString(const std::string &path, std::string * const data);
+void ReadStringOrDie(const std::string &path, std::string * const data);
+std::string ReadStringOrDie(const std::string &path);
 
 
 /** \brief Append "data" to "path".  If "path" does not exist, it will be created. */
