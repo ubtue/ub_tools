@@ -719,9 +719,6 @@ bool UTF32CharIsAsciiDigit(const uint32_t ch) {
 }
 
 
-const uint32_t REPLACEMENT_CHARACTER(0xFFFDu);
-
-
 bool UTF8ToUTF32Decoder::addByte(const char ch) {
     if (required_count_ == -1) {
         if ((static_cast<unsigned char>(ch) & 0b10000000) == 0b00000000) {
