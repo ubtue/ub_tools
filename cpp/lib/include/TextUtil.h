@@ -41,6 +41,9 @@
 namespace TextUtil {
 
 
+constexpr uint32_t REPLACEMENT_CHARACTER(0xFFFDu);
+
+
 /** \brief Converter between many text encodings.
  */
 class EncodingConverter {
@@ -253,6 +256,7 @@ bool UTF32CharIsAsciiDigit(const uint32_t ch);
 class UTF8ToUTF32Decoder {
     int required_count_;
     uint32_t utf32_char_;
+    bool permissive_;
 public:
     enum State {
         NO_CHARACTER_PENDING, //< getUTF32Char() should not be called.
@@ -260,7 +264,10 @@ public:
         CHARACTER_INCOMPLETE  //< addByte() must be called at least one more time to complete a character.
     };
 public:
-    UTF8ToUTF32Decoder(): required_count_(-1) { }
+    /** \param permissive  If false, we throw a std::runtime_error on encoding errors, if true we return Unicode replacement
+     *                     characters.
+     */
+    UTF8ToUTF32Decoder(const bool permissive = true): required_count_(-1), permissive_(permissive) { }
 
     /** Feed bytes into this until it returns false.  Then call getCodePoint() to get the translated UTF32 code
      *  point.  Then you can call this function again.
