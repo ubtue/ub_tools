@@ -650,8 +650,12 @@ std::string CalcChecksum(const Record &record, const bool exclude_001 = false);
 
 bool IsRepeatableField(const Tag &tag);
 
+
 // Takes local UB Tübingen criteria into account.
 bool UBTueIsElectronicResource(const Record &marc_record);
+
+
+bool IsOpenAccess(const Record &marc_record);
 
 
 } // namespace MARC
