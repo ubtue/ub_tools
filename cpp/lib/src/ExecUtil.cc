@@ -226,6 +226,16 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
 }
 
 
+void ExecOrDie(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
+               const std::string &new_stdout, const std::string &new_stderr, const unsigned timeout_in_seconds,
+               const int tardy_child_signal)
+{
+    int exit_code;
+    if ((exit_code = Exec(command, args, new_stdin, new_stdout, new_stderr, timeout_in_seconds, tardy_child_signal)) != 0)
+        ERROR("Failed to execute \"" + command + "\"! (exit code was " + std::to_string(exit_code) + ")");
+}
+
+
 int Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
           const std::string &new_stdout , const std::string &new_stderr)
 {

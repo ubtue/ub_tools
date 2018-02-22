@@ -7,12 +7,12 @@ RESOURCES=resources
 BIN=bin
 SRC=src
 PACKAGE_DIRECTORY=de/unituebingen/ub/ubtools/solrmarcMixin
-LIB_DIRECTORY=lib/*:/usr/local/vufind/solr/lib/*:/usr/local/vufind/solr/jetty/lib/ext/*:/usr/local/vufind/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/WEB-INF/lib/*:/usr/local/vufind/import/index_java/bin
+LIB_DIRECTORY=lib/*:/usr/local/vufind/solr/lib/*:/usr/local/vufind/solr/jetty/lib/ext/*:/usr/local/vufind/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/WEB-INF/lib/*:/usr/local/vufind/import/lib/*:/usr/local/vufind/import/lib_local/*
 JAVA_VERSION=1.8
 
 # Compiler
 JAVAC=javac
-JAVAFLAGS=-g -Xlint:unchecked -Xlint:deprecation -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC) \
+JAVAFLAGS=-g -Xlint:unchecked -Xlint:deprecation -d $(BIN) -classpath $(BIN):$(LIB_DIRECTORY) -sourcepath $(SRC):/usr/local/vufind/import/index_java/src \
           -source $(JAVA_VERSION) -target $(JAVA_VERSION)
 COMPILE = $(JAVAC) $(JAVAFLAGS)
 

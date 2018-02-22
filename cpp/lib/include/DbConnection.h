@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -60,22 +60,7 @@ public:
      */
     unsigned getNoOfAffectedRows() const { return ::mysql_affected_rows(&mysql_); }
 
-    /* unfortunately the following functions cannot be implemented via template */
-    bool getOptionAsBool(enum mysql_option option);
-    std::string getOptionAsString(enum mysql_option option);
-    unsigned int getOptionAsUnsignedInt(enum mysql_option option);
-    unsigned long getOptionAsUnsignedLong(enum mysql_option option);
-private:
-    template<typename OptionType> void setOption(const enum mysql_option option, const OptionType * const value) {
-        if (::mysql_options(&mysql_, option, reinterpret_cast<const void *>(value)) != 0)
-            ERROR("mysql_option could not be set!");
-    }
-
 public:
-    void setOption(const enum mysql_option option, const bool value) { setOption<bool>(option, &value); }
-    void setOption(const enum mysql_option option, const std::string &value) { setOption<char>(option, value.c_str()); }
-    void setOption(const enum mysql_option option, const unsigned int value) { setOption<unsigned int>(option, &value); }
-    void setOption(const enum mysql_option option, const unsigned long value) { setOption<unsigned long>(option, &value); }
 
     /** Converts the binary contents of "unescaped_string" into a form that can used as a string (you still
         need to add quotes around it) in SQL statements. */

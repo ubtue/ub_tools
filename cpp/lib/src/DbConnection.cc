@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -89,44 +89,6 @@ std::string DbConnection::escapeString(const std::string &unescaped_string) {
     const std::string escaped_string(buffer, escaped_length);
     std::free(buffer);
     return escaped_string;
-}
-
-
-bool DbConnection::getOptionAsBool(enum mysql_option option) {
-    bool value;
-    if (::mysql_get_option(&mysql_, option, &value) != 0)
-        ERROR("cannot get mysql option");
-#pragma GCC diagnostic ignored "-Wuninitialized"
-    return value;
-#pragma GCC diagnostic warning "-Wuninitialized"
-}
-
-
-std::string DbConnection::getOptionAsString(enum mysql_option option) {
-    std::string value;
-    if (::mysql_get_option(&mysql_, option, &value) != 0)
-        ERROR("cannot get mysql option");
-    return value;
-}
-
-
-unsigned int DbConnection::getOptionAsUnsignedInt(enum mysql_option option) {
-    unsigned int value;
-    if (::mysql_get_option(&mysql_, option, &value) != 0)
-        ERROR("cannot get mysql option");
-#pragma GCC diagnostic ignored "-Wuninitialized"
-    return value;
-#pragma GCC diagnostic warning "-Wuninitialized"
-}
-
-
-unsigned long DbConnection::getOptionAsUnsignedLong(enum mysql_option option) {
-    unsigned long value;
-    if (::mysql_get_option(&mysql_, option, &value) != 0)
-        ERROR("cannot get mysql option");
-#pragma GCC diagnostic ignored "-Wuninitialized"
-    return value;
-#pragma GCC diagnostic warning "-Wuninitialized"
 }
 
 
