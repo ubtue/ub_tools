@@ -733,6 +733,9 @@ bool UTF8ToUTF32Decoder::addByte(const char ch) {
         } else if ((static_cast<unsigned char>(ch) & 0b11111000) == 0b11110000) {
             utf32_char_ = static_cast<unsigned char>(ch) & 0b111;
             required_count_ = 3;
+        } else if (permissive_) {
+            utf32_char_ = REPLACEMENT_CHARACTER;
+            required_count_ = 0;
         } else
             #ifndef __clang__
             #    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
