@@ -98,12 +98,17 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
         return false;
     }
 
-    Pix * image(pixRead(img_path.c_str()));
+    Pix *image(pixRead(img_path.c_str()));
     api->SetImage(image);
-    *extracted_text = api->GetUTF8Text();
+
+    char *utf8_text(api->GetUTF8Text());
+    *extracted_text = utf8_text;
+    delete[] utf8_text;
 
     api->End();
+    delete api;
     pixDestroy(&image);
+    delete image;
 
     return not extracted_text->empty();
 }
@@ -114,9 +119,7 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
 {
     extracted_text->clear();
 
-    static std::string pdf_images_script_path;
-    if (pdf_images_script_path.empty())
-        pdf_images_script_path = ExecUtil::LocateOrDie("pdfimages");
+    static std::string pdf_images_script_path(ExecUtil::LocateOrDie("pdfimages"));
 
     const FileUtil::AutoTempDirectory auto_temp_dir;
     const std::string &output_dirname(auto_temp_dir.getDirectoryPath());
