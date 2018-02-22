@@ -84,10 +84,21 @@ static std::string ExtractText(SimpleXmlParser<StringDataSource> * const parser,
     SimpleXmlParser<StringDataSource>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
-    if (not parser->getNext(&type, &attrib_map, &data)
-        or type != SimpleXmlParser<StringDataSource>::CHARACTERS)
-        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): " + closing_tag + " characters not found!");
-    const std::string extracted_text(data);
+    if (unlikely(not parser->getNext(&type, &attrib_map, &data)))
+        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): parse error while looking for characters for \""
+                                 + closing_tag + "\" tag not found!");
+    std::string extracted_text;
+    if (type == SimpleXmlParser<StringDataSource>::CHARACTERS)
+        extracted_text = data;
+    else if (SimpleXmlParser<StringDataSource>::CLOSING_TAG) {
+        if (unlikely(data != closing_tag))
+            throw std::runtime_error("in ExtractText(SyndicationFormat.cc): uneexpected closing tag \"" + data
+                                     + "\" while looking for the \"" + closing_tag + "\" closing tag!");
+        return "";
+    } else
+        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): unexpected "
+                                 + SimpleXmlParser<StringDataSource>::TypeToString(type) + " while looking for a closing \""
+                                 + closing_tag + "\" tag!");
     if (not parser->getNext(&type, &attrib_map, &data)
         or type != SimpleXmlParser<StringDataSource>::CLOSING_TAG or data != closing_tag)
         throw std::runtime_error("in ExtractText(SyndicationFormat.cc): " + closing_tag + " closing tag not found!");
