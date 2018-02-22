@@ -34,6 +34,9 @@ namespace {
 
 
 void ProcessSyndicationURL(const bool verbose, const std::string &url) {
+    if (verbose)
+        std::cerr << "Processing URL: " << url << '\n';
+
     Downloader downloader(url);
     if (downloader.anErrorOccurred()) {
         WARNING("Download problem for \"" + url + "\": " + downloader.getLastErrorMessage());
