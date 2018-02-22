@@ -489,6 +489,7 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
 //
 bool IsDirectory(const std::string &dir_name) {
     struct stat statbuf;
+    errno = 0;
     if (::stat(dir_name.c_str(), &statbuf) != 0)
         return false;
 
@@ -541,6 +542,7 @@ static void CloseDirWhilePreservingErrno(DIR * const dir_handle) {
 
 
 bool RemoveDirectory(const std::string &dir_name) {
+    errno = 0;
     DIR *dir_handle(::opendir(dir_name.c_str()));
     if (unlikely(dir_handle == nullptr))
         return false;
@@ -592,7 +594,10 @@ AutoTempDirectory::AutoTempDirectory(const std::string &path_prefix) {
 
 
 AutoTempDirectory::~AutoTempDirectory() {
-    if (not IsDirectory(path_) or not RemoveDirectory(path_))
+    if (not IsDirectory(path_))
+        ERROR("\"" + path_ + "\" doesn't exist anymore!");
+
+    if (not RemoveDirectory(path_))
         ERROR("can't remove \"" + path_ + "\"!");
 }
 
