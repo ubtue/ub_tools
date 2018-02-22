@@ -45,11 +45,12 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname
-              << " [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] marc_input marc_output\n"
+              << " [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] [--only-open-access] marc_input marc_output\n"
               << "       \"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
               << "       child processes.    When we hit the high water mark we wait for child processes to exit\n"
               << "       until we reach the low watermark.  \"--pdf-extraction-timeout\" which has a default of "
               << DEFAULT_PDF_EXTRACTION_TIMEOUT << '\n'
+              << "       If --only-open-access has been spoecified only open access texts will be processed.\n"
               << "       seconds is the maximum amount of time spent by a subprocess in attemting text extraction from a\n"
               << "       downloaded PDF document.\n\n";
 
@@ -84,7 +85,7 @@ bool FoundAtLeastOneNonReviewOrCoverLink(const MARC::Record &record, std::string
 }
 
 
-void ProcessNoDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+void ProcessNoDownloadRecords(const bool only_open_access, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                               std::vector<std::pair<off_t, std::string>> * const download_record_offsets_and_urls)
 {
     unsigned total_record_count(0);
@@ -97,7 +98,7 @@ void ProcessNoDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * c
         const bool insert_in_cache(FoundAtLeastOneNonReviewOrCoverLink(record, &first_non_review_link)
                                    or (record.getSubfieldValues("856", 'u').empty()
                                        and not record.getSubfieldValues("520", 'a').empty()));
-        if (insert_in_cache)
+        if (insert_in_cache and (not only_open_access or MARC::IsOpenAccess(record)))
             download_record_offsets_and_urls->emplace_back(record_start, first_non_review_link);
         else
             marc_writer->write(record);
@@ -268,6 +269,12 @@ int main(int argc, char **argv) {
         ++argv, --argc;
     }
 
+    bool only_open_access(false);
+    if (argc > 1 and std::strcmp(argv[1], "--only-open-access") == 0) {
+        only_open_access = true;
+        ++argv, --argc;
+    }
+
     if (argc != 3)
         Usage();
 
@@ -281,7 +288,7 @@ int main(int argc, char **argv) {
 
     try {
         std::vector<std::pair<off_t, std::string>> download_record_offsets_and_urls;
-        ProcessNoDownloadRecords(marc_reader.get(), marc_writer.get(), &download_record_offsets_and_urls);
+        ProcessNoDownloadRecords(only_open_access, marc_reader.get(), marc_writer.get(), &download_record_offsets_and_urls);
 
         // Try to prevent clumps of URL's from the same server:
         std::random_shuffle(download_record_offsets_and_urls.begin(), download_record_offsets_and_urls.end());
