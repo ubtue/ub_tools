@@ -34,7 +34,7 @@ std::shared_ptr<JSON::ObjectNode> Elasticsearch::FieldsToJSON(const Fields field
 Elasticsearch::Fields Elasticsearch::JSONToFields(const JSON::ObjectNode * const json_object) {
     Fields fields;
     for (const auto &key_and_value : *json_object)
-        fields.push_back({ key_and_value.first, key_and_value.second->toString()});
+        fields[key_and_value.first] = key_and_value.second->toString();
     return fields;
 }
 
@@ -115,4 +115,13 @@ bool Elasticsearch::hasDocument(const std::string &id) {
     std::string action(index_ + "/" + document_type_ + "/" + id);
     const JSON::ObjectNode * const result(query(action, REST::QueryType::GET, nullptr));
     return result->getOptionalBooleanValue("found", false);
+}
+
+
+void Elasticsearch::updateDocument(const Document &document) {
+    const std::shared_ptr<JSON::ObjectNode> doc_node(FieldsToJSON(document.fields_));
+    const std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
+    tree_root->insert("doc", doc_node.get());
+    std::string action(index_ + "/" + document_type_ + "/" + document.id_ + "_update?pretty");
+    query(action, REST::QueryType::POST, tree_root);
 }

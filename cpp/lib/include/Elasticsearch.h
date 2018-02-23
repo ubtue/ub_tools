@@ -35,9 +35,18 @@ class Elasticsearch {
     std::string index_;
     std::string document_type_;
 public:
+    struct Credentials {
+        Url host_;
+        std::string index_;
+        std::string document_type_;
+    };
+
     Elasticsearch(const Url &host, const std::string &index, const std::string &document_type) :
                   host_(host), index_(index), document_type_(document_type) {}
-    typedef std::vector<std::pair<std::string, std::string>> Fields;
+    Elasticsearch(const Credentials credentials) : host_(credentials.host_),
+                  index_(credentials.index_), document_type_(credentials.document_type_) {}
+
+    typedef std::unordered_map<std::string, std::string> Fields;
 
     struct Document {
         std::string id_;
@@ -55,6 +64,9 @@ public:
     Document getDocument(const std::string &id);
     std::vector<std::string> getIndexList();
     bool hasDocument(const std::string &id);
+
+    /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).*/
+    void updateDocument(const Document &document);
 
 }; // class Elasticsearch
 

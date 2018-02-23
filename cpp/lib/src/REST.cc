@@ -28,14 +28,18 @@ std::string Query(const Url &url, const QueryType query_type, const std::string 
     Downloader downloader(params);
 
     switch(query_type) {
-    case QueryType::DELETE:
-        downloader.deleteUrl(url);
-        break;
     case QueryType::GET:
         downloader.newUrl(url);
         break;
     case QueryType::PUT:
         downloader.putData(url, data);
+        break;
+    case QueryType::POST:
+        params.post_data_ = data;
+        downloader.newUrl(url);
+        break;
+    case QueryType::DELETE:
+        downloader.deleteUrl(url);
         break;
     }
 
