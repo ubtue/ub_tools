@@ -338,7 +338,7 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseCDATA(std::
     for (;;) {
         const int ch(get());
         if (unlikely(ch == EOF) ) {
-            last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
+            last_error_message_ = "Unexpected EOF while looking for the end of CDATA!";
             return false;
         } else if (ch == ']')
             ++consecutive_closing_bracket_count;
@@ -348,8 +348,11 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::parseCDATA(std::
                 return true;
             }
             consecutive_closing_bracket_count = 0;
-        } else
+        } else {
+            if (unlikely(ch == '\n'))
+                ++line_no_;
             consecutive_closing_bracket_count = 0;
+        }
         *data += TextUtil::UTF32ToUTF8(ch);
     }
 }
