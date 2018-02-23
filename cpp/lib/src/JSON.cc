@@ -416,6 +416,12 @@ bool ObjectNode::remove(const std::string &label) {
 }
 
 
+bool ObjectNode::hasNode(const std::string &label) const {
+    const auto entry(entries_.find(label));
+    return entry == entries_.cend() ? false : true;
+}
+
+
 const JSONNode *ObjectNode::getNode(const std::string &label) const {
     const auto entry(entries_.find(label));
     return entry == entries_.cend() ? nullptr : entry->second;

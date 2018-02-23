@@ -221,6 +221,9 @@ public:
     /** \return False if there was nothing to remove, o/w true. */
     bool remove(const std::string &label);
 
+    /** \return False if no entry for the provided label exists, o/w true. */
+    bool hasNode(const std::string &label) const;
+
     // Member accessors, they return NULL if there is no entry for the provided label o/w they return the entry.
     const JSONNode *getNode(const std::string &label) const;
     JSONNode *getNode(const std::string &label);
