@@ -866,8 +866,7 @@ static std::string &CollapseWhitespaceHelper(std::string * const utf8_string,
                 } else {
                     std::string utf8;
                     if (unlikely(not WCharToUTF8String(utf32_char, &utf8))) {
-                        WARNING("WCharToUTF8String failed! (Character was "
-                                      + std::to_string(utf32_char) + ")");
+                        WARNING("WCharToUTF8String failed! (Character was " + std::to_string(utf32_char) + ")");
                         return *utf8_string;
                     }
                     collapsed_string += utf8;
