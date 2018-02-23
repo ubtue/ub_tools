@@ -52,6 +52,8 @@ public:
         std::string id_;
         Fields fields_;
     };
+
+    typedef std::unordered_map<std::string, Document> Documents;
 private:
     static std::shared_ptr<JSON::ObjectNode> FieldsToJSON(const Fields fields);
     static Fields JSONToFields(const JSON::ObjectNode * const json_object);
@@ -64,6 +66,7 @@ public:
     Document getDocument(const std::string &id);
     std::vector<std::string> getIndexList();
     bool hasDocument(const std::string &id);
+    Documents searchAllDocuments();
 
     /** \brief Only provided fields will be overwritten (non-provided fields will NOT be deleted).*/
     void updateDocument(const Document &document);

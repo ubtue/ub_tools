@@ -50,7 +50,7 @@ JSON::ObjectNode * Elasticsearch::query(const std::string &action, const REST::Q
     if (result_object->hasNode("error"))
         throw std::runtime_error(result_object->getNode("error")->toString());
 
-    INFO(result_object->toString());
+    DEBUG(result_object->toString());
 
     return result_object;
 }
@@ -115,6 +115,36 @@ bool Elasticsearch::hasDocument(const std::string &id) {
     std::string action(index_ + "/" + document_type_ + "/" + id);
     const JSON::ObjectNode * const result(query(action, REST::QueryType::GET, nullptr));
     return result->getOptionalBooleanValue("found", false);
+}
+
+
+Elasticsearch::Documents Elasticsearch::searchAllDocuments() {
+    std::string action(index_ + "/_search");
+
+    const std::shared_ptr<JSON::ObjectNode> tree_root(new JSON::ObjectNode);
+    JSON::ObjectNode * query_node(new JSON::ObjectNode);
+    tree_root->insert("query", query_node);
+    JSON::ObjectNode * match_all_node(new JSON::ObjectNode);
+    query_node->insert("match_all", match_all_node);
+
+    const JSON::ObjectNode * const result_node(query(action, REST::QueryType::GET, tree_root));
+
+    Documents documents;
+    if (result_node->hasNode("hits")) {
+        const JSON::ObjectNode * const hits_object(result_node->getObjectNode("hits"));
+        const JSON::ArrayNode * const hits_array(hits_object->getArrayNode("hits"));
+        for (const auto &hit_node : *hits_array) {
+            const JSON::ObjectNode * const hit_object(JSON::JSONNode::CastToObjectNodeOrDie("hit", hit_node));
+            Document document;
+            document.id_ = hit_object->getStringValue("_id");
+            if (hit_object->hasNode("_source")) {
+                const JSON::ObjectNode * const fields_object(hit_object->getObjectNode("_source"));
+                document.fields_ = JSONToFields(fields_object);
+            }
+            documents[document.id_] = document;
+        }
+    }
+    return documents;
 }
 
 
