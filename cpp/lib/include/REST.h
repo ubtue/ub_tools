@@ -31,7 +31,7 @@
 namespace REST {
 
 
-enum QueryType { GET, PUT };
+enum QueryType { GET, PUT, DELETE };
 
 std::string Query(const Url &url, const QueryType query_type, const std::string data="",
                   Downloader::Params params=Downloader::Params());

@@ -48,8 +48,13 @@ private:
     static Fields JSONToFields(const JSON::ObjectNode * const json_object);
     JSON::ObjectNode * query(const std::string &action, const REST::QueryType query_type, std::shared_ptr<JSON::JSONNode> data);
 public:
-    void addDocument(const Document &document);
+    void createDocument(const Document &document);
+    void createIndex();
+    void deleteDocument(const std::string &id);
+    void deleteIndex();
     Document getDocument(const std::string &id);
+    std::vector<std::string> getIndexList();
+    bool hasDocument(const std::string &id);
 
 }; // class Elasticsearch
 
