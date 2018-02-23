@@ -98,6 +98,7 @@ private:
     void skipOptionalProcessingInstruction();
     bool extractName(std::string * const name);
     bool extractQuotedString(const int closing_quote, std::string * const s);
+    bool parseCDATA(std::string * const data);
     bool parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
                          std::string * const error_message);
     bool parseClosingTag(std::string * const tag_name);
@@ -105,7 +106,7 @@ private:
 
 
 template<typename DataSource> const std::deque<int> SimpleXmlParser<DataSource>::CDATA_DEQUE{
-    '<', '!', 'C', 'D', 'A', 'T', 'A', '[', '[' };
+    '<', '!', 'C', 'D', 'A', 'T', 'A', '[' };
 
 
 template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input)
@@ -144,6 +145,8 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::get(bool * const 
             }
 
             *cdata_mode = pushed_back_chars_ == CDATA_DEQUE;
+            pushed_back_chars_.clear();
+            pushed_back_chars_.push_back(getUnicodeCodePoint());
         }
     } else if (pushed_back_chars_.empty())
         pushed_back_chars_.push_back(getUnicodeCodePoint());
@@ -329,6 +332,29 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractQuotedStr
 }
 
 
+// Collects characters while looking for the end of a CDATA section.
+template<typename DataSource> bool SimpleXmlParser<DataSource>::parseCDATA(std::string * const data) {
+    int consecutive_closing_bracket_count(0);
+    for (;;) {
+        const int ch(get());
+        if (unlikely(ch == EOF) ) {
+            last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
+            return false;
+        } else if (ch == ']')
+            ++consecutive_closing_bracket_count;
+        else if (ch == '>') {
+            if (consecutive_closing_bracket_count >= 2) {
+                data->resize(data->length() - 2); // Trim off the last 2 closing brackets.
+                return true;
+            }
+            consecutive_closing_bracket_count = 0;
+        } else
+            consecutive_closing_bracket_count = 0;
+        *data += TextUtil::UTF32ToUTF8(ch);
+    }
+}
+
+
 template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
     Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data)
 {
@@ -353,14 +379,22 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
         last_type_ = *type = CHARACTERS;
 
 collect_next_character:
-        while ((ch = get()) != '<') {
-            if (unlikely(ch == EOF)) {
-                last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
-                return false;
+        bool cdata_mode;
+        while ((ch = get(&cdata_mode)) != '<') {
+            if (cdata_mode) {
+                *data += TextUtil::UTF32ToUTF8(ch);
+                if (not parseCDATA(data))
+                    return false;
+                cdata_mode = false;
+            } else {
+                if (unlikely(ch == EOF)) {
+                    last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
+                    return false;
+                }
+                if (unlikely(ch == '\n'))
+                    ++line_no_;
+                *data += TextUtil::UTF32ToUTF8(ch);
             }
-            if (unlikely(ch == '\n'))
-                ++line_no_;
-            *data += TextUtil::UTF32ToUTF8(ch);
         }
         const int lookahead(peek());
         if (likely(lookahead != EOF)
