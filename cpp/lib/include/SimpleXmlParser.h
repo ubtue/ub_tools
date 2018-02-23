@@ -22,7 +22,6 @@
 
 
 #include <algorithm>
-#include <iostream>//XXX
 #include <deque>
 #include <map>
 #include <stdexcept>
