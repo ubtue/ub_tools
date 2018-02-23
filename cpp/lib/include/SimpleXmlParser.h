@@ -22,6 +22,7 @@
 
 
 #include <algorithm>
+#include <iostream>//XXX
 #include <deque>
 #include <map>
 #include <stdexcept>
@@ -140,13 +141,17 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::get(bool * const 
             while (pushed_back_chars_.size() < __builtin_strlen("<![CDATA[")) {
                 const int ch(getUnicodeCodePoint());
                 pushed_back_chars_.push_back(ch);
-                if (unlikely(ch == EOF))
+                if (unlikely(ch == EOF)) {
+                    *cdata_mode = false;
                     goto pop_char;
+                }
             }
 
             *cdata_mode = pushed_back_chars_ == CDATA_DEQUE;
-            pushed_back_chars_.clear();
-            pushed_back_chars_.push_back(getUnicodeCodePoint());
+            if (*cdata_mode) {
+                pushed_back_chars_.clear();
+                pushed_back_chars_.push_back(getUnicodeCodePoint());
+            }
         }
     } else if (pushed_back_chars_.empty())
         pushed_back_chars_.push_back(getUnicodeCodePoint());
@@ -174,7 +179,7 @@ template<typename DataSource> void SimpleXmlParser<DataSource>::unget(const int 
     if (unlikely(pushed_back_chars_.size() == __builtin_strlen("<![CDATA[")))
         throw std::runtime_error("in SimpleXmlParser::unget: can't push back more than "
                                  + std::to_string(__builtin_strlen("<![CDATA[")) + " characters in a row!");
-    pushed_back_chars_.push_back(ch);
+    pushed_back_chars_.push_front(ch);
     if (data_collector_ != nullptr) {
         if (unlikely(not TextUtil::TrimLastCharFromUTF8Sequence(data_collector_)))
             throw std::runtime_error("in SimpleXmlParser<DataSource>::unget: \"" + *data_collector_
