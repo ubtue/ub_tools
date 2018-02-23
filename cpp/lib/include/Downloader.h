@@ -131,6 +131,10 @@ public:
     bool putData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
         { return putData(Url(url), data, time_limit); }
 
+    bool deleteUrl(const Url &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
+    bool deleteUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
+        { return deleteUrl(Url(url), time_limit); }
+
     std::string getMessageHeader() const;
     const std::string &getMessageBody() const { return body_; }
 

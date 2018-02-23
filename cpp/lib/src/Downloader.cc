@@ -234,6 +234,14 @@ bool Downloader::putData(const Url &url, const std::string &data, const TimeLimi
 }
 
 
+bool Downloader::deleteUrl(const Url& url, const TimeLimit &time_limit) {
+    if (::curl_easy_setopt(easy_handle_, CURLOPT_CUSTOMREQUEST, "DELETE") != CURLE_OK)
+        throw std::runtime_error("in Downloader::deleteUrl: curl_easy_setopt() failed!");
+
+    return newUrl(url, time_limit);
+}
+
+
 std::string Downloader::getMessageHeader() const {
     if (concatenated_headers_.empty())
         return "";
