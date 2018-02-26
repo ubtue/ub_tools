@@ -125,10 +125,10 @@ class BooleanNode final : public JSONNode {
 public:
     explicit BooleanNode(const bool value): value_(value) { }
 
-    virtual Type getType() const override { return BOOLEAN_NODE; }
-    virtual BooleanNode *clone() const override { return new BooleanNode(value_); }
-    virtual std::string toString() const override { return value_ ? "true" : "false"; }
-    bool getValue() const { return value_; }
+    inline virtual Type getType() const override { return BOOLEAN_NODE; }
+    inline virtual BooleanNode *clone() const override { return new BooleanNode(value_); }
+    inline virtual std::string toString() const override { return value_ ? "true" : "false"; }
+    inline bool getValue() const { return value_; }
     void setValue(const bool value) { value_ = value; }
 };
 
@@ -137,9 +137,9 @@ class NullNode final : public JSONNode {
 public:
     NullNode() { }
 
-    virtual Type getType() const override { return NULL_NODE; }
-    virtual NullNode *clone() const override { return new NullNode; }
-    virtual std::string toString() const override { return "null"; }
+    inline virtual Type getType() const override { return NULL_NODE; }
+    inline virtual NullNode *clone() const override { return new NullNode; }
+    inline virtual std::string toString() const override { return "null"; }
 };
 
 
@@ -148,10 +148,11 @@ class StringNode final : public JSONNode {
 public:
     explicit StringNode(const std::string value): value_(value) { }
 
-    virtual Type getType() const override { return STRING_NODE; }
-    virtual StringNode *clone() const override { return new StringNode(value_); }
+    inline virtual Type getType() const override { return STRING_NODE; }
+    inline virtual StringNode *clone() const override { return new StringNode(value_); }
     virtual std::string toString() const override;
-    const std::string &getValue() const { return value_; }
+    inline const std::string &getValue() const { return value_; }
+    inline void setValue(const std::string &new_value) { value_ = new_value; }
 };
 
 
@@ -160,10 +161,10 @@ class IntegerNode final : public JSONNode {
 public:
     explicit IntegerNode(const int64_t value): value_(value) { }
 
-    virtual IntegerNode *clone() const override { return new IntegerNode(value_); }
-    virtual Type getType() const override { return INT64_NODE; }
-    virtual std::string toString() const override { return std::to_string(value_); }
-    int64_t getValue() const { return value_; }
+    inline virtual IntegerNode *clone() const override { return new IntegerNode(value_); }
+    inline virtual Type getType() const override { return INT64_NODE; }
+    inline virtual std::string toString() const override { return std::to_string(value_); }
+    inline int64_t getValue() const { return value_; }
     void setValue(const int64_t value) { value_ = value; }
 };
 
