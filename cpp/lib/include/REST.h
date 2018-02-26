@@ -1,8 +1,8 @@
 /** \file    REST.h
- *  \brief   Various utility functions for REST APIs.
+ *  \brief   Various utility functions for REST API's.
  *  \author  Mario Trojan
  *
- *  \copyright 2018 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
