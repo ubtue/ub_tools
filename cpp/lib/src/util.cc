@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015,2017 Library of the University of Tübingen
+    Copyright (C) 2015,2017,2018 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,9 +24,11 @@
 #include <iterator>
 #include <stdexcept>
 #include <cctype>
+#include <cstdlib>
 #include <execinfo.h>
 #include <signal.h>
 #include "Compiler.h"
+#include "FileLocker.h"
 #include "MiscUtil.h"
 #include "TimeUtil.h"
 
@@ -38,12 +40,14 @@
 char *progname; // Must be set in main() with "progname = argv[0];";
 
 
-static void WriteString(const int fd, const std::string &msg) {
-    if (unlikely(::write(fd, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
-        const std::string error_message("in WriteString(util.cc): write to file descriptor " + std::to_string(fd)
-                                        + " failed! (errno = " + std::to_string(errno) + ")");
-        ::write(STDERR_FILENO, error_message.data(), error_message.size());
-        _exit(EXIT_FAILURE);
+Logger::Logger(): fd_(STDERR_FILENO), log_process_pids_(false), min_log_level_(LL_INFO) {
+    const char * const min_log_level(::getenv("MIN_LOG_LEVEL"));
+    if (min_log_level != nullptr)
+        min_log_level_ = Logger::StringToLogLevel(min_log_level);
+    const char * const logger_format(::getenv("LOGGER_FORMAT"));
+    if (logger_format != nullptr) {
+        if (std::strstr(logger_format, "process_pids") != 0)
+            log_process_pids_ = true;
     }
 }
 
@@ -52,56 +56,64 @@ void Logger::error(const std::string &msg) {
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     if (unlikely(progname == nullptr)) {
-        WriteString(fd_, "You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use "
-                    "Logger::error().\n");
+        writeString("You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use Logger::error().");
         _exit(EXIT_FAILURE);
     } else
-        WriteString(fd_, TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + std::string(" SEVERE ")
+        writeString(TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + std::string(" SEVERE ")
                     + ::progname + std::string(": ") + msg
-                    + (errno == 0 ? "" : " (" + std::string(::strerror(errno)) + ")") + '\n');
+                    + (errno == 0 ? "" : " (" + std::string(::strerror(errno)) + ")"));
+    if (::getenv("BACKTRACE") != nullptr) {
+        writeString("Backtrace:");
+        for (const auto &stack_entry : MiscUtil::GetCallStack())
+            writeString("  " + stack_entry);
+    }
+
     std::exit(EXIT_FAILURE);
 }
 
 
 void Logger::warning(const std::string &msg) {
+    if (min_log_level_ < LL_WARNING)
+        return;
+
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     if (unlikely(progname == nullptr)) {
-        WriteString(fd_, "You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use "
-                    "Logger::warning().\n");
+        writeString("You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use Logger::warning().");
         _exit(EXIT_FAILURE);
     } else
-        WriteString(fd_, TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " WARN "
-                    + std::string(::progname) + ": " + msg + '\n');
+        writeString(TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " WARN " + std::string(::progname) + ": " + msg);
 }
 
 
 void Logger::info(const std::string &msg) {
+    if (min_log_level_ < LL_INFO)
+        return;
+
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     if (unlikely(progname == nullptr)) {
-        WriteString(fd_, "You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use "
-                    "Logger::info().\n");
+        writeString("You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use Logger::info().");
         _exit(EXIT_FAILURE);
     } else
-        WriteString(fd_, TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " INFO "
-                    + std::string(::progname) + ": " + msg + '\n');
+        writeString(TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " INFO " + std::string(::progname) + ": " + msg);
 }
 
 
 void Logger::debug(const std::string &msg) {
+    if (min_log_level_ < LL_DEBUG)
+        return;
+
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") != "true")
         return;
 
     std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     if (unlikely(progname == nullptr)) {
-        WriteString(fd_, "You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use "
-                    "Logger::debug().\n");
+        writeString("You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use Logger::debug().");
         _exit(EXIT_FAILURE);
     } else
-        WriteString(fd_, TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " DEBUG "
-                    + std::string(::progname) + ": " + msg + '\n');
+        writeString(TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " DEBUG " + std::string(::progname) + ": " + msg);
 }
 
 
@@ -112,6 +124,34 @@ inline Logger *LoggerInstantiator() {
 
 Logger *logger(LoggerInstantiator());
 
+
+Logger::LogLevel Logger::StringToLogLevel(const std::string &level_candidate) {
+    if (level_candidate == "ERROR")
+        return Logger::LL_ERROR;
+    if (level_candidate == "WARNING")
+        return Logger::LL_WARNING;
+    if (level_candidate == "INFO")
+        return Logger::LL_INFO;
+    if (level_candidate == "DEBUG")
+        return Logger::LL_DEBUG;
+    ERROR("not a valid minimum log level: \"" + level_candidate + "\"! (Use ERROR, WARNING, INFO or DEBUG)");
+};
+
+
+void Logger::writeString(std::string msg) {
+    if (log_process_pids_)
+        msg += " (PID: " + std::to_string(::getpid()) + ")";
+    msg += '\n';
+    FileLocker write_locker(fd_, FileLocker::WRITE_ONLY);
+    if (unlikely(::write(fd_, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
+        const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(fd_)
+                                        + " failed! (errno = " + std::to_string(errno) + ")");
+        #pragma GCC diagnostic ignored "-Wunused-result"
+        ::write(STDERR_FILENO, error_message.data(), error_message.size());
+        #pragma GCC diagnostic warning "-Wunused-result"
+        _exit(EXIT_FAILURE);
+    }
+}
 
 
 DSVReader::DSVReader(const std::string &filename, const char field_separator, const char field_delimiter)

@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015,2017 Universitätsbibliothek Tübingen.
+ *  Copyright 2015,2017,2018 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -30,17 +30,71 @@
 #define TEXT_UTIL_H
 
 
+#include <memory>
 #include <string>
 #include <unordered_set>
 #include <vector>
 #include <cwchar>
+#include <iconv.h>
 
 
 namespace TextUtil {
 
 
-/** \brief Strips HTML tags and converts entities. */
-std::string ExtractTextFromHtml(const std::string &html);
+constexpr uint32_t REPLACEMENT_CHARACTER(0xFFFDu);
+
+
+/** \brief Converter between many text encodings.
+ */
+class EncodingConverter {
+    friend class IdentityConverter;
+    const std::string from_encoding_;
+    const std::string to_encoding_;
+protected:
+    const iconv_t iconv_handle_;
+public:
+    static const std::string CANONICAL_UTF8_NAME;
+public:
+    virtual ~EncodingConverter();
+
+    const std::string &getFromEncoding() const { return from_encoding_; }
+    const std::string &getToEncoding() const { return to_encoding_; }
+
+    /** \brief Converts "input" to "output".
+     *  \return True if the conversion succeeded, otherwise false.
+     *  \note When this function returns false "*output" contains the unmodified copy of "input"!
+     */
+    virtual bool convert(const std::string &input, std::string * const output);
+
+    /** \return Returns a nullptr if an error occurred and then sets *error_message to a non-empty string.
+     *          O/w an EncodingConverter instance will be returned and *error_message will be cleared.
+     */
+    static std::unique_ptr<EncodingConverter> Factory(const std::string &from_encoding, const std::string &to_encoding,
+                                                      std::string * const error_message);
+private:
+    explicit EncodingConverter(const std::string &from_encoding, const std::string to_encoding, const iconv_t iconv_handle)
+        : from_encoding_(from_encoding), to_encoding_(to_encoding), iconv_handle_(iconv_handle) { }
+};
+
+
+class IdentityConverter: public EncodingConverter {
+    friend std::unique_ptr<EncodingConverter> EncodingConverter::Factory(const std::string &from_encoding, const std::string &to_encoding,
+                                                                         std::string * const error_message);
+    IdentityConverter(): EncodingConverter(/* from_encoding = */"", /* to_encoding = */"", (iconv_t)-1) { }
+public:
+    virtual bool convert(const std::string &input, std::string * const output) final override { *output = input; return true; }
+
+    static std::unique_ptr<EncodingConverter> Factory()
+        { return std::unique_ptr<EncodingConverter>(new IdentityConverter()); }
+};
+
+
+/** \brief Strips HTML tags and converts entities.
+ *  \param html             The HTML to process.
+ *  \param initial_charset  Typically the content-type header's charset, if any.
+ *  \return The extracted and converted text as UTF-8.
+ */
+std::string ExtractTextFromHtml(const std::string &html, const std::string &initial_charset = "");
 
 
 /** \brief Recognises roman numerals up to a few thousand. */
@@ -52,15 +106,7 @@ bool IsUnsignedInteger(const std::string &s);
 
 
 /** \brief Convert UTF8 to wide characters. */
-bool UTF8toWCharString(const std::string &utf8_string, std::wstring * wchar_string);
-
-
-/** \brief Convert between many text encodings.
- *  \return True if the conversion succeeded, otherwise false.
- *  \note When this function returns false "*output" contains the unmodified copy of "input"!
- */
-bool ConvertEncoding(const std::string &from_encoding, const std::string &to_encoding, const std::string &input,
-                     std::string * const output);
+bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_string);
 
 
 /** \brief Convert wide characters to UTF8. */
@@ -77,10 +123,24 @@ bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string);
 bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_utf8_string);
 
 
+/** \brief Converts a UTF8 string to lowercase.
+ *  \return The converted string.
+ *  \note Throws an exception if an error occurred.
+ */
+std::string UTF8ToLower(std::string * const utf8_string);
+
+
 /** \brief Converts a UTF8 string to uppercase.
  *  \return True if no character set conversion error occurred, o/w false.
  */
 bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_utf8_string);
+
+
+/** \brief Converts a UTF8 string to uppercase.
+ *  \return The converted string.
+ *  \note Throws an exception if an error occurred.
+ */
+std::string UTF8ToUpper(std::string * const utf8_string);
 
 
 /** Converts UTF-32 a.k.a. UCS-4 to UTF-8. */
@@ -196,8 +256,18 @@ bool UTF32CharIsAsciiDigit(const uint32_t ch);
 class UTF8ToUTF32Decoder {
     int required_count_;
     uint32_t utf32_char_;
+    bool permissive_;
 public:
-    UTF8ToUTF32Decoder(): required_count_(-1) { }
+    enum State {
+        NO_CHARACTER_PENDING, //< getUTF32Char() should not be called.
+        CHARACTER_PENDING,    //< getUTF32Char() should be called to get the next character.
+        CHARACTER_INCOMPLETE  //< addByte() must be called at least one more time to complete a character.
+    };
+public:
+    /** \param permissive  If false, we throw a std::runtime_error on encoding errors, if true we return Unicode replacement
+     *                     characters.
+     */
+    UTF8ToUTF32Decoder(const bool permissive = true): required_count_(-1), permissive_(permissive) { }
 
     /** Feed bytes into this until it returns false.  Then call getCodePoint() to get the translated UTF32 code
      *  point.  Then you can call this function again.
@@ -208,6 +278,10 @@ public:
      */
     bool addByte(const char ch);
 
+    inline State getState() const {
+        return (required_count_ == -1) ? NO_CHARACTER_PENDING
+                                       : ((required_count_  > 0) ? CHARACTER_INCOMPLETE : CHARACTER_PENDING);
+    }
     uint32_t getUTF32Char() { required_count_ = -1; return utf32_char_; }
 };
 
@@ -215,6 +289,74 @@ public:
 /* En- and decode text to and from the encoded-printable format. */
 std::string EncodeQuotedPrintable(const std::string &s);
 std::string DecodeQuotedPrintable(const std::string &s);
+
+
+extern const std::unordered_set<uint32_t> UNICODE_WHITESPACE;
+
+
+/** \return True if "utf32_char" is one of the code points listed here: https://en.wikipedia.org/wiki/Whitespace_character,
+            else false. */
+inline bool IsWhitespace(const uint32_t utf32_char) {
+    return UNICODE_WHITESPACE.find(utf32_char) != UNICODE_WHITESPACE.end();
+}
+
+
+/** \return True if "ch" is an ASCII character, i.e. if the high bit is not set, else false. */
+inline bool IsASCIIChar(const char ch) { return (static_cast<unsigned char>(ch) & 0x80u) == 0; }
+
+
+/** \brief Replaces any sequence of "whitespace" characters listed here: https://en.wikipedia.org/wiki/Whitespace_character
+ *         to a single space (0x20) character.
+ *  \return A reference to the modified string "*utf8_string".
+ */
+std::string &CollapseWhitespace(std::string * const utf8_string);
+
+
+inline std::string CollapseWhitespace(const std::string &utf8_string) {
+    std::string temp_utf8_string(utf8_string);
+    return CollapseWhitespace(&temp_utf8_string);
+}
+
+
+/** \brief like CollapseWhitespace() but also removes leading and trailing whitespace characters.
+ *  \return A reference to the modified string "*utf8_string".
+ */
+std::string &CollapseAndTrimWhitespace(std::string * const utf8_string);
+
+
+inline std::string CollapseAndTrimWhitespace(const std::string &utf8_string) {
+    std::string temp_utf8_string(utf8_string);
+    return CollapseAndTrimWhitespace(&temp_utf8_string);
+}
+
+
+/** \return True if "ch" was successfully converted to a value in the range [0..15] else false. */
+bool FromHex(const char ch, unsigned * const u);
+
+
+/** \brief Converts \n, \t, \b, \r, \f, \v, \a, \\, \uNNNN and \UNNNNNNNN to the corresponding byte sequences.
+ *  \return The converted string.
+ */
+std::string &CStyleUnescape(std::string * const s);
+inline std::string CStyleUnescape(std::string s) {
+    return CStyleUnescape(&s);
+}
+
+
+/** \brief The counterpart to CStyleUnescape(). */
+std::string &CStyleEscape(std::string * const s);
+
+
+/** \brief The counterpart to CStyleUnescape(). */
+inline std::string CStyleEscape(std::string s) {
+    return CStyleEscape(&s);
+}
+
+
+/** \brief Converts the first character of "text" to uppercase and the remainder to lowercase, if possible.
+ *  \note  We treat "text" as UTF-8.
+ */
+std::string InitialCaps(const std::string &text);
 
 
 } // namespace TextUtil

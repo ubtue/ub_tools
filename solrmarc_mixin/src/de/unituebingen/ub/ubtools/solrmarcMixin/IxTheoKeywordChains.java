@@ -1,5 +1,6 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
+import java.text.Collator;
 import java.util.*;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
@@ -57,7 +58,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
             // Sort keyword chain
             final char chainID = dataField.getIndicator1();
             final List<String> keyWordChain = getKeyWordChain(keyWordChains, chainID);
-            Collections.sort(keyWordChain, String.CASE_INSENSITIVE_ORDER);
+            Collator collator = Collator.getInstance(Locale.forLanguageTag(lang));
+            Collections.sort(keyWordChain, collator);
         }
         return concatenateKeyWordsToChains(keyWordChains);
     }
@@ -96,10 +98,8 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                     if (germanASubfield != null) {
                         final String translationCandidate = germanASubfield.getData() + " <" + specification + ">";
                         final String translation = tuelibMixin.translateTopic(translationCandidate, lang);
-                        if (translation != translationCandidate) {
-                            keyword.setLength(0);
-                            keyword.append(translation.replaceAll("<", "(").replaceAll(">", ")"));
-                        }
+                        keyword.setLength(0);
+                        keyword.append(translation.replaceAll("<", "(").replaceAll(">", ")"));
                     }
                     else {
                         keyword.append(" (");
@@ -113,7 +113,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         }
 
         if (keyword.length() > 0) {
-            String keywordString = keyword.toString();
+            String keywordString = keyword.toString().replace("/", "\\/");
             keyWordChain.add(keywordString);
         }
     }

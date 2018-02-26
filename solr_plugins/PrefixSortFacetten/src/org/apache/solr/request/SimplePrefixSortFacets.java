@@ -57,6 +57,7 @@ public class SimplePrefixSortFacets extends SimpleFacets {
         if (limit == 0) return new NamedList<>();
         if (params.get(FacetParams.FACET_SORT).equals(FacetPrefixSortParams.FACET_SORT_PREFIX)) {
             limit = -1;
+            offset = 0;
         }
         if (mincount == null) {
             Boolean zeros = params.getFieldBool(field, FacetParams.FACET_ZEROS);

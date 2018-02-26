@@ -1,5 +1,5 @@
 /** \file    ExecUtil.h
- *  \brief   Declarations of MIME/media type utility functions.
+ *  \brief   The ExecUtil interface.
  *  \author  Dr. Gordon W. Paynter
  *  \author  Dr. Johannes Ruscheinski
  */
@@ -7,6 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
+ *  Copyright 2017-2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -57,12 +58,16 @@ public:
  *  \param  timeout_in_seconds  If not zero, the subprocess will be killed if the timeout expires before
  *                              the process terminates.
  *  \param  tardy_child_signal  The signal to send to our offspring if there was a timeout.
+ *  \note   in case of a timeout, we set errno to ETIME and return -1
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
 int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
          const std::string &new_stdout = "", const std::string &new_stderr = "",
          const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
 
+void ExecOrDie(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
+               const std::string &new_stdout = "", const std::string &new_stderr = "",
+               const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
 
 /** \brief  Kicks off a subcommand and returns.
  *  \param  command             The path to the command that should be executed.
@@ -83,18 +88,28 @@ int Spawn(const std::string &command, const std::vector<std::string> &args = {},
 std::string Which(const std::string &executable_candidate);
 
 
-/** \brief Like Which(), only we abort if we can't find \"executable_candidate\".
+/** \brief  Like Which(), only we abort if we can't find \"executable_candidate\".
  *  \return The path where the executable can be found.
  */
 std::string LocateOrDie(const std::string &executable_candidate);
 
 
-/**  \brief Retrieve the stdout of a subcommand.
- *   \param command        A shell command.  Can include arguments. E.g. "ls -l".
- *   \param stdout_output  Where to store the output of the command.
- *   \note  The command will be executed by passing it to the standard shell interpreter: "/bin/sh -c command".
+/** \brief  Retrieve the stdout of a subcommand.
+ *  \param  command        A shell command.  Can include arguments. E.g. "ls -l".
+ *  \param  stdout_output  Where to store the output of the command.
+ *  \note   The command will be executed by passing it to the standard shell interpreter: "/bin/sh -c command".
  */
 bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output);
+
+
+/** \brief  Retrieve the stdout and stderr of a subcommand.
+ *  \param  command             The path to the command that should be executed.
+ *  \param  args                The arguments for the command, not including the command itself.
+ *  \param  stdout_output  Where to store the stdout of the command.
+ *  \param  stderr_output  Where to store the stderr of the command.
+ */
+bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const std::vector<std::string> &args,
+                                             std::string * const stdout_output, std::string * const stderr_output);
 
 
 } // namespace ExecUtil

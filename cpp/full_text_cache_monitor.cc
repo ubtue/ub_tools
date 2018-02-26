@@ -20,8 +20,6 @@
 */
 
 #include <algorithm>
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/bind.hpp>
 #include <iostream>
 #include <set>
 #include <sstream>

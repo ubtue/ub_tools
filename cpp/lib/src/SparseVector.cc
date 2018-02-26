@@ -78,14 +78,14 @@ void SparseVector::set(const unsigned i, const real value) {
     if (unlikely(i >= logical_size_))
         throw std::runtime_error("in SparseVector::set: Index out of bounds!");
 
-	// The first branch of this if block looks strange, but it's needed because some matrix operations might
-	// store intermediate values for the i-th element which later end up adding to zero, in which case we want
-	// to remove its storage.
+    // The first branch of this if block looks strange, but it's needed because some matrix operations might
+    // store intermediate values for the i-th element which later end up adding to zero, in which case we want
+    // to remove its storage.
 
-	if (unlikely(value == 0.0))
-		index_value_pairs_.erase(i);
-	else
-		index_value_pairs_[i] = value;
+    if (unlikely(value == 0.0))
+        index_value_pairs_.erase(i);
+    else
+        index_value_pairs_[i] = value;
 }
 
 

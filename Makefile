@@ -4,16 +4,20 @@ TUEFIND_FLAVOUR ?= "unknown"
 all:
 	$(MAKE) -C cpp/lib/mkdep;
 	$(MAKE) -C cpp;
-	$(MAKE) -C solr_plugins;
-	$(MAKE) -C solrmarc_mixin;
-	$(MAKE) -C cronjobs
+	if [ $(TUEFIND_FLAVOUR) != "unknown" ]; then\
+	    $(MAKE) -C solr_plugins;\
+	    $(MAKE) -C solrmarc_mixin;\
+	    $(MAKE) -C cronjobs;\
+	fi
 
 install: install_configs
 	$(MAKE) -C cpp/lib/mkdep install;
 	$(MAKE) -C cpp install;
-	$(MAKE) -C solr_plugins install;
-	$(MAKE) -C solrmarc_mixin install;
-	$(MAKE) -C cronjobs install
+	if [ $(TUEFIND_FLAVOUR) != "unknown" ]; then\
+	    $(MAKE) -C solr_plugins;\
+	    $(MAKE) -C solrmarc_mixin;\
+	    $(MAKE) -C cronjobs;\
+	fi
 
 clean:
 	$(MAKE) -C cpp/lib/mkdep clean;

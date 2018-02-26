@@ -8,6 +8,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.
+ *  Copyright 2018 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -32,6 +33,9 @@
 
 #include <string>
 #include <cstdint>
+#ifndef _BSD_SOURCE
+#   define _BSD_SOURCE
+#endif
 #include <ctime>
 #include "PerlCompatRegExp.h"
 
@@ -106,7 +110,7 @@ time_t TimeGm(const struct tm &tm);
 
 struct tm StringToStructTm(const std::string &date_and_time, const std::string &format = DEFAULT_FORMAT);
 
-    
+
 /** \brief   Convert a time from a time_t to a string, using local time.
  *  \param   the_time  The time to convert.
  *  \param   format    The format of the result, in strftime(3) format.
@@ -232,6 +236,17 @@ void Millisleep(const unsigned sleep_interval);
 
 
 std::string GetCurrentYear(const TimeZone time_zone = LOCAL);
+
+
+/** \brief Parses a date/time in RFC1123 date and time format.
+ *  \note The returned time is UTC time.
+ *  \note If an error occurred we return false and set "*date_time" to BAD_TIME_T.
+ */
+bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const date_time);
+
+
+// Debugging aid.
+std::string StructTmToString(const struct tm &tm);
 
 
 } // namespace TimeUtil

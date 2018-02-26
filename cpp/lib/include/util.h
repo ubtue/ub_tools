@@ -2,7 +2,7 @@
  *  \brief  Various utility functions that did not seem to logically fit anywhere else.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,35 +32,59 @@
 
 
 // Macros to create strings describing where and why an error occurred. Must be macros to access __FILE__ and __LINE__.
-// This gobble-dee-goop necessary to turn __LINE__ into a string. See doctor dobs: http://www.ddj.com/dept/cpp/184403864
+// This gobble-dee-goop is necessary to turn __LINE__ into a string. See doctor dobs: http://www.ddj.com/dept/cpp/184403864
 //
 #define Stringize(S) ReallyStringize(S)
 #define ReallyStringize(S) #S
 
 
 // A thread-safe logger class.
+// \note Set the environment variable LOGGER_FORMAT to control the output format of our logger.
 class Logger {
     friend Logger *LoggerInstantiator();
     std::mutex mutex_;
     int fd_;
+    bool log_process_pids_;
+public:
+    enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
 private:
-    Logger(): fd_(STDERR_FILENO) { }
+    LogLevel min_log_level_;
+    Logger();
 public:
     void redirectOutput(const int new_fd) { fd_ = new_fd; }
 
-    /** Emits "msg" and then calls exit(3). */
+    void setMinimumLogLevel(const LogLevel min_log_level) { min_log_level_ = min_log_level; }
+    LogLevel getMinimumLogLevel() const { return min_log_level_; }
+
+    //* Emits "msg" and then calls exit(3), also generates a call stack trace if the environment variable BACKTRACE has been set.
     void error(const std::string &msg) __attribute__((noreturn));
+    inline void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn))
+        { error("in " + function_name + ": " + msg); }
 
     void warning(const std::string &msg);
+    inline void warning(const std::string &function_name, const std::string &msg) { warning("in " + function_name + ": " + msg); }
 
     void info(const std::string &msg);
+    inline void info(const std::string &function_name, const std::string &msg) { info("in " + function_name + ": " + msg); }
 
     /** \note Only writes actual log messages if the environment variable "UTIL_LOG_DEBUG" exists and is set
      *  to "true"!
      */
     void debug(const std::string &msg);
+    inline void debug(const std::string &function_name, const std::string &msg) { debug("in " + function_name + ": " + msg); }
+
+    //* \note Aborts if ""level_candidate" is not one of "ERROR", "WARNING", "INFO" or "DEBUG".
+    static LogLevel StringToLogLevel(const std::string &level_candidate);
+private:
+    void writeString(std::string msg);
 };
 extern Logger *logger;
+
+
+#define ERROR(message)   logger->error(__PRETTY_FUNCTION__, message)
+#define WARNING(message) logger->warning(__PRETTY_FUNCTION__, message)
+#define INFO(message)    logger->info(__PRETTY_FUNCTION__, message)
+#define DEBUG(message)   logger->debug(__PRETTY_FUNCTION__, message)
 
 
 // TestAndThrowOrReturn -- tests condition "cond" and, if it evaluates to "true", throws an exception unless another

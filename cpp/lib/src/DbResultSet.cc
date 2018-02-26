@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbResultSet class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -59,6 +59,17 @@ DbRow DbResultSet::getNextRow() {
     return DbRow(row, field_sizes, field_count, field_name_to_index_map_);
 }
 
+
 bool DbResultSet::hasColumn(const std::string &column_name) const {
     return field_name_to_index_map_.find(column_name) != field_name_to_index_map_.cend();
+}
+
+
+std::unordered_set<std::string> DbResultSet::getColumnSet(const std::string &column) {
+    std::unordered_set<std::string> set;
+
+    while (const DbRow row = getNextRow())
+        set.emplace(row[column]);
+
+    return set;
 }

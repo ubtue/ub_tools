@@ -5,6 +5,7 @@ BIN=/usr/local/bin
 EMAIL=krimdok-team@ub.uni-tuebingen.de
 VUFIND_HOME=/usr/local/vufind
 VUFIND_LOCAL_DIR=/usr/local/vufind/local/tuefind/instances/krimdok
+TUEFIND_FLAVOUR=krimdok
 LOG_DIR=/usr/local/var/log/tuefind
 0 */4 * * * cd "$BSZ_DATEN" && "$BIN/black_box_monitor.py" "$EMAIL" > "$LOG_DIR/black_box_monitor.log" 2>&1
 0 0 * * * "$BIN/log_rotate" --max-rotations=4 "$LOG_DIR" "(?<!(java_mem_stats))\\.log$"
@@ -14,6 +15,6 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 3 * * * cd "$BSZ_DATEN" && "$BIN/fetch_marc_updates.py" "$EMAIL" > "$LOG_DIR/fetch_marc_updates.log" 2>&1
 0 4 * * * cd "$BSZ_DATEN" && "$BIN/merge_differential_and_full_marc_updates" "$EMAIL" > "$LOG_DIR/merge_differential_and_full_marc_updates.log" 2>&1
 0 5 * * * cd "$BSZ_DATEN" && "$BIN/initiate_marc_pipeline.py" "$EMAIL" "$BIN/krimdok_marc_pipeline.sh" > "$LOG_DIR/initiate_marc_pipeline.log" 2>&1
-0 20 * * 2 "$BIN/upload_crossref_records.py" "$EMAIL" > "$LOG_DIR/upload_crossref_records.log" 2>&1
 0 20 * * 4 "$BIN/full_text_stats" "/usr/local/var/lib/tuelib/full_text_stats.txt" "$EMAIL" > "$LOG_DIR/full_text_stats.log" 2>&1
 0 21 * * 7 systemctl restart vufind
+30 21 * * 7 "$BIN/collect_solr_stats_data.py" "$EMAIL" krimdok > "$LOG_DIR/collect_solr_stats_data.log" 2>&1
