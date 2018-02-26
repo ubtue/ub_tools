@@ -2,7 +2,7 @@
  *  \brief  Interface for JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -79,6 +79,7 @@ public:
     virtual ~JSONNode() { }
 
     virtual Type getType() const = 0;
+    virtual JSONNode *clone() const = 0;
     virtual std::string toString() const = 0;
     static std::string TypeToString(const Type type);
 };
@@ -89,8 +90,9 @@ class BooleanNode final : public JSONNode {
 public:
     explicit BooleanNode(const bool value): value_(value) { }
 
-    virtual Type getType() const { return BOOLEAN_NODE; }
-    virtual std::string toString() const { return value_ ? "true" : "false"; }
+    virtual Type getType() const override { return BOOLEAN_NODE; }
+    virtual BooleanNode *clone() const override { return new BooleanNode(value_); }
+    virtual std::string toString() const override { return value_ ? "true" : "false"; }
     bool getValue() const { return value_; }
 };
 
@@ -99,8 +101,9 @@ class NullNode final : public JSONNode {
 public:
     NullNode() { }
 
-    virtual Type getType() const { return NULL_NODE; }
-    virtual std::string toString() const { return "null"; }
+    virtual Type getType() const override { return NULL_NODE; }
+    virtual NullNode *clone() const override { return new NullNode; }
+    virtual std::string toString() const override { return "null"; }
 };
 
 
@@ -109,8 +112,9 @@ class StringNode final : public JSONNode {
 public:
     explicit StringNode(const std::string value): value_(value) { }
 
-    virtual Type getType() const { return STRING_NODE; }
-    virtual std::string toString() const;
+    virtual Type getType() const override { return STRING_NODE; }
+    virtual StringNode *clone() const override { return new StringNode(value_); }
+    virtual std::string toString() const override;
     const std::string &getValue() const { return value_; }
 };
 
@@ -119,8 +123,10 @@ class IntegerNode final : public JSONNode {
     int64_t value_;
 public:
     explicit IntegerNode(const int64_t value): value_(value) { }
-    virtual Type getType() const { return INT64_NODE; }
-    virtual std::string toString() const { return std::to_string(value_); }
+
+    virtual IntegerNode *clone() const override { return new IntegerNode(value_); }
+    virtual Type getType() const override { return INT64_NODE; }
+    virtual std::string toString() const override { return std::to_string(value_); }
     int64_t getValue() const { return value_; }
 };
 
@@ -129,8 +135,10 @@ class DoubleNode final : public JSONNode {
     double value_;
 public:
     explicit DoubleNode(const double value): value_(value) { }
-    virtual Type getType() const { return DOUBLE_NODE; }
-    virtual std::string toString() const { return std::to_string(value_); }
+
+    virtual DoubleNode *clone() const override { return new DoubleNode(value_); }
+    virtual Type getType() const override { return DOUBLE_NODE; }
+    virtual std::string toString() const override { return std::to_string(value_); }
     double getValue() const { return value_; }
 };
 
@@ -142,8 +150,10 @@ public:
 public:
     ObjectNode() { }
     virtual ~ObjectNode();
-    virtual Type getType() const { return OBJECT_NODE; }
-    virtual std::string toString() const;
+
+    virtual ObjectNode *clone() const override;
+    virtual Type getType() const override { return OBJECT_NODE; }
+    virtual std::string toString() const override;
     bool empty() const { return entries_.empty(); }
 
     /** \return False if the new node was not inserted because the label already existed, o/w true. */
@@ -169,8 +179,9 @@ public:
     explicit ArrayNode() { }
     virtual ~ArrayNode();
 
-    virtual Type getType() const { return ARRAY_NODE; }
-    virtual std::string toString() const;
+    virtual ArrayNode *clone() const override;
+    virtual Type getType() const override { return ARRAY_NODE; }
+    virtual std::string toString() const override;
     bool empty() const { return values_.empty(); }
     const JSONNode *getValue(const size_t index) const { return values_[index]; }
     JSONNode *getValue(const size_t index) { return values_[index]; }

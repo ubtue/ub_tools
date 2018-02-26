@@ -2,7 +2,7 @@
  *  \brief  Implementation of JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbiblothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -347,7 +347,7 @@ std::string JSONNode::TypeToString(const Type type) {
     };
 }
 
-    
+
 std::string StringNode::toString() const {
     return "\"" + EscapeDoubleQuotes(value_) + "\"";
 }
@@ -356,6 +356,15 @@ std::string StringNode::toString() const {
 ObjectNode::~ObjectNode() {
     for (auto &entry : entries_)
         delete entry.second;
+}
+
+
+ObjectNode *ObjectNode::clone() const {
+    ObjectNode *the_clone(new ObjectNode);
+    for (const auto &entry : entries_)
+        the_clone->entries_[entry.first] = entry.second->clone();
+
+    return the_clone;
 }
 
 
@@ -409,6 +418,16 @@ JSONNode *ObjectNode::getValue(const std::string &label) {
 ArrayNode::~ArrayNode() {
     for (auto &value : values_)
         delete value;
+}
+
+
+ArrayNode *ArrayNode::clone() const {
+    ArrayNode *the_clone(new ArrayNode);
+    the_clone->values_.reserve(values_.size());
+    for (const auto &node : values_)
+        the_clone->values_.emplace_back(node->clone());
+
+    return the_clone;
 }
 
 
