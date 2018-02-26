@@ -50,7 +50,7 @@ private:
     std::string last_tag_name_;
     std::string *data_collector_;
     TextUtil::UTF8ToUTF32Decoder utf8_to_utf32_decoder_;
-    static const std::deque<int> CDATA_DEQUE;
+    static const std::deque<int> CDATA_DEQUE, COMMENT_DEQUE;
 public:
     SimpleXmlParser(DataSource * const input);
 
@@ -89,13 +89,14 @@ public:
 
     static std::string TypeToString(const Type type);
 private:
+    enum SpecialState { NOTHING_SPECIAL, START_OF_CDATA, START_OF_COMMENT };
     int getUnicodeCodePoint();
-    int get(bool * const cdata_mode = nullptr);
+    int get(SpecialState * const special_state = nullptr);
     int peek();
     void unget(const int ch);
     bool extractAttribute(std::string * const name, std::string * const value, std::string * const error_message);
     void parseOptionalPrologue();
-    void skipOptionalProcessingInstruction();
+    bool skipOptionalProcessingInstructionOrComment();
     bool extractName(std::string * const name);
     bool extractQuotedString(const int closing_quote, std::string * const s);
     bool parseCDATA(std::string * const data);
@@ -106,7 +107,11 @@ private:
 
 
 template<typename DataSource> const std::deque<int> SimpleXmlParser<DataSource>::CDATA_DEQUE{
-    '<', '!', 'C', 'D', 'A', 'T', 'A', '[' };
+    '<', '!', '[', 'C', 'D', 'A', 'T', 'A', '[' };
+
+
+template<typename DataSource> const std::deque<int> SimpleXmlParser<DataSource>::COMMENT_DEQUE{
+    '<', '!', '-', '-' };
 
 
 template<typename DataSource> SimpleXmlParser<DataSource>::SimpleXmlParser(DataSource * const input)
@@ -131,25 +136,31 @@ template<typename DataSource> int SimpleXmlParser<DataSource>::getUnicodeCodePoi
 }
 
 
-template<typename DataSource> int SimpleXmlParser<DataSource>::get(bool * const cdata_mode) {
-    if (cdata_mode != nullptr) {
+template<typename DataSource> int SimpleXmlParser<DataSource>::get(SpecialState * const special_state) {
+    if (special_state != nullptr) {
         // Look for a cached EOF:
         if (std::find(pushed_back_chars_.cbegin(), pushed_back_chars_.cend(), EOF) != pushed_back_chars_.cend())
-            *cdata_mode = false;
+            *special_state = NOTHING_SPECIAL;
         else {
             while (pushed_back_chars_.size() < __builtin_strlen("<![CDATA[")) {
                 const int ch(getUnicodeCodePoint());
                 pushed_back_chars_.push_back(ch);
                 if (unlikely(ch == EOF)) {
-                    *cdata_mode = false;
+                    *special_state = NOTHING_SPECIAL;
                     goto pop_char;
                 }
             }
 
-            *cdata_mode = pushed_back_chars_ == CDATA_DEQUE;
-            if (*cdata_mode) {
+            if (pushed_back_chars_ == CDATA_DEQUE)
+                *special_state = START_OF_CDATA;
+            else if (pushed_back_chars_ == COMMENT_DEQUE)
+                *special_state = START_OF_COMMENT;
+            else
+                *special_state = NOTHING_SPECIAL;
+
+            if (*special_state != NOTHING_SPECIAL) {
                 pushed_back_chars_.clear();
-                pushed_back_chars_.push_back(getUnicodeCodePoint());
+                return EOF;
             }
         }
     } else if (pushed_back_chars_.empty())
@@ -300,23 +311,45 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::extractName(std:
 }
 
 
-template<typename DataSource> void SimpleXmlParser<DataSource>::skipOptionalProcessingInstruction() {
+template<typename DataSource> bool SimpleXmlParser<DataSource>::skipOptionalProcessingInstructionOrComment() {
     skipWhiteSpace();
-    int ch(get());
+    SpecialState special_state;
+    int ch(get(&special_state));
+    if (special_state == START_OF_COMMENT) {
+        int consecutive_dash_count(0);
+        for (;;) {
+            ch = get();
+            if (ch == '-')
+                ++consecutive_dash_count;
+            else if (unlikely(ch == EOF)) {
+                last_error_message_ = "unexpected EOF while looking for the end of a comment!";
+                return false;
+            } else {
+                if (ch == '>' and consecutive_dash_count >= 2)
+                    return true;
+                consecutive_dash_count = 0;
+            }
+        }
+    }
+
     if (ch != '<' or peek() != '?') {
         unget(ch);
-        return;
+        return true;
     }
     get(); // Skip over the '?'.
 
     while ((ch = get()) != '?') {
-        if (unlikely(ch == EOF))
-            throw std::runtime_error("in SimpleXmlParser::skipProcessingInstruction: unexpected end-of-input "
-                                     "while parsing a processing instruction!");
+        if (unlikely(ch == EOF)) {
+            last_error_message_ = "unexpected end-of-input while parsing a processing instruction!";
+            return false;
+        }
     }
-    if (unlikely((ch = get()) != '>'))
-        throw std::runtime_error("in SimpleXmlParser::skipProcessingInstruction: expected '>' at end of "
-                                 "a processing instruction!");
+    if (unlikely((ch = get()) != '>')) {
+        last_error_message_ = "expected '>' at end of a processing instruction!";
+        return false;
+    }
+
+    return true;
 }
 
 
@@ -379,20 +412,21 @@ template<typename DataSource> bool SimpleXmlParser<DataSource>::getNext(
         return true;
     }
 
-    skipOptionalProcessingInstruction();
+    if (not skipOptionalProcessingInstructionOrComment()) {
+        *type = ERROR;
+        return false;
+    }
 
     int ch;
     if (last_type_ == OPENING_TAG) {
         last_type_ = *type = CHARACTERS;
 
 collect_next_character:
-        bool cdata_mode;
-        while ((ch = get(&cdata_mode)) != '<') {
-            if (cdata_mode) {
-                *data += TextUtil::UTF32ToUTF8(ch);
+        SpecialState special_state;
+        while ((ch = get(&special_state)) != '<') {
+            if (special_state == START_OF_CDATA) {
                 if (not parseCDATA(data))
                     return false;
-                cdata_mode = false;
             } else {
                 if (unlikely(ch == EOF)) {
                     last_error_message_ = "Unexpected EOF while looking for the start of a closing tag!";
