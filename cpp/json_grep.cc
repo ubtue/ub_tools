@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iostream>
+#include <memory>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "JSON.h"
@@ -67,10 +68,9 @@ int main(int /*argc*/, char *argv[]) {
             logger->error("could not read \"" + json_input_filename + "\"!");
 
         JSON::Parser parser(json_document);
-        JSON::JSONNode *tree;
+        std::shared_ptr<JSON::JSONNode> tree;
         if (not parser.parse(&tree)) {
             std::cerr << ::progname << ": " << parser.getErrorMessage() << '\n';
-            delete tree;
             return EXIT_FAILURE;
         }
 
@@ -82,8 +82,6 @@ int main(int /*argc*/, char *argv[]) {
                       << (default_value.empty() ? JSON::LookupString(lookup_path, tree)
                                                 : JSON::LookupString(lookup_path, tree), default_value)
                       << '\n';
-
-        delete tree;
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }

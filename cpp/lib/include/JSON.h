@@ -219,7 +219,6 @@ public:
     }
 public:
     ObjectNode() { }
-    virtual ~ObjectNode();
 
     virtual std::shared_ptr<JSONNode> clone() const override;
     virtual Type getType() const override { return OBJECT_NODE; }
@@ -412,7 +411,7 @@ int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONN
  *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
  *  \throws std::runtime_error if "path" refers to an existing non-integer node or the node "path" refers to does not exist.
  */
-int64_t LookupInteger(const std::string &path, std::shared_ptr<const JSONNode> &tree);
+int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONNode> &tree);
 
 
 // Escapes control codes, backslashes, double quotes, form feeds, newlines, carriage returns, and tab characters.

@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <memory>
 #include <set>
 #include <unordered_set>
 #include <cstring>
@@ -102,39 +103,32 @@ std::string ExtractInventory(const std::string &_910_subfield_a, const bool is_m
     if (_910_subfield_a.empty())
         return "";
 
-    JSON::JSONNode *tree_root(nullptr);
-    try {
-        JSON::Parser json_parser(_910_subfield_a);
-        if (not (json_parser.parse(&tree_root)))
-            logger->error("in ExtractInventory: failed to parse returned JSON: " + json_parser.getErrorMessage()
-                  + "(input was: " + StringUtil::CStyleEscape(_910_subfield_a) + ")");
+    std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
+    JSON::Parser json_parser(_910_subfield_a);
+    if (not (json_parser.parse(&tree_root)))
+        logger->error("in ExtractInventory: failed to parse returned JSON: " + json_parser.getErrorMessage()
+              + "(input was: " + StringUtil::CStyleEscape(_910_subfield_a) + ")");
 
-        if (tree_root->getType() != JSON::JSONNode::OBJECT_NODE)
-            logger->error("in ExtractInventory: expected an object node!");
-        const JSON::ObjectNode * const object(reinterpret_cast<const JSON::ObjectNode * const>(tree_root));
+    if (tree_root->getType() != JSON::JSONNode::OBJECT_NODE)
+        logger->error("in ExtractInventory: expected an object node!");
+    const std::shared_ptr<const JSON::ObjectNode> object(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
+    const std::shared_ptr<const JSON::JSONNode> inventory_node(object->getNode("bestand8032"));
+    if (inventory_node == nullptr)
+        return "";
+    if (inventory_node->getType() != JSON::JSONNode::STRING_NODE)
+        logger->error("in ExtractInventory: expected a string node!");
+    std::string inventory(JSON::JSONNode::CastToStringNodeOrDie("bestand8032", inventory_node)->getValue());
 
-        const JSON::JSONNode * const inventory_node(object->getNode("bestand8032"));
-        if (inventory_node == nullptr)
-            return "";
-        if (inventory_node->getType() != JSON::JSONNode::STRING_NODE)
-            logger->error("in ExtractInventory: expected a string node!");
-        std::string inventory(reinterpret_cast<const JSON::StringNode * const>(inventory_node)->getValue());
-
-        if (not is_monograph) {
-            const JSON::JSONNode * const comment_node(object->getNode("komment"));
-            if (comment_node != nullptr) {
-                if (comment_node->getType() != JSON::JSONNode::STRING_NODE)
-                    logger->error("in ExtractInventory: expected a string node! (2)");
-                inventory += "(" + reinterpret_cast<const JSON::StringNode * const>(comment_node)->getValue() + ")";
-            }
+    if (not is_monograph) {
+        const std::shared_ptr<const JSON::StringNode> comment_node(object->getStringNode("komment"));
+        if (comment_node != nullptr) {
+            if (comment_node->getType() != JSON::JSONNode::STRING_NODE)
+                logger->error("in ExtractInventory: expected a string node! (2)");
+            inventory += "(" + comment_node->getValue() + ")";
         }
-
-        delete tree_root;
-        return inventory;
-    } catch (...) {
-        delete tree_root;
-        throw;
     }
+
+    return inventory;
 }
 
 

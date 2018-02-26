@@ -20,6 +20,7 @@
 */
 
 #include <iostream>
+#include <memory>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "JSON.h"
@@ -49,14 +50,13 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
         logger->error("in IssueQueryAndWriteOutput: Solr query \"" + query + "\" failed!");
 
     JSON::Parser parser(json_result);
-    JSON::JSONNode *tree_root;
+    std::shared_ptr<JSON::JSONNode> tree_root;
     if (not parser.parse(&tree_root))
         logger->error("in IssueQueryAndWriteOutput: JSON parser failed: " + parser.getErrorMessage());
 
     *output << '"' << TextUtil::CSVEscape(system_type) << "\",\"" << TextUtil::CSVEscape(category) << "\",\""
             << TextUtil::CSVEscape(variable) << "\"," << JSON::LookupInteger("/response/numFound", tree_root) << ",\""
             << TextUtil::CSVEscape(TimeUtil::GetCurrentDateAndTime()) << "\"\n";
-    delete tree_root;
 }
 
 

@@ -799,12 +799,12 @@ static int64_t LookupInteger(const std::string &path, const std::shared_ptr<cons
 }
 
 
-int64_t LookupInteger(const std::string &path, const std::shared_ptr<JSONNode> &tree) {
+int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONNode> &tree) {
     return LookupInteger(path, tree, 0L, /* use_default_value = */ false);
 }
 
 
-int64_t LookupInteger(const std::string &path, const std::shared_ptr<JSONNode> &tree, const int64_t default_value) {
+int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONNode> &tree, const int64_t default_value) {
     return LookupInteger(path, tree, default_value, /* use_default_value = */ true);
 }
 
