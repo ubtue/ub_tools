@@ -39,14 +39,13 @@ Elasticsearch::Fields Elasticsearch::JSONToFields(const JSON::ObjectNode * const
 }
 
 
-JSON::ObjectNode * Elasticsearch::query(const std::string &action, const REST::QueryType query_type, std::shared_ptr<JSON::JSONNode> data) {
+JSON::ObjectNode * Elasticsearch::query(const std::string &action, const REST::QueryType query_type, const std::shared_ptr<JSON::JSONNode> &data) {
     Url url(host_.toString() + "/" + action);
     Downloader::Params params;
-    if (data != nullptr) {
+    if (data != nullptr)
         params.additional_headers_.push_back("Content-Type: application/json");
-    }
-    JSON::JSONNode * result(REST::Query(url, query_type, data, params));
-    JSON::ObjectNode * result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
+    JSON::JSONNode *result(REST::QueryJSON(url, query_type, data, params));
+    JSON::ObjectNode *result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));
     if (result_object->hasNode("error"))
         throw std::runtime_error(result_object->getNode("error")->toString());
 
@@ -64,26 +63,24 @@ void Elasticsearch::createDocument(const Document &document) {
 
 
 void Elasticsearch::createIndex() {
-    std::string action(index_);
-    query(action, REST::QueryType::PUT, nullptr);
+    query(index_, REST::QueryType::PUT);
 }
 
 
 void Elasticsearch::deleteDocument(const std::string &id) {
     std::string action(index_ + "/" + document_type_ + "/" + id);
-    query(action, REST::QueryType::DELETE, nullptr);
+    query(action, REST::QueryType::DELETE);
 }
 
 
 void Elasticsearch::deleteIndex() {
-    std::string action(index_);
-    query(action, REST::QueryType::DELETE, nullptr);
+    query(index_, REST::QueryType::DELETE);
 }
 
 
 Elasticsearch::Document Elasticsearch::getDocument(const std::string &id) {
     std::string action(index_ + "/" + document_type_ + "/" + id);
-    const JSON::ObjectNode * const result(query(action, REST::QueryType::GET, nullptr));
+    const JSON::ObjectNode * const result(query(action, REST::QueryType::GET));
     bool found(result->getOptionalBooleanValue("found", false));
     if (not found)
         throw std::runtime_error("document not found!" + result->toString());
@@ -97,7 +94,7 @@ Elasticsearch::Document Elasticsearch::getDocument(const std::string &id) {
 
 std::vector<std::string> Elasticsearch::getIndexList() {
     std::string action("_cluster/health?level=indices");
-    const JSON::ObjectNode * const result_node(query(action, REST::QueryType::GET, nullptr));
+    const JSON::ObjectNode * const result_node(query(action, REST::QueryType::GET));
 
     if (not result_node->hasNode("indices"))
         throw std::runtime_error("indices key not found in result: " + result_node->toString());
@@ -111,9 +108,22 @@ std::vector<std::string> Elasticsearch::getIndexList() {
 }
 
 
+Elasticsearch::IndexStatistics Elasticsearch::getIndexStatistics() {
+    std::string action(index_ + "/_stats");
+    JSON::ObjectNode *result_object(query(action, REST::QueryType::GET));
+    JSON::ObjectNode *indices_object(result_object->getObjectNode("indices"));
+    JSON::ObjectNode *index_object(indices_object->getObjectNode(index_));
+    JSON::ObjectNode *total_object(index_object->getObjectNode("total"));
+    JSON::ObjectNode *docs_object(total_object->getObjectNode("docs"));
+    IndexStatistics stats;
+    stats.document_count_ = static_cast<unsigned>(docs_object->getIntegerValue("count"));
+    return stats;
+}
+
+
 bool Elasticsearch::hasDocument(const std::string &id) {
     std::string action(index_ + "/" + document_type_ + "/" + id);
-    const JSON::ObjectNode * const result(query(action, REST::QueryType::GET, nullptr));
+    const JSON::ObjectNode * const result(query(action, REST::QueryType::GET));
     return result->getOptionalBooleanValue("found", false);
 }
 
